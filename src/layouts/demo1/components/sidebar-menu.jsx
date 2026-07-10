@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MENU_SIDEBAR } from '@/config/menu.config';
+import { MENU_SIDEBAR,MENU_SIDEBAR_ADMIN } from '@/config/menu.config';
 import { cn } from '@/lib/utils';
 import {
   AccordionMenu,
@@ -14,6 +14,9 @@ import {
   AccordionMenuSubTrigger,
 } from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
+
+const roleId = 1; // TODO: replace with real auth value
+const menuItems = roleId === 1 ? MENU_SIDEBAR_ADMIN : MENU_SIDEBAR;
 
 export function SidebarMenu() {
   const { pathname } = useLocation();
@@ -216,7 +219,7 @@ export function SidebarMenu() {
         collapsible
         classNames={classNames}
       >
-        {buildMenu(MENU_SIDEBAR)}
+        {buildMenu(menuItems)}
       </AccordionMenu>
     </div>
   );

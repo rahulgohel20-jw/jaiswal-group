@@ -108,6 +108,15 @@ import OutletListing from '../pages/outlets/OutletListing';
 import CompaniesListing from '../pages/company-registration/CompanyListing';
 import CompanyRegistration from '../pages/company-registration/CompanyRegistration';
 import AddOutlet from '../pages/outlets/AddOutlet';
+import PurchaseListing from '../pages/stock-purchase/PurchaseListing';
+import AddPurchase from '../pages/stock-purchase/AddPurchase';
+import PurchaseOrderListing from '../pages/purchase-order/PurchaseOrderListing';
+import AddPurchaseOrder from '../pages/purchase-order/AddPurchaseOrder';
+import PurchaseReturnList from '../pages/purchase-return-list/PurchaseReturnListing';
+import AddPurchaseReturn from '../pages/purchase-return-list/AddPurchaseReturn';
+import AvailableStocks from '../pages/manage-stocks/AvailableStocks';
+import AddStock from '../pages/manage-stocks/AddStock';
+import ClosingStock from '../pages/manage-stocks/ClosingStock';
 
 export function AppRoutingSetup() {
   return (
@@ -123,6 +132,18 @@ export function AppRoutingSetup() {
           <Route path="/outlets" element={<OutletListing />} />
           <Route path="/outlets/registration" element={<AddOutlet />} /> 
 
+          <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
+          <Route path="/purchase/add-purchase" element={<AddPurchase />} />
+
+          <Route path="/purchase/purchase-order" element={<PurchaseOrderListing />} />
+          <Route path="/purchase/add-purchase-order" element={<AddPurchaseOrder />} />
+
+          <Route path="/purchase/purchase-return" element={<PurchaseReturnList />} />
+          <Route path="/purchase/add-purchase-return" element={<AddPurchaseReturn />} />
+
+          <Route path="/stocks/available-stocks" element={<AvailableStocks />} />
+          <Route path="/stocks/closing-stock" element={<ClosingStock />} />
+          <Route path="/stocks/add-stock" element={<AddStock />} />
 
 
           <Route
