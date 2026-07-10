@@ -80,7 +80,7 @@ const NavbarMenu = ({ items }) => {
             >
               <span>{item.title}</span>
             </MenubarSubTrigger>
-            <MenubarSubContent className="min-w-[175px]">
+            <MenubarSubContent className="min-w-43.75">
               {buildSubMenu(item.children)}
             </MenubarSubContent>
           </MenubarSub>

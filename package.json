@@ -1,8 +1,20 @@
 {
   "name": "javascript",
-  "private": true,
   "version": "9.4.2",
+  "private": true,
+  "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",
+  "homepage": "https://github.com/rahulgohel20-jw/jaiswal-group#readme",
+  "bugs": {
+    "url": "https://github.com/rahulgohel20-jw/jaiswal-group/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rahulgohel20-jw/jaiswal-group.git"
+  },
+  "license": "ISC",
+  "author": "",
   "type": "module",
+  "main": "eslint.config.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

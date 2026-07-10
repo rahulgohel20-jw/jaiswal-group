@@ -593,7 +593,7 @@ const Dashboard = () => {
       </main>
 
       {/* Staff Analytics Modal */}
-      <AddMember
+      <AddMember  
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         staffData={selectedStaff}

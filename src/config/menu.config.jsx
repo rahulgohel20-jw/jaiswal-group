@@ -422,7 +422,7 @@ export const MENU_SIDEBAR = [
   {
     title: 'Users',
     icon: Users,
-    path: '/pipelineoverview',
+    path: '/users',
   },
   {
     title: 'Vendors',
