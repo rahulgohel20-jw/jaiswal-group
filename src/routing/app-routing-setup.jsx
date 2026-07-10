@@ -104,10 +104,10 @@ import { AddUser } from '../pages/UserManagement/AddUser';
 import CreatePipeline from '../pages/Pipelinescreen/CreatePipeline';
 import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
 import Setting from '../pages/settings/Settings';
+import OutletListing from '../pages/outlets/OutletListing';
 import CompaniesListing from '../pages/company-registration/CompanyListing';
 import CompanyRegistration from '../pages/company-registration/CompanyRegistration';
 import AddOutlet from '../pages/outlets/AddOutlet';
-import OutletListing from '../pages/outlets/OutletListing';
 
 export function AppRoutingSetup() {
   return (
@@ -117,9 +117,13 @@ export function AppRoutingSetup() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
 
-          <Route path="/companies" element={<CompaniesListing />} />
+          <Route path="/companies" element={<CompaniesListing />} /> 
+          <Route path="/companies/registration" element={<CompanyRegistration />} />
+
           <Route path="/outlets" element={<OutletListing />} />
-          <Route path="/outlets/registration" element={<AddOutlet />} />
+          <Route path="/outlets/registration" element={<AddOutlet />} /> 
+
+
 
           <Route
             path="/projectdashboard/taskview"

@@ -183,7 +183,7 @@ const PricingModal = ({ onClose, onPay }) => {
           <button
             type="button"
             onClick={() => onPay(plan)}
-            className="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold border-0 cursor-pointer transition"
+            className="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition"
           >
             Pay now
           </button>
@@ -342,7 +342,7 @@ const AddBranchForm = ({ onBack, onSave }) => {
           <button
             type="button"
             onClick={handlePayToAdd}
-            className="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold border-0 cursor-pointer transition"
+            className="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition"
           >
             Pay to add branch
           </button>
@@ -498,7 +498,7 @@ const ManageBranchForm = ({ branch, onBack, onUpdate }) => {
                 </span>
                 <button
                   type="button"
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold border-0 cursor-pointer transition whitespace-nowrap"
+                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-sky-900 text-white text-xs font-semibold border-0 cursor-pointer transition whitespace-nowrap"
                 >
                   Upgrade to Premium
                 </button>
@@ -528,7 +528,7 @@ const ManageBranchForm = ({ branch, onBack, onUpdate }) => {
           type="button"
           onClick={handleUpdate}
           disabled={saving}
-          className="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-60 flex items-center gap-2"
+          className="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-60 flex items-center gap-2"
         >
           {saving ? (
             <>

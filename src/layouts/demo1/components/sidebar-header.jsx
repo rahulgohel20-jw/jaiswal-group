@@ -18,7 +18,7 @@ export function SidebarHeader() {
       <Link to="/">
         <div className="dark:hidden flex gap-3 items-center">
           <img
-            src={toAbsoluteUrl('/media/app/jaiswal-group-logo.png')}
+            src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
             className="default-logo h-[45px] max-w-none"
             alt="Default Logo"
           />
@@ -32,14 +32,14 @@ export function SidebarHeader() {
           )}
 
           <img
-            src={toAbsoluteUrl('/media/app/jaiswal-group-logo.png')}
+            src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
             className="small-logo h-[30px] max-w-none"
             alt="Mini Logo"
           />
         </div>
         <div className="hidden dark:flex gap-3 items-center">
           <img
-            src={toAbsoluteUrl('/media/app/jaiswal-group-logo.png')}
+            src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
             className="default-logo h-[22px] max-w-none"
             alt="Default Dark Logo"
           />
