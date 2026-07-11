@@ -408,7 +408,7 @@ const VendorList = () => {
             </div>
           </div>
           <Link
-            to="/vendors/registration"
+            to="/vendors/add-vendor"
             className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition"
           >
             <Plus className="w-4 h-4" />
