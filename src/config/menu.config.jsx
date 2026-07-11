@@ -434,7 +434,7 @@ export const MENU_SIDEBAR = [
   {
     title: 'Vendors',
     icon: UserCog,
-    path: '/user-management',
+    path: '/vendors',
   },
   {
     title: 'KYC Information',

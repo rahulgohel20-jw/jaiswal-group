@@ -117,6 +117,8 @@ import AddPurchaseReturn from '../pages/purchase-return-list/AddPurchaseReturn';
 import AvailableStocks from '../pages/manage-stocks/AvailableStocks';
 import AddStock from '../pages/manage-stocks/AddStock';
 import ClosingStock from '../pages/manage-stocks/ClosingStock';
+import VendorListing from '../pages/vendors/VendorListing';
+import AddVendor from '../pages/vendors/AddVendor';
 
 export function AppRoutingSetup() {
   return (
@@ -130,7 +132,10 @@ export function AppRoutingSetup() {
           <Route path="/companies/registration" element={<CompanyRegistration />} />
 
           <Route path="/outlets" element={<OutletListing />} />
-          <Route path="/outlets/registration" element={<AddOutlet />} /> 
+          <Route path="/outlets/registration" element={<AddOutlet />} />
+
+          <Route path="/vendors" element={<VendorListing />} />
+          <Route path="/vendors/add-vendor" element={<AddVendor />} />
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
