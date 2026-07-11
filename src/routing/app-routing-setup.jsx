@@ -109,6 +109,8 @@ import CompaniesListing from '../pages/company-registration/CompanyListing';
 import CompanyRegistration from '../pages/company-registration/CompanyRegistration';
 import AddOutlet from '../pages/outlets/AddOutlet';
 import UserManagementList from '../pages/user/UserManagementList';
+import UserRegistration from '../pages/user/UserRegistration';
+
 
 export function AppRoutingSetup() {
   return (
@@ -126,6 +128,8 @@ export function AppRoutingSetup() {
 
 
            <Route path='/users' element={<UserManagementList/>} />  
+           <Route path='/users/add-new-user' element={<UserRegistration/>} />  
+
 
           <Route
             path="/projectdashboard/taskview"
