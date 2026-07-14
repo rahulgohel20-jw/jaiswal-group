@@ -442,11 +442,6 @@ export const MENU_SIDEBAR = [
     path: '/vendors',
   },
   {
-    title: 'KYC Information',
-    icon: BadgeCheck,
-    path: '/settings',
-  },
-    {
     title: 'Settings',
     icon: Settings,
     path: '/settings',

@@ -1,4 +1,4 @@
-import { ArrowRight, CircleAlert, HeartHandshake, User } from 'lucide-react'
+import { ArrowRight, CircleAlert, HeartHandshake, Save, User } from 'lucide-react'
 import React from 'react'
 import { Link } from 'react-router';
 
@@ -56,9 +56,9 @@ onboarding workflow designed for different roles.</p>
       </div>
 
          <p className='flex gap-2 items-center text-xs text-[#43474F99]'><CircleAlert size={15}/> You can change registration types or cancel this process at any stage.</p>
-         <div>
-            <button>Cancle</button>
-            <button>Save</button>
+         <div className="py-4 w-full border-t border-[#C3C6D1] mx-6 px-6 flex justify-end gap-5 text-sm">
+            <button className='py-2 px-6 border border-[#737781] text-[#43474F] rounded'>Cancle</button>
+            <button className='py-2 px-6 flex gap-2 items-center bg-[#084E92] text-white rounded'><Save size={15}/> Save</button>
          </div>
         </div>
     </div>

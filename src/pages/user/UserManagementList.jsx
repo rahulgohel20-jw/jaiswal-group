@@ -1,17 +1,22 @@
 import React, { useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   BadgeCheck,
   Building2,
   CircleCheck,
   CircleX,
   ClockFading,
   Download,
+  Eye,
   Hourglass,
   ListFilter,
   Plus,
   Search,
+  SquarePen,
+  Trash2,
   TrendingUp,
   UsersRound,
+  X,
 } from 'lucide-react';
 import { Link } from 'react-router';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
@@ -66,7 +71,6 @@ const DATA = [
 const INITIAL_DATA = [
   {
     id: 1,
-    img: <img src="" alt="profile-img" />,
     name: 'Aditya Jaiswal',
     createdBy: 'Created 12 Oct, 2023',
     code: 'USR-2024-0042',
@@ -75,13 +79,12 @@ const INITIAL_DATA = [
     role: 'Super Admin',
     department: 'Management',
     kycStatus: 'Verified',
-    kycIcon: <BadgeCheck />,
+    kycIcon: <BadgeCheck size={20}/>,
     color: 'text-[#15803D]',
-    action: 'View Details',
+    KycView: 'View Details',
   },
   {
     id: 2,
-    img: <img src="" alt="profile-img" />,
     name: 'Priya Sharma',
     createdBy: 'Created 12 Oct, 2023',
     code: 'USR-2024-0042',
@@ -90,13 +93,12 @@ const INITIAL_DATA = [
     role: 'Finance Head',
     department: 'Finance',
     kycStatus: 'Pending',
-    kycIcon: <ClockFading />,
+    kycIcon: <ClockFading size={20}/>,
     color: 'text-[#5F2600]',
-    action: 'Review KYC',
+    KycView: 'Review KYC',
   },
   {
     id: 3,
-    img: <img src="" alt="profile-img" />,
     name: 'Rahul Varma',
     createdBy: 'Created 12 Oct, 2023',
     code: 'USR-2024-0042',
@@ -105,13 +107,12 @@ const INITIAL_DATA = [
     role: 'Outlet Manager ',
     department: 'Operations',
     kycStatus: 'Verified',
-    kycIcon: <BadgeCheck />,
+    kycIcon: <BadgeCheck size={20}/>,
     color: 'text-[#15803D]',
-    action: 'Re-verify',
+    KycView: 'Re-verify',
   },
   {
     id: 4,
-    img: <img src="" alt="profile-img" />,
     name: 'Sneha Patel',
     createdBy: 'Created 12 Oct, 2023',
     code: 'USR-2024-0155',
@@ -120,13 +121,12 @@ const INITIAL_DATA = [
     role: 'Logistics Executive',
     department: 'Logistics',
     kycStatus: 'Rejected',
-    kycIcon: <CircleX />,
+    kycIcon: <CircleX size={20}/>,
     color: 'text-[#BA1A1A]',
-    action: 'View Details',
+    KycView: 'View Details',
   },
   {
     id: 5,
-    img: <img src="" alt="profile-img" />,
     name: 'Vikram Mehta',
     createdBy: 'Created 12 Oct, 2023',
     code: 'USR-2024-0201',
@@ -135,15 +135,104 @@ const INITIAL_DATA = [
     role: 'System Analyst',
     department: 'IT Support',
     kycStatus: 'Verified',
-    kycIcon: <BadgeCheck />,
+    kycIcon: <BadgeCheck size={20}/>,
     color: 'text-[#15803D]',
-    action: 'Review KYC',
+    KycView: 'Review KYC',
   },
 ];
 
+
+const DeleteConfirmModal = ({ user, onCancel, onConfirm }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
+      <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
+        <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
+          <AlertTriangle className="w-5 h-5" />
+        </div>
+        <h2 className="text-base font-bold text-gray-900">Delete user?</h2>
+        <p className="text-sm text-gray-500 mt-1.5">
+          This will permanently remove{" "}
+          <span className="font-semibold text-gray-700">{user.name}</span> from your
+          user list. This action cannot be undone.
+        </p>
+      </div>
+      <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold border-0 cursor-pointer transition"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+);
+const ViewUserModal = ({ user, onClose }) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+        <h2 className="text-base font-bold text-gray-900">User Details</h2>
+        <button
+          onClick={onClose}
+          className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="px-6 py-5 space-y-4">
+        {[
+          ["User Name", user.name],
+          ["User Code", user.code],
+          ["Company", user.company],
+          ["Role", user.role],
+          ["Department", user.department],
+          ["Email Address", user.email],
+          ["Created On", user.createdBy],
+        ].map(([label, value]) => (
+          <div key={label} className="flex items-center justify-between text-sm gap-4">
+            <span className="text-gray-400 shrink-0">{label}</span>
+            <span className="font-semibold text-gray-800 text-right break-all">{value}</span>
+          </div>
+        ))}
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-400">KYC Status</span>
+          <span className={`${user.color}`}>{user.kycStatus}</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={onClose}
+          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+);
 const UserManagementList = () => {
   const [userData, setUserData] = useState(INITIAL_DATA)
 const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [viewingUser, setViewingUser] = useState(null);
+  const [deletingUser, setDeletingUser] = useState(null);
+
+
+    const handleDelete = (user) => setDeletingUser(user);
+  const confirmDelete = () => {
+    setUserData((v) => v.filter((u) => u.id !== deletingUser.id));
+    setDeletingUser(null);
+  };
 
    const columns = useMemo(
       () => [
@@ -152,8 +241,13 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
           accessorFn: (row) => row.name,
           header: ({ column }) => <DataGridColumnHeader title="USER NAME" column={column} className="my-2 text-xs"/>,
           cell: ({ row }) => (
-            <div className='flex gap-2 items-center w-full'>
-                <img src="" alt="profile-img" className='w-10 h-10 rounded-full border border-gray-500' />
+            <div className='flex gap-3 items-center w-full'>
+                <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
+              {row.original.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")}
+            </div>
                 <div className='flex flex-col gap-1'>
                      <span className="font-semibold text-gray-800">{row.original.name}</span>
                      <span className="font-medium text-xs text-[#737781] ">{row.original.createdBy}</span>
@@ -162,6 +256,7 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
             </div>
           
           ),
+          size: 220,
         },
         {
           id: "code",
@@ -174,18 +269,21 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
           accessorFn: (row) => row.email,
           header: ({ column }) => <DataGridColumnHeader title="EMAIL ADDRESS" column={column} className="my-2 text-xs"/>,
           cell: ({ row }) => <span className="text-gray-600">{row.original.email}</span>,
+          size: 210,
         },
         {
           id: "company",
           accessorFn: (row) => row.company,
           header: ({ column }) => <DataGridColumnHeader title="COMPANY" column={column} className="my-2 text-xs"/>,
           cell: ({ row }) => <span className="text-gray-600">{row.original.company}</span>,
+          size: 220,
         },
         {
           id: "role",
           accessorFn: (row) => row.role,
           header: ({ column }) => <DataGridColumnHeader title="ROLE" column={column} className="my-2 text-xs"/>,
           cell: ({ row }) => <span className="text-gray-600">{row.original.role}</span>,
+          size: 160,
         },
          {
           id: "department",
@@ -203,10 +301,45 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
           </div>,
         },
          {
+          id: "KycView",
+          accessorFn: (row) => row.KycView,
+          header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
+          cell: ({ row }) => <Link to="/kyc-information" className={`${row.original.KycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.KycView} </Link>,
+        },
+         {
           id: "action",
           accessorFn: (row) => row.action,
           header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} />,
-          cell: ({ row }) => <span className={`${row.original.action === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.action}</span>,
+         cell: ({ row }) => (
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() => setViewingUser(row.original)}
+              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
+              title="View user"
+            >
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => alert(`Update ${row.original.name}`)}
+              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
+              title="Update user"
+            >
+              <SquarePen className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDelete(row.original)}
+              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition cursor-pointer bg-white"
+              title="Delete user"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ),
+        enableSorting: false,
+        size: 130,
         },
         
       ],
@@ -238,7 +371,7 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
           <Link
             to="/users/add-user"
-            className="flex gap-3 bg-[#084E92] justify-center items-center h-max p-4 rounded text-white text-xs"
+            className="flex gap-3 bg-[#084E92] justify-center items-center h-max p-3 rounded text-white text-sm"
           >
             <Plus size={15} /> Add New User
           </Link>
@@ -330,6 +463,18 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
                     </Card>
                   </DataGrid>
         </div>
+          {viewingUser && (
+        <ViewUserModal user={viewingUser} onClose={() => setViewingUser(null)} />
+      )}
+
+      {deletingUser && (
+        <DeleteConfirmModal
+         user={deletingUser}
+          onCancel={() => setDeletingUser(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
+
       </div>
     </container>
   );

@@ -122,6 +122,7 @@ import AddVendor from '../pages/vendors/AddVendor';
 import UserManagementList from '../pages/user/UserManagementList';
 import UserRegistration from '../pages/user/UserRegistration';
 import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSelectionPage';
+import KycInformation from '../pages/kyc-info/KycInformation';
 
 export function AppRoutingSetup() {
   return (
@@ -176,6 +177,8 @@ export function AppRoutingSetup() {
           <Route path="/issues-dashbiard" element={<IssuesDashboard/>}/>
 
           <Route path="/createpipeline" element={<CreatePipeline />} />
+
+          <Route path='/kyc-information' element={<KycInformation/>} />
           
           <Route path="/settings" element={<Setting />} />
 
