@@ -11,7 +11,7 @@ const ScrollspyMenu = ({ items }) => {
           indent ? 'gap-3.5' : 'gap-1.5',
         )}
       >
-        <span className="flex w-1.5 relative before:absolute start-px rtl:-start-[5px] before:top-0 before:size-1.5 before:rounded-full before:-translate-x-2/4 before:-translate-y-2/4 [[data-active=true]>&]:before:bg-primary"></span>
+        <span className="flex w-1.5 relative before:absolute inset-s-px rtl:-inset-s-1.25 before:top-0 before:size-1.5 before:rounded-full before:-translate-x-2/4 before:-translate-y-2/4 [[data-active=true]>&]:before:bg-primary"></span>
         {item.title}
       </div>
     );
@@ -43,7 +43,7 @@ const ScrollspyMenu = ({ items }) => {
   };
 
   return (
-    <div className="flex flex-col grow relative before:absolute before:start-[11px] before:top-0 before:bottom-0 before:border-s before:border-border text-sm">
+    <div className="flex flex-col grow relative before:absolute before:inset-s-2.75 before:top-0 before:bottom-0 before:border-s before:border-border text-sm">
       {renderChildren(items)}
     </div>
   );

@@ -119,6 +119,9 @@ import AddStock from '../pages/manage-stocks/AddStock';
 import ClosingStock from '../pages/manage-stocks/ClosingStock';
 import VendorListing from '../pages/vendors/VendorListing';
 import AddVendor from '../pages/vendors/AddVendor';
+import UserManagementList from '../pages/user/UserManagementList';
+import UserRegistration from '../pages/user/UserRegistration';
+import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSelectionPage';
 
 export function AppRoutingSetup() {
   return (
@@ -136,6 +139,10 @@ export function AppRoutingSetup() {
 
           <Route path="/vendors" element={<VendorListing />} />
           <Route path="/vendors/add-vendor" element={<AddVendor />} />
+          <Route path='/user-vendor-selection' element={<UserVendorSelectionPage/>} />
+
+          <Route path='/users' element={<UserManagementList/>} />
+          <Route path='/users/add-user' element={<UserRegistration />} />
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
@@ -165,6 +172,7 @@ export function AppRoutingSetup() {
           <Route path="/user-management/adduser" element={<AddUser />} />
 
 
+   
           <Route path="/issues-dashbiard" element={<IssuesDashboard/>}/>
 
           <Route path="/createpipeline" element={<CreatePipeline />} />

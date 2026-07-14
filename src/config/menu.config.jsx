@@ -427,9 +427,14 @@ export const MENU_SIDEBAR = [
     path: '/outlets',
   },
   {
+    title: 'User/Vendor Selection',
+    icon: UserPlus,
+    path:'/user-vendor-selection',
+  },
+  {
     title: 'Users',
     icon: Users,
-    path: '/pipelineoverview',
+    path: '/users',
   },
   {
     title: 'Vendors',
