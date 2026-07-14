@@ -7,7 +7,7 @@ export function ScreenLoader() {
     <div className="flex flex-col items-center gap-2 justify-center fixed inset-0 z-50 transition-opacity duration-700 ease-in-out">
       <img
         className="h-[50px] max-w-none"
-        src={toAbsoluteUrl('/media/app/logo_jc_mono.svg')}
+        src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
         alt="logo"
       />
 
