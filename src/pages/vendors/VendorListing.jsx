@@ -39,6 +39,7 @@ const INITIAL_VENDORS = [
     mobile: "+91 98250 12345",
     category: "management",
     kycStatus: "verified",
+    kycView: 'View Details',
   },
   {
     id: 2,
@@ -50,6 +51,7 @@ const INITIAL_VENDORS = [
     mobile: "+91 90040 55210",
     category: "finance",
     kycStatus: "pending",
+    kycView: 'Review KYC',
   },
   {
     id: 3,
@@ -61,6 +63,7 @@ const INITIAL_VENDORS = [
     mobile: "+91 99789 33421",
     category: "operations",
     kycStatus: "verified",
+     kycView: 'Re-verify',
   },
   {
     id: 4,
@@ -72,6 +75,7 @@ const INITIAL_VENDORS = [
     mobile: "+91 97250 87612",
     category: "logistics",
     kycStatus: "rejected",
+    kycView: 'View Details',
   },
   {
     id: 5,
@@ -83,6 +87,7 @@ const INITIAL_VENDORS = [
     mobile: "+91 98980 44567",
     category: "it_support",
     kycStatus: "pending",
+    kycView: 'Review KYC',
   },
 ];
 
@@ -219,7 +224,7 @@ const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-
 
 const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, valueColor = "text-gray-900" }) => (
   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-3.5">
-    <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconBg} ${iconColor}`}>
+    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
       <Icon className="w-5 h-5" />
     </div>
     <div>
@@ -287,7 +292,7 @@ const VendorList = () => {
         header: ({ column }) => <DataGridColumnHeader title="User Name" column={column} />,
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
               {row.original.name
                 .split(" ")
                 .map((n) => n[0])
@@ -336,6 +341,13 @@ const VendorList = () => {
         cell: ({ row }) => <StatusBadge status={row.original.kycStatus} />,
         size: 130,
       },
+       {
+                id: "kycView",
+                accessorFn: (row) => row.kycView,
+                header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
+                cell: ({ row }) => <Link to="/vendor/kyc-information" className={`${row.original.kycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.kycView} </Link>,
+                size: 150,
+       },
       {
         id: "actions",
         header: () => (
@@ -453,7 +465,7 @@ const VendorList = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-6 mb-6 flex-wrap">
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 flex-shrink-0">
+          <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 shrink-0">
             <SlidersHorizontal className="w-4 h-4" />
             Filters
           </span>

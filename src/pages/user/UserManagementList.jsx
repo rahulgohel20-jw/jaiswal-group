@@ -242,7 +242,7 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
           header: ({ column }) => <DataGridColumnHeader title="USER NAME" column={column} className="my-2 text-xs"/>,
           cell: ({ row }) => (
             <div className='flex gap-3 items-center w-full'>
-                <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
               {row.original.name
                 .split(" ")
                 .map((n) => n[0])
@@ -304,7 +304,7 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
           id: "KycView",
           accessorFn: (row) => row.KycView,
           header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
-          cell: ({ row }) => <Link to="/kyc-information" className={`${row.original.KycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.KycView} </Link>,
+          cell: ({ row }) => <Link to="/user/kyc-information" className={`${row.original.KycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.KycView} </Link>,
         },
          {
           id: "action",

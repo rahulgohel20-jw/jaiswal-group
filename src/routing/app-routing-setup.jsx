@@ -122,7 +122,8 @@ import AddVendor from '../pages/vendors/AddVendor';
 import UserManagementList from '../pages/user/UserManagementList';
 import UserRegistration from '../pages/user/UserRegistration';
 import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSelectionPage';
-import KycInformation from '../pages/kyc-info/KycInformation';
+import KycInformation from '../pages/kyc-info/user-kycInformation/KycInformation';
+import VendorKycInfo from '../pages/kyc-info/vendor-kycInformation/VendorKycInfo';
 
 export function AppRoutingSetup() {
   return (
@@ -178,7 +179,8 @@ export function AppRoutingSetup() {
 
           <Route path="/createpipeline" element={<CreatePipeline />} />
 
-          <Route path='/kyc-information' element={<KycInformation/>} />
+          <Route path='/user/kyc-information' element={<KycInformation/>} />
+          <Route path='/vendor/kyc-information' element={<VendorKycInfo/>}/>
           
           <Route path="/settings" element={<Setting />} />
 
