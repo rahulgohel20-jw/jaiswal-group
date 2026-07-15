@@ -319,16 +319,13 @@ const CompanyRegistration = () => {
       <div>
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
-              <Building2 className="w-4 h-4" />
-            </div>
+          <div className="flex items-center gap-3 mb-4">
             <div>
-              <h1 className="text-lg font-bold text-gray-900 leading-none">
+              <h1 className="text-2xl font-bold text-gray-900 leading-none">
                 Registered Companies
               </h1>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Manage and monitor all corporate entities registered within the Jaiswal Group ecosystem through our
+              <p className="text-md text-gray-400 mt-2.5">
+                Manage and monitor all corporate entities registered within the Jaiswal Group ecosystem through our  <br />
                 centralized administration panel.
               </p>
             </div>
