@@ -336,8 +336,8 @@ const AssetsManagement = () => {
                         <Download size={16} />
                         Export
                     </button>
-                    <Link to="/assets-management/add">
-                    <button className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center">
+                    <Link to="/assets/add-asset">
+                    <button className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
                         <Plus size={16} />
                         Add Asset
                     </button>
