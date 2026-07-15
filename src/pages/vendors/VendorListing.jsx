@@ -392,16 +392,13 @@ const VendorList = () => {
     <Container>
       <div>
         {/* Page header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500">
-              <Handshake className="w-4 h-4" />
-            </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 leading-none">
+              <h1 className="text-2xl font-bold text-gray-900 leading-none">
                 Vendor Management List
               </h1>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-md text-gray-400 mt-2.5">
                 View and manage all registered enterprise vendors across the Jaiswal Group <br />
                 ecosystem.
               </p>
