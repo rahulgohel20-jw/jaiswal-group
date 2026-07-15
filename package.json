@@ -51,6 +51,7 @@
     "react": "^18.2.0",
     "react-apexcharts": "1.7.0",
     "react-aria-components": "^1.12.0",
+    "react-barcode": "^1.6.1",
     "react-datepicker": "^9.1.0",
     "react-day-picker": "^9.9.0",
     "react-dom": "^18.2.0",
