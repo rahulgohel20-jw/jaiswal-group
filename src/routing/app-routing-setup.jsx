@@ -123,13 +123,20 @@ import UserManagementList from '../pages/user/UserManagementList';
 import UserRegistration from '../pages/user/UserRegistration';
 import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSelectionPage';
 import KycInformation from '../pages/kyc-info/KycInformation';
+import LoginPage from '../pages/auth/login/Login';
 
 export function AppRoutingSetup() {
   return (
     <Routes>
+      <Route path="/" element={<LoginPage />} />
+      <Route path="error/*" element={<ErrorRouting />} />
+      <Route path="auth/*" element={<AuthRouting />} />
+      <Route path="*" element={<Navigate to="/error/404" />} />
+
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
-          <Route path="/" element={<Dashboard />} />
+
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
 
           <Route path="/companies" element={<CompaniesListing />} /> 
@@ -532,9 +539,6 @@ export function AppRoutingSetup() {
 
         </Route>
       </Route>
-      <Route path="error/*" element={<ErrorRouting />} />
-      <Route path="auth/*" element={<AuthRouting />} />
-      <Route path="*" element={<Navigate to="/error/404" />} />
     </Routes>
   );
 }
