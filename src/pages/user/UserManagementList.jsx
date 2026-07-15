@@ -68,6 +68,14 @@ const DATA = [
   },
 ];
 
+
+// Truncates long text within a fixed-width box, revealing the full value on hover
+const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
+  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+    {value}
+  </span>
+);
+
 const INITIAL_DATA = [
   {
     id: 1,
@@ -79,7 +87,7 @@ const INITIAL_DATA = [
     role: 'Super Admin',
     department: 'Management',
     kycStatus: 'Verified',
-    kycIcon: <BadgeCheck size={20}/>,
+    kycIcon: <BadgeCheck size={20} />,
     color: 'text-[#15803D]',
     KycView: 'View Details',
   },
@@ -93,7 +101,7 @@ const INITIAL_DATA = [
     role: 'Finance Head',
     department: 'Finance',
     kycStatus: 'Pending',
-    kycIcon: <ClockFading size={20}/>,
+    kycIcon: <ClockFading size={20} />,
     color: 'text-[#5F2600]',
     KycView: 'Review KYC',
   },
@@ -104,10 +112,10 @@ const INITIAL_DATA = [
     code: 'USR-2024-0042',
     email: 'rahul.v@jaiswalgroup.com',
     company: 'Jaiswal Group India Pvt Ltd',
-    role: 'Outlet Manager ',
+    role: 'Outlet Manager',
     department: 'Operations',
     kycStatus: 'Verified',
-    kycIcon: <BadgeCheck size={20}/>,
+    kycIcon: <BadgeCheck size={20} />,
     color: 'text-[#15803D]',
     KycView: 'Re-verify',
   },
@@ -121,7 +129,7 @@ const INITIAL_DATA = [
     role: 'Logistics Executive',
     department: 'Logistics',
     kycStatus: 'Rejected',
-    kycIcon: <CircleX size={20}/>,
+    kycIcon: <CircleX size={20} />,
     color: 'text-[#BA1A1A]',
     KycView: 'View Details',
   },
@@ -135,7 +143,7 @@ const INITIAL_DATA = [
     role: 'System Analyst',
     department: 'IT Support',
     kycStatus: 'Verified',
-    kycIcon: <BadgeCheck size={20}/>,
+    kycIcon: <BadgeCheck size={20} />,
     color: 'text-[#15803D]',
     KycView: 'Review KYC',
   },
@@ -221,96 +229,145 @@ const ViewUserModal = ({ user, onClose }) => (
     </div>
   </div>
 );
+
+
+const DEPARTMENT_OPTIONS = [
+  { key: "all", label: "All Categories" },
+  { key: "Management", label: "Management" },
+  { key: "Finance", label: "Finance" },
+  { key: "Operations", label: "Operations" },
+  { key: "Logistics", label: "Logistics" },
+  { key: "IT Support", label: "IT Support" },
+];
+
+const ROLE_OPTIONS = [
+  { key: "all", label: "All Roles" },
+  { key: "Super Admin", label: "Super Admin" },
+  { key: "Finance Head", label: "Finance Head" },
+  { key: "Outlet Manager", label: "Outlet Manager" },
+  { key: "Logistics Executive", label: "Logistics Executive" },
+  { key: "System Analyst", label: "System Analyst" },
+];
+
+const KYC_OPTIONS = [
+  { key: "all", label: "All KYC Statuses" },
+  { key: "Verified", label: "Verified" },
+  { key: "Pending", label: "Pending" },
+  { key: "Rejected", label: "Rejected" },
+];
 const UserManagementList = () => {
   const [userData, setUserData] = useState(INITIAL_DATA)
-const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [viewingUser, setViewingUser] = useState(null);
   const [deletingUser, setDeletingUser] = useState(null);
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [kycFilter, setKycFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
 
 
-    const handleDelete = (user) => setDeletingUser(user);
+
+  const filteredUser = useMemo(
+    () =>
+      userData.filter((u) => {
+        const matchesCategory = departmentFilter === "all" || u.department === departmentFilter;
+        const matchesKyc = kycFilter === "all" || u.kycStatus === kycFilter;
+        const matchesRole = roleFilter === "all" || u.role === roleFilter;
+        return matchesCategory && matchesKyc && matchesRole;
+      }),
+    [userData, departmentFilter, kycFilter, roleFilter],
+  );
+
+
+  const handleDelete = (user) => setDeletingUser(user);
   const confirmDelete = () => {
-    setUserData((v) => v.filter((u) => u.id !== deletingUser.id));
+    setUserData((u) => u.filter((u) => u.id !== deletingUser.id));
     setDeletingUser(null);
   };
+  const handleExport = (format) => {
+    alert(`Exporting ${filteredUser.length} user(s) as ${format.toUpperCase()}`);
+  };
 
-   const columns = useMemo(
-      () => [
-        {
-          id: "name",
-          accessorFn: (row) => row.name,
-          header: ({ column }) => <DataGridColumnHeader title="USER NAME" column={column} className="my-2 text-xs"/>,
-          cell: ({ row }) => (
-            <div className='flex gap-3 items-center w-full'>
-                <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
+  const columns = useMemo(
+    () => [
+      {
+        id: "name",
+        accessorFn: (row) => row.name,
+        header: ({ column }) => <DataGridColumnHeader title="USER NAME" column={column} className="my-2 text-xs" />,
+        cell: ({ row }) => (
+          <div className='flex gap-3 items-center w-full'>
+            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
               {row.original.name
                 .split(" ")
                 .map((n) => n[0])
                 .join("")}
             </div>
-                <div className='flex flex-col gap-1'>
-                     <span className="font-semibold text-gray-800">{row.original.name}</span>
-                     <span className="font-medium text-xs text-[#737781] ">{row.original.createdBy}</span>
-                </div>
-               
+            <div className='flex flex-col gap-1'>
+              <span className="font-semibold text-gray-800">{row.original.name}</span>
+              <span className="font-medium text-xs text-[#737781] ">{row.original.createdBy}</span>
             </div>
-          
-          ),
-          size: 220,
-        },
-        {
-          id: "code",
-          accessorFn: (row) => row.code,
-          header: ({ column }) => <DataGridColumnHeader title="USER CODE" column={column} className="my-2 text-xs"/>,
-          cell: ({ row }) => <span className="text-gray-600">{row.original.code}</span>,
-        },
-        {
-          id: "email",
-          accessorFn: (row) => row.email,
-          header: ({ column }) => <DataGridColumnHeader title="EMAIL ADDRESS" column={column} className="my-2 text-xs"/>,
-          cell: ({ row }) => <span className="text-gray-600">{row.original.email}</span>,
-          size: 210,
-        },
-        {
-          id: "company",
-          accessorFn: (row) => row.company,
-          header: ({ column }) => <DataGridColumnHeader title="COMPANY" column={column} className="my-2 text-xs"/>,
-          cell: ({ row }) => <span className="text-gray-600">{row.original.company}</span>,
-          size: 220,
-        },
-        {
-          id: "role",
-          accessorFn: (row) => row.role,
-          header: ({ column }) => <DataGridColumnHeader title="ROLE" column={column} className="my-2 text-xs"/>,
-          cell: ({ row }) => <span className="text-gray-600">{row.original.role}</span>,
-          size: 160,
-        },
-         {
-          id: "department",
-          accessorFn: (row) => row.department,
-          header: ({ column }) => <DataGridColumnHeader title="DEPARTMENT" column={column} className="my-2 text-xs"/>,
-          cell: ({ row }) => <span className="text-gray-600">{row.original.department}</span>,
-        },
-         {
-          id: "kycStatus",
-          accessorFn: (row) => row.kycStatus,
-          header: ({ column }) => <DataGridColumnHeader title="KYC STATUS" column={column} className="my-2 text-xs"/>,
-          cell: ({ row }) => <div className={`flex gap-1 items-center ${row.original.color} font-semibold`}>
-            <span>{row.original.kycIcon}</span>
-            <span>{row.original.kycStatus}</span>
-          </div>,
-        },
-         {
-          id: "KycView",
-          accessorFn: (row) => row.KycView,
-          header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
-          cell: ({ row }) => <Link to="/user/kyc-information" className={`${row.original.KycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.KycView} </Link>,
-        },
-         {
-          id: "action",
-          accessorFn: (row) => row.action,
-          header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} />,
-         cell: ({ row }) => (
+
+          </div>
+
+        ),
+        size: 210,
+      },
+      {
+        id: "code",
+        accessorFn: (row) => row.code,
+        header: ({ column }) => <DataGridColumnHeader title="USER CODE" column={column} className="my-2 text-xs" />,
+        cell: ({ row }) => <span className="text-gray-600">{row.original.code}</span>,
+        size: 150,
+      },
+      {
+        id: "email",
+        accessorFn: (row) => row.email,
+        header: ({ column }) => <DataGridColumnHeader title="EMAIL ADDRESS" column={column} className="my-2 text-xs" />,
+        cell: ({ row }) => <TruncatedCell value={row.original.email} widthClass="max-w-[190px]" />,
+        size: 150,
+      },
+      {
+        id: "company",
+        accessorFn: (row) => row.company,
+        header: ({ column }) => <DataGridColumnHeader title="COMPANY" column={column} className="my-2 text-xs" />,
+        cell: ({ row }) => <TruncatedCell value={row.original.company} widthClass="max-w-[190px]" />,
+        size: 150,
+      },
+      {
+        id: "role",
+        accessorFn: (row) => row.role,
+        header: ({ column }) => <DataGridColumnHeader title="ROLE" column={column} className="my-2 text-xs" />,
+        cell: ({ row }) => <span className="text-gray-600">{row.original.role}</span>,
+        size: 160,
+      },
+      {
+        id: "department",
+        accessorFn: (row) => row.department,
+        header: ({ column }) => <DataGridColumnHeader title="DEPARTMENT" column={column} className="my-2 text-xs" />,
+        cell: ({ row }) => <span className="text-gray-600">{row.original.department}</span>,
+        size: 120,
+      },
+      {
+        id: "kycStatus",
+        accessorFn: (row) => row.kycStatus,
+        header: ({ column }) => <DataGridColumnHeader title="KYC STATUS" column={column} className="my-2 text-xs" />,
+        cell: ({ row }) => <div className={`flex gap-1 items-center ${row.original.color} font-semibold`}>
+          <span>{row.original.kycIcon}</span>
+          <span>{row.original.kycStatus}</span>
+        </div>,
+        size: 120,
+      },
+      {
+        id: "KycView",
+        accessorFn: (row) => row.KycView,
+        header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
+        cell: ({ row }) => <Link to="/user/kyc-information" className={`${row.original.KycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.KycView} </Link>,
+        size: 120,
+      },
+      {
+        id: "action",
+        accessorFn: (row) => row.action,
+        header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} />,
+        cell: ({ row }) => (
           <div className="flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
@@ -340,21 +397,21 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
         ),
         enableSorting: false,
         size: 130,
-        },
-        
-      ],
-      [],
-    );
+      },
 
-      const table = useReactTable({
-        data: userData,
-        columns,
-        state: { pagination },
-        onPaginationChange: setPagination,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-      });
-  
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data: filteredUser,
+    columns,
+    state: { pagination },
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
+
   return (
     <container>
       <div className="w-full lg:w-[95%]">
@@ -409,71 +466,99 @@ const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
           <div className="w-full flex items-center gap-3 p-2 mx-3 lg:w-[80%]">
             <div className="text-sm">
               <p>Role</p>
-              <p className="py-2 px-2 bg-[#F1F3FF] rounded mt-1">
-                <select name="" id="" className='outline-none pr-6'>
-                  <option value="All Roles">All Roles</option>
+              <p className="py-2 px-2 rounded mt-1">
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
+                >
+                  {ROLE_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </p>
             </div>
 
             <div className="text-sm">
               <p>Department</p>
-              <p className="py-2 px-2 bg-[#F1F3FF] rounded mt-1">
-                <select name="" id=""  className='outline-none pr-6'>
-                  <option value="All Departments">All Departments</option>
+              <p className="py-2 px-2 rounded mt-1">
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
+                >
+                  {DEPARTMENT_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </p>
             </div>
             <div className="text-sm">
               <p>KYC Status</p>
-              <p className="py-2 px-2 bg-[#F1F3FF] rounded mt-1">
-                <select name="" id="" className='outline-none pr-6'>
-                  <option value="All Status">All Status</option>
+              <p className="py-2 px-2 rounded mt-1">
+                <select
+                  value={kycFilter}
+                  onChange={(e) => setKycFilter(e.target.value)}
+                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
+                >
+                  {KYC_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </p>
             </div>
           </div>
 
-          <div className="lg:w-[15%] md:w-[25%] text-xs my-2  flex items-center gap-2 w-full flex-col lg:flex-row">
+          <div className="lg:w-[15%] sm:w-[50%] text-xs my-2  flex items-center gap-5 w-full flex-col lg:flex-row">
             <div className="py-1 px-2 border border-[#C3C6D1] rounded">
-              <button className="flex items-center gap-1">
+              <button className="flex items-center gap-1 cursor-pointer" onClick={() => handleExport("csv")}>
                 <Download />
                 <p>Export</p>
               </button>
             </div>
 
-            <p className="text-[#084E92] font-bold">Clear All</p>
+            <button type='button' onClick={() => {
+              setDepartmentFilter("all");
+              setKycFilter("all");
+              setRoleFilter("all");
+            }} className="text-[#084E92] font-bold cursor-pointer">Clear All</button>
           </div>
         </div>
 
         <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl mx-6'>
-          <DataGrid table={table} recordCount={userData.length} className="rounded-2xl">
-          
-                    {/* Table Card */}
-                    <Card className="rounded-t-none border-t-0 rounded-2xl">
-                      <CardTable>
-                        <ScrollArea>
-                          <DataGridTable/>
-                          <ScrollBar orientation="horizontal" />
-                        </ScrollArea>
-                      </CardTable>
-                      <CardFooter className="bg-[#F9F9FF]  rounded-b-2xl">
-                        <DataGridPagination />
-                      </CardFooter>
-                    </Card>
-                  </DataGrid>
-        </div>
-          {viewingUser && (
-        <ViewUserModal user={viewingUser} onClose={() => setViewingUser(null)} />
-      )}
+          <DataGrid table={table} recordCount={filteredUser.length} className="rounded-2xl">
 
-      {deletingUser && (
-        <DeleteConfirmModal
-         user={deletingUser}
-          onCancel={() => setDeletingUser(null)}
-          onConfirm={confirmDelete}
-        />
-      )}
+            {/* Table Card */}
+            <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <CardTable>
+                <ScrollArea>
+                  <DataGridTable />
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </CardTable>
+              <CardFooter className="bg-[#F9F9FF]  rounded-b-2xl">
+                <DataGridPagination />
+              </CardFooter>
+            </Card>
+          </DataGrid>
+        </div>
+        {viewingUser && (
+          <ViewUserModal user={viewingUser} onClose={() => setViewingUser(null)} />
+        )}
+
+        {deletingUser && (
+          <DeleteConfirmModal
+            user={deletingUser}
+            onCancel={() => setDeletingUser(null)}
+            onConfirm={confirmDelete}
+          />
+        )}
 
       </div>
     </container>
