@@ -442,11 +442,6 @@ export const MENU_SIDEBAR = [
     path: '/vendors',
   },
   {
-    title: 'Settings',
-    icon: Settings,
-    path: '/settings',
-  },
-   {
     title: 'Assest Management',
     icon: LayoutGrid,
     children: [
@@ -455,7 +450,7 @@ export const MENU_SIDEBAR = [
       { title: 'Asset Type',  path: '' },
       { title: 'Asset Items', path: '' },
       { title: 'Assets', path: '/assests' },
-      { title: 'Assigned Asset', path: '' },
+      { title: 'Assigned Asset', path: '/assigned-assests' },
       { title: 'Conditions', path: '' },
       { title: '', path: '' },
     ],

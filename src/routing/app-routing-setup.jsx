@@ -127,6 +127,7 @@ import VendorKycInfo from '../pages/kyc-info/vendor-kycInformation/VendorKycInfo
 import LoginPage from '../pages/auth/login/Login';
 import AssetsManagement from '../pages/assest-management/assest-registry/AssetsManagement';
 import AddAsset from '../pages/assest-management/assest-registry/AddAsset';
+import AssignAssets from '../pages/assest-management/assign-assets/AssignAsset';
 
 export function AppRoutingSetup() {
   return (
@@ -157,6 +158,7 @@ export function AppRoutingSetup() {
 
           <Route path="/assests" element={<AssetsManagement />} />
           <Route path="/assets/add-asset" element={<AddAsset />} />
+          <Route path="/assigned-assests" element={<AssignAssets />} />
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
