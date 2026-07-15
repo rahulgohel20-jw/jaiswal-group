@@ -446,6 +446,20 @@ export const MENU_SIDEBAR = [
     icon: Settings,
     path: '/settings',
   },
+   {
+    title: 'Assest Management',
+    icon: LayoutGrid,
+    children: [
+      { title: 'Categories',path: '' },
+      { title: 'Sub Categories', path: '' },
+      { title: 'Asset Type',  path: '' },
+      { title: 'Asset Items', path: '' },
+      { title: 'Assets', path: '' },
+      { title: 'Assigned Asset', path: '' },
+      { title: 'Conditions', path: '' },
+      { title: '', path: '' },
+    ],
+  },
 ];
 
 export const MENU_SIDEBAR_ADMIN = [ 
