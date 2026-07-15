@@ -147,7 +147,7 @@ const CodeBox = ({ label, icon: Icon, actions }) => (
   </div>
 );
 
-const AssetRegistration = () => {
+const AddAsset = () => {
   const [openSections, setOpenSections] = useState({
     identification: true,
     product: true,
@@ -639,4 +639,4 @@ const AssetRegistration = () => {
   );
 };
 
-export default AssetRegistration;
+export default AddAsset;

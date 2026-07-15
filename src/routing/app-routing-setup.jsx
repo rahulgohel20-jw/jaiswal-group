@@ -125,6 +125,8 @@ import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSele
 import KycInformation from '../pages/kyc-info/user-kycInformation/KycInformation';
 import VendorKycInfo from '../pages/kyc-info/vendor-kycInformation/VendorKycInfo';
 import LoginPage from '../pages/auth/login/Login';
+import AssetsManagement from '../pages/assest-management/assest-registry/AssetsManagement';
+import AddAsset from '../pages/assest-management/assest-registry/AddAsset';
 
 export function AppRoutingSetup() {
   return (
@@ -152,6 +154,9 @@ export function AppRoutingSetup() {
 
           <Route path='/users' element={<UserManagementList/>} />
           <Route path='/users/add-user' element={<UserRegistration />} />
+
+          <Route path="/assests" element={<AssetsManagement />} />
+          <Route path="/assets/add-asset" element={<AddAsset />} />
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
