@@ -50,7 +50,9 @@ const UserRegistration = () => {
     setOpenSection((prev) => (prev === section ? prev : section));
 
   const [form, setForm] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
+    surname: '',
     userCode: 'USR-2023-0042',
     email: '',
     company: 'Jaiswal Group India Pvt Ltd',
@@ -90,16 +92,38 @@ const UserRegistration = () => {
 
         {openSection === 'personal' && (
           <div className="px-6 py-6 space-y-5">
-            <div>
-              <Label required>Full Name</Label>
+            
+             <div className="grid grid-cols-3 gap-4">
+              <div>
+              <Label required>First Name</Label>
               <input
-                value={form.fullName}
-                onChange={(e) => set('fullName', e.target.value)}
-                placeholder="Enter Full Name"
+                value={form.firstName}
+                onChange={(e) => set('firstName', e.target.value)}
+                placeholder="Enter First Name"
                 className={inputCls}
               />
             </div>
 
+              <div>
+              <Label required>Last Name</Label>
+              <input
+                value={form.lastName}
+                onChange={(e) => set('lastName', e.target.value)}
+                placeholder="Enter Last Name"
+                className={inputCls}
+              />
+            </div>
+
+             <div>
+              <Label required>Surname</Label>
+              <input
+                value={form.surname}
+                onChange={(e) => set('surname', e.target.value)}
+                placeholder="Enter Surname"
+                className={inputCls}
+              />
+            </div>
+            </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label>User Code</Label>
