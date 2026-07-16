@@ -447,8 +447,7 @@ export const MENU_SIDEBAR = [
     children: [
       { title: 'Categories',path: '/assets/categories' },
       { title: 'Sub Categories', path: '/assets/sub-categories' },
-      { title: 'Asset Type',  path: '' },
-      { title: 'Asset Items', path: '' },
+      { title: 'Asset Type',  path: '/assets-type' },
       { title: 'Assets', path: '/assets' },
       { title: 'Assigned Asset', path: '/assigned-assets' },
       { title: 'Conditions', path: '' },
