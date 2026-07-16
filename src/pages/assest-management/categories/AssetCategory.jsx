@@ -20,6 +20,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddCategoryModal from './AddCategoryModal';
+import AssetCategoryDetailsModal from './AssetCategoryDetailsModal'
 
 const STATS = [
     {
@@ -59,6 +60,13 @@ const INITIAL_CATEGORIES = [
         name: "Kitchen Equipment",
         description: "Commercial grade ovens, refrigeration, and cooking appliances.",
         status: "Active",
+        totalAssets: 428,
+        createdDate: "12 Oct, 2023",
+        activity: [
+            { title: "Category Updated", detail: "Description was modified by Admin Jaiswal", time: "2 hours ago" },
+            { title: "15 Assets Added", detail: "Bulk import of 15 new Industrial miners", time: "Yesterday, 4:30 PM" },
+            { title: "Category Created", detail: "Initial setup by Admin Jaiswal", time: "12 Oct 2023" },
+        ],
     },
     {
         id: 2,
@@ -97,6 +105,7 @@ const AssetCategory = () => {
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
     const [showAddCategory, setShowAddCategory] = useState(false);
+    const [viewingCategory, setViewingCategory] = useState(null);
 
     const handleSaveCategory = (data) => {
         setCategories((prev) => [
@@ -169,9 +178,9 @@ const AssetCategory = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
-            cell: () => (
+            cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button">
+                    <button type="button" onClick={() => setViewingCategory(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
                     <button type="button">
@@ -303,6 +312,12 @@ const AssetCategory = () => {
                 isOpen={showAddCategory}
                 onClose={() => setShowAddCategory(false)}
                 onSave={handleSaveCategory}
+            />
+
+            <AssetCategoryDetailsModal
+                isOpen={!!viewingCategory}
+                onClose={() => setViewingCategory(null)}
+                category={viewingCategory}
             />
         </div>
     );

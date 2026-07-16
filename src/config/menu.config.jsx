@@ -441,11 +441,6 @@ export const MENU_SIDEBAR = [
     icon: UserCog,
     path: '/vendors',
   },
-    {
-    title: 'Settings',
-    icon: UserCog,
-    path: '/settings',
-  },
   {
     title: 'Assest Management',
     icon: LayoutGrid,

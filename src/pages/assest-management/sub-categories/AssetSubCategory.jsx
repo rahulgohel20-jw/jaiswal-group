@@ -20,6 +20,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddSubCategoryModal from './AddSubCategoryModal';
+import AssetSubCategoryDetailsModal from './AssetSubCategoryDetailsModal';
 
 const STATS = [
     {
@@ -61,8 +62,11 @@ const INITIAL_SUBCATEGORIES = [
         id: 1,
         parentCategory: "IT Equipment",
         name: "Laptops & Notebooks",
-        description: "Standard issue corporate laptops and mobile workstations.",
+        description: "Standard issue corporate laptops, Ultrabooks, and high-performance mobile workstations assigned to employees across various departments. Includes Apple MacBooks, Dell Precision series, and Lenovo ThinkPads.",
         status: "Active",
+        assetCount: 412,
+        healthIndex: 92,
+        healthLabel: "Excellent",
     },
     {
         id: 2,
@@ -104,6 +108,7 @@ const AssetSubCategory = () => {
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
     const [showAddSubCategory, setShowAddSubCategory] = useState(false);
+    const [viewingSubCategory, setViewingSubCategory] = useState(null);
 
     const handleSaveSubCategory = (data) => {
         setSubCategories((prev) => [
@@ -187,9 +192,9 @@ const AssetSubCategory = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
-            cell: () => (
+            cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button">
+                    <button type="button" onClick={() => setViewingSubCategory(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
                     <button type="button">
@@ -317,6 +322,12 @@ const AssetSubCategory = () => {
                 isOpen={showAddSubCategory}
                 onClose={() => setShowAddSubCategory(false)}
                 onSave={handleSaveSubCategory}
+            />
+
+            <AssetSubCategoryDetailsModal
+                isOpen={!!viewingSubCategory}
+                onClose={() => setViewingSubCategory(null)}
+                subCategory={viewingSubCategory}
             />
         </div>
     );
