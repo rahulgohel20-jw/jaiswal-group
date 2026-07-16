@@ -21,7 +21,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 const INITIAL_COMPANIES = [
   {
@@ -184,6 +184,7 @@ const ViewCompanyModal = ({ company, onClose }) => (
 );
 
 const CompanyRegistration = () => {
+  const navigate = useNavigate();
   const [companies, setCompanies] = useState(INITIAL_COMPANIES);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -209,6 +210,10 @@ const CompanyRegistration = () => {
   const confirmDelete = () => {
     setCompanies((c) => c.filter((co) => co.id !== deletingCompany.id));
     setDeletingCompany(null);
+  };
+
+  const handleEdit = (company) => {
+    navigate("/companies/registration", { state: { company } });
   };
 
   const columns = useMemo(
@@ -275,7 +280,7 @@ const CompanyRegistration = () => {
             </button>
             <button
               type="button"
-              onClick={() => alert(`Update ${row.original.name}`)}
+              onClick={() => handleEdit(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
               title="Update company"
             >

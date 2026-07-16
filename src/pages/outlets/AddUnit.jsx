@@ -20,7 +20,7 @@ const COMPANIES = [
 const SERVICE_TYPES = [
   'Retail Store',
   'Wholesale Depot',
-  'Franchise Outlet',
+  'Franchise Unit',
   'Service Center',
   'Warehouse',
 ];
@@ -282,10 +282,10 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
-const AddOutlet = () => {
+const AddUnit = () => {
   // Each section has its own independent open/closed state
   const [openSections, setOpenSections] = useState({
-    outlet: true,
+    Unit: true,
     business: true,
     address: true,
   });
@@ -296,12 +296,14 @@ const AddOutlet = () => {
   const [showMapPicker, setShowMapPicker] = useState(false);
 
   const [form, setForm] = useState({
-    outletName: '',
-    outletCode: 'AHD-2526-0001',
+    UnitName: '',
+    UnitCode: 'AHD-2526-0001',
     logo: null,
     favicon: null,
     shortCode: '',
     email: '',
+    manager: '',
+    capacity: '',
     company: '',
     serviceType: '',
     addressLine1: '',
@@ -320,38 +322,38 @@ const AddOutlet = () => {
     <div className="mx-4 min-h-screen">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          Register New Outlet
+          Register New Unit
         </h1>
         <p className="text-[#43474F]">
-          Complete the form below to register a new outlet under the Jaiswal Group ecosystem.
+          Complete the form below to register a new Unit under the Jaiswal Group ecosystem.
         </p>
       </div>
 
-      {/* Outlet Information */}
+      {/* Unit Information */}
       <SectionCard className="mt-4">
         <SectionHeader
           icon={Info}
-          title="Outlet Information"
-          open={openSections.outlet}
-          onToggle={() => toggleSection('outlet')}
+          title="Unit Information"
+          open={openSections.Unit}
+          onToggle={() => toggleSection('Unit')}
         />
 
-        {openSections.outlet && (
+        {openSections.Unit && (
           <div className="px-6 py-6 space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label required>Outlet Name</Label>
+                <Label required>Unit Name</Label>
                 <input
-                  value={form.outletName}
-                  onChange={(e) => set('outletName', e.target.value)}
+                  value={form.UnitName}
+                  onChange={(e) => set('UnitName', e.target.value)}
                   placeholder="e.g. Jaiswal Group - Maninagar"
                   className={inputCls}
                 />
               </div>
               <div>
-                <Label>Outlet Code (Auto Generated)</Label>
+                <Label>Unit Code (Auto Generated)</Label>
                 <input
-                  value={form.outletCode}
+                  value={form.UnitCode}
                   disabled
                   className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
                 />
@@ -360,7 +362,7 @@ const AddOutlet = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <ImageUploadBox
-                label="Outlet Logo"
+                label="Unit Logo"
                 hint="PNG, JPG upto 2MB"
                 value={form.logo}
                 onChange={(v) => set('logo', v)}
@@ -389,8 +391,29 @@ const AddOutlet = () => {
                   type="email"
                   value={form.email}
                   onChange={(e) => set('email', e.target.value)}
-                  placeholder="outlet@example.com"
+                  placeholder="Unit@example.com"
                   className={inputCls}
+                />
+              </div>
+
+              <div>
+                <Label required>Capacity ( Meals Per Day )</Label>
+                <input
+                  type="number"
+                  value={form.capacity}
+                  onChange={(e) => set('capacity', e.target.value)}
+                  placeholder="e.g. 200"
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <Label required>Unit Manager</Label>
+                <Select
+                 value={form.manager}
+                 onChange={(e) => set('company', e.target.value)}
+                 placeholder="Select Manager"
+                 options={COMPANIES}
                 />
               </div>
             </div>
@@ -546,7 +569,7 @@ const AddOutlet = () => {
           type="button"
           className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
         >
-          Save Outlet
+          Save Unit
         </button>
       </div>
 
@@ -566,4 +589,4 @@ const AddOutlet = () => {
   );
 };
 
-export default AddOutlet;
+export default AddUnit;
