@@ -422,9 +422,9 @@ export const MENU_SIDEBAR = [
     path: '/companies',
   },
   {
-    title: 'Outlets',
+    title: 'Units',
     icon: Store,
-    path: '/outlets',
+    path: '/units',
   },
   {
     title: 'User/Vendor Selection',
@@ -447,7 +447,8 @@ export const MENU_SIDEBAR = [
     children: [
       { title: 'Categories',path: '/assets/categories' },
       { title: 'Sub Categories', path: '/assets/sub-categories' },
-      { title: 'Asset Type',  path: '/assets-type' },
+      { title: 'Assets Type',  path: '' },
+      { title: 'Assets Items', path: '' },
       { title: 'Assets', path: '/assets' },
       { title: 'Assigned Asset', path: '/assigned-assets' },
       { title: 'Conditions', path: '/conditions' },

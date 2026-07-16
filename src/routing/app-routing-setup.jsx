@@ -104,10 +104,10 @@ import { AddUser } from '../pages/UserManagement/AddUser';
 import CreatePipeline from '../pages/Pipelinescreen/CreatePipeline';
 import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
 import Setting from '../pages/settings/Settings';
-import OutletListing from '../pages/outlets/OutletListing';
+import UnitListing from '../pages/units/UnitListing';
 import CompaniesListing from '../pages/company-registration/CompanyListing';
 import CompanyRegistration from '../pages/company-registration/CompanyRegistration';
-import AddOutlet from '../pages/outlets/AddOutlet';
+import AddUnit from '../pages/units/AddUnit';
 import PurchaseListing from '../pages/stock-purchase/PurchaseListing';
 import AddPurchase from '../pages/stock-purchase/AddPurchase';
 import PurchaseOrderListing from '../pages/purchase-order/PurchaseOrderListing';
@@ -151,16 +151,21 @@ export function AppRoutingSetup() {
 
           <Route path="/companies" element={<CompaniesListing />} /> 
           <Route path="/companies/registration" element={<CompanyRegistration />} />
+          <Route path="/companies/update-company" element={<CompanyRegistration />} />
 
-          <Route path="/outlets" element={<OutletListing />} />
-          <Route path="/outlets/registration" element={<AddOutlet />} />
+          <Route path="/units" element={<UnitListing />} />
+          <Route path="/units/add-unit" element={<AddUnit />} />
+          <Route path="/units/update-unit" element={<AddUnit />} />
 
           <Route path="/vendors" element={<VendorListing />} />
           <Route path="/vendors/add-vendor" element={<AddVendor />} />
+          
+          <Route path="/vendors/update-vendor" element={<AddVendor />} />
           <Route path='/user-vendor-selection' element={<UserVendorSelectionPage/>} />
 
           <Route path='/users' element={<UserManagementList/>} />
           <Route path='/users/add-user' element={<UserRegistration />} />
+          <Route path='/users/update-user' element={<UserRegistration />} />
 
           <Route path="/assets" element={<AssetsManagement />} />
           <Route path="/assets/add-asset" element={<AddAsset />} />

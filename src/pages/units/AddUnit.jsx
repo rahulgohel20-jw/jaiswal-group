@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import {
   Briefcase,
   ChevronDown,
@@ -20,7 +21,7 @@ const COMPANIES = [
 const SERVICE_TYPES = [
   'Retail Store',
   'Wholesale Depot',
-  'Franchise Outlet',
+  'Franchise Unit',
   'Service Center',
   'Warehouse',
 ];
@@ -282,10 +283,63 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
-const AddOutlet = () => {
+// Maps a row from the Units listing table onto the shape this form uses.
+// The listing's mock data doesn't carry every field this form has (logo,
+// address lines, manager, etc.) so anything missing just falls back to blank.
+const mapUnitToForm = (unit) => ({
+  UnitName: unit.name ?? '',
+  UnitCode: unit.code ?? 'AHD-2526-0001',
+  logo: unit.logo ?? null,
+  favicon: unit.favicon ?? null,
+  shortCode: unit.shortCode ?? '',
+  email: unit.email ?? '',
+  manager: unit.manager ?? '',
+  capacity: unit.capacity ?? '',
+  company: unit.company ?? '',
+  serviceType: SERVICE_TYPES.includes(unit.serviceType) ? unit.serviceType : '',
+  addressLine1: unit.addressLine1 ?? '',
+  addressLine2: unit.addressLine2 ?? '',
+  city: unit.city ?? unit.location ?? '',
+  state: unit.state ?? '',
+  country: unit.country ?? 'India',
+  pincode: unit.pincode ?? '',
+  latitude: unit.latitude ?? '',
+  longitude: unit.longitude ?? '',
+});
+
+const DEFAULT_FORM = {
+  UnitName: '',
+  UnitCode: 'AHD-2526-0001',
+  logo: null,
+  favicon: null,
+  shortCode: '',
+  email: '',
+  manager: '',
+  capacity: '',
+  company: '',
+  serviceType: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  country: 'India',
+  pincode: '',
+  latitude: '',
+  longitude: '',
+};
+
+const AddUnit = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // If we arrived here via the edit action, the Unit row is passed in
+  // location.state. Its presence is what puts the page into edit mode.
+  const editingUnit = location.state?.unit ?? null;
+  const isEditMode = !!editingUnit;
+
   // Each section has its own independent open/closed state
   const [openSections, setOpenSections] = useState({
-    outlet: true,
+    Unit: true,
     business: true,
     address: true,
   });
@@ -295,63 +349,68 @@ const AddOutlet = () => {
 
   const [showMapPicker, setShowMapPicker] = useState(false);
 
-  const [form, setForm] = useState({
-    outletName: '',
-    outletCode: 'AHD-2526-0001',
-    logo: null,
-    favicon: null,
-    shortCode: '',
-    email: '',
-    company: '',
-    serviceType: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    country: 'India',
-    pincode: '',
-    latitude: '',
-    longitude: '',
-  });
+  const [form, setForm] = useState(() =>
+    editingUnit ? mapUnitToForm(editingUnit) : DEFAULT_FORM,
+  );
+
+  // If the user navigates here again with a different Unit (e.g. clicking
+  // edit on another row without leaving the app), refresh the form.
+  useEffect(() => {
+    setForm(editingUnit ? mapUnitToForm(editingUnit) : DEFAULT_FORM);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingUnit?.id]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleSubmit = () => {
+    if (isEditMode) {
+      // TODO: wire up to the update API call.
+      alert(`Updated ${form.UnitName || 'Unit'}`);
+    } else {
+      // TODO: wire up to the create API call.
+      alert(`Saved ${form.UnitName || 'Unit'}`);
+    }
+    navigate('/Units');
+  };
 
   return (
     <div className="mx-4 min-h-screen">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          Register New Outlet
+          {isEditMode ? 'Update Unit' : 'Register New Unit'}
         </h1>
         <p className="text-[#43474F]">
-          Complete the form below to register a new outlet under the Jaiswal Group ecosystem.
+          {isEditMode
+            ? `Update the details for ${editingUnit?.name ?? 'this Unit'} within the Jaiswal Group ecosystem.`
+            : 'Complete the form below to register a new Unit under the Jaiswal Group ecosystem.'}
         </p>
       </div>
 
-      {/* Outlet Information */}
+      {/* Unit Information */}
       <SectionCard className="mt-4">
         <SectionHeader
           icon={Info}
-          title="Outlet Information"
-          open={openSections.outlet}
-          onToggle={() => toggleSection('outlet')}
+          title="Unit Information"
+          open={openSections.Unit}
+          onToggle={() => toggleSection('Unit')}
         />
 
-        {openSections.outlet && (
+        {openSections.Unit && (
           <div className="px-6 py-6 space-y-5">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label required>Outlet Name</Label>
+                <Label required>Unit Name</Label>
                 <input
-                  value={form.outletName}
-                  onChange={(e) => set('outletName', e.target.value)}
+                  value={form.UnitName}
+                  onChange={(e) => set('UnitName', e.target.value)}
                   placeholder="e.g. Jaiswal Group - Maninagar"
                   className={inputCls}
                 />
               </div>
               <div>
-                <Label>Outlet Code (Auto Generated)</Label>
+                <Label>Unit Code (Auto Generated)</Label>
                 <input
-                  value={form.outletCode}
+                  value={form.UnitCode}
                   disabled
                   className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
                 />
@@ -360,7 +419,7 @@ const AddOutlet = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <ImageUploadBox
-                label="Outlet Logo"
+                label="Unit Logo"
                 hint="PNG, JPG upto 2MB"
                 value={form.logo}
                 onChange={(v) => set('logo', v)}
@@ -389,8 +448,29 @@ const AddOutlet = () => {
                   type="email"
                   value={form.email}
                   onChange={(e) => set('email', e.target.value)}
-                  placeholder="outlet@example.com"
+                  placeholder="Unit@example.com"
                   className={inputCls}
+                />
+              </div>
+
+              <div>
+                <Label required>Capacity ( Meals Per Day )</Label>
+                <input
+                  type="number"
+                  value={form.capacity}
+                  onChange={(e) => set('capacity', e.target.value)}
+                  placeholder="e.g. 200"
+                  className={inputCls}
+                />
+              </div>
+
+              <div>
+                <Label required>Unit Manager</Label>
+                <Select
+                 value={form.manager}
+                 onChange={(e) => set('manager', e.target.value)}
+                 placeholder="Select Manager"
+                 options={COMPANIES}
                 />
               </div>
             </div>
@@ -538,15 +618,17 @@ const AddOutlet = () => {
       <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
         <button
           type="button"
+          onClick={() => navigate('/Units')}
           className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
         >
           Cancel
         </button>
         <button
           type="button"
+          onClick={handleSubmit}
           className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
         >
-          Save Outlet
+          {isEditMode ? 'Update Unit' : 'Save Unit'}
         </button>
       </div>
 
@@ -566,4 +648,4 @@ const AddOutlet = () => {
   );
 };
 
-export default AddOutlet;
+export default AddUnit;

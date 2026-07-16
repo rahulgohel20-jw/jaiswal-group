@@ -26,7 +26,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 const INITIAL_VENDORS = [
   {
@@ -251,6 +251,7 @@ const KYC_OPTIONS = [
 ];
 
 const VendorList = () => {
+  const navigate = useNavigate();
   const [vendors, setVendors] = useState(INITIAL_VENDORS);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -273,6 +274,10 @@ const VendorList = () => {
       }),
     [vendors, search, categoryFilter, kycFilter],
   );
+  
+  const handleEdit = (vendor) => {
+    navigate('/vendors/update-vendor', { state: { vendor } });
+  };
 
   const handleDelete = (vendor) => setDeletingVendor(vendor);
   const confirmDelete = () => {
@@ -367,7 +372,7 @@ const VendorList = () => {
             </button>
             <button
               type="button"
-              onClick={() => alert(`Update ${row.original.name}`)}
+              onClick={() => handleEdit(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
               title="Update vendor"
             >

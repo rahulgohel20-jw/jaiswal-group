@@ -27,9 +27,9 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
-const INITIAL_OUTLETS = [
+const INITIAL_UnitS = [
   {
     id: 1,
     name: "Shubh Central Kitchen",
@@ -44,7 +44,7 @@ const INITIAL_OUTLETS = [
     id: 2,
     name: "Nexora Express Counter",
     code: "OUT-2002",
-    serviceType: "outlet",
+    serviceType: "Unit",
     location: "Mumbai",
     email: "express.mum@nexora.com",
     mobile: "+91 90040 55210",
@@ -64,7 +64,7 @@ const INITIAL_OUTLETS = [
     id: 4,
     name: "Kiran Retail Point",
     code: "OUT-2004",
-    serviceType: "outlet",
+    serviceType: "Unit",
     location: "Rajkot",
     email: "retail.rajkot@kiran.com",
     mobile: "+91 97250 87612",
@@ -84,7 +84,7 @@ const INITIAL_OUTLETS = [
     id: 6,
     name: "Shubh Drive-Thru",
     code: "OUT-2006",
-    serviceType: "outlet",
+    serviceType: "Unit",
     location: "Gandhinagar",
     email: "drivethru.gnr@shubh.com",
     mobile: "+91 98250 67890",
@@ -116,7 +116,7 @@ const STATUS_LABELS = {
 
 const SERVICE_TYPE_LABELS = {
   restaurant: "Restaurant",
-  outlet: "Outlet",
+  Unit: "Unit",
 };
 
 const StatusBadge = ({ status }) => (
@@ -142,7 +142,7 @@ const ServiceTypeBadge = ({ type }) => (
   </span>
 );
 
-const DeleteConfirmModal = ({ outlet, onCancel, onConfirm }) => (
+const DeleteConfirmModal = ({ Unit, onCancel, onConfirm }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
@@ -150,11 +150,11 @@ const DeleteConfirmModal = ({ outlet, onCancel, onConfirm }) => (
         <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
           <AlertTriangle className="w-5 h-5" />
         </div>
-        <h2 className="text-base font-bold text-gray-900">Delete outlet?</h2>
+        <h2 className="text-base font-bold text-gray-900">Delete Unit?</h2>
         <p className="text-sm text-gray-500 mt-1.5">
           This will permanently remove{" "}
-          <span className="font-semibold text-gray-700">{outlet.name}</span> from your
-          outlet list. This action cannot be undone.
+          <span className="font-semibold text-gray-700">{Unit.name}</span> from your
+          Unit list. This action cannot be undone.
         </p>
       </div>
       <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
@@ -177,12 +177,12 @@ const DeleteConfirmModal = ({ outlet, onCancel, onConfirm }) => (
   </div>
 );
 
-const ViewOutletModal = ({ outlet, onClose }) => (
+const ViewUnitModal = ({ Unit, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
       <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900">Outlet Details</h2>
+        <h2 className="text-base font-bold text-gray-900">Unit Details</h2>
         <button
           onClick={onClose}
           className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
@@ -192,12 +192,12 @@ const ViewOutletModal = ({ outlet, onClose }) => (
       </div>
       <div className="px-6 py-5 space-y-4">
         {[
-          ["Outlet Name", outlet.name],
-          ["Outlet Code", outlet.code],
-          ["Service Type", SERVICE_TYPE_LABELS[outlet.serviceType]],
-          ["Location", outlet.location],
-          ["Contact Email", outlet.email],
-          ["Mobile Number", outlet.mobile],
+          ["Unit Name", Unit.name],
+          ["Unit Code", Unit.code],
+          ["Service Type", SERVICE_TYPE_LABELS[Unit.serviceType]],
+          ["Location", Unit.location],
+          ["Contact Email", Unit.email],
+          ["Mobile Number", Unit.mobile],
         ].map(([label, value]) => (
           <div key={label} className="flex items-center justify-between text-sm gap-4">
             <span className="text-gray-400 shrink-0">{label}</span>
@@ -206,7 +206,7 @@ const ViewOutletModal = ({ outlet, onClose }) => (
         ))}
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-400">Status</span>
-          <StatusBadge status={outlet.status} />
+          <StatusBadge status={Unit.status} />
         </div>
       </div>
       <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100">
@@ -278,18 +278,19 @@ const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-
   </span>
 );
 
-const OutletListing = () => {
-  const [outlets, setOutlets] = useState(INITIAL_OUTLETS);
+const UnitListing = () => {
+  const navigate = useNavigate();
+  const [Units, setUnits] = useState(INITIAL_UnitS);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [viewingOutlet, setViewingOutlet] = useState(null);
-  const [deletingOutlet, setDeletingOutlet] = useState(null);
+  const [viewingUnit, setViewingUnit] = useState(null);
+  const [deletingUnit, setDeletingUnit] = useState(null);
 
-  const filteredOutlets = useMemo(
+  const filteredUnits = useMemo(
     () =>
-      outlets.filter((o) => {
+      Units.filter((o) => {
         const matchesSearch =
           o.name.toLowerCase().includes(search.toLowerCase()) ||
           o.code.toLowerCase().includes(search.toLowerCase()) ||
@@ -300,17 +301,25 @@ const OutletListing = () => {
         const matchesType = typeFilter === "all" || o.serviceType === typeFilter;
         return matchesSearch && matchesStatus && matchesType;
       }),
-    [outlets, search, statusFilter, typeFilter],
+    [Units, search, statusFilter, typeFilter],
   );
 
-  const handleDelete = (outlet) => setDeletingOutlet(outlet);
+  // Sends the user to the same form used for creating a Unit, but with the
+  // row's data attached via router state — the form flips into edit mode
+  // (title, copy, and the Save button all switch to "Update") whenever
+  // state.unit is present.
+  const handleEdit = (Unit) => {
+    navigate('/units/update-unit', { state: { unit: Unit } });
+  };
+
+  const handleDelete = (Unit) => setDeletingUnit(Unit);
   const confirmDelete = () => {
-    setOutlets((o) => o.filter((out) => out.id !== deletingOutlet.id));
-    setDeletingOutlet(null);
+    setUnits((o) => o.filter((out) => out.id !== deletingUnit.id));
+    setDeletingUnit(null);
   };
 
   const handleExport = (format) => {
-    alert(`Exporting ${filteredOutlets.length} outlet(s) as ${format.toUpperCase()}`);
+    alert(`Exporting ${filteredUnits.length} Unit(s) as ${format.toUpperCase()}`);
   };
 
   const columns = useMemo(
@@ -318,7 +327,7 @@ const OutletListing = () => {
       {
         id: "name",
         accessorFn: (row) => row.name,
-        header: ({ column }) => <DataGridColumnHeader title="Outlet Name" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="Unit Name" column={column} />,
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
@@ -331,7 +340,7 @@ const OutletListing = () => {
       {
         id: "code",
         accessorFn: (row) => row.code,
-        header: ({ column }) => <DataGridColumnHeader title="Outlet Code" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="Unit Code" column={column} />,
         cell: ({ row }) => <span className="text-gray-600 whitespace-nowrap">{row.original.code}</span>,
         size: 120,
       },
@@ -387,17 +396,17 @@ const OutletListing = () => {
           <div className="flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
-              onClick={() => setViewingOutlet(row.original)}
+              onClick={() => setViewingUnit(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
-              title="View outlet"
+              title="View Unit"
             >
               <Eye className="w-4 h-4" />
             </button>
             <button
               type="button"
-              onClick={() => alert(`Update ${row.original.name}`)}
+              onClick={() => handleEdit(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
-              title="Update outlet"
+              title="Update Unit"
             >
               <SquarePen className="w-4 h-4" />
             </button>
@@ -405,7 +414,7 @@ const OutletListing = () => {
               type="button"
               onClick={() => handleDelete(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition cursor-pointer bg-white"
-              title="Delete outlet"
+              title="Delete Unit"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -419,7 +428,7 @@ const OutletListing = () => {
   );
 
   const table = useReactTable({
-    data: filteredOutlets,
+    data: filteredUnits,
     columns,
     state: { pagination },
     onPaginationChange: setPagination,
@@ -436,8 +445,8 @@ const OutletListing = () => {
   ];
 
   const TYPE_OPTIONS = [
-    { key: "all", label: "All outlets & restaurants" },
-    { key: "outlet", label: "Outlets" },
+    { key: "all", label: "All Units & restaurants" },
+    { key: "Unit", label: "Units" },
     { key: "restaurant", label: "Restaurants" },
   ];
 
@@ -449,24 +458,24 @@ const OutletListing = () => {
           <div className="flex items-center gap-3">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 leading-none">
-                Registered Outlets
+                Registered Units
               </h1>
               <p className="text-md text-gray-400 mt-2.5">
-                Manage and monitor all outlets and restaurants registered within the Jaiswal Group ecosystem through our <br />
+                Manage and monitor all Units and restaurants registered within the Jaiswal Group ecosystem through our <br />
                 centralized administration panel.
               </p>
             </div>
           </div>
           <Link
-            to="/outlets/registration"
+            to="/units/add-unit"
             className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition"
           >
             <Plus className="w-4 h-4" />
-            Add New Outlet
+            Add New Unit
           </Link>
         </div>
 
-        <DataGrid table={table} recordCount={filteredOutlets.length}>
+        <DataGrid table={table} recordCount={filteredUnits.length}>
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 py-3 bg-white rounded-t-2xl border border-b-0 border-gray-100 gap-4 flex-wrap">
             {/* Search - left side */}
@@ -475,7 +484,7 @@ const OutletListing = () => {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by outlet name or code..."
+                placeholder="Search by Unit name or code..."
                 className="pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 bg-gray-50 outline-none focus:ring-1 focus:ring-emerald-100 focus:border-emerald-300 w-64 transition placeholder-gray-400"
               />
             </div>
@@ -564,14 +573,14 @@ const OutletListing = () => {
         </DataGrid>
       </div>
 
-      {viewingOutlet && (
-        <ViewOutletModal outlet={viewingOutlet} onClose={() => setViewingOutlet(null)} />
+      {viewingUnit && (
+        <ViewUnitModal Unit={viewingUnit} onClose={() => setViewingUnit(null)} />
       )}
 
-      {deletingOutlet && (
+      {deletingUnit && (
         <DeleteConfirmModal
-          outlet={deletingOutlet}
-          onCancel={() => setDeletingOutlet(null)}
+          Unit={deletingUnit}
+          onCancel={() => setDeletingUnit(null)}
           onConfirm={confirmDelete}
         />
       )}
@@ -579,4 +588,4 @@ const OutletListing = () => {
   );
 };
 
-export default OutletListing;
+export default UnitListing;
