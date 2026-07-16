@@ -128,6 +128,9 @@ import LoginPage from '../pages/auth/login/Login';
 import AssetsManagement from '../pages/assest-management/assest-registry/AssetsManagement';
 import AddAsset from '../pages/assest-management/assest-registry/AddAsset';
 import AssignAssets from '../pages/assest-management/assign-assets/AssignAsset';
+import AddAssignAsset from '../pages/assest-management/assign-assets/AddAssignAsset';
+import AssetSubCategory from '../pages/assest-management/sub-categories/AssetSubCategory';
+import AssetCategory from '../pages/assest-management/categories/AssetCategory';
 
 export function AppRoutingSetup() {
   return (
@@ -156,9 +159,14 @@ export function AppRoutingSetup() {
           <Route path='/users' element={<UserManagementList/>} />
           <Route path='/users/add-user' element={<UserRegistration />} />
 
-          <Route path="/assests" element={<AssetsManagement />} />
+          <Route path="/assets" element={<AssetsManagement />} />
           <Route path="/assets/add-asset" element={<AddAsset />} />
-          <Route path="/assigned-assests" element={<AssignAssets />} />
+
+          <Route path="/assigned-assets" element={<AssignAssets />} />
+          <Route path="/assets/assign-asset" element={<AddAssignAsset /> } />
+
+          <Route path='/assets/categories' element={<AssetCategory /> } />
+          <Route path='/assets/sub-categories' element={<AssetSubCategory /> } /> 
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />

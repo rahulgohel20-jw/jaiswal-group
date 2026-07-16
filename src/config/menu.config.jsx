@@ -441,18 +441,23 @@ export const MENU_SIDEBAR = [
     icon: UserCog,
     path: '/vendors',
   },
+    {
+    title: 'Settings',
+    icon: UserCog,
+    path: '/settings',
+  },
   {
     title: 'Assest Management',
     icon: LayoutGrid,
     children: [
-      { title: 'Categories',path: '' },
-      { title: 'Sub Categories', path: '' },
+      { title: 'Categories',path: '/assets/categories' },
+      { title: 'Sub Categories', path: '/assets/sub-categories' },
       { title: 'Asset Type',  path: '' },
       { title: 'Asset Items', path: '' },
-      { title: 'Assets', path: '/assests' },
-      { title: 'Assigned Asset', path: '/assigned-assests' },
+      { title: 'Assets', path: '/assets' },
+      { title: 'Assigned Asset', path: '/assigned-assets' },
       { title: 'Conditions', path: '' },
-      { title: '', path: '' },
+      { title: 'units', path: '' },
     ],
   },
 ];
