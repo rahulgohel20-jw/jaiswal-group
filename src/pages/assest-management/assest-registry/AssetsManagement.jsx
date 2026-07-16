@@ -9,28 +9,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link } from 'react-router';
-const ASSETS = [
-    {
-        id: "AST-000125",
-        itemName: "Chest Freezer",
-        category: "Kitchen Equipment",
-        status: "Available",
-        condition: "Excellent",
-        value: "₹48,500",
-        warranty: "Valid",
-    },
-    {
-        id: "AST-000142",
-        itemName: "Dell Latitude",
-        category: "IT Equipment",
-        status: "Assigned",
-        condition: "Good",
-        value: "₹65,000",
-        warranty: "Expiring Soon",
-    },
-];
-
-
+import AssetPreviewDetail from './AssetPreviewDetail';
 const STATS = [
     {
         title: "Total Assets",
@@ -84,7 +63,29 @@ const INITIAL_ASSETS = [
         condition: "excellent",
         value: 48500,
         warranty: "valid",
+
+        activities: [
+            {
+                title: "Last Audited",
+                subtitle: "05 Jan 2024 • Site Audit Team",
+                status: "Verified",
+                active: true,
+            },
+            {
+                title: "Assigned to HQ - Floor 2",
+                subtitle: "12 Oct 2023 • Rajesh Kumar",
+            },
+            {
+                title: "Registered",
+                subtitle: "11 Oct 2023 • System Entry",
+            },
+            {
+                title: "Created",
+                subtitle: "10 Oct 2023 • Admin User",
+            },
+        ],
     },
+
     {
         id: 2,
         assetId: "AST-000142",
@@ -94,16 +95,55 @@ const INITIAL_ASSETS = [
         condition: "good",
         value: 65000,
         warranty: "expiring",
+
+        activities: [
+            {
+                title: "Assigned to Anita Desai",
+                subtitle: "15 Jan 2024 • IT Department",
+                status: "Active",
+                active: true,
+            },
+            {
+                title: "Registered",
+                subtitle: "10 Jan 2024 • System Entry",
+            },
+            {
+                title: "Created",
+                subtitle: "08 Jan 2024 • Admin User",
+            },
+        ],
     },
+
     {
         id: 3,
-        assetId: "AST-000142",
+        assetId: "AST-000143",
         itemName: "Dell Latitude",
         category: "IT Equipment",
         status: "Maintenance",
         condition: "fair",
         value: 65000,
         warranty: "expiring",
+
+        activities: [
+            {
+                title: "Sent For Maintenance",
+                subtitle: "20 Feb 2024 • Support Team",
+                status: "In Progress",
+                active: true,
+            },
+            {
+                title: "Issue Reported",
+                subtitle: "18 Feb 2024 • User Complaint",
+            },
+            {
+                title: "Assigned",
+                subtitle: "12 Jan 2024 • IT Department",
+            },
+            {
+                title: "Created",
+                subtitle: "08 Jan 2024 • Admin User",
+            },
+        ],
     },
 ];
 
@@ -151,7 +191,8 @@ const AssetsManagement = () => {
     const [assets, setAssets] = useState(INITIAL_ASSETS);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
-
+    const [showDetails, setShowDetails] = useState(false);
+    const [selectedAsset, setSelectedAsset] = useState(null);
 
     const columns = [
         {
@@ -287,7 +328,10 @@ const AssetsManagement = () => {
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
                     <button>
-                        <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
+                        <Eye size={18} onClick={() => {
+                            setSelectedAsset(row.original);
+                            setShowDetails(true);
+                        }} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
 
                     <button>
@@ -337,10 +381,10 @@ const AssetsManagement = () => {
                         Export
                     </button>
                     <Link to="/assets/add-asset">
-                    <button className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
-                        <Plus size={16} />
-                        Add Asset
-                    </button>
+                        <button className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
+                            <Plus size={16} />
+                            Add Asset
+                        </button>
                     </Link>
                 </div>
             </div>
@@ -429,6 +473,21 @@ const AssetsManagement = () => {
                     </Card>
                 </DataGrid>
             </div>
+            {showDetails && (
+                <>
+                    <div
+                        className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+                        onClick={() => setShowDetails(false)}
+                    />
+
+                    <div className="fixed right-0 top-0 h-screen w-100 bg-white z-50">
+                        <AssetPreviewDetail
+                            asset={selectedAsset}
+                            onClose={() => setShowDetails(false)}
+                        />
+                    </div>
+                </>
+            )}
         </div>
     )
 }
