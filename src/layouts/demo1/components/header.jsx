@@ -163,19 +163,6 @@ export function Header() {
                 }
               />
 
-              <ChatSheet
-                trigger={
-                  <Button
-                    variant="ghost"
-                    mode="icon"
-                    shape="circle"
-                    className="size-9 hover:bg-primary/10 hover:[&_svg]:text-primary"
-                  >
-                    <MessageCircleMore className="size-4.5!" />
-                  </Button>
-                }
-              />
-
               {/* <AppsDropdownMenu
                 trigger={
                   <Button
@@ -193,7 +180,7 @@ export function Header() {
                 trigger={
                   <img
                     className="size-9 rounded-full border-2 border-green-500 shrink-0 cursor-pointer"
-                    src={toAbsoluteUrl('/media/avatars/300-2.png')}
+                    src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
                     alt="User Avatar"
                   />
                 }

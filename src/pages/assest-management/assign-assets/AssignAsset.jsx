@@ -507,7 +507,7 @@ const AssignAssets = () => {
                         <Upload size={16} />
                         Export Assignments
                     </button>
-                    <Link to="/assignments/add">
+                    <Link to="/assets/assign-asset">
                         <button type="button" className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition">
                             <Plus size={16} />
                             Assign Asset
