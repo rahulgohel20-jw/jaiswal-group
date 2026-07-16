@@ -235,7 +235,7 @@ const VendorRegistration = () => {
           onToggle={() => toggleSection('personal')}
         />
 
-          {openSections.personal === "personal" && (
+          {openSections.personal && (
             <div className="px-6 py-6 space-y-5">
                <div className="grid grid-cols-3 gap-4">
               <div>
