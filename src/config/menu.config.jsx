@@ -422,9 +422,9 @@ export const MENU_SIDEBAR = [
     path: '/companies',
   },
   {
-    title: 'Outlets',
+    title: 'Units',
     icon: Store,
-    path: '/outlets',
+    path: '/units',
   },
   {
     title: 'User/Vendor Selection',

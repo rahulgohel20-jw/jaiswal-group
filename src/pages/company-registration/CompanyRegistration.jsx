@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import {
   Building2,
   ChevronDown,
@@ -248,7 +249,58 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
+const emptyForm = {
+  companyName: '',
+  companyCode: 'AHD-2526-0001',
+  shortCode: '',
+  gstNumber: '',
+  panNumber: '',
+  mobile: '',
+  altMobile: '',
+  email: '',
+  logo: null,
+  favicon: null,
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  country: 'India',
+  pincode: '',
+  latitude: '',
+  longitude: '',
+  accountHolder: '',
+  accountNumber: '',
+  bankName: '',
+  branchName: '',
+  ifsc: '',
+  upiId: '',
+};
+
+// Maps the (smaller) row shape used by the companies list table onto the
+// full form shape. Any field the list doesn't carry is left at its default
+// so the user can fill it in.
+const mapCompanyToForm = (company) => ({
+  ...emptyForm,
+  companyName: company.name ?? '',
+  companyCode: company.code ?? emptyForm.companyCode,
+  gstNumber: company.gstNumber ?? '',
+  mobile: company.mobile ?? '',
+  city: company.location ?? '',
+  // Preserve anything else the caller already stored in the full shape
+  // (useful if you later pass the complete record instead of the row).
+  ...company,
+});
+
 const CompanyRegistration = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Edit mode is detected purely from router state: the list page's edit
+  // button navigates here with `{ state: { company } }`. No company in
+  // state means this is a fresh "Register New Company" visit.
+  const editingCompany = location.state?.company ?? null;
+  const isEditMode = !!editingCompany;
+
   const [openSections, setOpenSections] = useState({
     company: true,
     address: true,
@@ -260,43 +312,40 @@ const CompanyRegistration = () => {
 
   const [showMapPicker, setShowMapPicker] = useState(false);
 
-  const [form, setForm] = useState({
-    companyName: '',
-    companyCode: 'AHD-2526-0001',
-    shortCode: '',
-    gstNumber: '',
-    panNumber: '',
-    mobile: '',
-    altMobile: '',
-    email: '',
-    logo: null,
-    favicon: null,
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    country: 'India',
-    pincode: '',
-    latitude: '',
-    longitude: '',
-    accountHolder: '',
-    accountNumber: '',
-    bankName: '',
-    branchName: '',
-    ifsc: '',
-    upiId: '',
-  });
+  const [form, setForm] = useState(() =>
+    editingCompany ? mapCompanyToForm(editingCompany) : emptyForm,
+  );
+
+  // If the user navigates here again with a different company (e.g. clicking
+  // Edit on another row without a full page reload), keep the form in sync.
+  useEffect(() => {
+    setForm(editingCompany ? mapCompanyToForm(editingCompany) : emptyForm);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingCompany]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleSubmit = () => {
+    if (isEditMode) {
+      // TODO: call update API with editingCompany.id and `form`
+      console.log('Updating company', editingCompany.id, form);
+    } else {
+      // TODO: call create API with `form`
+      console.log('Creating company', form);
+    }
+    navigate('/companies');
+  };
 
   return (
     <div className="mx-4 min-h-screen">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          Register New Company
+          {isEditMode ? 'Update Company' : 'Register New Company'}
         </h1>
         <p className="text-[#43474F] mt-2">
-          Complete the form below to establish a new corporate entity in the Jaiswal Group ecosystem.
+          {isEditMode
+            ? `Edit the details for ${editingCompany.name} and save your changes.`
+            : 'Complete the form below to establish a new corporate entity in the Jaiswal Group ecosystem.'}
         </p>
       </div>
 
@@ -589,22 +638,27 @@ const CompanyRegistration = () => {
       <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
         <button
           type="button"
+          onClick={() => navigate(-1)}
           className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
         >
           Cancel
         </button>
         <button
           type="button"
+          onClick={handleSubmit}
           className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white"
         >
-          Save Company
+          {isEditMode ? 'Update Company' : 'Save Company'}
         </button>
-        <button
-          type="button"
-          className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
-        >
-          Save &amp; Add Outlet
-        </button>
+        {!isEditMode && (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
+          >
+            Save &amp; Add Outlet
+          </button>
+        )}
       </div>
 
       {showMapPicker && (

@@ -12,6 +12,26 @@ const Label = ({ children, required }) => (
   </label>
 );
 
+const Select = ({ value, onChange, placeholder, options }) => (
+  <div className="relative">
+    <select
+      value={value}
+      onChange={onChange}
+      className={`${inputCls} appearance-none pr-9 cursor-pointer ${value === '' ? 'text-gray-400' : 'text-gray-800'}`}
+    >
+      <option value="" disabled>
+        {placeholder}
+      </option>
+      {options.map((opt) => (
+        <option key={opt} value={opt} className="text-gray-800">
+          {opt}
+        </option>
+      ))}
+    </select>
+    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+  </div>
+);
+
 const SectionCard = ({ children, className = '' }) => (
   <div
     className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}
@@ -204,6 +224,7 @@ const UserRegistration = () => {
     password: '',
     mobile: '',
     altMobile: '',
+    department: '',
     addressLine1: '',
     addressLine2: '',
     city: '',
@@ -326,6 +347,16 @@ const UserRegistration = () => {
                   placeholder="+91 00000 00000"
                   maxLength={10}
                   className={inputCls}
+                />
+              </div>
+              
+              <div>
+                <Label required>Department </Label>
+                <Select
+                 value={form.department}
+                 onChange={(e) => set('department', e.target.value)}
+                 placeholder="Select Department"
+                 options={['Manager','Sales','Marketing','Chef','Helper']}
                 />
               </div>
             </div>

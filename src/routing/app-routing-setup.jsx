@@ -104,10 +104,10 @@ import { AddUser } from '../pages/UserManagement/AddUser';
 import CreatePipeline from '../pages/Pipelinescreen/CreatePipeline';
 import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
 import Setting from '../pages/settings/Settings';
-import OutletListing from '../pages/outlets/OutletListing';
+import UnitListing from '../pages/outlets/UnitListing';
 import CompaniesListing from '../pages/company-registration/CompanyListing';
 import CompanyRegistration from '../pages/company-registration/CompanyRegistration';
-import AddOutlet from '../pages/outlets/AddOutlet';
+import AddUnit from '../pages/outlets/AddUnit';
 import PurchaseListing from '../pages/stock-purchase/PurchaseListing';
 import AddPurchase from '../pages/stock-purchase/AddPurchase';
 import PurchaseOrderListing from '../pages/purchase-order/PurchaseOrderListing';
@@ -150,8 +150,8 @@ export function AppRoutingSetup() {
           <Route path="/companies" element={<CompaniesListing />} /> 
           <Route path="/companies/registration" element={<CompanyRegistration />} />
 
-          <Route path="/outlets" element={<OutletListing />} />
-          <Route path="/outlets/registration" element={<AddOutlet />} />
+          <Route path="/units" element={<UnitListing />} />
+          <Route path="/units/registration" element={<AddUnit />} />
 
           <Route path="/vendors" element={<VendorListing />} />
           <Route path="/vendors/add-vendor" element={<AddVendor />} />
