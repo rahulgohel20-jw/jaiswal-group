@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { ChevronDown, Map, MapPin, User, X, Check } from 'lucide-react';
 
 const inputCls =
@@ -202,7 +203,73 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
+const DEPARTMENT_OPTIONS = ['Manager', 'Sales', 'Marketing', 'Chef', 'Helper'];
+
+// Splits the listing's single "name" field into first/last/surname as a
+// best-effort guess, since the form collects those separately.
+const splitName = (fullName = '') => {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: '', lastName: '', surname: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '', surname: '' };
+  if (parts.length === 2) return { firstName: parts[0], lastName: '', surname: parts[1] };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1, -1).join(' '),
+    surname: parts[parts.length - 1],
+  };
+};
+
+// Maps a row from the user listing table onto the shape this form uses.
+// The listing's mock data doesn't carry every field this form has (address
+// lines, alt mobile, etc.) so anything missing just falls back to blank.
+const mapUserToForm = (user) => ({
+  ...splitName(user.name),
+  userCode: user.code ?? 'USR-2023-0042',
+  email: user.email ?? '',
+  company: user.company ?? 'Jaiswal Group India Pvt Ltd',
+  password: '',
+  mobile: user.mobile ?? '',
+  altMobile: user.altMobile ?? '',
+  department: DEPARTMENT_OPTIONS.includes(user.department) ? user.department : '',
+  addressLine1: user.addressLine1 ?? '',
+  addressLine2: user.addressLine2 ?? '',
+  city: user.city ?? '',
+  state: user.state ?? '',
+  country: user.country ?? 'India',
+  pincode: user.pincode ?? '',
+  latitude: user.latitude ?? '',
+  longitude: user.longitude ?? '',
+});
+
+const DEFAULT_FORM = {
+  firstName: '',
+  lastName: '',
+  surname: '',
+  userCode: 'USR-2023-0042',
+  email: '',
+  company: 'Jaiswal Group India Pvt Ltd',
+  password: '',
+  mobile: '',
+  altMobile: '',
+  department: '',
+  addressLine1: '',
+  addressLine2: '',
+  city: '',
+  state: '',
+  country: 'India',
+  pincode: '',
+  latitude: '',
+  longitude: '',
+};
+
 const UserRegistration = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // If we arrived here via the edit action, the user row is passed in
+  // location.state. Its presence is what puts the page into edit mode.
+  const editingUser = location.state?.user ?? null;
+  const isEditMode = !!editingUser;
 
   const [openSections, setOpenSections] = useState({
     personal: true,
@@ -214,37 +281,47 @@ const UserRegistration = () => {
 
   const [showMapPicker, setShowMapPicker] = useState(false);
 
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    surname: '',
-    userCode: 'USR-2023-0042',
-    email: '',
-    company: 'Jaiswal Group India Pvt Ltd',
-    password: '',
-    mobile: '',
-    altMobile: '',
-    department: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    country: 'India',
-    pincode: '',
-    latitude: '',
-    longitude: '',
-  });
+  const [form, setForm] = useState(() =>
+    editingUser ? mapUserToForm(editingUser) : DEFAULT_FORM,
+  );
+
+  // If the user navigates here again with a different user row (e.g.
+  // clicking edit on another row without leaving the app), refresh the form.
+  useEffect(() => {
+    setForm(editingUser ? mapUserToForm(editingUser) : DEFAULT_FORM);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingUser?.id]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleSubmit = () => {
+    const fullName = [form.firstName, form.lastName, form.surname].filter(Boolean).join(' ');
+    if (isEditMode) {
+      // TODO: wire up to the update API call.
+      alert(`Updated ${fullName || 'user'}`);
+    } else {
+      // TODO: wire up to the create API call.
+      alert(`Saved ${fullName || 'user'}`);
+    }
+    navigate('/users');
+  };
+
+  const handleSaveAndAddAnother = () => {
+    const fullName = [form.firstName, form.lastName, form.surname].filter(Boolean).join(' ');
+    alert(`Saved ${fullName || 'user'}`);
+    setForm(DEFAULT_FORM);
+  };
 
   return (
     <div className="mx-4 min-h-screen">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          User Registration
+         { isEditMode ? 'Update User' : 'User Registration'}
         </h1>
         <p className="text-[#43474F]">
-          Create a new enterprise user account across organizational levels.
+          {isEditMode
+            ? `Update the account details for ${editingUser?.name ?? 'this user'}.`
+            : 'Create a new enterprise user account across organizational levels.'}
         </p>
       </div>
 
@@ -292,7 +369,7 @@ const UserRegistration = () => {
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label>User Code</Label>
+                <Label>User Code (Auto Generated)</Label>
                 <input
                   value={form.userCode}
                   disabled
@@ -317,17 +394,19 @@ const UserRegistration = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label required>Password</Label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => set('password', e.target.value)}
-                  placeholder="••••••••"
-                  className={inputCls}
-                />
-              </div>
+            <div className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-4'}`}>
+              {!isEditMode && (
+                <div>
+                  <Label required>Password</Label>
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => set('password', e.target.value)}
+                    placeholder="••••••••"
+                    className={inputCls}
+                  />
+                </div>
+              )}
 
               <div>
                 <Label required>Mobile Number</Label>
@@ -349,14 +428,14 @@ const UserRegistration = () => {
                   className={inputCls}
                 />
               </div>
-              
+
               <div>
                 <Label required>Department </Label>
                 <Select
                  value={form.department}
                  onChange={(e) => set('department', e.target.value)}
                  placeholder="Select Department"
-                 options={['Manager','Sales','Marketing','Chef','Helper']}
+                 options={DEPARTMENT_OPTIONS}
                 />
               </div>
             </div>
@@ -473,21 +552,26 @@ const UserRegistration = () => {
         <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
           <button
             type="button"
+            onClick={() => navigate('/users')}
             className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
           >
             Cancel
           </button>
+          {!isEditMode && (
+            <button
+              type="button"
+              onClick={handleSaveAndAddAnother}
+              className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white"
+            >
+              Save & Add Another
+            </button>
+          )}
           <button
             type="button"
-            className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white"
-          >
-            Save & Add Another
-          </button>
-          <button
-            type="button"
+            onClick={handleSubmit}
             className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
           >
-            Save User
+            {isEditMode ? 'Update User' : 'Save User'}
           </button>
         </div>
 

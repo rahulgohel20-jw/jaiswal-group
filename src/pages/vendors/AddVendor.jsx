@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { ChevronDown, Map, MapPin, User, X, Check } from 'lucide-react';
 
 const inputCls =
@@ -182,7 +183,69 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
+// Splits the listing's single "name" field into first/last/surname as a
+// best-effort guess, since the form collects those separately.
+const splitName = (fullName = '') => {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: '', lastName: '', surname: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '', surname: '' };
+  if (parts.length === 2) return { firstName: parts[0], lastName: '', surname: parts[1] };
+  return {
+    firstName: parts[0],
+    lastName: parts.slice(1, -1).join(' '),
+    surname: parts[parts.length - 1],
+  };
+};
+
+// Maps a row from the vendor listing table onto the shape this form uses.
+// The listing's mock data doesn't carry every field this form has (password,
+// address lines, alt mobile, etc.) so anything missing just falls back to blank.
+const mapVendorToForm = (vendor) => ({
+  ...splitName(vendor.name),
+  vendorCode: vendor.code ?? 'VND-2023-0892',
+  email: vendor.email ?? '',
+  company: vendor.company ?? 'Jaiswal Group India Pvt Ltd',
+  password: '',
+  mobile: vendor.mobile ?? '',
+  altMobile: vendor.altMobile ?? '',
+  addressLine1: vendor.addressLine1 ?? '',
+  addressLine2: vendor.addressLine2 ?? '',
+  country: vendor.country ?? 'India',
+  state: vendor.state ?? 'Gujarat',
+  city: vendor.city ?? '',
+  pincode: vendor.pincode ?? '',
+  latitude: vendor.latitude ?? '',
+  longitude: vendor.longitude ?? '',
+});
+
+const DEFAULT_FORM = {
+  firstName: '',
+  lastName: '',
+  surname: '',
+  vendorCode: 'VND-2023-0892',
+  email: '',
+  company: 'Jaiswal Group India Pvt Ltd',
+  password: '',
+  mobile: '',
+  altMobile: '',
+  addressLine1: '',
+  addressLine2: '',
+  country: 'India',
+  state: 'Gujarat',
+  city: '',
+  pincode: '',
+  latitude: '',
+  longitude: '',
+};
+
 const VendorRegistration = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // If we arrived here via the edit action, the vendor row is passed in
+  // location.state. Its presence is what puts the page into edit mode.
+  const editingVendor = location.state?.vendor ?? null;
+  const isEditMode = !!editingVendor;
 
   const [openSections, setOpenSections] = useState({
     personal: true,
@@ -194,36 +257,47 @@ const VendorRegistration = () => {
 
   const [showMapPicker, setShowMapPicker] = useState(false);
 
-  const [form, setForm] = useState({
-    firstName: '',
-    lastName: '',
-    surname: '',
-    vendorCode: "VND-2023-0892",
-    email: "",
-    company: "Jaiswal Group India Pvt Ltd",
-    password: "",
-    mobile: "",
-    altMobile: "",
-    addressLine1: "",
-    addressLine2: "",
-    country: "India",
-    state: "Gujarat",
-    city: "",
-    pincode: "",
-    latitude: "",
-    longitude: "",
-  });
+  const [form, setForm] = useState(() =>
+    editingVendor ? mapVendorToForm(editingVendor) : DEFAULT_FORM,
+  );
+
+  // If the user navigates here again with a different vendor (e.g. clicking
+  // edit on another row without leaving the app), refresh the form.
+  useEffect(() => {
+    setForm(editingVendor ? mapVendorToForm(editingVendor) : DEFAULT_FORM);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingVendor?.id]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleSubmit = () => {
+    const fullName = [form.firstName, form.lastName, form.surname].filter(Boolean).join(' ');
+    if (isEditMode) {
+      // TODO: wire up to the update API call.
+      alert(`Updated ${fullName || 'vendor'}`);
+    } else {
+      // TODO: wire up to the create API call.
+      alert(`Saved ${fullName || 'vendor'}`);
+    }
+    navigate('/vendors');
+  };
+
+  const handleSaveAndAddAnother = () => {
+    const fullName = [form.firstName, form.lastName, form.surname].filter(Boolean).join(' ');
+    alert(`Saved ${fullName || 'vendor'}`);
+    setForm(DEFAULT_FORM);
+  };
 
   return (
     <div className="mx-4 min-h-screen">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          Vendor Registration
+          {isEditMode ? 'Update Vendor' : 'Vendor Registration'}
         </h1>
         <p className="text-[#43474F]">
-          Create a new enterprise vendor account across organizational levels.
+          {isEditMode
+            ? `Update the account details for ${editingVendor?.name ?? 'this vendor'}.`
+            : 'Create a new enterprise vendor account across organizational levels.'}
         </p>
       </div>
 
@@ -271,9 +345,9 @@ const VendorRegistration = () => {
 
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label>User Code</Label>
+                <Label>Vendor Code (Auto Generated)</Label>
                 <input
-                  value={form.userCode}
+                  value={form.vendorCode}
                   disabled
                   className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
                 />
@@ -296,17 +370,19 @@ const VendorRegistration = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label required>Password</Label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => set('password', e.target.value)}
-                  placeholder="••••••••"
-                  className={inputCls}
-                />
-              </div>
+            <div className={`grid gap-4 ${isEditMode ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {!isEditMode && (
+                <div>
+                  <Label required>Password</Label>
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => set('password', e.target.value)}
+                    placeholder="••••••••"
+                    className={inputCls}
+                  />
+                </div>
+              )}
 
               <div>
                 <Label required>Mobile Number</Label>
@@ -442,21 +518,26 @@ const VendorRegistration = () => {
         <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
           <button
             type="button"
+            onClick={() => navigate('/vendors')}
             className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
           >
             Cancel
           </button>
+          {!isEditMode && (
+            <button
+              type="button"
+              onClick={handleSaveAndAddAnother}
+              className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white"
+            >
+              Save & Add Another
+            </button>
+          )}
           <button
             type="button"
-            className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white"
-          >
-            Save & Add Another
-          </button>
-          <button
-            type="button"
+            onClick={handleSubmit}
             className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
           >
-            Save Vendor
+            {isEditMode ? 'Update Vendor' : 'Save Vendor'}
           </button>
         </div>
 

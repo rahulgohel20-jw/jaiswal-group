@@ -27,7 +27,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 const INITIAL_UnitS = [
   {
@@ -279,6 +279,7 @@ const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-
 );
 
 const UnitListing = () => {
+  const navigate = useNavigate();
   const [Units, setUnits] = useState(INITIAL_UnitS);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -302,6 +303,14 @@ const UnitListing = () => {
       }),
     [Units, search, statusFilter, typeFilter],
   );
+
+  // Sends the user to the same form used for creating a Unit, but with the
+  // row's data attached via router state — the form flips into edit mode
+  // (title, copy, and the Save button all switch to "Update") whenever
+  // state.unit is present.
+  const handleEdit = (Unit) => {
+    navigate('/units/update-unit', { state: { unit: Unit } });
+  };
 
   const handleDelete = (Unit) => setDeletingUnit(Unit);
   const confirmDelete = () => {
@@ -395,7 +404,7 @@ const UnitListing = () => {
             </button>
             <button
               type="button"
-              onClick={() => alert(`Update ${row.original.name}`)}
+              onClick={() => handleEdit(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
               title="Update Unit"
             >
@@ -458,7 +467,7 @@ const UnitListing = () => {
             </div>
           </div>
           <Link
-            to="/Units/registration"
+            to="/units/add-unit"
             className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition"
           >
             <Plus className="w-4 h-4" />

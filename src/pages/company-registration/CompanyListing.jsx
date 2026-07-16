@@ -213,7 +213,7 @@ const CompanyRegistration = () => {
   };
 
   const handleEdit = (company) => {
-    navigate("/companies/registration", { state: { company } });
+    navigate("/companies/update-company", { state: { company } });
   };
 
   const columns = useMemo(

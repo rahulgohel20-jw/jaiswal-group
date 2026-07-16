@@ -18,7 +18,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -256,6 +256,7 @@ const KYC_OPTIONS = [
   { key: "Rejected", label: "Rejected" },
 ];
 const UserManagementList = () => {
+  const navigate = useNavigate();
   const [userData, setUserData] = useState(INITIAL_DATA)
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [viewingUser, setViewingUser] = useState(null);
@@ -277,6 +278,20 @@ const UserManagementList = () => {
     [userData, departmentFilter, kycFilter, roleFilter],
   );
 
+
+  // Sends the user to the same form used for creating a user, but with the
+  // row's data attached via router state — the form flips into edit mode
+  // (title, copy, and the Save button all switch to "Update", and the
+  // password field is hidden entirely) whenever state.user is present.
+
+  // router state is passed through history.pushState, which uses the
+  // structured clone algorithm — it can't clone React elements (like the
+  // kycIcon field on each row), so only plain, serializable fields go
+  // through here.
+  const handleEdit = (user) => {
+    const { kycIcon, ...serializableUser } = user;
+    navigate('/users/update-user', { state: { user: serializableUser } });
+  };
 
   const handleDelete = (user) => setDeletingUser(user);
   const confirmDelete = () => {
@@ -379,7 +394,7 @@ const UserManagementList = () => {
             </button>
             <button
               type="button"
-              onClick={() => alert(`Update ${row.original.name}`)}
+              onClick={() => handleEdit(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
               title="Update user"
             >
