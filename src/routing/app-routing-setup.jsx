@@ -132,6 +132,8 @@ import AddAssignAsset from '../pages/assest-management/assign-assets/AddAssignAs
 import AssetSubCategory from '../pages/assest-management/sub-categories/AssetSubCategory';
 import AssetCategory from '../pages/assest-management/categories/AssetCategory';
 import AssetsType from '../pages/assest-management/assets-type/AssetsType';
+import ConditionMasterModule from '../pages/assest-management/conditions/ConditionMasterModule';
+import StatusMasterModule from '../pages/assest-management/status/StatusMasterModule';
 
 export function AppRoutingSetup() {
   return (
@@ -175,6 +177,8 @@ export function AppRoutingSetup() {
           <Route path='/assets/sub-categories' element={<AssetSubCategory /> } /> 
           <Route path="/assigned-assests" element={<AssignAssets />} />
           <Route path='/assets-type' element={<AssetsType/>}/>
+          <Route path='/conditions' element={<ConditionMasterModule/>} />
+          <Route path='/status' element={<StatusMasterModule/>}/>
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />

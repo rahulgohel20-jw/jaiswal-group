@@ -451,9 +451,8 @@ export const MENU_SIDEBAR = [
       { title: 'Assets Items', path: '' },
       { title: 'Assets', path: '/assets' },
       { title: 'Assigned Asset', path: '/assigned-assets' },
-      { title: 'Conditions', path: '' },
-       { title: 'Status', path: '' },
-      { title: 'Units', path: '' },
+      { title: 'Conditions', path: '/conditions' },
+      { title: 'units', path: '' },
     ],
   },
 ];
