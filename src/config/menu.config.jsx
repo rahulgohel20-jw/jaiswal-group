@@ -450,7 +450,7 @@ export const MENU_SIDEBAR = [
       { title: 'Asset Type',  path: '/assets-type' },
       { title: 'Assets', path: '/assets' },
       { title: 'Assigned Asset', path: '/assigned-assets' },
-      { title: 'Conditions', path: '' },
+      { title: 'Conditions', path: '/conditions' },
       { title: 'units', path: '' },
     ],
   },
