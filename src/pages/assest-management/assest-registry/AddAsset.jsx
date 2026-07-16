@@ -15,6 +15,8 @@ import {
   Save,
   UserPlus,
   CirclePlus,
+  ImagePlus,
+  X,
 } from 'lucide-react';
 import { Button } from 'react-aria-components';
 
@@ -147,6 +149,72 @@ const CodeBox = ({ label, icon: Icon, actions }) => (
   </div>
 );
 
+const ImageUpload = ({ value, onChange }) => {
+  const [dragActive, setDragActive] = useState(false);
+  const inputRef = React.useRef(null);
+
+  const handleFiles = (files) => {
+    const file = files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) return;
+    if (file.size > 5 * 1024 * 1024) return;
+    onChange(file);
+  };
+
+  const previewUrl = value ? URL.createObjectURL(value) : null;
+
+  if (previewUrl) {
+    return (
+      <div>
+        <Label>Asset Image</Label>
+        <div className="relative w-fit h-[120px] rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+          <img src={previewUrl} alt="Asset preview" className="w-full h-full object-cover" />
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-red-500 hover:bg-white transition cursor-pointer"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <Label>Asset Image</Label>
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragActive(true);
+        }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragActive(false);
+          handleFiles(e.dataTransfer.files);
+        }}
+        className={`w-full h-[80px] rounded-lg border border-dashed flex flex-col items-center justify-center gap-1.5 cursor-pointer transition ${
+          dragActive ? 'border-blue-400 bg-blue-50/60' : 'border-gray-300 bg-gray-50/40 hover:border-gray-400'
+        }`}
+      >
+        <ImagePlus className="w-4 h-4 text-blue-400" />
+        <p className="text-xs text-gray-500 text-center px-2">Click or drag to upload asset photo</p>
+        <p className="text-[10px] text-gray-400">PNG, JPG or WEBP (max. 5MB)</p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+      </div>
+    </div>
+  );
+};
+
 const AddAsset = () => {
   const [openSections, setOpenSections] = useState({
     identification: true,
@@ -168,6 +236,7 @@ const AddAsset = () => {
     modelNumber: '',
     manufacturer: '',
     serialNumber: '',
+    assetImage: null,
 
     purchaseDate: '',
     vendor: '',
@@ -363,7 +432,8 @@ const AddAsset = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <ImageUpload value={form.assetImage} onChange={(file) => set('assetImage', file)} />
+               <div>
                 <Label>Serial Number</Label>
                 <input
                   value={form.serialNumber}
