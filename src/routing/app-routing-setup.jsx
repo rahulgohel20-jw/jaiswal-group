@@ -132,6 +132,7 @@ import AddAssignAsset from '../pages/assest-management/assign-assets/AddAssignAs
 import AssetSubCategory from '../pages/assest-management/sub-categories/AssetSubCategory';
 import AssetCategory from '../pages/assest-management/categories/AssetCategory';
 import AssetsType from '../pages/assest-management/assets-type/AssetsType';
+import Departmentlist from '../pages/department/Departmentlist';
 
 export function AppRoutingSetup() {
   return (
@@ -164,6 +165,8 @@ export function AppRoutingSetup() {
           <Route path='/users' element={<UserManagementList/>} />
           <Route path='/users/add-user' element={<UserRegistration />} />
           <Route path='/users/update-user' element={<UserRegistration />} />
+
+          <Route path="/department" element={<Departmentlist />} />
 
           <Route path="/assets" element={<AssetsManagement />} />
           <Route path="/assets/add-asset" element={<AddAsset />} />

@@ -68,6 +68,7 @@ import {
   Factory,
   Database,
   ClipboardList,
+  Group,
 } from 'lucide-react';
 
 // export const MENU_SIDEBAR = [
@@ -442,6 +443,14 @@ export const MENU_SIDEBAR = [
     path: '/vendors',
   },
   {
+    title: 'Department',
+    icon: Group,
+     children: [
+      { title: 'Departments', path: '/department' },
+      { title: 'Roles', path: '' },
+    ],
+  },
+  {
     title: 'Assest Management',
     icon: LayoutGrid,
     children: [
@@ -452,7 +461,7 @@ export const MENU_SIDEBAR = [
       { title: 'Assets', path: '/assets' },
       { title: 'Assigned Asset', path: '/assigned-assets' },
       { title: 'Conditions', path: '' },
-       { title: 'Status', path: '' },
+      { title: 'Status', path: '' },
       { title: 'Units', path: '' },
     ],
   },
