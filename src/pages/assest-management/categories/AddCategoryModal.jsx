@@ -12,22 +12,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { createAssetCategory } from '@/services/apiServices';
 
-const AddCategoryModal = ({ isOpen, onClose, onSave }) => {
+const AddCategoryModal = ({ isOpen, onClose, onSaved }) => {
   const [form, setForm] = useState({
     name: '',
     description: '',
     status: 'Active',
   });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    console.log(form)
+    try {
+      await createAssetCategory({
+        name: form.name,
+        description: form.description,
+        active: form.status === 'Active',
+        createdBy: 0, 
+      });
+      setForm({ name: '', description: '', status: 'Active' });
+      onSaved?.();  
+      onClose?.();
+    } catch (err) {
+      console.error(err);
+      setError(
+        err?.response?.data?.message || 'Failed to create category. Please try again.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   if (!isOpen) return null;
-
-  const handleSave = () => {
-    onSave?.(form);
-    setForm({ name: '', description: '', status: 'Active' });
-  };
 
   const handleClose = () => {
     setForm({ name: '', description: '', status: 'Active' });
@@ -108,11 +130,11 @@ const AddCategoryModal = ({ isOpen, onClose, onSave }) => {
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!form.name.trim()}
+            disabled={!form.name.trim() || saving}
             className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
           >
             <Save className="h-4 w-4" />
-            Save Category
+            {saving ? 'Saving...' : 'Save Category'}  
           </Button>
         </div>
       </div>

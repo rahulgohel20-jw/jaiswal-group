@@ -11,7 +11,7 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -20,7 +20,8 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddCategoryModal from './AddCategoryModal';
-import AssetCategoryDetailsModal from './AssetCategoryDetailsModal'
+import AssetCategoryDetailsModal from './AssetCategoryDetailsModal';
+import { getAssetCategories } from '@/services/apiServices';
 
 const STATS = [
     {
@@ -54,40 +55,6 @@ const STATS = [
     },
 ];
 
-const INITIAL_CATEGORIES = [
-    {
-        id: 1,
-        name: "Kitchen Equipment",
-        description: "Commercial grade ovens, refrigeration, and cooking appliances.",
-        status: "Active",
-        totalAssets: 428,
-        createdDate: "12 Oct, 2023",
-        activity: [
-            { title: "Category Updated", detail: "Description was modified by Admin Jaiswal", time: "2 hours ago" },
-            { title: "15 Assets Added", detail: "Bulk import of 15 new Industrial miners", time: "Yesterday, 4:30 PM" },
-            { title: "Category Created", detail: "Initial setup by Admin Jaiswal", time: "12 Oct 2023" },
-        ],
-    },
-    {
-        id: 2,
-        name: "IT Equipment",
-        description: "Laptops, servers, workstations, and networking hardware.",
-        status: "Active",
-    },
-    {
-        id: 3,
-        name: "Office Furniture",
-        description: "Desks, chairs, filing cabinets, and workstation fittings.",
-        status: "Inactive",
-    },
-    {
-        id: 4,
-        name: "Vehicles",
-        description: "Company delivery trucks and staff transport vehicles.",
-        status: "Active",
-    },
-];
-
 const StatusBadge = ({ status }) => {
     const styles = {
         Active: "bg-green-100 text-green-700",
@@ -100,25 +67,45 @@ const StatusBadge = ({ status }) => {
     );
 };
 
+// Maps a raw API category object to the shape the table/UI expects
+const mapCategory = (c) => ({
+    id: c.id,
+    name: c.name,
+    description: c.description,
+    status: c.active ? "Active" : "Inactive",
+    totalAssets: c.totalAssets,
+    createdDate: c.createdDate,
+    activity: c.activity,
+});
+
 const AssetCategory = () => {
-    const [categories, setCategories] = useState(INITIAL_CATEGORIES);
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
     const [showAddCategory, setShowAddCategory] = useState(false);
     const [viewingCategory, setViewingCategory] = useState(null);
 
-    const handleSaveCategory = (data) => {
-        setCategories((prev) => [
-            ...prev,
-            {
-                id: prev.length ? Math.max(...prev.map((c) => c.id)) + 1 : 1,
-                name: data.name,
-                description: data.description,
-                status: data.status,
-            },
-        ]);
-        setShowAddCategory(false);
+    const fetchCategories = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await getAssetCategories();
+            // Adjust this line once you confirm the actual API response shape
+            const raw = res.data?.data ?? res.data?.content ?? res.data ?? [];
+            setCategories(Array.isArray(raw) ? raw.map(mapCategory) : []);
+        } catch (err) {
+            console.error(err);
+            setError('Failed to load categories');
+        } finally {
+            setLoading(false);
+        }
     };
+
+    useEffect(() => {
+        fetchCategories();
+    }, []);
 
     const columns = [
         {
@@ -293,6 +280,8 @@ const AssetCategory = () => {
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                {loading && <p className="p-4 text-sm text-gray-500">Loading categories...</p>}
+                {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                 <DataGrid table={table} recordCount={categories.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
@@ -311,7 +300,7 @@ const AssetCategory = () => {
             <AddCategoryModal
                 isOpen={showAddCategory}
                 onClose={() => setShowAddCategory(false)}
-                onSave={handleSaveCategory}
+                onSaved={fetchCategories}
             />
 
             <AssetCategoryDetailsModal
