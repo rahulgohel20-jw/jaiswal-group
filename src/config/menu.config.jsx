@@ -456,13 +456,13 @@ export const MENU_SIDEBAR = [
     children: [
       { title: 'Categories',path: '/assets/categories' },
       { title: 'Sub Categories', path: '/assets/sub-categories' },
-      { title: 'Assets Type',  path: '' },
+      { title: 'Assets Type',  path: '/assets/asset-type' },
       { title: 'Assets Items', path: '' },
       { title: 'Assets', path: '/assets' },
       { title: 'Assigned Asset', path: '/assigned-assets' },
-      { title: 'Conditions', path: '' },
-      { title: 'Status', path: '' },
-      { title: 'Units', path: '' },
+      { title: 'Conditions', path: '/conditions' },
+      { title: 'units', path: '' },
+      { title: 'Status', path: '/assets/status' }
     ],
   },
 ];
