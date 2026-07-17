@@ -253,7 +253,7 @@ const StatusMasterModule = () => {
                         Export
                     </button>
 
-                    <button onClick={() => setShowStatusModal(true)} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg">
+                    <button onClick={() => setShowStatusModal(true)} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
                         <Plus size={16} />
                         Add Status
                     </button>
@@ -448,61 +448,20 @@ const StatusMasterModule = () => {
                                         </div>
                                     </div>
 
-                                    {/* Preview */}
-                                    <div>
-                                        <h3 className="text-xs font-bold tracking-[2px] text-[#6B7280] mb-4">
-                                            REAL-TIME PREVIEW
-                                        </h3>
-
-                                        <div className="bg-[#F5F8FF] border border-[#E5EAF5] rounded-2xl p-8">
-                                            <div className="bg-white rounded-2xl p-6 flex justify-between items-center shadow-sm">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-14 h-14 bg-[#084E920D] rounded-xl flex items-center justify-center">
-                                                        <Boxes
-                                                            size={22}
-                                                            className="text-[#265FA4]"
-                                                        />
-                                                    </div>
-
-                                                    <div>
-                                                        <h4 className="text-xl text-[#1F2937]">
-                                                            {statusName || "New Status"}
-                                                        </h4>
-
-                                                        <p className="text-xs uppercase tracking-[1px] text-[#9CA3AF]">
-                                                            Preview Label
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <span
-                                                    className={`px-4 py-2 rounded-full text-sm font-medium ${status === "Active"
-                                                            ? "bg-[#DCFCE7] text-[#15803D]"
-                                                            : "bg-[#E5EAF5] text-[#6B7280]"
-                                                        }`}
-                                                >
-                                                    {status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
 
                                 {/* Footer */}
                                 <div className="border-t bg-[#EFF4FF] border-[#C3C6D166] px-6 py-4 flex justify-between gap-4">
                                     <button
                                         onClick={() => setShowStatusModal(false)}
-                                        className="px-6 py-3 border border-[#D1D5DB] rounded-xl text-[#4B5563] bg-[#FFFFFF]"
+                                        className="px-6 py-3 border border-[#D1D5DB] rounded-xl text-[#4B5563] bg-[#FFFFFF] cursor-pointer"
                                     >
                                         Cancel
                                     </button>
 
                                     <div className='flex gap-3'>
-                                        <button className="px-6 py-3 border border-[#BFD5F6] bg-[#EEF4FF] text-[#084E92] rounded-xl">
-                                        Save & Add Another
-                                    </button>
 
-                                    <button className="px-6 py-3 bg-[#084E92] text-white rounded-xl">
+                                    <button className="px-6 py-3 bg-[#084E92] text-white rounded-xl cursor-pointer">
                                         Save Status
                                     </button>
                                     </div>

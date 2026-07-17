@@ -135,6 +135,8 @@ import AssetsType from '../pages/assest-management/assets-type/AssetsType';
 import Departmentlist from '../pages/department/Departmentlist';
 import ConditionMasterModule from '../pages/assest-management/conditions/ConditionMasterModule';
 import StatusMasterModule from '../pages/assest-management/status/StatusMasterModule';
+import AssetUnitList from '../pages/assest-management/assets-unit/AssetUnitList';
+import AssetItemsList from '../pages/assest-management/assets-items/AssetsItemList';
 
 export function AppRoutingSetup() {
   return (
@@ -144,9 +146,8 @@ export function AppRoutingSetup() {
       <Route path="auth/*" element={<AuthRouting />} />
       <Route path="*" element={<Navigate to="/error/404" />} />
 
-      <Route element={<RequireAuth />}>
-        <Route element={<Demo1Layout />}>
 
+        <Route element={<Demo1Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
 
@@ -157,6 +158,10 @@ export function AppRoutingSetup() {
           <Route path="/units" element={<UnitListing />} />
           <Route path="/units/add-unit" element={<AddUnit />} />
           <Route path="/units/update-unit" element={<AddUnit />} />
+
+          <Route path="/assets/assets-items" element={<AssetItemsList />} />
+
+          <Route path="/assets/asset-unit" element={<AssetUnitList />} />
 
           <Route path="/vendors" element={<VendorListing />} />
           <Route path="/vendors/add-vendor" element={<AddVendor />} />
@@ -170,7 +175,7 @@ export function AppRoutingSetup() {
 
           <Route path="/department" element={<Departmentlist />} />
 
-          <Route path="/assets" element={<AssetsManagement />} />
+          <Route path="/assets/all-assets" element={<AssetsManagement />} />
           <Route path="/assets/add-asset" element={<AddAsset />} />
 
           <Route path="/assigned-assets" element={<AssignAssets />} />
@@ -183,7 +188,7 @@ export function AppRoutingSetup() {
           <Route path='/assets/asset-type' element={<AssetsType/>}/>
 
           
-          <Route path='/conditions' element={<ConditionMasterModule/>} />
+          <Route path='/assets/conditions' element={<ConditionMasterModule/>} />
           <Route path='/assets/status' element={<StatusMasterModule/>}/>
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
@@ -199,7 +204,7 @@ export function AppRoutingSetup() {
           <Route path="/stocks/closing-stock" element={<ClosingStock />} />
           <Route path="/stocks/add-stock" element={<AddStock />} />
 
-
+      <Route element={<RequireAuth />}>
           <Route
             path="/projectdashboard/taskview"
             element={<TaskViewDashboard />}

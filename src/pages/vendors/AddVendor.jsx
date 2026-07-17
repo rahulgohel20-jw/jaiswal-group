@@ -6,11 +6,31 @@ const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
   'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
 
+const selectCls =
+  'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
+  'outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer';
+
 const Label = ({ children, required }) => (
   <label className="block text-sm font-medium text-gray-700 mb-1.5">
     {children}
     {required && <span className="text-red-500 ml-0.5">*</span>}
   </label>
+);
+
+const Select = ({ value, onChange, options, placeholder }) => (
+  <div className="relative">
+    <select value={value} onChange={onChange} className={selectCls}>
+      <option value="" disabled>
+        {placeholder}
+      </option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
+    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+  </div>
 );
 
 const SectionCard = ({ children, className = '' }) => (
@@ -183,6 +203,13 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
+const UNITS_BY_COMPANY = {
+  'Jaiswal Foods Ltd': ['Main Kitchen', 'Cold Storage', 'Central Bakery'],
+  'Jaiswal Hospitality': ['PDPU', 'LDRP'],
+  'Jaiswal Group': ['Main Pastry Unit', 'Corporate Warehouse', 'Head Office'],
+};
+const COMPANIES = Object.keys(UNITS_BY_COMPANY);
+
 // Splits the listing's single "name" field into first/last/surname as a
 // best-effort guess, since the form collects those separately.
 const splitName = (fullName = '') => {
@@ -204,7 +231,8 @@ const mapVendorToForm = (vendor) => ({
   ...splitName(vendor.name),
   vendorCode: vendor.code ?? 'VND-2023-0892',
   email: vendor.email ?? '',
-  company: vendor.company ?? 'Jaiswal Group India Pvt Ltd',
+  company: vendor.company ?? '',
+  unit: vendor.unit ?? '',
   password: '',
   mobile: vendor.mobile ?? '',
   altMobile: vendor.altMobile ?? '',
@@ -224,7 +252,8 @@ const DEFAULT_FORM = {
   surname: '',
   vendorCode: 'VND-2023-0892',
   email: '',
-  company: 'Jaiswal Group India Pvt Ltd',
+  company: '',
+  unit: '',
   password: '',
   mobile: '',
   altMobile: '',
@@ -269,6 +298,12 @@ const VendorRegistration = () => {
   }, [editingVendor?.id]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  // Changing company invalidates whatever unit was picked before, since
+  // units are scoped to a company.
+  const setCompany = (val) => setForm((f) => ({ ...f, company: val, unit: '' }));
+
+  const unitOptions = UNITS_BY_COMPANY[form.company] || [];
 
   const handleSubmit = () => {
     const fullName = [form.firstName, form.lastName, form.surname].filter(Boolean).join(' ');
@@ -343,7 +378,7 @@ const VendorRegistration = () => {
             </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Vendor Code (Auto Generated)</Label>
                 <input
@@ -363,10 +398,26 @@ const VendorRegistration = () => {
                   className={inputCls}
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label required>Company</Label>
-                <input value={form.company} disabled className={inputCls} />
+                <Select
+                  value={form.company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="Select company"
+                  options={COMPANIES}
+                />
+              </div>
+              <div>
+                <Label required>Unit</Label>
+                <Select
+                  value={form.unit}
+                  onChange={(e) => set('unit', e.target.value)}
+                  placeholder={form.company ? 'Select unit' : 'Select a company first'}
+                  options={unitOptions}
+                />
               </div>
             </div>
 

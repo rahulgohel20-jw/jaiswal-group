@@ -447,22 +447,21 @@ export const MENU_SIDEBAR = [
     icon: Group,
      children: [
       { title: 'Departments', path: '/department' },
-      { title: 'Roles', path: '' },
     ],
   },
   {
     title: 'Assest Management',
     icon: LayoutGrid,
     children: [
-      { title: 'Categories',path: '/assets/categories' },
-      { title: 'Sub Categories', path: '/assets/sub-categories' },
-      { title: 'Assets Type',  path: '/assets/asset-type' },
-      { title: 'Assets Items', path: '' },
-      { title: 'Assets', path: '/assets' },
+      { title: 'Category Master',path: '/assets/categories' },
+      { title: 'Sub Category Master', path: '/assets/sub-categories' },
+      { title: 'Assets Type Master',  path: '/assets/asset-type' },
+      { title: 'Assets Items', path: '/assets/assets-items' },
+      { title: 'Assets', path: '/assets/all-assets' },
       { title: 'Assigned Asset', path: '/assigned-assets' },
-      { title: 'Conditions', path: '/conditions' },
-      { title: 'units', path: '' },
-      { title: 'Status', path: '/assets/status' }
+      { title: 'Conditions Master', path: '/assets/conditions' },
+      { title: 'Status Master', path: '/assets/status' },
+      { title: 'Asset Unit Master', path: '/assets/asset-unit' }
     ],
   },
 ];
@@ -480,7 +479,7 @@ export const MENU_SIDEBAR_ADMIN = [
     children: [
       { title: 'Stock Purchase', path: '/purchase/stock-purchase' },
       { title: 'Purchase Order', path: '/purchase/purchase-order' },
-      { title: 'Purchase Return', icon: RotateCcw, path: '/purchase/purchase-return' },
+      { title: 'Purchase Return', path: '/purchase/purchase-return' },
     ],
   },
   {

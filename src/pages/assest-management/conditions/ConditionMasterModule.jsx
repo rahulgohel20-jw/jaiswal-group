@@ -55,7 +55,7 @@ const INITIAL_CONDITIONS = [
 
 const STATS = [
   {
-    title: "TOTAL CONDITIONS",
+    title: "Total Conditions",
     value: "08",
     badge: "+2 new",
     icon: Package,
@@ -63,7 +63,7 @@ const STATS = [
     iconColor: "text-[#084E92]",
   },
   {
-    title: "OPERATIONAL",
+    title: "Operational",
     value: "07",
     badge: "ACTIVE",
     icon: CircleCheck,
@@ -71,7 +71,7 @@ const STATS = [
     iconColor: "text-[#16A34A]",
   },
   {
-    title: "ARCHIVED",
+    title: "Archived",
     value: "01",
     badge: "INACTIVE",
     icon: CircleX,
@@ -79,7 +79,7 @@ const STATS = [
     iconColor: "text-[#6B7280]",
   },
   {
-    title: "LAST UPDATED",
+    title: "Last Updated",
     value: "10:45 AM",
     subText: "Today, June 24",
     icon: RotateCcw,
@@ -455,57 +455,10 @@ const ConditionMasterModule = () => {
                   </div>
                 </div>
 
-                {/* Preview Title */}
-                <div className='relative'>
-                  <h3 className="text-[#084E92] font-bold tracking-wider text-sm">
-                    LIVE PREVIEW
-                    <div className='h-px w-[78%] bg-[#D9DEE8] absolute top-2.5 left-28' />
-                  </h3>
-                </div>
-
-                {/* Preview Card */}
-                <div className="border border-[#D9DEE8] bg-[#F5F8FF] rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
-
-                  <div className="flex items-center gap-4">
-
-                    <div className="w-14 h-14 rounded-2xl bg-white shadow-sm flex items-center justify-center">
-                      <FileText
-                        size={24}
-                        className="text-[#265FA4]"
-                      />
-                    </div>
-
-                    <div>
-                      <h3 className="font-semibold text-lg text-[#0F172A]">
-                        New Condition
-                      </h3>
-
-                      <p className="text-sm text-[#737781] font-mono font-normal">
-                        ID: AUTO-GEN-001
-                      </p>
-                    </div>
-                  </div>
-
-                  <span className="px-3 py-1 self-start sm:self-auto rounded-full bg-[#DCFCE7] text-[#15803D] text-xs md:text-sm font-semibold border border-[#C3C6D1]">
-                    ● ACTIVE
-                  </span>
-                </div>
-
-                {/* Banner */}
-                <div className="relative overflow-hidden rounded-2xl h-32 bg-linear-to-r from-[#0A4D92] to-[#DCE9FF]">
-
-                  <div className="absolute inset-0 opacity-20" />
-
-                  <div className="relative z-10 p-6">
-                    <h2 className="text-white text-xl font-normal max-w-xs pr-5">
-                      Define asset lifecycle states with precision.
-                    </h2>
-                  </div>
-                </div>
               </div>
 
               {/* Footer */}
-              <div className="border-t border-[#C3C6D1] p-4 md:p-6 flex flex-col sm:flex-row gap-3 cursor-pointer">
+              <div className="border-t border-[#C3C6D1] p-4 md:p-6 flex flex-col justify-between sm:flex-row gap-3 cursor-pointer">
             
                 <button
                   onClick={() => setShowConditionModal(false)}
@@ -515,9 +468,6 @@ const ConditionMasterModule = () => {
                 </button>
 
                 <div className='flex gap-3 flex-col sm:flex-row'>
-                  <button className="px-6 py-2 border border-[#084E9233] text-[#084E92] rounded-xl font-semibold cursor-pointer">
-                  Save & Add Another
-                </button>
 
                 <button className="px-6 py-2 bg-[#084E92] text-white rounded-xl font-medium cursor-pointer">
                   Save Condition

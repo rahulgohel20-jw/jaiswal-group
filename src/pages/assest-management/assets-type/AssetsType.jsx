@@ -239,7 +239,7 @@ const AssetsType = () => {
                         Export
                     </button>
 
-                    <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg hover:bg-[#063b6d]">
+                    <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg hover:bg-[#063b6d] cursor-pointer">
                         <Plus size={16} />
                         Add Asset Type
                     </button>
@@ -383,7 +383,7 @@ const AssetsType = () => {
 
                                 <button
                                     onClick={() => setShowAddModal(false)}
-                                    className="text-gray-500 hover:text-black text-xl"
+                                    className="text-gray-500 hover:text-black text-xl cursor-pointer"
                                 >
                                     ×
                                 </button>
@@ -441,17 +441,14 @@ const AssetsType = () => {
                             <div className="border-t p-5 flex justify-between">
                                 <button
                                     onClick={() => setShowAddModal(false)}
-                                    className="px-5 py-2 border border-red-200 text-red-500 rounded-lg"
+                                    className="px-5 py-2 border border-red-200 text-red-500 rounded-lg cursor-pointer"
                                 >
                                     Cancel
                                 </button>
 
                                 <div className="flex gap-3">
-                                    <button className="px-5 py-2 border border-[#084E92] text-[#084E92] rounded-lg font-medium">
-                                        Save & Add Another
-                                    </button>
 
-                                    <button className="px-5 py-2 bg-[#084E92] text-white rounded-lg font-medium">
+                                    <button className="px-5 py-2 bg-[#084E92] text-white rounded-lg font-medium cursor-pointer">
                                         Save Asset Type
                                     </button>
                                 </div>

@@ -148,14 +148,6 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSave, defaultParentCategory })
           </Button>
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              disabled={!form.name.trim()}
-              onClick={() => handleSave(true)}
-              className="border-primary text-primary hover:bg-[#073e77] hover:text-white"
-            >
-              Save &amp; Add Another
-            </Button>
-            <Button
               onClick={() => handleSave(false)}
               disabled={!form.name.trim()}
               className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"

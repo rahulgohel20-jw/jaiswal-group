@@ -5,3 +5,4 @@ export * from "./sub-categories";
 export * from "./assets-type";
 export * from "./conditions";
 export * from "./status";
+export * from "./assets-unit";
