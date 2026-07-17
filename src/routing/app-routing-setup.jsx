@@ -175,10 +175,13 @@ export function AppRoutingSetup() {
 
           <Route path='/assets/categories' element={<AssetCategory /> } />
           <Route path='/assets/sub-categories' element={<AssetSubCategory /> } /> 
+          
           <Route path="/assigned-assests" element={<AssignAssets />} />
-          <Route path='/assets-type' element={<AssetsType/>}/>
+          <Route path='/assets/asset-type' element={<AssetsType/>}/>
+
+          
           <Route path='/conditions' element={<ConditionMasterModule/>} />
-          <Route path='/status' element={<StatusMasterModule/>}/>
+          <Route path='/assets/status' element={<StatusMasterModule/>}/>
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
