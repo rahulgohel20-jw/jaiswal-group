@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Package, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createAssetType, updateAssetType } from '@/services/apiServices';
 
-const emptyForm = { assetType: '', description: '', status: 'Active' };
+const emptyForm = { assetsTypeName: '', description: '', status: 'Active' };
+
+const ASSET_TYPE_OPTIONS = ['Fixed', 'Unit-to-Unit', 'Movable'];
 
 const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
@@ -18,7 +21,7 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
     if (!isOpen) return;
     if (initialData) {
       setForm({
-        assetType: initialData.assetType || '',
+        assetsTypeName: initialData.assetTypeName || '',
         description: initialData.description || '',
         status: initialData.status || 'Active',
       });
@@ -38,12 +41,12 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
     onClose?.();
   };
 
-  const handleSave = async () => {
+const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
       const payload = {
-        assetType: form.assetType,
+        name: form.name,
         description: form.description,
         active: form.status === 'Active',
       };
@@ -67,7 +70,7 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
     } finally {
       setSaving(false);
     }
-  };
+};
 
   return (
     <>
@@ -120,12 +123,12 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
                 <label className="block text-sm mb-2">
                   Asset Type Name*
                 </label>
-                <Input
-                  placeholder="Enter Asset Type"
-                  className="mt-1"
-                  value={form.assetType}
-                  onChange={(e) => set('assetType', e.target.value)}
-                />
+                 <Input
+                              placeholder="Enter Asset Type"
+                              className="mt-1"
+                              value={form.assetType}
+                              onChange={(e) => set('assetType', e.target.value)}
+                  />
               </div>
 
               <div>
@@ -165,7 +168,7 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
             <div className="flex gap-3">
               <button
                 onClick={handleSave}
-                disabled={!form.assetType.trim() || saving}
+                disabled={!form.assetType || saving}
                 className="px-5 py-2 bg-[#084E92] text-white rounded-lg font-medium cursor-pointer disabled:opacity-50"
               >
                 {saving ? 'Saving...' : isEditMode ? 'Update Asset Type' : 'Save Asset Type'}

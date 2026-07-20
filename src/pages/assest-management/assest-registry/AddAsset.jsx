@@ -234,7 +234,6 @@ const AddAsset = () => {
     itemName: '',
     brand: '',
     modelNumber: '',
-    manufacturer: '',
     serialNumber: '',
     assetImage: null,
 
@@ -420,15 +419,6 @@ const AddAsset = () => {
                   className={inputCls}
                 />
               </div>
-              <div>
-                <Label>Manufacturer</Label>
-                <input
-                  value={form.manufacturer}
-                  onChange={(e) => set('manufacturer', e.target.value)}
-                  placeholder="Samsung Electronics"
-                  className={inputCls}
-                />
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -553,7 +543,7 @@ const AddAsset = () => {
                   <div className="flex items-center justify-between">
                     <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">AMC Coverage</h4>
                     <Toggle
-                      checked={amcActive}
+                      checked={!amcActive}
                       onChange={setAmcActive}
                       label={amcActive ? 'AMC Active' : 'AMC Inactive'}
                     />

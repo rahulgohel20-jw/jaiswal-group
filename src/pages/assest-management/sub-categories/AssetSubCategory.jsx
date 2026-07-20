@@ -11,7 +11,7 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useState,useEffect } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -21,6 +21,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddSubCategoryModal from './AddSubCategoryModal';
 import AssetSubCategoryDetailsModal from './AssetSubCategoryDetailsModal';
+import { getSubCategories, getAssetCategories, deleteSubCategory } from '@/services/apiServices';
 
 const STATS = [
     {
@@ -57,40 +58,6 @@ const STATS = [
     },
 ];
 
-const INITIAL_SUBCATEGORIES = [
-    {
-        id: 1,
-        parentCategory: "IT Equipment",
-        name: "Laptops & Notebooks",
-        description: "Standard issue corporate laptops, Ultrabooks, and high-performance mobile workstations assigned to employees across various departments. Includes Apple MacBooks, Dell Precision series, and Lenovo ThinkPads.",
-        status: "Active",
-        assetCount: 412,
-        healthIndex: 92,
-        healthLabel: "Excellent",
-    },
-    {
-        id: 2,
-        parentCategory: "Kitchen",
-        name: "Induction Hobs",
-        description: "High-efficiency commercial induction units.",
-        status: "Active",
-    },
-    {
-        id: 3,
-        parentCategory: "Kitchen",
-        name: "Induction Hobs",
-        description: "High-efficiency commercial induction units.",
-        status: "Active",
-    },
-    {
-        id: 4,
-        parentCategory: "Kitchen",
-        name: "Induction Hobs",
-        description: "High-efficiency commercial induction units.",
-        status: "Active",
-    },
-];
-
 const StatusBadge = ({ status }) => {
     const styles = {
         Active: "bg-green-100 text-green-700",
@@ -104,11 +71,99 @@ const StatusBadge = ({ status }) => {
 };
 
 const AssetSubCategory = () => {
-    const [subCategories, setSubCategories] = useState(INITIAL_SUBCATEGORIES);
-    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+    const [subCategories, setSubCategories] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [rowSelection, setRowSelection] = useState({});
+    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [showAddSubCategory, setShowAddSubCategory] = useState(false);
     const [viewingSubCategory, setViewingSubCategory] = useState(null);
+    const [editingSubCategory, setEditingSubCategory] = useState(null);
+
+      const categoryNameById = (id) =>
+        categories.find((c) => c.id === id)?.name || `Category #${id}`;
+
+      const mapSubCategory = (c) => ({
+        id: c.id,
+        categoryId: c.categoryId,
+        // prefer a name the backend may already embed; fall back to local lookup
+        parentCategory: c.categoryName || c.category?.name || categoryNameById(c.categoryId),
+        name: c.name,
+        description: c.description,
+        status: c.active ? "Active" : "Inactive",
+        assetCount: c.assetCount,
+        healthIndex: c.healthIndex,
+        healthLabel: c.healthLabel,
+    });
+
+        const fetchAll = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const [catRes, subRes] = await Promise.all([
+                getAssetCategories(),
+                getSubCategories(),
+            ]);
+            const cats = catRes.data?.data ?? catRes.data?.content ?? catRes.data ?? [];
+            setCategories(Array.isArray(cats) ? cats : []);
+
+            const raw = subRes.data?.data ?? subRes.data?.content ?? subRes.data ?? [];
+            const list = Array.isArray(raw) ? raw : [];
+            // map using the just-fetched categories (not stale state)
+            setSubCategories(
+                list.map((c) => ({
+                    id: c.id,
+                    categoryId: c.categoryId,
+                    parentCategory:
+                        c.categoryName || c.category?.name ||
+                        (Array.isArray(cats) ? cats.find((x) => x.id === c.categoryId)?.name : null) ||
+                        `Category #${c.categoryId}`,
+                    name: c.name,
+                    description: c.description,
+                    status: c.active ? "Active" : "Inactive",
+                    assetCount: c.assetCount,
+                    healthIndex: c.healthIndex,
+                    healthLabel: c.healthLabel,
+                }))
+            );
+        } catch (err) {
+            console.error(err);
+            setError('Failed to load sub categories');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAll();
+    }, []);
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Delete this sub category? This cannot be undone.')) return;
+        try {
+            await deleteSubCategory(id);
+            fetchAll();
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete sub category.');
+        }
+    };
+
+    const openEditModal = (row) => {
+        setEditingSubCategory(row);
+        setShowAddSubCategory(true);
+    };
+
+    const openCreateModal = () => {
+        setEditingSubCategory(null);
+        setShowAddSubCategory(true);
+    };
+
+    const closeModal = () => {
+        setShowAddSubCategory(false);
+        setEditingSubCategory(null);
+    };
 
     const handleSaveSubCategory = (data) => {
         setSubCategories((prev) => [
@@ -192,15 +247,15 @@ const AssetSubCategory = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
-            cell: ({ row }) => (
+                cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
                     <button type="button" onClick={() => setViewingSubCategory(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
-                    <button type="button">
+                    <button type="button" onClick={() => openEditModal(row.original)}>
                         <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
-                    <button type="button">
+                    <button type="button" onClick={() => handleDelete(row.original.id)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -242,10 +297,6 @@ const AssetSubCategory = () => {
                 </div>
 
                 <div className="flex gap-3 self-end">
-                    <button type="button" className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white">
-                        <Upload size={16} />
-                        Export
-                    </button>
                     <button
                         type="button"
                         onClick={() => setShowAddSubCategory(true)}
@@ -324,11 +375,21 @@ const AssetSubCategory = () => {
                 onSave={handleSaveSubCategory}
             />
 
-            <AssetSubCategoryDetailsModal
+           {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
+           {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+
+         <AddSubCategoryModal
+            isOpen={showAddSubCategory}
+            onClose={closeModal}
+            onSaved={fetchAll}
+            initialData={editingSubCategory}
+        />
+
+         <AssetSubCategoryDetailsModal
                 isOpen={!!viewingSubCategory}
                 onClose={() => setViewingSubCategory(null)}
                 subCategory={viewingSubCategory}
-            />
+        />
         </div>
     );
 };

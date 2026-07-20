@@ -1,4 +1,4 @@
-import { Boxes, Pencil, X } from 'lucide-react';
+import { Package, Pencil, X } from 'lucide-react';
 import React from 'react';
 
 export const formatDate = (dateString) => {
@@ -13,10 +13,10 @@ export const formatDate = (dateString) => {
   });
 };
 
-const AssetCategoryDetailsModal = ({ isOpen, onClose, category, loading }) => {
+const AssetTypeDetailsModal = ({ isOpen, onClose, onEdit, assetType, loading }) => {
     if (!isOpen) return null;
 
-    if (loading || !category) {
+    if (loading || !assetType) {
         return (
             <div className="fixed inset-0 z-50 flex justify-end">
                 <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden="true" />
@@ -27,43 +27,17 @@ const AssetCategoryDetailsModal = ({ isOpen, onClose, category, loading }) => {
         );
     }
 
-    const {
-        id,
-        name,
-        description,
-        status,
-        code,
-        totalAssets = '—',
-        createdAt,
-    } = category;
-
-    const categoryCode = code || `CAT-${String(id).padStart(3, '0')}`;
+    const { id,name, description, status, createdAt } = assetType;
     const isActive = status === 'Active';
-
-    const handleEditClick = () => {
-        onEdit?.(category);
-    };
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
-            {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/30"
-                onClick={onClose}
-                aria-hidden="true"
-            />
-
-            {/* Panel */}
+            <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden="true" />
             <div className="relative w-full max-w-sm bg-white h-full shadow-xl flex flex-col animate-in slide-in-from-right duration-200">
                 {/* Header */}
                 <div className="px-5 py-4 flex items-start justify-between border-b border-[#E5E7EB]">
-                    <h2 className="text-[#1B1B1F] text-base font-bold">Category Details</h2>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 cursor-pointer"
-                        aria-label="Close details panel"
-                    >
+                    <h2 className="text-[#1B1B1F] text-base font-bold">Asset Type Details</h2>
+                    <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                         <X size={20} />
                     </button>
                 </div>
@@ -71,39 +45,26 @@ const AssetCategoryDetailsModal = ({ isOpen, onClose, category, loading }) => {
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-[#D5E3FF] flex items-center justify-center text-[#00376C] shrink-0">
-                            <Boxes size={20} />
+                        <div className="w-10 h-10 rounded-lg bg-[#DCEBFF] flex items-center justify-center text-[#084E92] shrink-0">
+                            <Package size={20} />
                         </div>
                         <div>
                             <p className="text-base font-bold text-[#1B1B1F]">{name}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-xs text-[#737781]">{categoryCode}</span>
-                                <span
-                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                                        isActive
-                                            ? 'bg-green-100 text-green-700'
-                                            : 'bg-gray-200 text-gray-600'
-                                    }`}
-                                >
-                                    {status}
-                                </span>
-                            </div>
+                            <span
+                                className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
+                                    isActive ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+                                }`}
+                            >
+                                {status}
+                            </span>
                         </div>
                     </div>
 
-                    <div className="bg-[#EFF4FF] border border-[#DDE7FF] rounded-xl p-4 grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-[11px] font-semibold text-[#737781] uppercase tracking-wide">
-                                Total Assets
-                            </p>
-                            <p className="text-lg font-bold text-[#1B1B1F] mt-1">{totalAssets}</p>
-                        </div>
-                        <div>
-                            <p className="text-[11px] font-semibold text-[#737781] uppercase tracking-wide">
-                                Created Date
-                            </p>
-                            <p className="text-lg font-bold text-[#1B1B1F] mt-1">{formatDate(createdAt)}</p>
-                        </div>
+                    <div className="bg-[#EFF4FF] border border-[#DDE7FF] rounded-xl p-4">
+                        <p className="text-[11px] font-semibold text-[#737781] uppercase tracking-wide">
+                            Created Date
+                        </p>
+                        <p className="text-lg font-bold text-[#1B1B1F] mt-1">{formatDate(createdAt)}</p>
                     </div>
 
                     <div>
@@ -120,11 +81,11 @@ const AssetCategoryDetailsModal = ({ isOpen, onClose, category, loading }) => {
                 <div className="border-t border-[#E5E7EB] px-5 py-4 flex gap-3">
                     <button
                         type="button"
-                        onClick={handleEditClick}
+                        onClick={() => onEdit?.(assetType)}
                         className="flex-1 px-4 py-2 bg-[#084E92] text-white rounded-lg font-medium hover:bg-[#073e77] transition cursor-pointer flex items-center justify-center gap-2"
                     >
                         <Pencil size={16} />
-                        Edit Category
+                        Edit Asset Type
                     </button>
                     <button
                         type="button"
@@ -139,4 +100,4 @@ const AssetCategoryDetailsModal = ({ isOpen, onClose, category, loading }) => {
     );
 };
 
-export default AssetCategoryDetailsModal;
+export default AssetTypeDetailsModal;

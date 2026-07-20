@@ -124,10 +124,8 @@ axiosInstance.interceptors.response.use(
 // === Helpers ===
 export const POST = (url, data) => axiosInstance.post(url, data);
 export const GET = (url, params) => axiosInstance.get(url, { params });
-export const PUT = (url, data) => axiosInstance.put(url, data);
-export const DELETE = (url, data, params) =>
-  axiosInstance.delete(url, data, { params });
-
+export const PUT = (url, data, params) => axiosInstance.put(url, data, { params });
+export const DELETE = (url, params) => axiosInstance.delete(url, { params });
 export const UPLOAD = (url, formData, config = {}) =>
   axiosInstance.post(url, formData, config);
 

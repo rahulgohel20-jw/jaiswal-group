@@ -21,7 +21,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddCategoryModal from './AddCategoryModal';
 import AssetCategoryDetailsModal from './AssetCategoryDetailsModal';
-import { getAssetCategories } from '@/services/apiServices';
+import { getAssetCategories,deleteAssetCategory } from '@/services/apiServices';
 
 const STATS = [
     {
@@ -86,6 +86,35 @@ const AssetCategory = () => {
     const [rowSelection, setRowSelection] = useState({});
     const [showAddCategory, setShowAddCategory] = useState(false);
     const [viewingCategory, setViewingCategory] = useState(null);
+    const [editingCategory, setEditingCategory] = useState(null);
+    const [viewLoading, setViewLoading] = useState(false);
+
+
+    const handleDelete = async (id) => {
+        if (!window.confirm('Delete this category? This cannot be undone.')) return;
+        try {
+            await deleteAssetCategory(id);
+            fetchCategories();
+        } catch (err) {
+            console.error(err);
+            alert('Failed to delete category.');
+        }
+    };
+
+    const openEditModal = (row) => {
+        setEditingCategory(row);
+        setShowAddCategory(true);
+    };
+
+    const openCreateModal = () => {
+        setEditingCategory(null);
+        setShowAddCategory(true);
+    };
+
+    const closeModal = () => {
+        setShowAddCategory(false);
+        setEditingCategory(null);
+    };
 
     const fetchCategories = async () => {
         setLoading(true);
@@ -165,15 +194,15 @@ const AssetCategory = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
-            cell: ({ row }) => (
+                cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button" onClick={() => setViewingCategory(row.original)}>
+                    <button type="button" onClick={() => handleViewCategory(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
-                    <button type="button">
+                    <button type="button" onClick={() => openEditModal(row.original)}>
                         <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
-                    <button type="button">
+                    <button type="button" onClick={() => handleDelete(row.original.id)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -215,10 +244,6 @@ const AssetCategory = () => {
                 </div>
 
                 <div className="flex gap-3 self-end">
-                    <button type="button" className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white">
-                        <Upload size={16} />
-                        Export
-                    </button>
                     <button
                         type="button"
                         onClick={() => setShowAddCategory(true)}
@@ -299,15 +324,16 @@ const AssetCategory = () => {
 
             <AddCategoryModal
                 isOpen={showAddCategory}
-                onClose={() => setShowAddCategory(false)}
+                onClose={closeModal}
                 onSaved={fetchCategories}
+                initialData={editingCategory}
             />
-
-            <AssetCategoryDetailsModal
-                isOpen={!!viewingCategory}
-                onClose={() => setViewingCategory(null)}
-                category={viewingCategory}
-            />
+          <AssetCategoryDetailsModal
+        isOpen={!!viewingCategory}
+        onClose={() => setViewingCategory(null)}
+        category={viewingCategory}
+        loading={viewLoading}
+    />
         </div>
     );
 };

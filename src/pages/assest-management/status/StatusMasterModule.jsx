@@ -1,6 +1,5 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
-    ClipboardList,
     CircleCheck,
     CircleX,
     RefreshCw,
@@ -12,9 +11,7 @@ import {
     Trash2,
     SquarePen,
     Eye,
-    Boxes,
-    SlidersVertical,
-    X,
+    Loader2,
 } from "lucide-react";
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -23,6 +20,17 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import StatusModal from "./StatusModal";
+import {
+    getStatuses,
+    getStatusById,
+    createStatus,
+    updateStatus,
+    deleteStatus,
+} from "@/services/apiServices";
+
+// TODO: replace with the actual logged-in user id from your auth/session context
+const CURRENT_USER_ID = 1;
 
 const STATS = [
     {
@@ -59,51 +67,6 @@ const STATS = [
     },
 ];
 
-const STATUS_DATA = [
-    {
-        id: 1,
-        srNo: "01",
-        statusName: "Active",
-        visibilityStatus: "Active",
-    },
-    {
-        id: 2,
-        srNo: "02",
-        statusName: "Available",
-        visibilityStatus: "Active",
-    },
-    {
-        id: 3,
-        srNo: "03",
-        statusName: "In Use",
-        visibilityStatus: "Active",
-    },
-    {
-        id: 4,
-        srNo: "04",
-        statusName: "Under Maintenance",
-        visibilityStatus: "Active",
-    },
-    {
-        id: 5,
-        srNo: "05",
-        statusName: "Reserved",
-        visibilityStatus: "Active",
-    },
-    {
-        id: 6,
-        srNo: "06",
-        statusName: "Disposed",
-        visibilityStatus: "Active",
-    },
-    {
-        id: 7,
-        srNo: "07",
-        statusName: "Inactive",
-        visibilityStatus: "Inactive",
-    },
-];
-
 const VisibilityBadge = ({ status }) => (
     <span
         className={`px-3 py-1 rounded-full text-[10px] font-semibold ${status === "Active"
@@ -114,14 +77,158 @@ const VisibilityBadge = ({ status }) => (
         {status}
     </span>
 );
+
+// Normalizes the API record into what the table row needs to display.
+const normalizeStatusRow = (raw = {}, index = 0) => ({
+    id: raw.id,
+    srNo: raw.srNo ?? String(index + 1).padStart(2, "0"),
+    statusName: raw.name ?? "",
+    description: raw.description ?? "",
+    visibilityStatus: raw.active ? "Active" : "Inactive",
+});
+
+// Normalizes the API record into what the modal form needs.
+const normalizeStatusForm = (raw = {}) => ({
+    id: raw.id ?? null,
+    name: raw.name ?? "",
+    description: raw.description ?? "",
+    active: raw.active ?? true,
+});
+
+const EMPTY_FORM = { id: null, name: "", description: "", active: true };
+
 const StatusMasterModule = () => {
-    const [statusData, setStatusData] = useState(STATUS_DATA);
+    const [statusData, setStatusData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
-    const [showStatusModal, setShowStatusModal] = useState(false);
-    const [statusName, setStatusName] = useState("");
-    const [status, setStatus] = useState("Active");
 
+    const [listLoading, setListLoading] = useState(false);
+    const [listError, setListError] = useState(null);
+
+    // modal: mode is 'add' | 'edit' | 'view' | null
+    const [modalMode, setModalMode] = useState(null);
+    const [modalLoading, setModalLoading] = useState(false);
+    const [modalError, setModalError] = useState(null);
+    const [saving, setSaving] = useState(false);
+    const [formData, setFormData] = useState(EMPTY_FORM);
+
+    const [deletingId, setDeletingId] = useState(null);
+
+    // -------------------------------------------------------------------
+    // Load list
+    // -------------------------------------------------------------------
+    const loadStatuses = async () => {
+        setListLoading(true);
+        setListError(null);
+        try {
+            const res = await getStatuses();
+            const list = res?.data?.data ?? [];
+            setStatusData(list.map(normalizeStatusRow));
+        } catch (err) {
+            setListError(err?.message || "Failed to load statuses");
+        } finally {
+            setListLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadStatuses();
+    }, []);
+
+    // -------------------------------------------------------------------
+    // Modal open handlers — View and Edit both call getStatusById first
+    // so the modal always renders the freshest record from the server.
+    // -------------------------------------------------------------------
+    const openAddModal = () => {
+        setFormData(EMPTY_FORM);
+        setModalError(null);
+        setModalMode("add");
+    };
+
+    const openWithFetchedRecord = async (id, mode) => {
+        setModalMode(mode);
+        setModalLoading(true);
+        setModalError(null);
+        setFormData(EMPTY_FORM);
+        try {
+            const res = await getStatusById(id);
+            const record = res?.data?.data ?? res?.data ?? res;
+            setFormData(normalizeStatusForm(record));
+        } catch (err) {
+            setModalError(err?.message || "Failed to load status");
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
+    const openViewModal = (id) => openWithFetchedRecord(id, "view");
+    const openEditModal = (id) => openWithFetchedRecord(id, "edit");
+
+    const closeModal = () => {
+        setModalMode(null);
+        setModalError(null);
+        setFormData(EMPTY_FORM);
+    };
+
+    // -------------------------------------------------------------------
+    // Save (create or update depending on mode)
+    // -------------------------------------------------------------------
+    const handleSave = async () => {
+        if (!formData.name.trim()) {
+            setModalError("Status name is required");
+            return;
+        }
+
+        setSaving(true);
+        setModalError(null);
+        try {
+            if (modalMode === "edit") {
+                const payload = {
+                    name: formData.name.trim(),
+                    description: formData.description?.trim() || undefined,
+                    active: formData.active,
+                };
+                await updateStatus({ id: formData.id, ...payload });
+            } else {
+                // create body: { active, createdBy, description, name } — description is optional
+                const payload = {
+                    active: formData.active,
+                    createdBy: CURRENT_USER_ID,
+                    name: formData.name.trim(),
+                    ...(formData.description?.trim() ? { description: formData.description.trim() } : {}),
+                };
+                await createStatus(payload);
+            }
+
+            await loadStatuses();
+            closeModal();
+        } catch (err) {
+            setModalError(err?.message || "Failed to save status");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // -------------------------------------------------------------------
+    // Delete
+    // -------------------------------------------------------------------
+    const handleDelete = async (id) => {
+        if (!window.confirm("Delete this status? This cannot be undone.")) return;
+
+        setDeletingId(id);
+        try {
+            await deleteStatus(id);
+            await loadStatuses();
+        } catch (err) {
+            setListError(err?.message || "Failed to delete status");
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    // -------------------------------------------------------------------
+    // Table columns
+    // -------------------------------------------------------------------
     const columns = [
         {
             id: "select",
@@ -194,22 +301,29 @@ const StatusMasterModule = () => {
                 />
             ),
 
-            cell: () => (
+            cell: ({ row }) => (
                 <div className="flex items-center gap-4">
                     <Eye
                         size={16}
                         className="text-[#265FA4] cursor-pointer"
+                        onClick={() => openViewModal(row.original.id)}
                     />
 
                     <SquarePen
                         size={16}
                         className="cursor-pointer"
+                        onClick={() => openEditModal(row.original.id)}
                     />
 
-                    <Trash2
-                        size={16}
-                        className="text-red-500 cursor-pointer"
-                    />
+                    {deletingId === row.original.id ? (
+                        <Loader2 size={16} className="animate-spin text-red-500" />
+                    ) : (
+                        <Trash2
+                            size={16}
+                            className="text-red-500 cursor-pointer"
+                            onClick={() => handleDelete(row.original.id)}
+                        />
+                    )}
                 </div>
             ),
 
@@ -227,6 +341,7 @@ const StatusMasterModule = () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
     return (
         <div className='p-4 md:px-6'>
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
@@ -248,12 +363,7 @@ const StatusMasterModule = () => {
                 </div>
 
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2 border rounded-lg bg-white">
-                        <Download size={16} />
-                        Export
-                    </button>
-
-                    <button onClick={() => setShowStatusModal(true)} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
+                    <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
                         <Plus size={16} />
                         Add Status
                     </button>
@@ -343,7 +453,7 @@ const StatusMasterModule = () => {
                         </div>
 
                         <div className="flex items-end">
-                            <button className="w-full text-white rounded-lg px-6 py-2 bg-[#084E92]">
+                            <button onClick={loadStatuses} className="w-full text-white rounded-lg px-6 py-2 bg-[#084E92]">
                                 Apply Filters
                             </button>
                         </div>
@@ -352,125 +462,46 @@ const StatusMasterModule = () => {
                 </div>
             </div>
 
+            {listError && (
+                <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
+                    {listError}
+                </div>
+            )}
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={status.length} className="rounded-2xl">
-                    <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardTable>
-                        <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                            <DataGridPagination />
-                        </CardFooter>
-                    </Card>
-                </DataGrid>
+                {listLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-16 text-[#5F6368]">
+                        <Loader2 size={18} className="animate-spin" />
+                        Loading statuses...
+                    </div>
+                ) : (
+                    <DataGrid table={table} recordCount={statusData.length} className="rounded-2xl">
+                        <Card className="rounded-t-none border-t-0 rounded-2xl">
+                            <CardTable>
+                                <ScrollArea>
+                                    <DataGridTable />
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
+                            </CardTable>
+                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                                <DataGridPagination />
+                            </CardFooter>
+                        </Card>
+                    </DataGrid>
+                )}
             </div>
 
-
-            {
-                showStatusModal && (
-                    <>
-                        <div
-                            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-                            onClick={() => setShowStatusModal(false)}
-                        />
-
-                        <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                            <div
-                                className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                {/* Header */}
-                                <div className="flex justify-between items-start px-6 py-5 border-b border-[#E5E7EB]">
-                                    <div className="flex gap-4 items-center">
-                                        <div className="w-12 h-12 rounded-xl bg-[#EEF4FF] flex items-center justify-center">
-                                            <SlidersVertical
-                                                size={22}
-                                                className="text-[#084E92]"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <h2 className="text-[24px] text-[#121C2A]">
-                                                Add Status
-                                            </h2>
-
-                                            <p className="text-[#6B7280]">
-                                                Configure system-wide asset status settings.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <button onClick={() => setShowStatusModal(false)} className='cursor-pointer'>
-                                        <X
-                                            size={22}
-                                            className="text-gray-500"
-                                        />
-                                    </button>
-                                </div>
-
-                                {/* Body */}
-                                <div className="p-6 space-y-8">
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div>
-                                            <label className="block mb-2 text-sm font-medium text-[#374151]">
-                                                Status Name <span className="text-red-500">*</span>
-                                            </label>
-
-                                            <input
-                                                type="text"
-                                                value={statusName}
-                                                onChange={(e) => setStatusName(e.target.value)}
-                                                placeholder="e.g. Under Maintenance"
-                                                className="w-full border border-[#D1D5DB] rounded-xl px-4 py-3 outline-none"
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block mb-2 text-sm font-medium text-[#374151]">
-                                                Status
-                                            </label>
-
-                                            <p className=' border border-[#D1D5DB] rounded-xl px-4 py-3 '>
-                                                <select
-                                                value={status}
-                                                onChange={(e) => setStatus(e.target.value)}
-                                                className="w-full outline-none"
-                                            >
-                                                <option>Active</option>
-                                                <option>Inactive</option>
-                                            </select>
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                </div>
-
-                                {/* Footer */}
-                                <div className="border-t bg-[#EFF4FF] border-[#C3C6D166] px-6 py-4 flex justify-between gap-4">
-                                    <button
-                                        onClick={() => setShowStatusModal(false)}
-                                        className="px-6 py-3 border border-[#D1D5DB] rounded-xl text-[#4B5563] bg-[#FFFFFF] cursor-pointer"
-                                    >
-                                        Cancel
-                                    </button>
-
-                                    <div className='flex gap-3'>
-
-                                    <button className="px-6 py-3 bg-[#084E92] text-white rounded-xl cursor-pointer">
-                                        Save Status
-                                    </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </>
-                )
-            }
+            <StatusModal
+                mode={modalMode}
+                formData={formData}
+                loading={modalLoading}
+                error={modalError}
+                saving={saving}
+                onChange={setFormData}
+                onClose={closeModal}
+                onSave={handleSave}
+            />
         </div>
     )
 }

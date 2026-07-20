@@ -1,5 +1,5 @@
-import { ChevronRight, CircleCheck, CircleX, Download, Eye, FileText, MoreVertical, Package, Plus, RotateCcw, Search, SquarePen, Trash2, X } from 'lucide-react'
-import React, { useState } from 'react'
+import { ChevronRight, CircleCheck, CircleX, Download, Eye, Loader2, MoreVertical, Package, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -7,51 +7,15 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import ConditionModal from "./ConditionModal";
+import {
+  getConditions,
+  getConditionById,
+  createCondition,
+  updateCondition,
+  deleteCondition,
+} from "@/services/apiServices";
 
-const INITIAL_CONDITIONS = [
-  {
-    id: 1,
-    srNo: "01",
-    name: "New",
-    status: "Active",
-    color: "bg-[#22C55E]",
-  },
-  {
-    id: 2,
-    srNo: "02",
-    name: "Excellent",
-    status: "Active",
-    color: "bg-[#22C55E]",
-  },
-  {
-    id: 3,
-    srNo: "03",
-    name: "Good",
-    status: "Active",
-    color: "bg-[#22C55E]",
-  },
-  {
-    id: 4,
-    srNo: "04",
-    name: "Fair",
-    status: "Active",
-    color: "bg-[#FBBF24]",
-  },
-  {
-    id: 5,
-    srNo: "05",
-    name: "Damaged",
-    status: "Active",
-    color: "bg-[#F97316]",
-  },
-  {
-    id: 6,
-    srNo: "06",
-    name: "Scrap",
-    status: "Inactive",
-    color: "bg-[#C3C6D1]",
-  },
-];
 
 const STATS = [
   {
@@ -87,6 +51,12 @@ const STATS = [
     iconColor: "text-[#265FA4]",
   },
 ];
+
+const STATUS_COLORS = {
+  Active: "bg-[#22C55E]",
+  Inactive: "bg-[#C3C6D1]",
+};
+
 const StatusBadge = ({ status }) => (
   <span
     className={`px-3 py-1 rounded-full text-[10px] font-semibold ${status === "Active"
@@ -94,24 +64,151 @@ const StatusBadge = ({ status }) => (
       : "bg-[#E5EAF5] text-[#6B7280]"
       }`}
   >
-    {status.toUpperCase()}
+    {(status || "").toUpperCase()}
   </span>
 );
 
 const ConditionCell = ({ name, color }) => (
   <div className="flex items-center gap-2">
-    <span className={`w-2 h-2 rounded-full ${color}`} />
+    <span className={`w-2 h-2 rounded-full ${color || "bg-[#C3C6D1]"}`} />
     <span className="font-medium text-[#0F172A]">{name}</span>
   </div>
 );
 
+// Normalizes whatever shape the API returns into what the table/form expect.
+const normalizeCondition = (raw = {}, index = 0) => ({
+  id: raw.id,
+  srNo: raw.srNo ?? String(index + 1).padStart(2, "0"),
+  name: raw.name ?? raw.conditionName ?? "",
+  status: raw.status ?? (raw.active ? "Active" : "Inactive"),
+  color: STATUS_COLORS[raw.status ?? (raw.active ? "Active" : "Inactive")] || "bg-[#C3C6D1]",
+});
+
+const EMPTY_FORM = { id: null, name: "", status: "Active" };
 
 const ConditionMasterModule = () => {
-  const [conditions, setConditions] = useState(INITIAL_CONDITIONS);
+  const [conditions, setConditions] = useState([]);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
-  const [showConditionModal, setShowConditionModal] = useState(false);
 
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState(null);
+
+  // modal: mode is 'add' | 'edit' | 'view' | null
+  const [modalMode, setModalMode] = useState(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+
+  const [deletingId, setDeletingId] = useState(null);
+
+  const loadConditions = async () => {
+    setListLoading(true);
+    setListError(null);
+    try {
+      const res = await getConditions();
+      const list = res?.data?.data ?? [];
+      setConditions(list.map(normalizeCondition));
+    } catch (err) {
+      setListError(err?.message || "Failed to load conditions");
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConditions();
+  }, []);
+
+  // -------------------------------------------------------------------
+  // Modal open handlers — View and Edit both call getConditionById first
+  // so the modal always renders the freshest record from the server.
+  // -------------------------------------------------------------------
+  const openAddModal = () => {
+    setFormData(EMPTY_FORM);
+    setModalError(null);
+    setModalMode("add");
+  };
+
+  const openWithFetchedRecord = async (id, mode) => {
+    setModalMode(mode);
+    setModalLoading(true);
+    setModalError(null);
+    setFormData(EMPTY_FORM);
+    try {
+      const res = await getConditionById(id);
+      const record = res?.data?.data ?? res?.data ?? res;
+      setFormData(normalizeCondition(record));
+    } catch (err) {
+      setModalError(err?.message || "Failed to load condition");
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const openViewModal = (id) => openWithFetchedRecord(id, "view");
+  const openEditModal = (id) => openWithFetchedRecord(id, "edit");
+
+  const closeModal = () => {
+    setModalMode(null);
+    setModalError(null);
+    setFormData(EMPTY_FORM);
+  };
+
+  // -------------------------------------------------------------------
+  // Save (create or update depending on mode)
+  // -------------------------------------------------------------------
+  const handleSave = async () => {
+    if (!formData.name.trim()) {
+      setModalError("Condition name is required");
+      return;
+    }
+
+    setSaving(true);
+    setModalError(null);
+    try {
+      const payload = {
+        name: formData.name.trim(),
+        status: formData.status,
+        active: formData.status === "Active",
+      };
+
+      if (modalMode === "edit") {
+        await updateCondition({ id: formData.id, ...payload });
+      } else {
+        await createCondition(payload);
+      }
+
+      await loadConditions();
+      closeModal();
+    } catch (err) {
+      setModalError(err?.message || "Failed to save condition");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // -------------------------------------------------------------------
+  // Delete
+  // -------------------------------------------------------------------
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this condition? This cannot be undone.")) return;
+
+    setDeletingId(id);
+    try {
+      await deleteCondition(id);
+      await loadConditions();
+    } catch (err) {
+      setListError(err?.message || "Failed to delete condition");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // -------------------------------------------------------------------
+  // Table columns
+  // -------------------------------------------------------------------
   const columns = [
     {
       id: "select",
@@ -138,7 +235,7 @@ const ConditionMasterModule = () => {
     {
       accessorKey: "srNo",
       header: ({ column }) => (
-        <DataGridColumnHeader title="S.NO" column={column} className="font-semibold text-[#43474F]"/>
+        <DataGridColumnHeader title="S.NO" column={column} className="font-semibold text-[#43474F]" />
       ),
       cell: ({ row }) => (
         <span className="text-[#737781]">
@@ -189,22 +286,29 @@ const ConditionMasterModule = () => {
         />
       ),
 
-      cell: () => (
+      cell: ({ row }) => (
         <div className="flex items-center gap-4">
           <Eye
             size={16}
             className="text-[#265FA4] cursor-pointer"
+            onClick={() => openViewModal(row.original.id)}
           />
 
           <SquarePen
             size={16}
             className="cursor-pointer"
+            onClick={() => openEditModal(row.original.id)}
           />
 
-          <Trash2
-            size={16}
-            className="text-red-500 cursor-pointer"
-          />
+          {deletingId === row.original.id ? (
+            <Loader2 size={16} className="animate-spin text-red-500" />
+          ) : (
+            <Trash2
+              size={16}
+              className="text-red-500 cursor-pointer"
+              onClick={() => handleDelete(row.original.id)}
+            />
+          )}
         </div>
       ),
 
@@ -222,6 +326,7 @@ const ConditionMasterModule = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
   return (
     <div className="p-4 md:p-6">
       <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
@@ -245,12 +350,7 @@ const ConditionMasterModule = () => {
         </div>
 
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 border border-[#D9DEE8] rounded-lg bg-white cursor-pointer text-[#121C2A]">
-            <Download size={16} />
-            Export
-          </button>
-
-          <button onClick={() => setShowConditionModal(true)} className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
+          <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
             <Plus size={16} />
             Add Condition
           </button>
@@ -361,12 +461,8 @@ const ConditionMasterModule = () => {
 
           <div className='flex items-end mb-1'>
             <div className="flex gap-3 items-center">
-              <button className="bg-[#084E92] text-white px-5 py-2 rounded-lg cursor-pointer">
+              <button onClick={loadConditions} className="bg-[#084E92] text-white px-5 py-2 rounded-lg cursor-pointer">
                 Apply Filter
-              </button>
-
-              <button className="text-[#43474F] font-semibold cursor-pointer">
-                Reset
               </button>
             </div>
           </div>
@@ -374,111 +470,46 @@ const ConditionMasterModule = () => {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-        <DataGrid table={table} recordCount={conditions.length} className="rounded-2xl">
-          <Card className="rounded-t-none border-t-0 rounded-2xl">
-            <CardTable>
-              <ScrollArea>
-                <DataGridTable />
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </CardTable>
-            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-              <DataGridPagination />
-            </CardFooter>
-          </Card>
-        </DataGrid>
-      </div>
-
-
-      {showConditionModal && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowConditionModal(false)}
-          >
-            <div className="w-full max-w-2xl bg-white rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-
-              {/* Header */}
-              <div className="flex items-start justify-between px-6 py-4 border-b">
-                <div className="flex gap-3 items-center flex-1">
-                  <div className="w-12 h-12 rounded-xl bg-[#084E92] flex items-center justify-center">
-                    <Plus className="text-white" size={20} />
-                  </div>
-
-                  <div>
-                    <h2 className="text-base md:text-lg font-semibold text-[#0F172A]">
-                      Add Condition
-                    </h2>
-
-                    <p className="text-sm text-[#737781]">
-                      Create or update an asset lifecycle condition
-                    </p>
-                  </div>
-                </div>
-
-                <button onClick={() => setShowConditionModal(false)}>
-                  <X className="text-gray-500 cursor-pointer" size={20} />
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="p-6 space-y-6">
-
-                {/* Form */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                  <div>
-                    <label className="block text-sm font-semibold text-[#43474F] mb-2">
-                      Condition Name
-                    </label>
-
-                    <input
-                      type="text"
-                      placeholder="e.g. Near Mint"
-                      className="w-full border border-[#D9DEE8] rounded-xl px-4 py-2 outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-[#43474F] mb-2">
-                      Status
-                    </label>
-
-                    <p className='px-3 py-2  border border-[#D9DEE8] rounded-xl'>
-                      <select className="w-full outline-none">
-                        <option>Active</option>
-                        <option>Inactive</option>
-                      </select>
-                    </p>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-[#C3C6D1] p-4 md:p-6 flex flex-col justify-between sm:flex-row gap-3 cursor-pointer">
-            
-                <button
-                  onClick={() => setShowConditionModal(false)}
-                    className="px-6 py-2 border border-[#C3C6D1] rounded-xl font-medium cursor-pointer text-[#43474F]"
-                >
-                  Cancel
-                </button>
-
-                <div className='flex gap-3 flex-col sm:flex-row'>
-
-                <button className="px-6 py-2 bg-[#084E92] text-white rounded-xl font-medium cursor-pointer">
-                  Save Condition
-                </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
+      {listError && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
+          {listError}
+        </div>
       )}
 
+      {/* Table */}
+      <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+        {listLoading ? (
+          <div className="flex items-center justify-center gap-2 py-16 text-[#5F6368]">
+            <Loader2 size={18} className="animate-spin" />
+            Loading conditions...
+          </div>
+        ) : (
+          <DataGrid table={table} recordCount={conditions.length} className="rounded-2xl">
+            <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <CardTable>
+                <ScrollArea>
+                  <DataGridTable />
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </CardTable>
+              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                <DataGridPagination />
+              </CardFooter>
+            </Card>
+          </DataGrid>
+        )}
+      </div>
+
+      <ConditionModal
+        mode={modalMode}
+        formData={formData}
+        loading={modalLoading}
+        error={modalError}
+        saving={saving}
+        onChange={setFormData}
+        onClose={closeModal}
+        onSave={handleSave}
+      />
     </div>
   )
 }

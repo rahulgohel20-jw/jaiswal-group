@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight, Info, Layers, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,42 +12,97 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { getAssetCategories, createSubCategory, updateSubCategory } from '@/services/apiServices';
 
-const PARENT_CATEGORIES = ['Kitchen Equipment', 'IT Equipment', 'Office Furniture', 'Vehicles'];
+const emptyForm = {
+  categoryId: '',
+  name: '',
+  description: '',
+  status: 'Active',
+};
 
-const AddSubCategoryModal = ({ isOpen, onClose, onSave, defaultParentCategory }) => {
-  const [form, setForm] = useState({
-    parentCategory: defaultParentCategory || 'Kitchen Equipment',
-    name: '',
-    description: '',
-    status: 'Active',
-  });
+const AddSubCategoryModal = ({ isOpen, onClose, onSaved, initialData, defaultCategoryId }) => {
+  const [form, setForm] = useState(emptyForm);
+  const [categories, setCategories] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const isEditMode = Boolean(initialData?.id);
+
+  // Load parent categories for the dropdown whenever the modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    (async () => {
+      try {
+        const res = await getAssetCategories();
+        const raw = res.data?.data ?? res.data?.content ?? res.data ?? [];
+        setCategories(Array.isArray(raw) ? raw : []);
+      } catch (err) {
+        console.error(err);
+        setCategories([]);
+      }
+    })();
+  }, [isOpen]);
+
+  // Populate form for edit, or reset for create
+  useEffect(() => {
+    if (!isOpen) return;
+    if (initialData) {
+      setForm({
+        categoryId: initialData.categoryId ?? '',
+        name: initialData.name || '',
+        description: initialData.description || '',
+        status: initialData.status || 'Active',
+      });
+    } else {
+      setForm({ ...emptyForm, categoryId: defaultCategoryId ?? '' });
+    }
+    setError(null);
+  }, [isOpen, initialData, defaultCategoryId]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   if (!isOpen) return null;
 
-  const resetForm = () =>
-    setForm({
-      parentCategory: defaultParentCategory || 'Kitchen Equipment',
-      name: '',
-      description: '',
-      status: 'Active',
-    });
-
   const handleClose = () => {
-    resetForm();
+    setForm(emptyForm);
+    setError(null);
     onClose?.();
   };
 
-  const handleSave = (addAnother) => {
-    onSave?.(form);
-    if (addAnother) {
-      setForm((f) => ({ ...f, name: '', description: '' }));
-    } else {
-      resetForm();
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const payload = {
+        categoryId: Number(form.categoryId),
+        name: form.name,
+        description: form.description,
+        active: form.status === 'Active',
+      };
+
+      if (isEditMode) {
+        await updateSubCategory({ id: initialData.id, ...payload });
+      } else {
+        await createSubCategory({ ...payload, createdBy: 0 });
+      }
+
+      setForm(emptyForm);
+      onSaved?.();
+      onClose?.();
+    } catch (err) {
+      console.error(err);
+      setError(
+        err?.response?.data?.message ||
+          `Failed to ${isEditMode ? 'update' : 'create'} sub category. Please try again.`
+      );
+    } finally {
+      setSaving(false);
     }
   };
+
+  const selectedCategoryName =
+    categories.find((c) => String(c.id) === String(form.categoryId))?.name || '—';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -59,7 +114,9 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSave, defaultParentCategory })
               <Layers className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold leading-none">Add New Sub Category</h3>
+              <h3 className="text-lg font-semibold leading-none">
+                {isEditMode ? 'Edit Sub Category' : 'Add New Sub Category'}
+              </h3>
             </div>
           </div>
           <button
@@ -74,9 +131,11 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSave, defaultParentCategory })
         <div className="flex items-center gap-1.5 text-xs text-gray-400 px-4 pt-3 pb-1 flex-shrink-0 flex-wrap">
           <span>Asset Management</span>
           <ChevronRight size={12} />
-          <span>{form.parentCategory}</span>
+          <span>{selectedCategoryName}</span>
           <ChevronRight size={12} />
-          <span className="text-primary font-semibold">New Sub Category</span>
+          <span className="text-primary font-semibold">
+            {isEditMode ? 'Edit Sub Category' : 'New Sub Category'}
+          </span>
         </div>
 
         {/* Content - Scrollable */}
@@ -86,18 +145,27 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSave, defaultParentCategory })
             <h4 className="text-sm font-semibold">Sub-Category Information</h4>
           </div>
 
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium">
               Parent Category <span className="text-red-500">*</span>
             </label>
-            <Select value={form.parentCategory} onValueChange={(value) => set('parentCategory', value)}>
+            <Select
+              value={form.categoryId ? String(form.categoryId) : ''}
+              onValueChange={(value) => set('categoryId', value)}
+            >
               <SelectTrigger className="mt-1">
-                <SelectValue />
+                <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                {PARENT_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={String(cat.id)}>
+                    {cat.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -141,21 +209,19 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSave, defaultParentCategory })
           </div>
         </div>
 
-        {/* Footer - Fixed */}
+        {/* Footer */}
         <div className="flex items-center justify-between gap-2 p-4 border-t bg-gray-50 flex-shrink-0 flex-wrap">
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
             Cancel
           </Button>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => handleSave(false)}
-              disabled={!form.name.trim()}
-              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              Save Sub Category
-            </Button>
-          </div>
+          <Button
+            onClick={handleSave}
+            disabled={!form.name.trim() || !form.categoryId || saving}
+            className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
+          >
+            <Save className="h-4 w-4" />
+            {saving ? 'Saving...' : isEditMode ? 'Update Sub Category' : 'Save Sub Category'}
+          </Button>
         </div>
       </div>
     </div>

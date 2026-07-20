@@ -82,24 +82,6 @@ const AssetSubCategoryDetailsModal = ({ isOpen, onClose, subCategory }) => {
                             {description}
                         </p>
                     </div>
-
-                    <div className="bg-[#EFF0FF] border border-[#DDE1FF] rounded-xl p-4">
-                        <p className="text-sm font-bold text-[#1B1B1F] mb-3">
-                            Category Performance
-                        </p>
-                        <div className="flex items-center justify-between text-xs mb-1.5">
-                            <span className="text-[#43474F] font-medium">Health Index</span>
-                            <span className="text-[#15803D] font-semibold">
-                                {healthIndex}% {healthLabel}
-                            </span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-[#DCE1F5] overflow-hidden">
-                            <div
-                                className="h-full rounded-full bg-[#22C55E]"
-                                style={{ width: `${healthIndex}%` }}
-                            />
-                        </div>
-                    </div>
                 </div>
 
                 {/* Footer */}
@@ -110,13 +92,13 @@ const AssetSubCategoryDetailsModal = ({ isOpen, onClose, subCategory }) => {
                     >
                         Edit Master
                     </button>
-                    <button
+                       <button
                         type="button"
                         onClick={onClose}
                         className="flex-1 px-4 py-2 border border-[#C3C6D1] text-[#43474F] rounded-lg font-medium hover:bg-gray-50 transition cursor-pointer"
                     >
-                        Audit Log
-                    </button>
+                        Close
+                    </button>         
                 </div>
             </div>
         </div>
