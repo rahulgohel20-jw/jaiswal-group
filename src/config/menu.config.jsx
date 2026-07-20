@@ -463,6 +463,7 @@ export const MENU_SIDEBAR = [
       { title: 'Status Master', path: '/assets/status' },
       { title: 'Asset Unit Master', path: '/assets/asset-unit' },
       { title: 'Asset Maintenance', path: '/assets/asset-maintenance' },
+      { title: 'Asset Transfer', path: '/assets/asset-transfer-log' },
       { title: 'Asset Disposal', path: '/assets/asset-disposal' }
     ],
   },

@@ -6,3 +6,4 @@ export * from "./assets-type";
 export * from "./conditions";
 export * from "./status";
 export * from "./assets-unit";
+export * from "./assets-transfer"
