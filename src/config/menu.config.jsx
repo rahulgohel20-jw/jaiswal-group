@@ -462,7 +462,8 @@ export const MENU_SIDEBAR = [
       { title: 'Conditions Master', path: '/assets/conditions' },
       { title: 'Status Master', path: '/assets/status' },
       { title: 'Asset Unit Master', path: '/assets/asset-unit' },
-      { title: 'Asset Maintenance', path: '/assets/asset-maintenance' }
+      { title: 'Asset Maintenance', path: '/assets/asset-maintenance' },
+      { title: 'Asset Disposal', path: '/assets/asset-disposal' }
     ],
   },
 ];
