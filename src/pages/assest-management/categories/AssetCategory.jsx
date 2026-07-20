@@ -21,7 +21,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddCategoryModal from './AddCategoryModal';
 import AssetCategoryDetailsModal from './AssetCategoryDetailsModal';
-import { getAssetCategories,deleteAssetCategory } from '@/services/apiServices';
+import { getAssetCategories, deleteAssetCategory } from '@/services/apiServices';
 
 const STATS = [
     {
@@ -89,6 +89,22 @@ const AssetCategory = () => {
     const [editingCategory, setEditingCategory] = useState(null);
     const [viewLoading, setViewLoading] = useState(false);
 
+    const handleViewCategory = (row) => {
+        // Using the row data already loaded in the table.
+        // If the details modal needs fields beyond what mapCategory keeps
+        // (id, name, description, status, totalAssets, createdDate, activity),
+        // replace this with a fetch-by-id call instead, e.g.:
+        //
+        // setViewLoading(true);
+        // getAssetCategoryById(row.id)
+        //     .then((res) => setViewingCategory(mapCategory(res.data)))
+        //     .catch((err) => {
+        //         console.error(err);
+        //         alert('Failed to load category details.');
+        //     })
+        //     .finally(() => setViewLoading(false));
+        setViewingCategory(row);
+    };
 
     const handleDelete = async (id) => {
         if (!window.confirm('Delete this category? This cannot be undone.')) return;
@@ -194,7 +210,7 @@ const AssetCategory = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
-                cell: ({ row }) => (
+            cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
                     <button type="button" onClick={() => handleViewCategory(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
@@ -246,7 +262,7 @@ const AssetCategory = () => {
                 <div className="flex gap-3 self-end">
                     <button
                         type="button"
-                        onClick={() => setShowAddCategory(true)}
+                        onClick={openCreateModal}
                         className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                     >
                         <Plus size={16} />
@@ -328,12 +344,12 @@ const AssetCategory = () => {
                 onSaved={fetchCategories}
                 initialData={editingCategory}
             />
-          <AssetCategoryDetailsModal
-        isOpen={!!viewingCategory}
-        onClose={() => setViewingCategory(null)}
-        category={viewingCategory}
-        loading={viewLoading}
-    />
+            <AssetCategoryDetailsModal
+                isOpen={!!viewingCategory}
+                onClose={() => setViewingCategory(null)}
+                category={viewingCategory}
+                loading={viewLoading}
+            />
         </div>
     );
 };

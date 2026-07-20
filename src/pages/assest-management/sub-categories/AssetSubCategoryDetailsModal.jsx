@@ -86,12 +86,6 @@ const AssetSubCategoryDetailsModal = ({ isOpen, onClose, subCategory }) => {
 
                 {/* Footer */}
                 <div className="border-t border-[#E5E7EB] px-5 py-4 flex gap-3">
-                    <button
-                        type="button"
-                        className="flex-1 px-4 py-2 bg-[#084E92] text-white rounded-lg font-medium hover:bg-[#073e77] transition cursor-pointer"
-                    >
-                        Edit Master
-                    </button>
                        <button
                         type="button"
                         onClick={onClose}
