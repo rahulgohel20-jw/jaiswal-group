@@ -13,8 +13,6 @@ const ConditionModal = ({
 }) => {
   if (!mode) return null;
 
-  console.log(formData,"form")
-
   const isViewMode = mode === "view";
   const title = mode === "edit" ? "Edit Condition" : mode === "view" ? "View Condition" : "Add Condition";
   const subtitle =
