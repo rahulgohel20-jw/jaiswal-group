@@ -137,6 +137,11 @@ import ConditionMasterModule from '../pages/assest-management/conditions/Conditi
 import StatusMasterModule from '../pages/assest-management/status/StatusMasterModule';
 import AssetUnitList from '../pages/assest-management/assets-unit/AssetUnitList';
 import AssetItemsList from '../pages/assest-management/assets-items/AssetsItemList';
+import AssetsMaintenance from '../pages/assest-management/assest-maintenance/AssetsMaintenance';
+import AddAssetsMaintenanceLog from '../pages/assest-management/assest-maintenance/AddAssetsMaintenanceLog';
+import AssetsDisposalLog from '../pages/assest-management/assets-disposal-log/AssetsDisposalLog';
+import AddAssetsDisposal from '../pages/assest-management/assets-disposal-log/AddAssetsDisposal';
+import AssetsTransferLog from '../pages/assest-management/assets-transfer/AssetsTransferLog';
 
 export function AppRoutingSetup() {
   return (
@@ -190,6 +195,14 @@ export function AppRoutingSetup() {
           
           <Route path='/assets/conditions' element={<ConditionMasterModule/>} />
           <Route path='/assets/status' element={<StatusMasterModule/>}/>
+
+          <Route path='/assets/asset-maintenance' element={<AssetsMaintenance/>}/>
+          <Route path='/assets/add-maintenance-log' element={<AddAssetsMaintenanceLog/>}/>
+
+          <Route path='/assets/asset-transfer-log' element={<AssetsTransferLog/>}/>
+          
+          <Route path='/assets/asset-disposal' element={<AssetsDisposalLog/>}/>
+          <Route path='/assets/add-disposal' element={<AddAssetsDisposal/>}/>
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
