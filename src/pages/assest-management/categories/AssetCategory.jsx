@@ -60,23 +60,6 @@ const AssetCategory = () => {
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
 
-    const handleViewCategory = (row) => {
-        // Using the row data already loaded in the table.
-        // If the details modal needs fields beyond what mapCategory keeps
-        // (id, name, description, status, totalAssets, createdDate, activity),
-        // replace this with a fetch-by-id call instead, e.g.:
-        //
-        // setViewLoading(true);
-        // getAssetCategoryById(row.id)
-        //     .then((res) => setViewingCategory(mapCategory(res.data)))
-        //     .catch((err) => {
-        //         console.error(err);
-        //         alert('Failed to load category details.');
-        //     })
-        //     .finally(() => setViewLoading(false));
-        setViewingCategory(row);
-    };
-
     const handleDelete = async (id) => {
         if (!window.confirm('Delete this category? This cannot be undone.')) return;
         try {

@@ -68,9 +68,9 @@ const ConditionMasterModule = () => {
 
   const [deletingId, setDeletingId] = useState(null);
   const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All Statuses");
+  const [statusFilter, setStatusFilter] = useState("All Status");
   const [searchInput, setSearchInput] = useState("");
-  const [statusInput, setStatusInput] = useState("All Statuses");
+  const [statusInput, setStatusInput] = useState("All Status");
 
   const loadConditions = async () => {
     setListLoading(true);
@@ -325,7 +325,7 @@ const ConditionMasterModule = () => {
         condition.name.toLowerCase().includes(searchText.toLowerCase());
 
       const matchesStatus =
-        statusFilter === "All Statuses" ||
+        statusFilter === "All Status" ||
         condition.status === statusFilter;
 
       return matchesSearch && matchesStatus;
@@ -443,7 +443,7 @@ const ConditionMasterModule = () => {
                 onChange={(e) => setStatusInput(e.target.value)}
                 className="outline-none w-full min-w-0 bg-transparent"
               >
-                <option value="All Statuses">All Statuses</option>
+                <option value="All Status">All Status</option>
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>

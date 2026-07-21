@@ -61,8 +61,8 @@ const AssetUnitList = () => {
 
     // Draft filter values vs. what's actually applied to the table
     const [searchDraft, setSearchDraft] = useState('');
-    const [statusDraft, setStatusDraft] = useState('All Statuses');
-    const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'All Statuses' });
+    const [statusDraft, setStatusDraft] = useState('All Status');
+    const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'All Status' });
 
     const handleSaveUnit = (data) => {
         setUnits((prev) => [
@@ -83,8 +83,8 @@ const AssetUnitList = () => {
 
     const resetFilters = () => {
         setSearchDraft('');
-        setStatusDraft('All Statuses');
-        setAppliedFilters({ search: '', status: 'All Statuses' });
+        setStatusDraft('All Status');
+        setAppliedFilters({ search: '', status: 'All Status' });
         setPagination((p) => ({ ...p, pageIndex: 0 }));
     };
 
@@ -93,7 +93,7 @@ const AssetUnitList = () => {
         return units.filter((u) => {
             const matchesSearch =
                 !term || u.name.toLowerCase().includes(term) || u.symbol.toLowerCase().includes(term);
-            const matchesStatus = appliedFilters.status === 'All Statuses' || u.status === appliedFilters.status;
+            const matchesStatus = appliedFilters.status === 'All Status' || u.status === appliedFilters.status;
             return matchesSearch && matchesStatus;
         });
     }, [units, appliedFilters]);
@@ -306,7 +306,7 @@ const AssetUnitList = () => {
                                 value={statusDraft}
                                 onChange={(e) => setStatusDraft(e.target.value)}
                             >
-                                <option>All Statuses</option>
+                                <option>All Status</option>
                                 <option>Active</option>
                                 <option>Inactive</option>
                             </select>
