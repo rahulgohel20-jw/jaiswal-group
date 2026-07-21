@@ -6,4 +6,7 @@ export * from "./assets-type";
 export * from "./conditions";
 export * from "./status";
 export * from "./assets-unit";
-export * from "./assets-transfer"
+export * from "./assets-transfer";
+export * from "./assest-maintenance";
+export * from "./asset-brand";
+export * from "./assets-disposal-log";

@@ -11,9 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { createAssetUnit, updateAssetUnit } from '@/services/apiServices';
 
-const emptyForm = { name: '', symbol: '', status: 'Active' };
+const emptyForm = { name: '', symbol: '', description: '', status: 'Active' };
 
 const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
@@ -28,6 +29,7 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
       setForm({
         name: initialData.name || '',
         symbol: initialData.symbol || '',
+        description: initialData.description || '',
         status: initialData.status || 'Active',
       });
     } else {
@@ -55,6 +57,7 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
       const payload = {
         name: form.name,
         symbol: form.symbol,
+        description: form.description,
         active: form.status === 'Active',
       };
 
@@ -137,6 +140,19 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
                 onChange={(e) => set('symbol', e.target.value)}
               />
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Description <span className="text-gray-400 normal-case font-normal">(optional)</span>
+            </label>
+            <Textarea
+              placeholder="Describe this unit..."
+              className="mt-1.5"
+              rows={3}
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+            />
           </div>
 
           <div>

@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
 
-const roleId = 1; // TODO: replace with real auth value
+const roleId = 2; // TODO: replace with real auth value
 const menuItems = roleId === 1 ? MENU_SIDEBAR_ADMIN : MENU_SIDEBAR;
 
 export function SidebarMenu() {

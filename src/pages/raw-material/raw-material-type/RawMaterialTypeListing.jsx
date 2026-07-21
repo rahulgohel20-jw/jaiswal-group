@@ -37,6 +37,7 @@ const StatusBadge = ({ status }) => {
 const mapType = (t) => ({
     id: t.id,
     name: t.name,
+    description: t.description,
     status: t.active ? "Active" : "Inactive",
     updatedAt: t.updatedAt,
 });

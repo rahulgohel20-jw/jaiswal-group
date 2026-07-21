@@ -438,7 +438,7 @@ const UnitListing = () => {
   });
 
   const STATUS_OPTIONS = [
-    { key: "all", label: "All statuses" },
+    { key: "all", label: "All status" },
     { key: "active", label: "Active" },
     { key: "pending", label: "Pending" },
     { key: "maintenance", label: "Maintenance" },

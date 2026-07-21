@@ -1,5 +1,15 @@
-import { Eye, Loader2, Plus, SlidersVertical, SquarePen, X } from 'lucide-react'
-import React from 'react'
+import { Eye, Info, Loader2, Save, SlidersVertical, SquarePen, X } from 'lucide-react';
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /**
  * mode: 'add' | 'edit' | 'view'
@@ -17,144 +27,120 @@ const StatusModal = ({
 }) => {
   if (!mode) return null;
 
-  const isViewMode = mode === "view";
-  const title = mode === "edit" ? "Edit Status" : mode === "view" ? "View Status" : "Add Status";
-  const subtitle = "Configure system-wide asset status settings.";
+  const isViewMode = mode === 'view';
+  const isEditMode = mode === 'edit';
+  const title = isEditMode ? 'Edit Status' : isViewMode ? 'View Status' : 'Add Status';
+  const subtitle = isViewMode
+    ? 'Review this asset status.'
+    : 'Configure system-wide asset status settings.';
+
+  const ModeIcon = isViewMode ? Eye : isEditMode ? SquarePen : SlidersVertical;
 
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
-        onClick={onClose}
-      />
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 flex flex-col max-h-[90vh]">
+        {/* Modal Header */}
+        <div className="flex items-start justify-between gap-3 p-4 border-b flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-primary shrink-0">
+              <ModeIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold leading-none">{title}</h3>
+              <p className="text-xs text-gray-500 mt-2">{subtitle}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+          >
+            <X className="h-5 w-5 cursor-pointer" />
+          </button>
+        </div>
 
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-        <div
-          className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[95vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex justify-between items-start px-6 py-5 border-b border-[#E5E7EB]">
-            <div className="flex gap-4 items-center">
-              <div className="w-12 h-12 rounded-xl bg-[#EEF4FF] flex items-center justify-center">
-                {mode === "view" ? (
-                  <Eye size={22} className="text-[#084E92]" />
-                ) : mode === "edit" ? (
-                  <SquarePen size={22} className="text-[#084E92]" />
-                ) : (
-                  <SlidersVertical size={22} className="text-[#084E92]" />
-                )}
+        {/* Content - Scrollable */}
+        <div className="p-4 overflow-y-auto flex-1 space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-10 text-gray-500">
+              <Loader2 size={18} className="animate-spin" />
+              Loading status...
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-primary">
+                <Info className="h-4 w-4" />
+                <h4 className="text-sm font-semibold">Status Information</h4>
+              </div>
+
+              {error && (
+                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                  {error}
+                </div>
+              )}
+
+              <div>
+                <label className="text-sm font-medium">
+                  Status Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  placeholder="e.g. Under Maintenance"
+                  className="mt-1"
+                  value={formData.name}
+                  disabled={isViewMode}
+                  onChange={(e) => onChange({ ...formData, name: e.target.value })}
+                />
               </div>
 
               <div>
-                <h2 className="text-[24px] text-[#121C2A]">
-                  {title}
-                </h2>
-
-                <p className="text-[#6B7280]">
-                  {subtitle}
-                </p>
+                <label className="text-sm font-medium">Description</label>
+                <Textarea
+                  placeholder="Add any notes about when this status applies..."
+                  className="mt-1"
+                  rows={3}
+                  value={formData.description}
+                  disabled={isViewMode}
+                  onChange={(e) => onChange({ ...formData, description: e.target.value })}
+                />
               </div>
-            </div>
 
-            <button onClick={onClose} className='cursor-pointer'>
-              <X size={22} className="text-gray-500" />
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-6 space-y-8">
-            {loading ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-[#6B7280]">
-                <Loader2 size={18} className="animate-spin" />
-                Loading status...
-              </div>
-            ) : (
-              <>
-                {error && (
-                  <div className="px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
-                    {error}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block mb-2 text-sm font-medium text-[#374151]">
-                      Status Name <span className="text-red-500">*</span>
-                    </label>
-
-                    <input
-                      type="text"
-                      value={formData.name}
-                      disabled={isViewMode}
-                      onChange={(e) => onChange({ ...formData, name: e.target.value })}
-                      placeholder="e.g. Under Maintenance"
-                      className="w-full border border-[#D1D5DB] rounded-xl px-4 py-3 outline-none disabled:bg-[#F5F6F8] disabled:text-[#6B7280]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block mb-2 text-sm font-medium text-[#374151]">
-                      Status
-                    </label>
-
-                    <p className='border border-[#D1D5DB] rounded-xl px-4 py-3'>
-                      <select
-                        value={formData.active ? "Active" : "Inactive"}
-                        disabled={isViewMode}
-                        onChange={(e) => onChange({ ...formData, active: e.target.value === "Active" })}
-                        className="w-full outline-none disabled:bg-transparent disabled:text-[#6B7280]"
-                      >
-                        <option>Active</option>
-                        <option>Inactive</option>
-                      </select>
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block mb-2 text-sm font-medium text-[#374151]">
-                    Description <span className="text-[#9CA3AF] font-normal">(optional)</span>
-                  </label>
-
-                  <textarea
-                    rows={3}
-                    value={formData.description}
-                    disabled={isViewMode}
-                    onChange={(e) => onChange({ ...formData, description: e.target.value })}
-                    placeholder="Add any notes about when this status applies..."
-                    className="w-full border border-[#D1D5DB] rounded-xl px-4 py-3 outline-none resize-none disabled:bg-[#F5F6F8] disabled:text-[#6B7280]"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="border-t bg-[#EFF4FF] border-[#C3C6D166] px-6 py-4 flex justify-between gap-4">
-            <button
-              onClick={onClose}
-              className="px-6 py-3 border border-[#D1D5DB] rounded-xl text-[#4B5563] bg-[#FFFFFF] cursor-pointer"
-            >
-              {isViewMode ? "Close" : "Cancel"}
-            </button>
-
-            {!isViewMode && (
-              <div className='flex gap-3'>
-                <button
-                  onClick={onSave}
-                  disabled={saving || loading}
-                  className="px-6 py-3 bg-[#084E92] text-white rounded-xl cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+              <div>
+                <label className="text-sm font-medium">Status</label>
+                <Select
+                  value={formData.active ? 'Active' : 'Inactive'}
+                  disabled={isViewMode}
+                  onValueChange={(value) => onChange({ ...formData, active: value === 'Active' })}
                 >
-                  {saving && <Loader2 size={16} className="animate-spin" />}
-                  Save Status
-                </button>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
+            </>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50 flex-shrink-0">
+          <Button variant="outline" onClick={onClose} disabled={saving}>
+            {isViewMode ? 'Close' : 'Cancel'}
+          </Button>
+          {!isViewMode && (
+            <Button
+              onClick={onSave}
+              disabled={!formData.name?.trim() || saving || loading}
+              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving ? 'Saving...' : 'Save Status'}
+            </Button>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

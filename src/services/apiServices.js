@@ -126,3 +126,63 @@ export const updateStatus = ({ id, ...payload }) => {
 export const deleteStatus = (id) => {
   return DELETE("/asset-status/delete", { id });
 };
+
+// ---- Asset Brand APIs ----
+
+export const getAssetBrands = () => {
+  return GET("/asset-brand/getall");
+};
+
+export const getActiveAssetBrands = () => {
+  return GET("/asset-brand/getallactive");
+};
+
+export const getActiveAssetBrandsPaginated = (params) => {
+  return GET("/asset-brand/getallactive/page", params);
+};
+
+export const getAssetBrandById = (id) => {
+  return GET("/asset-brand/get", { id });
+};
+
+export const createAssetBrand = (payload) => {
+  return POST("/asset-brand/create", payload);
+};
+
+export const updateAssetBrand = ({ id, ...payload }) => {
+  return PUT("/asset-brand/update", payload, { id });
+};
+
+export const deleteAssetBrand = (id) => {
+  return DELETE("/asset-brand/delete", { id });
+};
+
+// ---- Asset Unit APIs ----
+
+export const getAssetUnits = () => {
+  return GET("/asset-unit/getall");
+};
+
+export const getActiveAssetUnits = () => {
+  return GET("/asset-unit/getallactive");
+};
+
+export const getActiveAssetUnitsPaginated = (params) => {
+  return GET("/asset-unit/getallactive/page", params);
+};
+
+export const getAssetUnitById = (id) => {
+  return GET("/asset-unit/get", { id });
+};
+
+export const createAssetUnit = (payload) => {
+  return POST("/asset-unit/create", payload);
+};
+
+export const updateAssetUnit = ({ id, ...payload }) => {
+  return PUT("/asset-unit/update", payload, { id });
+};
+
+export const deleteAssetUnit = (id) => {
+  return DELETE("/asset-unit/delete", { id });
+};

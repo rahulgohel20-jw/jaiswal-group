@@ -144,6 +144,7 @@ import AddAssetsDisposal from '../pages/assest-management/assets-disposal-log/Ad
 import AssetsTransferLog from '../pages/assest-management/assets-transfer/AssetsTransferLog';
 import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawMaterialTypeListing';
 import RowMaterialCategories from '../pages/raw-material/row-material-categories/RowMaterialCategories';
+import AssetBrandListing from '../pages/assest-management/asset-brand/AssetBrandListing';
 
 export function AppRoutingSetup() {
   return (
@@ -194,6 +195,7 @@ export function AppRoutingSetup() {
           <Route path="/assigned-assests" element={<AssignAssets />} />
           <Route path='/assets/asset-type' element={<AssetsType/>}/>
 
+          <Route path="/assets/asset-brand" element={<AssetBrandListing />} />
           
           <Route path='/assets/conditions' element={<ConditionMasterModule/>} />
           <Route path='/assets/status' element={<StatusMasterModule/>}/>

@@ -22,7 +22,6 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import StatusModal from "./StatusModal";
 import {
-    getStatuses,
     getStatusById,
     createStatus,
     updateStatus,
@@ -81,34 +80,34 @@ const StatusMasterModule = () => {
 
     const [deletingId, setDeletingId] = useState(null);
     const [searchText, setSearchText] = useState("");
-    const [statusFilter, setStatusFilter] = useState("All Statuses");
+    const [statusFilter, setStatusFilter] = useState("All Status");
 
     const [searchInput, setSearchInput] = useState("");
-    const [statusInput, setStatusInput] = useState("All Statuses");
+    const [statusInput, setStatusInput] = useState("All Status");
 
     // -------------------------------------------------------------------
     // Load list
     // -------------------------------------------------------------------
-    const loadStatuses = async () => {
+    const loadStatus = async () => {
         setListLoading(true);
         setListError(null);
         try {
-            const res = await getStatuses();
+            const res = await getStatus();
             const list = res?.data?.data ?? [];
             setStatusData(list.map(normalizeStatusRow));
         } catch (err) {
-            setListError(err?.message || "Failed to load statuses");
+            setListError(err?.message || "Failed to load Status");
         } finally {
             setListLoading(false);
         }
     };
 
     useEffect(() => {
-        loadStatuses();
+        loadStatus();
     }, []);
     const STATS = [
         {
-            title: "Total Statuses",
+            title: "Total Status",
             value: `${statusData.length}`,
             badge: "OVERVIEW",
             icon: List,
@@ -197,7 +196,7 @@ const StatusMasterModule = () => {
                 await createStatus(payload);
             }
 
-            await loadStatuses();
+            await loadStatus();
             closeModal();
         } catch (err) {
             setModalError(err?.message || "Failed to save status");
@@ -215,7 +214,7 @@ const StatusMasterModule = () => {
         setDeletingId(id);
         try {
             await deleteStatus(id);
-            await loadStatuses();
+            await loadStatus();
         } catch (err) {
             setListError(err?.message || "Failed to delete status");
         } finally {
@@ -339,9 +338,9 @@ const StatusMasterModule = () => {
 
     const resetFilter = () => {
         setSearchInput("");
-        setStatusInput("All Statuses");
+        setStatusInput("All Status");
         setSearchText("");
-        setStatusFilter("All Statuses");
+        setStatusFilter("All Status");
         setPagination({
             pageIndex: 0,
             pageSize: 10,
@@ -354,7 +353,7 @@ const StatusMasterModule = () => {
                 status.statusName.toLowerCase().includes(searchText.toLowerCase());
 
             const matchesStatus =
-                statusFilter === "All Statuses" ||
+                statusFilter === "All Status" ||
                 status.visibilityStatus === statusFilter;
 
             return matchesSearch && matchesStatus;
@@ -472,7 +471,7 @@ const StatusMasterModule = () => {
                                 onChange={(e) => setStatusInput(e.target.value)}
                                 className="w-full outline-none"
                             >
-                                <option value="All Statuses">All Statuses</option>
+                                <option value="All Status">All Status</option>
                                 <option value="Active">Active</option>
                                 <option value="Inactive">Inactive</option>
                             </select>
@@ -508,7 +507,7 @@ const StatusMasterModule = () => {
                 {listLoading ? (
                     <div className="flex items-center justify-center gap-2 py-16 text-[#5F6368]">
                         <Loader2 size={18} className="animate-spin" />
-                        Loading statuses...
+                        Loading Status...
                     </div>
                 ) : (
                     <DataGrid table={table} recordCount={filteredStatusData.length} className="rounded-2xl">

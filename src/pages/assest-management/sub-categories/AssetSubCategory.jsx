@@ -414,13 +414,6 @@ const AssetSubCategory = () => {
                 </DataGrid>
             </div>
 
-            <AddSubCategoryModal
-                isOpen={showAddSubCategory}
-                onClose={closeModal}
-                onSaved={fetchAll}
-                initialData={editingSubCategory}
-            />
-
             {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
             {error && <p className="p-4 text-sm text-red-600">{error}</p>}
 

@@ -1,14 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Package, X } from 'lucide-react';
+import { Package, Info, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { createAssetType, updateAssetType } from '@/services/apiServices';
 
 const emptyForm = { name: '', description: '', status: 'Active' };
-
-const ASSET_TYPE_OPTIONS = ['Fixed', 'Unit-to-Unit', 'Movable'];
 
 const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
@@ -41,7 +47,7 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
     onClose?.();
   };
 
-const handleSave = async () => {
+  const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
@@ -70,114 +76,101 @@ const handleSave = async () => {
     } finally {
       setSaving(false);
     }
-};
+  };
 
   return (
-    <>
-      <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-[10px] z-40"
-        onClick={handleClose}
-      />
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="bg-white rounded-2xl shadow-xl w-full max-w-190"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-start justify-between p-5 border-b">
-            <div className="flex gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#DCEBFF] flex items-center justify-center">
-                <Package size={18} className="text-[#084E92]" />
-              </div>
-              <div>
-                <h2 className="font-bold text-lg text-[#1F2937]">
-                  {isEditMode ? 'Edit Asset Type' : 'Add Asset Type'}
-                </h2>
-                <p className="text-sm text-[#6B7280]">
-                  Configure how assets are assigned, transferred, and managed.
-                </p>
-              </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 flex flex-col max-h-[90vh]">
+        {/* Modal Header */}
+        <div className="flex items-start justify-between gap-3 p-4 border-b flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-primary shrink-0">
+              <Package className="h-5 w-5" />
             </div>
-            <button
-              onClick={handleClose}
-              className="text-gray-500 hover:text-black text-xl cursor-pointer"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Body */}
-          <div className="p-5">
-            <h3 className="text-[#084E92] font-semibold text-sm mb-4">
-              01 Asset Type Information
-            </h3>
-
-            {error && (
-              <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 mb-4">
-                {error}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm mb-2">
-                  Asset Type Name*
-                </label>
-                 <Input
-                              placeholder="Enter Asset Type"
-                              className="mt-1"
-                              value={form.name}
-                              onChange={(e) => set('name', e.target.value)}
-                  />
-              </div>
-
-              <div>
-                <label className="block text-sm mb-2">Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => set('status', e.target.value)}
-                  className="w-full border border-[#D6DCE5] rounded-lg px-3 py-3 outline-none bg-[#F5F8FF]"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm mb-2">Description</label>
-              <textarea
-                rows={4}
-                placeholder="Enter purpose of this asset category..."
-                value={form.description}
-                onChange={(e) => set('description', e.target.value)}
-                className="w-full border border-[#D6DCE5] rounded-lg px-3 py-3 outline-none resize-none bg-[#F5F8FF]"
-              />
+            <div>
+              <h3 className="text-lg font-semibold leading-none">
+                {isEditMode ? 'Edit Asset Type' : 'Add Asset Type'}
+              </h3>
+              <p className="text-xs text-gray-500 mt-2">
+                {isEditMode
+                  ? 'Update this asset type.'
+                  : 'Configure how assets are assigned, transferred, and managed.'}
+              </p>
             </div>
           </div>
+          <button
+            onClick={handleClose}
+            className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+          >
+            <X className="h-5 w-5 cursor-pointer" />
+          </button>
+        </div>
 
-          {/* Footer */}
-          <div className="border-t p-5 flex justify-between">
-            <button
-              onClick={handleClose}
-              disabled={saving}
-              className="px-5 py-2 border border-red-200 text-red-500 rounded-lg cursor-pointer"
-            >
-              Cancel
-            </button>
-            <div className="flex gap-3">
-              <button
-                onClick={handleSave}
-                disabled={!form.name || saving}
-                className="px-5 py-2 bg-[#084E92] text-white rounded-lg font-medium cursor-pointer disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : isEditMode ? 'Update Asset Type' : 'Save Asset Type'}
-              </button>
+        {/* Content - Scrollable */}
+        <div className="p-4 overflow-y-auto flex-1 space-y-4">
+          <div className="flex items-center gap-2 text-primary">
+            <Info className="h-4 w-4" />
+            <h4 className="text-sm font-semibold">Asset Type Information</h4>
+          </div>
+
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+              {error}
             </div>
+          )}
+
+          <div>
+            <label className="text-sm font-medium">
+              Asset Type Name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              placeholder="Enter asset type name"
+              className="mt-1"
+              value={form.name}
+              onChange={(e) => set('name', e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Description</label>
+            <Textarea
+              placeholder="Describe the purpose of this asset type..."
+              className="mt-1"
+              rows={3}
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Status</label>
+            <Select value={form.status} onValueChange={(value) => set('status', value)}>
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
+
+        <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50 flex-shrink-0">
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={!form.name.trim() || saving}
+            className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
+          >
+            <Save className="h-4 w-4" />
+            {saving ? 'Saving...' : isEditMode ? 'Update Asset Type' : 'Save Asset Type'}
+          </Button>
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 
