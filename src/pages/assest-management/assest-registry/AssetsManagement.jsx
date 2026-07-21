@@ -1,5 +1,5 @@
 import { AlertTriangle, CircleCheck, Download, Eye, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -193,6 +193,61 @@ const AssetsManagement = () => {
     const [rowSelection, setRowSelection] = useState({});
     const [showDetails, setShowDetails] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
+    const [searchInput, setSearchInput] = useState("");
+    const [categoryInput, setCategoryInput] = useState("All");
+    const [statusInput, setStatusInput] = useState("All");
+    const [purchaseDateInput, setPurchaseDateInput] = useState("");
+    const [expiryDateInput, setExpiryDateInput] = useState("");
+    const [filters, setFilters] = useState({
+        search: "",
+        category: "All",
+        status: "All",
+        purchaseDate: "",
+        expiryDate: "",
+    });
+
+    const applyFilters = () => {
+        setFilters({
+            search: searchInput,
+            category: categoryInput,
+            status: statusInput,
+            purchaseDate: purchaseDateInput,
+            expiryDate: expiryDateInput,
+        });
+    };
+
+    const filteredAssets = useMemo(() => {
+
+        return assets.filter((asset) => {
+
+            const searchMatch =
+                asset.assetId.toLowerCase().includes(filters.search.toLowerCase()) ||
+                asset.itemName.toLowerCase().includes(filters.search.toLowerCase()) ||
+                asset.category.toLowerCase().includes(filters.search.toLowerCase());
+
+
+            const categoryMatch =
+                filters.category === "All" ||
+                asset.category === filters.category;
+
+
+            const statusMatch =
+                filters.status === "All" ||
+                asset.status === filters.status;
+
+            const purchaseMatch = true;
+            const expiryMatch = true;
+
+            return (
+                searchMatch &&
+                categoryMatch &&
+                statusMatch &&
+                purchaseMatch &&
+                expiryMatch
+            );
+        });
+
+    }, [assets, filters]);
 
     const columns = [
         {
@@ -352,7 +407,7 @@ const AssetsManagement = () => {
     ];
 
     const table = useReactTable({
-        data: assets,
+        data: filteredAssets,
         columns,
         state: { pagination, rowSelection, },
         onPaginationChange: setPagination,
@@ -396,10 +451,11 @@ const AssetsManagement = () => {
                             <div className='border border-[#C3C6D1] rounded-2xl p-4'>
                                 <div className='flex justify-between items-center pb-2'>
                                     <p>{item.icon}</p>
-                                    <p className={`text-xs rounded font-semibold p-1 ${item.bgColor} ${item.color}`}>{item.badge}</p>
+
                                 </div>
-                                <h1>{item.title}</h1>
-                                <h2>{item.value}</h2>
+                                <h1 className="text-sm text-[#43474F]">{item.title}</h1>
+                                <h2 className="text-xl font-semibold text-gray-900 mt-0.5">{item.value}</h2>
+                                <p className={`text-xs mt-1 ${item.color}`}>{item.badge}</p>
                             </div>
                         ))
                     }
@@ -413,23 +469,33 @@ const AssetsManagement = () => {
 
             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <div className="relative col-span-2 border border-[#C3C6D1] rounded-lg"> <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} /> <input placeholder="Search by Asset ID, Name, Brand..." className="w-full pl-10 py-2 outline-none" /> </div>
+                    <div className="relative col-span-2 border border-[#C3C6D1] rounded-lg">
+                        <Search 
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                        <input value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)} 
+                            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                            placeholder="Search by Asset ID, Name, Brand..." className="w-full pl-10 py-2 outline-none" />
+                    </div>
                     <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                        <select className="outline-none w-full">
-                            <option>Category</option>
-                            <option>Kitchen Equipment</option>
-                            <option>IT Equipment</option>
+                        <select value={categoryInput}
+                            onChange={(e) => setCategoryInput(e.target.value)}
+                            className="outline-none w-full">
+                            <option value="All">All Categories</option>
+                            <option value="Kitchen Equipment">Kitchen Equipment</option>
+                            <option value="IT Equipment">IT Equipment</option>
                         </select>
                     </p>
 
 
                     <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                        <select className="outline-none w-full">
-                            <option>Status</option>
-                            <option>Available</option>
-                            <option>Assigned</option>
-                            <option>Under Maintenance</option>
-                            <option>Warranty Expiring</option>
+                        <select value={statusInput}
+                            onChange={(e) => setStatusInput(e.target.value)}
+                            className="outline-none w-full">
+                            <option value="All">All Status</option>
+                            <option value="Available">Available</option>
+                            <option value="Assigned">Assigned</option>
+                            <option value="Maintenance">Maintenance</option>
                         </select>
                     </p>
                 </div>
@@ -438,18 +504,36 @@ const AssetsManagement = () => {
                     <div className='flex flex-col sm:flex-row gap-4'>
                         <div className='flex flex-col sm:flex-row sm:items-center gap-2'>
                             <label>Purchase Date:</label>
-                            <input type="date" className='outline-none px-2 py-1 border border-[#C3C6D1] rounded-lg' />
+                            <input value={purchaseDateInput}
+                                onChange={(e) => setPurchaseDateInput(e.target.value)}
+                                type="date" className='outline-none px-2 py-1 border border-[#C3C6D1] rounded-lg' />
                         </div>
                         <div className='flex flex-col sm:flex-row sm:items-center gap-2'>
                             <label>Expiry Date:</label>
-                            <input type="date" className='outline-none px-2 py-1 border border-[#C3C6D1] rounded-lg' />
+                            <input value={expiryDateInput}
+                                onChange={(e) => setExpiryDateInput(e.target.value)}
+                                type="date" className='outline-none px-2 py-1 border border-[#C3C6D1] rounded-lg' />
                         </div>
                     </div>
                     <div className='flex flex-wrap gap-2'>
-                        <button className=" text-[#265FA4] rounded-lg px-4 py-2 w-full sm:w-auto">
+                        <button onClick={() => {
+                            setSearchInput("");
+                            setCategoryInput("All");
+                            setStatusInput("All");
+                            setPurchaseDateInput("");
+                            setExpiryDateInput("");
+
+                            setFilters({
+                                search: "",
+                                category: "All",
+                                status: "All",
+                                purchaseDate: "",
+                                expiryDate: ""
+                            });
+                        }} className=" text-[#265FA4] cursor-pointer rounded-lg px-4 py-2 w-full sm:w-auto">
                             Reset Filters
                         </button>
-                        <button className="bg-[#084E92] text-white rounded-lg px-4 py-2 w-full sm:w-auto">
+                        <button onClick={applyFilters} className="bg-[#084E92] cursor-pointer text-white rounded-lg px-4 py-2 w-full sm:w-auto">
                             Apply Filter
                         </button>
                     </div>
@@ -457,7 +541,7 @@ const AssetsManagement = () => {
             </div>
 
             <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
-                <DataGrid table={table} recordCount={assets.length} className="rounded-2xl">
+                <DataGrid table={table} recordCount={filteredAssets.length} className="rounded-2xl">
 
                     {/* Table Card */}
                     <Card className="rounded-t-none border-t-0 rounded-2xl">

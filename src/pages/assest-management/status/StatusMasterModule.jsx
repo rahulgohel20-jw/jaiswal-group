@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
     CircleCheck,
     CircleX,
@@ -32,40 +32,7 @@ import {
 // TODO: replace with the actual logged-in user id from your auth/session context
 const CURRENT_USER_ID = 1;
 
-const STATS = [
-    {
-        title: "Total Statuses",
-        value: "08",
-        badge: "OVERVIEW",
-        icon: List,
-        iconBg: "bg-[#EAF3FF]",
-        iconColor: "text-[#084E92]",
-    },
-    {
-        title: "Active Statuses",
-        value: "07",
-        badge: "ACTIVE",
-        icon: CircleCheck,
-        iconBg: "bg-[#ECFDF3]",
-        iconColor: "text-[#16A34A]",
-    },
-    {
-        title: "Inactive Statuses",
-        value: "01",
-        badge: "INACTIVE",
-        icon: CircleX,
-        iconBg: "bg-[#FFF7ED]",
-        iconColor: "text-[#F97316]",
-    },
-    {
-        title: "Last Updated",
-        value: "Today",
-        badge: "SYNCED",
-        icon: RefreshCw,
-        iconBg: "bg-[#EEF4FF]",
-        iconColor: "text-[#2563EB]",
-    },
-];
+
 
 const VisibilityBadge = ({ status }) => (
     <span
@@ -113,6 +80,11 @@ const StatusMasterModule = () => {
     const [formData, setFormData] = useState(EMPTY_FORM);
 
     const [deletingId, setDeletingId] = useState(null);
+    const [searchText, setSearchText] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All Statuses");
+
+    const [searchInput, setSearchInput] = useState("");
+    const [statusInput, setStatusInput] = useState("All Statuses");
 
     // -------------------------------------------------------------------
     // Load list
@@ -134,7 +106,32 @@ const StatusMasterModule = () => {
     useEffect(() => {
         loadStatuses();
     }, []);
-
+    const STATS = [
+        {
+            title: "Total Statuses",
+            value: `${statusData.length}`,
+            badge: "OVERVIEW",
+            icon: List,
+            iconBg: "bg-[#EAF3FF]",
+            iconColor: "text-[#084E92]",
+        },
+        {
+            title: "Active Status",
+            value: `${statusData.filter((c) => c.visibilityStatus == 'Active').length}`,
+            badge: "ACTIVE",
+            icon: CircleCheck,
+            iconBg: "bg-[#ECFDF3]",
+            iconColor: "text-[#16A34A]",
+        },
+        {
+            title: "Inactive Status",
+            value: `${statusData.filter((c) => c.visibilityStatus == 'Inactive').length}`,
+            badge: "INACTIVE",
+            icon: CircleX,
+            iconBg: "bg-[#FFF7ED]",
+            iconColor: "text-[#F97316]",
+        },
+    ];
     // -------------------------------------------------------------------
     // Modal open handlers — View and Edit both call getStatusById first
     // so the modal always renders the freshest record from the server.
@@ -331,8 +328,41 @@ const StatusMasterModule = () => {
         },
     ];
 
+    const applyFilter = () => {
+        setSearchText(searchInput.trim());
+        setStatusFilter(statusInput);
+        setPagination({
+            pageIndex: 0,
+            pageSize: 10,
+        });
+    }
+
+    const resetFilter = () => {
+        setSearchInput("");
+        setStatusInput("All Statuses");
+        setSearchText("");
+        setStatusFilter("All Statuses");
+        setPagination({
+            pageIndex: 0,
+            pageSize: 10,
+        });
+    }
+    const filteredStatusData = useMemo(() => {
+        return statusData.filter((status) => {
+            const matchesSearch =
+                searchText === "" ||
+                status.statusName.toLowerCase().includes(searchText.toLowerCase());
+
+            const matchesStatus =
+                statusFilter === "All Statuses" ||
+                status.visibilityStatus === statusFilter;
+
+            return matchesSearch && matchesStatus;
+        });
+
+    }, [statusData, searchText, statusFilter])
     const table = useReactTable({
-        data: statusData,
+        data: filteredStatusData,
         columns,
         state: { pagination, rowSelection },
         onPaginationChange: setPagination,
@@ -369,40 +399,37 @@ const StatusMasterModule = () => {
                     </button>
                 </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
                     return (
                         <div
                             key={index}
-                            className="bg-white border border-[#E4E8F1] rounded-3xl p-5 shadow-sm"
+                            className="border border-[#C3C6D1] rounded-2xl p-4"
                         >
-                            <div className="flex justify-between items-center">
-                                <div
-                                    className={`w-11 h-11 rounded-xl ${item.iconBg} flex items-center justify-center`}
-                                >
-                                    <Icon
-                                        size={18}
-                                        className={item.iconColor}
-                                    />
-                                </div>
-
-                                <span
-                                    className={`px-2 py-1 rounded-full text-[10px] font-semibold ${item.iconBg} ${item.iconColor}`}
-                                >
-                                    {item.badge}
-                                </span>
+                            <div
+                                className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
+                            >
+                                <Icon
+                                    size={15}
+                                    className={item.iconColor}
+                                />
                             </div>
 
-                            <div className="mt-5">
-                                <p className="text-xs font-semibold tracking-[2px] uppercase text-[#737781]">
+                            <div className='mt-2'>
+                                <p className="text-sm text-[#43474F]">
                                     {item.title}
                                 </p>
 
-                                <h3 className="text-[32px] font-bold text-[#0F172A] mt-2">
+                                <h3 className="text-xl font-bold">
                                     {item.value}
                                 </h3>
+                                <span
+                                    className={`text-xs ${item.iconColor}`}
+                                >
+                                    {item.badge}
+                                </span>
                             </div>
                         </div>
                     );
@@ -425,6 +452,9 @@ const StatusMasterModule = () => {
                             />
 
                             <input
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
                                 placeholder="Search by name..."
                                 className="w-full pl-10 py-2 border rounded-lg outline-none"
                             />
@@ -437,23 +467,28 @@ const StatusMasterModule = () => {
                         </label>
 
                         <p className='border rounded-lg px-3 py-2 mt-1 bg-[#EFF4FF]'>
-                            <select className="w-full outline-none">
-                                <option>All Statuses</option>
-                                <option>Active</option>
-                                <option>Inactive</option>
+                            <select
+                                value={statusInput}
+                                onChange={(e) => setStatusInput(e.target.value)}
+                                className="w-full outline-none"
+                            >
+                                <option value="All Statuses">All Statuses</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
                             </select>
                         </p>
                     </div>
 
                     <div className='col-span-2 flex gap-8 justify-end'>
                         <div className="flex items-end justify-center px-4 py-2">
-                            <button className="text-[#43474FCC] text-sm font-semibold">
+                            <button onClick={resetFilter}
+                                className="text-[#43474FCC] text-sm font-semibold cursor-pointer">
                                 Reset Filters
                             </button>
                         </div>
 
                         <div className="flex items-end">
-                            <button onClick={loadStatuses} className="w-full text-white rounded-lg px-6 py-2 bg-[#084E92]">
+                            <button onClick={applyFilter} className="w-full text-white rounded-lg px-6 py-2 bg-[#084E92] cursor-pointer">
                                 Apply Filters
                             </button>
                         </div>
@@ -476,7 +511,7 @@ const StatusMasterModule = () => {
                         Loading statuses...
                     </div>
                 ) : (
-                    <DataGrid table={table} recordCount={statusData.length} className="rounded-2xl">
+                    <DataGrid table={table} recordCount={filteredStatusData.length} className="rounded-2xl">
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>

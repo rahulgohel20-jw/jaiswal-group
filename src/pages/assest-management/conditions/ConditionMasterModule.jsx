@@ -1,5 +1,5 @@
 import { ChevronRight, CircleCheck, CircleX, Download, Eye, Loader2, MoreVertical, Package, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -16,41 +16,6 @@ import {
   deleteCondition,
 } from "@/services/apiServices";
 
-
-const STATS = [
-  {
-    title: "Total Conditions",
-    value: "08",
-    badge: "+2 new",
-    icon: Package,
-    iconBg: "bg-[#EAF3FF]",
-    iconColor: "text-[#084E92]",
-  },
-  {
-    title: "Operational",
-    value: "07",
-    badge: "ACTIVE",
-    icon: CircleCheck,
-    iconBg: "bg-[#ECFDF3]",
-    iconColor: "text-[#16A34A]",
-  },
-  {
-    title: "Archived",
-    value: "01",
-    badge: "INACTIVE",
-    icon: CircleX,
-    iconBg: "bg-[#EEF2F6]",
-    iconColor: "text-[#6B7280]",
-  },
-  {
-    title: "Last Updated",
-    value: "10:45 AM",
-    subText: "Today, June 24",
-    icon: RotateCcw,
-    iconBg: "bg-[#EEF4FF]",
-    iconColor: "text-[#265FA4]",
-  },
-];
 
 const STATUS_COLORS = {
   Active: "bg-[#22C55E]",
@@ -102,6 +67,10 @@ const ConditionMasterModule = () => {
   const [formData, setFormData] = useState(EMPTY_FORM);
 
   const [deletingId, setDeletingId] = useState(null);
+  const [searchText, setSearchText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All Statuses");
+  const [searchInput, setSearchInput] = useState("");
+  const [statusInput, setStatusInput] = useState("All Statuses");
 
   const loadConditions = async () => {
     setListLoading(true);
@@ -121,6 +90,32 @@ const ConditionMasterModule = () => {
     loadConditions();
   }, []);
 
+  const STATS = [
+    {
+      title: "Total Conditions",
+      value: `${conditions.length}`,
+      badge: "+2 new",
+      icon: Package,
+      iconBg: "bg-[#EAF3FF]",
+      iconColor: "text-[#084E92]",
+    },
+    {
+      title: "Operational",
+      value: `${conditions.filter((c) => c.status == 'Active').length}`,
+      badge: "ACTIVE",
+      icon: CircleCheck,
+      iconBg: "bg-[#ECFDF3]",
+      iconColor: "text-[#16A34A]",
+    },
+    {
+      title: "Archived",
+      value: `${conditions.filter((c) => c.status == 'Inactive').length}`,
+      badge: "INACTIVE",
+      icon: CircleX,
+      iconBg: "bg-[#EEF2F6]",
+      iconColor: "text-[#6B7280]",
+    }
+  ];
   // -------------------------------------------------------------------
   // Modal open handlers — View and Edit both call getConditionById first
   // so the modal always renders the freshest record from the server.
@@ -315,9 +310,30 @@ const ConditionMasterModule = () => {
       enableSorting: false,
     },
   ];
+  const applyFilters = () => {
+    setSearchText(searchInput);
+    setStatusFilter(statusInput);
+    setPagination({
+      pageIndex: 0,
+      pageSize: 10,
+    });
+  }
+  const filteredConditions = useMemo(() => {
+    return conditions.filter((condition) => {
+      const matchesSearch =
+        searchText === "" ||
+        condition.name.toLowerCase().includes(searchText.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "All Statuses" ||
+        condition.status === statusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [conditions, searchText, statusFilter])
 
   const table = useReactTable({
-    data: conditions,
+    data: filteredConditions,
     columns,
     state: { pagination, rowSelection },
     onPaginationChange: setPagination,
@@ -358,7 +374,7 @@ const ConditionMasterModule = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
         {STATS.map((item, index) => {
           const Icon = item.icon;
 
@@ -367,12 +383,12 @@ const ConditionMasterModule = () => {
               key={index}
               className="bg-white rounded-3xl border border-[#E6EBF4] p-5 shadow-sm"
             >
-              <div className="flex justify-between items-start mb-6">
+              <div className="flex justify-between items-start mb-2">
                 <div
-                  className={`w-10 h-10 rounded-xl ${item.iconBg} flex items-center justify-center`}
+                  className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
                 >
                   <Icon
-                    size={18}
+                    size={15}
                     className={item.iconColor}
                   />
                 </div>
@@ -384,41 +400,9 @@ const ConditionMasterModule = () => {
                   />
                 )}
               </div>
-
-              <div>
-                <p className="text-sm tracking-[2px] font-semibold text-[#43474F]">
-                  {item.title}
-                </p>
-
-                <div className="flex items-center gap-2 mt-2">
-                  <h3 className="text-[18px] font-bold text-[#002246]">
-                    {item.value}
-                  </h3>
-
-                  {item.badge && (
-                    <span
-                      className={`text-[9px] px-2 py-1 rounded-full font-semibold ${item.badge === "ACTIVE"
-                        ? "bg-[#DCFCE7] text-[#16A34A]"
-                        : "bg-[#EEF2F6] text-[#6B7280]"
-                        }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-
-                  {item.extra && (
-                    <span className="text-xs px-2 py-1 rounded-full bg-[#DCFCE7] text-[#16A34A] font-semibold">
-                      {item.extra}
-                    </span>
-                  )}
-                </div>
-
-                {item.subText && (
-                  <p className="text-sm text-[#5F6368] mt-1">
-                    {item.subText}
-                  </p>
-                )}
-              </div>
+              <h1 className="text-sm text-[#43474F]">{item.title}</h1>
+              <h2 className={`text-xl font-bold`}>{item.value}</h2>
+              <p className={`text-xs ${item.iconColor}`}>{item.badge}</p>
             </div>
           );
         })}
@@ -439,6 +423,9 @@ const ConditionMasterModule = () => {
               />
 
               <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                 placeholder="Type to search conditions..."
                 className="w-full pl-10 py-2 border rounded-lg outline-none"
               />
@@ -451,17 +438,21 @@ const ConditionMasterModule = () => {
             </label>
 
             <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0 mt-1">
-              <select className="outline-none w-full min-w-0 bg-transparent">
-                <option>All Statuses</option>
-                <option>Active</option>
-                <option>Inactive</option>
+              <select
+                value={statusInput}
+                onChange={(e) => setStatusInput(e.target.value)}
+                className="outline-none w-full min-w-0 bg-transparent"
+              >
+                <option value="All Statuses">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
               </select>
             </p>
           </div>
 
           <div className='flex items-end mb-1'>
             <div className="flex gap-3 items-center">
-              <button onClick={loadConditions} className="bg-[#084E92] text-white px-5 py-2 rounded-lg cursor-pointer">
+              <button onClick={applyFilters} className="bg-[#084E92] text-white px-5 py-2 rounded-lg cursor-pointer">
                 Apply Filter
               </button>
             </div>
@@ -484,7 +475,7 @@ const ConditionMasterModule = () => {
             Loading conditions...
           </div>
         ) : (
-          <DataGrid table={table} recordCount={conditions.length} className="rounded-2xl">
+          <DataGrid table={table} recordCount={filteredConditions.length} className="rounded-2xl">
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>
                 <ScrollArea>

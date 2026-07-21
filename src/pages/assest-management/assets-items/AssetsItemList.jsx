@@ -95,12 +95,12 @@ const StatusBadge = ({ status }) => (
 );
 
 const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, note, noteColor }) => (
-  <div className="bg-white rounded-xl border border-gray-200 p-4 flex-1 min-w-[180px]">
-    <div className={`w-8 h-8 rounded-md flex items-center justify-center mb-3 ${iconBg} ${iconColor}`}>
+  <div className="border border-[#C3C6D1] rounded-2xl p-4">
+    <div className={`w-7 h-7 rounded-md flex items-center justify-center mb-3 ${iconBg} ${iconColor}`}>
       <Icon className="h-4 w-4" />
     </div>
-    <p className="text-xs text-gray-500">{label}</p>
-    <p className="text-2xl font-semibold text-gray-900 mt-0.5">{value}</p>
+    <p className="text-sm text-[#43474F]">{label}</p>
+    <p className="text-xl font-semibold text-gray-900 mt-0.5">{value}</p>
     <p className={`text-xs mt-1 ${noteColor}`}>{note}</p>
   </div>
 );
@@ -236,7 +236,7 @@ const AssetItemsList = () => {
   const categoriesCovered = new Set(items.map((it) => it.category)).size;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="p-4">
       <div className="max-w-6xl mx-auto space-y-4">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400">
@@ -271,7 +271,7 @@ const AssetItemsList = () => {
         </div>
 
         {/* Stat cards */}
-        <div className="flex gap-4 flex-wrap">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
           <StatCard
             icon={Layers}
             iconBg="bg-blue-50"

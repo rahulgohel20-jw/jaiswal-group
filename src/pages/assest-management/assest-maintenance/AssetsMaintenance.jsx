@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -13,38 +13,38 @@ import { ChevronRight, CircleCheck, CircleEllipsis, CircleX, ClipboardList, Down
 
 const STATS = [
     {
-        title: "TOTAL MAINTENANCE LOGS",
+        title: "Total Maintenace Logs",
         value: "148",
         icon: FileText,
         bg: "bg-slate-50",
-        iconColor: "text-slate-300",
+        iconColor: "text-slate-600",
     },
     {
-        title: "COMPLETED SERVICES",
+        title: "Completed Services",
         value: "132",
         badge: "12% Inc.",
         badgeColor: "bg-green-100 text-green-700",
         icon: CircleCheck,
         bg: "bg-green-50",
-        iconColor: "text-green-200",
+        iconColor: "text-green-600",
     },
     {
-        title: "PENDING SERVICES",
+        title: "Pending Services",
         value: "16",
         badge: "Critical",
         badgeColor: "bg-amber-100 text-amber-700",
         icon: CircleEllipsis,
         bg: "bg-orange-50",
-        iconColor: "text-[#D97706]/20",
+        iconColor: "text-[#D97706]",
     },
     {
-        title: "TODAY'S MAINTENANCE",
+        title: "Today's Maintenace",
         value: "5",
         badge: "Scheduled",
         badgeColor: "bg-blue-100 text-blue-700",
         icon: ClipboardList,
         bg: "bg-slate-50",
-        iconColor: "text-slate-300",
+        iconColor: "text-slate-600",
     },
 ];
 
@@ -126,6 +126,13 @@ const AssetsMaintenance = () => {
     const [maintenanceData, setMaintenanceData] = useState(MAINTENANCE_DATA);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
+    const [searchText, setSearchText] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All Records");
+    const [serviceDateFilter, setServiceDateFilter] = useState("");
+
+    const [searchInput, setSearchInput] = useState("");
+    const [statusInput, setStatusInput] = useState("All Records");
+    const [serviceDateInput, setServiceDateInput] = useState("");
 
     const columns = [
         {
@@ -156,25 +163,25 @@ const AssetsMaintenance = () => {
                     {row.original.assetId}
                 </span>
             ),
-            size:140,
+            size: 140,
         },
 
         {
             accessorKey: "asset",
             header: "DESCRIPTION",
-            size:140,
+            size: 140,
         },
 
         {
             accessorKey: "unit",
             header: "UNIT/KITCHEN",
-            size:140,
+            size: 140,
         },
 
         {
             accessorKey: "date",
             header: "DATE",
-            size:120,
+            size: 120,
         },
 
         {
@@ -185,13 +192,13 @@ const AssetsMaintenance = () => {
                     "{row.original.issue}"
                 </span>
             ),
-            size:170,
+            size: 170,
         },
 
         {
             accessorKey: "engineer",
             header: "ENGINEER",
-            size:120,
+            size: 120,
         },
 
         {
@@ -202,7 +209,7 @@ const AssetsMaintenance = () => {
                     {row.original.cost}
                 </span>
             ),
-            size:120,
+            size: 120,
         },
 
         {
@@ -211,13 +218,13 @@ const AssetsMaintenance = () => {
             cell: ({ row }) => (
                 <StatusBadge status={row.original.status} />
             ),
-            size:130,
+            size: 130,
         },
 
         {
             accessorKey: "nextDue",
             header: "NEXT DUE",
-            size:120,
+            size: 120,
         },
 
         {
@@ -241,9 +248,54 @@ const AssetsMaintenance = () => {
         },
     ];
 
+    const applyFilters = () => {
+        setSearchText(searchInput.trim());
+        setStatusFilter(statusInput);
+        setServiceDateFilter(serviceDateInput);
 
+        setPagination({
+            pageIndex: 0,
+            pageSize: 10,
+        });
+    }
+
+    const resetFilter = () => {
+        setSearchInput("");
+        setStatusInput("All Records");
+        setServiceDateInput("");
+
+        setSearchText("");
+        setStatusFilter("All Records");
+        setServiceDateFilter("");
+
+        setPagination({
+            pageIndex: 0,
+            pageSize: 10,
+        });
+    }
+
+    const filteredMaintenanceData = useMemo(() => {
+        return maintenanceData.filter((item) => {
+        const matchesSearch =
+            searchText === "" ||
+            item.assetId.toLowerCase().includes(searchText.toLowerCase()) ||
+            item.asset.toLowerCase().includes(searchText.toLowerCase()) ||
+            item.unit.toLowerCase().includes(searchText.toLowerCase());
+
+        const matchesStatus =
+            statusFilter === "All Records" ||
+            item.status === statusFilter;
+
+        const matchesDate =
+            serviceDateFilter === "" ||
+            item.date === serviceDateFilter;
+
+        return matchesSearch && matchesStatus && matchesDate;
+    });
+
+    }, [maintenanceData, searchText, serviceDateFilter, statusFilter])
     const table = useReactTable({
-        data: maintenanceData,
+        data: filteredMaintenanceData,
         columns,
         state: { pagination, rowSelection },
         onPaginationChange: setPagination,
@@ -295,35 +347,28 @@ const AssetsMaintenance = () => {
                     return (
                         <div
                             key={index}
-                            className="bg-white rounded-2xl border p-5 shadow-sm relative"
+                            className="bg-white rounded-2xl border p-4 shadow-sm"
                         >
-                            <div className="flex justify-between items-start">
-                                <div className='w-full'>
-                                    <p className="text-xs font-semibold text-gray-500 uppercase">
-                                        {item.title}
-                                    </p>
 
-                                    <div className='flex justify-between gap-5 w-full'>
-                                        <h2 className="text-4xl font-bold mt-3">
-                                            {item.value}
-                                        </h2>
-
-                                        {item.badge && (
-                                            <span
-                                                className={` mt-6 px-3 py-0.5 flex items-center justify-center rounded-full text-[11px] font-medium ${item.badgeColor}`}
-                                            >
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div
-                                    className={`w-12 h-12 rounded-xl flex items-center justify-center absolute right-3 top-3`}
-                                >
-                                    <Icon className={item.iconColor} size={35} />
-                                </div>
+                            <div
+                                className={`w-6 h-6 rounded flex items-center justify-center ${item.bg}`}
+                            >
+                                <Icon className={item.iconColor} size={15} />
                             </div>
+                            <p className="text-sm text-[#43474F] pt-2">
+                                {item.title}
+                            </p>
+                            <h2 className="text-xl font-bold">
+                                {item.value}
+                            </h2>
+                            {item.badge && (
+                                <span
+                                    className={` text-[11px] font-medium ${item.iconColor}`}
+                                >
+                                    {item.badge}
+                                </span>
+                            )}
+
                         </div>
                     );
                 })}
@@ -346,6 +391,9 @@ const AssetsMaintenance = () => {
                             <input
                                 placeholder="Asset ID, Name, Kitchen..."
                                 className="w-full border rounded-lg pl-10 pr-3 py-2  outline-none"
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                             />
                         </div>
                     </div>
@@ -356,12 +404,16 @@ const AssetsMaintenance = () => {
                         </label>
 
                         <p className='border rounded-lg px-3 py-2 mt-1'>
-                            <select className="w-full outline-none">
-                            <option>All Records</option>
-                            <option>Completed</option>
-                            <option>Pending</option>
-                            <option>In Progress</option>
-                        </select>
+                            <select
+                                value={statusInput}
+                                onChange={(e) => setStatusInput(e.target.value)}
+                                className="w-full outline-none"
+                            >
+                                <option value="All Records">All Records</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                            </select>
                         </p>
                     </div>
 
@@ -373,15 +425,17 @@ const AssetsMaintenance = () => {
                         <input
                             type="date"
                             className="w-full border rounded-lg px-3 py-2 mt-1  outline-none"
+                            value={serviceDateInput}
+                            onChange={(e) => setServiceDateInput(e.target.value)}
                         />
                     </div>
 
                     <div className="md:col-span-3 flex items-end gap-2">
-                        <button className="flex-1 bg-[#084E92] text-white py-2 rounded-lg cursor-pointer">
+                        <button onClick={applyFilters} className="flex-1 bg-[#084E92] text-white py-2 rounded-lg cursor-pointer">
                             Apply Filters
                         </button>
 
-                        <button className="p-2 border rounded-lg">
+                        <button onClick={resetFilter} className="p-2 border rounded-lg cursor-pointer">
                             <RotateCcw size={18} />
                         </button>
                     </div>
@@ -389,24 +443,24 @@ const AssetsMaintenance = () => {
             </div>
 
 
-            
-                  {/* Table */}
-                  <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                    <DataGrid table={table} recordCount={maintenanceData.length} className="rounded-2xl">
-                      <Card className="rounded-t-none border-t-0 rounded-2xl">
+
+            {/* Table */}
+            <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                <DataGrid table={table} recordCount={filteredMaintenanceData.length} className="rounded-2xl">
+                    <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
-                          <ScrollArea>
-                            <DataGridTable />
-                            <ScrollBar orientation="horizontal" />
-                          </ScrollArea>
+                            <ScrollArea>
+                                <DataGridTable />
+                                <ScrollBar orientation="horizontal" />
+                            </ScrollArea>
                         </CardTable>
                         <CardFooter className="bg-[#EFF4FF4D] border-t border-[#C3C6D1] rounded-b-2xl">
-                          <DataGridPagination />
+                            <DataGridPagination />
                         </CardFooter>
-                      </Card>
-                    </DataGrid>
-                  </div>
-            
+                    </Card>
+                </DataGrid>
+            </div>
+
         </div>
     )
 }

@@ -11,7 +11,7 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -21,39 +21,8 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddCategoryModal from './AddCategoryModal';
 import AssetCategoryDetailsModal from './AssetCategoryDetailsModal';
-import { getAssetCategories,deleteAssetCategory } from '@/services/apiServices';
+import { getAssetCategories, deleteAssetCategory } from '@/services/apiServices';
 
-const STATS = [
-    {
-        title: "Total Categories",
-        value: "18",
-        badge: null,
-        icon: <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
-        color: "text-[#1B1B1F]",
-    },
-    {
-        title: "Active Categories",
-        value: "16",
-        badge: "HIGH",
-        badgeStyle: "bg-green-100 text-green-700",
-        icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
-        color: "text-[#15803D]",
-    },
-    {
-        title: "Inactive Categories",
-        value: "2",
-        badge: null,
-        icon: <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />,
-        color: "text-[#1B1B1F]",
-    },
-    {
-        title: "Assets Categorized",
-        value: "2,486",
-        badge: null,
-        icon: <Tag size={22} className="text-[#7C3AED] p-1 bg-[#EDE9FE] rounded" />,
-        color: "text-[#1B1B1F]",
-    },
-];
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -88,7 +57,8 @@ const AssetCategory = () => {
     const [viewingCategory, setViewingCategory] = useState(null);
     const [editingCategory, setEditingCategory] = useState(null);
     const [viewLoading, setViewLoading] = useState(false);
-
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All");
 
     const handleDelete = async (id) => {
         if (!window.confirm('Delete this category? This cannot be undone.')) return;
@@ -99,6 +69,23 @@ const AssetCategory = () => {
             console.error(err);
             alert('Failed to delete category.');
         }
+    };
+
+    const handleViewCategory = (row) => {
+        // Using the row data already loaded in the table.
+        // If the details modal needs fields beyond what mapCategory keeps
+        // (id, name, description, status, totalAssets, createdDate, activity),
+        // replace this with a fetch-by-id call instead, e.g.:
+        //
+        // setViewLoading(true);
+        // getAssetCategoryById(row.id)
+        //     .then((res) => setViewingCategory(mapCategory(res.data)))
+        //     .catch((err) => {
+        //         console.error(err);
+        //         alert('Failed to load category details.');
+        //     })
+        //     .finally(() => setViewLoading(false));
+        setViewingCategory(row);
     };
 
     const openEditModal = (row) => {
@@ -131,12 +118,50 @@ const AssetCategory = () => {
             setLoading(false);
         }
     };
-
     useEffect(() => {
         fetchCategories();
     }, []);
 
-    const columns = [
+    const filteredCategories = useMemo(() => {
+        const keyword = search.toLowerCase().trim();
+
+        return categories.filter((category) => {
+            const matchesSearch =
+                category.name.toLowerCase().includes(keyword) ||
+                category.description.toLowerCase().includes(keyword);
+
+            const matchesStatus =
+                statusFilter === "All" ||
+                category.status === statusFilter;
+
+            return matchesSearch && matchesStatus;
+        });
+    }, [categories, search, statusFilter]);
+    const STATS = [
+        {
+            title: "Total Categories",
+            value: `${categories.length}`,
+            badge: null,
+            icon: <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
+            color: "text-[#1B1B1F]",
+        },
+        {
+            title: "Active Categories",
+            value: `${categories.filter((c) => c.status == 'Active').length}`,
+            badge: "HIGH",
+            badgeStyle: "bg-green-100 text-green-700",
+            icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
+            color: "text-[#15803D]",
+        },
+        {
+            title: "Inactive Categories",
+            value: `${categories.filter((c) => c.status == 'Inactive').length}`,
+            badge: null,
+            icon: <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />,
+            color: "text-[#1B1B1F]",
+        },
+    ];
+    const columns = useMemo(() => [
         {
             id: "select",
             header: ({ table }) => (
@@ -194,7 +219,7 @@ const AssetCategory = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
-                cell: ({ row }) => (
+            cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
                     <button type="button" onClick={() => handleViewCategory(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
@@ -210,10 +235,10 @@ const AssetCategory = () => {
             enableSorting: false,
             size: 110,
         },
-    ];
+    ], [])
 
     const table = useReactTable({
-        data: categories,
+        data: filteredCategories,
         columns,
         state: { pagination, rowSelection },
         onPaginationChange: setPagination,
@@ -256,7 +281,7 @@ const AssetCategory = () => {
             </div>
 
             {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3   gap-4 py-8 text-[#43474F]">
                 {STATS.map((item) => (
                     <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
                         <div className="flex justify-between items-center pb-2">
@@ -273,17 +298,28 @@ const AssetCategory = () => {
 
             {/* Filters */}
             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-center">
                     <div className="relative col-span-1 min-w-0 border border-[#C3C6D1] rounded-lg">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input placeholder="Name, code, or description..." className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg" />
+                        <Search
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            size={18}
+                        />
+
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => { setSearch(e.target.value)}}
+                            placeholder="Search by name or description..."
+                            className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg"
+                        />
                     </div>
 
                     <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                        <select className="outline-none w-full min-w-0 bg-transparent">
-                            <option>All Status</option>
-                            <option>Active</option>
-                            <option>Inactive</option>
+                        <select value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)} className="outline-none w-full min-w-0 bg-transparent">
+                            <option value="All">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
                         </select>
                     </p>
 
@@ -294,12 +330,6 @@ const AssetCategory = () => {
                             <option>Rajesh Kumar</option>
                         </select>
                     </p>
-
-                    <div className="flex items-center gap-2 min-w-0">
-                        <input type="date" className="border border-[#C3C6D1] rounded-lg px-3 py-2 outline-none w-full min-w-0" />
-                        <span className="text-gray-400 text-sm shrink-0">to</span>
-                        <input type="date" className="border border-[#C3C6D1] rounded-lg px-3 py-2 outline-none w-full min-w-0" />
-                    </div>
                 </div>
             </div>
 
@@ -307,7 +337,7 @@ const AssetCategory = () => {
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                 {loading && <p className="p-4 text-sm text-gray-500">Loading categories...</p>}
                 {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                <DataGrid table={table} recordCount={categories.length} className="rounded-2xl">
+                <DataGrid table={table} recordCount={filteredCategories.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>
@@ -328,12 +358,12 @@ const AssetCategory = () => {
                 onSaved={fetchCategories}
                 initialData={editingCategory}
             />
-          <AssetCategoryDetailsModal
-        isOpen={!!viewingCategory}
-        onClose={() => setViewingCategory(null)}
-        category={viewingCategory}
-        loading={viewLoading}
-    />
+            <AssetCategoryDetailsModal
+                isOpen={!!viewingCategory}
+                onClose={() => setViewingCategory(null)}
+                category={viewingCategory}
+                loading={viewLoading}
+            />
         </div>
     );
 };

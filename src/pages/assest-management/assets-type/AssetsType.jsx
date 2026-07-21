@@ -1,5 +1,5 @@
 import { ArrowRightLeft, Building2, CircleCheck, CircleX, ClipboardList, Download, Eye, MonitorSmartphone, Package, Plus, RotateCcw, Search, SquareCheckBig, SquarePen, Trash2 } from 'lucide-react';
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -10,40 +10,7 @@ import AddAssetTypeModal from './AddAssetTypeModal';
 import AssetTypeDetailsModal from './AsssetTypeDetailsModal';
 import { getAssetTypes, getAssetTypeById, deleteAssetType } from '@/services/apiServices';
 
-const STATS = [
-    {
-        title: "Total Asset Types",
-        value: "3",
-        icon: Package,
-        bg: "bg-[#F5F7FB]",
-        iconColor: "text-[#245AA8]",
-        borderColor: "",
-    },
-    {
-        title: "Fixed Assets",
-        value: "145",
-        icon: Building2,
-        bg: "bg-[#EEF5FF]",
-        iconColor: "text-[#245AA8]",
-        borderColor: "border-r-4 border-[#245AA8]",
-    },
-    {
-        title: "Unit-to-Unit Assets",
-        value: "82",
-        icon: ArrowRightLeft,
-        bg: "bg-[#ECFDF3]",
-        iconColor: "text-[#10B981]",
-        borderColor: "border-r-4 border-[#10B981]",
-    },
-    {
-        title: "Movable Assets",
-        value: "54",
-        icon: MonitorSmartphone,
-        bg: "bg-[#FFF3ED]",
-        iconColor: "text-[#F97316]",
-        borderColor: "border-r-4 border-[#F97316]",
-    },
-];
+
 
 const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
     <span title={value} className={`block truncate ${widthClass} ${className}`}>
@@ -81,6 +48,23 @@ const AssetsType = () => {
     const [editingType, setEditingType] = useState(null);
     const [viewingType, setViewingType] = useState(null);
     const [viewLoading, setViewLoading] = useState(false);
+    const [searchInput, setSearchInput] = useState("");
+    const [typeInput, setTypeInput] = useState("All");
+    const [transferInput, setTransferInput] = useState("Any");
+    const [filters, setFilters] = useState({
+        search: "",
+        type: "All",
+        transfer: "Any",
+    });
+
+    
+    const applyFilters = () => {
+    setFilters({
+        search: searchInput,
+        type: typeInput,
+        transfer: transferInput,
+    });
+};
 
     const fetchTypes = async () => {
         setLoading(true);
@@ -96,7 +80,6 @@ const AssetsType = () => {
             setLoading(false);
         }
     };
-
     useEffect(() => {
         fetchTypes();
     }, []);
@@ -146,8 +129,59 @@ const AssetsType = () => {
             alert('Failed to delete asset type.');
         }
     };
+ const filteredTypes = useMemo(() => {
+    return type.filter((item) => {
 
-    const columns = [
+        const keyword = filters.search.toLowerCase();
+
+        const searchMatch =
+            item.name?.toLowerCase().includes(keyword) ||
+            item.description?.toLowerCase().includes(keyword);
+
+        const typeMatch =
+            filters.type === "All" ||
+            item.name === filters.type;
+
+        const transferMatch =
+            filters.transfer === "Any" ||
+            item.transferAllowed === filters.transfer;
+
+        return searchMatch && typeMatch && transferMatch;
+    });
+
+}, [type, filters]);
+
+    const STATS = [
+        {
+            title: "Total Asset Types",
+            value: `${type.length}`,
+            icon: Package,
+            bg: "bg-[#F5F7FB]",
+            iconColor: "text-[#245AA8]",
+        },
+        {
+            title: "Fixed Assets",
+            value: `${type.filter((c) => c.name == 'fixed').length}`,
+            icon: Building2,
+            bg: "bg-[#EEF5FF]",
+            iconColor: "text-[#245AA8]",
+        },
+        {
+            title: "Unit-to-Unit Assets",
+            value: `${type.filter((c) => c.name == "unit-to-unit").length}`,
+            icon: ArrowRightLeft,
+            bg: "bg-[#ECFDF3]",
+            iconColor: "text-[#10B981]",
+        },
+        {
+            title: "Movable Assets",
+            value: `${type.filter((c) => c.name == "movable").length}`,
+            icon: MonitorSmartphone,
+            bg: "bg-[#FFF3ED]",
+            iconColor: "text-[#F97316]",
+        },
+    ];
+    const columns =  [
         {
             id: "select",
             header: ({ table }) => (
@@ -225,10 +259,9 @@ const AssetsType = () => {
             ),
             enableSorting: false,
         },
-    ];
-
+    ]
     const table = useReactTable({
-        data: type,
+        data: filteredTypes,
         columns,
         state: { rowSelection },
         onRowSelectionChange: setRowSelection,
@@ -256,51 +289,79 @@ const AssetsType = () => {
             </div>
 
             {/* Stats Cards — unchanged, still static */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
+
                     return (
-                        <div key={index} className="bg-white border border-[#C3C6D1] rounded-2xl p-5 shadow-sm">
-                            <div className="flex items-center gap-4 justify-between">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-sm text-[#5F6368]">{item.title}</p>
-                                    </div>
-                                    <h2 className="text-3xl font-bold text-[#0F172A]">{item.value}</h2>
-                                </div>
-                                <div className={`w-12 h-12 rounded-xl ${item.bg} flex items-center justify-center self-end`}>
-                                    <Icon className={item.iconColor} size={22} />
+                        <div
+                            key={index}
+                            className={`border border-[#C3C6D1] rounded-2xl p-4 shadow-sm`}
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <div
+                                    className={`w-7 h-7 rounded ${item.bg} flex items-center justify-center`}
+                                >
+                                    <Icon className={`w-4 h-4 ${item.iconColor}`} />
                                 </div>
                             </div>
+
+                            <p className="text-sm text-[#43474F]">
+                                {item.title}
+                            </p>
+
+                            <h2 className="text-xl font-bold text-[#111827]">
+                                {item.value}
+                            </h2>
                         </div>
                     );
                 })}
             </div>
-
             {/* Filters — unchanged */}
             <div className="bg-white border rounded-2xl p-5">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                     <div className="md:col-span-3">
                         <label className="text-xs font-semibold">Global Search</label>
-                        <input placeholder="Type, Description..." className="w-full border rounded-lg px-3 py-2" />
+                        <input value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            placeholder="Type, Description..." className="w-full border rounded-lg px-3 py-2 outline-none" />
                     </div>
                     <div className="md:col-span-2">
                         <label className="text-xs font-semibold">Asset Type</label>
-                        <select className="w-full border rounded-lg px-3 py-2">
-                            <option>All Types</option>
-                            <option>Fixed</option>
-                            <option>Unit-to-Unit</option>
-                            <option>Movable</option>
-                        </select>
+                        <p className='w-full border rounded-lg px-3 py-2 '>
+                            <select value={typeInput} onChange={(e) => setTypeInput(e.target.value)} className="outline-none w-full">
+                                <option value="All">All Types</option>
+                                {
+                                    type.map((t) => (
+                                        <option value={t.name}>{t.name}</option>
+                                    ))
+                                }
+                            </select>
+                        </p>
                     </div>
                     <div className="md:col-span-2">
                         <label className="text-xs font-semibold">Transfer Allowed</label>
-                        <select className="w-full border rounded-lg px-3 py-2">
-                            <option>Any</option>
-                        </select>
+                        <p className='w-full border rounded-lg px-3 py-2 '>
+                            <select
+                                value={transferInput}
+                                onChange={(e) => setTransferInput(e.target.value)}
+                                className="outline-none w-full"
+                            >
+                                <option value="Any">
+                                    Any
+                                </option>
+                                <option value="Yes">
+                                    Yes
+                                </option>
+                                <option value="No">
+                                    No
+                                </option>
+
+                            </select>
+                        </p>
                     </div>
-                    <div className="md:col-span-3 flex items-end gap-1 cursor-pointer">
-                        <button className="bg-[#084E92] text-white px-6 py-2 rounded-lg">Apply Filter</button>
+                    <div className="md:col-span-3 flex items-end gap-1 ">
+                        <button onClick={applyFilters} className="bg-[#084E92] cursor-pointer text-white px-6 py-2 rounded-lg">Apply Filter</button>
                     </div>
                 </div>
             </div>
@@ -309,7 +370,7 @@ const AssetsType = () => {
             <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
                 {loading && <p className="p-4 text-sm text-gray-500">Loading asset types...</p>}
                 {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                <DataGrid table={table} recordCount={type.length} className="rounded-2xl">
+                <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>

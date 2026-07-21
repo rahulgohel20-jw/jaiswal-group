@@ -18,7 +18,7 @@ import {
     X,
     CircleCheck,
 } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -355,6 +355,103 @@ const AssignAssets = () => {
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
     const [previewAssignment, setPreviewAssignment] = useState(null);
+    const [searchInput, setSearchInput] = useState("");
+    const [outletInput, setOutletInput] = useState("All");
+    const [unitInput, setUnitInput] = useState("All");
+    const [categoryInput, setCategoryInput] = useState("All");
+    const [statusInput, setStatusInput] = useState("All");
+    const [companyInput, setCompanyInput] = useState("All");
+
+    const [filters, setFilters] = useState({
+        search: "",
+        outlet: "All",
+        unit: "All",
+        category: "All",
+        status: "All",
+        company: "All",
+    });
+
+
+    const applyFilters = () => {
+        setFilters({
+            search: searchInput,
+            outlet: outletInput,
+            unit: unitInput,
+            category: categoryInput,
+            status: statusInput,
+            company: companyInput,
+        });
+
+        setPagination({
+            pageIndex: 0,
+            pageSize: 10
+        });
+    };
+
+
+    const resetFilters = () => {
+        setSearchInput("");
+        setOutletInput("All");
+        setUnitInput("All");
+        setCategoryInput("All");
+        setStatusInput("All");
+        setCompanyInput("All");
+
+        setFilters({
+            search: "",
+            outlet: "All",
+            unit: "All",
+            category: "All",
+            status: "All",
+            company: "All",
+        });
+    };
+
+    const filteredAssignments = useMemo(() => {
+
+        return assignments.filter((item) => {
+
+            const searchMatch =
+                item.assignmentId.toLowerCase().includes(filters.search.toLowerCase()) ||
+                item.assetId.toLowerCase().includes(filters.search.toLowerCase()) ||
+                item.itemName.toLowerCase().includes(filters.search.toLowerCase()) ||
+                item.assignedTo.toLowerCase().includes(filters.search.toLowerCase());
+
+
+            const outletMatch =
+                filters.outlet === "All" ||
+                item.location.includes(filters.outlet);
+
+
+            const unitMatch =
+                filters.unit === "All" ||
+                item.location.includes(filters.unit);
+
+
+            // currently no category field in your data
+            const categoryMatch = true;
+
+
+            const statusMatch =
+                filters.status === "All" ||
+                item.status === filters.status;
+
+            const companyMatch =
+                filters.company == "All" ||
+                item.company === filters.company;
+
+
+            return (
+                searchMatch &&
+                outletMatch &&
+                unitMatch &&
+                categoryMatch &&
+                statusMatch &&
+                companyMatch
+            );
+        });
+
+    }, [assignments, filters]);
 
     const columns = [
         {
@@ -481,7 +578,7 @@ const AssignAssets = () => {
     ];
 
     const table = useReactTable({
-        data: assignments,
+        data: filteredAssignments,
         columns,
         state: { pagination, rowSelection },
         onPaginationChange: setPagination,
@@ -532,22 +629,28 @@ const AssignAssets = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-center">
                     <div className="relative col-span-1 xl:col-span-1 border border-[#C3C6D1] rounded-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input placeholder="Search by ID, Name, Kitchen..." className="w-full pl-10 py-2 outline-none rounded-lg" />
+                        <input value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                            placeholder="Search by ID, Name, Kitchen..." className="w-full pl-10 py-2 outline-none rounded-lg" />
                     </div>
 
                     <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                        <select className="outline-none w-full bg-transparent">
-                            <option>All Companies</option>
-                            <option>Jaiswal Group</option>
-                            <option>Jaiswal Hospitality</option>
+                        <select value={companyInput}
+                            onChange={(e) => setCompanyInput(e.target.value)} className="outline-none w-full bg-transparent">
+                            <option value="All">All Companies</option>
+                            <option value="Jaiswal Group">Jaiswal Group</option>
+                            <option value="Jaiswal Hospitality">Jaiswal Hospitality</option>
                         </select>
                     </p>
 
                     <div className="flex gap-3 justify-end">
-                        <button type="button" className="border border-[#C3C6D1] text-[#43474F] rounded-lg px-4 py-2 hover:bg-gray-50 transition cursor-pointer bg-white">
+                        <button type="button"
+                            onClick={resetFilters}
+                            className="border border-[#C3C6D1] text-[#43474F] rounded-lg px-4 py-2 hover:bg-gray-50 transition cursor-pointer bg-white">
                             Reset
                         </button>
-                        <button type="button" className="bg-[#084E92] text-white rounded-lg px-4 py-2 hover:bg-[#073e77] transition cursor-pointer">
+                        <button type="button" onClick={applyFilters} className="bg-[#084E92] text-white rounded-lg px-4 py-2 hover:bg-[#073e77] transition cursor-pointer">
                             Apply Filters
                         </button>
                     </div>
@@ -557,41 +660,57 @@ const AssignAssets = () => {
                     <div>
                         <label className="block text-xs text-[#737781] mb-1">Outlet</label>
                         <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select className="outline-none w-full bg-transparent">
-                                <option>All Outlets</option>
-                                <option>Bandra Outlet</option>
-                                <option>Worli Outlet</option>
-                                <option>Andheri Outlet</option>
+                            <select
+                                value={outletInput}
+                                onChange={(e) => setOutletInput(e.target.value)}
+                                className="outline-none w-full bg-transparent"
+                            >
+                                <option value="All">All Outlets</option>
+                                <option value="Bandra Outlet">Bandra Outlet</option>
+                                <option value="Worli Outlet">Worli Outlet</option>
+                                <option value="Andheri Outlet">Andheri Outlet</option>
                             </select>
                         </p>
                     </div>
                     <div>
                         <label className="block text-xs text-[#737781] mb-1">Unit Name</label>
                         <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select className="outline-none w-full bg-transparent">
-                                <option>Main Kitchen</option>
-                                <option>Cold Storage</option>
-                                <option>Cleaning Dept</option>
+                            <select
+                                value={unitInput}
+                                onChange={(e) => setUnitInput(e.target.value)}
+                                className="outline-none w-full bg-transparent"
+                            >
+                                <option value="All">All Units</option>
+                                <option value="Main Kitchen">Main Kitchen</option>
+                                <option value="Cold Storage">Cold Storage</option>
+                                <option value="Cleaning Dept">Cleaning Dept</option>
                             </select>
                         </p>
                     </div>
                     <div>
                         <label className="block text-xs text-[#737781] mb-1">Asset Category</label>
                         <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select className="outline-none w-full bg-transparent">
-                                <option>Industrial Cookers</option>
-                                <option>Kitchen Equipment</option>
-                                <option>IT Equipment</option>
+                            <select value={categoryInput}
+                                onChange={(e) => setCategoryInput(e.target.value)} className="outline-none w-full bg-transparent">
+                                <option value="All">All Category</option>
+                                <option value="Industrial Cookers">Industrial Cookers</option>
+                                <option value="Kitchen Equipment">Kitchen Equipment</option>
+                                <option value="IT Equipment">IT Equipment</option>
                             </select>
                         </p>
                     </div>
                     <div>
                         <label className="block text-xs text-[#737781] mb-1">Status</label>
                         <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select className="outline-none w-full bg-transparent">
-                                <option>Assigned</option>
-                                <option>Pending</option>
-                                <option>Returned</option>
+                            <select
+                                value={statusInput}
+                                onChange={(e) => setStatusInput(e.target.value)}
+                                className="outline-none w-full bg-transparent"
+                            >
+                                <option value="All">All Status</option>
+                                <option value="Assigned">Assigned</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Returned">Returned</option>
                             </select>
                         </p>
                     </div>
@@ -600,7 +719,7 @@ const AssignAssets = () => {
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={assignments.length} className="rounded-2xl">
+                <DataGrid table={table} recordCount={filteredAssignments.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>

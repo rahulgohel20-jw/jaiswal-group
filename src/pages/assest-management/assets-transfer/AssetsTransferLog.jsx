@@ -21,33 +21,25 @@ import {
 
 const STATS = [
     {
-        title: "TOTAL TRANSFERS",
+        title: "Total Transfers",
         value: "148",
         icon: ArrowLeftRight,
         iconBg: "bg-blue-50",
         iconColor: "text-[#0B5CAB]",
     },
     {
-        title: "TRANSFERS THIS MONTH",
+        title: "Transfers This Month",
         value: "24",
         icon: CalendarDays,
         iconBg: "bg-blue-50",
         iconColor: "text-[#0B5CAB]",
     },
     {
-        title: "TRANSFERS TODAY",
+        title: "Transfers Today",
         value: "05",
         icon: CalendarDays,
         iconBg: "bg-blue-50",
         iconColor: "text-[#0B5CAB]",
-    },
-    {
-        title: "LAST TRANSFER",
-        value: "TRF-2023-089",
-        icon: RotateCcw,
-        iconBg: "bg-blue-50",
-        iconColor: "text-[#0B5CAB]",
-        size: 'text-lg'
     },
 ];
 const TRANSFER_DATA = [
@@ -341,28 +333,29 @@ const AssetsTransferLog = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 my-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 my-8">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
                     return (
                         <div
                             key={index}
-                            className="bg-white border border-[#E6EAF2] rounded-2xl px-6 py-5 flex items-center justify-between shadow-sm"
+                            className="bg-white rounded-2xl border p-4 shadow-sm"
                         >
+                            <div className="w-6 h-6 rounded bg-[#EAF3FF] flex items-center justify-center mb-2">
+                                <Icon size={15} className="text-[#0B5CAB]" />
+                            </div>
                             <div>
-                                <p className="text-[11px] uppercase tracking-widest text-[#94A3B8] font-semibold">
+                                <p  className="text-sm text-[#43474F] pt-2">
                                     {item.title}
                                 </p>
 
-                                <h2 className={`mt-2 text-3xl font-bold text-[#084E92] ${item.size}`}>
+                                <h2 className="text-xl font-bold">
                                     {item.value}
                                 </h2>
                             </div>
 
-                            <div className="w-12 h-12 rounded-xl bg-[#EAF3FF] flex items-center justify-center">
-                                <Icon size={22} className="text-[#0B5CAB]" />
-                            </div>
+                            
                         </div>
                     );
                 })}

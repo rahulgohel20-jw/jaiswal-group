@@ -11,7 +11,7 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react'
-import React, { useState,useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -22,41 +22,6 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddSubCategoryModal from './AddSubCategoryModal';
 import AssetSubCategoryDetailsModal from './AssetSubCategoryDetailsModal';
 import { getSubCategories, getAssetCategories, deleteSubCategory } from '@/services/apiServices';
-
-const STATS = [
-    {
-        title: "Total Sub Categories",
-        value: "58",
-        note: "+4 from last month",
-        noteColor: "text-[#265FA4]",
-        icon: <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
-        color: "text-[#1B1B1F]",
-    },
-    {
-        title: "Active Sub Categories",
-        value: "52",
-        note: "89.6% of total",
-        noteColor: "text-[#15803D]",
-        icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
-        color: "text-[#15803D]",
-    },
-    {
-        title: "Inactive Sub Categories",
-        value: "6",
-        note: "Requires Review",
-        noteColor: "text-[#737781]",
-        icon: <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />,
-        color: "text-[#1B1B1F]",
-    },
-    {
-        title: "Total Assets Mapped",
-        value: "2,486",
-        note: "Across 12 Categories",
-        noteColor: "text-[#7C3AED]",
-        icon: <Sparkles size={22} className="text-[#7C3AED] p-1 bg-[#EDE9FE] rounded" />,
-        color: "text-[#1B1B1F]",
-    },
-];
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -80,11 +45,27 @@ const AssetSubCategory = () => {
     const [showAddSubCategory, setShowAddSubCategory] = useState(false);
     const [viewingSubCategory, setViewingSubCategory] = useState(null);
     const [editingSubCategory, setEditingSubCategory] = useState(null);
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All");
+    const [categoryFilter, setCategoryFilter] = useState("All")
+    const [appliedFilters, setAppliedFilters] = useState({
+        search: "",
+        status: "All",
+        category: "All",
+    });
 
-      const categoryNameById = (id) =>
+    const handleApplyFilter = () => {
+        setAppliedFilters({
+            search,
+            status: statusFilter,
+            category: categoryFilter,
+        });
+    };
+
+    const categoryNameById = (id) =>
         categories.find((c) => c.id === id)?.name || `Category #${id}`;
 
-      const mapSubCategory = (c) => ({
+    const mapSubCategory = (c) => ({
         id: c.id,
         categoryId: c.categoryId,
         // prefer a name the backend may already embed; fall back to local lookup
@@ -97,7 +78,7 @@ const AssetSubCategory = () => {
         healthLabel: c.healthLabel,
     });
 
-        const fetchAll = async () => {
+    const fetchAll = async () => {
         setLoading(true);
         setError(null);
         try {
@@ -139,6 +120,55 @@ const AssetSubCategory = () => {
         fetchAll();
     }, []);
 
+    const filteredSubCategories = useMemo(() => {
+        const keyword = search.toLowerCase().trim();
+        return subCategories.filter((item) => {
+
+
+            const matchesSearch =
+                item.name?.toLowerCase().includes(keyword) ||
+                item.description?.toLowerCase().includes(keyword) ||
+                item.parentCategory?.toLowerCase().includes(keyword);
+
+            const matchesStatus =
+                statusFilter === "All" ||
+                item.status === statusFilter;
+
+            const matchesCategory =
+                categoryFilter === "All" ||
+                item.parentCategory === categoryFilter;
+
+            return matchesSearch && matchesStatus && matchesCategory;
+        });
+    }, [subCategories, search, statusFilter, categoryFilter])
+
+    const STATS = [
+        {
+            title: "Total Sub Categories",
+            value: `${subCategories.length}`,
+            note: "+4 from last month",
+            noteColor: "text-[#265FA4]",
+            icon: <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
+            color: "text-[#1B1B1F]",
+        },
+        {
+            title: "Active Sub Categories",
+            value: `${subCategories.filter((c) => c.status == 'Active').length}`,
+            note: "89.6% of total",
+            noteColor: "text-[#15803D]",
+            icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
+            color: "text-[#15803D]",
+        },
+        {
+            title: "Inactive Sub Categories",
+            value: `${subCategories.filter((c) => c.status == 'Inactive').length}`,
+            note: "Requires Review",
+            noteColor: "text-[#737781]",
+            icon: <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />,
+            color: "text-[#1B1B1F]",
+        },
+    ];
+
     const handleDelete = async (id) => {
         if (!window.confirm('Delete this sub category? This cannot be undone.')) return;
         try {
@@ -178,7 +208,7 @@ const AssetSubCategory = () => {
         ]);
     };
 
-    const columns = [
+    const columns = useMemo(() => [
         {
             id: "select",
             header: ({ table }) => (
@@ -247,7 +277,7 @@ const AssetSubCategory = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
-                cell: ({ row }) => (
+            cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
                     <button type="button" onClick={() => setViewingSubCategory(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
@@ -263,10 +293,10 @@ const AssetSubCategory = () => {
             enableSorting: false,
             size: 110,
         },
-    ];
-
+    ], []
+    )
     const table = useReactTable({
-        data: subCategories,
+        data: filteredSubCategories,
         columns,
         state: { pagination, rowSelection },
         onPaginationChange: setPagination,
@@ -309,7 +339,7 @@ const AssetSubCategory = () => {
             </div>
 
             {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
                 {STATS.map((item) => (
                     <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
                         <div className="pb-2">{item.icon}</div>
@@ -325,28 +355,39 @@ const AssetSubCategory = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-center">
                     <div className="relative col-span-1 min-w-0 border border-[#C3C6D1] rounded-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input placeholder="Search by name, code or description..." className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg" />
+                        <input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()}
+                            placeholder="Search by name, code or description..." className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg" />
                     </div>
 
                     <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                        <select className="outline-none w-full min-w-0 bg-transparent">
-                            <option>All Categories</option>
-                            <option>Kitchen Equipment</option>
-                            <option>IT Equipment</option>
-                            <option>Office Furniture</option>
-                            <option>Vehicles</option>
+                        <select value={categoryFilter}
+                            onChange={(e) => setCategoryFilter(e.target.value)}
+                            className="outline-none w-full min-w-0 bg-transparent">
+                            <option value="All">All Categories</option>
+                            {[...new Set(subCategories.map(item => item.parentCategory))].map(category => (
+                                <option key={category} value={category}>
+                                    {category}
+                                </option>
+                            ))}
                         </select>
                     </p>
 
                     <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                        <select className="outline-none w-full min-w-0 bg-transparent">
-                            <option>All Status</option>
-                            <option>Active</option>
-                            <option>Inactive</option>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="outline-none w-full bg-transparent"
+                        >
+                            <option value="All">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
                         </select>
                     </p>
 
-                    <button type="button" className="bg-[#084E92] text-white rounded-lg px-4 py-2 hover:bg-[#073e77] transition cursor-pointer">
+                    <button type="button" onClick={handleApplyFilter} className="bg-[#084E92] text-white rounded-lg px-4 py-2 hover:bg-[#073e77] transition cursor-pointer">
                         Apply Filters
                     </button>
                 </div>
@@ -354,7 +395,7 @@ const AssetSubCategory = () => {
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={subCategories.length} className="rounded-2xl">
+                <DataGrid table={table} recordCount={filteredSubCategories.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>
@@ -375,21 +416,21 @@ const AssetSubCategory = () => {
                 onSave={handleSaveSubCategory}
             />
 
-           {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
-           {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+            {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
+            {error && <p className="p-4 text-sm text-red-600">{error}</p>}
 
-         <AddSubCategoryModal
-            isOpen={showAddSubCategory}
-            onClose={closeModal}
-            onSaved={fetchAll}
-            initialData={editingSubCategory}
-        />
+            <AddSubCategoryModal
+                isOpen={showAddSubCategory}
+                onClose={closeModal}
+                onSaved={fetchAll}
+                initialData={editingSubCategory}
+            />
 
-         <AssetSubCategoryDetailsModal
+            <AssetSubCategoryDetailsModal
                 isOpen={!!viewingSubCategory}
                 onClose={() => setViewingSubCategory(null)}
                 subCategory={viewingSubCategory}
-        />
+            />
         </div>
     );
 };
