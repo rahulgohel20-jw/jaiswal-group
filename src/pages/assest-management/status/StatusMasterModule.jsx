@@ -22,7 +22,6 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import StatusModal from "./StatusModal";
 import {
-    getStatus,
     getStatusById,
     createStatus,
     updateStatus,
