@@ -35,6 +35,23 @@ const StatusBadge = ({ status }) => {
     );
 };
 
+// Single source of truth for mapping a raw sub-category API object to the table shape.
+// Takes the just-fetched categories array explicitly so callers never rely on stale state.
+const mapSubCategory = (c, cats) => ({
+    id: c.id,
+    categoryId: c.categoryId,
+    parentCategory:
+        c.categoryName || c.category?.name ||
+        (Array.isArray(cats) ? cats.find((x) => x.id === c.categoryId)?.name : null) ||
+        `Category #${c.categoryId}`,
+    name: c.name,
+    description: c.description,
+    status: c.active ? "Active" : "Inactive",
+    assetCount: c.assetCount,
+    healthIndex: c.healthIndex,
+    healthLabel: c.healthLabel,
+});
+
 const AssetSubCategory = () => {
     const [subCategories, setSubCategories] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -92,22 +109,7 @@ const AssetSubCategory = () => {
             const raw = subRes.data?.data ?? subRes.data?.content ?? subRes.data ?? [];
             const list = Array.isArray(raw) ? raw : [];
             // map using the just-fetched categories (not stale state)
-            setSubCategories(
-                list.map((c) => ({
-                    id: c.id,
-                    categoryId: c.categoryId,
-                    parentCategory:
-                        c.categoryName || c.category?.name ||
-                        (Array.isArray(cats) ? cats.find((x) => x.id === c.categoryId)?.name : null) ||
-                        `Category #${c.categoryId}`,
-                    name: c.name,
-                    description: c.description,
-                    status: c.active ? "Active" : "Inactive",
-                    assetCount: c.assetCount,
-                    healthIndex: c.healthIndex,
-                    healthLabel: c.healthLabel,
-                }))
-            );
+            setSubCategories(list.map((c) => mapSubCategory(c, cats)));
         } catch (err) {
             console.error(err);
             setError('Failed to load sub categories');
@@ -209,6 +211,7 @@ const AssetSubCategory = () => {
     };
 
     const columns = useMemo(() => [
+    const columns = [
         {
             id: "select",
             header: ({ table }) => (
@@ -329,7 +332,7 @@ const AssetSubCategory = () => {
                 <div className="flex gap-3 self-end">
                     <button
                         type="button"
-                        onClick={() => setShowAddSubCategory(true)}
+                        onClick={openCreateModal}
                         className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                     >
                         <Plus size={16} />
@@ -396,6 +399,9 @@ const AssetSubCategory = () => {
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                 <DataGrid table={table} recordCount={filteredSubCategories.length} className="rounded-2xl">
+                {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
+                {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+                <DataGrid table={table} recordCount={subCategories.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>
@@ -412,8 +418,9 @@ const AssetSubCategory = () => {
 
             <AddSubCategoryModal
                 isOpen={showAddSubCategory}
-                onClose={() => setShowAddSubCategory(false)}
-                onSave={handleSaveSubCategory}
+                onClose={closeModal}
+                onSaved={fetchAll}
+                initialData={editingSubCategory}
             />
 
             {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}

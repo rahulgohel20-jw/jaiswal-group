@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Boxes,
   ChevronDown,
@@ -7,8 +7,6 @@ import {
   Landmark,
   Package,
   QrCode,
-  Barcode as BarcodeIcon,
-  RefreshCw,
   ScanLine,
   ShieldCheck,
   Wrench,
@@ -19,6 +17,15 @@ import {
   X,
 } from 'lucide-react';
 import { Button } from 'react-aria-components';
+import AddCategoryModal from '../categories/AddCategoryModal';
+import AddSubCategoryModal from '../sub-categories/AddSubCategoryModal';
+import {
+  getAssetCategories,
+  getSubCategoriesByCategory,
+  getActiveSubCategories,
+  getActiveAssetTypes,
+} from '@/services/apiServices';
+import AddAssetTypeModal from '../assets-type/AddAssetTypeModal';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -107,17 +114,23 @@ const SubHeading = ({ icon: Icon, title }) => (
   </div>
 );
 
-const Select = ({ value, onChange, options, placeholder }) => (
+// Options can be plain strings (legacy static lists) or { value, label } objects
+// (dynamic API-backed lists, where value = id and label = display name).
+const Select = ({ value, onChange, options, placeholder, disabled }) => (
   <div className="relative">
-    <select value={value} onChange={onChange} className={selectCls}>
+    <select value={value} onChange={onChange} className={selectCls} disabled={disabled}>
       <option value="" disabled>
         {placeholder}
       </option>
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
+      {options.map((o) => {
+        const val = typeof o === 'object' && o !== null ? o.value : o;
+        const label = typeof o === 'object' && o !== null ? o.label : o;
+        return (
+          <option key={val} value={val}>
+            {label}
+          </option>
+        );
+      })}
     </select>
     <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
   </div>
@@ -215,6 +228,12 @@ const ImageUpload = ({ value, onChange }) => {
   );
 };
 
+// Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
+const unwrapList = (res) => {
+  const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+  return Array.isArray(raw) ? raw : [];
+};
+
 const AddAsset = () => {
   const [openSections, setOpenSections] = useState({
     identification: true,
@@ -223,7 +242,67 @@ const AddAsset = () => {
   });
   const toggleSection = (s) => setOpenSections((p) => ({ ...p, [s]: !p[s] }));
 
-  const [amcActive, setAmcActive] = useState(true);
+  const [amcActive, setAmcActive] = useState(false);
+
+  // ---- Dynamic dropdown data ----
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  const [subCategories, setSubCategories] = useState([]);
+  const [subCategoriesLoading, setSubCategoriesLoading] = useState(true);
+
+  const [assetTypes, setAssetTypes] = useState([]);
+  const [assetTypesLoading, setAssetTypesLoading] = useState(true);
+  
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [showAddSubCategoryModal, setShowAddSubCategoryModal] = useState(false);
+  const [showAddAssetTypeCategoryModal,setShowAssetTypeCategoryModal] = useState(false);
+
+  const fetchCategories = async () => {
+    setCategoriesLoading(true);
+    try {
+      const res = await getAssetCategories();
+      setCategories(unwrapList(res));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const fetchAssetTypes = async () => {
+    setAssetTypesLoading(true);
+    try {
+      const res = await getActiveAssetTypes();
+      setAssetTypes(unwrapList(res));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAssetTypesLoading(false);
+    }
+  };
+
+  // categoryId = null -> all active sub categories; otherwise scoped to that category
+  const fetchSubCategories = async (categoryId) => {
+    setSubCategoriesLoading(true);
+    try {
+      const res = categoryId
+        ? await getSubCategoriesByCategory(categoryId)
+        : await getActiveSubCategories();
+      setSubCategories(unwrapList(res));
+    } catch (err) {
+      console.error(err);
+      setSubCategories([]);
+    } finally {
+      setSubCategoriesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+    fetchAssetTypes();
+    fetchSubCategories(null);
+  }, []);
 
   const [form, setForm] = useState({
     assetId: 'AST-890125',
@@ -252,6 +331,7 @@ const AddAsset = () => {
     lastMaintenance: '',
     nextMaintenance: '',
     frequency: '',
+    maintenanceCost: '',
 
     condition: '',
     status: '',
@@ -261,6 +341,17 @@ const AddAsset = () => {
   });
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleCategoryChange = (e) => {
+    const value = e.target.value;
+    set('category', value);
+    set('subCategory', '');
+    fetchSubCategories(value || null);
+  };
+
+  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  const subCategoryOptions = subCategories.map((c) => ({ value: c.id, label: c.name }));
+  const assetTypeOptions = assetTypes.map((c) => ({ value: c.id, label: c.name }));
 
   return (
     <div className="mx-4 min-h-screen pb-8">
@@ -290,7 +381,7 @@ const AddAsset = () => {
         />
         {openSections.identification && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Asset ID</Label>
                 <div className="relative">
@@ -311,66 +402,56 @@ const AddAsset = () => {
                   { label: 'Download', icon: Download, onClick: () => {}, tone: 'muted' },
                 ]}
               />
-
-              <CodeBox
-                label="Barcode"
-                icon={BarcodeIcon}
-                actions={[
-                  { label: 'Download', icon: Download, onClick: () => {}, tone: 'muted' },
-                  { label: 'Regenerate', icon: RefreshCw, onClick: () => {} },
-                ]}
-              />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              <div className='flex flex-col justify-end'>
-                 <div className='flex gap-2 justify-between mb-3'>
-                    <Label required>
-                         Sub Category
-                     </Label>
-                    <Button className='cursor-pointer'>
-                        <CirclePlus />
-                    </Button>
+              <div className="flex flex-col justify-end">
+                <div className="flex gap-2 justify-between mb-3">
+                  <Label required>Category</Label>
+                  <Button className="cursor-pointer" onPress={() => setShowAddCategoryModal(true)}>
+                    <CirclePlus />
+                  </Button>
                 </div>
                 <Select
                   value={form.category}
-                  onChange={(e) => set('category', e.target.value)}
-                  placeholder="Select category"
-                  options={['Kitchen Equipment', 'IT Equipment', 'Furniture', 'Vehicles']}
+                  onChange={handleCategoryChange}
+                  placeholder={categoriesLoading ? 'Loading categories...' : 'Select category'}
+                  options={categoryOptions}
+                  disabled={categoriesLoading}
                 />
               </div>
-              <div className='flex flex-col justify-end'>
-                <div className='flex justify-between gap-2 mb-3'>
-                    <Label required>
-                         Sub Category
-                     </Label>
-                    <Button className='cursor-pointer'>
-                        <CirclePlus />
-                    </Button>
+
+              <div className="flex flex-col justify-end">
+                <div className="flex justify-between gap-2 mb-3">
+                  <Label required>Sub Category</Label>
+                  <Button className="cursor-pointer" onPress={() => setShowAddSubCategoryModal(true)}>
+                    <CirclePlus />
+                  </Button>
                 </div>
-              
                 <Select
                   value={form.subCategory}
                   onChange={(e) => set('subCategory', e.target.value)}
-                  placeholder="Select sub category"
-                  options={['Refrigeration', 'Cooking Range', 'Storage', 'Ventilation']}
+                  placeholder={subCategoriesLoading ? 'Loading sub categories...' : 'Select sub category'}
+                  options={subCategoryOptions}
+                  disabled={subCategoriesLoading}
                 />
               </div>
-              <div className='flex flex-col jusify-end'>
-               <div className='flex justify-between gap-2 mb-3'>
-                    <Label required>
-                         Sub Category
-                     </Label>
-                    <Button className='cursor-pointer text'>
-                        <CirclePlus />
-                    </Button>
+
+              <div className="flex flex-col justify-end">
+                <div className="flex justify-between gap-2 mb-3">
+                  <Label required>Asset Type</Label>
+                    <Button className="cursor-pointer" onPress={() => setShowAssetTypeCategoryModal(true)}>
+                    <CirclePlus />
+                  </Button>
                 </div>
                 <Select
                   value={form.assetType}
                   onChange={(e) => set('assetType', e.target.value)}
-                  placeholder="Select asset type"
-                  options={['Fixed Asset', 'Consumable', 'Rental']}
+                  placeholder={assetTypesLoading ? 'Loading asset types...' : 'Select asset type'}
+                  options={assetTypeOptions}
+                  disabled={assetTypesLoading}
                 />
+                
               </div>
             </div>
           </div>
@@ -543,7 +624,7 @@ const AddAsset = () => {
                   <div className="flex items-center justify-between">
                     <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">AMC Coverage</h4>
                     <Toggle
-                      checked={!amcActive}
+                      checked={amcActive}
                       onChange={setAmcActive}
                       label={amcActive ? 'AMC Active' : 'AMC Inactive'}
                     />
@@ -579,7 +660,7 @@ const AddAsset = () => {
 
             <div className="border-t border-gray-100 pt-5 space-y-5">
               <SubHeading icon={Wrench} title="Maintenance Info" />
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div>
                   <Label>Last Maintenance</Label>
                   <input
@@ -605,6 +686,15 @@ const AddAsset = () => {
                     onChange={(e) => set('frequency', e.target.value)}
                     placeholder="Select frequency"
                     options={['Weekly', 'Monthly', 'Quarterly', 'Half-Yearly', 'Yearly']}
+                  />
+                </div>
+                <div>
+                  <Label>Maintenance Cost (₹)</Label>
+                  <input
+                    value={form.maintenanceCost}
+                    onChange={(e) => set('maintenanceCost', e.target.value)}
+                    placeholder="2500"
+                    className={inputCls}
                   />
                 </div>
               </div>
@@ -695,6 +785,27 @@ const AddAsset = () => {
           </button>
         </div>
       </div>
+
+      <AddCategoryModal
+        isOpen={showAddCategoryModal}
+        onClose={() => setShowAddCategoryModal(false)}
+        onSaved={fetchCategories}
+        initialData={null}
+      />
+
+      <AddSubCategoryModal
+        isOpen={showAddSubCategoryModal}
+        onClose={() => setShowAddSubCategoryModal(false)}
+        onSaved={() => fetchSubCategories(form.category || null)}
+        initialData={null}
+      />
+
+      <AddAssetTypeModal
+       isOpen={showAddAssetTypeCategoryModal}
+       onClose={() => setShowAssetTypeCategoryModal(false)}
+       onSaved={fetchAssetTypes}
+       initialData={null}
+      />
     </div>
   );
 };

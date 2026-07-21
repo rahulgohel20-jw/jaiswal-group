@@ -450,7 +450,7 @@ export const MENU_SIDEBAR = [
     ],
   },
   {
-    title: 'Assest Management',
+    title: 'Asset Management',
     icon: LayoutGrid,
     children: [
       { title: 'Category Master',path: '/assets/categories' },
@@ -483,6 +483,15 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Stock Purchase', path: '/purchase/stock-purchase' },
       { title: 'Purchase Order', path: '/purchase/purchase-order' },
       { title: 'Purchase Return', path: '/purchase/purchase-return' },
+    ],
+  },
+    {
+    title: 'Raw Material',
+    icon: ShoppingCart,
+    children: [
+      { title: 'Types', path: '/material/types' },
+      { title: 'Categories', path: '/material/categories' },
+      { title: 'Raw Material Items', path: '/material/items' },
     ],
   },
   {

@@ -60,6 +60,23 @@ const AssetCategory = () => {
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
 
+    const handleViewCategory = (row) => {
+        // Using the row data already loaded in the table.
+        // If the details modal needs fields beyond what mapCategory keeps
+        // (id, name, description, status, totalAssets, createdDate, activity),
+        // replace this with a fetch-by-id call instead, e.g.:
+        //
+        // setViewLoading(true);
+        // getAssetCategoryById(row.id)
+        //     .then((res) => setViewingCategory(mapCategory(res.data)))
+        //     .catch((err) => {
+        //         console.error(err);
+        //         alert('Failed to load category details.');
+        //     })
+        //     .finally(() => setViewLoading(false));
+        setViewingCategory(row);
+    };
+
     const handleDelete = async (id) => {
         if (!window.confirm('Delete this category? This cannot be undone.')) return;
         try {
@@ -271,7 +288,7 @@ const AssetCategory = () => {
                 <div className="flex gap-3 self-end">
                     <button
                         type="button"
-                        onClick={() => setShowAddCategory(true)}
+                        onClick={openCreateModal}
                         className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                     >
                         <Plus size={16} />

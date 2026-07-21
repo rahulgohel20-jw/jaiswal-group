@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createAssetType, updateAssetType } from '@/services/apiServices';
 
-const emptyForm = { assetsTypeName: '', description: '', status: 'Active' };
+const emptyForm = { name: '', description: '', status: 'Active' };
 
 const ASSET_TYPE_OPTIONS = ['Fixed', 'Unit-to-Unit', 'Movable'];
 
@@ -21,9 +21,9 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
     if (!isOpen) return;
     if (initialData) {
       setForm({
-        assetsTypeName: initialData.assetTypeName || '',
+        name: initialData.name || initialData.assetTypeName || '',
         description: initialData.description || '',
-        status: initialData.status || 'Active',
+        status: initialData.status || (initialData.active === false ? 'Inactive' : 'Active'),
       });
     } else {
       setForm(emptyForm);
@@ -126,8 +126,8 @@ const handleSave = async () => {
                  <Input
                               placeholder="Enter Asset Type"
                               className="mt-1"
-                              value={form.assetType}
-                              onChange={(e) => set('assetType', e.target.value)}
+                              value={form.name}
+                              onChange={(e) => set('name', e.target.value)}
                   />
               </div>
 
@@ -168,7 +168,7 @@ const handleSave = async () => {
             <div className="flex gap-3">
               <button
                 onClick={handleSave}
-                disabled={!form.assetType || saving}
+                disabled={!form.name || saving}
                 className="px-5 py-2 bg-[#084E92] text-white rounded-lg font-medium cursor-pointer disabled:opacity-50"
               >
                 {saving ? 'Saving...' : isEditMode ? 'Update Asset Type' : 'Save Asset Type'}
