@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Ruler, Save, X } from 'lucide-react';
+import { Award, Info, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -11,11 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { createAssetUnit, updateAssetUnit } from '@/services/apiServices';
+import { createAssetBrand, updateAssetBrand } from '@/services/apiServices';
 
-const emptyForm = { name: '', symbol: '', status: 'Active' };
+const emptyForm = { name: '', description: '', status: 'Active' };
 
-const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
+const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -27,7 +28,7 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
     if (initialData) {
       setForm({
         name: initialData.name || '',
-        symbol: initialData.symbol || '',
+        description: initialData.description || '',
         status: initialData.status || 'Active',
       });
     } else {
@@ -46,22 +47,26 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
     onClose?.();
   };
 
-  const isValid = form.name.trim() && form.symbol.trim();
-
   const handleSave = async () => {
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        name: form.name,
-        symbol: form.symbol,
-        active: form.status === 'Active',
-      };
-
       if (isEditMode) {
-        await updateAssetUnit({ id: initialData.id, ...payload });
+        await updateAssetBrand({
+          id: initialData.id,
+          name: form.name,
+          description: form.description,
+          active: form.status === 'Active',
+        });
       } else {
-        await createAssetUnit({ ...payload, createdBy: 0 });
+        // Matches the create endpoint's request schema exactly:
+        // { active, createdBy, description, name }
+        await createAssetBrand({
+          active: form.status === 'Active',
+          createdBy: 0,
+          description: form.description,
+          name: form.name,
+        });
       }
 
       setForm(emptyForm);
@@ -71,7 +76,7 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
       console.error(err);
       setError(
         err?.response?.data?.message ||
-          `Failed to ${isEditMode ? 'update' : 'create'} unit. Please try again.`
+          `Failed to ${isEditMode ? 'update' : 'create'} brand. Please try again.`
       );
     } finally {
       setSaving(false);
@@ -85,16 +90,16 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
         <div className="flex items-start justify-between gap-3 p-4 border-b flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-primary shrink-0">
-              <Ruler className="h-5 w-5" />
+              <Award className="h-5 w-5" />
             </div>
             <div>
               <h3 className="text-lg font-semibold leading-none">
-                {isEditMode ? 'Edit Unit' : 'Add Unit'}
+                {isEditMode ? 'Edit Brand' : 'Add New Brand'}
               </h3>
               <p className="text-xs text-gray-500 mt-2">
                 {isEditMode
-                  ? 'Update this measurement unit.'
-                  : 'Configure measurement units for inventory tracking.'}
+                  ? 'Update this asset brand.'
+                  : 'Create a brand to organize and classify organizational assets efficiently.'}
               </p>
             </div>
           </div>
@@ -108,43 +113,44 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
         {/* Content - Scrollable */}
         <div className="p-4 overflow-y-auto flex-1 space-y-4">
+          <div className="flex items-center gap-2 text-primary">
+            <Info className="h-4 w-4" />
+            <h4 className="text-sm font-semibold">Brand Information</h4>
+          </div>
+
           {error && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Unit Name
-              </label>
-              <Input
-                placeholder="e.g., Kilograms"
-                className="mt-1.5"
-                value={form.name}
-                onChange={(e) => set('name', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Symbol
-              </label>
-              <Input
-                placeholder="e.g., Kg"
-                className="mt-1.5"
-                value={form.symbol}
-                onChange={(e) => set('symbol', e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="text-sm font-medium">
+              Brand Name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              placeholder="Enter brand name"
+              className="mt-1"
+              value={form.name}
+              onChange={(e) => set('name', e.target.value)}
+            />
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Status
-            </label>
+            <label className="text-sm font-medium">Brand Description</label>
+            <Textarea
+              placeholder="Describe this brand..."
+              className="mt-1"
+              rows={3}
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Status</label>
             <Select value={form.status} onValueChange={(value) => set('status', value)}>
-              <SelectTrigger className="mt-1.5">
+              <SelectTrigger className="mt-1">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -155,18 +161,17 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
           </div>
         </div>
 
-        {/* Footer - Fixed */}
-        <div className="flex items-center justify-between gap-2 p-4 border-t bg-gray-50 flex-shrink-0 flex-wrap">
+        <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50 flex-shrink-0">
           <Button variant="outline" onClick={handleClose} disabled={saving}>
             Cancel
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!isValid || saving}
-            className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
+            disabled={!form.name.trim() || saving}
+            className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
           >
             <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : isEditMode ? 'Update Unit' : 'Save Unit'}
+            {saving ? 'Saving...' : isEditMode ? 'Update Brand' : 'Save Brand'}
           </Button>
         </div>
       </div>
@@ -174,4 +179,4 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
   );
 };
 
-export default AddAssetUnitModal;
+export default AddAssetBrandModal;

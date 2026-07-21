@@ -10,7 +10,7 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react'
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -19,27 +19,8 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddAssetUnitModal from './AddAssetUnitModal';
-
-const INITIAL_UNITS = [
-    { id: 1, name: "Nos", symbol: "Nos", status: "Active" },
-    { id: 2, name: "Kilogram", symbol: "Kg", status: "Active" },
-    { id: 3, name: "Liter", symbol: "Ltr", status: "Active" },
-    { id: 4, name: "Box", symbol: "Box", status: "Active" },
-    { id: 5, name: "Set", symbol: "Set", status: "Inactive" },
-    { id: 6, name: "Piece", symbol: "Pc", status: "Active" },
-    { id: 7, name: "Meter", symbol: "M", status: "Active" },
-    { id: 8, name: "Dozen", symbol: "Dz", status: "Active" },
-    { id: 9, name: "Pair", symbol: "Pr", status: "Active" },
-    { id: 10, name: "Roll", symbol: "Roll", status: "Active" },
-    { id: 11, name: "Pack", symbol: "Pack", status: "Active" },
-    { id: 12, name: "Bag", symbol: "Bag", status: "Active" },
-    { id: 13, name: "Bundle", symbol: "Bdl", status: "Active" },
-    { id: 14, name: "Carton", symbol: "Ctn", status: "Active" },
-    { id: 15, name: "Gram", symbol: "g", status: "Active" },
-    { id: 16, name: "Milliliter", symbol: "ml", status: "Active" },
-    { id: 17, name: "Ton", symbol: "T", status: "Inactive" },
-    { id: 18, name: "Unit", symbol: "Unit", status: "Active" },
-];
+import AssetUnitDetailsModal from './AssetUnitDetailsModal';
+import { getAssetUnits, getAssetUnitById, deleteAssetUnit } from '@/services/apiServices';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -53,28 +34,52 @@ const StatusBadge = ({ status }) => {
     );
 };
 
+// Normalize backend shape into what the UI expects
+const normalizeUnit = (u) => ({
+    id: u.id,
+    name: u.name,
+    symbol: u.symbol,
+    status: typeof u.active === 'boolean' ? (u.active ? 'Active' : 'Inactive') : (u.status || 'Inactive'),
+});
+
 const AssetUnitList = () => {
-    const [units, setUnits] = useState(INITIAL_UNITS);
+    const [units, setUnits] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
     const [rowSelection, setRowSelection] = useState({});
+
     const [showAddUnit, setShowAddUnit] = useState(false);
+    const [editingUnit, setEditingUnit] = useState(null);
 
     // Draft filter values vs. what's actually applied to the table
     const [searchDraft, setSearchDraft] = useState('');
     const [statusDraft, setStatusDraft] = useState('All Status');
     const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'All Status' });
 
-    const handleSaveUnit = (data) => {
-        setUnits((prev) => [
-            ...prev,
-            {
-                id: prev.length ? Math.max(...prev.map((u) => u.id)) + 1 : 1,
-                name: data.name,
-                symbol: data.symbol,
-                status: data.status,
-            },
-        ]);
+    const [selectedUnit, setSelectedUnit] = useState(null);
+    const [showViewUnit, setShowViewUnit] = useState(false);
+    const [viewLoading, setViewLoading] = useState(false);
+
+    const fetchUnits = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await getAssetUnits();
+            const list = res?.data?.data || res?.data || [];
+            setUnits(Array.isArray(list) ? list.map(normalizeUnit) : []);
+        } catch (err) {
+            console.error(err);
+            setError('Failed to load units. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
+
+    useEffect(() => {
+        fetchUnits();
+    }, []);
 
     const applyFilters = () => {
         setAppliedFilters({ search: searchDraft, status: statusDraft });
@@ -106,7 +111,6 @@ const AssetUnitList = () => {
             title: "Total Units",
             value: String(units.length),
             badge: "OVERVIEW",
-            badgeStyle: "bg-blue-50 text-[#00376C]",
             icon: <Ruler size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
             color: "text-[#1B1B1F]",
         },
@@ -114,7 +118,6 @@ const AssetUnitList = () => {
             title: "Active Units",
             value: String(activeCount),
             badge: "ACTIVE",
-            badgeStyle: "bg-green-100 text-green-700",
             icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
             color: "text-[#15803D]",
         },
@@ -122,11 +125,46 @@ const AssetUnitList = () => {
             title: "Inactive Units",
             value: String(inactiveCount).padStart(2, '0'),
             badge: "INACTIVE",
-            badgeStyle: "bg-amber-100 text-amber-700",
             icon: <CircleX size={22} className="text-[#B45309] p-1 bg-[#FEF3C7] rounded" />,
             color: "text-[#B45309]",
         },
     ];
+
+    const handleAddClick = () => {
+        setEditingUnit(null);
+        setShowAddUnit(true);
+    };
+
+    const handleEditClick = (unit) => {
+        setEditingUnit(unit);
+        setShowAddUnit(true);
+    };
+
+    const handleViewClick = async (unit) => {
+        setShowViewUnit(true);
+        setSelectedUnit(null);
+        setViewLoading(true);
+        try {
+            const res = await getAssetUnitById(unit.id);
+            const data = res?.data?.data || res?.data;
+            setSelectedUnit(data ? normalizeUnit(data) : unit);
+        } catch (err) {
+            console.error(err);
+            // Fall back to the row data already in hand
+            setSelectedUnit(unit);
+        } finally {
+            setViewLoading(false);
+        }
+    };
+
+    const handleDelete = async (unit) => {
+        try {
+            await deleteAssetUnit(unit.id);
+            setUnits((prev) => prev.filter((u) => u.id !== unit.id));
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const columns = [
         {
@@ -197,16 +235,13 @@ const AssetUnitList = () => {
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button">
+                    <button type="button" onClick={() => handleViewClick(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
-                    <button type="button">
+                    <button type="button" onClick={() => handleEditClick(row.original)}>
                         <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => setUnits((prev) => prev.filter((u) => u.id !== row.original.id))}
-                    >
+                    <button type="button" onClick={() => handleDelete(row.original)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -253,7 +288,7 @@ const AssetUnitList = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={() => setShowAddUnit(true)}
+                        onClick={handleAddClick}
                         className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                     >
                         <Plus size={16} />
@@ -268,15 +303,10 @@ const AssetUnitList = () => {
                     <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
                         <div className="flex justify-between items-center pb-2">
                             <p>{item.icon}</p>
-                            
                         </div>
                         <h1 className="text-sm text-[#43474F]">{item.title}</h1>
                         <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
-                        {item.badge && (
-                                <p className={`text-xs mt-1`}>
-                                    {item.badge}
-                                </p>
-                            )}
+                        {item.badge && <p className="text-xs mt-1">{item.badge}</p>}
                     </div>
                 ))}
             </div>
@@ -332,27 +362,45 @@ const AssetUnitList = () => {
                 </div>
             </div>
 
+            {error && (
+                <div className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                    {error}
+                </div>
+            )}
+
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={filteredUnits.length} className="rounded-2xl">
-                    <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardTable>
-                        <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                            <DataGridPagination />
-                        </CardFooter>
-                    </Card>
-                </DataGrid>
+                {loading ? (
+                    <div className="p-10 text-center text-sm text-gray-500">Loading units...</div>
+                ) : (
+                    <DataGrid table={table} recordCount={filteredUnits.length} className="rounded-2xl">
+                        <Card className="rounded-t-none border-t-0 rounded-2xl">
+                            <CardTable>
+                                <ScrollArea>
+                                    <DataGridTable />
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
+                            </CardTable>
+                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                                <DataGridPagination />
+                            </CardFooter>
+                        </Card>
+                    </DataGrid>
+                )}
             </div>
 
             <AddAssetUnitModal
                 isOpen={showAddUnit}
                 onClose={() => setShowAddUnit(false)}
-                onSave={handleSaveUnit}
+                onSaved={fetchUnits}
+                initialData={editingUnit}
+            />
+
+            <AssetUnitDetailsModal
+                isOpen={showViewUnit}
+                onClose={() => setShowViewUnit(false)}
+                unit={selectedUnit}
+                loading={viewLoading}
             />
         </div>
     );

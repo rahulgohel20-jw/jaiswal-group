@@ -24,8 +24,10 @@ import {
   getSubCategoriesByCategory,
   getActiveSubCategories,
   getActiveAssetTypes,
+  getActiveAssetBrands
 } from '@/services/apiServices';
 import AddAssetTypeModal from '../assets-type/AddAssetTypeModal';
+import AddAssetBrandModal from '../asset-brand/AddAssetBrandModal';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -253,10 +255,14 @@ const AddAsset = () => {
 
   const [assetTypes, setAssetTypes] = useState([]);
   const [assetTypesLoading, setAssetTypesLoading] = useState(true);
+
+  const [assetBrand, setAssetBrand] = useState([]);
+  const [assetBrandsLoading,setAssetBrandsLoading] = useState(true);
   
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [showAddSubCategoryModal, setShowAddSubCategoryModal] = useState(false);
   const [showAddAssetTypeCategoryModal,setShowAssetTypeCategoryModal] = useState(false);
+  const [showAddAssetBrandCategoryModal,setShowAddAssetBrandCategoryModal] = useState(false);
 
   const fetchCategories = async () => {
     setCategoriesLoading(true);
@@ -298,10 +304,23 @@ const AddAsset = () => {
     }
   };
 
+  const fetchAssetBrand = async () => {
+    setAssetBrandsLoading(true);
+     try {
+      const res = await getActiveAssetBrands();
+      setAssetBrand(unwrapList(res));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAssetBrandsLoading(false);
+    }
+  }
+
   useEffect(() => {
     fetchCategories();
     fetchAssetTypes();
     fetchSubCategories(null);
+    fetchAssetBrand();
   }, []);
 
   const [form, setForm] = useState({
@@ -352,6 +371,7 @@ const AddAsset = () => {
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
   const subCategoryOptions = subCategories.map((c) => ({ value: c.id, label: c.name }));
   const assetTypeOptions = assetTypes.map((c) => ({ value: c.id, label: c.name }));
+  const assetBrandOptions = assetBrand.map((c) => ({ value: c.id,label: c.name}))
 
   return (
     <div className="mx-4 min-h-screen pb-8">
@@ -441,8 +461,8 @@ const AddAsset = () => {
                 <div className="flex justify-between gap-2 mb-3">
                   <Label required>Asset Type</Label>
                     <Button className="cursor-pointer" onPress={() => setShowAssetTypeCategoryModal(true)}>
-                    <CirclePlus />
-                  </Button>
+                      <CirclePlus />
+                    </Button>
                 </div>
                 <Select
                   value={form.assetType}
@@ -479,14 +499,21 @@ const AddAsset = () => {
                   className={inputCls}
                 />
               </div>
-              <div>
-                <Label required>Brand</Label>
-                <input
+              <div >
+                <div className="flex justify-between gap-2 mb-3">
+                  <Label required>Brand</Label>
+                  <Button className="cursor-pointer" onPress={() => setShowAddAssetBrandCategoryModal(true)}>
+                    <CirclePlus />
+                  </Button>
+                </div>
+                <Select
                   value={form.brand}
                   onChange={(e) => set('brand', e.target.value)}
-                  placeholder="e.g. Samsung"
-                  className={inputCls}
+                  placeholder={assetBrandsLoading ? 'Loading asset brands...' : 'Select asset brand'}
+                  options={assetBrandOptions}
+                  disabled={assetBrandsLoading}
                 />
+                
               </div>
             </div>
 
@@ -803,6 +830,13 @@ const AddAsset = () => {
       <AddAssetTypeModal
        isOpen={showAddAssetTypeCategoryModal}
        onClose={() => setShowAssetTypeCategoryModal(false)}
+       onSaved={fetchAssetTypes}
+       initialData={null}
+      />
+
+      <AddAssetBrandModal 
+       isOpen={showAddAssetBrandCategoryModal}
+       onClose={() => setShowAddAssetBrandCategoryModal(false)}
        onSaved={fetchAssetTypes}
        initialData={null}
       />

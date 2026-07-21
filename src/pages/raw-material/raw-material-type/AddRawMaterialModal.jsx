@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -12,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const emptyForm = { name: '', status: 'Active' };
+const emptyForm = { name: '', description: '', status: 'Active' };
 
 const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
@@ -27,6 +28,7 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
     if (initialData) {
       setForm({
         name: initialData.name || '',
+        description: initialData.description || '',
         status: initialData.status || 'Active',
       });
     } else {
@@ -46,15 +48,24 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
   };
 
   const save = async () => {
-    const payload = {
-      name: form.name,
-      active: form.status === 'Active',
-    };
-
     if (isEditMode) {
-      await updateRawMaterialType({ id: initialData.id, ...payload });
+      const payload = {
+        id: initialData.id,
+        name: form.name,
+        description: form.description,
+        active: form.status === 'Active',
+      };
+      await updateRawMaterialType(payload);
     } else {
-      await createRawMaterialType({ ...payload, createdBy: 0 });
+      // Matches the create endpoint's request schema exactly:
+      // { active, createdBy, description, name }
+      const payload = {
+        active: form.status === 'Active',
+        createdBy: 0,
+        description: form.description,
+        name: form.name,
+      };
+      await createRawMaterialType(payload);
     }
   };
 
@@ -157,6 +168,17 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium">Description</label>
+            <Textarea
+              placeholder="Describe the purpose of this material type..."
+              className="mt-1"
+              rows={3}
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+            />
           </div>
         </div>
 
