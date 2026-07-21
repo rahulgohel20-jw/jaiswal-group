@@ -143,6 +143,7 @@ import AssetsDisposalLog from '../pages/assest-management/assets-disposal-log/As
 import AddAssetsDisposal from '../pages/assest-management/assets-disposal-log/AddAssetsDisposal';
 import AssetsTransferLog from '../pages/assest-management/assets-transfer/AssetsTransferLog';
 import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawMaterialTypeListing';
+import RowMaterialCategories from '../pages/raw-material/row-material-categories/RowMaterialCategories';
 import AssetBrandListing from '../pages/assest-management/asset-brand/AssetBrandListing';
 
 export function AppRoutingSetup() {
@@ -208,6 +209,7 @@ export function AppRoutingSetup() {
           <Route path='/assets/add-disposal' element={<AddAssetsDisposal/>}/>
 
           <Route path='/material/types' element={<RawMaterialTypeListing/>} />
+          <Route path='/material/categories' element={<RowMaterialCategories/>}/>
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
