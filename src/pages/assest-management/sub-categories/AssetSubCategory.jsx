@@ -211,7 +211,6 @@ const AssetSubCategory = () => {
     };
 
     const columns = useMemo(() => [
-    const columns = [
         {
             id: "select",
             header: ({ table }) => (
@@ -401,7 +400,6 @@ const AssetSubCategory = () => {
                 <DataGrid table={table} recordCount={filteredSubCategories.length} className="rounded-2xl">
                 {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
                 {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                <DataGrid table={table} recordCount={subCategories.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>
