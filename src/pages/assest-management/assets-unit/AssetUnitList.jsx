@@ -2,7 +2,6 @@ import {
     ChevronRight,
     CircleCheck,
     CircleX,
-    Clock,
     Eye,
     Plus,
     Ruler,
@@ -44,8 +43,8 @@ const INITIAL_UNITS = [
 
 const StatusBadge = ({ status }) => {
     const styles = {
-        Active: "bg-green-100 text-green-700",
-        Inactive: "bg-gray-200 text-gray-600",
+        Active: "text-green-700",
+        Inactive: "text-gray-600",
     };
     return (
         <span className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${styles[status]}`}>
@@ -126,14 +125,6 @@ const AssetUnitList = () => {
             badgeStyle: "bg-amber-100 text-amber-700",
             icon: <CircleX size={22} className="text-[#B45309] p-1 bg-[#FEF3C7] rounded" />,
             color: "text-[#B45309]",
-        },
-        {
-            title: "Last Updated",
-            value: "Today",
-            badge: "UPDATED",
-            badgeStyle: "bg-purple-100 text-[#7C3AED]",
-            icon: <Clock size={22} className="text-[#7C3AED] p-1 bg-[#EDE9FE] rounded" />,
-            color: "text-[#7C3AED]",
         },
     ];
 
@@ -272,19 +263,20 @@ const AssetUnitList = () => {
             </div>
 
             {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
                 {STATS.map((item) => (
                     <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
                         <div className="flex justify-between items-center pb-2">
                             <p>{item.icon}</p>
-                            {item.badge && (
-                                <p className={`text-[10px] rounded-full font-semibold px-2 py-0.5 uppercase tracking-wide ${item.badgeStyle}`}>
-                                    {item.badge}
-                                </p>
-                            )}
+                            
                         </div>
                         <h1 className="text-sm text-[#43474F]">{item.title}</h1>
                         <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
+                        {item.badge && (
+                                <p className={`text-xs mt-1`}>
+                                    {item.badge}
+                                </p>
+                            )}
                     </div>
                 ))}
             </div>

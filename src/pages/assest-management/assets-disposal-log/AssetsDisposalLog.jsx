@@ -1,5 +1,5 @@
 import { BadgeDollarSign, CalendarDays, ChevronRight, CirclePlus, ClipboardList, Download, Eye, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -12,16 +12,16 @@ import { Link } from 'react-router';
 
 const STATS = [
     {
-        title: "TOTAL RECORDS",
+        title: "Total Records",
         value: "1,248",
         icon: ClipboardList,
         iconBg: "bg-blue-50",
         iconColor: "text-[#0B5CAB]",
         badge: "↗ 12.5%",
-        badgeClass: "bg-green-100 text-green-700",
+        badgeClass: "text-green-700",
     },
     {
-        title: "ASSETS SOLD",
+        title: "Assets Sold",
         value: "852",
         subText: "$42.5k Rev",
         icon: BadgeDollarSign,
@@ -30,16 +30,16 @@ const STATS = [
         subTextColor: "text-[#059669]"
     },
     {
-        title: "SCRAPPED",
+        title: "Scrapped",
         value: "396",
         icon: Trash2,
         iconBg: "bg-red-50",
         iconColor: "text-red-500",
         badge: "High Volume",
-        badgeClass: "bg-red-100 text-red-500",
+        badgeClass: "text-red-500",
     },
     {
-        title: "THIS MONTH",
+        title: "This Month",
         value: "42",
         subText: "5 pending",
         icon: CalendarDays,
@@ -109,6 +109,11 @@ const AssetsDisposalLog = () => {
     const [disposalData, setDisposalData] = useState(DISPOSAL_DATA);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
+    const [searchText, setSearchText] = useState("");
+    const [dateFilter, setDateFilter] = useState("");
+
+    const [searchInput, setSearchInput] = useState("");
+    const [dateInput, setDateInput] = useState("");
 
     const DisposalBadge = ({ type }) => {
         const styles = {
@@ -308,9 +313,45 @@ const AssetsDisposalLog = () => {
             size: 130,
         },
     ];
+    const applyFilters = () => {
+        setSearchText(searchInput.trim());
+        setDateFilter(dateInput);
+
+        setPagination({
+            pageIndex: 0,
+            pageSize: 10,
+        });
+    };
+    const resetFilters = () => {
+        setSearchInput("");
+        setDateInput("");
+
+        setSearchText("");
+        setDateFilter("");
+
+        setPagination({
+            pageIndex: 0,
+            pageSize: 10,
+        });
+    };
+    const filteredDisposalData = useMemo(() => {
+      return  disposalData.filter((item) => {
+        const matchesSearch =
+            searchText === "" ||
+            item.assetId.toLowerCase().includes(searchText.toLowerCase()) ||
+            item.assetName.toLowerCase().includes(searchText.toLowerCase()) ||
+            item.approvedBy.toLowerCase().includes(searchText.toLowerCase());
+
+        const matchesDate =
+            dateFilter === "" ||
+            item.date.toLowerCase().includes(dateFilter.toLowerCase());
+
+        return matchesSearch && matchesDate;
+    });
+    }, [disposalData, searchText, dateFilter])
 
     const table = useReactTable({
-        data: disposalData,
+        data: filteredDisposalData,
         columns,
         state: { pagination, rowSelection },
         onPaginationChange: setPagination,
@@ -346,10 +387,10 @@ const AssetsDisposalLog = () => {
                         Export
                     </button>
                     <Link to="/assets/add-disposal">
-                    <button className="flex text-sm cursor-pointer items-center gap-2 px-5 py-3 bg-[#084E92] text-white rounded-xl shadow-md hover:bg-[#084E92]">
-                        <CirclePlus size={18} />
-                        New Disposal Entry
-                    </button>
+                        <button className="flex text-sm cursor-pointer items-center gap-2 px-5 py-3 bg-[#084E92] text-white rounded-xl shadow-md hover:bg-[#084E92]">
+                            <CirclePlus size={18} />
+                            New Disposal Entry
+                        </button>
                     </Link>
                 </div>
             </div>
@@ -361,42 +402,36 @@ const AssetsDisposalLog = () => {
                     return (
                         <div
                             key={index}
-                            className="bg-white border border-[#E7ECF3] rounded-3xl p-5 shadow-sm"
+                            className="border border-[#C3C6D1] rounded-2xl p-4"
                         >
-                            <div className="flex justify-between items-start mb-5">
-                                <div
-                                    className={`w-12 h-12 rounded-2xl ${item.iconBg} flex items-center justify-center`}
-                                >
-                                    <Icon
-                                        size={20}
-                                        className={item.iconColor}
-                                    />
-                                </div>
 
-                                {item.badge && (
-                                    <span
-                                        className={`px-2 py-1 rounded-full text-[10px] font-semibold ${item.badgeClass}`}
-                                    >
-                                        {item.badge}
-                                    </span>
-                                )}
+                            <div
+                                className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
+                            >
+                                <Icon
+                                    size={15}
+                                    className={item.iconColor}
+                                />
                             </div>
 
-                            <p className="text-[11px] tracking-widest text-[#8C96A8] font-semibold">
+                            <p className="text-sm text-[#43474F] pt-2">
                                 {item.title}
                             </p>
-
-                            <div className="flex items-end gap-2 mt-2">
-                                <h2 className="text-4xl font-bold text-[#1F2937]">
-                                    {item.value}
-                                </h2>
-
-                                {item.subText && (
-                                    <span className={`text-xs font-medium ${item.subTextColor} mb-1`}>
-                                        {item.subText}
-                                    </span>
-                                )}
-                            </div>
+                            <h2 className="text-xl font-bold">
+                                {item.value}
+                            </h2>
+                            {item.subText && (
+                                <span className={`text-xs font-medium ${item.subTextColor} mb-1`}>
+                                    {item.subText}
+                                </span>
+                            )}
+                            {item.badge && (
+                                <span
+                                    className={`text-xs mt-1 font-semibold ${item.badgeClass}`}
+                                >
+                                    {item.badge}
+                                </span>
+                            )}
                         </div>
                     );
                 })}
@@ -417,6 +452,9 @@ const AssetsDisposalLog = () => {
                             />
 
                             <input
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                                 placeholder="Search Asset ID, Name, or Approved By..."
                                 className="w-full h-12 border border-[#DCE3EE] rounded-xl pl-10 pr-4 outline-none"
                             />
@@ -435,6 +473,9 @@ const AssetsDisposalLog = () => {
                             />
 
                             <input
+                                value={dateInput}
+                                onChange={(e) => setDateInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                                 placeholder="Select timeframe"
                                 className="w-full h-12 border border-[#DCE3EE] rounded-xl pl-10 pr-4 outline-none"
                             />
@@ -442,11 +483,11 @@ const AssetsDisposalLog = () => {
                     </div>
 
                     <div className="md:col-span-3 flex items-end gap-3">
-                        <button className="flex-1 h-12 bg-[#084E92] text-white rounded-xl font-medium cursor-pointer">
+                        <button onClick={applyFilters} className="flex-1 h-12 bg-[#084E92] text-white rounded-xl font-medium cursor-pointer">
                             Apply Filters
                         </button>
 
-                        <button className="flex items-center gap-2 text-[#64748B] mb-3 cursor-pointer hover:scale-105 transition-all duration-200">
+                        <button onClick={resetFilters} className="flex items-center gap-2 text-[#64748B] mb-3 cursor-pointer hover:scale-105 transition-all duration-200">
                             <RotateCcw size={16} />
                             Reset
                         </button>
@@ -457,7 +498,7 @@ const AssetsDisposalLog = () => {
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={disposalData.length} className="rounded-2xl">
+                <DataGrid table={table} recordCount={filteredDisposalData.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>
