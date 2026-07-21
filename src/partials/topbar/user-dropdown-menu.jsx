@@ -15,7 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import { useLanguage } from '@/providers/i18n-provider';
 import { Badge } from '@/components/ui/badge';
@@ -33,9 +33,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
+import { logout } from '../../pages/auth/login';
 
 export function UserDropdownMenu({ trigger }) {
-  const { logout, user } = useAuth();
+  const { navigate } = useNavigate();
+  const {user} = useAuth();
   const { currenLanguage, changeLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
 
@@ -258,7 +260,7 @@ export function UserDropdownMenu({ trigger }) {
             variant="outline"
             size="sm"
             className="w-full"
-            onClick={logout}
+            onClick={() => logout(navigate)}
           >
             Logout
           </Button>

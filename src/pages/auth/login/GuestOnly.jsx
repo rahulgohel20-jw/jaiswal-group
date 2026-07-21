@@ -1,11 +1,11 @@
-// src/auth/require-auth.jsx
+// src/auth/guest-only.jsx
 import { Navigate, Outlet } from 'react-router-dom';
 
-export const RequireAuth = () => {
+export const GuestOnly = () => {
   const token = localStorage.getItem('authToken');
 
-  if (!token) {
-    return <Navigate to="/" replace />;
+  if (token) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <Outlet />;

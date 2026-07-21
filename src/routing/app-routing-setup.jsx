@@ -95,15 +95,12 @@ import {
 import { Tasks } from '@/pages/Tasks/Tasks';
 import { Navigate, Route, Routes } from 'react-router';
 import Dashboard from '../pages/dashboards/Dashboard';
-import CateringPipeline from '../pages/Pipelinescreen/Cateringpipeline';
-import PipelineCustomization from '../pages/Pipelinescreen/PipelineCustomization';
-import PipelineOverview from '../pages/Pipelinescreen/PipelineOverview';
 import TaskViewDashboard from '../pages/Projectscreen/TaskViewDashboard/TaskViewDashboard';
 import { UserManagement } from '../pages/UserManagement/UserManagement';
 import { AddUser } from '../pages/UserManagement/AddUser';
-import CreatePipeline from '../pages/Pipelinescreen/CreatePipeline';
 import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
 import Setting from '../pages/settings/Settings';
+
 import UnitListing from '../pages/units/UnitListing';
 import CompaniesListing from '../pages/company-registration/CompanyListing';
 import CompanyRegistration from '../pages/company-registration/CompanyRegistration';
@@ -144,17 +141,29 @@ import AddAssetsDisposal from '../pages/assest-management/assets-disposal-log/Ad
 import AssetsTransferLog from '../pages/assest-management/assets-transfer/AssetsTransferLog';
 import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawMaterialTypeListing';
 import AssetBrandListing from '../pages/assest-management/asset-brand/AssetBrandListing';
+import ForgotPasswordPage from '../pages/auth/login/ForgotPassword';
+import ResetPasswordPage from '../pages/auth/login/ResetPassword';
+import UserViewDetails from '../pages/user/UserViewDetails';
+import { GuestOnly } from '../pages/auth/login/GuestOnly';
 
 export function AppRoutingSetup() {
   return (
     <Routes>
-      <Route path="/" element={<LoginPage />} />
+
+      <Route element={<GuestOnly />}>
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+      </Route>
+
+
       <Route path="error/*" element={<ErrorRouting />} />
-      <Route path="auth/*" element={<AuthRouting />} />
+      {/* <Route path="auth/*" element={<AuthRouting />} />  — remove or keep only for /auth/callback etc, no longer needed for signin */}
       <Route path="*" element={<Navigate to="/error/404" />} />
 
-
-        <Route element={<Demo1Layout />}>
+  <Route element={<RequireAuth />}>
+    <Route element={<Demo1Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
 
@@ -179,6 +188,7 @@ export function AppRoutingSetup() {
           <Route path='/users' element={<UserManagementList/>} />
           <Route path='/users/add-user' element={<UserRegistration />} />
           <Route path='/users/update-user' element={<UserRegistration />} />
+          <Route path='/users/view-user' element={<UserViewDetails />} />
 
           <Route path="/department" element={<Departmentlist />} />
 
@@ -222,32 +232,19 @@ export function AppRoutingSetup() {
           <Route path="/stocks/closing-stock" element={<ClosingStock />} />
           <Route path="/stocks/add-stock" element={<AddStock />} />
 
-      <Route element={<RequireAuth />}>
           <Route
             path="/projectdashboard/taskview"
             element={<TaskViewDashboard />}
           />
-          <Route path="/viewpipeline" element={<CateringPipeline />} />
-          <Route
-            path="/viewpipeline/customizedpipe"
-            element={<PipelineCustomization />}
-          />
-          <Route path="/pipelineoverview" element={<PipelineOverview />} />
           <Route path="/user-management" element={<UserManagement />} />
           <Route path="/user-management/adduser" element={<AddUser />} />
-
-
    
           <Route path="/issues-dashbiard" element={<IssuesDashboard/>}/>
-
-          <Route path="/createpipeline" element={<CreatePipeline />} />
 
           <Route path='/user/kyc-information' element={<KycInformation/>} />
           <Route path='/vendor/kyc-information' element={<VendorKycInfo/>}/>
           
           <Route path="/settings" element={<Setting />} />
-
-
 
           <Route
             path="/public-profile/profiles/default/"

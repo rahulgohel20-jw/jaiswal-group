@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   BadgeCheck,
@@ -11,12 +11,10 @@ import {
   Hourglass,
   ListFilter,
   Plus,
-  Search,
   SquarePen,
   Trash2,
   TrendingUp,
   UsersRound,
-  X,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
@@ -26,6 +24,8 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { getAllEmployees, deleteEmployeeById } from '@/services/apiServices';
+import { extractList, mapEmployeeToRow } from './utils/Employeemappers';
 
 const DATA = [
   {
@@ -67,7 +67,9 @@ const DATA = [
     iconBg: 'bg-[#084E921A]/50',
   },
 ];
-
+// NOTE: these summary cards are still static placeholder numbers. Wire them
+// up to real counts once there's a dashboard/summary endpoint — get-all's
+// result length can at least drive "TOTAL USERS" in the meantime (see below).
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
 const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
@@ -76,81 +78,13 @@ const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-
   </span>
 );
 
-const INITIAL_DATA = [
-  {
-    id: 1,
-    name: 'Aditya Jaiswal',
-    createdBy: 'Created 12 Oct, 2023',
-    code: 'USR-2024-0042',
-    email: 'aditya.j@jaiswalgroup.com',
-    company: 'Jaiswal Group India Pvt Ltd',
-    role: 'Super Admin',
-    department: 'Management',
-    kycStatus: 'Verified',
-    kycIcon: <BadgeCheck size={20} />,
-    color: 'text-[#15803D]',
-    KycView: 'View Details',
-  },
-  {
-    id: 2,
-    name: 'Priya Sharma',
-    createdBy: 'Created 12 Oct, 2023',
-    code: 'USR-2024-0042',
-    email: 'p.sharma@jaiswalgroup.com',
-    company: 'Jaiswal Group India Pvt Ltd',
-    role: 'Finance Head',
-    department: 'Finance',
-    kycStatus: 'Pending',
-    kycIcon: <ClockFading size={20} />,
-    color: 'text-[#5F2600]',
-    KycView: 'Review KYC',
-  },
-  {
-    id: 3,
-    name: 'Rahul Varma',
-    createdBy: 'Created 12 Oct, 2023',
-    code: 'USR-2024-0042',
-    email: 'rahul.v@jaiswalgroup.com',
-    company: 'Jaiswal Group India Pvt Ltd',
-    role: 'Outlet Manager',
-    department: 'Operations',
-    kycStatus: 'Verified',
-    kycIcon: <BadgeCheck size={20} />,
-    color: 'text-[#15803D]',
-    KycView: 'Re-verify',
-  },
-  {
-    id: 4,
-    name: 'Sneha Patel',
-    createdBy: 'Created 12 Oct, 2023',
-    code: 'USR-2024-0155',
-    email: 'sneha.p@jaiswalgroup.com',
-    company: 'Jaiswal Group India Pvt Ltd',
-    role: 'Logistics Executive',
-    department: 'Logistics',
-    kycStatus: 'Rejected',
-    kycIcon: <CircleX size={20} />,
-    color: 'text-[#BA1A1A]',
-    KycView: 'View Details',
-  },
-  {
-    id: 5,
-    name: 'Vikram Mehta',
-    createdBy: 'Created 12 Oct, 2023',
-    code: 'USR-2024-0201',
-    email: 'v.mehta@jaiswalgroup.com',
-    company: 'Jaiswal Group India Pvt Ltd',
-    role: 'System Analyst',
-    department: 'IT Support',
-    kycStatus: 'Verified',
-    kycIcon: <BadgeCheck size={20} />,
-    color: 'text-[#15803D]',
-    KycView: 'Review KYC',
-  },
-];
+const kycMeta = (status) => {
+  if (status === 'Verified') return { icon: <BadgeCheck size={20} />, color: 'text-[#15803D]', KycView: 'View Details' };
+  if (status === 'Rejected') return { icon: <CircleX size={20} />, color: 'text-[#BA1A1A]', KycView: 'View Details' };
+  return { icon: <ClockFading size={20} />, color: 'text-[#5F2600]', KycView: 'Review KYC' };
+};
 
-
-const DeleteConfirmModal = ({ user, onCancel, onConfirm }) => (
+const DeleteConfirmModal = ({ user, onCancel, onConfirm, deleting }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
@@ -169,67 +103,23 @@ const DeleteConfirmModal = ({ user, onCancel, onConfirm }) => (
         <button
           type="button"
           onClick={onCancel}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+          disabled={deleting}
+          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-50"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={onConfirm}
-          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold border-0 cursor-pointer transition"
+          disabled={deleting}
+          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-50"
         >
-          Delete
+          {deleting ? 'Deleting...' : 'Delete'}
         </button>
       </div>
     </div>
   </div>
 );
-const ViewUserModal = ({ user, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900">User Details</h2>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="px-6 py-5 space-y-4">
-        {[
-          ["User Name", user.name],
-          ["User Code", user.code],
-          ["Company", user.company],
-          ["Role", user.role],
-          ["Department", user.department],
-          ["Email Address", user.email],
-          ["Created On", user.createdBy],
-        ].map(([label, value]) => (
-          <div key={label} className="flex items-center justify-between text-sm gap-4">
-            <span className="text-gray-400 shrink-0">{label}</span>
-            <span className="font-semibold text-gray-800 text-right break-all">{value}</span>
-          </div>
-        ))}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">KYC Status</span>
-          <span className={`${user.color}`}>{user.kycStatus}</span>
-        </div>
-      </div>
-      <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
 
 const DEPARTMENT_OPTIONS = [
   { key: "all", label: "All Categories" },
@@ -255,17 +145,37 @@ const KYC_OPTIONS = [
   { key: "Pending", label: "Pending" },
   { key: "Rejected", label: "Rejected" },
 ];
+
 const UserManagementList = () => {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState(INITIAL_DATA)
+  const [userData, setUserData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [viewingUser, setViewingUser] = useState(null);
   const [deletingUser, setDeletingUser] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [kycFilter, setKycFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
 
+  const fetchUsers = async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const res = await getAllEmployees();
+      const rows = extractList(res).map(mapEmployeeToRow);
+      setUserData(rows);
+    } catch (err) {
+      console.error(err);
+      setLoadError('Could not load users. Please refresh to try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const filteredUser = useMemo(
     () =>
@@ -278,26 +188,35 @@ const UserManagementList = () => {
     [userData, departmentFilter, kycFilter, roleFilter],
   );
 
-
-  // Sends the user to the same form used for creating a user, but with the
-  // row's data attached via router state — the form flips into edit mode
-  // (title, copy, and the Save button all switch to "Update", and the
-  // password field is hidden entirely) whenever state.user is present.
-
-  // router state is passed through history.pushState, which uses the
-  // structured clone algorithm — it can't clone React elements (like the
-  // kycIcon field on each row), so only plain, serializable fields go
-  // through here.
+  // Edit reuses the same registration form component, switched into "update"
+  // mode by the presence of state.user — the form fetches the full record
+  // by id itself, so only the id needs to travel reliably here.
   const handleEdit = (user) => {
-    const { kycIcon, ...serializableUser } = user;
-    navigate('/users/update-user', { state: { user: serializableUser } });
+    navigate('/users/update-user', { state: { user: { id: user.id, name: user.name } } });
+  };
+
+  // View now opens a dedicated details page instead of a modal.
+  const handleView = (user) => {
+    navigate('/users/view-user', { state: { user: { id: user.id, name: user.name } } });
   };
 
   const handleDelete = (user) => setDeletingUser(user);
-  const confirmDelete = () => {
-    setUserData((u) => u.filter((u) => u.id !== deletingUser.id));
-    setDeletingUser(null);
+
+  const confirmDelete = async () => {
+    if (!deletingUser) return;
+    setDeleting(true);
+    try {
+      await deleteEmployeeById(deletingUser.id);
+      setUserData((u) => u.filter((row) => row.id !== deletingUser.id));
+      setDeletingUser(null);
+    } catch (err) {
+      console.error(err);
+      alert('Could not delete this user. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
   };
+
   const handleExport = (format) => {
     alert(`Exporting ${filteredUser.length} user(s) as ${format.toUpperCase()}`);
   };
@@ -311,8 +230,9 @@ const UserManagementList = () => {
         cell: ({ row }) => (
           <div className='flex gap-3 items-center w-full'>
             <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
-              {row.original.name
+              {(row.original.name || '?')
                 .split(" ")
+                .filter(Boolean)
                 .map((n) => n[0])
                 .join("")}
             </div>
@@ -365,28 +285,39 @@ const UserManagementList = () => {
         id: "kycStatus",
         accessorFn: (row) => row.kycStatus,
         header: ({ column }) => <DataGridColumnHeader title="KYC STATUS" column={column} className="my-2 text-xs" />,
-        cell: ({ row }) => <div className={`flex gap-1 items-center ${row.original.color} font-semibold`}>
-          <span>{row.original.kycIcon}</span>
-          <span>{row.original.kycStatus}</span>
-        </div>,
+        cell: ({ row }) => {
+          const meta = kycMeta(row.original.kycStatus);
+          return (
+            <div className={`flex gap-1 items-center ${meta.color} font-semibold`}>
+              <span>{meta.icon}</span>
+              <span>{row.original.kycStatus}</span>
+            </div>
+          );
+        },
         size: 120,
       },
       {
         id: "KycView",
-        accessorFn: (row) => row.KycView,
+        accessorFn: (row) => row.kycStatus,
         header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
-        cell: ({ row }) => <Link to="/user/kyc-information" className={`${row.original.KycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.KycView} </Link>,
+        cell: ({ row }) => {
+          const meta = kycMeta(row.original.kycStatus);
+          return (
+            <Link to="/user/kyc-information" className={`${meta.KycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>
+              {meta.KycView}
+            </Link>
+          );
+        },
         size: 120,
       },
       {
         id: "action",
-        accessorFn: (row) => row.action,
         header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} />,
         cell: ({ row }) => (
           <div className="flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
-              onClick={() => setViewingUser(row.original)}
+              onClick={() => handleView(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
               title="View user"
             >
@@ -451,7 +382,7 @@ const UserManagementList = () => {
 
         <div className="mx-6 flex gap-5 mt-12 bg-white justify-between w-full">
           {DATA.map((item) => (
-            <div className="w-[50%] md:w-[25%] border border-[#C3C6D1] rounded-2xl p-6">
+            <div key={item.label} className="w-[50%] md:w-[25%] border border-[#C3C6D1] rounded-2xl p-6">
               <div className="flex justify-between">
                 <span
                   className={`bg-[#084E921A]/50 p-2 w-max rounded flex items-center justify-center`}
@@ -546,30 +477,41 @@ const UserManagementList = () => {
           </div>
         </div>
 
-        <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl mx-6'>
-          <DataGrid table={table} recordCount={filteredUser.length} className="rounded-2xl">
-
-            {/* Table Card */}
-            <Card className="rounded-t-none border-t-0 rounded-2xl">
-              <CardTable>
-                <ScrollArea>
-                  <DataGridTable />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-              </CardTable>
-              <CardFooter className="bg-[#F9F9FF]  rounded-b-2xl">
-                <DataGridPagination />
-              </CardFooter>
-            </Card>
-          </DataGrid>
-        </div>
-        {viewingUser && (
-          <ViewUserModal user={viewingUser} onClose={() => setViewingUser(null)} />
+        {loadError && (
+          <div className="mx-6 mt-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{loadError}</span>
+            <button type="button" onClick={fetchUsers} className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0">
+              Retry
+            </button>
+          </div>
         )}
+
+        <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl mx-6'>
+          {loading ? (
+            <div className="px-6 py-16 text-center text-sm text-gray-400">Loading users...</div>
+          ) : (
+            <DataGrid table={table} recordCount={filteredUser.length} className="rounded-2xl">
+              {/* Table Card */}
+              <Card className="rounded-t-none border-t-0 rounded-2xl">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+                <CardFooter className="bg-[#F9F9FF]  rounded-b-2xl">
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
+          )}
+        </div>
 
         {deletingUser && (
           <DeleteConfirmModal
             user={deletingUser}
+            deleting={deleting}
             onCancel={() => setDeletingUser(null)}
             onConfirm={confirmDelete}
           />

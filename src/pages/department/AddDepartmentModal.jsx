@@ -106,33 +106,6 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave }) => {
             </Select>
           </div>
 
-          {/* Real-time preview */}
-          <div>
-            <p className="text-xs font-semibold text-[#737781] uppercase tracking-wide mb-2">
-              Real-Time Preview
-            </p>
-            <div className="bg-[#EFF4FF] border border-[#DDE7FF] rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#084E92] text-white flex items-center justify-center font-bold shrink-0">
-                {previewInitial}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-[#1B1B1F] truncate">{previewName}</p>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide shrink-0 ${
-                      isActive
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {form.status}
-                  </span>
-                </div>
-                <p className="text-xs text-[#737781] mt-0.5">Organization Unit</p>
-              </div>
-            </div>
-          </div>
-
           {/* Info note */}
           <div className="bg-[#EFF4FF] border border-[#DDE7FF] rounded-lg p-3 flex gap-2">
             <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
@@ -150,17 +123,9 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave }) => {
           </Button>
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
-              onClick={handleSaveAndAddAnother}
-              disabled={!form.name.trim()}
-              className="text-primary border-primary/30 hover:bg-blue-50"
-            >
-              Save & Add Another
-            </Button>
-            <Button
               onClick={handleSave}
               disabled={!form.name.trim()}
-              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
+              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
             >
               <Save className="h-4 w-4" />
               Save Department
