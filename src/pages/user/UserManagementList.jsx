@@ -13,7 +13,6 @@ import {
   Plus,
   SquarePen,
   Trash2,
-  TrendingUp,
   UsersRound,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
@@ -26,47 +25,9 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { getAllEmployees, deleteEmployeeById } from '@/services/apiServices';
 import { extractList, mapEmployeeToRow } from './utils/Employeemappers';
+import { getActiveCompany } from '../../services/apiServices';
 
-const DATA = [
-  {
-    label: 'TOTAL USERS',
-    count: '2,482',
-    detail: '+12% ',
-    detailIcon: <TrendingUp className="w-4 h-4 text-[#16A34A]" />,
-    detailColor: 'text-[#16A34A]',
-    icon: <UsersRound className="w-5 h-5 text-[#084E92]" />,
-    color: 'text-[#084E92]',
-    iconBg: 'bg-[#084E921A]/50',
-  },
-  {
-    label: 'KYC VERIFIED',
-    count: '2,333',
-    detail: '94% ',
-    detailIcon: <CircleCheck className="w-4 h-4 text-[#16A34A]" />,
-    detailColor: 'text-[#16A34A]',
-    icon: <BadgeCheck className="w-5 h-5 text-[#084E92]" />,
-    color: 'text-[#084E92]',
-    iconBg: 'bg-[#084E921A]/50',
-  },
-  {
-    label: 'PENDING REVIEW',
-    count: '124',
-    detail: `48 Pending`,
-    detailColor: 'text-[#CA8A04]',
-    icon: <Hourglass className="w-5 h-5 text-[#084E92]" />,
-    color: 'text-[#084E92]',
-    iconBg: 'bg-[#084E921A]/50',
-  },
-  {
-    label: 'ACTIVE ORGANIZATIONS',
-    count: '12',
-    detail: `Across 42 Outlets`,
-    detailColor: 'text-[#43474F]',
-    icon: <Building2 className="w-5 h-5 text-[#084E92]" />,
-    color: 'text-[#084E92]',
-    iconBg: 'bg-[#084E921A]/50',
-  },
-];
+
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
 // result length can at least drive "TOTAL USERS" in the meantime (see below).
@@ -157,6 +118,19 @@ const UserManagementList = () => {
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [kycFilter, setKycFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [activeCompanies, setActiveCompanies] = useState([]);
+ 
+  const fetchActiveCompanies = async () => {
+  try {
+    const res = await getActiveCompany();
+    const companies =
+      res?.data?.data || [];
+
+    setActiveCompanies(companies);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -175,8 +149,39 @@ const UserManagementList = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchActiveCompanies();
   }, []);
 
+  const DATA = [
+  {
+    label: 'TOTAL USERS',
+    count: `${userData.length}`,
+    icon: <UsersRound className="w-5 h-5 text-[#084E92]" />,
+    color: 'text-[#084E92]',
+    iconBg: 'bg-[#084E921A]/50',
+  },
+  {
+    label: 'KYC VERIFIED',
+    count: `${userData.filter((u) => u.kycStatus === 'Verified').length}`,
+    icon: <BadgeCheck className="w-5 h-5 text-[#084E92]" />,
+    color: 'text-[#084E92]',
+    iconBg: 'bg-[#084E921A]/50',
+  },
+  {
+    label: 'PENDING REVIEW',
+    count: `${userData.filter((u) => u.kycStatus === 'Pending').length}`,
+    icon: <Hourglass className="w-5 h-5 text-[#084E92]" />,
+    color: 'text-[#084E92]',
+    iconBg: 'bg-[#084E921A]/50',
+  },
+  {
+    label: 'ACTIVE ORGANIZATIONS',
+    count: `${activeCompanies.length}`,
+    icon: <Building2 className="w-5 h-5 text-[#084E92]" />,
+    color: 'text-[#084E92]',
+    iconBg: 'bg-[#084E921A]/50',
+  },
+];
   const filteredUser = useMemo(
     () =>
       userData.filter((u) => {
@@ -360,7 +365,7 @@ const UserManagementList = () => {
 
   return (
     <container>
-      <div className="w-full lg:w-[95%]">
+      <div className="w-full lg:w-[95%] p-4 md:p-6">
         <div className="w-full  flex justify-between mx-6">
           <div>
             <h1 className="text-[#084E92] text-2xl md:text-4xl font-bold">
@@ -380,19 +385,14 @@ const UserManagementList = () => {
           </Link>
         </div>
 
-        <div className="mx-6 flex gap-5 mt-12 bg-white justify-between w-full">
+        <div className="mx-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 mt-12 bg-white w-full">
           {DATA.map((item) => (
-            <div key={item.label} className="w-[50%] md:w-[25%] border border-[#C3C6D1] rounded-2xl p-6">
+            <div key={item.label} className=" border border-[#C3C6D1] rounded-2xl p-6">
               <div className="flex justify-between">
                 <span
                   className={`bg-[#084E921A]/50 p-2 w-max rounded flex items-center justify-center`}
                 >
                   {item.icon}
-                </span>
-                <span
-                  className={`flex gap-1 items-center justify-center text-xs self-start ${item.detailColor} font-bold`}
-                >
-                  {item.detail} {item.detailIcon}
                 </span>
               </div>
               <div className="mt-2">

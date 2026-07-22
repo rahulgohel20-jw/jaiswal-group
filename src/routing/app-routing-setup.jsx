@@ -146,6 +146,7 @@ import ForgotPasswordPage from '../pages/auth/login/ForgotPassword';
 import ResetPasswordPage from '../pages/auth/login/ResetPassword';
 import UserViewDetails from '../pages/user/UserViewDetails';
 import { GuestOnly } from '../pages/auth/login/GuestOnly';
+import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
 
 export function AppRoutingSetup() {
   return (
@@ -220,6 +221,7 @@ export function AppRoutingSetup() {
 
           <Route path='/material/types' element={<RawMaterialTypeListing/>} />
           <Route path='/material/categories' element={<RowMaterialCategories/>}/>
+          <Route path='/material/items' element={<RowMaterialItemMaster/>}/>
 
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
