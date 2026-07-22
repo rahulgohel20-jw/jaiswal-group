@@ -10,6 +10,7 @@ import {
   MapPin,
   X,
 } from 'lucide-react';
+import { createCompany, getAllCountry, getCityByState, getRegisteredCompany, getStateByCountry, updateCompany } from '../../services/apiServices';
 
 const COMPANIES = [
   'Jaiswal Group',
@@ -72,6 +73,7 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
   </div>
 );
 
+
 const ImageUploadBox = ({ label, hint, value, onChange }) => {
   const fileRef = useRef(null);
 
@@ -91,10 +93,10 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
           <img
             src={value}
             alt={label}
-            className="w-8 h-8 rounded-md object-cover border border-gray-200 flex-shrink-0"
+            className="w-8 h-8 rounded-md object-cover border border-gray-200 shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
             <ImageUp className="w-4 h-4 text-gray-400" />
           </div>
         )}
@@ -111,7 +113,7 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
               e.stopPropagation();
               onChange(null);
             }}
-            className="ml-auto w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-200 transition cursor-pointer bg-white flex-shrink-0"
+            className="ml-auto w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-200 transition cursor-pointer bg-white shrink-0"
           >
             <X className="w-3 h-3" />
           </button>
@@ -286,25 +288,22 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 // Maps a row from the Units listing table onto the shape this form uses.
 // The listing's mock data doesn't carry every field this form has (logo,
 // address lines, manager, etc.) so anything missing just falls back to blank.
+
 const mapUnitToForm = (unit) => ({
-  UnitName: unit.name ?? '',
-  UnitCode: unit.code ?? 'AHD-2526-0001',
-  logo: unit.logo ?? null,
-  favicon: unit.favicon ?? null,
-  shortCode: unit.shortCode ?? '',
-  email: unit.email ?? '',
-  manager: unit.manager ?? '',
-  capacity: unit.capacity ?? '',
-  company: unit.company ?? '',
-  serviceType: SERVICE_TYPES.includes(unit.serviceType) ? unit.serviceType : '',
-  addressLine1: unit.addressLine1 ?? '',
-  addressLine2: unit.addressLine2 ?? '',
-  city: unit.city ?? unit.location ?? '',
-  state: unit.state ?? '',
-  country: unit.country ?? 'India',
-  pincode: unit.pincode ?? '',
-  latitude: unit.latitude ?? '',
-  longitude: unit.longitude ?? '',
+  UnitName: unit.companyNameEnglish || "",
+  UnitCode: unit.companyCode || "",
+  shortCode: unit.shortCode || "",
+  email: unit.emailid || "",
+  mobile: unit.mobilenumber || "",
+  altMobile: unit.alternatemobilenumber || "",
+  capacity: unit.capacity || "",
+
+  company: unit.parentId || "",
+  addressLine1: unit.addressEnglish || "",
+  addressLine2: unit.addressline2 || "",
+  pincode: unit.pincode || "",
+  latitude: unit.latitude || "",
+  longitude: unit.longitude || "",
 });
 
 const DEFAULT_FORM = {
@@ -314,6 +313,8 @@ const DEFAULT_FORM = {
   favicon: null,
   shortCode: '',
   email: '',
+  mobile: '',
+  altMobile: '',
   manager: '',
   capacity: '',
   company: '',
@@ -331,12 +332,110 @@ const DEFAULT_FORM = {
 const AddUnit = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
 
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [companies, setCompanies] = useState([])
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await getRegisteredCompany();
+        const list = res?.data?.data || [];
+        const subCompanies = list.filter(
+          (item) => item.orgType === "SUB_COMPANY"
+        );
+
+        setCompanies(subCompanies);
+
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await getAllCountry();
+        setCountries(res.data.data);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+  const handleCountryChange = async (e) => {
+
+    const countryId = e.target.value;
+
+    setSelectedCountry(countryId);
+    setStates([]);
+    setCities([]);
+    setSelectedState("");
+    setSelectedCity("");
+
+    try {
+      const res = await getStateByCountry(countryId);
+      setStates(res.data.data);
+
+    } catch (error) {
+      console.log(error);
+    }
+
+  }
+  const handleStateChange = async (e) => {
+
+    const stateId = e.target.value;
+
+    setSelectedState(stateId);
+    setCities([]);
+    setSelectedCity("");
+
+    try {
+
+      const res = await getCityByState(stateId);
+      setCities(res.data.data["City Details"]);
+    } catch (error) {
+      console.log(error);
+    }
+
+  }
   // If we arrived here via the edit action, the Unit row is passed in
   // location.state. Its presence is what puts the page into edit mode.
   const editingUnit = location.state?.unit ?? null;
   const isEditMode = !!editingUnit;
+  
+  useEffect(() => {
+  const loadLocationData = async () => {
+    if (!editingUnit) return;
 
+    try {
+      setSelectedCountry(editingUnit.countryId?.toString() || "");
+
+      const stateRes = await getStateByCountry(editingUnit.countryId);
+      setStates(stateRes.data.data || []);
+
+      setSelectedState(editingUnit.stateId?.toString() || "");
+
+      const cityRes = await getCityByState(editingUnit.stateId);
+      setCities(cityRes.data.data["City Details"] || []);
+
+      setSelectedCity(editingUnit.cityId?.toString() || "");
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  loadLocationData();
+}, [editingUnit]);
   // Each section has its own independent open/closed state
   const [openSections, setOpenSections] = useState({
     Unit: true,
@@ -362,16 +461,94 @@ const AddUnit = () => {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  const handleSubmit = () => {
+  // const handleSubmit = async () => {
+
+  //   try {
+
+  //     const payload = {
+  //       orgType: "OUTLET",
+  //       parentId: Number(form.company),
+  //       username: 1,
+  //       isverified: true,
+  //       companyNameEnglish: form.UnitName,
+  //       emailid: form.email,
+  //       mobilenumber: form.mobile,
+  //       alternatemobilenumber: form.altMobile,
+  //       addressEnglish: form.addressLine1,
+  //       addressline2: form.addressLine2,
+  //       countryId: Number(selectedCountry),
+  //       stateId: Number(selectedState),
+  //       cityId: Number(selectedCity),
+  //       pincode: form.pincode,
+  //       latitude: form.latitude,
+  //       longitude: form.longitude,
+  //       capacity: form.capacity,
+  //     };
+  //     const formData = new FormData();
+  //     if (form.logo) {
+  //       formData.append("logo", form.logo)
+  //     }
+  //     if (form.favicon) {
+  //       formData.append("favicon", form.favicon)
+  //     }
+  //     await createCompany(payload, formData);
+  //     navigate("/Units");
+  //   } catch (error) {
+  //     console.log(error.response?.data || error.message)
+  //   }
+  // }
+
+  const handleSubmit = async () => {
+  try {
+    const payload = {
+      id: editingUnit?.id,
+      orgType: "OUTLET",
+      parentId: Number(form.company),
+      username: 1,
+      isverified: true,
+
+      companyNameEnglish: form.UnitName,
+      shortCode: form.shortCode,
+
+      emailid: form.email,
+      mobilenumber: form.mobile,
+      alternatemobilenumber: form.altMobile,
+
+      addressEnglish: form.addressLine1,
+      addressline2: form.addressLine2,
+
+      countryId: Number(selectedCountry),
+      stateId: Number(selectedState),
+      cityId: Number(selectedCity),
+
+      pincode: form.pincode,
+      latitude: form.latitude,
+      longitude: form.longitude,
+
+      capacity: form.capacity,
+    };
+
     if (isEditMode) {
-      // TODO: wire up to the update API call.
-      alert(`Updated ${form.UnitName || 'Unit'}`);
+      await updateCompany(payload);
     } else {
-      // TODO: wire up to the create API call.
-      alert(`Saved ${form.UnitName || 'Unit'}`);
+      const formData = new FormData();
+
+      if (form.logo) {
+        formData.append("logo", form.logo);
+      }
+
+      if (form.favicon) {
+        formData.append("favicon", form.favicon);
+      }
+
+      await createCompany(payload, formData);
     }
-    navigate('/Units');
-  };
+
+    navigate("/Units");
+  } catch (error) {
+    console.log(error.response?.data || error.message);
+  }
+};
 
   return (
     <div className="mx-4 min-h-screen">
@@ -452,7 +629,26 @@ const AddUnit = () => {
                   className={inputCls}
                 />
               </div>
-
+              <div>
+                <Label required>Mobile Number</Label>
+                <input
+                  value={form.mobile}
+                  onChange={(e) => set('mobile', e.target.value)}
+                  placeholder="+91 98675 34210"
+                  maxLength={10}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <Label>Alternate Mobile Number</Label>
+                <input
+                  value={form.altMobile}
+                  onChange={(e) => set('altMobile', e.target.value)}
+                  placeholder="Secondary Mobile"
+                  maxLength={10}
+                  className={inputCls}
+                />
+              </div>
               <div>
                 <Label required>Capacity ( Meals Per Day )</Label>
                 <input
@@ -467,10 +663,10 @@ const AddUnit = () => {
               <div>
                 <Label required>Unit Manager</Label>
                 <Select
-                 value={form.manager}
-                 onChange={(e) => set('manager', e.target.value)}
-                 placeholder="Select Manager"
-                 options={COMPANIES}
+                  value={form.manager}
+                  onChange={(e) => set('manager', e.target.value)}
+                  placeholder="Select Manager"
+                  options={COMPANIES}
                 />
               </div>
             </div>
@@ -491,12 +687,24 @@ const AddUnit = () => {
           <div className="grid grid-cols-2 gap-4 px-6 py-6">
             <div>
               <Label required>Company</Label>
-              <Select
+              <p className={inputCls}>
+                <select
                 value={form.company}
-                onChange={(e) => set('company', e.target.value)}
-                placeholder="Select company"
-                options={COMPANIES}
-              />
+                onChange={(e) => set("company", e.target.value)}
+                className='w-full outline-none'
+              >
+                <option value="">Select Company</option>
+
+                {companies.map((company) => (
+                  <option
+                    key={company.id}
+                    value={company.id}
+                  >
+                    {company.companyNameEnglish}
+                  </option>
+                ))}
+              </select>
+              </p>
             </div>
             <div>
               <Label required>Service Type</Label>
@@ -545,30 +753,75 @@ const AddUnit = () => {
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <Label required>Country</Label>
-                <input
-                  value={form.country}
-                  onChange={(e) => set('country', e.target.value)}
-                  placeholder="Country"
-                  className={inputCls}
-                />
+                <p className={inputCls}>
+                  <select
+                    value={selectedCountry}
+                    onChange={handleCountryChange}
+                    className='w-full outline-none'
+                  >
+                    <option value="">
+                      Select Country
+                    </option>
+
+                    {countries.map((country) => (
+                      <option
+                        key={country.id}
+                        value={country.id}
+                      >
+                        {country.name}
+                      </option>
+                    ))}
+
+                  </select>
+                </p>
               </div>
               <div>
                 <Label required>State</Label>
-                <input
-                  value={form.state}
-                  onChange={(e) => set('state', e.target.value)}
-                  placeholder="State"
-                  className={inputCls}
-                />
+                <p className={inputCls}>
+                  <select
+                    value={selectedState}
+                    onChange={handleStateChange}
+                    className='w-full outline-none'
+                  >
+                    <option value="">
+                      Select State
+                    </option>
+
+                    {states.map((state) => (
+                      <option
+                        key={state.id}
+                        value={state.id}
+                      >
+                        {state.name}
+                      </option>
+                    ))}
+
+                  </select>
+                </p>
               </div>
               <div>
                 <Label required>City</Label>
-                <input
-                  value={form.city}
-                  onChange={(e) => set('city', e.target.value)}
-                  placeholder="City"
-                  className={inputCls}
-                />
+                <p className={inputCls}>
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    className='w-full outline-none'
+                  >
+                    <option value="">
+                      Select City
+                    </option>
+
+                    {cities?.map((city) => (
+                      <option
+                        key={city.id}
+                        value={city.id}
+                      >
+                        {city.name}
+                      </option>
+                    ))}
+
+                  </select>
+                </p>
               </div>
               <div>
                 <Label required>Pincode</Label>

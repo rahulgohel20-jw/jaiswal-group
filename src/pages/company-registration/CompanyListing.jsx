@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Building2,
   Plus,
@@ -22,54 +22,8 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { Link, useNavigate } from "react-router";
+import { getCompanyById, getRegisteredCompany, deleteCompany } from "../../services/apiServices";
 
-const INITIAL_COMPANIES = [
-  {
-    id: 1,
-    name: "Shubh Enterprises",
-    code: "CMP-1001",
-    location: "Ahmedabad",
-    mobile: "+91 98250 12345",
-    gstNumber: "24AAACS1234F1Z5",
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Nexora Traders",
-    code: "CMP-1002",
-    location: "Mumbai",
-    mobile: "+91 90040 55210",
-    gstNumber: "27AAECN5678G1Z2",
-    status: "pending",
-  },
-  {
-    id: 3,
-    name: "Vertex Fabrics Pvt Ltd",
-    code: "CMP-1003",
-    location: "Surat",
-    mobile: "+91 99789 33421",
-    gstNumber: "24AABCV9081H1Z9",
-    status: "onboarding",
-  },
-  {
-    id: 4,
-    name: "Kiran Distributors",
-    code: "CMP-1004",
-    location: "Rajkot",
-    mobile: "+91 97250 87612",
-    gstNumber: null,
-    status: "inactive",
-  },
-  {
-    id: 5,
-    name: "Prithvi Foods",
-    code: "CMP-1005",
-    location: "Vadodara",
-    mobile: "+91 98980 44567",
-    gstNumber: "24AAGCP3456K1Z7",
-    status: "active",
-  },
-];
 
 const STATUS_STYLES = {
   active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -90,15 +44,14 @@ const StatusBadge = ({ status }) => (
     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}
   >
     <span
-      className={`w-1.5 h-1.5 rounded-full ${
-        status === "active"
-          ? "bg-emerald-500"
-          : status === "pending"
+      className={`w-1.5 h-1.5 rounded-full ${status === "active"
+        ? "bg-emerald-500"
+        : status === "pending"
           ? "bg-amber-500"
           : status === "onboarding"
-          ? "bg-blue-500"
-          : "bg-gray-400"
-      }`}
+            ? "bg-blue-500"
+            : "bg-gray-400"
+        }`}
     />
     {STATUS_LABELS[status]}
   </span>
@@ -185,35 +138,115 @@ const ViewCompanyModal = ({ company, onClose }) => (
 
 const CompanyRegistration = () => {
   const navigate = useNavigate();
-  const [companies, setCompanies] = useState(INITIAL_COMPANIES);
+  const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [viewingCompany, setViewingCompany] = useState(null);
   const [deletingCompany, setDeletingCompany] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [showViewCompany, setShowViewCompany] = useState(false);
+  const [viewLoading, setViewLoading] = useState(false);
+
+
+  const normalizeCompany = (item) => ({
+    id: item.id,
+    name: item.companyNameEnglish || "",
+    code: item.companyCode || "",
+    location: item.cityName || "",
+    mobile: item.mobilenumber || "",
+    gstNumber: item.gstNumber || "",
+    status: item.isActive ? "active" : "inactive",
+  });
+
+  const fetchCompanies = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await getRegisteredCompany();
+
+      const list =
+        res?.data?.data ||
+        res?.data?.content ||
+        res?.data ||
+        [];
+
+      const companyList = Array.isArray(list)
+        ? list.filter((item) => item.orgType === "SUB_COMPANY")
+        : [];
+
+      setCompanies(companyList.map(normalizeCompany));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load companies.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
+  const handleViewClick = async (company) => {
+    setShowViewCompany(true);
+    setSelectedCompany(null);
+    setViewLoading(true);
+    try {
+      const res = await getCompanyById(company.id);
+      const data = res?.data?.data || res?.data;
+      setSelectedCompany(data ? normalizeCompany(data) : company);
+    } catch (err) {
+      console.error(err);
+      setSelectedCompany(company);
+    } finally {
+      setViewLoading(false);
+    }
+  };
 
   const filteredCompanies = useMemo(
     () =>
       companies.filter((c) => {
         const matchesSearch =
-          c.name.toLowerCase().includes(search.toLowerCase()) ||
-          c.code.toLowerCase().includes(search.toLowerCase()) ||
-          c.location.toLowerCase().includes(search.toLowerCase()) ||
-          c.mobile.toLowerCase().includes(search.toLowerCase());
+          (c.name || "").toLowerCase().includes(search) ||
+          (c.code || "").toLowerCase().includes(search) ||
+          (c.location || "").toLowerCase().includes(search) ||
+          (c.mobile || "").toLowerCase().includes(search);
         const matchesStatus = statusFilter === "all" || c.status === statusFilter;
         return matchesSearch && matchesStatus;
       }),
     [companies, search, statusFilter],
   );
 
-  const handleDelete = (company) => setDeletingCompany(company);
-  const confirmDelete = () => {
-    setCompanies((c) => c.filter((co) => co.id !== deletingCompany.id));
-    setDeletingCompany(null);
+  const handleDelete = (company) => {
+    setDeletingCompany(company);
+  };
+  const confirmDelete = async () => {
+    try {
+      await deleteCompany(deletingCompany.id);
+
+      await fetchCompanies();
+
+      setDeletingCompany(null);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  const handleEdit = (company) => {
-    navigate("/companies/update-company", { state: { company } });
+  const handleEdit = async (company) => {
+    try {
+      const res = await getCompanyById(company.id);
+      navigate("/companies/update-company", {
+        state: {
+          company: res.data.data,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const columns = useMemo(
@@ -272,7 +305,7 @@ const CompanyRegistration = () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setViewingCompany(row.original)}
+              onClick={() => handleViewClick(row.original)}
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
               title="View company"
             >
@@ -319,6 +352,26 @@ const CompanyRegistration = () => {
     { key: "inactive", label: "Inactive" },
   ];
 
+
+  if (loading) {
+    return (
+      <Container>
+        <div className="flex items-center justify-center h-60">
+          Loading companies...
+        </div>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container>
+        <div className="text-red-500 text-center py-10">
+          {error}
+        </div>
+      </Container>
+    );
+  }
   return (
     <Container>
       <div>
@@ -365,11 +418,10 @@ const CompanyRegistration = () => {
                   key={tab.key}
                   type="button"
                   onClick={() => setStatusFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border-0 ${
-                    statusFilter === tab.key
-                      ? "bg-white text-gray-800 shadow-sm"
-                      : "bg-transparent text-gray-400 hover:text-gray-600"
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border-0 ${statusFilter === tab.key
+                    ? "bg-white text-gray-800 shadow-sm"
+                    : "bg-transparent text-gray-400 hover:text-gray-600"
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -392,8 +444,22 @@ const CompanyRegistration = () => {
         </DataGrid>
       </div>
 
-      {viewingCompany && (
-        <ViewCompanyModal company={viewingCompany} onClose={() => setViewingCompany(null)} />
+      {showViewCompany && (
+        viewLoading ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            Loading...
+          </div>
+        ) : (
+          selectedCompany && (
+            <ViewCompanyModal
+              company={selectedCompany}
+              onClose={() => {
+                setShowViewCompany(false);
+                setSelectedCompany(null);
+              }}
+            />
+          )
+        )
       )}
 
       {deletingCompany && (

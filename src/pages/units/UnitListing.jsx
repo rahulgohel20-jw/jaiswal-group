@@ -28,79 +28,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { Link, useNavigate } from "react-router";
-
-const INITIAL_UnitS = [
-  {
-    id: 1,
-    name: "Shubh Central Kitchen",
-    code: "OUT-2001",
-    serviceType: "restaurant",
-    location: "Ahmedabad",
-    email: "central.abad@shubh.com",
-    mobile: "+91 98250 12345",
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Nexora Express Counter",
-    code: "OUT-2002",
-    serviceType: "Unit",
-    location: "Mumbai",
-    email: "express.mum@nexora.com",
-    mobile: "+91 90040 55210",
-    status: "pending",
-  },
-  {
-    id: 3,
-    name: "Vertex Fine Dine",
-    code: "OUT-2003",
-    serviceType: "restaurant",
-    location: "Surat",
-    email: "finedine.surat@vertex.com",
-    mobile: "+91 99789 33421",
-    status: "maintenance",
-  },
-  {
-    id: 4,
-    name: "Kiran Retail Point",
-    code: "OUT-2004",
-    serviceType: "Unit",
-    location: "Rajkot",
-    email: "retail.rajkot@kiran.com",
-    mobile: "+91 97250 87612",
-    status: "active",
-  },
-  {
-    id: 5,
-    name: "Prithvi Food Court",
-    code: "OUT-2005",
-    serviceType: "restaurant",
-    location: "Vadodara",
-    email: "foodcourt.vad@prithvi.com",
-    mobile: "+91 98980 44567",
-    status: "active",
-  },
-  {
-    id: 6,
-    name: "Shubh Drive-Thru",
-    code: "OUT-2006",
-    serviceType: "Unit",
-    location: "Gandhinagar",
-    email: "drivethru.gnr@shubh.com",
-    mobile: "+91 98250 67890",
-    status: "pending",
-  },
-  {
-    id: 7,
-    name: "Nexora Rooftop Grill",
-    code: "OUT-2007",
-    serviceType: "restaurant",
-    location: "Mumbai",
-    email: "rooftop.mum@nexora.com",
-    mobile: "+91 90040 11223",
-    status: "maintenance",
-  },
-];
+import { deleteCompany, getRegisteredCompany } from "../../services/apiServices";
 
 const STATUS_STYLES = {
   active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -124,13 +52,12 @@ const StatusBadge = ({ status }) => (
     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}
   >
     <span
-      className={`w-1.5 h-1.5 rounded-full ${
-        status === "active"
-          ? "bg-emerald-500"
-          : status === "pending"
+      className={`w-1.5 h-1.5 rounded-full ${status === "active"
+        ? "bg-emerald-500"
+        : status === "pending"
           ? "bg-amber-500"
           : "bg-orange-500"
-      }`}
+        }`}
     />
     {STATUS_LABELS[status]}
   </span>
@@ -176,9 +103,9 @@ const DeleteConfirmModal = ({ Unit, onCancel, onConfirm }) => (
     </div>
   </div>
 );
-
 const ViewUnitModal = ({ Unit, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
+    {console.log(Unit)}
     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
       <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
@@ -194,7 +121,7 @@ const ViewUnitModal = ({ Unit, onClose }) => (
         {[
           ["Unit Name", Unit.name],
           ["Unit Code", Unit.code],
-          ["Service Type", SERVICE_TYPE_LABELS[Unit.serviceType]],
+          ["Company Name", Unit.parentName],
           ["Location", Unit.location],
           ["Contact Email", Unit.email],
           ["Mobile Number", Unit.mobile],
@@ -280,7 +207,9 @@ const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-
 
 const UnitListing = () => {
   const navigate = useNavigate();
-  const [Units, setUnits] = useState(INITIAL_UnitS);
+  const [Units, setUnits] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -288,34 +217,98 @@ const UnitListing = () => {
   const [viewingUnit, setViewingUnit] = useState(null);
   const [deletingUnit, setDeletingUnit] = useState(null);
 
+  const normalizeUnit = (item) => ({
+    id: item.id,
+    name: item.companyNameEnglish || "",
+    code: item.companyCode || "",
+    serviceType: item.orgType || "OUTLET",
+    location: item.cityName || "",
+    email: item.emailid || "",
+    mobile: item.mobilenumber || "",
+    address: item.addressEnglish || "",
+    parentName: item.parentName || "",
+    status: item.isActive ? "active" : "inactive",
+    originalData: item,
+  });
+
+  const fetchUnits = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await getRegisteredCompany();
+
+      const list =
+        res?.data?.data ||
+        res?.data?.content ||
+        res?.data ||
+        [];
+
+      const outlets = Array.isArray(list)
+        ? list.filter(
+          (item) => item.orgType?.toLowerCase() === "outlet"
+        )
+        : [];
+
+      setUnits(outlets.map(normalizeUnit));
+
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load units.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUnits();
+  }, []);
+
   const filteredUnits = useMemo(
     () =>
       Units.filter((o) => {
+        const searchText = search.toLowerCase();
+
         const matchesSearch =
-          o.name.toLowerCase().includes(search.toLowerCase()) ||
-          o.code.toLowerCase().includes(search.toLowerCase()) ||
-          o.location.toLowerCase().includes(search.toLowerCase()) ||
-          o.email.toLowerCase().includes(search.toLowerCase()) ||
-          o.mobile.toLowerCase().includes(search.toLowerCase());
-        const matchesStatus = statusFilter === "all" || o.status === statusFilter;
-        const matchesType = typeFilter === "all" || o.serviceType === typeFilter;
+          (o.name || "").toLowerCase().includes(searchText) ||
+          (o.code || "").toLowerCase().includes(searchText) ||
+          (o.location || "").toLowerCase().includes(searchText) ||
+          (o.email || "").toLowerCase().includes(searchText) ||
+          (o.mobile || "").toLowerCase().includes(searchText);
+
+        const matchesStatus =
+          statusFilter === "all" || o.status === statusFilter;
+
+        const matchesType =
+          typeFilter === "all" || o.serviceType === typeFilter;
+
         return matchesSearch && matchesStatus && matchesType;
       }),
-    [Units, search, statusFilter, typeFilter],
+    [Units, search, statusFilter, typeFilter]
   );
 
   // Sends the user to the same form used for creating a Unit, but with the
   // row's data attached via router state — the form flips into edit mode
   // (title, copy, and the Save button all switch to "Update") whenever
   // state.unit is present.
-  const handleEdit = (Unit) => {
-    navigate('/units/update-unit', { state: { unit: Unit } });
+  const handleEdit = (unit) => {
+    navigate("/units/update-unit", {
+      state: {
+        unit: unit.originalData,
+      },
+    });
   };
 
   const handleDelete = (Unit) => setDeletingUnit(Unit);
-  const confirmDelete = () => {
-    setUnits((o) => o.filter((out) => out.id !== deletingUnit.id));
-    setDeletingUnit(null);
+  const confirmDelete = async () => {
+    try {
+      await deleteCompany(deletingUnit.id);
+      setDeletingUnit(null);
+      fetchUnits();
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete unit");
+    }
   };
 
   const handleExport = (format) => {
@@ -449,6 +442,27 @@ const UnitListing = () => {
     { key: "Unit", label: "Units" },
     { key: "restaurant", label: "Restaurants" },
   ];
+
+  if (loading) {
+    return (
+      <Container>
+        <div className="text-center py-10">
+          Loading outlets...
+        </div>
+      </Container>
+    );
+  }
+
+
+  if (error) {
+    return (
+      <Container>
+        <div className="text-red-500 text-center py-10">
+          {error}
+        </div>
+      </Container>
+    )
+  }
 
   return (
     <Container>
