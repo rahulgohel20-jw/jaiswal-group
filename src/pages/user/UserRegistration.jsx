@@ -1,10 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { ChevronDown, Map, MapPin, User, X, Check } from 'lucide-react';
+import { ChevronDown, Map, MapPin, User, X, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { getAllCountries, getStatesByCountry, getCitiesByState } from '@/services/apiServices';
+import { getEmployeeById, saveEmployee, updateEmployee } from '@/services/apiServices';
+import {
+  DEPARTMENT_OPTIONS,
+  DEFAULT_FORM,
+  extractList,
+  extractItem,
+  mapEmployeeToForm,
+  buildEmployeePayload,
+} from './utils/Employeemappers';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
   'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
+
+const errorInputCls =
+  'w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
+  'placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300';
 
 const Label = ({ children, required }) => (
   <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -13,12 +27,18 @@ const Label = ({ children, required }) => (
   </label>
 );
 
-const Select = ({ value, onChange, placeholder, options }) => (
+const ErrorText = ({ message }) =>
+  message ? <p className="text-xs text-red-500 mt-1">{message}</p> : null;
+
+// Generic string-option select (used for Department)
+const Select = ({ value, onChange, placeholder, options, hasError }) => (
   <div className="relative">
     <select
       value={value}
       onChange={onChange}
-      className={`${inputCls} appearance-none pr-9 cursor-pointer ${value === '' ? 'text-gray-400' : 'text-gray-800'}`}
+      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${
+        value === '' ? 'text-gray-400' : 'text-gray-800'
+      }`}
     >
       <option value="" disabled>
         {placeholder}
@@ -33,10 +53,32 @@ const Select = ({ value, onChange, placeholder, options }) => (
   </div>
 );
 
+// {id, name} option select — used for Country / State / City
+const IdSelect = ({ value, onChange, placeholder, options, hasError, disabled, loading }) => (
+  <div className="relative">
+    <select
+      value={value}
+      onChange={onChange}
+      disabled={disabled || loading}
+      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${
+        value === '' ? 'text-gray-400' : 'text-gray-800'
+      } ${disabled || loading ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+    >
+      <option value="" disabled>
+        {loading ? 'Loading...' : placeholder}
+      </option>
+      {options.map((opt) => (
+        <option key={opt.id} value={opt.id} className="text-gray-800">
+          {opt.name}
+        </option>
+      ))}
+    </select>
+    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+  </div>
+);
+
 const SectionCard = ({ children, className = '' }) => (
-  <div
-    className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}
-  >
+  <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>
     {children}
   </div>
 );
@@ -61,9 +103,7 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
       }}
       className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
     >
-      <ChevronDown
-        className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-      />
+      <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
     </button>
   </div>
 );
@@ -203,71 +243,21 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
-const DEPARTMENT_OPTIONS = ['Manager', 'Sales', 'Marketing', 'Chef', 'Helper'];
-
-// Splits the listing's single "name" field into first/last/surname as a
-// best-effort guess, since the form collects those separately.
-const splitName = (fullName = '') => {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstName: '', lastName: '', surname: '' };
-  if (parts.length === 1) return { firstName: parts[0], lastName: '', surname: '' };
-  if (parts.length === 2) return { firstName: parts[0], lastName: '', surname: parts[1] };
-  return {
-    firstName: parts[0],
-    lastName: parts.slice(1, -1).join(' '),
-    surname: parts[parts.length - 1],
-  };
-};
-
-// Maps a row from the user listing table onto the shape this form uses.
-// The listing's mock data doesn't carry every field this form has (address
-// lines, alt mobile, etc.) so anything missing just falls back to blank.
-const mapUserToForm = (user) => ({
-  ...splitName(user.name),
-  userCode: user.code ?? 'USR-2023-0042',
-  email: user.email ?? '',
-  company: user.company ?? 'Jaiswal Group India Pvt Ltd',
-  password: '',
-  mobile: user.mobile ?? '',
-  altMobile: user.altMobile ?? '',
-  department: DEPARTMENT_OPTIONS.includes(user.department) ? user.department : '',
-  addressLine1: user.addressLine1 ?? '',
-  addressLine2: user.addressLine2 ?? '',
-  city: user.city ?? '',
-  state: user.state ?? '',
-  country: user.country ?? 'India',
-  pincode: user.pincode ?? '',
-  latitude: user.latitude ?? '',
-  longitude: user.longitude ?? '',
-});
-
-const DEFAULT_FORM = {
-  firstName: '',
-  lastName: '',
-  surname: '',
-  userCode: 'USR-2023-0042',
-  email: '',
-  company: 'Jaiswal Group India Pvt Ltd',
-  password: '',
-  mobile: '',
-  altMobile: '',
-  department: '',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  state: '',
-  country: 'India',
-  pincode: '',
-  latitude: '',
-  longitude: '',
-};
+// Password must be at least 8 chars with 1 uppercase, 1 lowercase, 1 number, 1 special char
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MOBILE_REGEX = /^\d{10}$/;
+const PINCODE_REGEX = /^\d{6}$/;
+const USERNAME_REGEX = /^[a-zA-Z0-9._-]{3,20}$/;
 
 const UserRegistration = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // If we arrived here via the edit action, the user row is passed in
-  // location.state. Its presence is what puts the page into edit mode.
+  // If we arrived here via the edit action, the row that was clicked is
+  // passed in location.state. Its presence puts the page into edit mode;
+  // we then fetch the full record from the backend (the row may only carry
+  // the subset of fields shown in the table).
   const editingUser = location.state?.user ?? null;
   const isEditMode = !!editingUser;
 
@@ -280,43 +270,268 @@ const UserRegistration = () => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
 
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [form, setForm] = useState(() =>
-    editingUser ? mapUserToForm(editingUser) : DEFAULT_FORM,
-  );
+  const [form, setForm] = useState(DEFAULT_FORM);
+  const [errors, setErrors] = useState({});
+  const [loadingUser, setLoadingUser] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
-  // If the user navigates here again with a different user row (e.g.
-  // clicking edit on another row without leaving the app), refresh the form.
+  // Location lookups
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingCities, setLoadingCities] = useState(false);
+
+  // Edit mode: pull the full record from the backend rather than trusting
+  // the (possibly partial) row passed in via navigation state.
   useEffect(() => {
-    setForm(editingUser ? mapUserToForm(editingUser) : DEFAULT_FORM);
+    setErrors({});
+    setSubmitError('');
+    setStates([]);
+    setCities([]);
+
+    if (!editingUser?.id) {
+      setForm(DEFAULT_FORM);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchEmployee = async () => {
+      setLoadingUser(true);
+      try {
+        const res = await getEmployeeById(editingUser.id);
+        const emp = extractItem(res);
+        if (!cancelled) setForm(mapEmployeeToForm(emp));
+      } catch (err) {
+        console.error(err);
+        // Fall back to whatever fields the table row already had so the
+        // form isn't left completely empty if the fetch fails.
+        if (!cancelled) setForm(mapEmployeeToForm(editingUser));
+      } finally {
+        if (!cancelled) setLoadingUser(false);
+      }
+    };
+    fetchEmployee();
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingUser?.id]);
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+  // Load countries once
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCountries = async () => {
+      setLoadingCountries(true);
+      try {
+        const res = await getAllCountries();
+        if (!cancelled) setCountries(extractList(res));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoadingCountries(false);
+      }
+    };
+    fetchCountries();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const handleSubmit = () => {
-    const fullName = [form.firstName, form.lastName, form.surname].filter(Boolean).join(' ');
-    if (isEditMode) {
-      // TODO: wire up to the update API call.
-      alert(`Updated ${fullName || 'user'}`);
-    } else {
-      // TODO: wire up to the create API call.
-      alert(`Saved ${fullName || 'user'}`);
+  // Load states whenever countryId changes
+  useEffect(() => {
+    if (!form.countryId) {
+      setStates([]);
+      return;
     }
-    navigate('/users');
+    let cancelled = false;
+    const fetchStates = async () => {
+      setLoadingStates(true);
+      try {
+        const res = await getStatesByCountry(form.countryId);
+        if (!cancelled) setStates(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setStates([]);
+      } finally {
+        if (!cancelled) setLoadingStates(false);
+      }
+    };
+    fetchStates();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.countryId]);
+
+  // Load cities whenever stateId changes
+  useEffect(() => {
+    if (!form.stateId) {
+      setCities([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchCities = async () => {
+      setLoadingCities(true);
+      try {
+        const res = await getCitiesByState(form.stateId);
+        if (!cancelled) setCities(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setCities([]);
+      } finally {
+        if (!cancelled) setLoadingCities(false);
+      }
+    };
+    fetchCities();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.stateId]);
+
+  const set = (key, val) => {
+    setForm((f) => ({ ...f, [key]: val }));
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
   };
 
-  const handleSaveAndAddAnother = () => {
-    const fullName = [form.firstName, form.lastName, form.surname].filter(Boolean).join(' ');
-    alert(`Saved ${fullName || 'user'}`);
-    setForm(DEFAULT_FORM);
+  const handleCountryChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, countryId: value, stateId: '', cityId: '' }));
+    setStates([]);
+    setCities([]);
+    setErrors((prev) => ({ ...prev, countryId: undefined, stateId: undefined, cityId: undefined }));
+  };
+
+  const handleStateChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, stateId: value, cityId: '' }));
+    setCities([]);
+    setErrors((prev) => ({ ...prev, stateId: undefined, cityId: undefined }));
+  };
+
+  const handleCityChange = (e) => {
+    set('cityId', e.target.value);
+  };
+
+  const validate = () => {
+    const e = {};
+
+    if (!form.firstName.trim()) e.firstName = 'First name is required';
+    if (!form.lastName.trim()) e.lastName = 'Last name is required';
+
+    if (!form.username.trim()) e.username = 'Username is required';
+    else if (!USERNAME_REGEX.test(form.username))
+      e.username = 'Username must be 3-20 characters (letters, numbers, . _ - only)';
+
+    if (!form.email.trim()) e.email = 'Email address is required';
+    else if (!EMAIL_REGEX.test(form.email)) e.email = 'Enter a valid email address';
+
+    if (!isEditMode) {
+      if (!form.password) e.password = 'Password is required';
+      else if (!PASSWORD_REGEX.test(form.password))
+        e.password =
+          'Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character';
+    }
+
+    if (!form.mobile.trim()) e.mobile = 'Mobile number is required';
+    else if (!MOBILE_REGEX.test(form.mobile)) e.mobile = 'Enter a valid 10-digit mobile number';
+
+    if (form.altMobile && !MOBILE_REGEX.test(form.altMobile))
+      e.altMobile = 'Enter a valid 10-digit mobile number';
+
+    if (!form.department) e.department = 'Department is required';
+    if (!form.designation.trim()) e.designation = 'Designation is required';
+
+    if (form.salary === '' || form.salary === null || form.salary === undefined)
+      e.salary = 'Salary is required';
+    else if (Number.isNaN(Number(form.salary))) e.salary = 'Salary must be a number';
+    else if (Number(form.salary) < 0) e.salary = 'Salary cannot be negative';
+
+    if (!form.joiningDate) e.joiningDate = 'Joining date is required';
+
+    if (!form.addressLine1.trim()) e.addressLine1 = 'Address line 1 is required';
+    if (!form.countryId) e.countryId = 'Country is required';
+    if (!form.stateId) e.stateId = 'State is required';
+    if (!form.cityId) e.cityId = 'City is required';
+
+    if (!form.pincode.trim()) e.pincode = 'Pincode is required';
+    else if (!PINCODE_REGEX.test(form.pincode)) e.pincode = 'Enter a valid 6-digit pincode';
+
+    return e;
+  };
+
+  const focusFirstError = (errs) => {
+    const firstKey = Object.keys(errs)[0];
+    if (!firstKey) return;
+    const el = document.querySelector(`[name="${firstKey}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el?.focus?.();
+  };
+
+  const handleSubmit = async () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      focusFirstError(errs);
+      return;
+    }
+
+    const payload = buildEmployeePayload(form, { isEditMode });
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      if (isEditMode) {
+        await updateEmployee(payload);
+      } else {
+        await saveEmployee(payload);
+      }
+      navigate('/users');
+    } catch (err) {
+      console.error(err);
+      setSubmitError(
+        err?.response?.data?.message ||
+          `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSaveAndAddAnother = async () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      focusFirstError(errs);
+      return;
+    }
+    const payload = buildEmployeePayload(form, { isEditMode: false });
+    setSubmitting(true);
+    setSubmitError('');
+    try {
+      await saveEmployee(payload);
+      setForm(DEFAULT_FORM);
+      setStates([]);
+      setCities([]);
+      setErrors({});
+    } catch (err) {
+      console.error(err);
+      setSubmitError(
+        err?.response?.data?.message || 'Something went wrong while saving this user. Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="mx-4 min-h-screen">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-         { isEditMode ? 'Update User' : 'User Registration'}
+          {isEditMode ? 'Update User' : 'User Registration'}
         </h1>
         <p className="text-[#43474F]">
           {isEditMode
@@ -325,268 +540,383 @@ const UserRegistration = () => {
         </p>
       </div>
 
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={User}
-          title="Personal Information"
-          open={openSections.personal}
-          onToggle={() => toggleSection('personal')}
-        />
-
-        {openSections.personal && (
-          <div className="px-6 py-6 space-y-5">
-            
-             <div className="grid grid-cols-3 gap-4">
-              <div>
-              <Label required>First Name</Label>
-              <input
-                value={form.firstName}
-                onChange={(e) => set('firstName', e.target.value)}
-                placeholder="Enter First Name"
-                className={inputCls}
-              />
-            </div>
-
-              <div>
-              <Label required>Last Name</Label>
-              <input
-                value={form.lastName}
-                onChange={(e) => set('lastName', e.target.value)}
-                placeholder="Enter Last Name"
-                className={inputCls}
-              />
-            </div>
-
-             <div>
-              <Label required>Surname</Label>
-              <input
-                value={form.surname}
-                onChange={(e) => set('surname', e.target.value)}
-                placeholder="Enter Surname"
-                className={inputCls}
-              />
-            </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>User Code (Auto Generated)</Label>
-                <input
-                  value={form.userCode}
-                  disabled
-                  className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                />
-              </div>
-
-              <div>
-                <Label required>Email Address</Label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set('email', e.target.value)}
-                  placeholder="example@jaiswalgroup.com"
-                  className={inputCls}
-                />
-              </div>
-
-              <div>
-                <Label required>Company</Label>
-                <input value={form.company} disabled className={inputCls} />
-              </div>
-            </div>
-
-            <div className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-4'}`}>
-              {!isEditMode && (
-                <div>
-                  <Label required>Password</Label>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => set('password', e.target.value)}
-                    placeholder="••••••••"
-                    className={inputCls}
-                  />
-                </div>
-              )}
-
-              <div>
-                <Label required>Mobile Number</Label>
-                <input
-                  value={form.mobile}
-                  onChange={(e) => set('mobile', e.target.value)}
-                  placeholder="+91 00000 00000"
-                  maxLength={10}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label>Alternate Mobile Number</Label>
-                <input
-                  value={form.altMobile}
-                  onChange={(e) => set('altMobile', e.target.value)}
-                  placeholder="+91 00000 00000"
-                  maxLength={10}
-                  className={inputCls}
-                />
-              </div>
-
-              <div>
-                <Label required>Department </Label>
-                <Select
-                 value={form.department}
-                 onChange={(e) => set('department', e.target.value)}
-                 placeholder="Select Department"
-                 options={DEPARTMENT_OPTIONS}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </SectionCard>
-
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={MapPin}
-          title="Residential Address"
-          open={openSections.address}
-          onToggle={() => toggleSection('address')}
-        />
-        {openSections.address && (
-          <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label required>Address Line 1</Label>
-                <input
-                  value={form.addressLine1}
-                  onChange={(e) => set('addressLine1', e.target.value)}
-                  placeholder="Building, Street Name"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label>Address Line 2</Label>
-                <input
-                  value={form.addressLine2}
-                  onChange={(e) => set('addressLine2', e.target.value)}
-                  placeholder="Locality, Landmark"
-                  className={inputCls}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 gap-4">
-
-                <div>
-                <Label required>Country</Label>
-                <input
-                  value={form.country}
-                  onChange={(e) => set('country', e.target.value)}
-                  placeholder="Country"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label required>State</Label>
-                <input
-                  value={form.state}
-                  onChange={(e) => set('state', e.target.value)}
-                  placeholder="State"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label required>City</Label>
-                <input
-                  value={form.city}
-                  onChange={(e) => set('city', e.target.value)}
-                  placeholder="City Name"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label required>Pincode</Label>
-                <input
-                  value={form.pincode}
-                  onChange={(e) => set('pincode', e.target.value)}
-                  placeholder="6 Digits"
-                  maxLength={6}
-                  className={inputCls}
-                />
-              </div>
-
-            </div>
-
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <Label>Latitude</Label>
-                <input
-                  value={form.latitude}
-                  onChange={(e) => set('latitude', e.target.value)}
-                  placeholder="23.0225"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label>Longitude</Label>
-                <input
-                  value={form.longitude}
-                  onChange={(e) => set('longitude', e.target.value)}
-                  placeholder="72.5714"
-                  className={inputCls}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowMapPicker(true)}
-                className="flex gap-1 items-end text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
-              >
-                <Map size={15} />
-                <p className="font-bold text-sm">Pick from Map</p>
-              </button>
-            </div>
-          </div>
-        )}
-      </SectionCard>
-
-
-       {/* Footer actions */}
-        <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
-          <button
-            type="button"
-            onClick={() => navigate('/users')}
-            className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-          >
-            Cancel
-          </button>
-          {!isEditMode && (
-            <button
-              type="button"
-              onClick={handleSaveAndAddAnother}
-              className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white"
-            >
-              Save & Add Another
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
-          >
-            {isEditMode ? 'Update User' : 'Save User'}
-          </button>
+      {submitError && (
+        <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{submitError}</span>
         </div>
+      )}
 
-        {showMapPicker && (
-          <MapPickerModal
-            initialLat={form.latitude}
-            initialLng={form.longitude}
-            onClose={() => setShowMapPicker(false)}
-            onConfirm={({ lat, lng }) => {
-              set('latitude', lat.toFixed(6));
-              set('longitude', lng.toFixed(6));
-              setShowMapPicker(false);
-            }}
-          />
+      {loadingUser ? (
+        <div className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-sm px-6 py-10 text-center text-sm text-gray-400">
+          Loading user details...
+        </div>
+      ) : (
+        <>
+          <SectionCard className="mt-4">
+            <SectionHeader
+              icon={User}
+              title="Personal Information"
+              open={openSections.personal}
+              onToggle={() => toggleSection('personal')}
+            />
+
+            {openSections.personal && (
+              <div className="px-6 py-6 space-y-5">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label required>First Name</Label>
+                    <input
+                      name="firstName"
+                      value={form.firstName}
+                      onChange={(e) => set('firstName', e.target.value)}
+                      placeholder="Enter First Name"
+                      className={errors.firstName ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.firstName} />
+                  </div>
+
+                  <div>
+                    <Label>Middle Name</Label>
+                    <input
+                      name="middlename"
+                      value={form.middlename}
+                      onChange={(e) => set('middlename', e.target.value)}
+                      placeholder="Enter Middlename"
+                      className={errors.middlename ? errorInputCls : inputCls}
+                    />
+                  </div>
+
+                  <div>
+                    <Label required>Last Name</Label>
+                    <input
+                      name="lastName"
+                      value={form.lastName}
+                      onChange={(e) => set('lastName', e.target.value)}
+                      placeholder="Enter Last Name"
+                      className={errors.lastName ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.lastName} />
+                  </div>
+                </div>
+
+                <div className={`grid gap-4 ${isEditMode ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                  {isEditMode && (
+                    <div>
+                      <Label>User Code (Auto Generated)</Label>
+                      <input
+                        value={form.userCode}
+                        disabled
+                        className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <Label required>Username</Label>
+                    <input
+                      name="username"
+                      value={form.username}
+                      onChange={(e) => set('username', e.target.value)}
+                      placeholder="e.g., rjaiswal"
+                      className={errors.username ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.username} />
+                  </div>
+
+                  <div>
+                    <Label required>Email Address</Label>
+                    <input
+                      name="email"
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => set('email', e.target.value)}
+                      placeholder="example@jaiswalgroup.com"
+                      className={errors.email ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.email} />
+                  </div>
+
+                  <div>
+                    <Label required>Company</Label>
+                    <input value={form.company} disabled className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`} />
+                  </div>
+                </div>
+
+                <div className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-4'}`}>
+                  {!isEditMode && (
+                    <div>
+                      <Label required>Password</Label>
+                      <div className="relative">
+                        <input
+                          name="password"
+                          type={showPassword ? 'text' : 'password'}
+                          value={form.password}
+                          onChange={(e) => set('password', e.target.value)}
+                          placeholder="••••••••"
+                          className={`${errors.password ? errorInputCls : inputCls} pr-10`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((s) => !s)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0 p-0"
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {errors.password ? (
+                        <ErrorText message={errors.password} />
+                      ) : (
+                        <p className="text-[11px] text-gray-400 mt-1">
+                          Min 8 characters, with uppercase, lowercase, number & special character.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <Label required>Mobile Number</Label>
+                    <input
+                      name="mobile"
+                      value={form.mobile}
+                      onChange={(e) => set('mobile', e.target.value.replace(/\D/g, ''))}
+                      placeholder="+91 00000 00000"
+                      maxLength={10}
+                      className={errors.mobile ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.mobile} />
+                  </div>
+                  <div>
+                    <Label>Alternate Mobile Number</Label>
+                    <input
+                      name="altMobile"
+                      value={form.altMobile}
+                      onChange={(e) => set('altMobile', e.target.value.replace(/\D/g, ''))}
+                      placeholder="+91 00000 00000"
+                      maxLength={10}
+                      className={errors.altMobile ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.altMobile} />
+                  </div>
+
+                  <div>
+                    <Label required>Department</Label>
+                    <Select
+                      value={form.department}
+                      onChange={(e) => set('department', e.target.value)}
+                      placeholder="Select Department"
+                      options={DEPARTMENT_OPTIONS}
+                      hasError={!!errors.department}
+                    />
+                    <ErrorText message={errors.department} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <Label required>Designation</Label>
+                    <input
+                      name="designation"
+                      value={form.designation}
+                      onChange={(e) => set('designation', e.target.value)}
+                      placeholder="e.g., Manager"
+                      className={errors.designation ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.designation} />
+                  </div>
+
+                  <div>
+                    <Label required>Salary</Label>
+                    <input
+                      name="salary"
+                      type="number"
+                      min="0"
+                      value={form.salary}
+                      onChange={(e) => set('salary', e.target.value)}
+                      placeholder="e.g., 50000"
+                      className={errors.salary ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.salary} />
+                  </div>
+
+                  <div>
+                    <Label required>Joining Date</Label>
+                    <input
+                      name="joiningDate"
+                      type="date"
+                      value={form.joiningDate}
+                      onChange={(e) => set('joiningDate', e.target.value)}
+                      className={errors.joiningDate ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.joiningDate} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </SectionCard>
+
+          <SectionCard className="mt-4">
+            <SectionHeader
+              icon={MapPin}
+              title="Residential Address"
+              open={openSections.address}
+              onToggle={() => toggleSection('address')}
+            />
+            {openSections.address && (
+              <div className="px-6 py-6 space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label required>Address Line 1</Label>
+                    <input
+                      name="addressLine1"
+                      value={form.addressLine1}
+                      onChange={(e) => set('addressLine1', e.target.value)}
+                      placeholder="Building, Street Name"
+                      className={errors.addressLine1 ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.addressLine1} />
+                  </div>
+                  <div>
+                    <Label>Address Line 2</Label>
+                    <input
+                      value={form.addressLine2}
+                      onChange={(e) => set('addressLine2', e.target.value)}
+                      placeholder="Locality, Landmark"
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <Label required>Country</Label>
+                    <IdSelect
+                      value={form.countryId}
+                      onChange={handleCountryChange}
+                      placeholder="Select Country"
+                      options={countries}
+                      hasError={!!errors.countryId}
+                      loading={loadingCountries}
+                    />
+                    <ErrorText message={errors.countryId} />
+                  </div>
+                  <div>
+                    <Label required>State</Label>
+                    <IdSelect
+                      value={form.stateId}
+                      onChange={handleStateChange}
+                      placeholder={form.countryId ? 'Select State' : 'Select country first'}
+                      options={states}
+                      hasError={!!errors.stateId}
+                      loading={loadingStates}
+                      disabled={!form.countryId}
+                    />
+                    <ErrorText message={errors.stateId} />
+                  </div>
+                  <div>
+                    <Label required>City</Label>
+                    <IdSelect
+                      value={form.cityId}
+                      onChange={handleCityChange}
+                      placeholder={form.stateId ? 'Select City' : 'Select state first'}
+                      options={cities}
+                      hasError={!!errors.cityId}
+                      loading={loadingCities}
+                      disabled={!form.stateId}
+                    />
+                    <ErrorText message={errors.cityId} />
+                  </div>
+                  <div>
+                    <Label required>Pincode</Label>
+                    <input
+                      name="pincode"
+                      value={form.pincode}
+                      onChange={(e) => set('pincode', e.target.value.replace(/\D/g, ''))}
+                      placeholder="6 Digits"
+                      maxLength={6}
+                      className={errors.pincode ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.pincode} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <Label>Latitude</Label>
+                    <input
+                      value={form.latitude}
+                      onChange={(e) => set('latitude', e.target.value)}
+                      placeholder="23.0225"
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <Label>Longitude</Label>
+                    <input
+                      value={form.longitude}
+                      onChange={(e) => set('longitude', e.target.value)}
+                      placeholder="72.5714"
+                      className={inputCls}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowMapPicker(true)}
+                    className="flex gap-1 items-end text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
+                  >
+                    <Map size={15} />
+                    <p className="font-bold text-sm">Pick from Map</p>
+                  </button>
+                </div>
+              </div>
+            )}
+          </SectionCard>
+        </>
+      )}
+
+      {/* Footer actions */}
+      <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
+        <button
+          type="button"
+          onClick={() => navigate('/users')}
+          disabled={submitting}
+          className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-50"
+        >
+          Cancel
+        </button>
+        {!isEditMode && (
+          <button
+            type="button"
+            onClick={handleSaveAndAddAnother}
+            disabled={submitting || loadingUser}
+            className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white disabled:opacity-50"
+          >
+            {submitting ? 'Saving...' : 'Save & Add Another'}
+          </button>
         )}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting || loadingUser}
+          className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-50"
+        >
+          {submitting ? 'Saving...' : isEditMode ? 'Update User' : 'Save User'}
+        </button>
+      </div>
+
+      {showMapPicker && (
+        <MapPickerModal
+          initialLat={form.latitude}
+          initialLng={form.longitude}
+          onClose={() => setShowMapPicker(false)}
+          onConfirm={({ lat, lng }) => {
+            set('latitude', lat.toFixed(6));
+            set('longitude', lng.toFixed(6));
+            setShowMapPicker(false);
+          }}
+        />
+      )}
     </div>
   );
 };

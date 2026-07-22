@@ -232,3 +232,41 @@ export const deleteCompany = (id) => {
   return DELETE(`/organization/delete/${id}`);
 };
 
+export const getAllCountries = () => {
+  return GET("/country/getall");
+};
+
+export const getStatesByCountry = (countryId) => {
+  return GET("/state/by-country", { countryId });
+};
+
+export const getCitiesByState = (stateId) => {
+  return GET("/city/getbystateid", { stateId });
+};
+
+ 
+export const getAllEmployees = () => {
+   return GET('/employee/get-all');
+}
+
+export const getAllActiveEmployees = () => {
+  return GET('/employee/get-all-active');
+}
+
+export const getEmployeeById = (id) => {
+   return GET(`/employee/get/${id}`);
+}
+
+export const saveEmployee = (payload) => {
+  return POST('/employee/save', payload);
+}
+
+export const updateEmployee = (payload) => {
+  return PUT('/employee/update', payload, { id: payload.id });
+};
+
+export const deleteEmployeeById = (id) => {
+  return DELETE(`/employee/delete/${id}`);
+}
+
+export const loginUser = (payload) => POST('/auth/login', payload);
