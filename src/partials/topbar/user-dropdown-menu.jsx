@@ -33,10 +33,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
-import { logout } from '../../pages/auth/login';
+import { logout } from '../../auth/Logout';
 
 export function UserDropdownMenu({ trigger }) {
-  const { navigate } = useNavigate();
+const navigate = useNavigate();
   const {user} = useAuth();
   const { currenLanguage, changeLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();

@@ -1,8 +1,6 @@
 // Shared conversions between the /api/employee/* payload shape and the
 // shapes the UI already works with (form state + table rows).
 
-export const DEPARTMENT_OPTIONS = ['Manager', 'Sales', 'Marketing', 'Chef', 'Helper'];
-
 // --- Date helpers: backend uses DD/MM/YYYY, <input type="date"> needs YYYY-MM-DD ---
 const apiDateToInput = (val) => {
   if (!val) return '';
@@ -12,7 +10,6 @@ const apiDateToInput = (val) => {
     const [, dd, mm, yyyy] = m;
     return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
   }
-  // Already ISO (YYYY-MM-DD...) or something else — best effort
   return s.slice(0, 10);
 };
 
@@ -65,7 +62,7 @@ export const DEFAULT_FORM = {
   password: '',
   mobile: '',
   altMobile: '',
-  department: '',
+  departmentId: '',
   designation: '',
   salary: '',
   joiningDate: '',
@@ -90,11 +87,7 @@ export const mapEmployeeToForm = (emp = {}) => ({
   password: '',
   mobile: emp.mobileNumber ?? emp.mobile ?? '',
   altMobile: emp.alternateMobile ?? emp.altMobile ?? '',
-  department: DEPARTMENT_OPTIONS.includes(emp.departmentName)
-    ? emp.departmentName
-    : DEPARTMENT_OPTIONS.includes(emp.department)
-    ? emp.department
-    : '',
+  departmentId: idOf(emp.department) || (emp.departmentId ?? ''),
   designation: emp.designation ?? '',
   salary: emp.salary ?? '',
   joiningDate: apiDateToInput(emp.joiningDate),
@@ -116,7 +109,7 @@ export const buildEmployeePayload = (form, { isEditMode }) => ({
   alternateMobile: form.altMobile,
   cityId: form.cityId,
   countryId: form.countryId,
-  departmentId: 1, // TODO: replace with real department id once that lookup exists
+  departmentId: form.departmentId,   // ← real selected id, no longer hardcoded
   designation: form.designation,
   emailid: form.email,
   fullName: [form.firstName, form.middlename, form.lastName].filter(Boolean).join(' '),

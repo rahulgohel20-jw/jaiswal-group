@@ -4,13 +4,13 @@ import { ChevronDown, Map, MapPin, User, X, Check, Eye, EyeOff, AlertTriangle } 
 import { getAllCountries, getStatesByCountry, getCitiesByState } from '@/services/apiServices';
 import { getEmployeeById, saveEmployee, updateEmployee } from '@/services/apiServices';
 import {
-  DEPARTMENT_OPTIONS,
   DEFAULT_FORM,
   extractList,
   extractItem,
   mapEmployeeToForm,
   buildEmployeePayload,
 } from './utils/Employeemappers';
+import { getAllActiveDepartments } from '../../services/apiServices';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -286,6 +286,9 @@ const UserRegistration = () => {
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
 
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+
   // Edit mode: pull the full record from the backend rather than trusting
   // the (possibly partial) row passed in via navigation state.
   useEffect(() => {
@@ -393,6 +396,32 @@ const UserRegistration = () => {
     };
   }, [form.stateId]);
 
+  // Load active departments once
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDepartments = async () => {
+      setLoadingDepartments(true);
+      try {
+        const res = await getAllActiveDepartments();
+        if (!cancelled) {
+          const list = extractList(res).map((d) => ({
+            id: d.id,
+            name: d.departmentName,
+          }));
+          setDepartments(list);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
+      }
+    };
+    fetchDepartments();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const set = (key, val) => {
     setForm((f) => ({ ...f, [key]: val }));
     setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
@@ -443,7 +472,7 @@ const UserRegistration = () => {
     if (form.altMobile && !MOBILE_REGEX.test(form.altMobile))
       e.altMobile = 'Enter a valid 10-digit mobile number';
 
-    if (!form.department) e.department = 'Department is required';
+    if (!form.departmentId) e.departmentId = 'Department is required';
     if (!form.designation.trim()) e.designation = 'Designation is required';
 
     if (form.salary === '' || form.salary === null || form.salary === undefined)
@@ -702,14 +731,15 @@ const UserRegistration = () => {
 
                   <div>
                     <Label required>Department</Label>
-                    <Select
-                      value={form.department}
-                      onChange={(e) => set('department', e.target.value)}
+                    <IdSelect
+                      value={form.departmentId}
+                      onChange={(e) => set('departmentId', e.target.value)}
                       placeholder="Select Department"
-                      options={DEPARTMENT_OPTIONS}
-                      hasError={!!errors.department}
+                      options={departments}
+                      hasError={!!errors.departmentId}
+                      loading={loadingDepartments}
                     />
-                    <ErrorText message={errors.department} />
+                    <ErrorText message={errors.departmentId} />
                   </div>
                 </div>
 
