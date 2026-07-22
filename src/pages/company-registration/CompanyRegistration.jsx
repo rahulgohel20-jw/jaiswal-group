@@ -11,6 +11,7 @@ import {
   MapPin,
   X,
 } from 'lucide-react';
+import { createCompany, getAllCountry, getCityByState, getStateByCountry, updateCompany } from '../../services/apiServices';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -63,7 +64,10 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
 
   const handleFile = (e) => {
     const file = e.target.files?.[0];
-    if (file) onChange(URL.createObjectURL(file));
+
+    if (file) {
+      onChange(file);
+    }
   };
 
   return (
@@ -75,12 +79,12 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
       >
         {value ? (
           <img
-            src={value}
+            src={value instanceof File ? URL.createObjectURL(value) : value}
             alt={label}
-            className="w-8 h-8 rounded-md object-cover border border-gray-200 flex-shrink-0"
+            className="w-8 h-8 rounded-md object-cover border border-gray-200 shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
             <ImageUp className="w-4 h-4 text-gray-400" />
           </div>
         )}
@@ -97,7 +101,7 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
               e.stopPropagation();
               onChange(null);
             }}
-            className="ml-auto w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-200 transition cursor-pointer bg-white flex-shrink-0"
+            className="ml-auto w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-200 transition cursor-pointer bg-white shrink-0"
           >
             <X className="w-3 h-3" />
           </button>
@@ -281,24 +285,139 @@ const emptyForm = {
 // so the user can fill it in.
 const mapCompanyToForm = (company) => ({
   ...emptyForm,
-  companyName: company.name ?? '',
-  companyCode: company.code ?? emptyForm.companyCode,
-  gstNumber: company.gstNumber ?? '',
-  mobile: company.mobile ?? '',
-  city: company.location ?? '',
-  // Preserve anything else the caller already stored in the full shape
-  // (useful if you later pass the complete record instead of the row).
-  ...company,
-});
 
+  id: company.id,
+
+  companyName: company.companyNameEnglish || "",
+  companyCode: company.companyCode || "",
+  shortCode: company.shortCode || "",
+
+  gstNumber: company.gstNumber || "",
+  panNumber: company.panNumber || "",
+
+  mobile: company.mobilenumber || "",
+  altMobile: company.alternatemobilenumber || "",
+
+  email: company.emailid || "",
+
+  addressLine1: company.addressEnglish || "",
+  addressLine2: company.addressline2 || "",
+
+  pincode: company.pincode || "",
+  latitude: company.latitude || "",
+  longitude: company.longitude || "",
+
+  accountHolder: company.accountholdername || "",
+  accountNumber: company.accountnumber || "",
+
+  bankName: company.bankname || "",
+  branchName: company.branchname || "",
+  ifsc: company.bankifsccode || "",
+
+  upiId: company.upiid || "",
+
+  countryId: company.countryId,
+  stateId: company.stateId,
+  cityId: company.cityId,
+
+  logo: company.companyLogo,
+  favicon: company.favicon,
+});
 const CompanyRegistration = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
 
+  const [selectedCountry, setSelectedCountry] = useState("");
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await getAllCountry();
+        setCountries(res.data.data);
+
+      } catch (error) {
+        console.log("Country error", error);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+  const handleCountryChange = async (e) => {
+
+    const countryId = e.target.value;
+
+    setSelectedCountry(countryId);
+    setStates([]);
+    setCities([]);
+    setSelectedState("");
+    setSelectedCity("");
+
+    try {
+      const res = await getStateByCountry(countryId);
+      setStates(res.data.data);
+    } catch (error) {
+      console.log("State error", error);
+    }
+  };
+
+  const handleStateChange = async (e) => {
+
+    const stateId = e.target.value;
+    setSelectedState(stateId);
+    setCities([]);
+    setSelectedCity("");
+
+    try {
+      const res = await getCityByState(stateId);
+      const cityList = res?.data?.data?.["City Details"] || [];
+
+      console.log("cityList:", cityList);
+
+      setCities(cityList);
+    } catch (error) {
+      console.log("City error", error);
+    }
+
+  };
   // Edit mode is detected purely from router state: the list page's edit
   // button navigates here with `{ state: { company } }`. No company in
   // state means this is a fresh "Register New Company" visit.
   const editingCompany = location.state?.company ?? null;
+
+  useEffect(() => {
+    if (!editingCompany) return;
+
+    setForm(mapCompanyToForm(editingCompany));
+
+    setSelectedCountry(editingCompany.countryId?.toString() || "");
+    setSelectedState(editingCompany.stateId?.toString() || "");
+    setSelectedCity(editingCompany.cityId?.toString() || "");
+  }, [editingCompany]);
+
+  useEffect(() => {
+    if (!editingCompany) return;
+
+    const loadLocationData = async () => {
+      try {
+        const stateRes = await getStateByCountry(editingCompany.countryId);
+        setStates(stateRes.data.data);
+
+        const cityRes = await getCityByState(editingCompany.stateId);
+        setCities(cityRes.data.data["city Details"]);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    loadLocationData();
+  }, [editingCompany]);
+
   const isEditMode = !!editingCompany;
 
   const [openSections, setOpenSections] = useState({
@@ -325,17 +444,67 @@ const CompanyRegistration = () => {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  const handleSubmit = () => {
-    if (isEditMode) {
-      // TODO: call update API with editingCompany.id and `form`
-      console.log('Updating company', editingCompany.id, form);
-    } else {
-      // TODO: call create API with `form`
-      console.log('Creating company', form);
-    }
-    navigate('/companies');
-  };
+  const handleSubmit = async () => {
+    try {
+      const payload = {
+        orgType: "SUB_COMPANY",
+        parentId: 1,
+        username: 1,
+        isverified: true,
 
+        companyNameEnglish: form.companyName,
+        gstNumber: form.gstNumber,
+        panNumber: form.panNumber,
+        mobilenumber: form.mobile,
+        alternatemobilenumber: form.altMobile,
+        emailid: form.email,
+
+        addressEnglish: form.addressLine1,
+        addressline2: form.addressLine2,
+
+        countryId: Number(selectedCountry),
+        stateId: Number(selectedState),
+        cityId: Number(selectedCity),
+
+        pincode: form.pincode,
+        latitude: form.latitude,
+        longitude: form.longitude,
+
+        accountholdername: form.accountHolder,
+        accountnumber: form.accountNumber,
+        bankname: form.bankName,
+        branchname: form.branchName,
+        bankifsccode: form.ifsc,
+        upiid: form.upiId,
+      };
+
+      if (isEditMode) {
+        await updateCompany({
+          id: editingCompany.id,
+          ...payload,
+        });
+      } else {
+        const formData = new FormData();
+
+        if (form.logo instanceof File) {
+          formData.append("logo", form.logo);
+        }
+
+        if (form.favicon instanceof File) {
+          formData.append("favicon", form.favicon);
+        }
+
+        await createCompany(payload, formData);
+      }
+
+      navigate("/companies");
+    } catch (error) {
+      console.log(
+        "Company save error:",
+        error.response?.data || error.message
+      );
+    }
+  };
   return (
     <div className="mx-4 min-h-screen">
       <div className="flex flex-col gap-1">
@@ -492,30 +661,75 @@ const CompanyRegistration = () => {
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <Label required>Country</Label>
-                <input
-                  value={form.country}
-                  onChange={(e) => set('country', e.target.value)}
-                  placeholder="Country"
-                  className={inputCls}
-                />
+                <p className={inputCls}>
+                  <select
+                    value={selectedCountry}
+                    onChange={handleCountryChange}
+                    className='w-full outline-none'
+                  >
+                    <option value="">
+                      Select Country
+                    </option>
+
+                    {countries.map((country) => (
+                      <option
+                        key={country.id}
+                        value={country.id}
+                      >
+                        {country.name}
+                      </option>
+                    ))}
+
+                  </select>
+                </p>
               </div>
               <div>
                 <Label required>State</Label>
-                <input
-                  value={form.state}
-                  onChange={(e) => set('state', e.target.value)}
-                  placeholder="State"
-                  className={inputCls}
-                />
+                <p className={inputCls}>
+                  <select
+                    value={selectedState}
+                    onChange={handleStateChange}
+                    className='w-full outline-none'
+                  >
+                    <option value="">
+                      Select State
+                    </option>
+
+                    {states.map((state) => (
+                      <option
+                        key={state.id}
+                        value={state.id}
+                      >
+                        {state.name}
+                      </option>
+                    ))}
+
+                  </select>
+                </p>
               </div>
               <div>
                 <Label required>City</Label>
-                <input
-                  value={form.city}
-                  onChange={(e) => set('city', e.target.value)}
-                  placeholder="City"
-                  className={inputCls}
-                />
+                <p className={inputCls}>
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    className='w-full outline-none'
+                  >
+                    <option value="">
+                      Select City
+                    </option>
+
+                    {cities?.map((city) => (
+                      <option
+                        key={city.id}
+                        value={city.id}
+                      >
+                        {city.name}
+                      </option>
+                    ))}
+
+                  </select>
+                </p>
               </div>
               <div>
                 <Label required>Pincode</Label>

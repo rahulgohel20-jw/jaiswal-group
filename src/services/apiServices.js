@@ -1,4 +1,4 @@
-import { POST, GET, PUT, DELETE, UPLOAD } from "./axiosInstance";
+import axiosInstance, { POST, GET, PUT, DELETE, UPLOAD } from "./axiosInstance";
 import axios from "./axiosInstance";
 
 // ---- Asset Category APIs ----
@@ -186,6 +186,52 @@ export const updateAssetUnit = ({ id, ...payload }) => {
 export const deleteAssetUnit = (id) => {
   return DELETE("/asset-unit/delete", { id });
 };
+
+//-- country API
+export const getAllCountry = () => {
+  return GET('/country/getall')
+}
+
+//-- state API
+export const getStateByCountry = (id) => {
+  return GET('/state/by-country',  { countryId: id });
+}
+
+//-- city API
+export const getCityByState = (stateId) => {
+  return GET('/city/getbystateid', { stateId });
+};
+
+// ---Company API and Unit API
+export const getRegisteredCompany = () => {
+  return GET("/organization/get-all");
+};
+export const getActiveCompany = () => {
+  return GET("/organization/get-all-active");
+};
+export const getCompanyById = (id) => {
+  return GET(`/organization/get/${id}`);
+};
+export const createCompany = (params, formData) => {
+  return axiosInstance.post(
+    "/organization/save",
+    formData,
+    { params }
+  );
+};
+
+export const updateCompany = (params) => {
+  return axiosInstance.put(
+    "/organization/update",
+    null,
+    { params }
+  );
+};
+
+export const deleteCompany = (id) => {
+  return DELETE(`/organization/delete/${id}`);
+};
+
 export const getAllCountries = () => {
   return GET("/country/getall");
 };
