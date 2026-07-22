@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, IdCard, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { loginUser } from '@/services/apiServices';
 
@@ -52,8 +52,8 @@ export default function LoginPage() {
     } catch (err) {
       console.error(err);
       setSubmitError(
-        err?.response?.data?.msg ||
-          err?.response?.data?.message ||
+        err?.response?.data?.errorMessage ||
+          err?.response?.data?.msg ||
           'Invalid credentials. Please try again.',
       );
     } finally {
@@ -145,32 +145,23 @@ export default function LoginPage() {
               {errors.password && <p className="text-[11px] text-red-500 mt-1">{errors.password}</p>}
             </div>
 
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-1.5 select-none">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="h-3.5 w-3.5 rounded border-[#CBD1DB] accent-[#1D4E89]"
-                />
-                <span className="text-[12px] text-[#54607A]">Remember Me</span>
-              </label>
-              <a href="/auth/forgot-password" className="text-[12px] text-[#1D4E89] font-medium hover:underline">
+            <div className="flex items-center justify-end pt-1">
+              <Link to="/auth/forgot-password" className="text-[12px] text-[#1D4E89] font-medium hover:underline">
                 Forgot Password?
-              </a>
+              </Link>
             </div>
 
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-[#0F2A4A] hover:bg-[#123256] text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
+              className="w-full bg-[#0F2A4A] hover:bg-[#123256] cursor-pointer text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
             >
               {submitting ? 'Logging in...' : 'Login'}
             </button>
           </form>
 
           <p className="text-center text-[10.5px] text-[#B3B9C4] mt-6">
-            © 2024 Jaiswal ERP v4.2.0. All Rights Reserved.
+            © 2026 Jaiswal ERP All Rights Reserved.
           </p>
         </div>
       </div>

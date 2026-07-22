@@ -1,13 +1,36 @@
 import { useState } from 'react';
-import { Mail, ArrowLeft, ShieldCheck, Lock as LockIcon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, ArrowLeft, ShieldCheck, Lock as LockIcon, AlertTriangle, X } from 'lucide-react';
+import { forgotPassword } from '@/services/apiServices';
 
 export default function ForgotPasswordPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSent(true);
+    setErrorMsg('');
+    setSubmitting(true);
+    try {
+      await forgotPassword({ email, organizationId: 1 });
+      setSent(true);
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(
+        err?.response?.data?.msg ||
+          err?.response?.data?.message ||
+          'Unable to send reset instructions. Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleContinueToReset = () => {
+    navigate('/auth/reset-password', { state: { email } });
   };
 
   return (
@@ -38,6 +61,21 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
 
+            {errorMsg && (
+              <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] text-red-700">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span className="flex-1">{errorMsg}</span>
+                <button
+                  type="button"
+                  onClick={() => setErrorMsg('')}
+                  className="shrink-0 text-red-400 hover:text-red-600"
+                  aria-label="Dismiss error"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {!sent ? (
               <>
                 <h2 className="text-[20px] font-bold text-[#0F2A4A] mb-1.5">Forgot Password?</h2>
@@ -63,9 +101,10 @@ export default function ForgotPasswordPage() {
 
                   <button
                     type="submit"
-                    className="w-full bg-[#0F2A4A] hover:bg-[#123256] text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2"
+                    disabled={submitting}
+                    className="w-full bg-[#0F2A4A] hover:bg-[#123256] text-white text-[13.5px] cursor-pointer font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
                   >
-                    Send Reset Link
+                    {submitting ? 'Sending...' : 'Send Reset Link'}
                   </button>
                 </form>
               </>
@@ -73,22 +112,29 @@ export default function ForgotPasswordPage() {
               <>
                 <h2 className="text-[20px] font-bold text-[#0F2A4A] mb-1.5">Check Your Email</h2>
                 <p className="text-[#8B93A1] text-[12.5px] leading-relaxed mb-6">
-                  We've sent password reset instructions to <span className="text-[#0F2A4A] font-medium">{email}</span>.
+                  We've sent a one-time code to <span className="text-[#0F2A4A] font-medium">{email}</span>.
                 </p>
                 <button
                   type="button"
+                  onClick={handleContinueToReset}
+                  className="w-full bg-[#0F2A4A] cursor-pointer hover:bg-[#123256] text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors"
+                >
+                  Enter OTP & Reset Password
+                </button>
+                <button
+                  type="button"
                   onClick={() => setSent(false)}
-                  className="w-full bg-[#0F2A4A] hover:bg-[#123256] text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors"
+                  className="w-full mt-2 text-[12.5px] text-[#1D4E89] font-medium hover:underline py-1"
                 >
                   Resend Link
                 </button>
               </>
             )}
 
-            <a href="/" className="mt-5 flex items-center justify-center gap-1.5 text-[12px] text-[#1D4E89] font-medium hover:underline">
+            <Link to="/" className="mt-5 cursor-pointer flex items-center justify-center gap-1.5 text-[12px] text-[#1D4E89] font-medium hover:underline">
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to Login
-            </a>
+            </Link>
           </div>
 
           <div className="flex items-center justify-center gap-4 mt-5">

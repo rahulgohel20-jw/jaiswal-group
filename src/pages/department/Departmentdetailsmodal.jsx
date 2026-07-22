@@ -8,7 +8,7 @@ import React from 'react';
  * Falls back to sensible defaults so it also works against the
  * lightweight rows used in DepartmentMaster.js.
  */
-const DepartmentDetailsModal = ({ isOpen, onClose, department }) => {
+const DepartmentDetailsModal = ({ isOpen, onClose,onEdit, department }) => {
     if (!isOpen || !department) return null;
 
     const {
@@ -27,6 +27,11 @@ const DepartmentDetailsModal = ({ isOpen, onClose, department }) => {
 
     const departmentCode = code || `DEPT-${String(id).padStart(3, '0')}`;
     const isActive = status === 'Active';
+
+
+    const handleEditClick = () => {
+        onEdit?.(department);
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -98,35 +103,13 @@ const DepartmentDetailsModal = ({ isOpen, onClose, department }) => {
                             {description}
                         </p>
                     </div>
-
-                    <div>
-                        <p className="text-sm font-bold text-[#1B1B1F] mb-3">Activity Timeline</p>
-                        <div className="flex flex-col gap-4">
-                            {activity.map((item, idx) => (
-                                <div key={idx} className="flex gap-3">
-                                    <div className="flex flex-col items-center pt-1">
-                                        <span className="w-2 h-2 rounded-full bg-[#084E92] shrink-0" />
-                                        {idx !== activity.length - 1 && (
-                                            <span className="w-px flex-1 bg-[#E5E7EB] mt-1" />
-                                        )}
-                                    </div>
-                                    <div className="pb-1">
-                                        <p className="text-sm font-semibold text-[#1B1B1F]">
-                                            {item.title}
-                                        </p>
-                                        <p className="text-xs text-[#43474F] mt-0.5">{item.detail}</p>
-                                        <p className="text-[11px] text-[#9CA3AF] mt-0.5">{item.time}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
                 </div>
 
                 {/* Footer */}
                 <div className="border-t border-[#E5E7EB] px-5 py-4 flex gap-3">
                     <button
                         type="button"
+                        onClick={handleEditClick}
                         className="flex-1 px-4 py-2 bg-[#084E92] text-white rounded-lg font-medium hover:bg-[#073e77] transition cursor-pointer"
                     >
                         Edit Department

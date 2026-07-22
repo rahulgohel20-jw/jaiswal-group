@@ -1,6 +1,16 @@
 import axiosInstance, { POST, GET, PUT, DELETE, UPLOAD } from "./axiosInstance";
 import axios from "./axiosInstance";
 
+// ---- Auth APIs ----
+  
+export const loginUser = (payload) => POST('/auth/login', payload);
+
+// ---- Password Reset APIs ----
+
+export const forgotPassword = (payload) => POST('/auth/forgot-password', payload);
+
+export const resetPassword = (payload) => POST('/auth/reset-password', payload);
+
 // ---- Asset Category APIs ----
 
 export const getAssetCategories = () => {
@@ -269,4 +279,32 @@ export const deleteEmployeeById = (id) => {
   return DELETE(`/employee/delete/${id}`);
 }
 
-export const loginUser = (payload) => POST('/auth/login', payload);
+// ---- Department APIs ----
+
+export const getAllDepartments = () => {
+  return GET('/department/get-all');
+};
+
+export const getAllActiveDepartments = () => {
+  return GET('/department/get-all-active');
+};
+
+export const getDepartmentsByOrganization = (orgId) => {
+  return GET(`/department/get-by-organization/${orgId}`);
+};
+
+export const getDepartmentById = (id) => {
+  return GET(`/department/get/${id}`);
+};
+
+export const saveDepartment = (payload) => {
+  return POST('/department/save', payload);
+};
+
+export const updateDepartment = (payload) => {
+  return PUT('/department/update', payload, { id: payload.id });
+};
+
+export const deleteDepartmentById = (id) => {
+  return DELETE(`/department/delete/${id}`);
+};

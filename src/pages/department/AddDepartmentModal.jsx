@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, Info, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -12,36 +13,29 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-/**
- * "Add Department" modal.
- * Mirrors the visual language of AddCategoryModal but adds a
- * real-time preview card that reflects the form state as the
- * user types, matching the department-master design reference.
- *
- * onSave(form, { addAnother }) is called with the current form
- * values. `addAnother` is true when the user clicks
- * "Save & Add Another" so the caller can decide whether to keep
- * the modal open.
- */
-const AddDepartmentModal = ({ isOpen, onClose, onSave }) => {
-  const [form, setForm] = useState({
-    name: '',
-    status: 'Active',
-  });
+const AddDepartmentModal = ({ isOpen, onClose, onSave, initialData }) => {
+  const isEditMode = Boolean(initialData);
+
+  const [form, setForm] = useState({ name: '', status: 'Active', description: '' });
+
+  useEffect(() => {
+    if (isOpen) {
+      setForm({
+        name: initialData?.name || '',
+        description: initialData?.description || '',
+        status: initialData?.status || 'Active',
+      });
+    }
+  }, [isOpen, initialData]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   if (!isOpen) return null;
 
-  const resetForm = () => setForm({ name: '', status: 'Active' });
+  const resetForm = () => setForm({ name: '', status: 'Active', description: '' });
 
   const handleSave = () => {
     onSave?.(form, { addAnother: false });
-    resetForm();
-  };
-
-  const handleSaveAndAddAnother = () => {
-    onSave?.(form, { addAnother: true });
     resetForm();
   };
 
@@ -49,10 +43,6 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave }) => {
     resetForm();
     onClose?.();
   };
-
-  const previewName = form.name.trim() || 'New Department';
-  const previewInitial = previewName.charAt(0).toUpperCase();
-  const isActive = form.status === 'Active';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -64,15 +54,15 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave }) => {
               <Building2 className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold leading-none text-primary">Add Department</h3>
-              <p className="text-xs text-gray-500 mt-2">Configure organization structure</p>
+              <h3 className="text-lg font-semibold leading-none text-primary">
+                {isEditMode ? 'Edit Department' : 'Add Department'}
+              </h3>
+              <p className="text-xs text-gray-500 mt-2">
+                {isEditMode ? 'Update organization structure' : 'Configure organization structure'}
+              </p>
             </div>
           </div>
-          <button
-            onClick={handleClose}
-            className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
-            aria-label="Close"
-          >
+          <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0" aria-label="Close">
             <X className="h-5 w-5 cursor-pointer" />
           </button>
         </div>
@@ -93,12 +83,21 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave }) => {
 
           <div>
             <label className="text-xs font-semibold text-[#737781] uppercase tracking-wide">
-              Status
+              Description
             </label>
+            <Textarea
+              placeholder="Brief description of this department's function..."
+              className="mt-1.5 resize-none"
+              rows={3}
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-[#737781] uppercase tracking-wide">Status</label>
             <Select value={form.status} onValueChange={(value) => set('status', value)}>
-              <SelectTrigger className="mt-1.5">
-                <SelectValue />
-              </SelectTrigger>
+              <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Active">Active</SelectItem>
                 <SelectItem value="Inactive">Inactive</SelectItem>
@@ -106,7 +105,6 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave }) => {
             </Select>
           </div>
 
-          {/* Info note */}
           <div className="bg-[#EFF4FF] border border-[#DDE7FF] rounded-lg p-3 flex gap-2">
             <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
             <p className="text-xs text-[#43474F] leading-relaxed">
@@ -118,19 +116,15 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave }) => {
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 p-4 border-t bg-gray-50 flex-shrink-0">
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
+          <Button variant="outline" onClick={handleClose}>Cancel</Button>
+          <Button
+            onClick={handleSave}
+            disabled={!form.name.trim()}
+            className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
+          >
+            <Save className="h-4 w-4" />
+            {isEditMode ? 'Update Department' : 'Save Department'}
           </Button>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleSave}
-              disabled={!form.name.trim()}
-              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
-            >
-              <Save className="h-4 w-4" />
-              Save Department
-            </Button>
-          </div>
         </div>
       </div>
     </div>
