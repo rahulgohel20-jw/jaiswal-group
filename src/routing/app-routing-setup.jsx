@@ -222,6 +222,7 @@ export function AppRoutingSetup() {
           <Route path='/assets/add-maintenance-log' element={<AddAssetsMaintenanceLog/>}/>
 
           <Route path='/assets/asset-transfer-log' element={<AssetsTransferLog/>}/>
+          <Route path='/assets/asset-transfer' element={<AddAssetsTransfer />} />
           
           <Route path='/assets/asset-disposal' element={<AssetsDisposalLog/>}/>
           <Route path='/assets/add-disposal' element={<AddAssetsDisposal/>}/>
