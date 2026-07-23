@@ -63,7 +63,7 @@ const INITIAL_VENDORS = [
     mobile: "+91 99789 33421",
     category: "operations",
     kycStatus: "verified",
-     kycView: 'Re-verify',
+    kycView: 'Re-verify',
   },
   {
     id: 4,
@@ -116,13 +116,12 @@ const StatusBadge = ({ status }) => (
     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}
   >
     <span
-      className={`w-1.5 h-1.5 rounded-full ${
-        status === "verified"
+      className={`w-1.5 h-1.5 rounded-full ${status === "verified"
           ? "bg-emerald-500"
           : status === "pending"
-          ? "bg-amber-500"
-          : "bg-red-500"
-      }`}
+            ? "bg-amber-500"
+            : "bg-red-500"
+        }`}
     />
     {STATUS_LABELS[status]}
   </span>
@@ -274,7 +273,7 @@ const VendorList = () => {
       }),
     [vendors, search, categoryFilter, kycFilter],
   );
-  
+
   const handleEdit = (vendor) => {
     navigate('/vendors/update-vendor', { state: { vendor } });
   };
@@ -346,13 +345,13 @@ const VendorList = () => {
         cell: ({ row }) => <StatusBadge status={row.original.kycStatus} />,
         size: 130,
       },
-       {
-                id: "kycView",
-                accessorFn: (row) => row.kycView,
-                header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
-                cell: ({ row }) => <Link to="/vendor/kyc-information" className={`${row.original.kycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.kycView} </Link>,
-                size: 150,
-       },
+      {
+        id: "kycView",
+        accessorFn: (row) => row.kycView,
+        header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
+        cell: ({ row }) => <Link to="/vendor/kyc-information" className={`${row.original.kycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.kycView} </Link>,
+        size: 150,
+      },
       {
         id: "actions",
         header: () => (
@@ -364,7 +363,11 @@ const VendorList = () => {
           <div className="flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
-              onClick={() => setViewingVendor(row.original)}
+              onClick={() =>
+                navigate("/vendors/view-vendor", {
+                  state: { vendor: row.original },
+                })
+              }
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
               title="View vendor"
             >
@@ -554,10 +557,6 @@ const VendorList = () => {
           </Card>
         </DataGrid>
       </div>
-
-      {viewingVendor && (
-        <ViewVendorModal vendor={viewingVendor} onClose={() => setViewingVendor(null)} />
-      )}
 
       {deletingVendor && (
         <DeleteConfirmModal

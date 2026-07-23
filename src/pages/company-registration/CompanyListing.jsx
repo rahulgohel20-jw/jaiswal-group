@@ -93,50 +93,6 @@ const DeleteConfirmModal = ({ company, onCancel, onConfirm }) => (
   </div>
 );
 
-const ViewCompanyModal = ({ company, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900">Company Details</h2>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="px-6 py-5 space-y-4">
-        {[
-          ["Company Name", company.name],
-          ["Company Code", company.code],
-          ["Location", company.location],
-          ["Mobile Number", company.mobile],
-          ["GST Number", company.gstNumber || "—"],
-        ].map(([label, value]) => (
-          <div key={label} className="flex items-center justify-between text-sm">
-            <span className="text-gray-400">{label}</span>
-            <span className="font-semibold text-gray-800">{value}</span>
-          </div>
-        ))}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Status</span>
-          <StatusBadge status={company.status} />
-        </div>
-      </div>
-      <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
 const CompanyRegistration = () => {
   const navigate = useNavigate();
   const [companies, setCompanies] = useState([]);
@@ -146,11 +102,6 @@ const CompanyRegistration = () => {
   const [deletingCompany, setDeletingCompany] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
-
-  const [selectedCompany, setSelectedCompany] = useState(null);
-  const [showViewCompany, setShowViewCompany] = useState(false);
-  const [viewLoading, setViewLoading] = useState(false);
-
 
   const normalizeCompany = (item) => ({
     id: item.id,
@@ -193,20 +144,18 @@ const CompanyRegistration = () => {
   }, []);
 
   const handleViewClick = async (company) => {
-    setShowViewCompany(true);
-    setSelectedCompany(null);
-    setViewLoading(true);
-    try {
-      const res = await getCompanyById(company.id);
-      const data = res?.data?.data || res?.data;
-      setSelectedCompany(data ? normalizeCompany(data) : company);
-    } catch (err) {
-      console.error(err);
-      setSelectedCompany(company);
-    } finally {
-      setViewLoading(false);
-    }
-  };
+  try {
+    const res = await getCompanyById(company.id);
+    navigate("/companies/company-details", {
+      state: {
+        company: res.data.data,
+      },
+    });
+
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   const filteredCompanies = useMemo(
     () =>
@@ -445,24 +394,6 @@ const CompanyRegistration = () => {
           </Card>
         </DataGrid>
       </div>
-
-      {showViewCompany && (
-        viewLoading ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            Loading...
-          </div>
-        ) : (
-          selectedCompany && (
-            <ViewCompanyModal
-              company={selectedCompany}
-              onClose={() => {
-                setShowViewCompany(false);
-                setSelectedCompany(null);
-              }}
-            />
-          )
-        )
-      )}
 
       {deletingCompany && (
         <DeleteConfirmModal
