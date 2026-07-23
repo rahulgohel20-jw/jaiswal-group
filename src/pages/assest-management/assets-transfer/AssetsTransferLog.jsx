@@ -1,4 +1,4 @@
-import { ArrowLeftRight, CalendarDays, ChevronRight, Download, Eye, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, CalendarDays, ChevronRight ,Download, Eye, RotateCcw, Search, SquarePen, Trash2,CalendarSync } from 'lucide-react';
 import React, { useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -16,6 +16,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { Link } from 'react-router';
 
 
 
@@ -324,12 +325,18 @@ const AssetsTransferLog = () => {
                         locations with high-fidelity tracking.
                     </p>
                 </div>
-                <div>
-                    <button className="flex items-center cursor-pointer gap-2 px-4 py-2 border rounded-xl text-[#0B5CAB] hover:bg-gray-50 transition-colors duration-200">
+                <div className='flex gap-5'>
+                    <button className="flex items-center cursor-pointer gap-2 h-11 px-5 border rounded-xl text-[#0B5CAB] hover:bg-gray-50 transition-colors duration-200">
                         <Download size={16} />
                         Export
                     </button>
-
+                    <Link
+                        to="/assets/asset-transfer"
+                        className="flex items-center cursor-pointer gap-2 h-11 px-5 rounded-xl bg-[#0B5CAB] text-white font-medium hover:bg-[#094b8f] transition"
+                    >
+                        <CalendarSync size={16} />
+                        Transfer New Asset
+                    </Link>
                 </div>
             </div>
 

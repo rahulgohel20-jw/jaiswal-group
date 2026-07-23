@@ -147,6 +147,7 @@ import ResetPasswordPage from '../pages/auth/login/ResetPassword';
 import UserViewDetails from '../pages/user/UserViewDetails';
 import { GuestOnly } from '../pages/auth/login/GuestOnly';
 import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
+import AddAssetsTransfer from '../pages/assest-management/assets-transfer/AddAssetsTranfer';
 
 export function AppRoutingSetup() {
   return (
@@ -216,6 +217,7 @@ export function AppRoutingSetup() {
           <Route path='/assets/add-maintenance-log' element={<AddAssetsMaintenanceLog/>}/>
 
           <Route path='/assets/asset-transfer-log' element={<AssetsTransferLog/>}/>
+          <Route path='/assets/asset-transfer' element={<AddAssetsTransfer />} />
           
           <Route path='/assets/asset-disposal' element={<AssetsDisposalLog/>}/>
           <Route path='/assets/add-disposal' element={<AddAssetsDisposal/>}/>
