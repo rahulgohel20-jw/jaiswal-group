@@ -23,9 +23,8 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { getAllEmployees, deleteEmployeeById } from '@/services/apiServices';
+import { getAllEmployees, deleteEmployeeById, getActiveCompany, getAllActiveDepartments  } from '@/services/apiServices';
 import { extractList, mapEmployeeToRow } from './utils/Employeemappers';
-import { getActiveCompany } from '../../services/apiServices';
 import { notify } from "@/utils/toast";
 
 
@@ -83,15 +82,6 @@ const DeleteConfirmModal = ({ user, onCancel, onConfirm, deleting }) => (
   </div>
 );
 
-const DEPARTMENT_OPTIONS = [
-  { key: "all", label: "All Categories" },
-  { key: "Management", label: "Management" },
-  { key: "Finance", label: "Finance" },
-  { key: "Operations", label: "Operations" },
-  { key: "Logistics", label: "Logistics" },
-  { key: "IT Support", label: "IT Support" },
-];
-
 const ROLE_OPTIONS = [
   { key: "all", label: "All Roles" },
   { key: "Super Admin", label: "Super Admin" },
@@ -120,7 +110,27 @@ const UserManagementList = () => {
   const [kycFilter, setKycFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [activeCompanies, setActiveCompanies] = useState([]);
+
+  const [departmentOptions, setDepartmentOptions] = useState([{ key: "all", label: "All Categories" }]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+
  
+  const fetchDepartmentOptions = async () => {
+    setLoadingDepartments(true);
+    try {
+      const res = await getAllActiveDepartments();
+      const list = extractList(res).map((d) => ({
+        key: d.departmentName,
+        label: d.departmentName,
+      }));
+      setDepartmentOptions([{ key: "all", label: "All Categories" }, ...list]);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
   const fetchActiveCompanies = async () => {
   try {
     const res = await getActiveCompany();
@@ -151,6 +161,7 @@ const UserManagementList = () => {
   useEffect(() => {
     fetchUsers();
     fetchActiveCompanies();
+    fetchDepartmentOptions();
   }, []);
 
   const DATA = [
@@ -431,14 +442,15 @@ const UserManagementList = () => {
             <div className="text-sm">
               <p>Department</p>
               <p className="py-2 px-2 rounded mt-1">
-                <select
+               <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
+                  disabled={loadingDepartments}
+                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {DEPARTMENT_OPTIONS.map((opt) => (
+                  {departmentOptions.map((opt) => (
                     <option key={opt.key} value={opt.key}>
-                      {opt.label}
+                      {loadingDepartments && opt.key === "all" ? "Loading..." : opt.label}
                     </option>
                   ))}
                 </select>

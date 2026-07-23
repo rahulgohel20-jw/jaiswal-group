@@ -648,13 +648,16 @@ const UserRegistration = () => {
                   )}
 
                   <div>
-                    <Label required>Username</Label>
+                    <Label>Username</Label>
                     <input
                       name="username"
                       value={form.username}
                       onChange={(e) => set('username', e.target.value)}
                       placeholder="e.g., rjaiswal"
-                      className={errors.username ? errorInputCls : inputCls}
+                      disabled={isEditMode}
+                      className={`${errors.username ? errorInputCls : inputCls} ${
+                       isEditMode ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
+                    }`}
                     />
                     <ErrorText message={errors.username} />
                   </div>
