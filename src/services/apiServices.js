@@ -308,3 +308,28 @@ export const updateDepartment = (payload) => {
 export const deleteDepartmentById = (id) => {
   return DELETE(`/department/delete/${id}`);
 };
+
+// ---- Asset APIs ----
+
+export const getAllAssets = () => {
+  return GET('/assets/getall');
+}
+
+export const createAsset = (formData) => {
+  return axiosInstance.post("/assets/create", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+export const getAssetById = (id) => {
+  return GET(`/assets/get`, { id } );
+}
+
+// Fetch images for an asset by id
+export const getAssetImagesById = (id) => {
+  return GET(`/assets/get/images`, { id } );
+}
+
+export const deleteAsset = (id) => { 
+  return DELETE('/assets/delete', { id } );
+}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router';
 import {
   Boxes,
   ChevronDown,
@@ -24,7 +25,10 @@ import {
   getSubCategoriesByCategory,
   getActiveSubCategories,
   getActiveAssetTypes,
-  getActiveAssetBrands
+  getActiveAssetBrands,
+  createAsset,
+  getActiveConditions,
+  getActiveStatuses,
 } from '@/services/apiServices';
 import AddAssetTypeModal from '../assets-type/AddAssetTypeModal';
 import AddAssetBrandModal from '../asset-brand/AddAssetBrandModal';
@@ -236,7 +240,27 @@ const unwrapList = (res) => {
   return Array.isArray(raw) ? raw : [];
 };
 
+// <input type="date"> gives "yyyy-mm-dd"; backend expects "dd/mm/yyyy". Returns null for empty/invalid input.
+const toDDMMYYYY = (dateStr) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split('-');
+  if (!year || !month || !day) return null;
+  return `${day}/${month}/${year}`;
+};
+
+// <input type="date"> gives "yyyy-mm-dd"; backend expects "mm/dd/yyyy". Returns null for empty/invalid input.
+const toMMDDYYYY = (dateStr) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split('-');
+  if (!year || !month || !day) return null;
+  return `${month}/${day}/${year}`;
+};
+
 const AddAsset = () => {
+  const { id: assetIdParam } = useParams();
+  const navigate = useNavigate();
+  const isEditMode = !!assetIdParam;
+
   const [openSections, setOpenSections] = useState({
     identification: true,
     product: true,
@@ -245,6 +269,7 @@ const AddAsset = () => {
   const toggleSection = (s) => setOpenSections((p) => ({ ...p, [s]: !p[s] }));
 
   const [amcActive, setAmcActive] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // ---- Dynamic dropdown data ----
   const [categories, setCategories] = useState([]);
@@ -257,13 +282,19 @@ const AddAsset = () => {
   const [assetTypesLoading, setAssetTypesLoading] = useState(true);
 
   const [assetBrand, setAssetBrand] = useState([]);
-  const [assetBrandsLoading,setAssetBrandsLoading] = useState(true);
-  
+  const [assetBrandsLoading, setAssetBrandsLoading] = useState(true);
+
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [showAddSubCategoryModal, setShowAddSubCategoryModal] = useState(false);
-  const [showAddAssetTypeCategoryModal,setShowAssetTypeCategoryModal] = useState(false);
-  const [showAddAssetBrandCategoryModal,setShowAddAssetBrandCategoryModal] = useState(false);
+  const [showAddAssetTypeCategoryModal, setShowAssetTypeCategoryModal] = useState(false);
+  const [showAddAssetBrandCategoryModal, setShowAddAssetBrandCategoryModal] = useState(false);
 
+  const [conditions, setConditions] = useState([]);
+  const [conditionsLoading, setConditionsLoading] = useState(true);
+
+  const [statuses, setStatuses] = useState([]);
+  const [statusesLoading, setStatusesLoading] = useState(true);
+  
   const fetchCategories = async () => {
     setCategoriesLoading(true);
     try {
@@ -306,7 +337,7 @@ const AddAsset = () => {
 
   const fetchAssetBrand = async () => {
     setAssetBrandsLoading(true);
-     try {
+    try {
       const res = await getActiveAssetBrands();
       setAssetBrand(unwrapList(res));
     } catch (err) {
@@ -314,17 +345,44 @@ const AddAsset = () => {
     } finally {
       setAssetBrandsLoading(false);
     }
-  }
+  };
 
-  useEffect(() => {
-    fetchCategories();
-    fetchAssetTypes();
-    fetchSubCategories(null);
-    fetchAssetBrand();
-  }, []);
+
+  const fetchConditions = async () => {
+  setConditionsLoading(true);
+  try {
+    const res = await getActiveConditions();
+    setConditions(unwrapList(res));
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setConditionsLoading(false);
+  }
+};
+
+const fetchStatuses = async () => {
+  setStatusesLoading(true);
+  try {
+    const res = await getActiveStatuses();
+    setStatuses(unwrapList(res));
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setStatusesLoading(false);
+  }
+};
+
+useEffect(() => {
+  fetchCategories();
+  fetchAssetTypes();
+  fetchSubCategories(null);
+  fetchAssetBrand();
+  fetchConditions();
+  fetchStatuses();
+}, []);
 
   const [form, setForm] = useState({
-    assetId: 'AST-890125',
+    assetId: '',
     category: '',
     subCategory: '',
     assetType: '',
@@ -368,26 +426,136 @@ const AddAsset = () => {
     fetchSubCategories(value || null);
   };
 
+  // Load existing asset when editing
+  useEffect(() => {
+    if (!isEditMode) return;
+    // TODO: wire to a real getAssetById(assetIdParam) call once available, e.g.:
+    // getAssetById(assetIdParam).then((res) => {
+    //   const a = res?.data?.data ?? res?.data;
+    //   setForm((f) => ({ ...f, assetId: a.assetId, itemName: a.itemName, /* ...map remaining fields */ }));
+    //   setAmcActive(!!a.amcActive);
+    // }).catch(console.error);
+  }, [isEditMode, assetIdParam]);
+
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
   const subCategoryOptions = subCategories.map((c) => ({ value: c.id, label: c.name }));
   const assetTypeOptions = assetTypes.map((c) => ({ value: c.id, label: c.name }));
-  const assetBrandOptions = assetBrand.map((c) => ({ value: c.id,label: c.name}))
+  const assetBrandOptions = assetBrand.map((c) => ({ value: c.id, label: c.name }));
+  const conditionOptions = conditions.map((c) => ({ value: c.id, label: c.name }));
+  const statusOptions = statuses.map((c) => ({ value: c.id, label: c.name }));
+
+  const initialFormState = {
+    assetId: '',
+    category: '',
+    subCategory: '',
+    assetType: '',
+
+    itemName: '',
+    brand: '',
+    modelNumber: '',
+    serialNumber: '',
+    assetImage: null,
+
+    purchaseDate: '',
+    vendor: '',
+    invoiceNumber: '',
+    purchaseCost: '',
+    currentValue: '',
+    depreciation: '',
+
+    warrantyStart: '',
+    warrantyEnd: '',
+    amcExpiry: '',
+    amcProvider: '',
+
+    lastMaintenance: '',
+    nextMaintenance: '',
+    frequency: '',
+    maintenanceCost: '',
+
+    condition: '',
+    status: '',
+    totalQty: '1',
+    availableQty: '1',
+    reservedQty: '0',
+  };
+
+  const buildAssetPayload = () => ({
+    categoryId: form.category,
+    subCategoryId: form.subCategory,
+    assetTypeId: form.assetType,
+    itemName: form.itemName,
+    brandName: assetBrand.find((b) => String(b.id) === String(form.brand))?.id || 'dd',
+    modelNumber: form.modelNumber,
+    serialNumber: form.serialNumber,
+    purchaseDate: toDDMMYYYY(form.purchaseDate),
+    vendorId: 0, // TODO: static placeholder until a vendor master/API exists — confirm the actual static id to use
+    invoiceNumber: form.invoiceNumber,
+    purchaseCost: form.purchaseCost ? Number(form.purchaseCost) : null,
+    currentValue: form.currentValue ? Number(form.currentValue) : null,
+    depreciationPercentage: form.depreciation ? Number(form.depreciation) : null,
+    warrantyStartDate: toDDMMYYYY(form.warrantyStart),
+    warrantyEndDate: toDDMMYYYY(form.warrantyEnd),
+    amcActive,
+    amcExpiryDate: amcActive ? toDDMMYYYY(form.amcExpiry) : null,
+    amcProvider: amcActive ? form.amcProvider : null,
+    lastMaintenance: toDDMMYYYY(form.lastMaintenance),
+    nextMaintenance: toDDMMYYYY(form.nextMaintenance),
+    maintenanceFrequency: form.frequency || null,
+    maintenanceCost: form.maintenanceCost ? Number(form.maintenanceCost) : null,
+    conditionId: form.condition || null,
+    statusId: form.status || null,
+    totalQuantity: form.totalQty ? Number(form.totalQty) : null,
+    availableQuantity: form.availableQty ? Number(form.availableQty) : null,
+    reservedQuantity: form.reservedQty ? Number(form.reservedQty) : null,
+  });
+
+  const handleSaveAsset = async () => {
+    try {
+      setSaving(true);
+
+      const fd = new FormData();
+      fd.append(
+        'assetData',
+        new Blob([JSON.stringify(buildAssetPayload())], { type: 'application/json' })
+      );
+      if (form.assetImage) {
+        fd.append('assetImages', form.assetImage);
+      }
+
+      // TODO: branch to updateAsset(assetIdParam, fd) once that endpoint exists
+      const res = await createAsset(fd);
+      if (res?.status === 201) {
+      setForm(initialFormState);
+      setAmcActive(false);
+      navigate('/assets/all-assets');
+    }
+    } catch (err) {
+      console.error('Failed to save asset:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="mx-4 min-h-screen pb-8">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">Asset Registration</h1>
+          <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
+            {isEditMode ? 'Edit Asset' : 'Asset Registration'}
+          </h1>
           <p className="text-[#43474F] mt-2">
             Register and manage all organizational assets to maintain complete lifecycle visibility and compliance.
           </p>
         </div>
         <button
           type="button"
+          onClick={handleSaveAsset}
+          disabled={saving}
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition shrink-0"
         >
           <Save className="w-4 h-4" />
-          Save Asset
+          {saving ? 'Saving...' : 'Save Asset'}
         </button>
       </div>
 
@@ -401,28 +569,30 @@ const AddAsset = () => {
         />
         {openSections.identification && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Asset ID</Label>
-                <div className="relative">
-                  <input
-                    value={form.assetId}
-                    disabled
-                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed pr-9`}
-                  />
-                  <Copy className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+            {isEditMode && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Asset ID</Label>
+                  <div className="relative">
+                    <input
+                      value={form.assetId}
+                      disabled
+                      className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed pr-9`}
+                    />
+                    <Copy className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                  </div>
                 </div>
-              </div>
 
-              <CodeBox
-                label="QR Code"
-                icon={QrCode}
-                actions={[
-                  { label: 'Preview', icon: ScanLine, onClick: () => {} },
-                  { label: 'Download', icon: Download, onClick: () => {}, tone: 'muted' },
-                ]}
-              />
-            </div>
+                <CodeBox
+                  label="QR Code"
+                  icon={QrCode}
+                  actions={[
+                    { label: 'Preview', icon: ScanLine, onClick: () => {} },
+                    { label: 'Download', icon: Download, onClick: () => {}, tone: 'muted' },
+                  ]}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-4">
               <div className="flex flex-col justify-end">
@@ -460,9 +630,9 @@ const AddAsset = () => {
               <div className="flex flex-col justify-end">
                 <div className="flex justify-between gap-2 mb-3">
                   <Label required>Asset Type</Label>
-                    <Button className="cursor-pointer" onPress={() => setShowAssetTypeCategoryModal(true)}>
-                      <CirclePlus />
-                    </Button>
+                  <Button className="cursor-pointer" onPress={() => setShowAssetTypeCategoryModal(true)}>
+                    <CirclePlus />
+                  </Button>
                 </div>
                 <Select
                   value={form.assetType}
@@ -471,7 +641,6 @@ const AddAsset = () => {
                   options={assetTypeOptions}
                   disabled={assetTypesLoading}
                 />
-                
               </div>
             </div>
           </div>
@@ -499,7 +668,7 @@ const AddAsset = () => {
                   className={inputCls}
                 />
               </div>
-              <div >
+              <div>
                 <div className="flex justify-between gap-2 mb-3">
                   <Label required>Brand</Label>
                   <Button className="cursor-pointer" onPress={() => setShowAddAssetBrandCategoryModal(true)}>
@@ -513,7 +682,6 @@ const AddAsset = () => {
                   options={assetBrandOptions}
                   disabled={assetBrandsLoading}
                 />
-                
               </div>
             </div>
 
@@ -531,7 +699,7 @@ const AddAsset = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <ImageUpload value={form.assetImage} onChange={(file) => set('assetImage', file)} />
-               <div>
+              <div>
                 <Label>Serial Number</Label>
                 <input
                   value={form.serialNumber}
@@ -741,25 +909,27 @@ const AddAsset = () => {
         {openSections.status && (
           <div className="px-6 py-6">
             <div className="grid grid-cols-5 gap-4">
+           <div>
+            <Label>Condition</Label>
+            <Select
+              value={form.condition}
+              onChange={(e) => set('condition', e.target.value)}
+              placeholder={conditionsLoading ? 'Loading conditions...' : 'Select condition'}
+              options={conditionOptions}
+              disabled={conditionsLoading}
+            />
+          </div>
+          <div>
+            <Label>Status</Label>
+            <Select
+              value={form.status}
+              onChange={(e) => set('status', e.target.value)}
+              placeholder={statusesLoading ? 'Loading statuses...' : 'Select status'}
+              options={statusOptions}
+              disabled={statusesLoading}
+            />
+          </div>
               <div>
-                <Label>Condition</Label>
-                <Select
-                  value={form.condition}
-                  onChange={(e) => set('condition', e.target.value)}
-                  placeholder="Select condition"
-                  options={['Excellent', 'Good', 'Fair', 'Poor']}
-                />
-              </div>
-              <div>
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onChange={(e) => set('status', e.target.value)}
-                  placeholder="Select status"
-                  options={['Available', 'In Use', 'Under Repair', 'Retired']}
-                />
-              </div>
-                            <div>
                 <Label>Total Quantity</Label>
                 <input
                   value={form.totalQty}
@@ -779,7 +949,7 @@ const AddAsset = () => {
                 <Label>Reserved Qty</Label>
                 <input
                   value={form.reservedQty}
-                 onChange={(e) => set('reservedQty', e.target.value)}
+                  onChange={(e) => set('reservedQty', e.target.value)}
                   className={`${inputCls} bg-gray-50 text-gray-400`}
                 />
               </div>
@@ -799,9 +969,11 @@ const AddAsset = () => {
           </button>
           <button
             type="button"
+            onClick={handleSaveAsset}
+            disabled={saving}
             className="px-5 py-2.5 rounded-lg text-[#084E92] border border-[#084E92] font-semibold text-sm hover:bg-blue-50/40 transition cursor-pointer bg-white"
           >
-            Save Asset
+            {saving ? 'Saving...' : 'Save Asset'}
           </button>
           <button
             type="button"
@@ -828,17 +1000,17 @@ const AddAsset = () => {
       />
 
       <AddAssetTypeModal
-       isOpen={showAddAssetTypeCategoryModal}
-       onClose={() => setShowAssetTypeCategoryModal(false)}
-       onSaved={fetchAssetTypes}
-       initialData={null}
+        isOpen={showAddAssetTypeCategoryModal}
+        onClose={() => setShowAssetTypeCategoryModal(false)}
+        onSaved={fetchAssetTypes}
+        initialData={null}
       />
 
-      <AddAssetBrandModal 
-       isOpen={showAddAssetBrandCategoryModal}
-       onClose={() => setShowAddAssetBrandCategoryModal(false)}
-       onSaved={fetchAssetTypes}
-       initialData={null}
+      <AddAssetBrandModal
+        isOpen={showAddAssetBrandCategoryModal}
+        onClose={() => setShowAddAssetBrandCategoryModal(false)}
+        onSaved={fetchAssetTypes}
+        initialData={null}
       />
     </div>
   );

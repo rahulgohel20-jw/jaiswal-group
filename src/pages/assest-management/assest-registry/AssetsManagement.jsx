@@ -1,5 +1,5 @@
-import { AlertTriangle, CircleCheck, Download, Eye, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
-import React, { useMemo, useState } from 'react'
+import { AlertTriangle, CircleCheck, Download, Eye, Loader2, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -8,8 +8,10 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CheckboxButton, CheckboxField } from 'react-aria-components';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import AssetPreviewDetail from './AssetPreviewDetail';
+import { getAllAssets,deleteAsset } from '@/services/apiServices';
+
 const STATS = [
     {
         title: "Total Assets",
@@ -53,100 +55,42 @@ const STATS = [
     },
 ];
 
-const INITIAL_ASSETS = [
-    {
-        id: 1,
-        assetId: "AST-000125",
-        itemName: "Chest Freezer",
-        category: "Kitchen Equipment",
-        status: "Available",
-        condition: "excellent",
-        value: 48500,
-        warranty: "valid",
+// Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
+const unwrapList = (res) => {
+    const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+    console.log(res)
+    return Array.isArray(raw) ? raw : [];
+};
 
-        activities: [
-            {
-                title: "Last Audited",
-                subtitle: "05 Jan 2024 • Site Audit Team",
-                status: "Verified",
-                active: true,
-            },
-            {
-                title: "Assigned to HQ - Floor 2",
-                subtitle: "12 Oct 2023 • Rajesh Kumar",
-            },
-            {
-                title: "Registered",
-                subtitle: "11 Oct 2023 • System Entry",
-            },
-            {
-                title: "Created",
-                subtitle: "10 Oct 2023 • Admin User",
-            },
-        ],
-    },
+const WARRANTY_SOON_DAYS = 30;
 
-    {
-        id: 2,
-        assetId: "AST-000142",
-        itemName: "Dell Latitude",
-        category: "IT Equipment",
-        status: "Assigned",
-        condition: "good",
-        value: 65000,
-        warranty: "expiring",
+// Derives "valid" / "expiring" from a warranty end date since the API
+// likely returns a date, not a precomputed label. Treat missing/unparsable
+// dates as "valid" so the table doesn't flag things it isn't sure about.
+const getWarrantyState = (endDate) => {
+    if (!endDate) return "valid";
+    const end = new Date(endDate);
+    if (Number.isNaN(end.getTime())) return "valid";
+    const daysLeft = (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    return daysLeft <= WARRANTY_SOON_DAYS ? "expiring" : "valid";
+};
 
-        activities: [
-            {
-                title: "Assigned to Anita Desai",
-                subtitle: "15 Jan 2024 • IT Department",
-                status: "Active",
-                active: true,
-            },
-            {
-                title: "Registered",
-                subtitle: "10 Jan 2024 • System Entry",
-            },
-            {
-                title: "Created",
-                subtitle: "08 Jan 2024 • Admin User",
-            },
-        ],
-    },
-
-    {
-        id: 3,
-        assetId: "AST-000143",
-        itemName: "Dell Latitude",
-        category: "IT Equipment",
-        status: "Maintenance",
-        condition: "fair",
-        value: 65000,
-        warranty: "expiring",
-
-        activities: [
-            {
-                title: "Sent For Maintenance",
-                subtitle: "20 Feb 2024 • Support Team",
-                status: "In Progress",
-                active: true,
-            },
-            {
-                title: "Issue Reported",
-                subtitle: "18 Feb 2024 • User Complaint",
-            },
-            {
-                title: "Assigned",
-                subtitle: "12 Jan 2024 • IT Department",
-            },
-            {
-                title: "Created",
-                subtitle: "08 Jan 2024 • Admin User",
-            },
-        ],
-    },
-];
-
+// Maps a raw asset record from /api/assets/getall into the shape the
+// table/badges expect. Field names (categoryName, statusName, etc.) are a
+// best guess based on the AddAsset form — confirm against a real response
+// and adjust here if they differ.
+const normalizeAsset = (a) => ({
+    id: a.id,
+    assetId: a.assetId ?? a.assetCode ?? `AST-${a.id}`,
+    itemName: a.itemName ?? a.name ?? "—",
+    category: a.categoryName ?? a.category ?? "Uncategorized",
+    status: a.statusName ?? a.status ?? "Available",
+    condition: (a.conditionName ?? a.condition ?? "good").toLowerCase(),
+    value: a.currentValue ?? a.purchaseCost ?? a.value ?? 0,
+    warranty: getWarrantyState(a.warrantyEndDate ?? a.warrantyEnd),
+    activities: Array.isArray(a.activities) ? a.activities : [],
+    raw: a, // keep the original record around for the detail slider
+});
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -163,9 +107,9 @@ const StatusBadge = ({ status }) => {
     }
     return (
         <span
-            className={`p-1 rounded-full text-xs font-medium ${styles[status]} flex gap-1 items-center justify-center`}
+            className={`p-1 rounded-full text-xs font-medium ${styles[status] ?? "bg-gray-100 text-gray-700"} flex gap-1 items-center justify-center`}
         >
-            <p className={`w-2 h-2 rounded-full ${dotStyle[status]}`}></p>
+            <p className={`w-2 h-2 rounded-full ${dotStyle[status] ?? "bg-gray-400"}`}></p>
             <p>{status}</p>
         </span>
     );
@@ -177,9 +121,11 @@ const ConditionBadge = ({ condition }) => {
         fair: "bg-yellow-50 text-yellow-600",
     };
 
+    if (!condition) return null;
+
     return (
         <span
-            className={`px-3 py-1 rounded-md text-sm font-medium ${styles[condition]}`}
+            className={`px-3 py-1 rounded-md text-sm font-medium ${styles[condition] ?? "bg-gray-100 text-gray-600"}`}
         >
             {condition.charAt(0).toUpperCase() + condition.slice(1)}
         </span>
@@ -188,7 +134,12 @@ const ConditionBadge = ({ condition }) => {
 
 
 const AssetsManagement = () => {
-    const [assets, setAssets] = useState(INITIAL_ASSETS);
+    const navigate = useNavigate();
+
+    const [assets, setAssets] = useState([]);
+    const [assetsLoading, setAssetsLoading] = useState(true);
+    const [assetsError, setAssetsError] = useState(null);
+
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
     const [showDetails, setShowDetails] = useState(false);
@@ -205,6 +156,52 @@ const AssetsManagement = () => {
         purchaseDate: "",
         expiryDate: "",
     });
+
+    const fetchAssets = async () => {
+        setAssetsLoading(true);
+        setAssetsError(null);
+        try {
+            const res = await getAllAssets();
+            
+            setAssets(unwrapList(res).map(normalizeAsset));
+        } catch (err) {
+            console.error("Failed to fetch assets:", err);
+            setAssetsError("Could not load assets. Please try again.");
+        } finally {
+            setAssetsLoading(false);
+        }
+    };
+
+    const handleDelete = (user) => setdeletingAsset(user);
+    
+      const confirmDelete = async () => {
+        if (!deletingAsset) return;
+        setDeleting(true);
+        try {
+          await deleteAsset(deletingAsset.id);
+          setUserData((u) => u.filter((row) => row.id !== deletingAsset.id));
+          setdeletingAsset(null);
+        } catch (err) {
+          console.error(err);
+          alert('Could not delete this Asset. Please try again.');
+        } finally {
+          setDeleting(false);
+        }
+      };
+
+    useEffect(() => {
+        fetchAssets();
+    }, []);
+
+    // Filter dropdown options derived from live data instead of a hardcoded list
+    const categoryOptions = useMemo(
+        () => ["All", ...new Set(assets.map((a) => a.category).filter(Boolean))],
+        [assets]
+    );
+    const statusOptions = useMemo(
+        () => ["All", ...new Set(assets.map((a) => a.status).filter(Boolean))],
+        [assets]
+    );
 
     const applyFilters = () => {
         setFilters({
@@ -348,7 +345,7 @@ const AssetsManagement = () => {
             ),
             cell: ({ row }) => (
                 <span className="font-semibold py-1">
-                    ₹{row.original.value.toLocaleString()}
+                    ₹{Number(row.original.value ?? 0).toLocaleString()}
                 </span>
             ),
             size: 120,
@@ -389,7 +386,7 @@ const AssetsManagement = () => {
                         }} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
 
-                    <button>
+                    <button onClick={() => navigate(`/assets/edit-asset/${row.original.id}`)}>
                         <SquarePen
                             size={18}
                             className="text-gray-500 hover:text-green-600 cursor-pointer"
@@ -481,9 +478,9 @@ const AssetsManagement = () => {
                         <select value={categoryInput}
                             onChange={(e) => setCategoryInput(e.target.value)}
                             className="outline-none w-full">
-                            <option value="All">All Categories</option>
-                            <option value="Kitchen Equipment">Kitchen Equipment</option>
-                            <option value="IT Equipment">IT Equipment</option>
+                            {categoryOptions.map((c) => (
+                                <option key={c} value={c}>{c === "All" ? "All Categories" : c}</option>
+                            ))}
                         </select>
                     </p>
 
@@ -492,10 +489,9 @@ const AssetsManagement = () => {
                         <select value={statusInput}
                             onChange={(e) => setStatusInput(e.target.value)}
                             className="outline-none w-full">
-                            <option value="All">All Status</option>
-                            <option value="Available">Available</option>
-                            <option value="Assigned">Assigned</option>
-                            <option value="Maintenance">Maintenance</option>
+                            {statusOptions.map((s) => (
+                                <option key={s} value={s}>{s === "All" ? "All Status" : s}</option>
+                            ))}
                         </select>
                     </p>
                 </div>
@@ -541,21 +537,38 @@ const AssetsManagement = () => {
             </div>
 
             <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
-                <DataGrid table={table} recordCount={filteredAssets.length} className="rounded-2xl">
+                {assetsLoading ? (
+                    <div className="flex items-center justify-center gap-2 py-16 text-gray-400 bg-white">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm">Loading assets...</span>
+                    </div>
+                ) : assetsError ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-16 bg-white">
+                        <p className="text-sm text-red-600">{assetsError}</p>
+                        <button
+                            onClick={fetchAssets}
+                            className="px-4 py-1.5 text-sm rounded-lg border border-[#084E92] text-[#084E92] cursor-pointer bg-white"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                ) : (
+                    <DataGrid table={table} recordCount={filteredAssets.length} className="rounded-2xl">
 
-                    {/* Table Card */}
-                    <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardTable>
-                        <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1]  rounded-b-2xl">
-                            <DataGridPagination />
-                        </CardFooter>
-                    </Card>
-                </DataGrid>
+                        {/* Table Card */}
+                        <Card className="rounded-t-none border-t-0 rounded-2xl">
+                            <CardTable>
+                                <ScrollArea>
+                                    <DataGridTable />
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
+                            </CardTable>
+                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1]  rounded-b-2xl">
+                                <DataGridPagination />
+                            </CardFooter>
+                        </Card>
+                    </DataGrid>
+                )}
             </div>
             {showDetails && (
                 <>
