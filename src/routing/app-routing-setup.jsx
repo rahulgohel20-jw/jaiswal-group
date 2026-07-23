@@ -147,6 +147,9 @@ import ResetPasswordPage from '../pages/auth/login/ResetPassword';
 import UserViewDetails from '../pages/user/UserViewDetails';
 import { GuestOnly } from '../pages/auth/login/GuestOnly';
 import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
+import VendorViewDetails from '../pages/vendors/VendorViewDetails';
+import CompanyViewDetails from '../pages/company-registration/CompanyViewDetails';
+import UnitViewDetails from '../pages/units/UnitViewDetails';
 
 export function AppRoutingSetup() {
   return (
@@ -172,10 +175,12 @@ export function AppRoutingSetup() {
           <Route path="/companies" element={<CompaniesListing />} /> 
           <Route path="/companies/registration" element={<CompanyRegistration />} />
           <Route path="/companies/update-company" element={<CompanyRegistration />} />
+          <Route path='/companies/company-details' element={<CompanyViewDetails/>} />
 
           <Route path="/units" element={<UnitListing />} />
           <Route path="/units/add-unit" element={<AddUnit />} />
           <Route path="/units/update-unit" element={<AddUnit />} />
+          <Route path='/units/view-unit' element={<UnitViewDetails/>}/>
 
           <Route path="/assets/assets-items" element={<AssetItemsList />} />
 
@@ -183,6 +188,7 @@ export function AppRoutingSetup() {
 
           <Route path="/vendors" element={<VendorListing />} />
           <Route path="/vendors/add-vendor" element={<AddVendor />} />
+          <Route path='/vendors/view-vendor' element={<VendorViewDetails />}/>
           
           <Route path="/vendors/update-vendor" element={<AddVendor />} />
           <Route path='/user-vendor-selection' element={<UserVendorSelectionPage/>} />

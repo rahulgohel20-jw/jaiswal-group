@@ -10,7 +10,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link, useNavigate } from 'react-router';
 import AssetPreviewDetail from './AssetPreviewDetail';
-import { getAllAssets,deleteAsset } from '@/services/apiServices';
+import { getAllAssets, deleteAsset } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const STATS = [
     {
@@ -58,7 +59,6 @@ const STATS = [
 // Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
 const unwrapList = (res) => {
     const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
-    console.log(res)
     return Array.isArray(raw) ? raw : [];
 };
 
@@ -149,6 +149,9 @@ const AssetsManagement = () => {
     const [statusInput, setStatusInput] = useState("All");
     const [purchaseDateInput, setPurchaseDateInput] = useState("");
     const [expiryDateInput, setExpiryDateInput] = useState("");
+    const [deleting, setDeleting] = useState(false);
+    const [deletingAsset, setdeletingAsset] = useState(null);
+
     const [filters, setFilters] = useState({
         search: "",
         category: "All",
@@ -162,7 +165,7 @@ const AssetsManagement = () => {
         setAssetsError(null);
         try {
             const res = await getAllAssets();
-            
+
             setAssets(unwrapList(res).map(normalizeAsset));
         } catch (err) {
             console.error("Failed to fetch assets:", err);
@@ -173,21 +176,23 @@ const AssetsManagement = () => {
     };
 
     const handleDelete = (user) => setdeletingAsset(user);
-    
-      const confirmDelete = async () => {
+
+    const confirmDelete = async () => {
         if (!deletingAsset) return;
         setDeleting(true);
         try {
-          await deleteAsset(deletingAsset.id);
-          setUserData((u) => u.filter((row) => row.id !== deletingAsset.id));
-          setdeletingAsset(null);
+            await deleteAsset(deletingAsset.id);
+            notify.success("Asset Deleted Successfully");
+            fetchAssets();
+
+            setdeletingAsset(null);
         } catch (err) {
-          console.error(err);
-          alert('Could not delete this Asset. Please try again.');
+            console.error(err);
+            notify.error('Could not delete this Asset. Please try again.')
         } finally {
-          setDeleting(false);
+            setDeleting(false);
         }
-      };
+    };
 
     useEffect(() => {
         fetchAssets();
@@ -393,7 +398,7 @@ const AssetsManagement = () => {
                         />
                     </button>
 
-                    <button>
+                    <button onClick={() => handleDelete(row.original)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -467,10 +472,10 @@ const AssetsManagement = () => {
             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                     <div className="relative col-span-2 border border-[#C3C6D1] rounded-lg">
-                        <Search 
+                        <Search
                             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)} 
+                            onChange={(e) => setSearchInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                             placeholder="Search by Asset ID, Name, Brand..." className="w-full pl-10 py-2 outline-none" />
                     </div>
@@ -582,6 +587,51 @@ const AssetsManagement = () => {
                             asset={selectedAsset}
                             onClose={() => setShowDetails(false)}
                         />
+                    </div>
+                </>
+            )}
+
+            {deletingAsset && (
+                <>
+                    <div
+                        className="fixed inset-0 bg-black/40 z-50"
+                        onClick={() => setdeletingAsset(null)}
+                    />
+
+                    <div className="fixed inset-0 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-xl p-6 w-100 shadow-lg">
+                            <h3 className="text-lg font-semibold mb-2">
+                                Delete Asset
+                            </h3>
+
+                            <p className="text-gray-600 mb-5">
+                                Are you sure you want to delete{" "}
+                                <span className="font-medium">
+                                    {deletingAsset.itemName}
+                                </span>
+                                ?
+                            </p>
+
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setdeletingAsset(null)}
+                                    className="px-4 py-2 border rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={confirmDelete}
+                                    disabled={deleting}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2"
+                                >
+                                    {deleting && (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    )}
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </>
             )}

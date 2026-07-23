@@ -29,9 +29,12 @@ import {
   createAsset,
   getActiveConditions,
   getActiveStatuses,
+  updateAsset
 } from '@/services/apiServices';
 import AddAssetTypeModal from '../assets-type/AddAssetTypeModal';
 import AddAssetBrandModal from '../asset-brand/AddAssetBrandModal';
+import { getAssetById } from '../../../services/apiServices';
+import { notify } from "@/utils/toast";
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -46,7 +49,7 @@ const Label = ({ children, required, hint }) => (
     {children}
     {required && <span className="text-red-500">*</span>}
     {hint && (
-      <span className="w-3.5 h-3.5 rounded-full border border-gray-300 text-[9px] leading-[13px] text-gray-400 text-center font-semibold">
+      <span className="w-3.5 h-3.5 rounded-full border border-gray-300 text-[9px] leading-3.25 text-gray-400 text-center font-semibold">
         i
       </span>
     )}
@@ -68,14 +71,12 @@ const Toggle = ({ checked, onChange, label }) => (
     className="flex items-center gap-2 cursor-pointer bg-transparent border-0 p-0 select-none"
   >
     <span
-      className={`relative inline-flex w-9 h-5 rounded-full transition-colors duration-200 shrink-0 ${
-        checked ? 'bg-[#084E92]' : 'bg-gray-300'
-      }`}
+      className={`relative inline-flex w-9 h-5 rounded-full transition-colors duration-200 shrink-0 ${checked ? 'bg-[#084E92]' : 'bg-gray-300'
+        }`}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-          checked ? 'translate-x-4' : 'translate-x-0'
-        }`}
+        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-4' : 'translate-x-0'
+          }`}
       />
     </span>
     {label && <span className="text-xs font-medium text-gray-600 whitespace-nowrap">{label}</span>}
@@ -142,27 +143,37 @@ const Select = ({ value, onChange, options, placeholder, disabled }) => (
   </div>
 );
 
-const CodeBox = ({ label, icon: Icon, actions }) => (
+const CodeBox = ({ label, icon: Icon, actions, qrUrl }) => (
   <div>
     <Label>{label}</Label>
-    <div className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 flex items-center gap-3 bg-gray-50/60">
-      <div className="w-9 h-9 rounded-md bg-white border border-gray-200 flex items-center justify-center text-gray-400 shrink-0">
-        <Icon className="w-4 h-4" />
-      </div>
-      <div className="flex items-center gap-3 text-xs font-semibold">
-        {actions.map(({ label: a, icon: AIcon, onClick, tone }) => (
-          <button
-            key={a}
-            type="button"
-            onClick={onClick}
-            className={`flex items-center gap-1 cursor-pointer bg-transparent border-0 p-0 hover:underline ${
-              tone === 'muted' ? 'text-gray-500' : 'text-[#084E92]'
-            }`}
-          >
-            <AIcon className="w-3.5 h-3.5" />
-            {a}
-          </button>
-        ))}
+
+    <div className="w-full border border-gray-200 rounded-lg p-3 bg-gray-50/60">
+      <div className="flex items-center gap-4">
+        {qrUrl ? (
+          <img
+            src={qrUrl}
+            alt="QR Code"
+            className="w-16 h-16 rounded border border-gray-200 bg-white p-1"
+          />
+        ) : (
+          <div className="w-16 h-16 rounded border border-gray-200 bg-white flex items-center justify-center">
+            <Icon className="w-6 h-6 text-gray-400" />
+          </div>
+        )}
+
+        <div className="flex flex-col gap-2">
+          {actions.map(({ label: a, icon: AIcon, onClick }) => (
+            <button
+              key={a}
+              type="button"
+              onClick={onClick}
+              className="flex items-center gap-1 text-[#084E92] text-sm font-medium hover:underline cursor-pointer"
+            >
+              <AIcon className="w-4 h-4" />
+              {a}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   </div>
@@ -180,13 +191,16 @@ const ImageUpload = ({ value, onChange }) => {
     onChange(file);
   };
 
-  const previewUrl = value ? URL.createObjectURL(value) : null;
+  const previewUrl =
+    value instanceof File
+      ? URL.createObjectURL(value)
+      : value || null;
 
   if (previewUrl) {
     return (
       <div>
         <Label>Asset Image</Label>
-        <div className="relative w-fit h-[120px] rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
+        <div className="relative w-fit h-30 rounded-lg border border-gray-200 overflow-hidden bg-gray-50">
           <img src={previewUrl} alt="Asset preview" className="w-full h-full object-cover" />
           <button
             type="button"
@@ -215,9 +229,8 @@ const ImageUpload = ({ value, onChange }) => {
           setDragActive(false);
           handleFiles(e.dataTransfer.files);
         }}
-        className={`w-full h-[80px] rounded-lg border border-dashed flex flex-col items-center justify-center gap-1.5 cursor-pointer transition ${
-          dragActive ? 'border-blue-400 bg-blue-50/60' : 'border-gray-300 bg-gray-50/40 hover:border-gray-400'
-        }`}
+        className={`w-full h-20 rounded-lg border border-dashed flex flex-col items-center justify-center gap-1.5 cursor-pointer transition ${dragActive ? 'border-blue-400 bg-blue-50/60' : 'border-gray-300 bg-gray-50/40 hover:border-gray-400'
+          }`}
       >
         <ImagePlus className="w-4 h-4 text-blue-400" />
         <p className="text-xs text-gray-500 text-center px-2">Click or drag to upload asset photo</p>
@@ -247,6 +260,14 @@ const toDDMMYYYY = (dateStr) => {
   if (!year || !month || !day) return null;
   return `${day}/${month}/${year}`;
 };
+const toInputDate = (dateStr) => {
+  if (!dateStr) return '';
+
+  const [day, month, year] = dateStr.split('/');
+
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
 
 // <input type="date"> gives "yyyy-mm-dd"; backend expects "mm/dd/yyyy". Returns null for empty/invalid input.
 const toMMDDYYYY = (dateStr) => {
@@ -294,7 +315,103 @@ const AddAsset = () => {
 
   const [statuses, setStatuses] = useState([]);
   const [statusesLoading, setStatusesLoading] = useState(true);
-  
+
+  const [originalForm, setOriginalForm] = useState(null);
+  const [originalAmcActive, setOriginalAmcActive] = useState(false);
+
+  const [showQrPreview, setShowQrPreview] = useState(false);
+
+
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    const fetchAsset = async () => {
+      try {
+        const res = await getAssetById(assetIdParam);
+        const asset = res?.data?.data;
+
+        if (!asset) return;
+
+        if (asset.categoryId) {
+          await fetchSubCategories(asset.categoryId);
+        }
+
+        const loadedForm = {
+          ...initialFormState,
+
+          existingImage:
+            asset.assetImagePaths?.length > 0
+              ? asset.assetImagePaths[0]
+              : '',
+
+          assetId: asset.assetCode || '',
+
+          category: String(asset.categoryId || ''),
+          subCategory: String(asset.subCategoryId || ''),
+          assetType: String(asset.assetTypeId || ''),
+
+          itemName: asset.itemName || '',
+          brand: String(asset.brandName || ''),
+
+          modelNumber: asset.modelNumber || '',
+          serialNumber: asset.serialNumber || '',
+
+          purchaseDate: toInputDate(asset.purchaseDate),
+
+          vendor: String(asset.vendorId || ''),
+          invoiceNumber: asset.invoiceNumber || '',
+
+          purchaseCost: String(asset.purchaseCost || ''),
+          currentValue: String(asset.currentValue || ''),
+          depreciation: String(asset.depreciationPercentage || ''),
+
+          warrantyStart: toInputDate(asset.warrantyStartDate),
+          warrantyEnd: toInputDate(asset.warrantyEndDate),
+
+          lastMaintenance: toInputDate(asset.lastMaintenance),
+          nextMaintenance: toInputDate(asset.nextMaintenance),
+
+          frequency: asset.maintenanceFrequency || '',
+          maintenanceCost: String(asset.maintenanceCost || ''),
+
+          condition: String(asset.conditionId || ''),
+          status: String(asset.statusId || ''),
+
+          totalQty: String(asset.totalQuantity || 0),
+          availableQty: String(asset.availableQuantity || 0),
+          reservedQty: String(asset.reservedQuantity || 0),
+        };
+
+        setForm(loadedForm);
+
+        setOriginalForm(loadedForm);
+        setOriginalAmcActive(asset.amcActive);
+
+        setAmcActive(asset.amcActive);
+
+        // AMC expiry API me nahi aa raha
+        set('amcProvider', '');
+        set('amcExpiry', '');
+
+      } catch (err) {
+        console.error('Failed to load asset', err);
+      }
+    };
+
+    fetchAsset();
+  }, [assetIdParam]);
+
+  const handleReset = () => {
+    if (isEditMode && originalForm) {
+      setForm(originalForm);
+      setAmcActive(originalAmcActive);
+    } else {
+      setForm(initialFormState);
+      setAmcActive(false);
+    }
+  };
+
+
   const fetchCategories = async () => {
     setCategoriesLoading(true);
     try {
@@ -318,6 +435,8 @@ const AddAsset = () => {
       setAssetTypesLoading(false);
     }
   };
+
+
 
   // categoryId = null -> all active sub categories; otherwise scoped to that category
   const fetchSubCategories = async (categoryId) => {
@@ -349,37 +468,37 @@ const AddAsset = () => {
 
 
   const fetchConditions = async () => {
-  setConditionsLoading(true);
-  try {
-    const res = await getActiveConditions();
-    setConditions(unwrapList(res));
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setConditionsLoading(false);
-  }
-};
+    setConditionsLoading(true);
+    try {
+      const res = await getActiveConditions();
+      setConditions(unwrapList(res));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setConditionsLoading(false);
+    }
+  };
 
-const fetchStatuses = async () => {
-  setStatusesLoading(true);
-  try {
-    const res = await getActiveStatuses();
-    setStatuses(unwrapList(res));
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setStatusesLoading(false);
-  }
-};
+  const fetchStatuses = async () => {
+    setStatusesLoading(true);
+    try {
+      const res = await getActiveStatuses();
+      setStatuses(unwrapList(res));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setStatusesLoading(false);
+    }
+  };
 
-useEffect(() => {
-  fetchCategories();
-  fetchAssetTypes();
-  fetchSubCategories(null);
-  fetchAssetBrand();
-  fetchConditions();
-  fetchStatuses();
-}, []);
+  useEffect(() => {
+    fetchCategories();
+    fetchAssetTypes();
+    fetchSubCategories(null);
+    fetchAssetBrand();
+    fetchConditions();
+    fetchStatuses();
+  }, []);
 
   const [form, setForm] = useState({
     assetId: '',
@@ -391,7 +510,9 @@ useEffect(() => {
     brand: '',
     modelNumber: '',
     serialNumber: '',
+
     assetImage: null,
+    existingImage: '',
 
     purchaseDate: '',
     vendor: '',
@@ -416,6 +537,15 @@ useEffect(() => {
     availableQty: '1',
     reservedQty: '0',
   });
+
+  const qrAssetCode = form.assetId;
+
+  const qrUrl = qrAssetCode
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
+      qrAssetCode
+    )}`
+    : null;
+
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -455,6 +585,7 @@ useEffect(() => {
     modelNumber: '',
     serialNumber: '',
     assetImage: null,
+    existingImage: '',
 
     purchaseDate: '',
     vendor: '',
@@ -524,14 +655,22 @@ useEffect(() => {
       }
 
       // TODO: branch to updateAsset(assetIdParam, fd) once that endpoint exists
-      const res = await createAsset(fd);
-      if (res?.status === 201) {
-      setForm(initialFormState);
-      setAmcActive(false);
-      navigate('/assets/all-assets');
-    }
+      let res;
+
+      if (isEditMode) {
+        res = await updateAsset(assetIdParam, fd);
+        notify.success("Asset Updated Successfully")
+      } else {
+        res = await createAsset(fd);
+        notify.success("Asset Added Successfully")
+      }
+      if (res?.status === 200 || res?.status === 201) {
+        setForm(initialFormState);
+        setAmcActive(false);
+        navigate('/assets/all-assets');
+      }
     } catch (err) {
-      console.error('Failed to save asset:', err);
+      notify.error('Failed to save asset')
     } finally {
       setSaving(false);
     }
@@ -555,7 +694,11 @@ useEffect(() => {
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition shrink-0"
         >
           <Save className="w-4 h-4" />
-          {saving ? 'Saving...' : 'Save Asset'}
+          {saving
+            ? 'Saving...'
+            : isEditMode
+              ? 'Update Asset'
+              : 'Save Asset'}
         </button>
       </div>
 
@@ -586,9 +729,13 @@ useEffect(() => {
                 <CodeBox
                   label="QR Code"
                   icon={QrCode}
+                  qrUrl={qrUrl}
                   actions={[
-                    { label: 'Preview', icon: ScanLine, onClick: () => {} },
-                    { label: 'Download', icon: Download, onClick: () => {}, tone: 'muted' },
+                    {
+                      label: 'Preview',
+                      icon: ScanLine,
+                      onClick: () => setShowQrPreview(true),
+                    },
                   ]}
                 />
               </div>
@@ -698,7 +845,13 @@ useEffect(() => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <ImageUpload value={form.assetImage} onChange={(file) => set('assetImage', file)} />
+              <ImageUpload
+                value={form.assetImage || form.existingImage}
+                onChange={(file) => {
+                  set('assetImage', file);
+                  set('existingImage', '');
+                }}
+              />
               <div>
                 <Label>Serial Number</Label>
                 <input
@@ -909,26 +1062,26 @@ useEffect(() => {
         {openSections.status && (
           <div className="px-6 py-6">
             <div className="grid grid-cols-5 gap-4">
-           <div>
-            <Label>Condition</Label>
-            <Select
-              value={form.condition}
-              onChange={(e) => set('condition', e.target.value)}
-              placeholder={conditionsLoading ? 'Loading conditions...' : 'Select condition'}
-              options={conditionOptions}
-              disabled={conditionsLoading}
-            />
-          </div>
-          <div>
-            <Label>Status</Label>
-            <Select
-              value={form.status}
-              onChange={(e) => set('status', e.target.value)}
-              placeholder={statusesLoading ? 'Loading statuses...' : 'Select status'}
-              options={statusOptions}
-              disabled={statusesLoading}
-            />
-          </div>
+              <div>
+                <Label>Condition</Label>
+                <Select
+                  value={form.condition}
+                  onChange={(e) => set('condition', e.target.value)}
+                  placeholder={conditionsLoading ? 'Loading conditions...' : 'Select condition'}
+                  options={conditionOptions}
+                  disabled={conditionsLoading}
+                />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select
+                  value={form.status}
+                  onChange={(e) => set('status', e.target.value)}
+                  placeholder={statusesLoading ? 'Loading statuses...' : 'Select status'}
+                  options={statusOptions}
+                  disabled={statusesLoading}
+                />
+              </div>
               <div>
                 <Label>Total Quantity</Label>
                 <input
@@ -963,6 +1116,7 @@ useEffect(() => {
         <div className="flex items-center gap-3">
           <button
             type="button"
+            onClick={handleReset}
             className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
           >
             Reset
@@ -973,15 +1127,20 @@ useEffect(() => {
             disabled={saving}
             className="px-5 py-2.5 rounded-lg text-[#084E92] border border-[#084E92] font-semibold text-sm hover:bg-blue-50/40 transition cursor-pointer bg-white"
           >
-            {saving ? 'Saving...' : 'Save Asset'}
+            {saving
+              ? 'Saving...'
+              : isEditMode
+                ? 'Update Asset'
+                : 'Save Asset'}
           </button>
-          <button
-            type="button"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 hover:bg-[#073e77] transition cursor-pointer"
-          >
-            <UserPlus className="w-4 h-4" />
-            Save &amp; Assign
-          </button>
+          {!isEditMode &&
+            <button
+              type="button"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 hover:bg-[#073e77] transition cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4" />
+              Save &amp; Assign
+            </button>}
         </div>
       </div>
 
@@ -1012,6 +1171,36 @@ useEffect(() => {
         onSaved={fetchAssetTypes}
         initialData={null}
       />
+
+      {showQrPreview && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-6 w-[350px] relative">
+            <button
+              type="button"
+              onClick={() => setShowQrPreview(false)}
+              className="absolute top-3 right-3"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-lg font-semibold text-center mb-4">
+              Scan Asset QR Code
+            </h3>
+
+            <div className="flex flex-col items-center">
+              <img
+                src={qrUrl}
+                alt="QR Code"
+                className="w-64 h-64"
+              />
+
+              <p className="mt-3 text-sm text-gray-500">
+                {form.assetId}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

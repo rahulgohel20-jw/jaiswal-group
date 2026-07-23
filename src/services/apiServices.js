@@ -333,3 +333,10 @@ export const getAssetImagesById = (id) => {
 export const deleteAsset = (id) => { 
   return DELETE('/assets/delete', { id } );
 }
+export const updateAsset = (id, formData) => {
+  return axiosInstance.put(`/assets/update?id=${id}`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
