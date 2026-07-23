@@ -104,51 +104,7 @@ const DeleteConfirmModal = ({ Unit, onCancel, onConfirm }) => (
     </div>
   </div>
 );
-const ViewUnitModal = ({ Unit, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    {console.log(Unit)}
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900">Unit Details</h2>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="px-6 py-5 space-y-4">
-        {[
-          ["Unit Name", Unit.name],
-          ["Unit Code", Unit.code],
-          ["Company Name", Unit.parentName],
-          ["Location", Unit.location],
-          ["Contact Email", Unit.email],
-          ["Mobile Number", Unit.mobile],
-        ].map(([label, value]) => (
-          <div key={label} className="flex items-center justify-between text-sm gap-4">
-            <span className="text-gray-400 shrink-0">{label}</span>
-            <span className="font-semibold text-gray-800 text-right break-all">{value}</span>
-          </div>
-        ))}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">Status</span>
-          <StatusBadge status={Unit.status} />
-        </div>
-      </div>
-      <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-);
+
 
 // Generic dropdown used for the filters and export menus
 const Dropdown = ({ label, icon: Icon, children, widthClass = "w-48" }) => {
@@ -215,7 +171,6 @@ const UnitListing = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [viewingUnit, setViewingUnit] = useState(null);
   const [deletingUnit, setDeletingUnit] = useState(null);
 
   const normalizeUnit = (item) => ({
@@ -391,7 +346,11 @@ const UnitListing = () => {
           <div className="flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
-              onClick={() => setViewingUnit(row.original)}
+              onClick={() =>
+                navigate("/units/view-unit", {
+                  state: { unit: row.original },
+                })
+              }
               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
               title="View Unit"
             >
@@ -588,10 +547,6 @@ const UnitListing = () => {
           </Card>
         </DataGrid>
       </div>
-
-      {viewingUnit && (
-        <ViewUnitModal Unit={viewingUnit} onClose={() => setViewingUnit(null)} />
-      )}
 
       {deletingUnit && (
         <DeleteConfirmModal

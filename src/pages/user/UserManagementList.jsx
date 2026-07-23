@@ -250,7 +250,7 @@ const UserManagementList = () => {
           </div>
 
         ),
-        size: 210,
+        size: 200,
       },
       {
         id: "code",
@@ -278,7 +278,7 @@ const UserManagementList = () => {
         accessorFn: (row) => row.role,
         header: ({ column }) => <DataGridColumnHeader title="ROLE" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => <span className="text-gray-600">{row.original.role}</span>,
-        size: 160,
+        size: 120,
       },
       {
         id: "department",
@@ -366,8 +366,8 @@ const UserManagementList = () => {
 
   return (
     <container>
-      <div className="w-full lg:w-[95%] p-4 md:p-6">
-        <div className="w-full  flex justify-between mx-6">
+      <div className="w-full p-4 sm:p-5 lg:p-6 max-w-[1600px] mx-auto">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
           <div>
             <h1 className="text-[#084E92] text-2xl md:text-4xl font-bold">
               User Management List
@@ -380,13 +380,13 @@ const UserManagementList = () => {
 
           <Link
             to="/users/add-user"
-            className="flex gap-3 bg-[#084E92] justify-center items-center h-max p-3 rounded text-white text-sm"
+            className="flex items-center justify-center gap-2 bg-[#084E92] px-5 py-3 rounded-lg text-white text-sm font-medium w-full sm:w-max"
           >
             <Plus size={15} /> Add New User
           </Link>
         </div>
 
-        <div className="mx-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-5 mt-12 bg-white w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mt-8">
           {DATA.map((item) => (
             <div key={item.label} className=" border border-[#C3C6D1] rounded-2xl p-6">
               <div className="flex justify-between">
@@ -404,20 +404,20 @@ const UserManagementList = () => {
           ))}
         </div>
 
-        <div className="w-full rounded-2xl px-2 mt-6 border border-[#C3C6D1] mx-6 flex py-4 min-w-max">
-          <div className="flex gap-2 items-center  text-sm">
+        <div className="w-full mt-6 border border-[#C3C6D1] rounded-2xl p-4 flex flex-col xl:flex-row gap-5">
+          <div className="flex items-center gap-2 text-sm shrink-0">
             <ListFilter size={15} />
             <p className='border-r border-[#C3C6D1] pr-4'>Filters</p>
           </div>
 
-          <div className="w-full flex items-center gap-3 p-2 mx-3 lg:w-[80%]">
-            <div className="text-sm">
-              <p>Role</p>
-              <p className="py-2 px-2 rounded mt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1">
+            <div className="w-full">
+              <p className='text-sm'>Role</p>
+              <p className="py-1 px-2 border border-gray-200 rounded-lg mt-1">
                 <select
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
-                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
+                  className="w-full text-sm text-gray-600 outline-none focus:border-blue-400"
                 >
                   {ROLE_OPTIONS.map((opt) => (
                     <option key={opt.key} value={opt.key}>
@@ -428,13 +428,13 @@ const UserManagementList = () => {
               </p>
             </div>
 
-            <div className="text-sm">
-              <p>Department</p>
-              <p className="py-2 px-2 rounded mt-1">
+            <div className="w-full">
+              <p className='text-sm'>Department</p>
+              <p className="py-1 px-2 border border-gray-200 rounded-lg mt-1">
                 <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
+                  className="w-full text-sm text-gray-600 outline-none focus:border-blue-400"
                 >
                   {DEPARTMENT_OPTIONS.map((opt) => (
                     <option key={opt.key} value={opt.key}>
@@ -444,13 +444,13 @@ const UserManagementList = () => {
                 </select>
               </p>
             </div>
-            <div className="text-sm">
-              <p>KYC Status</p>
-              <p className="py-2 px-2 rounded mt-1">
+            <div className="w-full">
+              <p className='text-sm'>KYC Status</p>
+              <p className="py-1 px-2 border border-gray-200 rounded-lg mt-1">
                 <select
                   value={kycFilter}
                   onChange={(e) => setKycFilter(e.target.value)}
-                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
+                  className="w-full text-sm text-gray-600 outline-none focus:border-blue-400"
                 >
                   {KYC_OPTIONS.map((opt) => (
                     <option key={opt.key} value={opt.key}>
@@ -462,10 +462,10 @@ const UserManagementList = () => {
             </div>
           </div>
 
-          <div className="lg:w-[15%] sm:w-[50%] text-xs my-2  flex items-center gap-5 w-full flex-col lg:flex-row">
-            <div className="py-1 px-2 border border-[#C3C6D1] rounded">
-              <button className="flex items-center gap-1 cursor-pointer" onClick={() => handleExport("csv")}>
-                <Download />
+          <div className="flex gap-3 items-center">
+            <div className="border border-[#C3C6D1] rounded-lg h-max py-2">
+              <button className="flex items-center justify-center gap-2 px-4 w-full cursor-pointer" onClick={() => handleExport("csv")}>
+                <Download size={20}/>
                 <p>Export</p>
               </button>
             </div>
@@ -479,7 +479,7 @@ const UserManagementList = () => {
         </div>
 
         {loadError && (
-          <div className="mx-6 mt-6 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{loadError}</span>
             <button type="button" onClick={fetchUsers} className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0">
@@ -488,7 +488,7 @@ const UserManagementList = () => {
           </div>
         )}
 
-        <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl mx-6'>
+        <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
           {loading ? (
             <div className="px-6 py-16 text-center text-sm text-gray-400">Loading users...</div>
           ) : (
