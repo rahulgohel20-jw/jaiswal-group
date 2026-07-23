@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createAssetBrand, updateAssetBrand } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const emptyForm = { name: '', description: '', status: 'Active' };
 
@@ -58,6 +59,7 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
           description: form.description,
           active: form.status === 'Active',
         });
+        notify.success("Asset Brand Updated Successfully");
       } else {
         // Matches the create endpoint's request schema exactly:
         // { active, createdBy, description, name }
@@ -67,6 +69,7 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
           description: form.description,
           name: form.name,
         });
+        notify.success("Asset Brand Created Successfully");
       }
 
       setForm(emptyForm);
@@ -78,6 +81,7 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
         err?.response?.data?.message ||
           `Failed to ${isEditMode ? 'update' : 'create'} brand. Please try again.`
       );
+      notify.error(`Failed to ${isEditMode ? 'update' : 'create'} brand. Please try again.`);
     } finally {
       setSaving(false);
     }

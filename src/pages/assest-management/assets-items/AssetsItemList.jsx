@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import AddAssetItemModal, { CATEGORIES } from './AddAssetsItemModal';
+import { notify } from "@/utils/toast";
 
 // Seed data so the listing has something to show on first load
 const SEED_ITEMS = [
@@ -162,6 +163,7 @@ const AssetItemsList = () => {
     if (editingItem) {
       setItems((prev) => prev.map((it) => (it.id === editingItem.id ? { ...it, ...form } : it)));
       setIsModalOpen(false);
+      notify.success("Asset Item Updated Successfully");
       setEditingItem(null);
     } else {
       const newItem = {
@@ -169,12 +171,15 @@ const AssetItemsList = () => {
         id: `AST-${1000 + items.length + 1}-${Math.random().toString(36).slice(2, 6)}`,
       };
       setItems((prev) => [newItem, ...prev]);
+      notify.success("Asset Item Added Successfully");
     }
+     setIsModalOpen(false);
   };
 
   const handleDelete = (id) => {
     setItems((prev) => prev.filter((it) => it.id !== id));
     setSelectedIds((prev) => prev.filter((sid) => sid !== id));
+    notify.success("Asset Item Deleted Successfully");
   };
 
   const applyFilters = () => {

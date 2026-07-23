@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createAssetUnit, updateAssetUnit } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const emptyForm = { name: '', symbol: '', status: 'Active' };
 
@@ -60,8 +61,10 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
       if (isEditMode) {
         await updateAssetUnit({ id: initialData.id, ...payload });
+        notify.success("Asset Unit Updated Successfully");
       } else {
         await createAssetUnit({ ...payload, createdBy: 0 });
+        notify.success("Asset Unit Created Successfully");
       }
 
       setForm(emptyForm);
@@ -73,6 +76,7 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
         err?.response?.data?.message ||
           `Failed to ${isEditMode ? 'update' : 'create'} unit. Please try again.`
       );
+      notify.error(`Failed to ${isEditMode ? 'update' : 'create'} Unit. Please try again.`);
     } finally {
       setSaving(false);
     }

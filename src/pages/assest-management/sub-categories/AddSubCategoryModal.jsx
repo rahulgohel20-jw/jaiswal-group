@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getAssetCategories, createSubCategory, updateSubCategory } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const emptyForm = {
   categoryId: '',
@@ -83,8 +84,11 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSaved, initialData, defaultCat
 
       if (isEditMode) {
         await updateSubCategory({ id: initialData.id, ...payload });
+         notify.success("Subcategory Updated successfully");
+
       } else {
         await createSubCategory({ ...payload, createdBy: 0 });
+         notify.success("Subcategory Created successfully");
       }
 
       setForm(emptyForm);
@@ -96,6 +100,7 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSaved, initialData, defaultCat
         err?.response?.data?.message ||
           `Failed to ${isEditMode ? 'update' : 'create'} sub category. Please try again.`
       );
+      notify.error(`Failed to ${isEditMode ? 'update' : 'create'} sub category. Please try again.`);
     } finally {
       setSaving(false);
     }

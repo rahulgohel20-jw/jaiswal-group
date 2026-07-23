@@ -18,6 +18,7 @@ import {
     updateDepartment,
     deleteDepartmentById,
 } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const PAGE_SIZE = 5;
 
@@ -65,6 +66,7 @@ const fetchDepartments = useCallback(async () => {
                 err?.response?.data?.message ||
                 'Failed to load departments.',
         );
+        notify.error('Failed to load departments.');
     } finally {
         setLoading(false);
     }
@@ -127,6 +129,7 @@ const handleSaveDepartment = async (form, { addAnother } = {}) => {
                 organizationId,
                 username,
             });
+            notify.success("Update Department successfully");
         } else {
             await saveDepartment({
                 departmentName: form.name.trim(),
@@ -135,6 +138,7 @@ const handleSaveDepartment = async (form, { addAnother } = {}) => {
                 isActive,
                 username,
             });
+            notify.success("Department Added successfully");
         }
         await fetchDepartments();
         if (!addAnother) {
@@ -148,6 +152,7 @@ const handleSaveDepartment = async (form, { addAnother } = {}) => {
                 err?.response?.data?.message ||
                 'Failed to save department.',
         );
+        notify.error('Failed to save department.');
     }
 };
 
@@ -156,6 +161,7 @@ const handleDelete = async (id) => {
     setDepartments((cur) => cur.filter((d) => d.id !== id)); // optimistic
     try {
         await deleteDepartmentById(id);
+        notify.success("Department Deleted successfully");
     } catch (err) {
         console.error(err);
         setDepartments(prev); // rollback
@@ -164,6 +170,7 @@ const handleDelete = async (id) => {
                 err?.response?.data?.message ||
                 'Failed to delete department.',
         );
+        notify.error('Failed to delete department.');
     }
 };
 

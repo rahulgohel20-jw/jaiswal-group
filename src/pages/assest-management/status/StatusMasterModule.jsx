@@ -22,11 +22,13 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import StatusModal from "./StatusModal";
 import {
+    getStatuses,
     getStatusById,
     createStatus,
     updateStatus,
     deleteStatus,
 } from "@/services/apiServices";
+import { notify } from "@/utils/toast";
 
 // TODO: replace with the actual logged-in user id from your auth/session context
 const CURRENT_USER_ID = 1;
@@ -92,11 +94,12 @@ const StatusMasterModule = () => {
         setListLoading(true);
         setListError(null);
         try {
-            const res = await getStatus();
+            const res = await getStatuses();
             const list = res?.data?.data ?? [];
             setStatusData(list.map(normalizeStatusRow));
         } catch (err) {
             setListError(err?.message || "Failed to load Status");
+             notify.error("Failed to load status");
         } finally {
             setListLoading(false);
         }
@@ -185,6 +188,7 @@ const StatusMasterModule = () => {
                     active: formData.active,
                 };
                 await updateStatus({ id: formData.id, ...payload });
+                notify.success("Status Updated Successfully");
             } else {
                 // create body: { active, createdBy, description, name } — description is optional
                 const payload = {
@@ -194,12 +198,14 @@ const StatusMasterModule = () => {
                     ...(formData.description?.trim() ? { description: formData.description.trim() } : {}),
                 };
                 await createStatus(payload);
+                notify.success("Status Created Successfully");
             }
 
             await loadStatus();
             closeModal();
         } catch (err) {
             setModalError(err?.message || "Failed to save status");
+             notify.error("Failed to save status");
         } finally {
             setSaving(false);
         }
@@ -214,6 +220,7 @@ const StatusMasterModule = () => {
         setDeletingId(id);
         try {
             await deleteStatus(id);
+            notify.success("Status Deleted Successfully");
             await loadStatus();
         } catch (err) {
             setListError(err?.message || "Failed to delete status");

@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { notify } from "@/utils/toast";
 
 export const CATEGORIES = ['Kitchen Equipment', 'IT Equipment', 'Office Furniture', 'Vehicles'];
 

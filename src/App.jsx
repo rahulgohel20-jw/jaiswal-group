@@ -28,7 +28,12 @@ export function App() {
                   <QueryProvider>
                     <LoadingBarContainer>
                       <BrowserRouter basename={BASE_URL}>
-                        <Toaster />
+                        <Toaster
+                          richColors
+                          position="top-right"
+                          closeButton
+                          duration={2000}
+                        />
                         <ModulesProvider>
                           <AppRouting />
                         </ModulesProvider>

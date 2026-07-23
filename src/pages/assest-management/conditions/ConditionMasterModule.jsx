@@ -15,6 +15,7 @@ import {
   updateCondition,
   deleteCondition,
 } from "@/services/apiServices";
+import { notify } from "@/utils/toast";
 
 
 const STATUS_COLORS = {
@@ -81,6 +82,7 @@ const ConditionMasterModule = () => {
       setConditions(list.map(normalizeCondition));
     } catch (err) {
       setListError(err?.message || "Failed to load conditions");
+      notify.error("Failed to load conditions");
     } finally {
       setListLoading(false);
     }
@@ -171,14 +173,17 @@ const ConditionMasterModule = () => {
 
       if (modalMode === "edit") {
         await updateCondition({ id: formData.id, ...payload });
+        notify.success("Condition Updated Successfully");
       } else {
         await createCondition(payload);
+        notify.success("Condition Created Successfully");
       }
 
       await loadConditions();
       closeModal();
     } catch (err) {
       setModalError(err?.message || "Failed to save condition");
+       notify.error("Failed to save conditions");
     } finally {
       setSaving(false);
     }
@@ -193,6 +198,7 @@ const ConditionMasterModule = () => {
     setDeletingId(id);
     try {
       await deleteCondition(id);
+      notify.success("Condition Deleted Successfully");
       await loadConditions();
     } catch (err) {
       setListError(err?.message || "Failed to delete condition");

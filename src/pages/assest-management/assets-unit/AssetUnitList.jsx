@@ -21,6 +21,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddAssetUnitModal from './AddAssetUnitModal';
 import AssetUnitDetailsModal from './AssetUnitDetailsModal';
 import { getAssetUnits, getAssetUnitById, deleteAssetUnit } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -72,6 +73,7 @@ const AssetUnitList = () => {
         } catch (err) {
             console.error(err);
             setError('Failed to load units. Please try again.');
+            notify.error("Failed to load Units. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -160,6 +162,7 @@ const AssetUnitList = () => {
     const handleDelete = async (unit) => {
         try {
             await deleteAssetUnit(unit.id);
+            notify.success("Asset Unit Deleted Successfully");
             setUnits((prev) => prev.filter((u) => u.id !== unit.id));
         } catch (err) {
             console.error(err);
