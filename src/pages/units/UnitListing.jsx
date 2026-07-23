@@ -29,6 +29,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { Link, useNavigate } from "react-router";
 import { deleteCompany, getRegisteredCompany } from "../../services/apiServices";
+import { notify } from "@/utils/toast";
 
 const STATUS_STYLES = {
   active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -303,6 +304,7 @@ const UnitListing = () => {
   const confirmDelete = async () => {
     try {
       await deleteCompany(deletingUnit.id);
+      notify.success("Unit Deleted successfully");
       setDeletingUnit(null);
       fetchUnits();
     } catch (error) {

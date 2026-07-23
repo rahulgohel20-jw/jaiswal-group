@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createAssetType, updateAssetType } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const emptyForm = { name: '', description: '', status: 'Active' };
 
@@ -59,8 +60,10 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
       if (isEditMode) {
         await updateAssetType({ id: initialData.id, ...payload });
+         notify.success("Asset Type Updated Successfully");
       } else {
         await createAssetType({ ...payload, createdBy: 0 });
+         notify.success("Asset Type Created Successfully");
       }
 
       setForm(emptyForm);
@@ -73,6 +76,7 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
           err?.response?.data?.message ||
           `Failed to ${isEditMode ? 'update' : 'create'} asset type. Please try again.`
       );
+      notify.error( `Failed to ${isEditMode ? 'update' : 'create'} asset type. Please try again.`);
     } finally {
       setSaving(false);
     }

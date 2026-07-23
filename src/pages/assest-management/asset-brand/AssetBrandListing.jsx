@@ -21,6 +21,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddAssetBrandModal from './AddAssetBrandModal';
 import AssetBrandDetailsModal from './AssetBrandDetailsModal';
 import { getAssetBrands, getAssetBrandById, deleteAssetBrand } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -74,10 +75,11 @@ const AssetBrandListing = () => {
         if (!window.confirm('Delete this brand? This cannot be undone.')) return;
         try {
             await deleteAssetBrand(id);
+            notify.success("Brand Deleted Successfully");
             fetchBrands();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete brand.');
+            notify.error("Failed to delete brand.");
         }
     };
 
@@ -114,7 +116,7 @@ const AssetBrandListing = () => {
             setBrands(Array.isArray(raw) ? raw.map(mapBrand) : []);
         } catch (err) {
             console.error(err);
-            setError('Failed to load brands');
+            notify.error("Failed to load brands");
         } finally {
             setLoading(false);
         }

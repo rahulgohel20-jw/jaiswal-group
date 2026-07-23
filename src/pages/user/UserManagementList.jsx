@@ -26,6 +26,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { getAllEmployees, deleteEmployeeById } from '@/services/apiServices';
 import { extractList, mapEmployeeToRow } from './utils/Employeemappers';
 import { getActiveCompany } from '../../services/apiServices';
+import { notify } from "@/utils/toast";
 
 
 // NOTE: these summary cards are still static placeholder numbers. Wire them

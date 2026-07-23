@@ -9,7 +9,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddAssetTypeModal from './AddAssetTypeModal';
 import AssetTypeDetailsModal from './AsssetTypeDetailsModal';
 import { getAssetTypes, getAssetTypeById, deleteAssetType } from '@/services/apiServices';
-
+import { notify } from "@/utils/toast";
 
 
 const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
@@ -76,6 +76,7 @@ const AssetsType = () => {
         } catch (err) {
             console.error(err);
             setError('Failed to load asset types');
+            notify.error('Failed to load asset types.');
         } finally {
             setLoading(false);
         }
@@ -123,10 +124,11 @@ const AssetsType = () => {
         if (!window.confirm('Delete this asset type? This cannot be undone.')) return;
         try {
             await deleteAssetType(id);
+            notify.success("Asset Type Deleted successfully");
             fetchTypes();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete asset type.');
+            notify.error('Failed to delete asset type.');
         }
     };
  const filteredTypes = useMemo(() => {

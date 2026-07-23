@@ -11,6 +11,7 @@ import {
   buildEmployeePayload,
 } from './utils/Employeemappers';
 import { getAllActiveDepartments } from '../../services/apiServices';
+import { notify } from "@/utils/toast";
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -515,8 +516,10 @@ const UserRegistration = () => {
     try {
       if (isEditMode) {
         await updateEmployee(payload);
+         notify.success("User Updated Successfully");
       } else {
         await saveEmployee(payload);
+         notify.success("User Created Successfully");
       }
       navigate('/users');
     } catch (err) {
@@ -525,6 +528,7 @@ const UserRegistration = () => {
         err?.response?.data?.message ||
           `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
       );
+       notify.error( `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,);
     } finally {
       setSubmitting(false);
     }
@@ -543,6 +547,7 @@ const UserRegistration = () => {
     try {
       await saveEmployee(payload);
       setForm(DEFAULT_FORM);
+      notify.success("User Created Successfully");
       setStates([]);
       setCities([]);
       setErrors({});
@@ -551,6 +556,7 @@ const UserRegistration = () => {
       setSubmitError(
         err?.response?.data?.message || 'Something went wrong while saving this user. Please try again.',
       );
+      notify.error('Something went wrong while saving this user. Please try again.');
     } finally {
       setSubmitting(false);
     }

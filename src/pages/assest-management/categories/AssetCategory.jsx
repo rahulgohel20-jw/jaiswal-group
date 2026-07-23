@@ -22,6 +22,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddCategoryModal from './AddCategoryModal';
 import AssetCategoryDetailsModal from './AssetCategoryDetailsModal';
 import { getAssetCategories, deleteAssetCategory } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 
 const StatusBadge = ({ status }) => {
@@ -64,10 +65,11 @@ const AssetCategory = () => {
         if (!window.confirm('Delete this category? This cannot be undone.')) return;
         try {
             await deleteAssetCategory(id);
+            notify.success("Category Deleted successfully");
             fetchCategories();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete category.');
+            notify.error('Failed to delete category.');
         }
     };
     const openEditModal = (row) => {
@@ -96,6 +98,7 @@ const AssetCategory = () => {
         } catch (err) {
             console.error(err);
             setError('Failed to load categories');
+            notify.error('Failed to load categories');
         } finally {
             setLoading(false);
         }
@@ -203,7 +206,7 @@ const AssetCategory = () => {
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button" onClick={() => handleViewCategory(row.original)}>
+                    <button type="button" onClick={() => setViewingCategory(row.original)}>
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
                     <button type="button" onClick={() => openEditModal(row.original)}>

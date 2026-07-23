@@ -22,6 +22,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddSubCategoryModal from './AddSubCategoryModal';
 import AssetSubCategoryDetailsModal from './AssetSubCategoryDetailsModal';
 import { getSubCategories, getAssetCategories, deleteSubCategory } from '@/services/apiServices';
+import { notify } from "@/utils/toast";
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -112,7 +113,7 @@ const AssetSubCategory = () => {
             setSubCategories(list.map((c) => mapSubCategory(c, cats)));
         } catch (err) {
             console.error(err);
-            setError('Failed to load sub categories');
+            notify.error('Failed to load sub category.');
         } finally {
             setLoading(false);
         }
@@ -175,10 +176,11 @@ const AssetSubCategory = () => {
         if (!window.confirm('Delete this sub category? This cannot be undone.')) return;
         try {
             await deleteSubCategory(id);
+            notify.success("Subcategory Deleted successfully");
             fetchAll();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete sub category.');
+            notify.error('Failed to delete sub category.');
         }
     };
 

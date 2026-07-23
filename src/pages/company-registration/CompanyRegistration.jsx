@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { createCompany, getAllCountry, getCityByState, getStateByCountry, updateCompany } from '../../services/apiServices';
+import { notify } from "@/utils/toast";
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -409,7 +410,7 @@ const CompanyRegistration = () => {
         setStates(stateRes.data.data);
 
         const cityRes = await getCityByState(editingCompany.stateId);
-        setCities(cityRes.data.data["city Details"]);
+        setCities(cityRes.data.data["City Details"]);
       } catch (error) {
         console.log(error);
       }
@@ -483,6 +484,7 @@ const CompanyRegistration = () => {
           id: editingCompany.id,
           ...payload,
         });
+        notify.success("Update Company successfully");
       } else {
         const formData = new FormData();
 
@@ -495,6 +497,7 @@ const CompanyRegistration = () => {
         }
 
         await createCompany(payload, formData);
+        notify.success("Company Added successfully");
       }
 
       navigate("/companies");

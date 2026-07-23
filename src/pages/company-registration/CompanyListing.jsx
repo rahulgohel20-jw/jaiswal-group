@@ -23,6 +23,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { Link, useNavigate } from "react-router";
 import { getCompanyById, getRegisteredCompany, deleteCompany } from "../../services/apiServices";
+import { notify } from "@/utils/toast";
 
 
 const STATUS_STYLES = {
@@ -227,6 +228,7 @@ const CompanyRegistration = () => {
   const confirmDelete = async () => {
     try {
       await deleteCompany(deletingCompany.id);
+      notify.success("Company Deleted successfully");
 
       await fetchCompanies();
 

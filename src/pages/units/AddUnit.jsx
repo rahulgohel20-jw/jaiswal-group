@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { createCompany, getAllCountry, getCityByState, getRegisteredCompany, getStateByCountry, updateCompany } from '../../services/apiServices';
+import { notify } from "@/utils/toast";
 
 const COMPANIES = [
   'Jaiswal Group',
@@ -530,6 +531,7 @@ const AddUnit = () => {
 
     if (isEditMode) {
       await updateCompany(payload);
+      notify.success("Unit updated successfully");
     } else {
       const formData = new FormData();
 
@@ -542,10 +544,12 @@ const AddUnit = () => {
       }
 
       await createCompany(payload, formData);
+      notify.success("Unit Created successfully");
     }
 
     navigate("/Units");
   } catch (error) {
+    notify.error(error.response?.data || error.message);
     console.log(error.response?.data || error.message);
   }
 };
