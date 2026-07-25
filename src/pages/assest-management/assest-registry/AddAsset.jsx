@@ -805,63 +805,65 @@ const AddAsset = () => {
         />
         {openSections.product && (
           <div className="px-6 py-6 space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label required>Item Name</Label>
-                <input
-                  value={form.itemName}
-                  onChange={(e) => set('itemName', e.target.value)}
-                  placeholder="e.g. Commercial Freezer 400L"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <div className="flex justify-between gap-2 mb-3">
-                  <Label required>Brand</Label>
-                  <Button className="cursor-pointer" onPress={() => setShowAddAssetBrandCategoryModal(true)}>
-                    <CirclePlus />
-                  </Button>
-                </div>
-                <Select
-                  value={form.brand}
-                  onChange={(e) => set('brand', e.target.value)}
-                  placeholder={assetBrandsLoading ? 'Loading asset brands...' : 'Select asset brand'}
-                  options={assetBrandOptions}
-                  disabled={assetBrandsLoading}
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
+  <div>
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <Label required>Item Name</Label>
+    </div>
+    <input
+      value={form.itemName}
+      onChange={(e) => set('itemName', e.target.value)}
+      placeholder="e.g. Commercial Freezer 400L"
+      className={inputCls}
+    />
+  </div>
+  <div>
+    <div className="flex items-center justify-between gap-2 mb-3">
+      <Label required>Brand</Label>
+      <Button className="cursor-pointer" onPress={() => setShowAddAssetBrandCategoryModal(true)}>
+        <CirclePlus />
+      </Button>
+    </div>
+    <Select
+      value={form.brand}
+      onChange={(e) => set('brand', e.target.value)}
+      placeholder={assetBrandsLoading ? 'Loading asset brands...' : 'Select asset brand'}
+      options={assetBrandOptions}
+      disabled={assetBrandsLoading}
+    />
+  </div>
+</div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Model Number</Label>
-                <input
-                  value={form.modelNumber}
-                  onChange={(e) => set('modelNumber', e.target.value)}
-                  placeholder="SM-FZ-400-X"
-                  className={inputCls}
-                />
-              </div>
-            </div>
+<div className="grid grid-cols-2 gap-4">
+  <div>
+    <Label>Model Number</Label>
+    <input
+      value={form.modelNumber}
+      onChange={(e) => set('modelNumber', e.target.value)}
+      placeholder="SM-FZ-400-X"
+      className={inputCls}
+    />
+  </div>
+  <div>
+    <Label>Serial Number</Label>
+    <input
+      value={form.serialNumber}
+      onChange={(e) => set('serialNumber', e.target.value)}
+      placeholder="SN-2938475610"
+      className={inputCls}
+    />
+  </div>
+</div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <ImageUpload
-                value={form.assetImage || form.existingImage}
-                onChange={(file) => {
-                  set('assetImage', file);
-                  set('existingImage', '');
-                }}
-              />
-              <div>
-                <Label>Serial Number</Label>
-                <input
-                  value={form.serialNumber}
-                  onChange={(e) => set('serialNumber', e.target.value)}
-                  placeholder="SN-2938475610"
-                  className={inputCls}
-                />
-              </div>
-            </div>
+<div className="grid grid-cols-2 gap-4">
+  <ImageUpload
+    value={form.assetImage || form.existingImage}
+    onChange={(file) => {
+      set('assetImage', file);
+      set('existingImage', '');
+    }}
+  />
+</div>
 
             <div className="border-t border-gray-100 pt-5 space-y-5">
               <SubHeading icon={Landmark} title="Purchase Information" />

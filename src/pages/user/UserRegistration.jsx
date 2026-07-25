@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ChevronDown, Map, MapPin, User, X, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { getAllCountries, getStatesByCountry, getCitiesByState } from '@/services/apiServices';
-import { getEmployeeById, saveEmployee, updateEmployee } from '@/services/apiServices';
+import { getEmployeeById, saveEmployee,getCompanyById, updateEmployee } from '@/services/apiServices';
 import {
   DEFAULT_FORM,
   extractList,
@@ -289,6 +289,82 @@ const UserRegistration = () => {
 
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
+
+  const [companies, setCompanies] = useState([]);
+const [loadingCompanies, setLoadingCompanies] = useState(false);
+
+const [outlets, setOutlets] = useState([]);
+const [loadingOutlets, setLoadingOutlets] = useState(false);
+
+// Companies come from the Jaiswal Group root org (id 1) — its sub-companies
+// populate the Company dropdown.
+useEffect(() => {
+  let cancelled = false;
+  const fetchCompanies = async () => {
+    setLoadingCompanies(true);
+    try {
+      const res = await getCompanyById(1);
+      const org = res?.data?.data;
+      // NOTE: confirm the actual field name the API returns for child orgs —
+      // using `children` as a placeholder until verified against the real response.
+      const list = org?.children || org?.subCompanies || org?.organizations || [];
+      if (!cancelled) {
+        setCompanies(list.map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name })));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      if (!cancelled) setLoadingCompanies(false);
+    }
+  };
+  fetchCompanies();
+  return () => {
+    cancelled = true;
+  };
+}, []);
+
+// Outlets are scoped to whichever company is selected. Cleared/refetched
+// every time companyId changes; empty until a company is picked.
+useEffect(() => {
+  if (!form.companyId) {
+    setOutlets([]);
+    return;
+  }
+  let cancelled = false;
+  const fetchOutlets = async () => {
+    setLoadingOutlets(true);
+    try {
+      const res = await getRegisteredCompany();
+      const list = res?.data?.data || res?.data?.content || res?.data || [];
+      const filtered = Array.isArray(list)
+        ? list.filter(
+            (item) =>
+              item.orgType?.toLowerCase() === 'outlet' &&
+              String(item.parentId) === String(form.companyId),
+          )
+        : [];
+      if (!cancelled) {
+        setOutlets(filtered.map((o) => ({ id: o.id, name: o.companyNameEnglish || o.name })));
+      }
+    } catch (err) {
+      console.error(err);
+      if (!cancelled) setOutlets([]);
+    } finally {
+      if (!cancelled) setLoadingOutlets(false);
+    }
+  };
+  fetchOutlets();
+  return () => {
+    cancelled = true;
+  };
+}, [form.companyId]);
+
+const handleCompanyChange = (e) => {
+  const value = e.target.value;
+  setForm((f) => ({ ...f, companyId: value, outletId: '' }));
+  setOutlets([]);
+  setErrors((prev) => ({ ...prev, companyId: undefined }));
+};
 
   // Edit mode: pull the full record from the backend rather than trusting
   // the (possibly partial) row passed in via navigation state.
