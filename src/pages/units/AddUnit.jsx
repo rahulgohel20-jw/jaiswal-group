@@ -80,7 +80,10 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
 
   const handleFile = (e) => {
     const file = e.target.files?.[0];
-    if (file) onChange(URL.createObjectURL(file));
+
+    if (file) {
+      onChange(file);
+    }
   };
 
   return (
@@ -92,7 +95,7 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
       >
         {value ? (
           <img
-            src={value}
+            src={value instanceof File ? URL.createObjectURL(value) : value}
             alt={label}
             className="w-8 h-8 rounded-md object-cover border border-gray-200 shrink-0"
           />
@@ -413,30 +416,30 @@ const AddUnit = () => {
   // location.state. Its presence is what puts the page into edit mode.
   const editingUnit = location.state?.unit ?? null;
   const isEditMode = !!editingUnit;
-  
+
   useEffect(() => {
-  const loadLocationData = async () => {
-    if (!editingUnit) return;
+    const loadLocationData = async () => {
+      if (!editingUnit) return;
 
-    try {
-      setSelectedCountry(editingUnit.countryId?.toString() || "");
+      try {
+        setSelectedCountry(editingUnit.countryId?.toString() || "");
 
-      const stateRes = await getStateByCountry(editingUnit.countryId);
-      setStates(stateRes.data.data || []);
+        const stateRes = await getStateByCountry(editingUnit.countryId);
+        setStates(stateRes.data.data || []);
 
-      setSelectedState(editingUnit.stateId?.toString() || "");
+        setSelectedState(editingUnit.stateId?.toString() || "");
 
-      const cityRes = await getCityByState(editingUnit.stateId);
-      setCities(cityRes.data.data["City Details"] || []);
+        const cityRes = await getCityByState(editingUnit.stateId);
+        setCities(cityRes.data.data["City Details"] || []);
 
-      setSelectedCity(editingUnit.cityId?.toString() || "");
-    } catch (error) {
-      console.log(error);
-    }
-  };
+        setSelectedCity(editingUnit.cityId?.toString() || "");
+      } catch (error) {
+        console.log(error);
+      }
+    };
 
-  loadLocationData();
-}, [editingUnit]);
+    loadLocationData();
+  }, [editingUnit]);
   // Each section has its own independent open/closed state
   const [openSections, setOpenSections] = useState({
     Unit: true,
@@ -500,59 +503,79 @@ const AddUnit = () => {
   // }
 
   const handleSubmit = async () => {
-  try {
-    const payload = {
-      id: editingUnit?.id,
-      orgType: "OUTLET",
-      parentId: Number(form.company),
-      username: 1,
-      isverified: true,
+    try {
+      const payload = {
+        id: editingUnit?.id,
+        orgType: "OUTLET",
+        parentId: Number(form.company),
+        username: 1,
+        isverified: true,
 
-      companyNameEnglish: form.UnitName,
-      shortCode: form.shortCode,
+        companyNameEnglish: form.UnitName,
+        shortCode: form.shortCode,
 
-      emailid: form.email,
-      mobilenumber: form.mobile,
-      alternatemobilenumber: form.altMobile,
+        emailid: form.email,
+        mobilenumber: form.mobile,
+        alternatemobilenumber: form.altMobile,
 
-      addressEnglish: form.addressLine1,
-      addressline2: form.addressLine2,
+        addressEnglish: form.addressLine1,
+        addressline2: form.addressLine2,
 
-      countryId: Number(selectedCountry),
-      stateId: Number(selectedState),
-      cityId: Number(selectedCity),
+        countryId: Number(selectedCountry),
+        stateId: Number(selectedState),
+        cityId: Number(selectedCity),
 
-      pincode: form.pincode,
-      latitude: form.latitude,
-      longitude: form.longitude,
+        pincode: form.pincode,
+        latitude: form.latitude,
+        longitude: form.longitude,
 
-      capacity: form.capacity,
-    };
+        capacity: form.capacity,
+      };
 
-    if (isEditMode) {
-      await updateCompany(payload);
-      notify.success("Unit updated successfully");
-    } else {
-      const formData = new FormData();
+      if (isEditMode) {
+        const formData = new FormData();
 
-      if (form.logo) {
-        formData.append("logo", form.logo);
+        formData.append("id", editingUnit.id);
+
+        Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, value ?? "");
+        });
+
+        if (form.logo instanceof File) {
+          formData.append("logo", form.logo);
+        }
+
+        if (form.favicon instanceof File) {
+          formData.append("favicon", form.favicon);
+        }
+
+        const res = await updateCompany(formData);
+
+        notify.success("Unit updated successfully");
+      } else {
+        const formData = new FormData();
+
+        Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, value ?? "");
+        });
+
+        if (form.logo instanceof File) {
+          formData.append("logo", form.logo);
+        }
+
+        if (form.favicon instanceof File) {
+          formData.append("favicon", form.favicon);
+        }
+
+        await createCompany(formData);
+        notify.success("Unit Created successfully");
       }
 
-      if (form.favicon) {
-        formData.append("favicon", form.favicon);
-      }
-
-      await createCompany(payload, formData);
-      notify.success("Unit Created successfully");
+      navigate("/Units");
+    } catch (error) {
+      console.log(error.response?.data || error.message);
     }
-
-    navigate("/Units");
-  } catch (error) {
-    notify.error(error.response?.data || error.message);
-    console.log(error.response?.data || error.message);
-  }
-};
+  };
 
   return (
     <div className="mx-4 min-h-screen">
@@ -695,21 +718,21 @@ const AddUnit = () => {
               <Label required>Company</Label>
               <p className={inputCls}>
                 <select
-                value={form.company}
-                onChange={(e) => set("company", e.target.value)}
-                className='w-full outline-none'
-              >
-                <option value="">Select Company</option>
+                  value={form.company}
+                  onChange={(e) => set("company", e.target.value)}
+                  className='w-full outline-none'
+                >
+                  <option value="">Select Company</option>
 
-                {companies.map((company) => (
-                  <option
-                    key={company.id}
-                    value={company.id}
-                  >
-                    {company.companyNameEnglish}
-                  </option>
-                ))}
-              </select>
+                  {companies.map((company) => (
+                    <option
+                      key={company.id}
+                      value={company.id}
+                    >
+                      {company.companyNameEnglish}
+                    </option>
+                  ))}
+                </select>
               </p>
             </div>
             <div>
