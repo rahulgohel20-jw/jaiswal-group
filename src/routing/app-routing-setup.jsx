@@ -107,7 +107,6 @@ import CompanyRegistration from '../pages/company-registration/CompanyRegistrati
 import AddUnit from '../pages/units/AddUnit';
 import PurchaseListing from '../pages/stock-purchase/PurchaseListing';
 import AddPurchase from '../pages/stock-purchase/AddPurchase';
-import PurchaseOrderListing from '../pages/purchase-order/PurchaseOrderListing';
 import AddPurchaseOrder from '../pages/purchase-order/AddPurchaseOrder';
 import PurchaseReturnList from '../pages/purchase-return-list/PurchaseReturnListing';
 import AddPurchaseReturn from '../pages/purchase-return-list/AddPurchaseReturn';
@@ -151,6 +150,9 @@ import VendorViewDetails from '../pages/vendors/VendorViewDetails';
 import CompanyViewDetails from '../pages/company-registration/CompanyViewDetails';
 import UnitViewDetails from '../pages/units/UnitViewDetails';
 import AddAssetsTransfer from '../pages/assest-management/assets-transfer/AddAssetsTranfer';
+import AddPurchaseRequisition from '../pages/purchase-requisition/AddPurchaseRequisition';
+import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
+import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
 
 export function AppRoutingSetup() {
   return (
@@ -232,10 +234,13 @@ export function AppRoutingSetup() {
           <Route path='/material/categories' element={<RowMaterialCategories/>}/>
           <Route path='/material/items' element={<RowMaterialItemMaster/>}/>
 
+
+          <Route path="/purchase-requisition/list" element={<PurchaseRequisitionList/>} />
+          <Route path='/purchase-requisition/add' element={<AddPurchaseRequisition />} />
+          <Route path='/approve-purchase-requisition/list' element={<PurchaseRequisitionApproval />} />
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
 
-          <Route path="/purchase/purchase-order" element={<PurchaseOrderListing />} />
           <Route path="/purchase/add-purchase-order" element={<AddPurchaseOrder />} />
 
           <Route path="/purchase/purchase-return" element={<PurchaseReturnList />} />
@@ -244,7 +249,6 @@ export function AppRoutingSetup() {
           <Route path="/stocks/available-stocks" element={<AvailableStocks />} />
           <Route path="/stocks/closing-stock" element={<ClosingStock />} />
           <Route path="/stocks/add-stock" element={<AddStock />} />
-
           <Route
             path="/projectdashboard/taskview"
             element={<TaskViewDashboard />}

@@ -200,7 +200,7 @@ export function SidebarMenu() {
         {item.disabled && (
           <Badge variant="secondary" size="sm" className="ms-auto me-[-10px]">
             Soon
-          </Badge>
+          </Badge>  
         )}
       </AccordionMenuItem>
     );

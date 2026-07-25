@@ -121,17 +121,6 @@ const AddAssignAsset = () => {
                     viewBox="0 0 256 256"
                   />
                 </div>
-                <div className="h-14 rounded-md border border-gray-200 bg-white flex items-center justify-center px-2">
-                  <Barcode
-                    value={assetCode}
-                    format="CODE128"
-                    width={1}
-                    height={28}
-                    fontSize={8}
-                    margin={0}
-                    background="transparent"
-                  />
-                </div>
               </div>
             </div>
 
@@ -154,10 +143,10 @@ const AddAssignAsset = () => {
           <div className="border-t border-gray-100 pt-6 space-y-4">
             <SubHeading icon={MapPin} title="Deployment Destination" />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
               <div>
                 <Label>Asset Search</Label>
-                <div className="relative">
+                <div className="relative w-full">
                   <input
                     value={form.assetSearch}
                     onChange={(e) => set('assetSearch', e.target.value)}
@@ -168,8 +157,8 @@ const AddAssignAsset = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 w-full">
+              <div className='w-full'>
                 <Label>Company</Label>
                 <Select
                   value={form.company}
@@ -178,7 +167,7 @@ const AddAssignAsset = () => {
                   options={['Jaiswal Foods Ltd', 'Jaiswal Hospitality', 'Jaiswal Group']}
                 />
               </div>
-              <div>
+              <div className='w-full'>
                 <Label>Unit Name</Label>
                 <Select
                   value={form.unitName}
@@ -187,7 +176,7 @@ const AddAssignAsset = () => {
                   options={['Main Pastry Unit', 'Main Kitchen', 'Cold Storage']}
                 />
               </div>
-              <div>
+              <div className='w-full'>
                 <Label>Assigned To</Label>
                 <Select
                   value={form.assignedTo}

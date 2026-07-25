@@ -28,7 +28,8 @@ const mapDepartment = (d) => ({
     name: d.departmentName,
     description: d.description || 'Organization Unit',
     status: d.isActive ? 'Active' : 'Inactive',        
-    totalEmployees: d.totalEmployees ?? 0,     // backend sample has no count — adjust if it does
+    totalEmployees: d.totalEmployees ?? 0,  
+    organizationId: d.id ?? d.organizationUnitId ?? null,
     createdDate: d.createdDate
         ? new Date(d.createdDate).toLocaleDateString('en-US', {
               month: 'short', day: '2-digit', year: 'numeric',
@@ -115,28 +116,26 @@ const fetchDepartments = useCallback(async () => {
 const handleSaveDepartment = async (form, { addAnother } = {}) => {
     // Pull org context however your app currently determines it —
     // e.g. from localStorage set at login, or a user/session context.
-    const organizationId = Number(localStorage.getItem('organizationId')) || 1;
     const username = localStorage.getItem('username') || '';
     const isActive = form.status === 'Active';
-
     try {
         if (editingDepartment) {
             await updateDepartment({
                 id: editingDepartment.id,
-                departmentName: form.name.trim(),
+                departmentName: form.name,
                 isActive,
-                description: form.description.trim(),
-                organizationId,
-                username,
+                description: form.description,
+                organizationId : form.organizationId,
+                username: "",
             });
             notify.success("Update Department successfully");
         } else {
             await saveDepartment({
-                departmentName: form.name.trim(),
-                description: form.description || 'Organization Unit',
-                organizationId,
+                departmentName: form.departmentName,
+                description: form.description,
+                organizationId : form.organizationId,
                 isActive,
-                username,
+                username: "User",
             });
             notify.success("Department Added successfully");
         }
