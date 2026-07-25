@@ -483,6 +483,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Stock Purchase', path: '/purchase/stock-purchase' },
       { title: 'Purchase Order', path: '/purchase/purchase-order' },
       { title: 'Purchase Return', path: '/purchase/purchase-return' },
+      { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' }
     ],
   },
     {
@@ -492,6 +493,15 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Types', path: '/material/types' },
       { title: 'Categories', path: '/material/categories' },
       { title: 'Raw Material Items', path: '/material/items' },
+    ],
+  },
+  {
+    title: 'Menu Item',
+    icon: ShoppingCart,
+    children: [
+      { title: 'Categories', path: '/menu-item/categories' },
+      { title: 'Sub Category', path: '/menu-item/sub-category' },
+      { title: 'Add Menu Item', path: '/menu-item/add-menu-items' },
     ],
   },
   {
