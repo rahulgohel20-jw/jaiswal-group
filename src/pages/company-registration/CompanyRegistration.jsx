@@ -395,7 +395,6 @@ const CompanyRegistration = () => {
     if (!editingCompany) return;
 
     setForm(mapCompanyToForm(editingCompany));
-
     setSelectedCountry(editingCompany.countryId?.toString() || "");
     setSelectedState(editingCompany.stateId?.toString() || "");
     setSelectedCity(editingCompany.cityId?.toString() || "");
@@ -480,11 +479,25 @@ const CompanyRegistration = () => {
       };
 
       if (isEditMode) {
-        await updateCompany({
-          id: editingCompany.id,
-          ...payload,
+        const formData = new FormData();
+
+        formData.append("id", editingCompany.id);
+
+        Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, value ?? "");
         });
-        notify.success("Update Company successfully");
+
+        if (form.logo instanceof File) {
+          formData.append("logo", form.logo);
+        }
+
+        if (form.favicon instanceof File) {
+          formData.append("favicon", form.favicon);
+        }
+
+       const res = await updateCompany(formData);
+
+        notify.success("Company Updated Successfully");
       } else {
         const formData = new FormData();
 
@@ -497,15 +510,13 @@ const CompanyRegistration = () => {
         }
 
         await createCompany(payload, formData);
-        notify.success("Company Added successfully");
+
+        notify.success("Company Added Successfully");
       }
 
       navigate("/companies");
     } catch (error) {
-      console.log(
-        "Company save error:",
-        error.response?.data || error.message
-      );
+      console.log("Company save error:", error.response?.data || error.message);
     }
   };
   return (
@@ -516,7 +527,7 @@ const CompanyRegistration = () => {
         </h1>
         <p className="text-[#43474F] mt-2">
           {isEditMode
-            ? `Edit the details for ${editingCompany.name} and save your changes.`
+            ? `Edit the details for ${editingCompany.companyNameEnglish || ""} and save your changes.`
             : 'Complete the form below to establish a new corporate entity in the Jaiswal Group ecosystem.'}
         </p>
       </div>

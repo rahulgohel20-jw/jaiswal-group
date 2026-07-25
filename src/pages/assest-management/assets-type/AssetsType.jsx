@@ -36,6 +36,7 @@ const mapAssetType = (t) => ({
     name: t.name,
     description: t.description,
     status: t.active ? "Active" : "Inactive",
+     transferAllowed: t.transferAllowed,
     createdAt: t.createdAt,
 });
 
@@ -51,39 +52,7 @@ const AssetsType = () => {
     const [searchInput, setSearchInput] = useState("");
     const [typeInput, setTypeInput] = useState("All");
     const [transferInput, setTransferInput] = useState("Any");
-    const [filters, setFilters] = useState({
-        search: "",
-        type: "All",
-        transfer: "Any",
-    });
 
-    
-    const applyFilters = () => {
-    setFilters({
-        search: searchInput,
-        type: typeInput,
-        transfer: transferInput,
-    });
-};
-
-    const fetchTypes = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await getAssetTypes();
-            const raw = res.data?.data ?? res.data?.content ?? res.data ?? [];
-            setType(Array.isArray(raw) ? raw.map(mapAssetType) : []);
-        } catch (err) {
-            console.error(err);
-            setError('Failed to load asset types');
-            notify.error('Failed to load asset types.');
-        } finally {
-            setLoading(false);
-        }
-    };
-    useEffect(() => {
-        fetchTypes();
-    }, []);
 
     const openCreateModal = () => {
         setEditingType(null);
@@ -99,6 +68,7 @@ const AssetsType = () => {
         setShowAddModal(false);
         setEditingType(null);
     };
+
 
     const handleView = async (row) => {
         setViewLoading(true);
@@ -119,7 +89,26 @@ const AssetsType = () => {
         setEditingType(data);
         setShowAddModal(true);
     };
+    const fetchTypes = async () => {
+        setLoading(true);
+        setError(null);
 
+        try {
+            const res = await getAssetTypes();
+            const raw = res.data?.data ?? res.data?.content ?? res.data ?? [];
+
+            setType(Array.isArray(raw) ? raw.map(mapAssetType) : []);
+        } catch (err) {
+            console.error(err);
+            setError("Failed to load asset types");
+            notify.error("Failed to load asset types.");
+        } finally {
+            setLoading(false);
+        }
+    };
+    useEffect(() => {
+        fetchTypes();
+    }, []);
     const handleDelete = async (id) => {
         if (!window.confirm('Delete this asset type? This cannot be undone.')) return;
         try {
@@ -131,27 +120,27 @@ const AssetsType = () => {
             notify.error('Failed to delete asset type.');
         }
     };
- const filteredTypes = useMemo(() => {
-    return type.filter((item) => {
+    const filteredTypes = useMemo(() => {
+        return type.filter((item) => {
 
-        const keyword = filters.search.toLowerCase();
+            const keyword = searchInput.toLowerCase();
 
-        const searchMatch =
-            item.name?.toLowerCase().includes(keyword) ||
-            item.description?.toLowerCase().includes(keyword);
+            const searchMatch =
+                item.name?.toLowerCase().includes(keyword) ||
+                item.description?.toLowerCase().includes(keyword);
 
-        const typeMatch =
-            filters.type === "All" ||
-            item.name === filters.type;
+            const typeMatch =
+                typeInput === "All" ||
+                item.name?.toLowerCase() === typeInput.toLowerCase();
 
-        const transferMatch =
-            filters.transfer === "Any" ||
-            item.transferAllowed === filters.transfer;
+            const transferMatch =
+                transferInput === "Any" ||
+                item.transferAllowed === transferInput;
 
-        return searchMatch && typeMatch && transferMatch;
-    });
+            return searchMatch && typeMatch && transferMatch;
+        });
 
-}, [type, filters]);
+    }, [type, searchInput, typeInput, transferInput]);
 
     const STATS = [
         {
@@ -183,7 +172,7 @@ const AssetsType = () => {
             iconColor: "text-[#F97316]",
         },
     ];
-    const columns =  [
+    const columns = [
         {
             id: "select",
             header: ({ table }) => (
@@ -271,7 +260,9 @@ const AssetsType = () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
-
+    useEffect(() => {
+        table.setPageIndex(0);
+    }, [searchInput, typeInput, transferInput]);
     return (
         <div className="space-y-6 p-6">
             {/* Header */}
@@ -319,53 +310,62 @@ const AssetsType = () => {
                     );
                 })}
             </div>
-            {/* Filters — unchanged */}
-            <div className="bg-white border rounded-2xl p-5">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div className="md:col-span-3">
-                        <label className="text-xs font-semibold">Global Search</label>
-                        <input value={searchInput}
+            {/* Filters */}
+            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
+                    <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+                        <Search
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            size={18}
+                        />
+
+                        <input
+                            value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
-                            placeholder="Type, Description..." className="w-full border rounded-lg px-3 py-2 outline-none" />
+                            placeholder="Search by type, description..."
+                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
+                        />
                     </div>
-                    <div className="md:col-span-2">
-                        <label className="text-xs font-semibold">Asset Type</label>
-                        <p className='w-full border rounded-lg px-3 py-2 '>
-                            <select value={typeInput} onChange={(e) => setTypeInput(e.target.value)} className="outline-none w-full">
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                        {/* Asset Type */}
+                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                            <select
+                                value={typeInput}
+                                onChange={(e) => setTypeInput(e.target.value)}
+                                className="outline-none w-full bg-transparent text-sm text-gray-600"
+                            >
                                 <option value="All">All Types</option>
-                                {
-                                    type.map((t) => (
-                                        <option value={t.name}>{t.name}</option>
-                                    ))
-                                }
+
+                                {type.map((t) => (
+                                    <option key={t.id || t.name} value={t.name}>
+                                        {t.name}
+                                    </option>
+                                ))}
+
                             </select>
-                        </p>
-                    </div>
-                    <div className="md:col-span-2">
-                        <label className="text-xs font-semibold">Transfer Allowed</label>
-                        <p className='w-full border rounded-lg px-3 py-2 '>
+                        </div>
+
+
+                        {/* Transfer Allowed */}
+                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
                             <select
                                 value={transferInput}
                                 onChange={(e) => setTransferInput(e.target.value)}
-                                className="outline-none w-full"
+                                className="outline-none w-full bg-transparent text-sm text-gray-600"
                             >
-                                <option value="Any">
-                                    Any
-                                </option>
-                                <option value="Yes">
-                                    Yes
-                                </option>
-                                <option value="No">
-                                    No
-                                </option>
-
+                                <option value="Any">Any Transfer</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
                             </select>
-                        </p>
+                        </div>
+
                     </div>
-                    <div className="md:col-span-3 flex items-end gap-1 ">
-                        <button onClick={applyFilters} className="bg-[#084E92] cursor-pointer text-white px-6 py-2 rounded-lg">Apply Filter</button>
-                    </div>
+
                 </div>
+
             </div>
 
             {/* Table */}

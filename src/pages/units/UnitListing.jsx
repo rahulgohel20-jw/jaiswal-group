@@ -454,13 +454,13 @@ const UnitListing = () => {
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 py-3 bg-white rounded-t-2xl border border-b-0 border-gray-100 gap-4 flex-wrap">
             {/* Search - left side */}
-            <div className="relative">
+            <div className="relative sm:w-[50%] w-full border border-gray-200 rounded-xl text-sm text-gray-600 bg-gray-50 ">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by Unit name or code..."
-                className="pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 bg-gray-50 outline-none focus:ring-1 focus:ring-emerald-100 focus:border-emerald-300 w-64 transition placeholder-gray-400"
+                placeholder="Search companies..."
+                className="pl-9 pr-4 py-2 outline-none focus:ring-1 focus:ring-emerald-100 focus:border-emerald-300 w-56 transition placeholder-gray-400"
               />
             </div>
 

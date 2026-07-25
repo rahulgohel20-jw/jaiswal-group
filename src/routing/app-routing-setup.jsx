@@ -150,6 +150,7 @@ import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-maste
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
 import CompanyViewDetails from '../pages/company-registration/CompanyViewDetails';
 import UnitViewDetails from '../pages/units/UnitViewDetails';
+import AddAssetsTransfer from '../pages/assest-management/assets-transfer/AddAssetsTranfer';
 
 export function AppRoutingSetup() {
   return (

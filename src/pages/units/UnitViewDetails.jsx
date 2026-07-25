@@ -64,8 +64,6 @@ const UnitViewDetails = () => {
   const navigate = useNavigate();
 
   const unit = location.state?.unit;
-  console.log(unit)
-
   if (!unit) {
     navigate("/units");
     return null;
@@ -115,8 +113,16 @@ const UnitViewDetails = () => {
 
       <div className="mt-6 bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col sm:flex-row gap-5">
 
-        <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center">
-          <Store className="w-12 h-12 text-[#084E92]" />
+        <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center overflow-hidden border border-gray-200">
+
+          {unit.originalData?.companyLogo && (
+            <img
+              src={unit.originalData.companyLogo}
+              alt={unit.name}
+              className="w-full h-full object-cover"
+            />
+          )}
+
         </div>
 
         <div>

@@ -11,6 +11,7 @@ import {
   Hourglass,
   ListFilter,
   Plus,
+  Search,
   SquarePen,
   Trash2,
   UsersRound,
@@ -23,7 +24,7 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { getAllEmployees, deleteEmployeeById, getActiveCompany, getAllActiveDepartments  } from '@/services/apiServices';
+import { getAllEmployees, deleteEmployeeById, getActiveCompany, getAllActiveDepartments } from '@/services/apiServices';
 import { extractList, mapEmployeeToRow } from './utils/Employeemappers';
 import { notify } from "@/utils/toast";
 
@@ -110,11 +111,12 @@ const UserManagementList = () => {
   const [kycFilter, setKycFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [activeCompanies, setActiveCompanies] = useState([]);
+  const [search, setSearch] = useState("");
 
   const [departmentOptions, setDepartmentOptions] = useState([{ key: "all", label: "All Categories" }]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
 
- 
+
   const fetchDepartmentOptions = async () => {
     setLoadingDepartments(true);
     try {
@@ -132,16 +134,16 @@ const UserManagementList = () => {
   };
 
   const fetchActiveCompanies = async () => {
-  try {
-    const res = await getActiveCompany();
-    const companies =
-      res?.data?.data || [];
+    try {
+      const res = await getActiveCompany();
+      const companies =
+        res?.data?.data || [];
 
-    setActiveCompanies(companies);
-  } catch (error) {
-    console.error(error);
-  }
-};
+      setActiveCompanies(companies);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -165,46 +167,81 @@ const UserManagementList = () => {
   }, []);
 
   const DATA = [
-  {
-    label: 'TOTAL USERS',
-    count: `${userData.length}`,
-    icon: <UsersRound className="w-5 h-5 text-[#084E92]" />,
-    color: 'text-[#084E92]',
-    iconBg: 'bg-[#084E921A]/50',
-  },
-  {
-    label: 'KYC VERIFIED',
-    count: `${userData.filter((u) => u.kycStatus === 'Verified').length}`,
-    icon: <BadgeCheck className="w-5 h-5 text-[#084E92]" />,
-    color: 'text-[#084E92]',
-    iconBg: 'bg-[#084E921A]/50',
-  },
-  {
-    label: 'PENDING REVIEW',
-    count: `${userData.filter((u) => u.kycStatus === 'Pending').length}`,
-    icon: <Hourglass className="w-5 h-5 text-[#084E92]" />,
-    color: 'text-[#084E92]',
-    iconBg: 'bg-[#084E921A]/50',
-  },
-  {
-    label: 'ACTIVE ORGANIZATIONS',
-    count: `${activeCompanies.length}`,
-    icon: <Building2 className="w-5 h-5 text-[#084E92]" />,
-    color: 'text-[#084E92]',
-    iconBg: 'bg-[#084E921A]/50',
-  },
-];
+    {
+      label: 'TOTAL USERS',
+      count: `${userData.length}`,
+      icon: <UsersRound className="w-5 h-5 text-[#084E92]" />,
+      color: 'text-[#084E92]',
+      iconBg: 'bg-[#084E921A]/50',
+    },
+    {
+      label: 'KYC VERIFIED',
+      count: `${userData.filter((u) => u.kycStatus === 'Verified').length}`,
+      icon: <BadgeCheck className="w-5 h-5 text-[#084E92]" />,
+      color: 'text-[#084E92]',
+      iconBg: 'bg-[#084E921A]/50',
+    },
+    {
+      label: 'PENDING REVIEW',
+      count: `${userData.filter((u) => u.kycStatus === 'Pending').length}`,
+      icon: <Hourglass className="w-5 h-5 text-[#084E92]" />,
+      color: 'text-[#084E92]',
+      iconBg: 'bg-[#084E921A]/50',
+    },
+    {
+      label: 'ACTIVE ORGANIZATIONS',
+      count: `${activeCompanies.length}`,
+      icon: <Building2 className="w-5 h-5 text-[#084E92]" />,
+      color: 'text-[#084E92]',
+      iconBg: 'bg-[#084E921A]/50',
+    },
+  ];
   const filteredUser = useMemo(
     () =>
       userData.filter((u) => {
-        const matchesCategory = departmentFilter === "all" || u.department === departmentFilter;
-        const matchesKyc = kycFilter === "all" || u.kycStatus === kycFilter;
-        const matchesRole = roleFilter === "all" || u.role === roleFilter;
-        return matchesCategory && matchesKyc && matchesRole;
+        const searchText = search.toLowerCase().trim();
+
+        const matchesSearch =
+          !searchText ||
+          u.name?.toLowerCase().includes(searchText) ||
+          u.email?.toLowerCase().includes(searchText) ||
+          u.code?.toLowerCase().includes(searchText) ||
+          u.company?.toLowerCase().includes(searchText);
+
+        const matchesCategory =
+          departmentFilter === "all" ||
+          u.department === departmentFilter;
+
+        const matchesKyc =
+          kycFilter === "all" ||
+          u.kycStatus === kycFilter;
+
+        const matchesRole =
+          roleFilter === "all" ||
+          u.role === roleFilter;
+
+        return (
+          matchesSearch &&
+          matchesCategory &&
+          matchesKyc &&
+          matchesRole
+        );
       }),
-    [userData, departmentFilter, kycFilter, roleFilter],
+    [
+      userData,
+      search,
+      departmentFilter,
+      kycFilter,
+      roleFilter,
+    ]
   );
 
+  useEffect(() => {
+    setPagination((prev) => ({
+      ...prev,
+      pageIndex: 0,
+    }));
+  }, [search, roleFilter, departmentFilter, kycFilter]);
   // Edit reuses the same registration form component, switched into "update"
   // mode by the presence of state.user — the form fetches the full record
   // by id itself, so only the id needs to travel reliably here.
@@ -415,20 +452,36 @@ const UserManagementList = () => {
           ))}
         </div>
 
-        <div className="w-full mt-6 border border-[#C3C6D1] rounded-2xl p-4 flex flex-col xl:flex-row gap-5">
-          <div className="flex items-center gap-2 text-sm shrink-0">
-            <ListFilter size={15} />
-            <p className='border-r border-[#C3C6D1] pr-4'>Filters</p>
-          </div>
+        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 my-6">
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1">
-            <div className="w-full">
-              <p className='text-sm'>Role</p>
-              <p className="py-1 px-2 border border-gray-200 rounded-lg mt-1">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
+
+            {/* Search Section - Left 50% */}
+            <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name or email..."
+                className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
+              />
+            </div>
+
+
+            {/* Filters Section - Right 50% */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+              {/* Role */}
+              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
                 <select
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
-                  className="w-full text-sm text-gray-600 outline-none focus:border-blue-400"
+                  className="outline-none w-full bg-transparent text-sm text-gray-600"
                 >
                   {ROLE_OPTIONS.map((opt) => (
                     <option key={opt.key} value={opt.key}>
@@ -436,33 +489,34 @@ const UserManagementList = () => {
                     </option>
                   ))}
                 </select>
-              </p>
-            </div>
+              </div>
 
-            <div className="text-sm">
-              <p>Department</p>
-              <p className="py-2 px-2 rounded mt-1">
-               <select
+
+              {/* Department */}
+              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                <select
                   value={departmentFilter}
                   onChange={(e) => setDepartmentFilter(e.target.value)}
                   disabled={loadingDepartments}
-                  className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="outline-none w-full bg-transparent text-sm text-gray-600 disabled:opacity-60"
                 >
                   {departmentOptions.map((opt) => (
                     <option key={opt.key} value={opt.key}>
-                      {loadingDepartments && opt.key === "all" ? "Loading..." : opt.label}
+                      {loadingDepartments && opt.key === "all"
+                        ? "Loading..."
+                        : opt.label}
                     </option>
                   ))}
                 </select>
-              </p>
-            </div>
-            <div className="w-full">
-              <p className='text-sm'>KYC Status</p>
-              <p className="py-1 px-2 border border-gray-200 rounded-lg mt-1">
+              </div>
+
+
+              {/* KYC */}
+              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
                 <select
                   value={kycFilter}
                   onChange={(e) => setKycFilter(e.target.value)}
-                  className="w-full text-sm text-gray-600 outline-none focus:border-blue-400"
+                  className="outline-none w-full bg-transparent text-sm text-gray-600"
                 >
                   {KYC_OPTIONS.map((opt) => (
                     <option key={opt.key} value={opt.key}>
@@ -470,26 +524,13 @@ const UserManagementList = () => {
                     </option>
                   ))}
                 </select>
-              </p>
-            </div>
-          </div>
+              </div>
 
-          <div className="flex gap-3 items-center">
-            <div className="border border-[#C3C6D1] rounded-lg h-max py-2">
-              <button className="flex items-center justify-center gap-2 px-4 w-full cursor-pointer" onClick={() => handleExport("csv")}>
-                <Download size={20}/>
-                <p>Export</p>
-              </button>
             </div>
 
-            <button type='button' onClick={() => {
-              setDepartmentFilter("all");
-              setKycFilter("all");
-              setRoleFilter("all");
-            }} className="text-[#084E92] font-bold cursor-pointer">Clear All</button>
           </div>
+
         </div>
-
         {loadError && (
           <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <AlertTriangle className="w-4 h-4 shrink-0" />

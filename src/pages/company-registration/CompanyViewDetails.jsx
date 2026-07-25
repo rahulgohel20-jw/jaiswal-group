@@ -44,7 +44,9 @@ const InfoCard = ({ label, value }) => (
         </p>
 
         <p className="text-sm font-semibold text-gray-800 mt-1">
-            {value || "—"}
+            {typeof value === "object"
+                ? value?.msg
+                : value || "—"}
         </p>
 
     </div>
@@ -154,8 +156,20 @@ const CompanyViewDetails = () => {
 
                 <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center">
 
-                    <Building2 className="w-12 h-12 text-[#084E92]" />
-
+                    <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-200 bg-white flex items-center justify-center shrink-0">
+                        {company.companyLogo ? (
+                            <img
+                                src={company.companyLogo}
+                                alt={company.companyNameEnglish}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                    e.currentTarget.style.display = "none";
+                                }}
+                            />
+                        ) : (
+                            <Building2 className="w-12 h-12 text-[#084E92]" />
+                        )}
+                    </div>
                 </div>
 
 
@@ -186,11 +200,10 @@ const CompanyViewDetails = () => {
                         </span>
 
 
-                        <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                            company.isActive
+                        <span className={`text-xs font-medium px-3 py-1 rounded-full ${company.isActive
                             ? "bg-green-50 text-green-700"
                             : "bg-red-50 text-red-700"
-                        }`}>
+                            }`}>
                             {company.isActive ? "Active" : "Inactive"}
                         </span>
 
