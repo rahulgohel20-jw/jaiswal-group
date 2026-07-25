@@ -552,34 +552,37 @@ const CompanyRegistration = () => {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Company Code</Label>
-                <input
-                  value={form.companyCode}
-                  disabled
-                  className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                />
-              </div>
-              <div>
-                <Label required>Short Code</Label>
-                <input
-                  value={form.shortCode}
-                  onChange={(e) => set('shortCode', e.target.value)}
-                  placeholder="e.g. AHD01"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label>GST Number</Label>
-                <input
-                  value={form.gstNumber}
-                  onChange={(e) => set('gstNumber', e.target.value)}
-                  placeholder="Enter GST Number"
-                  className={inputCls}
-                />
-              </div>
+          <div className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-1'}`}>
+            {isEditMode && (
+              <>
+                <div>
+                  <Label>Company Code</Label>
+                  <input
+                    value={form.companyCode}
+                    disabled
+                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                  />
+                </div>
+                <div>
+                  <Label>Short Code</Label>
+                  <input
+                    value={form.shortCode}
+                    disabled
+                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                  />
+                </div>
+              </>
+            )}
+            <div>
+              <Label>GST Number</Label>
+              <input
+                value={form.gstNumber}
+                onChange={(e) => set('gstNumber', e.target.value)}
+                placeholder="Enter GST Number"
+                className={inputCls}
+              />
             </div>
+          </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div>

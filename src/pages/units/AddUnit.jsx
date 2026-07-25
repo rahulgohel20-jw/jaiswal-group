@@ -601,103 +601,105 @@ const AddUnit = () => {
 
         {openSections.Unit && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label required>Unit Name</Label>
-                <input
-                  value={form.UnitName}
-                  onChange={(e) => set('UnitName', e.target.value)}
-                  placeholder="e.g. Jaiswal Group - Maninagar"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label>Unit Code (Auto Generated)</Label>
-                <input
-                  value={form.UnitCode}
-                  disabled
-                  className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                />
-              </div>
-            </div>
+  <div className={`grid gap-4 ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'}`}>
+    <div>
+      <Label required>Unit Name</Label>
+      <input
+        value={form.UnitName}
+        onChange={(e) => set('UnitName', e.target.value)}
+        placeholder="e.g. Jaiswal Group - Maninagar"
+        className={inputCls}
+      />
+    </div>
+    {isEditMode && (
+      <div>
+        <Label>Unit Code (Auto Generated)</Label>
+        <input
+          value={form.UnitCode}
+          disabled
+          className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+        />
+      </div>
+    )}
+  </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <ImageUploadBox
-                label="Unit Logo"
-                hint="PNG, JPG upto 2MB"
-                value={form.logo}
-                onChange={(v) => set('logo', v)}
-              />
-              <ImageUploadBox
-                label="Favicon"
-                hint="32×32 or 64×64px"
-                value={form.favicon}
-                onChange={(v) => set('favicon', v)}
-              />
-            </div>
+  <div className="grid grid-cols-2 gap-4">
+    <ImageUploadBox
+      label="Unit Logo"
+      hint="PNG, JPG upto 2MB"
+      value={form.logo}
+      onChange={(v) => set('logo', v)}
+    />
+    <ImageUploadBox
+      label="Favicon"
+      hint="32×32 or 64×64px"
+      value={form.favicon}
+      onChange={(v) => set('favicon', v)}
+    />
+  </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label required>Short Code</Label>
-                <input
-                  value={form.shortCode}
-                  onChange={(e) => set('shortCode', e.target.value)}
-                  placeholder="e.g. MNGR01"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label required>Email</Label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => set('email', e.target.value)}
-                  placeholder="Unit@example.com"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label required>Mobile Number</Label>
-                <input
-                  value={form.mobile}
-                  onChange={(e) => set('mobile', e.target.value)}
-                  placeholder="+91 98675 34210"
-                  maxLength={10}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label>Alternate Mobile Number</Label>
-                <input
-                  value={form.altMobile}
-                  onChange={(e) => set('altMobile', e.target.value)}
-                  placeholder="Secondary Mobile"
-                  maxLength={10}
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label required>Capacity ( Meals Per Day )</Label>
-                <input
-                  type="number"
-                  value={form.capacity}
-                  onChange={(e) => set('capacity', e.target.value)}
-                  placeholder="e.g. 200"
-                  className={inputCls}
-                />
-              </div>
-
-              <div>
-                <Label required>Unit Manager</Label>
-                <Select
-                  value={form.manager}
-                  onChange={(e) => set('manager', e.target.value)}
-                  placeholder="Select Manager"
-                  options={COMPANIES}
-                />
-              </div>
-            </div>
-          </div>
+  <div className="grid grid-cols-2 gap-4">
+    {isEditMode && (
+      <div>
+        <Label>Short Code</Label>
+        <input
+          value={form.shortCode}
+          disabled
+          className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+        />
+      </div>
+    )}
+    <div>
+      <Label required>Email</Label>
+      <input
+        type="email"
+        value={form.email}
+        onChange={(e) => set('email', e.target.value)}
+        placeholder="Unit@example.com"
+        className={inputCls}
+      />
+    </div>
+    <div>
+      <Label required>Mobile Number</Label>
+      <input
+        value={form.mobile}
+        onChange={(e) => set('mobile', e.target.value)}
+        placeholder="+91 98675 34210"
+        maxLength={10}
+        className={inputCls}
+      />
+    </div>
+    <div>
+      <Label>Alternate Mobile Number</Label>
+      <input
+        value={form.altMobile}
+        onChange={(e) => set('altMobile', e.target.value)}
+        placeholder="Secondary Mobile"
+        maxLength={10}
+        className={inputCls}
+      />
+    </div>
+    <div>
+      <Label required>Capacity ( Meals Per Day )</Label>
+      <input
+        type="number"
+        value={form.capacity}
+        onChange={(e) => set('capacity', e.target.value)}
+        placeholder="e.g. 200"
+        className={inputCls}
+      />
+    </div>
+    <div>
+      <Label required>Unit Manager</Label>
+      <Select
+        value={form.manager}
+        onChange={(e) => set('manager', e.target.value)}
+        placeholder="Select Manager"
+        options={COMPANIES}
+      />
+    </div>
+  </div>
+</div>
         )}
       </SectionCard>
 
