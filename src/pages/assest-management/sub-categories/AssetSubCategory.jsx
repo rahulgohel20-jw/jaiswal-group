@@ -356,52 +356,79 @@ const AssetSubCategory = () => {
 
             {/* Filters */}
             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-center">
-                    <div className="relative col-span-1 min-w-0 border border-[#C3C6D1] rounded-lg">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
+
+                    <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+                        <Search
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            size={18}
+                        />
+
                         <input
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleApplyFilter()}
-                            placeholder="Search by name, code or description..." className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg" />
+                            onKeyDown={(e) => e.key === "Enter" && handleApplyFilter()}
+                            placeholder="Search by name, code or description..."
+                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
+                        />
                     </div>
 
-                    <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                        <select value={categoryFilter}
-                            onChange={(e) => setCategoryFilter(e.target.value)}
-                            className="outline-none w-full min-w-0 bg-transparent">
-                            <option value="All">All Categories</option>
-                            {[...new Set(subCategories.map(item => item.parentCategory))].map(category => (
-                                <option key={category} value={category}>
-                                    {category}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+                        {/* Category */}
+                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                            <select
+                                value={categoryFilter}
+                                onChange={(e) => setCategoryFilter(e.target.value)}
+                                className="outline-none w-full bg-transparent text-sm text-gray-600"
+                            >
+                                <option value="All">
+                                    All Categories
                                 </option>
-                            ))}
-                        </select>
-                    </p>
 
-                    <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="outline-none w-full bg-transparent"
-                        >
-                            <option value="All">All Status</option>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-                    </p>
+                                {[...new Set(
+                                    subCategories.map(item => item.parentCategory)
+                                )].map(category => (
+                                    <option key={category} value={category}>
+                                        {category}
+                                    </option>
+                                ))}
 
-                    <button type="button" onClick={handleApplyFilter} className="bg-[#084E92] text-white rounded-lg px-4 py-2 hover:bg-[#073e77] transition cursor-pointer">
-                        Apply Filters
-                    </button>
+                            </select>
+                        </div>
+
+
+                        {/* Status */}
+                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="outline-none w-full bg-transparent text-sm text-gray-600"
+                            >
+                                <option value="All">
+                                    All Status
+                                </option>
+                                <option value="Active">
+                                    Active
+                                </option>
+                                <option value="Inactive">
+                                    Inactive
+                                </option>
+                            </select>
+                        </div>
+
+                    </div>
+
                 </div>
+
             </div>
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                 <DataGrid table={table} recordCount={filteredSubCategories.length} className="rounded-2xl">
-                {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
-                {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+                    {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
+                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>

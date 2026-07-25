@@ -483,6 +483,7 @@ export const MENU_SIDEBAR_ADMIN = [
     children: [
       { title: 'Purchase Requisition', path: '/purchase-requisition/list'},
       { title: 'Approve Purchase Requisition', path: '/approve-purchase-requisition/list'},
+      { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' }
 
     ],
   },
@@ -493,6 +494,15 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Types', path: '/material/types' },
       { title: 'Categories', path: '/material/categories' },
       { title: 'Raw Material Items', path: '/material/items' },
+    ],
+  },
+  {
+    title: 'Menu Item',
+    icon: ShoppingCart,
+    children: [
+      { title: 'Categories', path: '/menu-item/categories' },
+      { title: 'Sub Category', path: '/menu-item/sub-category' },
+      { title: 'Add Menu Item', path: '/menu-item/add-menu-items' },
     ],
   },
   {

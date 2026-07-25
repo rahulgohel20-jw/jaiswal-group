@@ -230,13 +230,12 @@ export const createCompany = (params, formData) => {
   );
 };
 
-export const updateCompany = (params) => {
-  return axiosInstance.put(
-    "/organization/update",
-    null,
-    { params }
-  );
-};
+export const updateCompany = (data) =>
+  axiosInstance.put("/organization/update", data, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
 
 export const deleteCompany = (id) => {
   return DELETE(`/organization/delete/${id}`);

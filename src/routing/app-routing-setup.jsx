@@ -150,6 +150,11 @@ import VendorViewDetails from '../pages/vendors/VendorViewDetails';
 import CompanyViewDetails from '../pages/company-registration/CompanyViewDetails';
 import UnitViewDetails from '../pages/units/UnitViewDetails';
 import AddAssetsTransfer from '../pages/assest-management/assets-transfer/AddAssetsTranfer';
+import PurchaseOrderRequest from '../pages/purchase-order-requests/PurchaseOrderRequest';
+import MenuCategory from '../pages/menu-item/menu-category/MenuCategory';
+import CreateCategory from '../pages/menu-item/menu-category/CreateMenuCategory';
+import MenuSubCategory from '../pages/menu-item/menu-subcategory/MenuSubCategory';
+import CreateMenuItem from '../pages/menu-item/create-menu-item/CreateMenuItem';
 import AddPurchaseRequisition from '../pages/purchase-requisition/AddPurchaseRequisition';
 import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
 import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
@@ -234,6 +239,14 @@ export function AppRoutingSetup() {
           <Route path='/material/categories' element={<RowMaterialCategories/>}/>
           <Route path='/material/items' element={<RowMaterialItemMaster/>}/>
 
+          <Route path='/menu-item/categories' element={<MenuCategory/>}/>
+          <Route path='/menu-item/sub-category' element={<MenuSubCategory/>}/>
+          <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
+
+          <Route path='/menu-item/categories' element={<MenuCategory/>}/>
+          <Route path='/menu-item/sub-category' element={<MenuSubCategory/>}/>
+          <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
+
 
           <Route path="/purchase-requisition/list" element={<PurchaseRequisitionList/>} />
           <Route path='/purchase-requisition/add' element={<AddPurchaseRequisition />} />
@@ -242,6 +255,7 @@ export function AppRoutingSetup() {
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
 
           <Route path="/purchase/add-purchase-order" element={<AddPurchaseOrder />} />
+          <Route path='/purchase/purchase-order-requests' element={<PurchaseOrderRequest/>}/>
 
           <Route path="/purchase/purchase-return" element={<PurchaseReturnList />} />
           <Route path="/purchase/add-purchase-return" element={<AddPurchaseReturn />} />

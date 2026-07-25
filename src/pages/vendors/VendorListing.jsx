@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Handshake,
   Eye,
@@ -117,10 +117,10 @@ const StatusBadge = ({ status }) => (
   >
     <span
       className={`w-1.5 h-1.5 rounded-full ${status === "verified"
-          ? "bg-emerald-500"
-          : status === "pending"
-            ? "bg-amber-500"
-            : "bg-red-500"
+        ? "bg-emerald-500"
+        : status === "pending"
+          ? "bg-amber-500"
+          : "bg-red-500"
         }`}
     />
     {STATUS_LABELS[status]}
@@ -273,7 +273,12 @@ const VendorList = () => {
       }),
     [vendors, search, categoryFilter, kycFilter],
   );
-
+  useEffect(() => {
+    setPagination((prev) => ({
+      ...prev,
+      pageIndex: 0,
+    }));
+  }, [search, categoryFilter, kycFilter]);
   const handleEdit = (vendor) => {
     navigate('/vendors/update-vendor', { state: { vendor } });
   };
@@ -469,80 +474,66 @@ const VendorList = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-6 mb-6 flex-wrap">
-          <span className="flex items-center gap-1.5 text-sm font-semibold text-gray-600 shrink-0">
-            <SlidersHorizontal className="w-4 h-4" />
-            Filters
-          </span>
+        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mb-6">
 
-          <div>
-            <p className="text-[11px] text-gray-400 mb-1">Category</p>
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
-            >
-              {CATEGORY_OPTIONS.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
 
-          <div>
-            <p className="text-[11px] text-gray-400 mb-1">KYC Status</p>
-            <select
-              value={kycFilter}
-              onChange={(e) => setKycFilter(e.target.value)}
-              className="border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-600 bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 transition appearance-none cursor-pointer"
-            >
-              {KYC_OPTIONS.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
+            {/* Search  */}
+            <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={18}
+              />
 
-          <div className="ml-auto flex items-center gap-4">
-            <button
-              type="button"
-              onClick={() => handleExport("csv")}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCategoryFilter("all");
-                setKycFilter("all");
-                setSearch("");
-              }}
-              className="text-sm font-semibold text-sky-700 hover:text-sky-900 transition cursor-pointer bg-white border-0"
-            >
-              Clear All
-            </button>
-          </div>
-        </div>
-
-        <DataGrid table={table} recordCount={filteredVendors.length}>
-          {/* Toolbar */}
-          <div className="flex items-center justify-between px-4 py-3 bg-white rounded-t-2xl border border-b-0 border-gray-100 gap-4 flex-wrap">
-            {/* Search */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by vendor name, code, email..."
-                className="pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-600 bg-gray-50 outline-none focus:ring-1 focus:ring-emerald-100 focus:border-emerald-300 w-72 transition placeholder-gray-400"
+                className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
               />
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+              {/* Category */}
+              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="outline-none w-full bg-transparent text-sm text-gray-600"
+                >
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+
+              {/* KYC */}
+              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                <select
+                  value={kycFilter}
+                  onChange={(e) => setKycFilter(e.target.value)}
+                  className="outline-none w-full bg-transparent text-sm text-gray-600"
+                >
+                  {KYC_OPTIONS.map((opt) => (
+                    <option key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+            </div>
+
           </div>
 
+        </div>
+
+        <DataGrid table={table} recordCount={filteredVendors.length}>
           {/* Table Card */}
           <Card className="rounded-t-none border-t-0">
             <CardTable>

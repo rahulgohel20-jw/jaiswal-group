@@ -147,18 +147,8 @@ const AssetsManagement = () => {
     const [searchInput, setSearchInput] = useState("");
     const [categoryInput, setCategoryInput] = useState("All");
     const [statusInput, setStatusInput] = useState("All");
-    const [purchaseDateInput, setPurchaseDateInput] = useState("");
-    const [expiryDateInput, setExpiryDateInput] = useState("");
     const [deleting, setDeleting] = useState(false);
     const [deletingAsset, setdeletingAsset] = useState(null);
-
-    const [filters, setFilters] = useState({
-        search: "",
-        category: "All",
-        status: "All",
-        purchaseDate: "",
-        expiryDate: "",
-    });
 
     const fetchAssets = async () => {
         setAssetsLoading(true);
@@ -208,48 +198,26 @@ const AssetsManagement = () => {
         [assets]
     );
 
-    const applyFilters = () => {
-        setFilters({
-            search: searchInput,
-            category: categoryInput,
-            status: statusInput,
-            purchaseDate: purchaseDateInput,
-            expiryDate: expiryDateInput,
-        });
-    };
-
     const filteredAssets = useMemo(() => {
+        const keyword = searchInput.toLowerCase();
 
-        return assets.filter((asset) => {
-
+        return assets.filter((item) => {
             const searchMatch =
-                asset.assetId.toLowerCase().includes(filters.search.toLowerCase()) ||
-                asset.itemName.toLowerCase().includes(filters.search.toLowerCase()) ||
-                asset.category.toLowerCase().includes(filters.search.toLowerCase());
-
+                item.assetId?.toLowerCase().includes(keyword) ||
+                item.itemName?.toLowerCase().includes(keyword) ||
+                item.category?.toLowerCase().includes(keyword);
 
             const categoryMatch =
-                filters.category === "All" ||
-                asset.category === filters.category;
-
+                categoryInput === "All" ||
+                item.category === categoryInput;
 
             const statusMatch =
-                filters.status === "All" ||
-                asset.status === filters.status;
+                statusInput === "All" ||
+                item.status === statusInput;
 
-            const purchaseMatch = true;
-            const expiryMatch = true;
-
-            return (
-                searchMatch &&
-                categoryMatch &&
-                statusMatch &&
-                purchaseMatch &&
-                expiryMatch
-            );
+            return searchMatch && categoryMatch && statusMatch;
         });
-
-    }, [assets, filters]);
+    }, [assets, searchInput, categoryInput, statusInput]);
 
     const columns = [
         {
@@ -418,6 +386,9 @@ const AssetsManagement = () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+    useEffect(() => {
+        table.setPageIndex(0);
+    }, [searchInput, categoryInput, statusInput, table]);
     return (
         <div className="p-4 md:p-6">
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
@@ -469,78 +440,62 @@ const AssetsManagement = () => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                    <div className="relative col-span-2 border border-[#C3C6D1] rounded-lg">
+            {/* Filters */}
+            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
+
+                    {/* Search  */}
+                    <div className="relative w-full border border-[#C3C6D1] rounded-lg">
                         <Search
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input value={searchInput}
+
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            size={18}
+                        />
+
+                        <input
+                            value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                            placeholder="Search by Asset ID, Name, Brand..." className="w-full pl-10 py-2 outline-none" />
+                            placeholder="Search by type, description..."
+                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
+                        />
                     </div>
-                    <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                        <select value={categoryInput}
-                            onChange={(e) => setCategoryInput(e.target.value)}
-                            className="outline-none w-full">
-                            {categoryOptions.map((c) => (
-                                <option key={c} value={c}>{c === "All" ? "All Categories" : c}</option>
-                            ))}
-                        </select>
-                    </p>
 
+                    {/* Right side  */}
+                    <div className="grid grid-cols-2 gap-3">
 
-                    <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                        <select value={statusInput}
-                            onChange={(e) => setStatusInput(e.target.value)}
-                            className="outline-none w-full">
-                            {statusOptions.map((s) => (
-                                <option key={s} value={s}>{s === "All" ? "All Status" : s}</option>
-                            ))}
-                        </select>
-                    </p>
-                </div>
-
-                <div className='flex flex-col lg:flex-row gap-4 lg:justify-between'>
-                    <div className='flex flex-col sm:flex-row gap-4'>
-                        <div className='flex flex-col sm:flex-row sm:items-center gap-2'>
-                            <label>Purchase Date:</label>
-                            <input value={purchaseDateInput}
-                                onChange={(e) => setPurchaseDateInput(e.target.value)}
-                                type="date" className='outline-none px-2 py-1 border border-[#C3C6D1] rounded-lg' />
+                        {/* Asset Type */}
+                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                            <select
+                                value={categoryInput}
+                                onChange={(e) => setCategoryInput(e.target.value)}
+                                className="w-full bg-transparent outline-none text-sm text-gray-600"
+                            >
+                                {categoryOptions.map((category) => (
+                                    <option key={category} value={category}>
+                                        {category}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <div className='flex flex-col sm:flex-row sm:items-center gap-2'>
-                            <label>Expiry Date:</label>
-                            <input value={expiryDateInput}
-                                onChange={(e) => setExpiryDateInput(e.target.value)}
-                                type="date" className='outline-none px-2 py-1 border border-[#C3C6D1] rounded-lg' />
-                        </div>
-                    </div>
-                    <div className='flex flex-wrap gap-2'>
-                        <button onClick={() => {
-                            setSearchInput("");
-                            setCategoryInput("All");
-                            setStatusInput("All");
-                            setPurchaseDateInput("");
-                            setExpiryDateInput("");
 
-                            setFilters({
-                                search: "",
-                                category: "All",
-                                status: "All",
-                                purchaseDate: "",
-                                expiryDate: ""
-                            });
-                        }} className=" text-[#265FA4] cursor-pointer rounded-lg px-4 py-2 w-full sm:w-auto">
-                            Reset Filters
-                        </button>
-                        <button onClick={applyFilters} className="bg-[#084E92] cursor-pointer text-white rounded-lg px-4 py-2 w-full sm:w-auto">
-                            Apply Filter
-                        </button>
+                        {/* Transfer Allowed */}
+                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                            <select
+                                value={statusInput}
+                                onChange={(e) => setStatusInput(e.target.value)}
+                                className="w-full bg-transparent outline-none text-sm text-gray-600"
+                            >
+                                {statusOptions.map((status) => (
+                                    <option key={status} value={status}>
+                                        {status}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
                     </div>
                 </div>
             </div>
-
             <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
                 {assetsLoading ? (
                     <div className="flex items-center justify-center gap-2 py-16 text-gray-400 bg-white">
