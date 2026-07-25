@@ -81,8 +81,6 @@ const StatusMasterModule = () => {
     const [formData, setFormData] = useState(EMPTY_FORM);
 
     const [deletingId, setDeletingId] = useState(null);
-    const [searchText, setSearchText] = useState("");
-    const [statusFilter, setStatusFilter] = useState("All Status");
 
     const [searchInput, setSearchInput] = useState("");
     const [statusInput, setStatusInput] = useState("All Status");
@@ -99,7 +97,7 @@ const StatusMasterModule = () => {
             setStatusData(list.map(normalizeStatusRow));
         } catch (err) {
             setListError(err?.message || "Failed to load Status");
-             notify.error("Failed to load status");
+            notify.error("Failed to load status");
         } finally {
             setListLoading(false);
         }
@@ -205,7 +203,7 @@ const StatusMasterModule = () => {
             closeModal();
         } catch (err) {
             setModalError(err?.message || "Failed to save status");
-             notify.error("Failed to save status");
+            notify.error("Failed to save status");
         } finally {
             setSaving(false);
         }
@@ -334,39 +332,28 @@ const StatusMasterModule = () => {
         },
     ];
 
-    const applyFilter = () => {
-        setSearchText(searchInput.trim());
-        setStatusFilter(statusInput);
-        setPagination({
-            pageIndex: 0,
-            pageSize: 10,
-        });
-    }
-
-    const resetFilter = () => {
-        setSearchInput("");
-        setStatusInput("All Status");
-        setSearchText("");
-        setStatusFilter("All Status");
-        setPagination({
-            pageIndex: 0,
-            pageSize: 10,
-        });
-    }
     const filteredStatusData = useMemo(() => {
         return statusData.filter((status) => {
             const matchesSearch =
-                searchText === "" ||
-                status.statusName.toLowerCase().includes(searchText.toLowerCase());
+                searchInput === "" ||
+                status.statusName
+                    .toLowerCase()
+                    .includes(searchInput.toLowerCase());
 
             const matchesStatus =
-                statusFilter === "All Status" ||
-                status.visibilityStatus === statusFilter;
+                statusInput === "All Status" ||
+                status.visibilityStatus === statusInput;
 
             return matchesSearch && matchesStatus;
         });
+    }, [statusData, searchInput, statusInput]);
 
-    }, [statusData, searchText, statusFilter])
+    useEffect(() => {
+        setPagination((prev) => ({
+            ...prev,
+            pageIndex: 0,
+        }));
+    }, [searchInput, statusInput]);
     const table = useReactTable({
         data: filteredStatusData,
         columns,
@@ -444,62 +431,32 @@ const StatusMasterModule = () => {
 
 
             <div className="bg-white rounded-2xl border border-[#D9DEE8] p-5 my-6">
-                <div className="grid md:grid-cols-4 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
+                    <div className="relative mt-1 rounded-lg md:col-span-2 col-span-1 border border-[#C3C6D1]">
+                        <Search
+                            size={16}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                        />
 
-                    <div>
-                        <label className="text-xs font-semibold text-[#002246]">
-                            Status Name
-                        </label>
-
-                        <div className="relative mt-1 bg-[#EFF4FF] rounded-lg">
-                            <Search
-                                size={16}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-
-                            <input
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
-                                placeholder="Search by name..."
-                                className="w-full pl-10 py-2 border rounded-lg outline-none"
-                            />
-                        </div>
+                        <input
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            placeholder="Search by name..."
+                            className="w-full pl-10 py-2 outline-none"
+                        />
                     </div>
 
-                    <div>
-                        <label className="text-xs font-semibold text-[#43474F]">
-                            Status
-                        </label>
-
-                        <p className='border rounded-lg px-3 py-2 mt-1 bg-[#EFF4FF]'>
-                            <select
-                                value={statusInput}
-                                onChange={(e) => setStatusInput(e.target.value)}
-                                className="w-full outline-none"
-                            >
-                                <option value="All Status">All Status</option>
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                            </select>
-                        </p>
-                    </div>
-
-                    <div className='col-span-2 flex gap-8 justify-end'>
-                        <div className="flex items-end justify-center px-4 py-2">
-                            <button onClick={resetFilter}
-                                className="text-[#43474FCC] text-sm font-semibold cursor-pointer">
-                                Reset Filters
-                            </button>
-                        </div>
-
-                        <div className="flex items-end">
-                            <button onClick={applyFilter} className="w-full text-white rounded-lg px-6 py-2 bg-[#084E92] cursor-pointer">
-                                Apply Filters
-                            </button>
-                        </div>
-                    </div>
-
+                    <p className='border rounded-lg px-3 py-2 mt-1 border-[#C3C6D1]'>
+                        <select
+                            value={statusInput}
+                            onChange={(e) => setStatusInput(e.target.value)}
+                            className="w-full outline-none"
+                        >
+                            <option value="All Status">All Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Inactive">Inactive</option>
+                        </select>
+                    </p>
                 </div>
             </div>
 

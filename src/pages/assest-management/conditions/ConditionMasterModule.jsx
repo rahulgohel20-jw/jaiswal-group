@@ -68,8 +68,6 @@ const ConditionMasterModule = () => {
   const [formData, setFormData] = useState(EMPTY_FORM);
 
   const [deletingId, setDeletingId] = useState(null);
-  const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All Status");
   const [searchInput, setSearchInput] = useState("");
   const [statusInput, setStatusInput] = useState("All Status");
 
@@ -183,7 +181,7 @@ const ConditionMasterModule = () => {
       closeModal();
     } catch (err) {
       setModalError(err?.message || "Failed to save condition");
-       notify.error("Failed to save conditions");
+      notify.error("Failed to save conditions");
     } finally {
       setSaving(false);
     }
@@ -316,27 +314,30 @@ const ConditionMasterModule = () => {
       enableSorting: false,
     },
   ];
-  const applyFilters = () => {
-    setSearchText(searchInput);
-    setStatusFilter(statusInput);
-    setPagination({
-      pageIndex: 0,
-      pageSize: 10,
-    });
-  }
+
   const filteredConditions = useMemo(() => {
     return conditions.filter((condition) => {
       const matchesSearch =
-        searchText === "" ||
-        condition.name.toLowerCase().includes(searchText.toLowerCase());
+        searchInput === "" ||
+        condition.name
+          .toLowerCase()
+          .includes(searchInput.toLowerCase());
 
       const matchesStatus =
-        statusFilter === "All Status" ||
-        condition.status === statusFilter;
+        statusInput === "All Status" ||
+        condition.status === statusInput;
 
       return matchesSearch && matchesStatus;
     });
-  }, [conditions, searchText, statusFilter])
+  }, [conditions, searchInput, statusInput]);
+
+  useEffect(() => {
+    setPagination((prev) => ({
+      ...prev,
+      pageIndex: 0,
+    }));
+  }, [searchInput, statusInput]);
+
 
   const table = useReactTable({
     data: filteredConditions,
@@ -414,56 +415,37 @@ const ConditionMasterModule = () => {
         })}
       </div>
 
-      <div className=" rounded-2xl border border-[#D9DEE8] p-5 my-10 bg-[#FFFFFF01]">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="rounded-2xl border border-[#D9DEE8] p-5 my-10 bg-white">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
-          <div className="md:col-span-2">
-            <label className="text-xs font-semibold text-[#43474F]">
-              Condition Search
-            </label>
+          {/* Search  */}
+          <div className="relative border border-[#C3C6D1] rounded-lg col-span-1 md:col-span-2">
+            <Search
+              size={16}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
 
-            <div className="relative mt-1 border border-[#C3C6D1] rounded-lg">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-
-              <input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                placeholder="Type to search conditions..."
-                className="w-full pl-10 py-2 border rounded-lg outline-none"
-              />
-            </div>
+            <input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Type to search conditions..."
+              className="w-full pl-10 py-2.5 rounded-lg outline-none"
+            />
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-[#43474F]">
-              Status View
-            </label>
 
-            <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0 mt-1">
-              <select
-                value={statusInput}
-                onChange={(e) => setStatusInput(e.target.value)}
-                className="outline-none w-full min-w-0 bg-transparent"
-              >
-                <option value="All Status">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </p>
+          {/* Status */}
+          <div className="border border-[#C3C6D1] rounded-lg px-3 py-2.5">
+            <select
+              value={statusInput}
+              onChange={(e) => setStatusInput(e.target.value)}
+              className="outline-none w-full bg-transparent"
+            >
+              <option value="All Status">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
           </div>
-
-          <div className='flex items-end mb-1'>
-            <div className="flex gap-3 items-center">
-              <button onClick={applyFilters} className="bg-[#084E92] text-white px-5 py-2 rounded-lg cursor-pointer">
-                Apply Filter
-              </button>
-            </div>
-          </div>
-
         </div>
       </div>
 

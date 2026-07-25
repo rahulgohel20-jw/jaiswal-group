@@ -130,10 +130,6 @@ const AssetsMaintenance = () => {
     const [statusFilter, setStatusFilter] = useState("All Records");
     const [serviceDateFilter, setServiceDateFilter] = useState("");
 
-    const [searchInput, setSearchInput] = useState("");
-    const [statusInput, setStatusInput] = useState("All Records");
-    const [serviceDateInput, setServiceDateInput] = useState("");
-
     const columns = [
         {
             id: "select",
@@ -248,50 +244,24 @@ const AssetsMaintenance = () => {
         },
     ];
 
-    const applyFilters = () => {
-        setSearchText(searchInput.trim());
-        setStatusFilter(statusInput);
-        setServiceDateFilter(serviceDateInput);
-
-        setPagination({
-            pageIndex: 0,
-            pageSize: 10,
-        });
-    }
-
-    const resetFilter = () => {
-        setSearchInput("");
-        setStatusInput("All Records");
-        setServiceDateInput("");
-
-        setSearchText("");
-        setStatusFilter("All Records");
-        setServiceDateFilter("");
-
-        setPagination({
-            pageIndex: 0,
-            pageSize: 10,
-        });
-    }
-
     const filteredMaintenanceData = useMemo(() => {
         return maintenanceData.filter((item) => {
-        const matchesSearch =
-            searchText === "" ||
-            item.assetId.toLowerCase().includes(searchText.toLowerCase()) ||
-            item.asset.toLowerCase().includes(searchText.toLowerCase()) ||
-            item.unit.toLowerCase().includes(searchText.toLowerCase());
+            const matchesSearch =
+                searchText === "" ||
+                item.assetId.toLowerCase().includes(searchText.toLowerCase()) ||
+                item.asset.toLowerCase().includes(searchText.toLowerCase()) ||
+                item.unit.toLowerCase().includes(searchText.toLowerCase());
 
-        const matchesStatus =
-            statusFilter === "All Records" ||
-            item.status === statusFilter;
+            const matchesStatus =
+                statusFilter === "All Records" ||
+                item.status === statusFilter;
 
-        const matchesDate =
-            serviceDateFilter === "" ||
-            item.date === serviceDateFilter;
+            const matchesDate =
+                serviceDateFilter === "" ||
+                item.date === serviceDateFilter;
 
-        return matchesSearch && matchesStatus && matchesDate;
-    });
+            return matchesSearch && matchesStatus && matchesDate;
+        });
 
     }, [maintenanceData, searchText, serviceDateFilter, statusFilter])
     const table = useReactTable({
@@ -375,13 +345,9 @@ const AssetsMaintenance = () => {
             </div>
 
             <div className="bg-white border rounded-2xl p-5">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-                    <div className="md:col-span-3">
-                        <label className="text-xs font-semibold">
-                            Search Database
-                        </label>
-
+                    <div className="md:col-span-2 col-span-1">
                         <div className="relative mt-1">
                             <Search
                                 size={16}
@@ -391,22 +357,17 @@ const AssetsMaintenance = () => {
                             <input
                                 placeholder="Asset ID, Name, Kitchen..."
                                 className="w-full border rounded-lg pl-10 pr-3 py-2  outline-none"
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
                             />
                         </div>
                     </div>
 
-                    <div className="md:col-span-3">
-                        <label className="text-xs font-semibold">
-                            Status Filter
-                        </label>
-
+                    <div className="col-span-1">
                         <p className='border rounded-lg px-3 py-2 mt-1'>
                             <select
-                                value={statusInput}
-                                onChange={(e) => setStatusInput(e.target.value)}
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
                                 className="w-full outline-none"
                             >
                                 <option value="All Records">All Records</option>
@@ -417,28 +378,15 @@ const AssetsMaintenance = () => {
                         </p>
                     </div>
 
-                    <div className="md:col-span-3">
-                        <label className="text-xs font-semibold">
-                            Service Date
-                        </label>
-
+                    <div className="col-span-1">
                         <input
                             type="date"
                             className="w-full border rounded-lg px-3 py-2 mt-1  outline-none"
-                            value={serviceDateInput}
-                            onChange={(e) => setServiceDateInput(e.target.value)}
+                            value={serviceDateFilter}
+                            onChange={(e) => setServiceDateFilter(e.target.value)}
                         />
                     </div>
 
-                    <div className="md:col-span-3 flex items-end gap-2">
-                        <button onClick={applyFilters} className="flex-1 bg-[#084E92] text-white py-2 rounded-lg cursor-pointer">
-                            Apply Filters
-                        </button>
-
-                        <button onClick={resetFilter} className="p-2 border rounded-lg cursor-pointer">
-                            <RotateCcw size={18} />
-                        </button>
-                    </div>
                 </div>
             </div>
 

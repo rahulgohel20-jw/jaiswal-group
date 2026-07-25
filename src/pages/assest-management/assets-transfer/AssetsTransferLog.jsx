@@ -1,5 +1,5 @@
-import { ArrowLeftRight, CalendarDays, ChevronRight ,Download, Eye, RotateCcw, Search, SquarePen, Trash2,CalendarSync } from 'lucide-react';
-import React, { useState } from 'react'
+import { ArrowLeftRight, CalendarDays, ChevronRight, Download, Eye, RotateCcw, Search, SquarePen, Trash2, CalendarSync } from 'lucide-react';
+import React, { useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -17,6 +17,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Link } from 'react-router';
+import { fi } from '@faker-js/faker';
 
 
 
@@ -111,48 +112,32 @@ const AssetsTransferLog = () => {
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
 
-    const handleFilter = () => {
-        let filtered = [...TRANSFER_DATA];
+    const filteredTransferData = useMemo(() => {
+        return TRANSFER_DATA.filter((item) => {
 
-        // Search filter
-        if (search.trim()) {
             const keyword = search.toLowerCase();
 
-            filtered = filtered.filter((item) =>
+            const matchesSearch =
+                !keyword ||
                 item.transferId.toLowerCase().includes(keyword) ||
                 item.assetId.toLowerCase().includes(keyword) ||
                 item.approvedBy.toLowerCase().includes(keyword) ||
                 item.receivedBy.toLowerCase().includes(keyword) ||
                 item.fromLocation.toLowerCase().includes(keyword) ||
-                item.toLocation.toLowerCase().includes(keyword)
-            );
-        }
+                item.toLocation.toLowerCase().includes(keyword);
 
-        // Date Range filter
-        if (dateRange.from && dateRange.to) {
-            filtered = filtered.filter((item) => {
-                const itemDate = new Date(item.transferDate);
-
-                return (
-                    itemDate >= dateRange.from &&
-                    itemDate <= dateRange.to
+            const matchesDate =
+                !dateRange.from ||
+                !dateRange.to ||
+                (
+                    new Date(item.transferDate) >= dateRange.from &&
+                    new Date(item.transferDate) <= dateRange.to
                 );
-            });
-        }
 
-        setTransferData(filtered);
-    };
-
-    const handleReset = () => {
-        setSearch("");
-
-        setDateRange({
-            from: undefined,
-            to: undefined,
+            return matchesSearch && matchesDate;
         });
-        setTransferData(TRANSFER_DATA)
-    };
 
+    }, [search, dateRange]);
     const columns = [
         {
             id: "select",
@@ -295,7 +280,7 @@ const AssetsTransferLog = () => {
     ];
 
     const table = useReactTable({
-        data: transferData,
+        data: filteredTransferData,
         columns,
         state: { pagination, rowSelection },
         onPaginationChange: setPagination,
@@ -353,7 +338,7 @@ const AssetsTransferLog = () => {
                                 <Icon size={15} className="text-[#0B5CAB]" />
                             </div>
                             <div>
-                                <p  className="text-sm text-[#43474F] pt-2">
+                                <p className="text-sm text-[#43474F] pt-2">
                                     {item.title}
                                 </p>
 
@@ -362,88 +347,68 @@ const AssetsTransferLog = () => {
                                 </h2>
                             </div>
 
-                            
+
                         </div>
                     );
                 })}
             </div>
 
             <div className="bg-white border border-[#E6EAF2] rounded-2xl p-6 mt-6">
-                <div className="grid  grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
-                    <div className="md:col-span-4 lg:col-span-8 flex gap-3 flex-col lg:flex-row w-full">
-                        {/* Search */}
-                        <div className='w-full'>
-                            <label className="block text-xs font-semibold text-[#121C2A] mb-2">
-                                Search Records
-                            </label>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
 
-                            <div className="relative bg-[#F8F9FF80]">
-                                <Search
-                                    size={18}
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                                />
+                    {/* Search */}
 
-                                <input
-                                    type="text"
-                                    value={search}
-                                    onChange={(e) => { setSearch(e.target.value), handleFilter() }}
-                                    placeholder="Transfer ID, Asset ID, or Personnel..."
-                                    className="w-full h-11 rounded-xl border border-[#D9E2EC] pl-10 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#0B5CAB]/20"
-                                />
-                            </div>
+                        <div className="relative md:col-span-3">
+                            <Search
+                                size={18}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Transfer ID, Asset ID, or Personnel..."
+                                className="w-full h-11 rounded-xl border border-[#D9E2EC] pl-10 pr-4 text-sm outline-none"
+                            />
                         </div>
 
-                        {/* Date Range */}
+                    {/* Date Range 50% */}
+                    <div className='md:col-span-1'>
 
-                        <div className='w-full'>
-                            <label className="block text-xs font-semibold text-[#121C2A] mb-2">
-                                Date Range
-                            </label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <button className="w-full h-11 border border-[#D9E2EC] rounded-xl px-4 flex items-center gap-3">
+                                    <CalendarIcon className="w-4 h-4 text-gray-500" />
 
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <button className="w-full h-11 border border-[#D9E2EC] rounded-xl px-4 flex items-center gap-3 bg-[#F8F9FF80]">
-                                        <CalendarIcon className="w-4 h-4 text-gray-500" />
-                                        <span className="text-sm text-[#121C2A]">
-                                            {dateRange.from
-                                                ? `${format(dateRange.from, "MMM dd, yyyy")} ${dateRange.to ? `- ${format(dateRange.to, "MMM dd, yyyy")}` : ""
-                                                }`
-                                                : "Nov 01 - Nov 30, 2023"}
-                                        </span>
+                                    <span className="text-sm">
+                                        {dateRange.from
+                                            ? `${format(dateRange.from, "MMM dd, yyyy")} ${dateRange.to
+                                                ? `- ${format(dateRange.to, "MMM dd, yyyy")}`
+                                                : ""
+                                            }`
+                                            : "Select Date Range"}
+                                    </span>
+                                </button>
+                            </PopoverTrigger>
 
-
-                                    </button>
-                                </PopoverTrigger>
-
-                                <PopoverContent className="w-auto p-0">
-                                    <Calendar
-                                        mode="range"
-                                        selected={dateRange}
-                                        onSelect={setDateRange}
-                                        numberOfMonths={2}
-                                    />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-
+                            <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="range"
+                                    selected={dateRange}
+                                    onSelect={setDateRange}
+                                    numberOfMonths={2}
+                                />
+                            </PopoverContent>
+                        </Popover>
                     </div>
-                    {/* Buttons */}
-                    <div className="md:col-span-2 lg:col-span-4 flex flex-wrap lg:flex-nowrap gap-3">
-                        <button onClick={handleFilter} className="flex-1 h-11 cursor-pointer rounded-xl bg-[#0B5CAB] text-white font-medium hover:bg-[#094b8f] transition">
-                            Apply Filters
-                        </button>
 
-                        <button onClick={handleReset} className="h-11 cursor-pointer px-5 rounded-xl bg-[#EEF5FD] text-[#0B5CAB] font-medium flex items-center gap-2 hover:bg-[#E5F0FC] transition">
-                            <RotateCcw size={16} />
-                            Reset
-                        </button>
-                    </div>
                 </div>
             </div>
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={transferData.length} className="rounded-2xl">
+                <DataGrid table={table} recordCount={filteredTransferData.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>
