@@ -69,6 +69,7 @@ import {
   Database,
   ClipboardList,
   Group,
+  Fence,
 } from 'lucide-react';
 
 // export const MENU_SIDEBAR = [
@@ -478,12 +479,16 @@ export const MENU_SIDEBAR_ADMIN = [
   { heading: 'Supply Chain' },
   {
     title: 'Purchase',
-    icon: ShoppingCart,
+    icon: Fence,
     children: [
       { title: 'Stock Purchase', path: '/purchase/stock-purchase' },
       { title: 'Purchase Order', path: '/purchase/purchase-order' },
       { title: 'Purchase Return', path: '/purchase/purchase-return' },
       { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' }
+      { title: 'Purchase Requisition', path: '/purchase-requisition/list'},
+      { title: 'Approve Purchase Requisition', path: '/approve-purchase-requisition/list'},
+      { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' }
+
     ],
   },
     {
@@ -508,51 +513,20 @@ export const MENU_SIDEBAR_ADMIN = [
     title: 'Manage Stock',
     icon: FolderClosed,
     children: [
+      { title: 'Categories', path: '/menu-item/categories' },
+      { title: 'Sub Category', path: '/menu-item/sub-category' },
+      { title: 'Add Menu Item', path: '/menu-item/add-menu-items' },
+    ],
+  },
+  {
+    title: 'Manage Stock',
+    icon: FolderClosed,
+    children: [
       { title: 'Available Stock', path: '/stocks/available-stocks' },
       { title: 'Closing Stock', path: '/stocks/closing-stock' },
     ],
   },
-  { heading: 'Consumption' },
-  {
-    title: 'Sales',
-    icon: TrendingUp,
-    path: '/sales',
-  },
-  {
-    title: 'Transfer',
-    icon: ArrowLeftRight,
-    path: '/transfer',
-  },
-  {
-    title: 'Wastage',
-    icon: Trash2,
-    path: '/wastage',
-  },
-  {
-    title: 'More',
-    collapse: true,
-    collapseTitle: 'View Less',
-    expandTitle: 'View More',
-    children: [
-      { title: 'More options coming soon', disabled: true },
-    ],
-  },
-  {
-    title: 'Production',
-    icon: Factory,
-    path: '/production',
-  },
-  {
-    title: 'Reports',
-    icon: ScrollText,
-    path: '/reports',
-  },
-  {
-    title: 'Masters',
-    icon: Database,
-    path: '/masters',
-  },
-];
+]
 
 export const MENU_SIDEBAR_CUSTOM = [
   {

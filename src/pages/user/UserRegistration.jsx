@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ChevronDown, Map, MapPin, User, X, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { getAllCountries, getStatesByCountry, getCitiesByState } from '@/services/apiServices';
-import { getEmployeeById, saveEmployee,getCompanyById, updateEmployee } from '@/services/apiServices';
+import { getEmployeeById, saveEmployee, getActiveCompany, updateEmployee,getDepartmentsByOrganization   } from '@/services/apiServices';
 import {
   DEFAULT_FORM,
   extractList,
@@ -10,8 +10,7 @@ import {
   mapEmployeeToForm,
   buildEmployeePayload,
 } from './utils/Employeemappers';
-import { getAllActiveDepartments } from '../../services/apiServices';
-import { notify } from "@/utils/toast";
+import { notify } from "@/utils/toast";;
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -54,7 +53,7 @@ const Select = ({ value, onChange, placeholder, options, hasError }) => (
   </div>
 );
 
-// {id, name} option select — used for Country / State / City
+// {id, name} option select — used for Country / State / City / Company / Unit
 const IdSelect = ({ value, onChange, placeholder, options, hasError, disabled, loading }) => (
   <div className="relative">
     <select
@@ -244,6 +243,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
+// Root org id — everything else in the org tree hangs off this via parentId.
+const MAIN_GROUP_ID = 1;
+
 // Password must be at least 8 chars with 1 uppercase, 1 lowercase, 1 number, 1 special char
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -255,10 +257,6 @@ const UserRegistration = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // If we arrived here via the edit action, the row that was clicked is
-  // passed in location.state. Its presence puts the page into edit mode;
-  // we then fetch the full record from the backend (the row may only carry
-  // the subset of fields shown in the table).
   const editingUser = location.state?.user ?? null;
   const isEditMode = !!editingUser;
 
@@ -290,81 +288,65 @@ const UserRegistration = () => {
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
 
-  const [companies, setCompanies] = useState([]);
-const [loadingCompanies, setLoadingCompanies] = useState(false);
+  // Full org tree — every entity (companies, units) in one flat list, each
+  // carrying a parentId. We fetch it once and derive dropdown options from
+  // it on the frontend instead of hitting the API again per selection.
+  const [allOrgs, setAllOrgs] = useState([]);
+  const [loadingOrgs, setLoadingOrgs] = useState(false);
 
-const [outlets, setOutlets] = useState([]);
-const [loadingOutlets, setLoadingOutlets] = useState(false);
-
-// Companies come from the Jaiswal Group root org (id 1) — its sub-companies
-// populate the Company dropdown.
-useEffect(() => {
-  let cancelled = false;
-  const fetchCompanies = async () => {
-    setLoadingCompanies(true);
-    try {
-      const res = await getCompanyById(1);
-      const org = res?.data?.data;
-      // NOTE: confirm the actual field name the API returns for child orgs —
-      // using `children` as a placeholder until verified against the real response.
-      const list = org?.children || org?.subCompanies || org?.organizations || [];
-      if (!cancelled) {
-        setCompanies(list.map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name })));
+  useEffect(() => {
+    let cancelled = false;
+    const fetchOrgs = async () => {
+      setLoadingOrgs(true);
+      try {
+        const res = await getActiveCompany();
+        if (!cancelled) setAllOrgs(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setAllOrgs([]);
+      } finally {
+        if (!cancelled) setLoadingOrgs(false);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      if (!cancelled) setLoadingCompanies(false);
-    }
-  };
-  fetchCompanies();
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    };
+    fetchOrgs();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-// Outlets are scoped to whichever company is selected. Cleared/refetched
-// every time companyId changes; empty until a company is picked.
-useEffect(() => {
-  if (!form.companyId) {
-    setOutlets([]);
-    return;
-  }
-  let cancelled = false;
-  const fetchOutlets = async () => {
-    setLoadingOutlets(true);
-    try {
-      const res = await getRegisteredCompany();
-      const list = res?.data?.data || res?.data?.content || res?.data || [];
-      const filtered = Array.isArray(list)
-        ? list.filter(
-            (item) =>
-              item.orgType?.toLowerCase() === 'outlet' &&
-              String(item.parentId) === String(form.companyId),
-          )
-        : [];
-      if (!cancelled) {
-        setOutlets(filtered.map((o) => ({ id: o.id, name: o.companyNameEnglish || o.name })));
-      }
-    } catch (err) {
-      console.error(err);
-      if (!cancelled) setOutlets([]);
-    } finally {
-      if (!cancelled) setLoadingOutlets(false);
-    }
-  };
-  fetchOutlets();
-  return () => {
-    cancelled = true;
-  };
-}, [form.companyId]);
+  // Companies = orgs whose parent is the root MAIN_GROUP.
+  const companies = useMemo(
+    () =>
+      allOrgs
+        .filter((o) => String(o.parentId) === String(MAIN_GROUP_ID))
+        .map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name })),
+    [allOrgs],
+  );
 
-const handleCompanyChange = (e) => {
-  const value = e.target.value;
-  setForm((f) => ({ ...f, companyId: value, outletId: '' }));
-  setOutlets([]);
-  setErrors((prev) => ({ ...prev, companyId: undefined }));
-};
+  // Units = orgs whose parent is whichever company is currently selected.
+  const outlets = useMemo(
+    () =>
+      form.companyId
+        ? allOrgs
+            .filter((o) => String(o.parentId) === String(form.companyId))
+            .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name }))
+        : [],
+    [allOrgs, form.companyId],
+  );
+
+  const handleCompanyChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, companyId: value, outletId: '' }));
+    setDepartments([]);
+    setErrors((prev) => ({ ...prev, companyId: undefined, outletId: undefined }));
+  };
+
+  const handleUnitChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, outletId: value }));
+    setDepartments([]);
+    setErrors((prev) => ({ ...prev, outletId: undefined }));
+  };
 
   // Edit mode: pull the full record from the backend rather than trusting
   // the (possibly partial) row passed in via navigation state.
@@ -388,8 +370,6 @@ const handleCompanyChange = (e) => {
         if (!cancelled) setForm(mapEmployeeToForm(emp));
       } catch (err) {
         console.error(err);
-        // Fall back to whatever fields the table row already had so the
-        // form isn't left completely empty if the fetch fails.
         if (!cancelled) setForm(mapEmployeeToForm(editingUser));
       } finally {
         if (!cancelled) setLoadingUser(false);
@@ -473,31 +453,35 @@ const handleCompanyChange = (e) => {
     };
   }, [form.stateId]);
 
-  // Load active departments once
-  useEffect(() => {
-    let cancelled = false;
-    const fetchDepartments = async () => {
-      setLoadingDepartments(true);
-      try {
-        const res = await getAllActiveDepartments();
-        if (!cancelled) {
-          const list = extractList(res).map((d) => ({
-            id: d.id,
-            name: d.departmentName,
-          }));
-          setDepartments(list);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (!cancelled) setLoadingDepartments(false);
+// Departments are scoped to whichever org level is selected: Unit takes
+// precedence, then Company, and — with nothing picked — we fall back to
+// the Main Group (Jaiswal Group, id 1) so the list is never empty by default.
+useEffect(() => {
+  const organizationId = form.outletId || form.companyId || MAIN_GROUP_ID;
+  let cancelled = false;
+  const fetchDepartments = async () => {
+    setLoadingDepartments(true);
+    try {
+      const res = await getDepartmentsByOrganization(organizationId);
+      if (!cancelled) {
+        const list = extractList(res).map((d) => ({
+          id: d.id,
+          name: d.departmentName,
+        }));
+        setDepartments(list);
       }
-    };
-    fetchDepartments();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    } catch (err) {
+      console.error(err);
+      if (!cancelled) setDepartments([]);
+    } finally {
+      if (!cancelled) setLoadingDepartments(false);
+    }
+  };
+  fetchDepartments();
+  return () => {
+    cancelled = true;
+  };
+}, [form.companyId, form.outletId]);
 
   const set = (key, val) => {
     setForm((f) => ({ ...f, [key]: val }));
@@ -549,6 +533,10 @@ const handleCompanyChange = (e) => {
     if (form.altMobile && !MOBILE_REGEX.test(form.altMobile))
       e.altMobile = 'Enter a valid 10-digit mobile number';
 
+    if (!form.companyId) e.companyId = 'Company is required';
+    // Unit is intentionally optional — if not selected, the user is
+    // registered directly under the company.
+
     if (!form.departmentId) e.departmentId = 'Department is required';
     if (!form.designation.trim()) e.designation = 'Designation is required';
 
@@ -592,10 +580,10 @@ const handleCompanyChange = (e) => {
     try {
       if (isEditMode) {
         await updateEmployee(payload);
-         notify.success("User Updated Successfully");
+        notify.success("User Updated Successfully");
       } else {
         await saveEmployee(payload);
-         notify.success("User Created Successfully");
+        notify.success("User Created Successfully");
       }
       navigate('/users');
     } catch (err) {
@@ -604,7 +592,7 @@ const handleCompanyChange = (e) => {
         err?.response?.data?.message ||
           `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
       );
-       notify.error( `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,);
+      notify.error(`Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`);
     } finally {
       setSubmitting(false);
     }
@@ -732,8 +720,8 @@ const handleCompanyChange = (e) => {
                       placeholder="e.g., rjaiswal"
                       disabled={isEditMode}
                       className={`${errors.username ? errorInputCls : inputCls} ${
-                       isEditMode ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
-                    }`}
+                        isEditMode ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
+                      }`}
                     />
                     <ErrorText message={errors.username} />
                   </div>
@@ -753,11 +741,36 @@ const handleCompanyChange = (e) => {
 
                   <div>
                     <Label required>Company</Label>
-                    <input value={form.company} disabled className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`} />
+                    <IdSelect
+                      value={form.companyId}
+                      onChange={handleCompanyChange}
+                      placeholder="Select Company"
+                      options={companies}
+                      hasError={!!errors.companyId}
+                      loading={loadingOrgs}
+                    />
+                    <ErrorText message={errors.companyId} />
                   </div>
                 </div>
 
-                <div className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-4'}`}>
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <Label>Unit</Label>
+                    <IdSelect
+                      value={form.outletId}
+                      onChange={handleUnitChange}
+                      placeholder={form.companyId ? 'Select Unit (optional)' : 'Select company first'}
+                      options={outlets}
+                      hasError={!!errors.outletId}
+                      disabled={!form.companyId}
+                      loading={loadingOrgs}
+                    />
+                    <ErrorText message={errors.outletId} />
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Leave blank to register the user directly under the company.
+                    </p>
+                  </div>
+
                   {!isEditMode && (
                     <div>
                       <Label required>Password</Label>
@@ -813,7 +826,9 @@ const handleCompanyChange = (e) => {
                     />
                     <ErrorText message={errors.altMobile} />
                   </div>
+                </div>
 
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label required>Department</Label>
                     <IdSelect
@@ -822,13 +837,17 @@ const handleCompanyChange = (e) => {
                       placeholder="Select Department"
                       options={departments}
                       hasError={!!errors.departmentId}
+                      disabled={false}
                       loading={loadingDepartments}
                     />
                     <ErrorText message={errors.departmentId} />
+                    {!form.companyId && (
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Showing departments under Jaiswal Group. Select a company or unit to narrow this list.
+                      </p>
+                    )}
                   </div>
-                </div>
 
-                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label required>Designation</Label>
                     <input

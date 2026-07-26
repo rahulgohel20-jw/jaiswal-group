@@ -319,7 +319,6 @@ const DEFAULT_FORM = {
   email: '',
   mobile: '',
   altMobile: '',
-  manager: '',
   capacity: '',
   company: '',
   serviceType: '',
@@ -687,15 +686,6 @@ const AddUnit = () => {
         onChange={(e) => set('capacity', e.target.value)}
         placeholder="e.g. 200"
         className={inputCls}
-      />
-    </div>
-    <div>
-      <Label required>Unit Manager</Label>
-      <Select
-        value={form.manager}
-        onChange={(e) => set('manager', e.target.value)}
-        placeholder="Select Manager"
-        options={COMPANIES}
       />
     </div>
   </div>
