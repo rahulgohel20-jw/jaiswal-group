@@ -32,8 +32,8 @@ const mapDepartment = (d) => ({
     organizationId: d.id ?? d.organizationUnitId ?? null,
     createdDate: d.createdDate
         ? new Date(d.createdDate).toLocaleDateString('en-US', {
-              month: 'short', day: '2-digit', year: 'numeric',
-          })
+            month: 'short', day: '2-digit', year: 'numeric',
+        })
         : '—',
 });
 
@@ -43,9 +43,7 @@ const DepartmentMaster = () => {
     const [error, setError] = useState('');
 
     const [searchTerm, setSearchTerm] = useState('');
-    const [appliedSearch, setAppliedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [appliedStatusFilter, setAppliedStatusFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
 
     const [isAddOpen, setIsAddOpen] = useState(false);
@@ -53,25 +51,25 @@ const DepartmentMaster = () => {
     const [selectedDepartment, setSelectedDepartment] = useState(null);
     const [editingDepartment, setEditingDepartment] = useState(null); // null = "add" mode
 
-const fetchDepartments = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-        const res = await getAllDepartments();
-        const list = res?.data?.data ?? res?.data ?? [];
-        setDepartments(list.map(mapDepartment));
-    } catch (err) {
-        console.error(err);
-        setError(
-            err?.response?.data?.msg ||
+    const fetchDepartments = useCallback(async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const res = await getAllDepartments();
+            const list = res?.data?.data ?? res?.data ?? [];
+            setDepartments(list.map(mapDepartment));
+        } catch (err) {
+            console.error(err);
+            setError(
+                err?.response?.data?.msg ||
                 err?.response?.data?.message ||
                 'Failed to load departments.',
-        );
-        notify.error('Failed to load departments.');
-    } finally {
-        setLoading(false);
-    }
-}, []);
+            );
+            notify.error('Failed to load departments.');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
         fetchDepartments();
@@ -85,34 +83,65 @@ const fetchDepartments = useCallback(async () => {
     }, [departments]);
 
     const filteredDepartments = useMemo(() => {
-        return departments.filter((dept) => {
-            const matchesSearch = dept.name
-                .toLowerCase()
-                .includes(appliedSearch.trim().toLowerCase());
+        return departments.filter((department) => {
+            const matchesSearch =
+                department.name
+                    .toLowerCase()
+                    .includes(searchTerm.trim().toLowerCase());
+
             const matchesStatus =
-                appliedStatusFilter === 'all' || dept.status === appliedStatusFilter;
+                statusFilter === "all" ||
+                department.status === statusFilter;
+
             return matchesSearch && matchesStatus;
         });
-    }, [departments, appliedSearch, appliedStatusFilter]);
+    }, [departments, searchTerm, statusFilter]);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, statusFilter]);
 
     const totalPages = Math.max(1, Math.ceil(filteredDepartments.length / PAGE_SIZE));
     const pageStart = (currentPage - 1) * PAGE_SIZE;
     const pageDepartments = filteredDepartments.slice(pageStart, pageStart + PAGE_SIZE);
 
-    const handleApplyFilter = () => {
-        setAppliedSearch(searchTerm);
-        setAppliedStatusFilter(statusFilter);
-        setCurrentPage(1);
-    };
+    const handleSaveDepartment = async (form, { addAnother } = {}) => {
+        // Pull org context however your app currently determines it —
+        // e.g. from localStorage set at login, or a user/session context.
+        const organizationId = Number(localStorage.getItem('organizationId')) || 1;
+        const username = localStorage.getItem('username') || '';
+        const isActive = form.status === 'Active';
 
-    const handleReset = () => {
-        setSearchTerm('');
-        setStatusFilter('all');
-        setAppliedSearch('');
-        setAppliedStatusFilter('all');
-        setCurrentPage(1);
-    };
-
+        try {
+            if (editingDepartment) {
+                await updateDepartment({
+                    id: editingDepartment.id,
+                    departmentName: form.name.trim(),
+                    isActive,
+                    description: form.description.trim(),
+                    organizationId,
+                    username,
+                });
+                notify.success("Update Department successfully");
+            } else {
+                await saveDepartment({
+                    departmentName: form.name.trim(),
+                    description: form.description || 'Organization Unit',
+                    organizationId,
+                    isActive,
+                    username,
+                });
+                notify.success("Department Added successfully");
+            }
+            await fetchDepartments();
+            if (!addAnother) {
+                setIsAddOpen(false);
+                setEditingDepartment(null);
+            }
+        } catch (err) {
+            console.error(err);
+            setError(
+                err?.response?.data?.msg ||
 const handleSaveDepartment = async (form, { addAnother } = {}) => {
     // Pull org context however your app currently determines it —
     // e.g. from localStorage set at login, or a user/session context.
@@ -150,28 +179,28 @@ const handleSaveDepartment = async (form, { addAnother } = {}) => {
             err?.response?.data?.msg ||
                 err?.response?.data?.message ||
                 'Failed to save department.',
-        );
-        notify.error('Failed to save department.');
-    }
-};
+            );
+            notify.error('Failed to save department.');
+        }
+    };
 
-const handleDelete = async (id) => {
-    const prev = departments;
-    setDepartments((cur) => cur.filter((d) => d.id !== id)); // optimistic
-    try {
-        await deleteDepartmentById(id);
-        notify.success("Department Deleted successfully");
-    } catch (err) {
-        console.error(err);
-        setDepartments(prev); // rollback
-        setError(
-            err?.response?.data?.msg ||
+    const handleDelete = async (id) => {
+        const prev = departments;
+        setDepartments((cur) => cur.filter((d) => d.id !== id)); // optimistic
+        try {
+            await deleteDepartmentById(id);
+            notify.success("Department Deleted successfully");
+        } catch (err) {
+            console.error(err);
+            setDepartments(prev); // rollback
+            setError(
+                err?.response?.data?.msg ||
                 err?.response?.data?.message ||
                 'Failed to delete department.',
-        );
-        notify.error('Failed to delete department.');
-    }
-};
+            );
+            notify.error('Failed to delete department.');
+        }
+    };
 
     const openDetails = (dept) => {
         setSelectedDepartment(dept);
@@ -189,10 +218,10 @@ const handleDelete = async (id) => {
     };
 
     const handleEditFromDetails = (dept) => {
-            setIsDetailsOpen(false);      
-            setEditingDepartment(dept);
-            setIsAddOpen(true);           
-        };
+        setIsDetailsOpen(false);
+        setEditingDepartment(dept);
+        setIsAddOpen(true);
+    };
 
     return (
         <div className="min-h-screen bg-[#F7F8FA] px-6 py-6">
@@ -236,9 +265,12 @@ const handleDelete = async (id) => {
                 <StatCard icon={<History size={18} />} iconBg="bg-[#D5E3FF]" iconColor="text-[#00376C]" label="STATUS" title="Last Updated" value="Today" />
             </div>
 
-            <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 mb-4 flex flex-wrap items-end gap-4">
-                <div className="flex-1 min-w-[220px]">
-                    <label className="text-xs font-semibold text-[#43474F] mb-1 block">Search Department</label>
+            <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 mb-4 flex flex-col md:flex-row gap-4">
+                {/* Search */}
+                <div className="w-full md:w-1/2">
+                    <label className="text-xs font-semibold text-[#43474F] mb-1 block">
+                        Search Department
+                    </label>
                     <div className="relative">
                         <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <Input
@@ -249,10 +281,19 @@ const handleDelete = async (id) => {
                         />
                     </div>
                 </div>
-                <div className="w-48">
-                    <label className="text-xs font-semibold text-[#43474F] mb-1 block">Filter by Status</label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+
+                {/* Status Filter */}
+                <div className="w-full md:w-1/2">
+                    <label className="text-xs font-semibold text-[#43474F] mb-1 block">
+                        Filter by Status
+                    </label>
+                    <Select
+                        value={statusFilter}
+                        onValueChange={setStatusFilter}
+                    >
+                        <SelectTrigger className="w-full">
+                            <SelectValue placeholder="All Status" />
+                        </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Status</SelectItem>
                             <SelectItem value="Active">Active</SelectItem>
@@ -260,12 +301,6 @@ const handleDelete = async (id) => {
                         </SelectContent>
                     </Select>
                 </div>
-                <Button onClick={handleApplyFilter} className="bg-primary hover:bg-[#073e77] text-white">
-                    Apply Filter
-                </Button>
-                <button type="button" onClick={handleReset} className="text-sm text-[#43474F] hover:text-[#1B1B1F] font-medium px-2 cursor-pointer">
-                    Reset
-                </button>
             </div>
 
             <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
@@ -346,7 +381,7 @@ const handleDelete = async (id) => {
                 onSave={handleSaveDepartment}
                 initialData={editingDepartment}
             />
-           <DepartmentDetailsModal
+            <DepartmentDetailsModal
                 isOpen={isDetailsOpen}
                 onClose={() => setIsDetailsOpen(false)}
                 onEdit={handleEditFromDetails}

@@ -54,10 +54,8 @@ const AssetUnitList = () => {
     const [showAddUnit, setShowAddUnit] = useState(false);
     const [editingUnit, setEditingUnit] = useState(null);
 
-    // Draft filter values vs. what's actually applied to the table
-    const [searchDraft, setSearchDraft] = useState('');
-    const [statusDraft, setStatusDraft] = useState('All Status');
-    const [appliedFilters, setAppliedFilters] = useState({ search: '', status: 'All Status' });
+    const [searchText, setSearchText] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All Status");
 
     const [selectedUnit, setSelectedUnit] = useState(null);
     const [showViewUnit, setShowViewUnit] = useState(false);
@@ -83,27 +81,29 @@ const AssetUnitList = () => {
         fetchUnits();
     }, []);
 
-    const applyFilters = () => {
-        setAppliedFilters({ search: searchDraft, status: statusDraft });
-        setPagination((p) => ({ ...p, pageIndex: 0 }));
-    };
-
-    const resetFilters = () => {
-        setSearchDraft('');
-        setStatusDraft('All Status');
-        setAppliedFilters({ search: '', status: 'All Status' });
-        setPagination((p) => ({ ...p, pageIndex: 0 }));
-    };
-
     const filteredUnits = useMemo(() => {
-        const term = appliedFilters.search.trim().toLowerCase();
+        const term = searchText.trim().toLowerCase();
+
         return units.filter((u) => {
             const matchesSearch =
-                !term || u.name.toLowerCase().includes(term) || u.symbol.toLowerCase().includes(term);
-            const matchesStatus = appliedFilters.status === 'All Status' || u.status === appliedFilters.status;
+                !term ||
+                u.name.toLowerCase().includes(term) ||
+                u.symbol.toLowerCase().includes(term);
+
+            const matchesStatus =
+                statusFilter === "All Status" ||
+                u.status === statusFilter;
+
             return matchesSearch && matchesStatus;
         });
-    }, [units, appliedFilters]);
+    }, [units, searchText, statusFilter]);
+
+    useEffect(() => {
+        setPagination((prev) => ({
+            ...prev,
+            pageIndex: 0,
+        }));
+    }, [searchText, statusFilter]);
 
     const activeCount = units.filter((u) => u.status === 'Active').length;
     const inactiveCount = units.length - activeCount;
@@ -314,55 +314,34 @@ const AssetUnitList = () => {
                 ))}
             </div>
 
-            {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                    <div className="md:col-span-2">
-                        <label className="text-xs font-semibold text-[#43474F] mb-1.5 block">Search Unit</label>
-                        <div className="relative border border-[#C3C6D1] rounded-lg">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <input
-                                placeholder="Search Unit Name or Symbol..."
-                                className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg"
-                                value={searchDraft}
-                                onChange={(e) => setSearchDraft(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-                            />
-                        </div>
-                    </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
 
-                    <div>
-                        <label className="text-xs font-semibold text-[#43474F] mb-1.5 block">Status</label>
-                        <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                            <select
-                                className="outline-none w-full min-w-0 bg-transparent"
-                                value={statusDraft}
-                                onChange={(e) => setStatusDraft(e.target.value)}
-                            >
-                                <option>All Status</option>
-                                <option>Active</option>
-                                <option>Inactive</option>
-                            </select>
-                        </p>
-                    </div>
+                <div className="relative border border-[#C3C6D1] rounded-lg">
+                    <Search
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={18}
+                    />
 
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={applyFilters}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg font-semibold hover:bg-[#073e77] transition cursor-pointer whitespace-nowrap"
-                        >
-                            Apply Filter
-                        </button>
-                        <button
-                            type="button"
-                            onClick={resetFilters}
-                            className="px-4 py-2 border border-[#C3C6D1] rounded-lg text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white whitespace-nowrap"
-                        >
-                            Reset
-                        </button>
-                    </div>
+                    <input
+                        placeholder="Search Unit Name or Symbol..."
+                        className="w-full pl-10 py-2 outline-none rounded-lg"
+                        value={searchText}
+                        onChange={(e) => { setSearchText(e.target.value); }}
+                    />
                 </div>
+
+                <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                    <select
+                        className="outline-none w-full bg-transparent"
+                        value={statusFilter}
+                        onChange={(e) => { setStatusFilter(e.target.value); }}
+                    >
+                        <option value="All Status">All Status</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </p>
+
             </div>
 
             {error && (

@@ -111,10 +111,6 @@ const AssetsDisposalLog = () => {
     const [rowSelection, setRowSelection] = useState({});
     const [searchText, setSearchText] = useState("");
     const [dateFilter, setDateFilter] = useState("");
-
-    const [searchInput, setSearchInput] = useState("");
-    const [dateInput, setDateInput] = useState("");
-
     const DisposalBadge = ({ type }) => {
         const styles = {
             Sale: "bg-green-100 text-green-700",
@@ -313,42 +309,27 @@ const AssetsDisposalLog = () => {
             size: 130,
         },
     ];
-    const applyFilters = () => {
-        setSearchText(searchInput.trim());
-        setDateFilter(dateInput);
 
-        setPagination({
-            pageIndex: 0,
-            pageSize: 10,
-        });
-    };
-    const resetFilters = () => {
-        setSearchInput("");
-        setDateInput("");
-
-        setSearchText("");
-        setDateFilter("");
-
-        setPagination({
-            pageIndex: 0,
-            pageSize: 10,
-        });
-    };
     const filteredDisposalData = useMemo(() => {
-      return  disposalData.filter((item) => {
-        const matchesSearch =
-            searchText === "" ||
-            item.assetId.toLowerCase().includes(searchText.toLowerCase()) ||
-            item.assetName.toLowerCase().includes(searchText.toLowerCase()) ||
-            item.approvedBy.toLowerCase().includes(searchText.toLowerCase());
+        return disposalData.filter((item) => {
 
-        const matchesDate =
-            dateFilter === "" ||
-            item.date.toLowerCase().includes(dateFilter.toLowerCase());
+            const keyword = searchText.toLowerCase();
 
-        return matchesSearch && matchesDate;
-    });
-    }, [disposalData, searchText, dateFilter])
+            const matchesSearch =
+                !keyword ||
+                item.assetId.toLowerCase().includes(keyword) ||
+                item.assetName.toLowerCase().includes(keyword) ||
+                item.approvedBy.toLowerCase().includes(keyword) ||
+                item.kitchen.toLowerCase().includes(keyword);
+
+            const matchesDate =
+                !dateFilter ||
+                item.date.toLowerCase().includes(dateFilter.toLowerCase());
+
+            return matchesSearch && matchesDate;
+        });
+
+    }, [disposalData, searchText, dateFilter]);
 
     const table = useReactTable({
         data: filteredDisposalData,
@@ -438,59 +419,51 @@ const AssetsDisposalLog = () => {
             </div>
 
             <div className="bg-white border border-[#E6EAF2] rounded-3xl p-6">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-                    <div className="md:col-span-5">
-                        <label className="block text-xs font-semibold text-[#6B7280] mb-2">
-                            QUICK SEARCH
-                        </label>
+                    <div className="md:col-span-3">
 
-                        <div className="relative bg-[#F8FAFC] rounded-xl">
+                        <div className="relative rounded-xl">
                             <Search
                                 size={18}
                                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                             />
 
                             <input
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                                value={searchText}
+                                onChange={(e) => {
+                                    setSearchText(e.target.value);
+                                    setPagination({
+                                        pageIndex: 0,
+                                        pageSize: 10,
+                                    });
+                                }}
                                 placeholder="Search Asset ID, Name, or Approved By..."
                                 className="w-full h-12 border border-[#DCE3EE] rounded-xl pl-10 pr-4 outline-none"
                             />
                         </div>
                     </div>
 
-                    <div className="md:col-span-4">
-                        <label className="block text-xs font-semibold text-[#6B7280] mb-2 ">
-                            DATE RANGE
-                        </label>
-
-                        <div className="relative bg-[#F8FAFC] rounded-xl">
+                    <div className="col-span-1">
+                        <div className="relative rounded-xl">
                             <CalendarDays
                                 size={18}
                                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                             />
 
                             <input
-                                value={dateInput}
-                                onChange={(e) => setDateInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                                value={dateFilter}
+                                onChange={(e) => {
+                                    setDateFilter(e.target.value);
+                                    setPagination({
+                                        pageIndex: 0,
+                                        pageSize: 10,
+                                    });
+                                }}
                                 placeholder="Select timeframe"
                                 className="w-full h-12 border border-[#DCE3EE] rounded-xl pl-10 pr-4 outline-none"
                             />
                         </div>
-                    </div>
-
-                    <div className="md:col-span-3 flex items-end gap-3">
-                        <button onClick={applyFilters} className="flex-1 h-12 bg-[#084E92] text-white rounded-xl font-medium cursor-pointer">
-                            Apply Filters
-                        </button>
-
-                        <button onClick={resetFilters} className="flex items-center gap-2 text-[#64748B] mb-3 cursor-pointer hover:scale-105 transition-all duration-200">
-                            <RotateCcw size={16} />
-                            Reset
-                        </button>
                     </div>
 
                 </div>

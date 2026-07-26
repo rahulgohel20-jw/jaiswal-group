@@ -481,6 +481,10 @@ export const MENU_SIDEBAR_ADMIN = [
     title: 'Purchase',
     icon: Fence,
     children: [
+      { title: 'Stock Purchase', path: '/purchase/stock-purchase' },
+      { title: 'Purchase Order', path: '/purchase/purchase-order' },
+      { title: 'Purchase Return', path: '/purchase/purchase-return' },
+      { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' }
       { title: 'Purchase Requisition', path: '/purchase-requisition/list'},
       { title: 'Approve Purchase Requisition', path: '/approve-purchase-requisition/list'},
       { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' }
@@ -499,6 +503,15 @@ export const MENU_SIDEBAR_ADMIN = [
   {
     title: 'Menu Item',
     icon: ShoppingCart,
+    children: [
+      { title: 'Categories', path: '/menu-item/categories' },
+      { title: 'Sub Category', path: '/menu-item/sub-category' },
+      { title: 'Add Menu Item', path: '/menu-item/add-menu-items' },
+    ],
+  },
+  {
+    title: 'Manage Stock',
+    icon: FolderClosed,
     children: [
       { title: 'Categories', path: '/menu-item/categories' },
       { title: 'Sub Category', path: '/menu-item/sub-category' },

@@ -145,8 +145,8 @@ const AssetsManagement = () => {
     const [showDetails, setShowDetails] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [searchInput, setSearchInput] = useState("");
-    const [categoryInput, setCategoryInput] = useState("All");
-    const [statusInput, setStatusInput] = useState("All");
+    const [categoryInput, setCategoryInput] = useState("All Category");
+    const [statusInput, setStatusInput] = useState("All Status");
     const [deleting, setDeleting] = useState(false);
     const [deletingAsset, setdeletingAsset] = useState(null);
 
@@ -190,11 +190,11 @@ const AssetsManagement = () => {
 
     // Filter dropdown options derived from live data instead of a hardcoded list
     const categoryOptions = useMemo(
-        () => ["All", ...new Set(assets.map((a) => a.category).filter(Boolean))],
+        () => ["All Category", ...new Set(assets.map((a) => a.category).filter(Boolean))],
         [assets]
     );
     const statusOptions = useMemo(
-        () => ["All", ...new Set(assets.map((a) => a.status).filter(Boolean))],
+        () => ["All Status", ...new Set(assets.map((a) => a.status).filter(Boolean))],
         [assets]
     );
 
@@ -208,11 +208,11 @@ const AssetsManagement = () => {
                 item.category?.toLowerCase().includes(keyword);
 
             const categoryMatch =
-                categoryInput === "All" ||
+                categoryInput === "All Category" ||
                 item.category === categoryInput;
 
             const statusMatch =
-                statusInput === "All" ||
+                statusInput === "All Status" ||
                 item.status === statusInput;
 
             return searchMatch && categoryMatch && statusMatch;
@@ -478,7 +478,6 @@ const AssetsManagement = () => {
                             </select>
                         </div>
 
-                        {/* Transfer Allowed */}
                         <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
                             <select
                                 value={statusInput}
