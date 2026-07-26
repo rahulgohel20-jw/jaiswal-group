@@ -128,7 +128,6 @@ import AddAssignAsset from '../pages/assest-management/assign-assets/AddAssignAs
 import AssetSubCategory from '../pages/assest-management/sub-categories/AssetSubCategory';
 import AssetCategory from '../pages/assest-management/categories/AssetCategory';
 import AssetsType from '../pages/assest-management/assets-type/AssetsType';
-import Departmentlist from '../pages/department/Departmentlist';
 import ConditionMasterModule from '../pages/assest-management/conditions/ConditionMasterModule';
 import StatusMasterModule from '../pages/assest-management/status/StatusMasterModule';
 import AssetUnitList from '../pages/assest-management/assets-unit/AssetUnitList';
@@ -158,6 +157,7 @@ import CreateMenuItem from '../pages/menu-item/create-menu-item/CreateMenuItem';
 import AddPurchaseRequisition from '../pages/purchase-requisition/AddPurchaseRequisition';
 import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
 import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
+import Departmentlist from '../pages/department/Departmentlist';
 
 export function AppRoutingSetup() {
   return (

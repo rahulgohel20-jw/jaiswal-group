@@ -37,7 +37,7 @@ const mapDepartment = (d) => ({
         : '—',
 });
 
-const DepartmentMaster = () => {
+const Departmentlist = () => {
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -105,68 +105,36 @@ const DepartmentMaster = () => {
     const pageStart = (currentPage - 1) * PAGE_SIZE;
     const pageDepartments = filteredDepartments.slice(pageStart, pageStart + PAGE_SIZE);
 
-    const handleSaveDepartment = async (form, { addAnother } = {}) => {
-        // Pull org context however your app currently determines it —
-        // e.g. from localStorage set at login, or a user/session context.
-        const organizationId = Number(localStorage.getItem('organizationId')) || 1;
-        const username = localStorage.getItem('username') || '';
-        const isActive = form.status === 'Active';
-
-        try {
-            if (editingDepartment) {
-                await updateDepartment({
-                    id: editingDepartment.id,
-                    departmentName: form.name.trim(),
-                    isActive,
-                    description: form.description.trim(),
-                    organizationId,
-                    username,
-                });
-                notify.success("Update Department successfully");
-            } else {
-                await saveDepartment({
-                    departmentName: form.name.trim(),
-                    description: form.description || 'Organization Unit',
-                    organizationId,
-                    isActive,
-                    username,
-                });
-                notify.success("Department Added successfully");
-            }
-            await fetchDepartments();
-            if (!addAnother) {
-                setIsAddOpen(false);
-                setEditingDepartment(null);
-            }
-        } catch (err) {
-            console.error(err);
-            setError(
-                err?.response?.data?.msg ||
-const handleSaveDepartment = async (form, { addAnother } = {}) => {
+  const handleSaveDepartment = async (form, { addAnother } = {}) => {
     // Pull org context however your app currently determines it —
     // e.g. from localStorage set at login, or a user/session context.
     const username = localStorage.getItem('username') || '';
     const isActive = form.status === 'Active';
+    const departmentName = (form.name ?? form.departmentName ?? '').trim();
+    const description = (form.description ?? '').trim();
+    const organizationId =
+        form.organizationId ?? (Number(localStorage.getItem('organizationId')) || 1);
+
     try {
         if (editingDepartment) {
             await updateDepartment({
                 id: editingDepartment.id,
-                departmentName: form.name,
+                departmentName,
                 isActive,
-                description: form.description,
-                organizationId : form.organizationId,
-                username: "",
+                description,
+                organizationId,
+                username,
             });
-            notify.success("Update Department successfully");
+            notify.success('Update Department successfully');
         } else {
             await saveDepartment({
-                departmentName: form.departmentName,
-                description: form.description,
-                organizationId : form.organizationId,
+                departmentName,
+                description: description || 'Organization Unit',
+                organizationId,
                 isActive,
-                username: "User",
+                username: username || 'User',
             });
-            notify.success("Department Added successfully");
+            notify.success('Department Added successfully');
         }
         await fetchDepartments();
         if (!addAnother) {
@@ -179,10 +147,10 @@ const handleSaveDepartment = async (form, { addAnother } = {}) => {
             err?.response?.data?.msg ||
                 err?.response?.data?.message ||
                 'Failed to save department.',
-            );
-            notify.error('Failed to save department.');
-        }
-    };
+        );
+        notify.error('Failed to save department.');
+    }
+};
 
     const handleDelete = async (id) => {
         const prev = departments;
@@ -402,4 +370,4 @@ const StatCard = ({ icon, iconBg, iconColor, label, title, value }) => (
     </div>
 );
 
-export default DepartmentMaster;
+export default Departmentlist;

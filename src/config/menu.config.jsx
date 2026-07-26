@@ -484,7 +484,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Stock Purchase', path: '/purchase/stock-purchase' },
       { title: 'Purchase Order', path: '/purchase/purchase-order' },
       { title: 'Purchase Return', path: '/purchase/purchase-return' },
-      { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' }
+      { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' },
       { title: 'Purchase Requisition', path: '/purchase-requisition/list'},
       { title: 'Approve Purchase Requisition', path: '/approve-purchase-requisition/list'},
       { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' }
