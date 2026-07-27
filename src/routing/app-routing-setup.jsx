@@ -243,10 +243,6 @@ export function AppRoutingSetup() {
           <Route path='/menu-item/sub-category' element={<MenuSubCategory/>}/>
           <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
 
-          <Route path='/menu-item/categories' element={<MenuCategory/>}/>
-          <Route path='/menu-item/sub-category' element={<MenuSubCategory/>}/>
-          <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
-
 
           <Route path="/purchase-requisition/list" element={<PurchaseRequisitionList/>} />
           <Route path='/purchase-requisition/add' element={<AddPurchaseRequisition />} />

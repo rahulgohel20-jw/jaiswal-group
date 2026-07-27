@@ -513,15 +513,6 @@ export const MENU_SIDEBAR_ADMIN = [
     title: 'Manage Stock',
     icon: FolderClosed,
     children: [
-      { title: 'Categories', path: '/menu-item/categories' },
-      { title: 'Sub Category', path: '/menu-item/sub-category' },
-      { title: 'Add Menu Item', path: '/menu-item/add-menu-items' },
-    ],
-  },
-  {
-    title: 'Manage Stock',
-    icon: FolderClosed,
-    children: [
       { title: 'Available Stock', path: '/stocks/available-stocks' },
       { title: 'Closing Stock', path: '/stocks/closing-stock' },
     ],
