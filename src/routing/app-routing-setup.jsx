@@ -159,6 +159,8 @@ import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequi
 import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
 import Departmentlist from '../pages/department/Departmentlist';
 import MenuItemsListing from '../pages/menu-item/create-menu-item/MenuItemListing';
+import CreatePurchaseOrder from '../pages/purchase-order-requests/CreatePurchaseOrder';
+import PurchaseOrderApproved from '../pages/purchase-approved-order/PurchaseOrderApproved';
 
 export function AppRoutingSetup() {
   return (
@@ -251,9 +253,11 @@ export function AppRoutingSetup() {
           <Route path='/approve-purchase-requisition/list' element={<PurchaseRequisitionApproval />} />
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
-
-          <Route path="/purchase/add-purchase-order" element={<AddPurchaseOrder />} />
+          <Route path='/purchase/purchase-order' element={<AddPurchaseOrder/>}/>
           <Route path='/purchase/purchase-order-requests' element={<PurchaseOrderRequest/>}/>
+          <Route path='/purchase/purchase-order-requests/create' element={<CreatePurchaseOrder/>}/>
+          <Route path='/purchase/approved-order' element={<PurchaseOrderApproved/>}/>
+
 
           <Route path="/purchase/purchase-return" element={<PurchaseReturnList />} />
           <Route path="/purchase/add-purchase-return" element={<AddPurchaseReturn />} />

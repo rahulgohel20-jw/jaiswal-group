@@ -1,5 +1,13 @@
-import { ChevronRight, CircleCheck, CircleX, ClipboardList, Package, RotateCcw } from 'lucide-react'
-import React, { useState } from 'react'
+import { ChevronRight, CircleCheck, CircleX, ClipboardList, Download, Filter, MoreVertical, Package, RotateCcw, Search } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { DataGrid } from "@/components/ui/data-grid";
+import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
+import { DataGridPagination } from "@/components/ui/data-grid-pagination";
+import { DataGridTable } from "@/components/ui/data-grid-table";
+import { Card, CardFooter, CardTable } from "@/components/ui/card";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Link } from 'react-router';
 
 const requests = [
     {
@@ -58,6 +66,11 @@ const requests = [
         action: "Edit",
     },
 ];
+const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
+    <span title={value} className={`block truncate ${widthClass} ${className}`}>
+        {value}
+    </span>
+);
 const StatusBadge = ({ status }) => {
     const styles = {
         Approved: "bg-green-100 text-green-700",
@@ -75,17 +88,36 @@ const StatusBadge = ({ status }) => {
 };
 const PurchaseOrderRequest = () => {
     const [prRequest, setPrRequest] = useState(requests);
-
-
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(false);
+    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+    const [rowSelection, setRowSelection] = useState({});
+    const [search, setSearch] = useState("");
+    const [companyFilter, setCompanyFilter] = useState("All Companies");
+    const [outletFilter, setOutletFilter] = useState("All Outlets");
+    const [statusFilter, setStatusFilter] = useState("All Status");
 
     const columns = [
         {
             accessorKey: "prCode",
-            header: "PR CODE",
+            header: ({ column }) => (
+                <DataGridColumnHeader
+                    title="PR CODE"
+                    column={column}
+                    className="text-[#43474F] font-semibold"
+                />
+            ),
+             size: 140,
         },
         {
             accessorKey: "poCode",
-            header: "PO CODE",
+            header: ({ column }) => (
+                <DataGridColumnHeader
+                    title="PO CODE"
+                    column={column}
+                    className="text-[#43474F] font-semibold"
+                />
+            ),
             cell: ({ row }) =>
                 row.original.poCode === "TO BE GENERATED" ? (
                     <span className="px-3 py-1 rounded-full bg-gray-100 text-xs">
@@ -94,22 +126,50 @@ const PurchaseOrderRequest = () => {
                 ) : (
                     row.original.poCode
                 ),
+            size: 170,
         },
         {
             accessorKey: "date",
-            header: "DATE",
+            header: ({ column }) => (
+                <DataGridColumnHeader
+                    title="DATE"
+                    column={column}
+                    className="text-[#43474F] font-semibold"
+                />
+            ),
+            size:120,
         },
         {
             accessorKey: "company",
-            header: "COMPANY NAME",
+            header: ({ column }) => (
+                <DataGridColumnHeader
+                    title="COMPANY NAME"
+                    column={column}
+                    className="text-[#43474F] font-semibold"
+                />
+            ),
+            cell: ({ row }) => <TruncatedCell value={row.original.company} widthClass="max-w-[190px]" />,
         },
         {
             accessorKey: "outlet",
-            header: "OUTLET NAME",
+            header: ({ column }) => (
+                <DataGridColumnHeader
+                    title="OUTLET NAME"
+                    column={column}
+                    className="text-[#43474F] font-semibold"
+                />
+            ),
+            cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[190px] py-3" />,
         },
         {
             accessorKey: "raisedBy",
-            header: "RAISED BY",
+            header: ({ column }) => (
+                <DataGridColumnHeader
+                    title="RAISED BY"
+                    column={column}
+                    className="text-[#43474F] font-semibold"
+                />
+            ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
@@ -118,37 +178,96 @@ const PurchaseOrderRequest = () => {
                     {row.original.raisedBy}
                 </div>
             ),
+            size:190,
         },
         {
             accessorKey: "status",
-            header: "STATUS",
+            header: ({ column }) => (
+                <DataGridColumnHeader
+                    title="STATUS"
+                    column={column}
+                    className="text-[#43474F] font-semibold"
+                />
+            ),
             cell: ({ row }) => (
                 <StatusBadge status={row.original.status} />
             ),
+            size:110
         },
         {
             id: "actions",
-            header: "ACTIONS",
+            header: ({ column }) => (
+                <DataGridColumnHeader
+                    title="ACTIONS"
+                    column={column}
+                    className="text-[#43474F] font-semibold py-6"
+                />
+            ),
             cell: ({ row }) => (
                 <div className="flex gap-2">
                     {row.original.action === "Generate PO" ? (
                         <>
-                            <button className="bg-[#084E92] text-white px-4 py-1 rounded text-xs">
+                            <Link 
+                            to="/purchase/purchase-order-requests/create" 
+                            state={row.original}>
+                            <button className="bg-[#084E92] text-white px-4 py-1 rounded-lg text-xs cursor-pointer">
                                 Generate PO
                             </button>
-                            <button className="border px-4 py-1 rounded text-xs">
+                            </Link>
+                            <button className="border px-4 py-1 rounded-lg text-xs cursor-pointer">
                                 Reject
                             </button>
                         </>
                     ) : (
-                        <button className="border px-4 py-1 rounded text-xs">
+                        <button className="border px-4 py-1 rounded text-xs cursor-pointer">
                             Edit
                         </button>
                     )}
                 </div>
             ),
+            size:230
         },
     ];
+
+    const filteredRequests = useMemo(() => {
+        const keyword = search.toLowerCase().trim();
+
+        return prRequest.filter((item) => {
+            const matchesSearch =
+                item.prCode.toLowerCase().includes(keyword) ||
+                item.company.toLowerCase().includes(keyword) ||
+                item.raisedBy.toLowerCase().includes(keyword);
+
+            const matchesCompany =
+                companyFilter === "All Companies" || item.company === companyFilter;
+
+            const matchesOutlet =
+                outletFilter === "All Outlets" || item.outlet === outletFilter;
+
+            const matchesStatus =
+                statusFilter === "All Status" || item.status === statusFilter;
+
+            return (
+                matchesSearch &&
+                matchesCompany &&
+                matchesOutlet &&
+                matchesStatus
+            );
+        });
+    }, [prRequest, search, companyFilter, outletFilter, statusFilter]);
+    const table = useReactTable({
+        data: filteredRequests,
+        columns,
+        state: { pagination, rowSelection },
+        onPaginationChange: setPagination,
+        onRowSelectionChange: setRowSelection,
+        enableRowSelection: true,
+        getCoreRowModel: getCoreRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+    });
+
+
+
     const STATS = [
         {
             title: "Total PRs",
@@ -216,6 +335,114 @@ const PurchaseOrderRequest = () => {
                         <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
                     </div>
                 ))}
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1]">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+                    {/* Search */}
+                    <div className="relative  pr-4 py-2.5 border border-[#C3C6D1] rounded-lg w-full">
+                        <Search
+                            size={18}
+                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                        />
+
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Search by PR Code, Company or Raised By..."
+                            className="w-full pl-10 outline-none"
+                        />
+                    </div>
+
+                    {/* Filters */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                        {/* Company */}
+                        <p className='border border-[#C3C6D1] rounded-lg px-3 py-2.5'>
+                            <select
+                                value={companyFilter}
+                                onChange={(e) => setCompanyFilter(e.target.value)}
+                                className="w-full outline-none"
+                            >
+                                <option value="All Companies">All Companies</option>
+                                <option value="Reliance Retail Ltd.">Reliance Retail Ltd.</option>
+                                <option value="Tata Consumer Products">Tata Consumer Products</option>
+                                <option value="Britannia Industries">Britannia Industries</option>
+                                <option value="Amul India">Amul India</option>
+                                <option value="Nestle Waters">Nestle Waters</option>
+                            </select>
+                        </p>
+
+                        {/* Outlet */}
+                        <p className='border border-[#C3C6D1] rounded-lg px-3 py-2.5 '>
+                            <select
+                                value={outletFilter}
+                                onChange={(e) => setOutletFilter(e.target.value)}
+                                className="w-full outline-none"
+                            >
+                                <option value="All Outlets">All Outlets</option>
+                                <option value="Mumbai - Main Hub">Mumbai - Main Hub</option>
+                                <option value="Delhi North Outlet">Delhi North Outlet</option>
+                                <option value="Bangalore Central">Bangalore Central</option>
+                                <option value="Ahmedabad Plant">Ahmedabad Plant</option>
+                                <option value="Pune South Hub">Pune South Hub</option>
+                            </select>
+                        </p>
+
+                        {/* Status */}
+                        <p className='border border-[#C3C6D1] rounded-lg px-3 py-2.5 '>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="w-full outline-none"
+                            >
+                                <option value="All Status">All Status</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </p>
+
+                    </div>
+
+                </div>
+            </div>
+
+            <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+
+                {loading && (
+                    <p className="p-4 text-sm text-gray-500">
+                        Loading purchase requests...
+                    </p>
+                )}
+
+                {error && (
+                    <p className="p-4 text-sm text-red-600">
+                        {error}
+                    </p>
+                )}
+
+                <DataGrid
+                    table={table}
+                    recordCount={filteredRequests.length}
+                    className="rounded-2xl"
+                >
+                    <Card className="rounded-t-none border-t-0 rounded-2xl">
+                        <CardTable>
+                            <ScrollArea>
+                                <DataGridTable />
+                                <ScrollBar orientation="horizontal" />
+                            </ScrollArea>
+                        </CardTable>
+
+                        <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                            <DataGridPagination />
+                        </CardFooter>
+                    </Card>
+                </DataGrid>
             </div>
         </div>
     )
