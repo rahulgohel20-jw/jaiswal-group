@@ -68,7 +68,7 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-[420px] flex flex-col items-center justify-center">
           <img
-            src="/media/app/login_screen.jpg"
+            src={`${import.meta.env.BASE_URL}media/app/login_screen.jpg`}
             alt="Manage everything, everywhere"
             className="w-full h-auto"
           />

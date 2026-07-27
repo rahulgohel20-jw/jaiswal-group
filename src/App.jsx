@@ -12,7 +12,7 @@ import { SettingsProvider } from './providers/settings-provider';
 import { ThemeProvider } from './providers/theme-provider';
 import { TooltipsProvider } from './providers/tooltips-provider';
 
-const { BASE_URL } = import.meta.env;
+const { BASE_URL } = "/justerp/";
 
 export function App() {
   const queryClient = new QueryClient();
@@ -27,7 +27,7 @@ export function App() {
                 <TooltipsProvider>
                   <QueryProvider>
                     <LoadingBarContainer>
-                      <BrowserRouter basename={BASE_URL}>
+                      <BrowserRouter basename="/justerp">
                         <Toaster
                           richColors
                           position="top-right"

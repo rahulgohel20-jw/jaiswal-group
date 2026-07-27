@@ -1,14 +1,29 @@
 import { Building2, X } from 'lucide-react';
 import React from 'react';
+// removed unused: import { createFormattedDateTimePartsComponent } from 'react-intl/src/components/createFormattedComponent';
 
-/**
- * Slide-over panel shown when the "view" (eye) icon is clicked on a
- * Department row. Expects `department` to optionally carry:
- *   code, totalEmployees, createdDate, activity: [{ title, detail, time }]
- * Falls back to sensible defaults so it also works against the
- * lightweight rows used in DepartmentMaster.js.
- */
-const DepartmentDetailsModal = ({ isOpen, onClose,onEdit, department }) => {
+const formatDateOnly = (value) => {
+    if (!value) return '—';
+
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('en-US', {
+            month: 'short', day: '2-digit', year: 'numeric',
+        });
+    }
+
+    // Date() couldn't parse it — it's probably already a formatted
+    // string like "07/27/2026, 2:32:00 PM" or "Jul 27, 2026 14:32".
+    // Strip anything from the first comma onward, or a trailing time pattern.
+    const str = String(value);
+    const commaIdx = str.indexOf(',');
+    if (commaIdx !== -1) return str.slice(0, commaIdx).trim();
+
+    // fallback: strip a trailing HH:MM(:SS)? (AM/PM)? pattern
+    return str.replace(/\s+\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i, '').trim();
+};
+
+const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
     if (!isOpen || !department) return null;
 
     const {
@@ -18,13 +33,14 @@ const DepartmentDetailsModal = ({ isOpen, onClose,onEdit, department }) => {
         status,
         code,
         totalEmployees = '—',
-        createdDate = '—',
+        createdAt,
         activity = [
             { title: 'Department Updated', detail: 'Details were modified by Admin', time: 'Recently' },
-            { title: 'Department Created', detail: 'Initial setup', time: createdDate },
+            { title: 'Department Created', detail: 'Initial setup', time: formatDateOnly(createdAt) },
         ],
     } = department;
 
+    const displayCreatedAt = formatDateOnly(createdAt);
     const departmentCode = code || `DEPT-${String(id).padStart(3, '0')}`;
     const isActive = status === 'Active';
 
@@ -91,7 +107,7 @@ const DepartmentDetailsModal = ({ isOpen, onClose,onEdit, department }) => {
                             <p className="text-[11px] font-semibold text-[#737781] uppercase tracking-wide">
                                 Created Date
                             </p>
-                            <p className="text-lg font-bold text-[#1B1B1F] mt-1">{createdDate}</p>
+                            <p className="text-lg font-bold text-[#1B1B1F] mt-1">   {displayCreatedAt}</p>
                         </div>
                     </div>
 

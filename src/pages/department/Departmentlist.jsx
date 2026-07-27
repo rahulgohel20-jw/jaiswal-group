@@ -30,6 +30,7 @@ const mapDepartment = (d) => ({
     status: d.isActive ? 'Active' : 'Inactive',        
     totalEmployees: d.totalEmployees ?? 0,  
     organizationId: d.id ?? d.organizationUnitId ?? null,
+    createdAt: d.createdAt ?? null, 
     createdDate: d.createdDate
         ? new Date(d.createdDate).toLocaleDateString('en-US', {
             month: 'short', day: '2-digit', year: 'numeric',

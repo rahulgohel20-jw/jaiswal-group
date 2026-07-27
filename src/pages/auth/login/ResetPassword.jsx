@@ -56,7 +56,7 @@ export default function ResetPasswordPage() {
       {/* Left section — white background */}
       <div className="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center p-6 lg:p-12">
         <img
-          src="/media/app/login_screen.jpg"
+         src={`${import.meta.env.BASE_URL}media/app/login_screen.jpg`}
           alt="Secure enterprise illustration"
           className="w-full max-w-[420px] h-auto"
         />
