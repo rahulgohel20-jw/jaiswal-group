@@ -158,6 +158,7 @@ import AddPurchaseRequisition from '../pages/purchase-requisition/AddPurchaseReq
 import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
 import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
 import Departmentlist from '../pages/department/Departmentlist';
+import MenuItemsListing from '../pages/menu-item/create-menu-item/MenuItemListing';
 
 export function AppRoutingSetup() {
   return (
@@ -241,8 +242,9 @@ export function AppRoutingSetup() {
 
           <Route path='/menu-item/categories' element={<MenuCategory/>}/>
           <Route path='/menu-item/sub-category' element={<MenuSubCategory/>}/>
-          <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
 
+          <Route path='/menu-item/menu-items' element={<MenuItemsListing/>}/>
+             <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
 
           <Route path="/purchase-requisition/list" element={<PurchaseRequisitionList/>} />
           <Route path='/purchase-requisition/add' element={<AddPurchaseRequisition />} />

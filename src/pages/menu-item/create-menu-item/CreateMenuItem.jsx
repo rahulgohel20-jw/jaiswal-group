@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Plus, UploadCloud } from "lucide-react";
 import CreateSubCategory from "../menu-subcategory/CreateSubCategory";
 import CreateMenuCategory from "../menu-category/CreateMenuCategory";
+import { Link } from "react-router";
 
 const CreateMenuItem = () => {
     const [openCategory, setOpenCategory] = useState(false);
@@ -184,9 +185,11 @@ const CreateMenuItem = () => {
 
             {/* Buttons */}
             <div className="flex justify-end gap-4 mt-8">
-                <button className="px-6 py-3 rounded-lg border cursor-pointer">
+                <Link
+                    to="/menu-item/menu-items" 
+                    className="px-6 py-3 rounded-lg border cursor-pointer">
                     Cancel
-                </button>
+                </Link>
 
                 <button className="px-6 py-3 rounded-lg bg-[#084E92] text-white cursor-pointer">
                     Save

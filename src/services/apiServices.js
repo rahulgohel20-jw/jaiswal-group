@@ -339,3 +339,31 @@ export const updateAsset = (id, formData) => {
     },
   });
 };
+
+export const getAllMenuCategory = () => {
+  return GET("/menucategory/getall");
+};
+
+export const getMenuCategoryById = (id) => {
+  return GET("/menucategory/getid", { id });
+};
+
+export const addMenuCategory = (formData) => {
+  return axiosInstance.post("/menucategory/add", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+export const updateMenuCategory = (formData) => {
+  return axiosInstance.put("/menucategory/update", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
+};
+
+export const deleteMenuCategoryById = (id) => {
+  return DELETE("/menucategory/deletebyid", { id });
+};
+
+export const updateMenuCategoryStatus = ({ id, status }) => {
+  return PUT("/menucategory/updatestatus", { status }, { id });
+};

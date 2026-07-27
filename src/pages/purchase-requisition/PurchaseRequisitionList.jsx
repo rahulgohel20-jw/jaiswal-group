@@ -2,16 +2,20 @@ import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
   Building2,
+  Calendar,
   ChevronLeft,
   ChevronRight,
   Download,
   Eye,
+  FileText,
   Filter,
   Pencil,
   Plus,
+  Printer,
   RefreshCw,
   Search,
   Trash2,
+  X,
 } from 'lucide-react';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 
@@ -57,9 +61,11 @@ const STATUS_DOT = {
 // Statuses a requisition can still be edited in; approved/pending ones are read-only.
 const EDITABLE_STATUSES = new Set(['Draft', 'In Review']);
 
-const StatusBadge = ({ status }) => (
+const StatusBadge = ({ status, size = 'md' }) => (
   <span
-    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
+    className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${
+      size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
+    } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
   >
     <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
     {status}
@@ -86,15 +92,183 @@ const IconButton = ({ icon: Icon, onClick, tone = 'default', title }) => {
 };
 
 /* -------------------------------------------------------------------------
+ * View details modal
+ * Mirrors the "Purchase Requisition Details" design: header with doc icon
+ * + close, PR number / status row, an Origin Details section, a notes
+ * card, and a Print / Cancel / Download PDF footer.
+ * ---------------------------------------------------------------------- */
+
+const ViewRequisitionModal = ({ row, onClose }) => {
+  if (!row) return null;
+
+  const handlePrint = () => window.print();
+  const handleDownloadPdf = () => {
+    // TODO: wire to downloadPurchaseRequisitionPdf(row.id)
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between px-5 pt-5 pb-4">
+          <div className="flex items-start gap-3">
+            <span className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-[#084E92] shrink-0">
+              <FileText className="w-4.5 h-4.5" />
+            </span>
+            <div>
+              <h3 className="text-base font-semibold text-gray-900 leading-tight">
+                Purchase Requisition Details
+              </h3>
+              <p className="text-[11px] text-gray-400 mt-0.5 tracking-wide">
+                SUPER ADMIN MODULE · ERP 2026 VERSION 4.2
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition cursor-pointer bg-transparent border-0 shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-5 pb-5 space-y-4">
+          {/* PR Number / Status */}
+          <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
+            <div>
+              <p className="text-[11px] text-gray-400 uppercase tracking-wide">PR Number</p>
+              <p className="text-sm font-semibold text-gray-900 mt-0.5">{row.prCode}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] text-gray-400 uppercase tracking-wide">Status</p>
+              <div className="mt-1">
+                <StatusBadge status={row.status} size="sm" />
+              </div>
+            </div>
+          </div>
+
+          {/* Origin Details */}
+          <div>
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
+              <Calendar className="w-3.5 h-3.5" />
+              Origin Details
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-gray-100 px-4 py-3">
+                <p className="text-[11px] text-gray-400">Created Date</p>
+                <p className="text-sm font-medium text-gray-800 mt-0.5">{row.date}</p>
+              </div>
+              <div className="rounded-xl border border-gray-100 px-4 py-3">
+                <p className="text-[11px] text-gray-400">Outlet/Branch</p>
+                <p className="text-sm font-medium text-gray-800 mt-0.5">{row.outlet}</p>
+                {row.section && (
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">{row.section}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="rounded-xl bg-blue-50/50 border border-blue-100 px-4 py-3">
+            <p className="text-[11px] font-semibold text-[#084E92] uppercase tracking-wide mb-1.5">
+              Internal Requisition Notes
+            </p>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              {row.notes || row.remarks}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end px-5 py-4 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
+            >
+              <Download className="w-4 h-4" />
+              Download PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* -------------------------------------------------------------------------
  * Mock data — stand-in for the requisitions-list API in this demo.
  * ---------------------------------------------------------------------- */
 
 const MOCK_REQUISITIONS = [
-  { id: 'pr-1', prCode: 'PR-2024-001', date: 'Oct 12, 2023', outlet: 'South City Mall Outlet', status: 'Approved', remarks: 'Quarterly inventory restock' },
-  { id: 'pr-2', prCode: 'PR-2024-002', date: 'Oct 14, 2023', outlet: 'Mumbai Airport Flagship', status: 'Send for Approval', remarks: 'Urgent procurement for tec...' },
-  { id: 'pr-3', prCode: 'PR-2024-003', date: 'Oct 15, 2023', outlet: 'Bangalore Tech Park Hub', status: 'In Review', remarks: 'Office furniture replacemen...' },
-  { id: 'pr-4', prCode: 'PR-2024-004', date: 'Oct 18, 2023', outlet: 'Delhi Connaught Place Store', status: 'Draft', remarks: 'Stationery and housekeepi...' },
-  { id: 'pr-5', prCode: 'PR-2024-005', date: 'Oct 20, 2023', outlet: 'Kolkata Head Office', status: 'Approved', remarks: 'Annual IT hardware mainten...' },
+  {
+    id: 'pr-1',
+    prCode: 'PR-2024-001',
+    date: 'Oct 12, 2023',
+    outlet: 'South City Mall',
+    section: 'Apparel Section',
+    status: 'Approved',
+    remarks: 'Quarterly inventory restock',
+    notes:
+      'This requisition is for the upcoming winter collection inventory replenishment. Pricing has been negotiated based on the master service agreement. All items meet the quality standards of Jaiswal Group retail division. Approval from the regional director is attached in the digital archive.',
+  },
+  {
+    id: 'pr-2',
+    prCode: 'PR-2024-002',
+    date: 'Oct 14, 2023',
+    outlet: 'Mumbai Airport Flagship',
+    section: 'Electronics Section',
+    status: 'Send for Approval',
+    remarks: 'Urgent procurement for tec...',
+    notes: 'Urgent procurement for technical equipment ahead of the flagship relaunch. Vendor quotes are attached.',
+  },
+  {
+    id: 'pr-3',
+    prCode: 'PR-2024-003',
+    date: 'Oct 15, 2023',
+    outlet: 'Bangalore Tech Park Hub',
+    section: 'Facilities Section',
+    status: 'In Review',
+    remarks: 'Office furniture replacemen...',
+    notes: 'Office furniture replacement for the second floor workspace remodel, pending facilities sign-off.',
+  },
+  {
+    id: 'pr-4',
+    prCode: 'PR-2024-004',
+    date: 'Oct 18, 2023',
+    outlet: 'Delhi Connaught Place Store',
+    section: 'Admin Section',
+    status: 'Draft',
+    remarks: 'Stationery and housekeepi...',
+    notes: 'Stationery and housekeeping supplies for the monthly admin order, still pending final line items.',
+  },
+  {
+    id: 'pr-5',
+    prCode: 'PR-2024-005',
+    date: 'Oct 20, 2023',
+    outlet: 'Kolkata Head Office',
+    section: 'IT Section',
+    status: 'Approved',
+    remarks: 'Annual IT hardware mainten...',
+    notes: 'Annual IT hardware maintenance contract renewal, approved as part of the FY24 budget cycle.',
+  },
 ];
 
 const PAGE_SIZE = 10;
@@ -172,6 +346,7 @@ const PurchaseRequisitionList = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState(MOCK_REQUISITIONS);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const [viewingRow, setViewingRow] = useState(null);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -337,7 +512,7 @@ const PurchaseRequisitionList = () => {
                     <td className="px-4 py-4 text-gray-500 max-w-[220px] truncate">{row.remarks}</td>
                     <td className="px-4 sm:px-6 py-4">
                       <div className="flex items-center gap-1">
-                        <IconButton icon={Eye} title="View" onClick={() => navigate(`/purchase-requisition/view/${row.id}`)} />
+                        <IconButton icon={Eye} title="View" onClick={() => setViewingRow(row)} />
                         {EDITABLE_STATUSES.has(row.status) && (
                           <IconButton
                             icon={Pencil}
@@ -370,6 +545,8 @@ const PurchaseRequisitionList = () => {
           />
         </div>
       </SectionCard>
+
+      <ViewRequisitionModal row={viewingRow} onClose={() => setViewingRow(null)} />
     </div>
   );
 };

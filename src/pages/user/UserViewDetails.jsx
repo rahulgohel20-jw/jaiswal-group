@@ -217,13 +217,13 @@ const UserViewDetails = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
             <StatCard
               label="Company"
-              value={employee.company}
+              value={employee.organizationName}
               icon={Building2}
             />
 
             <StatCard
               label="Department"
-              value={employee.departmentId}
+              value={employee.departmentName}
               icon={Briefcase}
             />
 
@@ -269,7 +269,7 @@ const UserViewDetails = () => {
 
                   <InfoCard
                     label="Company"
-                    value={employee.company}
+                    value={employee.organizationName}
                   />
 
                   <InfoCard

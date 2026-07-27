@@ -160,7 +160,7 @@ function Avatar({ initials }) {
 // ---------------------------------------------------------------------------
 // List View
 // ---------------------------------------------------------------------------
-function ListView({ onOpen }) {
+function ListView({ onApprove }) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -267,8 +267,7 @@ function ListView({ onOpen }) {
             {filtered.map((r, i) => (
               <tr
                 key={r.code}
-                onClick={() => onOpen(r)}
-                className={`cursor-pointer hover:bg-[#F9FAFC] transition-colors ${
+                className={`transition-colors ${
                   i !== filtered.length - 1 ? "border-b border-[#EFF1F5]" : ""
                 }`}
               >
@@ -295,15 +294,12 @@ function ListView({ onOpen }) {
                   {r.status === "pending" ? (
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="px-3.5 py-1.5 rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
+                        onClick={() => onApprove(r)}
+                        className="px-3.5 py-1.5 cursor-pointer rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
                       >
                         Approve
                       </button>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className="px-3.5 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
-                      >
+                      <button className="px-3.5 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors">
                         Reject
                       </button>
                     </div>
@@ -321,7 +317,7 @@ function ListView({ onOpen }) {
         {/* Pagination */}
         <div className="flex items-center justify-between px-5 py-4 border-t border-[#E7EAF0]">
           <span className="text-xs text-[#667085]">
-            Showing 1ΓÇô{filtered.length} of 124 requisitions
+            Showing 1–{filtered.length} of 124 requisitions
           </span>
           <div className="flex items-center gap-1.5">
             <button className="w-8 h-8 rounded-lg border border-[#E7EAF0] flex items-center justify-center text-[#98A2B3] hover:bg-[#F9FAFC]">
@@ -339,7 +335,7 @@ function ListView({ onOpen }) {
                 {p}
               </button>
             ))}
-            <span className="text-[#98A2B3] text-xs px-1">ΓÇª</span>
+            <span className="text-[#98A2B3] text-xs px-1">…</span>
             <button className="w-8 h-8 rounded-lg border border-[#E7EAF0] text-xs font-semibold text-[#475467] hover:bg-[#F9FAFC]">
               25
             </button>
@@ -665,7 +661,7 @@ export default function PurchaseRequisitionApproval() {
     <div className="min-h-screen w-full" style={{ background: "#F4F6FB" }}>
       <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
       {view === "list" ? (
-        <ListView onOpen={openDetail} />
+        <ListView onApprove={openDetail} />
       ) : (
         <ApprovalView requisition={active} onBack={() => setView("list")} />
       )}

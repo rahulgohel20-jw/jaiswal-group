@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MENU_SIDEBAR,MENU_SIDEBAR_ADMIN } from '@/config/menu.config';
+import { MENU_SIDEBAR, MENU_SIDEBAR_ADMIN } from '@/config/menu.config';
 import { cn } from '@/lib/utils';
 import {
   AccordionMenu,
@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
 
-const roleId = 2; // TODO: replace with real auth value
+const roleId = 1; // TODO: replace with real auth value
 const menuItems = roleId === 1 ? MENU_SIDEBAR_ADMIN : MENU_SIDEBAR;
 
 export function SidebarMenu() {
@@ -29,16 +29,25 @@ export function SidebarMenu() {
   );
 
   // Global classNames for consistent styling
+  // Note: transition-none on the selected state prevents the color from
+  // animating through hover/other colors before landing on blue.
   const classNames = {
     root: 'lg:ps-1 space-y-3',
     group: 'gap-px',
     label:
       'uppercase text-xs font-medium text-muted-foreground/70 pt-2.25 pb-px',
     separator: '',
-    item: 'h-8 hover:bg-transparent text-accent-foreground hover:text-primary data-[selected=true]:text-primary data-[selected=true]:bg-muted data-[selected=true]:font-medium',
+    item:
+      'h-8 rounded-md text-accent-foreground ' +
+      'hover:bg-blue-50 hover:text-blue-600 ' +
+      'data-[selected=true]:bg-blue-50 data-[selected=true]:text-blue-600 ' +
+      'data-[selected=true]:font-medium data-[selected=true]:transition-none',
     sub: '',
     subTrigger:
-      'h-8 hover:bg-transparent text-accent-foreground hover:text-primary data-[selected=true]:text-primary data-[selected=true]:bg-muted data-[selected=true]:font-medium',
+      'h-8 rounded-md text-accent-foreground ' +
+      'hover:bg-blue-50 hover:text-blue-600 ' +
+      'data-[selected=true]:bg-blue-50 data-[selected=true]:text-blue-600 ' +
+      'data-[selected=true]:font-medium data-[selected=true]:transition-none',
     subContent: 'py-0',
     indicator: '',
   };
@@ -63,7 +72,7 @@ export function SidebarMenu() {
             {item.icon && (
               <item.icon
                 data-slot="accordion-menu-icon"
-                className="!w-5 !h-5 text-primary flex-shrink-0"
+                className="!w-5 !h-5 flex-shrink-0"
                 size={20}
               />
             )}
@@ -92,7 +101,7 @@ export function SidebarMenu() {
             {item.icon && (
               <item.icon
                 data-slot="accordion-menu-icon"
-                className="!w-5 !h-5 text-primary flex-shrink-0"
+                className="!w-5 !h-5 flex-shrink-0"
                 size={20}
               />
             )}
@@ -102,6 +111,7 @@ export function SidebarMenu() {
       );
     }
   };
+
   const buildMenuItemRootDisabled = (item, index) => {
     return (
       <AccordionMenuItem
@@ -112,7 +122,7 @@ export function SidebarMenu() {
         {item.icon && (
           <item.icon
             data-slot="accordion-menu-icon"
-            className="!w-5 !h-5 text-primary flex-shrink-0"
+            className="!w-5 !h-5 flex-shrink-0"
             size={20}
           />
         )}
@@ -200,7 +210,7 @@ export function SidebarMenu() {
         {item.disabled && (
           <Badge variant="secondary" size="sm" className="ms-auto me-[-10px]">
             Soon
-          </Badge>  
+          </Badge>
         )}
       </AccordionMenuItem>
     );

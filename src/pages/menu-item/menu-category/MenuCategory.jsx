@@ -1,5 +1,5 @@
-import { ChevronRight, Eye, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
-import React, { useMemo, useState } from 'react'
+import { ChevronRight, Eye, Plus, Search, SquarePen, Trash2 } from 'lucide-react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -8,70 +8,110 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import CreateMenuCategory from './CreateMenuCategory';
-
-const initialData = [
-    {
-        id: 1,
-        image: "https://placehold.co/60x60",
-        name: "SOUP STATION",
-        price: 0,
-        sequence: 1,
-        status: true,
-    },
-    {
-        id: 2,
-        image: "https://placehold.co/60x60",
-        name: "STARTERS",
-        price: 0,
-        sequence: 2,
-        status: true,
-    },
-    {
-        id: 3,
-        image: "https://placehold.co/60x60",
-        name: "CHAT AND MODERN CHATS",
-        price: 0,
-        sequence: 3,
-        status: true,
-    },
-    {
-        id: 4,
-        image: "https://placehold.co/60x60",
-        name: "MEXICAN STATION",
-        price: 0,
-        sequence: 4,
-        status: true,
-    },
-    {
-        id: 5,
-        image: "https://placehold.co/60x60",
-        name: "ITALIAN STATION",
-        price: 0,
-        sequence: 5,
-        status: false,
-    },
-];
+import {
+    getAllMenuCategory,
+    deleteMenuCategoryById,
+    updateMenuCategoryStatus,
+} from "@/services/apiServices.js";
 
 const MenuCategory = () => {
     const [search, setSearch] = useState("");
-    const [categories] = useState(initialData);
+    const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
     const [openCategory, setOpenCategory] = useState(false);
+    const [editData, setEditData] = useState(null);
+
+    const fetchCategories = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await getAllMenuCategory();
+
+            // API response shape can vary between environments. The real shape
+            // observed is: res.data.data["Menu Category Details"] = [...]
+            // with fields like nameEnglish / isActive / imagePath.
+            // We normalize to a flat array with the field names the table uses,
+            // no matter what shape comes back.
+            const payload = res?.data?.data ?? res?.data ?? res;
+
+            const rawList = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.["Menu Category Details"])
+                    ? payload["Menu Category Details"]
+                    : Array.isArray(payload?.categories)
+                        ? payload.categories
+                        : Array.isArray(payload?.items)
+                            ? payload.items
+                            : [];
+
+            // Normalize field names: API uses nameEnglish / isActive / imagePath,
+            // table/columns use name / status / image.
+            const list = rawList.map((item) => ({
+                id: item.id,
+                name: item.nameEnglish ?? item.name ?? "",
+                price: item.price,
+                sequence: item.sequence,
+                status: item.isActive ?? item.status ?? false,
+                image: item.imagePath || item.image || "",
+                raw: item, // keep the original record around (e.g. Hindi/Gujarati names)
+            }));
+
+            setCategories(list);
+
+            if (!Array.isArray(payload) && list.length === 0) {
+                console.warn("getAllMenuCategory: unexpected response shape", res);
+            }
+        } catch (err) {
+            console.error("Failed to fetch categories:", err);
+            setError("Failed to load categories.");
+            setCategories([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchCategories();
+    }, [fetchCategories]);
 
     const filteredCategories = useMemo(() => {
-        return categories.filter((item) =>
-            item.name.toLowerCase().includes(search.toLowerCase())
+        const list = Array.isArray(categories) ? categories : [];
+        return list.filter((item) =>
+            item.name?.toLowerCase().includes(search.toLowerCase())
         );
     }, [search, categories]);
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Delete this category?")) return;
+        try {
+            await deleteMenuCategoryById(id);
+            fetchCategories();
+        } catch (err) {
+            console.error("Failed to delete category:", err);
+        }
+    };
+
+    const handleToggleStatus = async (row) => {
+        try {
+            await updateMenuCategoryStatus({ id: row.id, status: !row.status });
+            fetchCategories();
+        } catch (err) {
+            console.error("Failed to update status:", err);
+        }
+    };
+
+    const handleEdit = (row) => {
+        setEditData(row.raw ?? row);
+        setOpenCategory(true);
+    };
 
     const columns = useMemo(() => [
 
         {
             id: "select",
-
             header: ({ table }) => (
                 <input
                     type="checkbox"
@@ -80,7 +120,6 @@ const MenuCategory = () => {
                     className="w-4 h-4 cursor-pointer"
                 />
             ),
-
             cell: ({ row }) => (
                 <input
                     type="checkbox"
@@ -89,143 +128,84 @@ const MenuCategory = () => {
                     className="w-4 h-4 rounded border-gray-300 cursor-pointer"
                 />
             ),
-
             enableSorting: false,
             size: 50,
         },
 
-
-        // IMAGE
         {
             id: "image",
-
             accessorFn: (row) => row.image,
-
             header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="IMAGE"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
+                <DataGridColumnHeader title="IMAGE" column={column} className="text-[#43474F] font-semibold" />
             ),
-
             cell: ({ row }) => (
-
-                <img
-                    src={row.original.image}
-                    alt={row.original.name}
-                    className="w-12 h-12 rounded-lg object-cover border"
-                />
-
+                row.original.image ? (
+                    <img
+                        src={row.original.image}
+                        alt={row.original.name}
+                        className="w-12 h-12 rounded-lg object-cover border"
+                    />
+                ) : (
+                    <div className="w-12 h-12 rounded-lg bg-gray-100 border flex items-center justify-center text-[10px] text-gray-400">
+                        N/A
+                    </div>
+                )
             ),
-
             size: 100,
         },
 
-
-        // NAME
         {
             id: "name",
-
             accessorFn: (row) => row.name,
-
             header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="NAME"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
+                <DataGridColumnHeader title="NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
-
             cell: ({ row }) => (
-
-                <div className="font-semibold text-gray-800">
-                    {row.original.name}
-                </div>
-
+                <div className="font-semibold text-gray-800">{row.original.name}</div>
             ),
-
             size: 220,
         },
 
-
-        // PRICE
         {
             id: "price",
-
             accessorFn: (row) => row.price,
-
             header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="PRICE"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
+                <DataGridColumnHeader title="PRICE" column={column} className="text-[#43474F] font-semibold" />
             ),
-
             cell: ({ row }) => (
-
                 <span className="text-gray-700">
-                    ₹ {row.original.price}
+                    {row.original.price != null ? `₹ ${row.original.price}` : "-"}
                 </span>
-
             ),
-
             size: 120,
         },
 
-
-        // SEQUENCE
         {
             id: "sequence",
-
             accessorFn: (row) => row.sequence,
-
             header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="SEQUENCE"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
+                <DataGridColumnHeader title="SEQUENCE" column={column} className="text-[#43474F] font-semibold" />
             ),
-
             cell: ({ row }) => (
-
-                <span className="text-gray-700">
-                    {row.original.sequence}
-                </span>
-
+                <span className="text-gray-700">{row.original.sequence ?? "-"}</span>
             ),
-
             size: 120,
         },
 
-
-        // STATUS
         {
             id: "status",
-
             accessorFn: (row) => row.status,
-
             header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="STATUS"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
+                <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
             ),
-
             cell: ({ row }) => (
-
                 <label className="relative inline-flex cursor-pointer">
-
                     <input
                         type="checkbox"
-                        checked={row.original.status}
-                        readOnly
+                        checked={!!row.original.status}
+                        onChange={() => handleToggleStatus(row.original)}
                         className="sr-only peer"
                     />
-
                     <div
                         className="
                     w-11 h-6 
@@ -244,64 +224,34 @@ const MenuCategory = () => {
                     peer-checked:after:translate-x-full
                     "
                     />
-
                 </label>
-
             ),
-
             size: 120,
         },
 
-
-        // ACTIONS
         {
             id: "actions",
-
             header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="ACTIONS"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
+                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
-
-
             cell: ({ row }) => (
-
                 <div className="flex items-center gap-3">
-
                     <button>
-                        <Eye
-                            size={18}
-                            className="text-green-600 hover:text-green-800"
-                        />
+                        <Eye size={18} className="text-green-600 hover:text-green-800" />
                     </button>
 
-
-                    <button>
-                        <SquarePen
-                            size={18}
-                            className="text-blue-600 hover:text-blue-800"
-                        />
+                    <button onClick={() => handleEdit(row.original)}>
+                        <SquarePen size={18} className="text-blue-600 hover:text-blue-800" />
                     </button>
 
-
-                    <button>
-                        <Trash2
-                            size={18}
-                            className="text-red-500 hover:text-red-700"
-                        />
+                    <button onClick={() => handleDelete(row.original.id)}>
+                        <Trash2 size={18} className="text-red-500 hover:text-red-700" />
                     </button>
-
-
                 </div>
-
             ),
-
             enableSorting: false,
             size: 120,
         },
-
 
     ], []);
 
@@ -330,13 +280,12 @@ const MenuCategory = () => {
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-[#0F172A] text-start">Menu Category Master</h1>
-
                 </div>
 
                 <div className="flex gap-3 self-end">
                     <button
                         type="button"
-                        onClick={() => setOpenCategory(true)}
+                        onClick={() => { setEditData(null); setOpenCategory(true); }}
                         className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
                     >
                         <Plus size={16} />
@@ -345,17 +294,10 @@ const MenuCategory = () => {
                 </div>
             </div>
 
-            <div className="bg-white  py-5">
-
+            <div className="bg-white py-5">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
                     <div className="relative w-full md:w-96">
-
-                        <Search
-                            size={18}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
-
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
                             placeholder="Search Category..."
@@ -363,17 +305,13 @@ const MenuCategory = () => {
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
                         />
-
                     </div>
 
                     <p className="text-sm text-gray-500">
-                        Showing {filteredCategories.length} of {categories.length} categories
+                        Showing {filteredCategories.length} of {Array.isArray(categories) ? categories.length : 0} categories
                     </p>
-
                 </div>
-
             </div>
-
 
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                 {loading && <p className="p-4 text-sm text-gray-500">Loading categories...</p>}
@@ -393,13 +331,14 @@ const MenuCategory = () => {
                 </DataGrid>
             </div>
 
-
             <CreateMenuCategory
                 open={openCategory}
-                onClose={() => setOpenCategory(false)}
+                editData={editData}
+                onClose={() => { setOpenCategory(false); setEditData(null); }}
+                onSuccess={fetchCategories}
             />
         </div>
     )
 }
 
-export default MenuCategory
+export default MenuCategory;

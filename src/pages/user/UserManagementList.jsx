@@ -292,7 +292,7 @@ const UserManagementList = () => {
             </div>
             <div className='flex flex-col gap-1'>
               <span className="font-semibold text-gray-800">{row.original.name}</span>
-              <span className="font-medium text-xs text-[#737781] ">{row.original.createdBy}</span>
+              <span className="font-medium text-xs text-[#737781] ">{row.original.createdAt}</span>
             </div>
 
           </div>

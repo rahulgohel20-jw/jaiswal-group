@@ -1,7 +1,35 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { addMenuCategory, updateMenuCategory } from "@/services/apiServices";
 
-const CreateMenuCategory = ({ open, onClose }) => {
+// Decodes the JWT stored under the "authToken" localStorage key and pulls
+// the user id out of its payload. Tries the common claim names in order
+// (userId, id, sub) since APIs vary in what they call it.
+const getUserIdFromToken = () => {
+  try {
+    const token = localStorage.getItem("authToken");
+    if (!token) return null;
+
+    const payloadPart = token.split(".")[1];
+    if (!payloadPart) return null;
+
+    const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+    const json = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join("")
+    );
+    const payload = JSON.parse(json);
+
+    return payload.userId ?? payload.id ?? payload.sub ?? null;
+  } catch (err) {
+    console.error("Failed to decode authToken:", err);
+    return null;
+  }
+};
+
+const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -9,26 +37,80 @@ const CreateMenuCategory = ({ open, onClose }) => {
     slogan: "",
     image: null,
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (editData) {
+      setFormData({
+        name: editData.name || "",
+        price: editData.price ?? "",
+        sequence: editData.sequence ?? "",
+        slogan: editData.slogan || "",
+        image: null, // existing image shown via editData.image, not re-uploaded unless changed
+      });
+    } else {
+      setFormData({ name: "", price: "", sequence: "", slogan: "", image: null });
+    }
+    setError(null);
+  }, [editData, open]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleImage = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      image: e.target.files[0],
-    }));
+    setFormData((prev) => ({ ...prev, image: e.target.files[0] }));
   };
 
-  const handleSubmit = () => {
-    console.log(formData);
-    // API call here
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) {
+      setError("Name is required");
+      return;
+    }
+
+    const userId = getUserIdFromToken();
+    if (!userId) {
+      setError("Could not identify the logged-in user. Please log in again.");
+      return;
+    }
+
+    const payload = new FormData();
+    if (editData) payload.append("id", editData.id);
+    payload.append("nameEnglish", formData.name.trim());
+    payload.append("userId", userId);
+
+    if (formData.price !== "" && formData.price !== null) {
+      payload.append("price", formData.price);
+    }
+    if (formData.sequence !== "" && formData.sequence !== null) {
+      payload.append("sequence", formData.sequence);
+    }
+    if (formData.slogan && formData.slogan.trim() !== "") {
+      payload.append("slogan", formData.slogan.trim());
+    }
+    if (formData.image) {
+      payload.append("image", formData.image);
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      if (editData) {
+        await updateMenuCategory(payload);
+      } else {
+        await addMenuCategory(payload);
+      }
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      console.error("Failed to save category:", err);
+      setError("Failed to save category. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!open) return null;
@@ -40,15 +122,15 @@ const CreateMenuCategory = ({ open, onClose }) => {
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-4">
           <h2 className="text-xl font-semibold">
-            Create New Menu Category
+            {editData ? "Edit Menu Category" : "Create New Menu Category"}
           </h2>
 
-          <X
-            className="cursor-pointer text-gray-500"
-            onClick={onClose}
-          />
+          <X className="cursor-pointer text-gray-500" onClick={onClose} />
         </div>
 
+        {error && (
+          <p className="text-sm text-red-600 mt-3">{error}</p>
+        )}
 
         {/* Form */}
         <div className="mt-5 grid grid-cols-2 gap-6">
@@ -56,9 +138,8 @@ const CreateMenuCategory = ({ open, onClose }) => {
           {/* Name */}
           <div className="col-span-2">
             <label className="block text-gray-700 mb-2">
-              Name  <span className="text-red-500">*</span>
+              Name <span className="text-red-500">*</span>
             </label>
-
             <input
               type="text"
               name="name"
@@ -69,13 +150,9 @@ const CreateMenuCategory = ({ open, onClose }) => {
             />
           </div>
 
-
           {/* Price */}
           <div>
-            <label className="block mb-2">
-              Price
-            </label>
-
+            <label className="block mb-2">Price</label>
             <input
               type="number"
               name="price"
@@ -85,13 +162,9 @@ const CreateMenuCategory = ({ open, onClose }) => {
             />
           </div>
 
-
           {/* Sequence */}
           <div>
-            <label className="block mb-2">
-              Sequence
-            </label>
-
+            <label className="block mb-2">Sequence</label>
             <input
               type="number"
               name="sequence"
@@ -101,18 +174,13 @@ const CreateMenuCategory = ({ open, onClose }) => {
             />
           </div>
 
-
           {/* Image */}
           <div>
-            <label className="block mb-2">
-              Image
-            </label>
-
+            <label className="block mb-2">Image</label>
             <label className="border-2 border-dashed rounded-lg h-20 flex items-center justify-center cursor-pointer text-gray-400">
               {formData.image
                 ? formData.image.name
                 : "Drag & drop an image here, or click to select"}
-
               <input
                 type="file"
                 hidden
@@ -122,13 +190,9 @@ const CreateMenuCategory = ({ open, onClose }) => {
             </label>
           </div>
 
-
           {/* Slogan */}
           <div className="col-span-2">
-            <label className="block mb-2">
-              Slogan
-            </label>
-
+            <label className="block mb-2">Slogan</label>
             <textarea
               name="slogan"
               value={formData.slogan}
@@ -140,24 +204,23 @@ const CreateMenuCategory = ({ open, onClose }) => {
 
         </div>
 
-
         {/* Buttons */}
         <div className="flex justify-end gap-3 mt-8">
-
           <button
             onClick={onClose}
-            className="px-6 py-3 rounded-lg bg-gray-200  cursor-pointer"
+            disabled={submitting}
+            className="px-6 py-3 rounded-lg bg-gray-200 cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
 
           <button
             onClick={handleSubmit}
-            className="px-6 py-3 rounded-lg bg-[#084E92] text-white cursor-pointer"
+            disabled={submitting}
+            className="px-6 py-3 rounded-lg bg-[#084E92] text-white cursor-pointer disabled:opacity-50"
           >
-            Save
+            {submitting ? "Saving..." : "Save"}
           </button>
-
         </div>
 
       </div>
