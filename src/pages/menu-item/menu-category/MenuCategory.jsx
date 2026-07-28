@@ -13,6 +13,7 @@ import {
     deleteMenuCategoryById,
     updateMenuCategoryStatus,
 } from "@/services/apiServices.js";
+import { notify } from "@/utils/toast";
 
 const MenuCategory = () => {
     const [search, setSearch] = useState("");
@@ -88,17 +89,21 @@ const MenuCategory = () => {
         if (!window.confirm("Delete this category?")) return;
         try {
             await deleteMenuCategoryById(id);
+            notify.success("Menu Category Deleted Successfully");
             fetchCategories();
         } catch (err) {
             console.error("Failed to delete category:", err);
+            notify.error("Failed to delete category")
         }
     };
 
     const handleToggleStatus = async (row) => {
         try {
-            await updateMenuCategoryStatus({ id: row.id, status: !row.status });
+            await updateMenuCategoryStatus({ id: row.id, isActive : !row.status });
+             notify.success("Menu Category Status Updated")
             fetchCategories();
         } catch (err) {
+            notify.error("Failed to update status")
             console.error("Failed to update status:", err);
         }
     };
@@ -241,11 +246,11 @@ const MenuCategory = () => {
                     </button>
 
                     <button onClick={() => handleEdit(row.original)}>
-                        <SquarePen size={18} className="text-blue-600 hover:text-blue-800" />
+                        <SquarePen size={18} className="text-blue-600 hover:text-blue-800 cursor-pointer" />
                     </button>
 
                     <button onClick={() => handleDelete(row.original.id)}>
-                        <Trash2 size={18} className="text-red-500 hover:text-red-700" />
+                        <Trash2 size={18} className="text-red-500 hover:text-red-700 cursor-pointer" />
                     </button>
                 </div>
             ),

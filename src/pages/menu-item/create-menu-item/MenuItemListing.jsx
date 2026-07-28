@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
     Plus,
     Search,
@@ -15,62 +15,22 @@ import {
     Clock,
 } from "lucide-react";
 import { Link } from "react-router";
-
-// Dummy data — replace with API data
-const MENU_ITEMS = [
-    {
-        id: 1,
-        image: null,
-        name: "Margherita Pizza",
-        category: "Pizza",
-        subCategory: "Veg Pizza",
-        price: 8.5,
-        sequence: 1,
-        status: "Active",
-    },
-    {
-        id: 2,
-        image: null,
-        name: "Chicken Alfredo Pasta",
-        category: "Pasta",
-        subCategory: "Non-Veg Pasta",
-        price: 11.0,
-        sequence: 2,
-        status: "Active",
-    },
-    {
-        id: 3,
-        image: null,
-        name: "Caesar Salad",
-        category: "Salad",
-        subCategory: "Starters",
-        price: 6.25,
-        sequence: 3,
-        status: "Inactive",
-    },
-    {
-        id: 4,
-        image: null,
-        name: "Chocolate Lava Cake",
-        category: "Dessert",
-        subCategory: "Cakes",
-        price: 5.0,
-        sequence: 4,
-        status: "Active",
-    },
-];
+import { getUserIdFromToken } from "../../../utils/auth";
+import { deleteMenuItemById, getAllMenuItem } from "../../../services/apiServices";
+import { notify } from "@/utils/toast";
 
 const StatCard = ({ label, value, icon, tone }) => (
-    <div className="bg-white border rounded-xl p-4 flex items-center justify-between">
-        <div>
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="text-2xl font-semibold text-black mt-1">{value}</p>
-        </div>
+    <div className="bg-white border rounded-xl py-3 px-4">
         <div
-            className={`w-10 h-10 rounded-lg flex items-center justify-center ${tone}`}
+            className={`w-7 h-7 rounded-lg flex items-center justify-center mb-2 ${tone}`}
         >
             {icon}
         </div>
+        <div>
+            <p className="text-sm text-gray-500">{label}</p>
+            <p className="text-xl font-semibold text-black">{value}</p>
+        </div>
+        
     </div>
 );
 
@@ -78,16 +38,14 @@ const StatusBadge = ({ status }) => {
     const isActive = status === "Active";
     return (
         <span
-            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                isActive
-                    ? "bg-green-50 text-green-600"
-                    : "bg-red-50 text-red-500"
-            }`}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${isActive
+                ? "bg-green-50 text-green-600"
+                : "bg-red-50 text-red-500"
+                }`}
         >
             <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                    isActive ? "bg-green-500" : "bg-red-500"
-                }`}
+                className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-green-500" : "bg-red-500"
+                    }`}
             />
             {status}
         </span>
@@ -99,12 +57,67 @@ const MenuItemsListing = ({ onAddNew }) => {
     const [statusFilter, setStatusFilter] = useState("All Status");
     const [categoryFilter, setCategoryFilter] = useState("Category Type");
     const [page, setPage] = useState(1);
+    const [size] = useState(10);
+    const [loading, setLoading] = useState(false);
+    const [menuItems, setMenuItems] = useState([]);
+    const [error, setError] = useState(null)
 
-    const totalItems = MENU_ITEMS.length;
-    const activeItems = MENU_ITEMS.filter((i) => i.status === "Active").length;
-    const inactiveItems = totalItems - activeItems;
+    const userId = getUserIdFromToken();
 
-    const filtered = MENU_ITEMS.filter((item) => {
+    const fetchMenuItems = useCallback(async () => {
+        setLoading(true);
+
+        try {
+            const res = await getAllMenuItem({
+                userId,
+                page,
+                size,
+            });
+
+            const payload = res?.data?.data ?? {};
+
+            const rawList =
+                payload["Menu Item Details"] ||
+                payload.items ||
+                [];
+
+            const list = rawList.map((item) => ({
+                id: item.id,
+                image: item.imagePath,
+                name: item.nameEnglish,
+                category: item.menuCategory?.nameEnglish,
+                subCategory: item.menuSubCategory?.nameEnglish,
+                price: item.price,
+                sequence: item.sequence,
+                status: item.isActive ? "Active" : "Inactive",
+            }));
+
+            setMenuItems(list);
+        } catch (err) {
+            console.error(err);
+            setMenuItems([]);
+            setError(err.msg)
+        } finally {
+            setLoading(false);
+        }
+    }, [userId, page, size]);
+
+    useEffect(() => {
+        fetchMenuItems();
+    }, [fetchMenuItems]);
+
+    const categoryOptions = [...new Set(menuItems.map(item => item.category).filter(Boolean))];
+    const totalItems = menuItems.length;
+
+    const activeItems = menuItems.filter(
+        (item) => item.status === "Active"
+    ).length;
+
+    const inactiveItems = menuItems.filter(
+        (item) => item.status === "Inactive"
+    ).length;
+
+    const filtered = menuItems.filter((item) => {
         const matchesSearch = item.name
             .toLowerCase()
             .includes(search.toLowerCase());
@@ -115,18 +128,31 @@ const MenuItemsListing = ({ onAddNew }) => {
         return matchesSearch && matchesStatus && matchesCategory;
     });
 
-    const resetFilters = () => {
-        setSearch("");
-        setStatusFilter("All Status");
-        setCategoryFilter("Category Type");
-    };
+    const handleDelete = async (id) => {
+        const confirmDelete = window.confirm(
+            "Are you sure you want to delete this menu item?"
+        );
 
+        if (!confirmDelete) return;
+
+        try {
+            await deleteMenuItemById(id);
+
+            notify.success("Menu Item deleted successfully");
+
+            // Refresh table
+            fetchMenuItems();
+        } catch (err) {
+            console.error(err);
+            notify.error("Failed to delete menu item");
+        }
+    };
     return (
-        <div className="p-4 md:p-6 text-gray-600 bg-[#F8FAFC] min-h-screen">
+        <div className="p-4 md:p-6 text-gray-600 min-h-screen">
             {/* Breadcrumb */}
             <p className="text-xs text-gray-400 mb-1">
-                DASHBOARD &gt; MASTER DATA &gt;{" "}
-                <span className="text-[#084E92] font-medium">MENU ITEMS</span>
+                Dashboard &gt; Master Data &gt;{" "}
+                <span className="text-[#084E92] font-medium">Menu Items</span>
             </p>
 
             {/* Header */}
@@ -151,7 +177,7 @@ const MenuItemsListing = ({ onAddNew }) => {
             </div>
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <StatCard
                     label="Total Items"
                     value={totalItems}
@@ -170,17 +196,11 @@ const MenuItemsListing = ({ onAddNew }) => {
                     icon={<XCircle size={18} className="text-red-500" />}
                     tone="bg-red-50"
                 />
-                <StatCard
-                    label="Last Updated"
-                    value="Today, 10:45 AM"
-                    icon={<Clock size={18} className="text-[#084E92]" />}
-                    tone="bg-blue-50"
-                />
             </div>
 
             {/* Filters */}
-            <div className="bg-white border rounded-xl p-3 flex flex-col md:flex-row gap-3 md:items-center mb-4">
-                <div className="flex-1 flex items-center gap-2 border rounded-lg px-3 py-2 bg-[#F8FAFC]">
+            <div className="bg-white border rounded-xl p-3 py-4 grid md:grid-cols-4 grid-cols-1 gap-5 mb-6">
+                <div className="flex-1 flex items-center gap-2 border rounded-lg px-3 py-2 bg-[#F8FAFC] col-span-2">
                     <Search size={16} className="text-gray-400" />
                     <input
                         value={search}
@@ -190,40 +210,32 @@ const MenuItemsListing = ({ onAddNew }) => {
                     />
                 </div>
 
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] outline-none"
-                >
-                    <option>All Status</option>
-                    <option>Active</option>
-                    <option>Inactive</option>
-                </select>
+                <p className="border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] ">
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="outline-none w-full"
+                    >
+                        <option>All Status</option>
+                        <option>Active</option>
+                        <option>Inactive</option>
+                    </select>
+                </p>
 
-                <select
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
-                    className="border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] outline-none"
-                >
-                    <option>Category Type</option>
-                    <option>Pizza</option>
-                    <option>Pasta</option>
-                    <option>Salad</option>
-                    <option>Dessert</option>
-                </select>
-
-                <button className="flex items-center justify-center gap-2 bg-[#084E92] text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer">
-                    <SlidersHorizontal size={15} />
-                    Apply Filters
-                </button>
-
-                <button
-                    onClick={resetFilters}
-                    className="flex items-center justify-center gap-2 border px-4 py-2 rounded-lg text-sm font-medium cursor-pointer"
-                >
-                    <RotateCcw size={15} />
-                    Reset
-                </button>
+                <p className="border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] ">
+                    <select
+                        value={categoryFilter}
+                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        className="outline-none w-full"
+                    >
+                        <option>Category Type</option>
+                        {categoryOptions.map((category) => (
+                            <option key={category} value={category}>
+                                {category}
+                            </option>
+                        ))}
+                    </select>
+                </p>
             </div>
 
             {/* Table */}
@@ -244,7 +256,20 @@ const MenuItemsListing = ({ onAddNew }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filtered.map((item, idx) => (
+                            {
+                                error && <tr>
+                                    <td colSpan={9} className="text-red-700">
+                                        Failed to load Menu Items
+                                    </td>
+                                </tr>
+                            }
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={9} className="py-8 text-center">
+                                        Loading...
+                                    </td>
+                                </tr>
+                            ) : filtered.length > 0 ? (filtered.map((item, idx) => (
                                 <tr
                                     key={item.id}
                                     className="border-b last:border-0 hover:bg-gray-50"
@@ -277,27 +302,21 @@ const MenuItemsListing = ({ onAddNew }) => {
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className="flex items-center gap-3 text-gray-400">
-                                            <button className="hover:text-[#084E92] cursor-pointer">
-                                                <Eye size={16} />
-                                            </button>
-                                            <button className="hover:text-[#084E92] cursor-pointer">
-                                                <Pencil size={16} />
-                                            </button>
-                                            <button className="hover:text-red-500 cursor-pointer">
+                                            <Link to={`/menu-item/edit-menu-item/${item.id}`}>
+                                                <Pencil size={16} className="text-[#084E92] cursor-pointer" />
+                                            </Link>
+                                            <button
+                                                onClick={() => handleDelete(item.id)}
+                                                className="text-red-500 cursor-pointer">
                                                 <Trash2 size={16} />
                                             </button>
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
-
-                            {filtered.length === 0 && (
+                            ))) : (
                                 <tr>
-                                    <td
-                                        colSpan={9}
-                                        className="px-4 py-10 text-center text-gray-400"
-                                    >
-                                        No menu items match your filters.
+                                    <td colSpan={9} className="py-8 text-center text-gray-400">
+                                        No menu items found.
                                     </td>
                                 </tr>
                             )}
@@ -322,11 +341,10 @@ const MenuItemsListing = ({ onAddNew }) => {
                             <button
                                 key={n}
                                 onClick={() => setPage(n)}
-                                className={`w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer ${
-                                    page === n
-                                        ? "bg-[#084E92] text-white"
-                                        : "border text-gray-500"
-                                }`}
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer ${page === n
+                                    ? "bg-[#084E92] text-white"
+                                    : "border text-gray-500"
+                                    }`}
                             >
                                 {n}
                             </button>

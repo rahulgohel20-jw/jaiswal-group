@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { addMenuCategory, updateMenuCategory } from "@/services/apiServices";
+import { notify } from "@/utils/toast";
 
 // Decodes the JWT stored under the "authToken" localStorage key and pulls
 // the user id out of its payload. Tries the common claim names in order
@@ -39,18 +40,21 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   useEffect(() => {
     if (editData) {
       setFormData({
-        name: editData.name || "",
+        name: editData.name || editData.nameEnglish || "",
         price: editData.price ?? "",
         sequence: editData.sequence ?? "",
         slogan: editData.slogan || "",
         image: null, // existing image shown via editData.image, not re-uploaded unless changed
       });
+      setImagePreview(editData.imagePath || "");
     } else {
       setFormData({ name: "", price: "", sequence: "", slogan: "", image: null });
+      setImagePreview("");
     }
     setError(null);
   }, [editData, open]);
@@ -61,7 +65,16 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
   };
 
   const handleImage = (e) => {
-    setFormData((prev) => ({ ...prev, image: e.target.files[0] }));
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      image: file,
+    }));
+
+    setImagePreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = async () => {
@@ -100,13 +113,15 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
     try {
       if (editData) {
         await updateMenuCategory(payload);
+        notify.success("Menu Category Updated Successfully")
       } else {
         await addMenuCategory(payload);
+         notify.success("Menu Category Created Successfully")
       }
       onSuccess?.();
       onClose();
     } catch (err) {
-      console.error("Failed to save category:", err);
+      notify.error(`Failed to ${editData ? 'update' : 'Create'} Category`)
       setError("Failed to save category. Please try again.");
     } finally {
       setSubmitting(false);
@@ -177,10 +192,32 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
           {/* Image */}
           <div>
             <label className="block mb-2">Image</label>
-            <label className="border-2 border-dashed rounded-lg h-20 flex items-center justify-center cursor-pointer text-gray-400">
-              {formData.image
-                ? formData.image.name
-                : "Drag & drop an image here, or click to select"}
+
+            <label className="border-2 border-dashed rounded-lg min-h-28 flex items-center justify-center cursor-pointer p-3">
+              {imagePreview ? (
+                <div className="flex items-center gap-3 w-full">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-20 h-20 rounded object-cover border"
+                  />
+
+                  <div>
+                    <p className="text-sm font-medium">
+                      {formData.image ? formData.image.name : "Current Image"}
+                    </p>
+
+                    <p className="text-xs text-gray-500">
+                      Click to change image
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-gray-400">
+                  Drag & drop an image here, or click to select
+                </span>
+              )}
+
               <input
                 type="file"
                 hidden
