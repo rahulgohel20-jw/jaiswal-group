@@ -27,8 +27,8 @@ const mapDepartment = (d) => ({
     id: d.id,
     name: d.departmentName,
     description: d.description || 'Organization Unit',
-    status: d.isActive ? 'Active' : 'Inactive',        
-    totalEmployees: d.totalEmployees ?? 0,  
+    status: d.isActive ? 'Active' : 'Inactive',
+    totalEmployees: d.totalEmployees ?? 0,
     organizationId: d.id ?? d.organizationUnitId ?? null,
     createdAt: d.createdAt ?? null, 
     createdDate: d.createdDate
@@ -106,52 +106,52 @@ const Departmentlist = () => {
     const pageStart = (currentPage - 1) * PAGE_SIZE;
     const pageDepartments = filteredDepartments.slice(pageStart, pageStart + PAGE_SIZE);
 
-  const handleSaveDepartment = async (form, { addAnother } = {}) => {
-    // Pull org context however your app currently determines it —
-    // e.g. from localStorage set at login, or a user/session context.
-    const username = localStorage.getItem('username') || '';
-    const isActive = form.status === 'Active';
-    const departmentName = (form.name ?? form.departmentName ?? '').trim();
-    const description = (form.description ?? '').trim();
-    const organizationId =
-        form.organizationId ?? (Number(localStorage.getItem('organizationId')) || 1);
+    const handleSaveDepartment = async (form, { addAnother } = {}) => {
+        // Pull org context however your app currently determines it —
+        // e.g. from localStorage set at login, or a user/session context.
+        const username = localStorage.getItem('username') || '';
+        const isActive = form.status === 'Active';
+        const departmentName = (form.name ?? form.departmentName ?? '').trim();
+        const description = (form.description ?? '').trim();
+        const organizationId =
+            form.organizationId ?? (Number(localStorage.getItem('organizationId')) || 1);
 
-    try {
-        if (editingDepartment) {
-            await updateDepartment({
-                id: editingDepartment.id,
-                departmentName,
-                isActive,
-                description,
-                organizationId,
-                username,
-            });
-            notify.success('Update Department successfully');
-        } else {
-            await saveDepartment({
-                departmentName,
-                description: description || 'Organization Unit',
-                organizationId,
-                isActive,
-                username: username || 'User',
-            });
-            notify.success('Department Added successfully');
-        }
-        await fetchDepartments();
-        if (!addAnother) {
-            setIsAddOpen(false);
-            setEditingDepartment(null);
-        }
-    } catch (err) {
-        console.error(err);
-        setError(
-            err?.response?.data?.msg ||
+        try {
+            if (editingDepartment) {
+                await updateDepartment({
+                    id: editingDepartment.id,
+                    departmentName,
+                    isActive,
+                    description,
+                    organizationId,
+                    username,
+                });
+                notify.success('Update Department successfully');
+            } else {
+                await saveDepartment({
+                    departmentName,
+                    description: description || 'Organization Unit',
+                    organizationId,
+                    isActive,
+                    username: username || 'User',
+                });
+                notify.success('Department Added successfully');
+            }
+            await fetchDepartments();
+            if (!addAnother) {
+                setIsAddOpen(false);
+                setEditingDepartment(null);
+            }
+        } catch (err) {
+            console.error(err);
+            setError(
+                err?.response?.data?.msg ||
                 err?.response?.data?.message ||
                 'Failed to save department.',
-        );
-        notify.error('Failed to save department.');
-    }
-};
+            );
+            notify.error('Failed to save department.');
+        }
+    };
 
     const handleDelete = async (id) => {
         const prev = departments;
