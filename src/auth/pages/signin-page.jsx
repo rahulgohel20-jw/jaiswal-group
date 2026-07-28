@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { SupabaseAdapter } from '@/auth/adapters/supabase-adapter';
 import { useAuth } from '@/auth/context/auth-context';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -118,35 +117,9 @@ export function SignInPage() {
     }
   }
 
-  // Handle Google Sign In with Supabase OAuth
   const handleGoogleSignIn = async () => {
-    try {
-      setIsGoogleLoading(true);
-      setError(null);
-
-      // Get the next path if available
-      const nextPath = searchParams.get('next');
-
-      // Calculate the redirect URL
-      const redirectTo = nextPath
-        ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
-        : `${window.location.origin}/auth/callback`;
-
-      console.log('Initiating Google sign-in with redirect:', redirectTo);
-
-      // Use our adapter to initiate the OAuth flow
-      await SupabaseAdapter.signInWithOAuth('google', { redirectTo });
-
-      // The browser will be redirected automatically
-    } catch (err) {
-      console.error('Google sign-in error:', err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to sign in with Google. Please try again.',
-      );
-      setIsGoogleLoading(false);
-    }
+    setError('Google sign-in is not enabled for this app.');
+    setIsGoogleLoading(false);
   };
 
   return (

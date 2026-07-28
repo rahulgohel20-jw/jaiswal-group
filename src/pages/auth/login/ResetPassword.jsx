@@ -24,7 +24,10 @@ export default function ResetPasswordPage() {
     e.preventDefault();
     setErrorMsg('');
 
-    if (password !== confirmPassword) {
+    const trimmedPassword = password.trim();
+    const trimmedConfirmPassword = confirmPassword.trim();
+
+    if (trimmedPassword !== trimmedConfirmPassword) {
       setErrorMsg('Passwords do not match.');
       return;
     }
@@ -33,8 +36,8 @@ export default function ResetPasswordPage() {
     try {
       await resetPassword({
         email,
-        newPassword: password,
-        organizationId: 1,
+        newPassword: trimmedPassword,
+        organizationId: 8,
         otp,
       });
       setResetSuccess(true);

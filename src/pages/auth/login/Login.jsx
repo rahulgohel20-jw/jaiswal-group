@@ -40,7 +40,6 @@ export default function LoginPage() {
     try {
       const res = await loginUser({
         email,
-        organizationId: 1,
         password,
       });
       const token = res?.data?.data?.token ?? res?.data?.token;

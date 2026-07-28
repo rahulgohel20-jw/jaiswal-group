@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { SupabaseAdapter } from '@/auth/adapters/supabase-adapter';
 
 /**
  * A simple component that displays the status of the Supabase connection.
