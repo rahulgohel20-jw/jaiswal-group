@@ -248,7 +248,29 @@ const MAIN_GROUP_ID = 1;
 
 // Password must be at least 8 chars with 1 uppercase, 1 lowercase, 1 number, 1 special char
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Stricter email pattern: no consecutive dots, no leading/trailing dots in the
+// local or domain part, and the TLD must be 2-24 letters only (blocks things
+// like "hiten@gmail.commm" or "hiten@gmail.c").
+const EMAIL_REGEX =
+  /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,24}$/;
+  
+const KNOWN_TLDS = new Set([
+  'com', 'net', 'org', 'edu', 'gov', 'mil', 'info', 'biz', 'co',
+  'in', 'io', 'us', 'uk', 'ca', 'au', 'de', 'fr', 'jp', 'cn', 'ai',
+  'me', 'app', 'dev', 'tech', 'store', 'online', 'xyz', 'name', 'pro',
+]);
+
+const isValidEmail = (rawEmail) => {
+  const email = rawEmail.trim();
+  if (!email) return false;
+  if (email.includes('..')) return false; // no consecutive dots anywhere
+  if (!EMAIL_REGEX.test(email)) return false;
+
+  const tld = email.split('.').pop().toLowerCase();
+  return KNOWN_TLDS.has(tld);
+};
+
 const MOBILE_REGEX = /^\d{10}$/;
 const PINCODE_REGEX = /^\d{6}$/;
 const USERNAME_REGEX = /^[a-zA-Z0-9._-]{3,20}$/;
@@ -488,6 +510,22 @@ useEffect(() => {
     setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
   };
 
+  // Email gets its own setter so we can validate live as the user types,
+  // instead of only surfacing the "commm" style typo on submit.
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, email: value }));
+    setErrors((prev) => {
+      if (!value.trim()) {
+        return { ...prev, email: undefined };
+      }
+      if (!isValidEmail(value)) {
+        return { ...prev, email: 'Enter a valid email address' };
+      }
+      return { ...prev, email: undefined };
+    });
+  };
+
   const handleCountryChange = (e) => {
     const value = e.target.value;
     setForm((f) => ({ ...f, countryId: value, stateId: '', cityId: '' }));
@@ -518,7 +556,8 @@ useEffect(() => {
       e.username = 'Username must be 3-20 characters (letters, numbers, . _ - only)';
 
     if (!form.email.trim()) e.email = 'Email address is required';
-    else if (!EMAIL_REGEX.test(form.email)) e.email = 'Enter a valid email address';
+    else if (!isValidEmail(form.email))
+      e.email = 'Enter a valid email address (check the domain spelling)';
 
     if (!isEditMode) {
       if (!form.password) e.password = 'Password is required';
@@ -732,7 +771,8 @@ useEffect(() => {
                       name="email"
                       type="email"
                       value={form.email}
-                      onChange={(e) => set('email', e.target.value)}
+                      onChange={handleEmailChange}
+                      onBlur={handleEmailChange}
                       placeholder="example@jaiswalgroup.com"
                       className={errors.email ? errorInputCls : inputCls}
                     />
