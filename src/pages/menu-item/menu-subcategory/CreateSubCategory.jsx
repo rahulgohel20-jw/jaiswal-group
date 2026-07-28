@@ -86,7 +86,7 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl w-212.5 p-7">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 flex flex-col max-h-[90vh] p-6">
 
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-4">
@@ -102,11 +102,11 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
 
 
         {/* Form */}
-        <div className="mt-5 grid grid-cols-2 gap-6">
+        <div className="mt-2 grid grid-cols-1 gap-3">
 
           {/* Name */}
           <div>
-            <label className="block text-gray-700 mb-2">
+            <label className="block text-gray-700 mb-2 text-sm">
               Name  <span className="text-red-500">*</span>
             </label>
 
@@ -121,15 +121,15 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
                 })
               }
               placeholder="Name.."
-              className="w-full border rounded-lg px-4 py-2 outline-none"
+              className="w-full border rounded px-4 py-2 outline-none"
             />
           </div>
           <div>
-            <label className="block text-gray-700 mb-2">
+            <label className="block text-gray-700 mb-2 text-sm">
               Select Category <span className="text-red-500">*</span>
             </label>
 
-            <div className="w-full border rounded-lg px-4 py-2">
+            <div className="w-full border rounded px-4 py-2">
               <select
                 value={form.menuCategoryId}
                 onChange={(e) =>
@@ -154,18 +154,18 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
 
 
         {/* Buttons */}
-        <div className="flex justify-end gap-3 mt-8">
+        <div className="flex justify-end gap-3 mt-4">
 
           <button
             onClick={onClose}
-            className="px-6 py-3 rounded-lg bg-gray-200  cursor-pointer"
+            className="px-6 py-2 rounded bg-gray-200  cursor-pointer text-sm"
           >
             Cancel
           </button>
 
           <button
             onClick={handleSave}
-            className="px-6 py-3 rounded-lg bg-[#084E92] text-white cursor-pointer"
+            className="px-6 py-2 rounded bg-[#084E92] text-white cursor-pointer text-sm"
           >
             Save
           </button>

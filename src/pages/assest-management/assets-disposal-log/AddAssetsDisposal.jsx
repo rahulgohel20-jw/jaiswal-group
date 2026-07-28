@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import React, { useState } from "react";
 import { Link } from "react-router";
+import { Container } from "@/components/common/container";
 
 const inputCls =
     "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-[#fffff] placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300";
@@ -66,7 +67,8 @@ const AddAssetsDisposal = () => {
     );
 
     return (
-        <div className="p-4 md:p-6">
+       <Container>
+         <div className="p-4 md:p-6">
             {/* Breadcrumb */}
 
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
@@ -302,6 +304,7 @@ const AddAssetsDisposal = () => {
                 </div>
             </div>
         </div>
+       </Container>
     );
 };
 

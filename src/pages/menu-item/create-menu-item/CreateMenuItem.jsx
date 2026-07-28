@@ -1,11 +1,82 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Plus, UploadCloud } from "lucide-react";
+import { ChevronDown, FileText, Image, Layers, Menu, Plus, UploadCloud } from "lucide-react";
 import CreateSubCategory from "../menu-subcategory/CreateSubCategory";
 import CreateMenuCategory from "../menu-category/CreateMenuCategory";
 import { Link, useNavigate, useParams } from "react-router";
 import { addMenuItem, getAllMenuCategory, getAllMenuSubCategoryById, getMenuItemById, updateMenuItem } from "../../../services/apiServices";
 import { notify } from "@/utils/toast";
 import { getUserIdFromToken } from "../../../utils/auth";
+import { Container } from "@/components/common/container";
+
+const inputCls =
+    'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
+    'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
+
+const errorInputCls =
+    'w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
+    'placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300';
+
+const Label = ({ children, required }) => (
+    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        {children}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+    </label>
+);
+
+const Select = ({ value, onChange, placeholder, options, hasError }) => (
+    <div className="relative">
+        <select
+            value={value}
+            onChange={onChange}
+            className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${value === '' ? 'text-gray-400' : 'text-gray-800'
+                }`}
+        >
+            <option value="" disabled>
+                {placeholder}
+            </option>
+            {options.map((opt) => (
+                <option key={opt} value={opt} className="text-gray-800">
+                    {opt}
+                </option>
+            ))}
+        </select>
+        <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+    </div>
+);
+
+
+
+const SectionCard = ({ children, className = '' }) => (
+    <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>
+        {children}
+    </div>
+);
+
+
+const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
+    <div
+        className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 cursor-pointer select-none"
+        onClick={onToggle}
+    >
+        <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
+            <Icon className="w-4 h-4" />
+        </div>
+        <div className="flex-1">
+            <h2 className="text-sm font-bold text-gray-800 leading-none">{title}</h2>
+            {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
+        </div>
+        <button
+            type="button"
+            onClick={(e) => {
+                e.stopPropagation();
+                onToggle();
+            }}
+            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+        >
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        </button>
+    </div>
+);
 
 const CreateMenuItem = () => {
     const [openCategory, setOpenCategory] = useState(false);
@@ -22,6 +93,21 @@ const CreateMenuItem = () => {
     const isEdit = !!id;
 
     const navigate = useNavigate();
+
+    const [openSections, setOpenSections] = useState({
+        basic: true,
+        category: true,
+        details: true,
+        image: true
+    });
+
+
+    const toggleSection = (key) => {
+        setOpenSections(prev => ({
+            ...prev,
+            [key]: !prev[key]
+        }));
+    };
 
     const initialForm = {
         nameEnglish: "",
@@ -207,265 +293,321 @@ const CreateMenuItem = () => {
             navigate("/menu-item/menu-items")
         } catch (err) {
             console.error(err);
-            notify.error(`Failed to ${isEdit ? 'update' : 'Create' } Menu Item`);
+            notify.error(`Failed to ${isEdit ? 'update' : 'Create'} Menu Item`);
         }
     };
     return (
-        <div className="p-4 md:p-6 text-gray-600">
+        <Container>
+            <div className="mx-4 min-h-screen p-2">
 
-            {/* Page Title */}
-            <h2 className="text-2xl font-semibold mb-6 text-black">
-                {isEdit ? "Update Menu Item" : "Create Menu Item"}
-            </h2>
+            {/* Page Header */}
+            <div className="flex flex-col gap-1">
+                <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
+                    {isEdit ? "Update Menu Item" : "Create Menu Item"}
+                </h1>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                {/* Name */}
-                <div className="lg:col-span-2">
-                    <label className="block mb-2 font-medium">
-                        Name <span className="text-red-500">*</span>
-                    </label>
-
-                    <div className="flex">
-                        <input
-                            name="nameEnglish"
-                            value={form.nameEnglish}
-                            onChange={handleChange}
-                            type="text"
-                            placeholder="Enter Name"
-                            className="flex-1 border rounded-l-lg px-4 py-2 outline-none"
-                        />
-                    </div>
-                </div>
-
-                {/* Slogan */}
-                <div className="lg:col-span-2">
-                    <label className="block mb-2 font-medium">
-                        Slogan
-                    </label>
-
-                    <input
-                        name="slogan"
-                        value={form.slogan}
-                        onChange={handleChange}
-                        type="text"
-                        placeholder="Enter Slogan"
-                        className="w-full border rounded-lg px-4 py-2 outline-none bg-[#F8FAFC]"
-                    />
-                </div>
-
-                {/* Price */}
-                <div>
-                    <label className="block mb-2 font-medium">
-                        Price
-                    </label>
-
-                    <input
-                        name="price"
-                        value={form.price}
-                        onChange={handleChange}
-                        type="number"
-                        placeholder="Enter Price"
-                        className="w-full border rounded-lg px-4 py-2 outline-none bg-[#F8FAFC]"
-                    />
-                </div>
-
-                {/* Sequence */}
-                <div>
-                    <label className="block mb-2 font-medium">
-                        Sequence
-                    </label>
-
-                    <input
-                        name="sequence"
-                        value={form.sequence}
-                        onChange={handleChange}
-                        type="number"
-                        placeholder="Enter Sequence"
-                        className="w-full border rounded-lg px-4 py-2 outline-none bg-[#F8FAFC]"
-                    />
-                </div>
-
-                {/* Category */}
-                <div>
-                    <label className="block mb-2 font-medium">
-                        Category <span className="text-red-500">*</span>
-                    </label>
-
-                    <div className="flex gap-2">
-                        <p className="flex-1 border rounded-lg px-4 py-2">
-                            <select
-                                value={selectedCategory}
-                                onChange={(e) => {
-                                    setSelectedCategory(e.target.value);
-                                    setSelectedSubCategory(""); // Reset when category changes
-                                }}
-                                className="w-full outline-none">
-                                <option>Select Category</option>
-                                {categories.map((category) => (
-                                    <option key={category.id} value={category.id}>
-                                        {category.nameEnglish}
-                                    </option>
-                                ))}
-                            </select>
-                        </p>
-
-                        <button onClick={() => setOpenCategory(true)} className="w-10 h-10 bg-[#084E92] rounded-lg flex items-center justify-center text-white cursor-pointer">
-                            <Plus size={18} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Sub Category */}
-                <div>
-                    <label className="block mb-2 font-medium">
-                        Sub Category
-                    </label>
-
-                    <div className="flex gap-2">
-                        <p className="flex-1 border rounded-lg px-4 py-2 ">
-                            <select
-                                value={selectedSubCategory}
-                                onChange={(e) => setSelectedSubCategory(e.target.value)}
-                                className="w-full outline-none">
-                                <option>Select Sub Category</option>
-                                {filteredSubCategories.map((sub) => (
-                                    <option key={sub.id} value={sub.id}>
-                                        {sub.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </p>
-
-                        <button onClick={() => setSubOpenCategory(true)} className="w-10 h-10 bg-[#084E92] rounded-lg flex items-center justify-center text-white cursor-pointer">
-                            <Plus size={18} />
-                        </button>
-                    </div>
-                </div>
-
-                {/* Remarks */}
-                <div className="lg:col-span-2">
-                    <label className="block mb-2 font-medium">
-                        Remarks
-                    </label>
-
-                    <textarea
-                        rows={2}
-                        name="remarks"
-                        value={form.remarks}
-                        onChange={handleChange}
-                        className="w-full border rounded-lg px-4 py-2 outline-none resize-none bg-[#F8FAFC]"
-                        placeholder="Enter Remarks"
-                    />
-                </div>
-
-                {/* Instruction */}
-                <div className="lg:col-span-2">
-                    <label className="block mb-2 font-medium">
-                        Instruction <span className="text-red-500">*</span>
-                    </label>
-
-                    <textarea
-                        rows={2}
-                        name="instructionEnglish"
-                        value={form.instructionEnglish}
-                        onChange={handleChange}
-                        className="w-full border rounded-lg px-4 py-2 outline-none resize-none bg-[#F8FAFC]"
-                        placeholder="Enter Instruction"
-                    />
-                </div>
-
-                <div className="lg:col-span-2">
-                    <label className="block mb-2 font-medium">
-                        Image
-                    </label>
-
-                    {/* Hidden File Input */}
-                    <input
-                        type="file"
-                        id="menuImage"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="hidden"
-                    />
-
-                    {/* Clickable Upload Area */}
-                    <label
-                        htmlFor="menuImage"
-                        className="border-2 border-dashed border-gray-300 rounded-lg min-h-40 flex items-center justify-center cursor-pointer hover:border-[#084E92] hover:bg-gray-50 transition"
-                    >
-                        {imagePreview ? (
-                            <div className="flex items-center gap-4 p-4 w-full">
-                                <img
-                                    src={imagePreview}
-                                    alt="Preview"
-                                    className="w-24 h-24 rounded-lg object-cover border"
-                                />
-
-                                <div>
-                                    <p className="font-medium text-gray-700">
-                                        {imageFile?.name}
-                                    </p>
-
-                                    <p className="text-sm text-gray-500">
-                                        {(imageFile?.size / 1024).toFixed(1)} KB
-                                    </p>
-
-                                    <p className="text-[#084E92] text-sm mt-1">
-                                        Click to change image
-                                    </p>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center text-gray-500">
-                                <UploadCloud size={40} className="text-[#084E92] mb-3" />
-
-                                <p>
-                                    Drag your files or{" "}
-                                    <span className="text-[#084E92] font-medium">
-                                        Browse
-                                    </span>
-                                </p>
-
-                                <small className="mt-1 text-gray-400">
-                                    Only support .jpg, .png, .svg files. Max 10 MB.
-                                </small>
-                            </div>
-                        )}
-                    </label>
-                </div>
-
-                {/* URL */}
-                <div className="lg:col-span-2">
-                    <label className="block mb-2 font-medium">
-                        URL
-                    </label>
-
-                    <input
-                        name="url"
-                        value={form.url}
-                        onChange={handleChange}
-                        type="text"
-                        placeholder="Insert URL"
-                        className="w-full border rounded-lg px-4 py-2 outline-none bg-[#F8FAFC]"
-                    />
-                </div>
-
+                <p className="text-[#43474F]">
+                    {isEdit
+                        ? "Update menu item details."
+                        : "Create a new menu item for your organization."
+                    }
+                </p>
             </div>
 
-            {/* Buttons */}
-            <div className="flex justify-end gap-4 mt-8">
+            {/* Basic Information */}
+            <SectionCard className="mt-4">
+
+                <SectionHeader
+                    icon={Menu}
+                    title="Basic Information"
+                    open={openSections.basic}
+                    onToggle={() => toggleSection("basic")}
+                />
+                {openSections.basic && (
+                    <div className="px-6 py-6 space-y-5">
+                        <div className="grid grid-cols-2 gap-4">
+                            {/* Name */}
+                            <div className="col-span-2">
+                                <Label required>Name</Label>
+
+                                <input
+                                    name="nameEnglish"
+                                    value={form.nameEnglish}
+                                    onChange={handleChange}
+                                    placeholder="Enter Name"
+                                    className={inputCls}
+                                />
+                            </div>
+                            {/* Slogan */}
+                            <div className="col-span-2">
+                                <Label>Slogan</Label>
+
+                                <input
+                                    name="slogan"
+                                    value={form.slogan}
+                                    onChange={handleChange}
+                                    placeholder="Enter Slogan"
+                                    className={inputCls}
+                                />
+                            </div>
+                            {/* Price */}
+                            <div>
+                                <Label>Price</Label>
+
+                                <input
+                                    name="price"
+                                    value={form.price}
+                                    onChange={handleChange}
+                                    type="number"
+                                    placeholder="Enter Price"
+                                    className={inputCls}
+                                />
+                            </div>
+                            {/* Sequence */}
+                            <div>
+                                <Label>Sequence</Label>
+                                <input
+                                    name="sequence"
+                                    value={form.sequence}
+                                    onChange={handleChange}
+                                    type="number"
+                                    placeholder="Enter Sequence"
+                                    className={inputCls}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </SectionCard>
+
+            {/* Category Information */}
+            <SectionCard className="mt-4">
+                <SectionHeader
+                    icon={Layers}
+                    title="Category Information"
+                    open={openSections.category}
+                    onToggle={() => toggleSection("category")}
+                />
+                {openSections.category && (
+                    <div className="px-6 py-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Category */}
+                            <div>
+                                <Label required>
+                                    Category
+                                </Label>
+                                <div className="flex gap-2">
+
+                                    <div className="flex-1 border rounded-lg px-4 py-2">
+                                        <select
+                                            value={selectedCategory}
+                                            onChange={(e) => {
+                                                setSelectedCategory(e.target.value);
+                                                setSelectedSubCategory("");
+                                            }}
+                                            className="w-full outline-none"
+                                        >
+                                            <option>
+                                                Select Category
+                                            </option>
+                                            {categories.map(category => (
+                                                <option
+                                                    key={category.id}
+                                                    value={category.id}
+                                                >
+                                                    {category.nameEnglish}
+                                                </option>
+                                            ))}
+
+                                        </select>
+                                    </div>
+                                    <button
+                                        onClick={() => setOpenCategory(true)}
+                                        className="w-10 h-10 bg-[#084E92] rounded-lg text-white flex items-center justify-center"
+                                    >
+                                        <Plus size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                            {/* Sub Category */}
+                            <div>
+                                <Label>
+                                    Sub Category
+                                </Label>
+                                <div className="flex gap-2">
+                                    <div className="flex-1 border rounded-lg px-4 py-2">
+                                        <select
+                                            value={selectedSubCategory}
+                                            onChange={(e) => setSelectedSubCategory(e.target.value)}
+                                            className="w-full outline-none"
+                                        >
+                                            <option>
+                                                Select Sub Category
+                                            </option>
+                                            {filteredSubCategories.map(sub => (
+                                                <option
+                                                    key={sub.id}
+                                                    value={sub.id}
+                                                >
+                                                    {sub.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <button
+                                        onClick={() => setSubOpenCategory(true)}
+                                        className="w-10 h-10 bg-[#084E92] rounded-lg text-white flex items-center justify-center"
+                                    >
+                                        <Plus size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+            </SectionCard>
+            {/* Image Section */}
+            <SectionCard className="mt-4">
+                <SectionHeader
+                    icon={Image}
+                    title="Menu Image"
+                    open={openSections.image}
+                    onToggle={() => toggleSection("image")}
+                />
+                {openSections.image && (
+                    <div className="px-6 py-6">
+                        <Label>
+                            Upload Image
+                        </Label>
+                        <input
+                            type="file"
+                            id="menuImage"
+                            accept="image/*"
+                            onChange={handleImageChange}
+                            className="hidden"
+                        />
+                        <label
+                            htmlFor="menuImage"
+                            className="border-2 border-dashed border-gray-300 rounded-xl min-h-40 flex items-center justify-center cursor-pointer hover:border-[#084E92]"
+                        >
+                            {imagePreview ? (
+                                <div className="flex gap-4 items-center p-4">
+                                    <img
+                                        src={imagePreview}
+                                        className="w-24 h-24 rounded-lg object-cover"
+                                    />
+                                    <div>
+                                        <p className="font-medium">
+                                            {imageFile?.name}
+                                        </p>
+                                        <p className="text-sm text-gray-400">
+                                            Click to change image
+                                        </p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center text-gray-500">
+                                    <UploadCloud
+                                        size={40}
+                                        className="mx-auto text-[#084E92]"
+                                    />
+                                    <p>
+                                        Drag your files or
+                                        <span className="text-[#084E92]">
+                                            Browse
+                                        </span>
+                                    </p>
+                                </div>
+                            )}
+                        </label>
+                    </div>
+                )}
+
+            </SectionCard>
+
+            {/* Additional Details */}
+            <SectionCard className="mt-4">
+
+                <SectionHeader
+                    icon={FileText}
+                    title="Additional Details"
+                    open={openSections.details}
+                    onToggle={() => toggleSection("details")}
+                />
+
+
+                {openSections.details && (
+
+                    <div className="px-6 py-6 space-y-5">
+                        <div>
+                            <Label required>
+                                Instruction
+                            </Label>
+
+                            <textarea
+                                rows={3}
+                                name="instructionEnglish"
+                                value={form.instructionEnglish}
+                                onChange={handleChange}
+                                placeholder="Enter Instruction"
+                                className={inputCls}
+                            />
+
+                        </div>
+                        <div>
+                            <Label>
+                                URL
+                            </Label>
+
+                            <input
+                                name="url"
+                                value={form.url}
+                                onChange={handleChange}
+                                placeholder="Insert URL"
+                                className={inputCls}
+                            />
+
+                        </div>
+                        <div>
+                            <Label>
+                                Remarks
+                            </Label>
+
+                            <textarea
+                                rows={3}
+                                name="remarks"
+                                value={form.remarks}
+                                onChange={handleChange}
+                                placeholder="Enter Remarks"
+                                className={inputCls}
+                            />
+
+                        </div>
+
+                    </div>
+
+                )}
+
+            </SectionCard>
+            {/* Footer */}
+            <div className="flex justify-end gap-3 my-6 border-t py-6">
+
                 <Link
                     to="/menu-item/menu-items"
-                    className="px-6 py-3 rounded-lg border cursor-pointer">
+                    className="px-6 py-3 rounded-lg border text-gray-600"
+                >
                     Cancel
                 </Link>
 
+
                 <button
                     onClick={handleSave}
-                    className="px-6 py-3 rounded-lg bg-[#084E92] text-white cursor-pointer">
+                    className="px-6 py-3 rounded-lg bg-[#084E92] text-white"
+                >
                     {isEdit ? "Update" : "Save"}
                 </button>
+
             </div>
 
             <CreateMenuCategory
@@ -473,12 +615,15 @@ const CreateMenuItem = () => {
                 onClose={() => setOpenCategory(false)}
             />
 
+
             <CreateSubCategory
                 open={openSubCategory}
                 onClose={() => setSubOpenCategory(false)}
             />
 
+
         </div>
+        </Container>
     );
 };
 

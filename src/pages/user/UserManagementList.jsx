@@ -26,6 +26,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { getAllEmployees, deleteEmployeeById, getActiveCompany, getAllActiveDepartments } from '@/services/apiServices';
 import { extractList, mapEmployeeToRow } from './utils/Employeemappers';
+import { Container } from "@/components/common/container";
 import { notify } from "@/utils/toast";
 
 
@@ -251,7 +252,7 @@ const UserManagementList = () => {
 
   // View now opens a dedicated details page instead of a modal.
   const handleView = (user) => {
-    navigate('/users/view-user', { state: { user: { id: user.id, name: user.name } } });
+    navigate('/users/view-user', { state: { user, } });
   };
 
   const handleDelete = (user) => setDeletingUser(user);
@@ -413,14 +414,14 @@ const UserManagementList = () => {
   });
 
   return (
-    <container>
+    <Container>
       <div className="w-full p-4 sm:p-5 lg:p-6 max-w-[1600px] mx-auto">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
           <div>
-            <h1 className="text-[#084E92] text-2xl md:text-4xl font-bold">
+            <h1 className="text-2xl font-bold">
               User Management List
             </h1>
-            <p className="pt-2">
+            <p className="pt-2 text-md text-gray-400">
               Manage enterprise-wide user access, organizational roles, and
               compliance verification status from a centralized console.
             </p>
@@ -436,12 +437,12 @@ const UserManagementList = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mt-8">
           {DATA.map((item) => (
-            <div key={item.label} className=" border border-[#C3C6D1] rounded-2xl p-6">
+            <div key={item.label} className=" border border-[#C3C6D1] rounded-2xl p-4">
               <div className="flex justify-between">
                 <span
-                  className={`bg-[#084E921A]/50 p-2 w-max rounded flex items-center justify-center`}
+                  className={`bg-[#084E921A]/50 p-2 w-7 h-7 rounded flex items-center justify-center`}
                 >
-                  {item.icon}
+                  <p className='text-xl'>{item.icon}</p>
                 </span>
               </div>
               <div className="mt-2">
@@ -572,7 +573,7 @@ const UserManagementList = () => {
         )}
 
       </div>
-    </container>
+    </Container>
   );
 };
 

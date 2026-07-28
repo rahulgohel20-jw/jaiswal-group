@@ -662,7 +662,7 @@ const VendorRegistration = () => {
   const shippingValues = form.sameAsBilling ? form.billing : form.shipping;
 
   return (
-    <div className="mx-4 min-h-screen">
+    <div className="mx-4 min-h-screen p-4 md:p-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
           {isEditMode ? 'Update Vendor' : 'Vendor Registration'}
@@ -861,7 +861,7 @@ const VendorRegistration = () => {
                   type="button"
                   onClick={handleFetchGst}
                   disabled={!form.gstin || fetchingGst}
-                  className="h-[42px] px-4 rounded-lg border border-[#084E92] text-[#084E92] text-sm font-semibold flex items-center gap-1.5 shrink-0 bg-white hover:bg-blue-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="h-10.5 px-4 rounded-lg border border-[#084E92] text-[#084E92] text-sm font-semibold flex items-center gap-1.5 shrink-0 bg-white hover:bg-blue-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${fetchingGst ? 'animate-spin' : ''}`} />
                   {fetchingGst ? 'Fetching...' : 'Fetch Details'}

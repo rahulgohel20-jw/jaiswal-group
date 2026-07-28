@@ -325,7 +325,7 @@ const CompanyRegistration = () => {
   }
   return (
     <Container>
-      <div>
+      <div className="p-4 md:p-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3 mb-4">
@@ -381,7 +381,7 @@ const CompanyRegistration = () => {
           </div>
 
           {/* Table Card */}
-          <Card className="rounded-t-none border-t-0">
+          <Card className="rounded-t-none border-t-0 border shadow-none">
             <CardTable>
               <ScrollArea>
                 <DataGridTable />

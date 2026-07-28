@@ -129,7 +129,7 @@ const LogEntry = ({ entry, isLast }) => {
 
   return (
     <div className="relative pl-9">
-      {!isLast && <span className="absolute left-[13px] top-7 bottom-[-20px] w-px bg-gray-200" />}
+      {!isLast && <span className="absolute left-3.25 top-7 -bottom-5 w-px bg-gray-200" />}
       <span
         className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-white ${meta.dot}`}
       >
@@ -199,7 +199,7 @@ const PurchaseRequisitionLog = ({ open, onClose, prCode, entries = DEFAULT_LOG_E
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative w-full max-w-[400px] h-full bg-gray-50 shadow-xl flex flex-col animate-in slide-in-from-right">
+      <div className="relative w-full max-w-100 h-full bg-gray-50 shadow-xl flex flex-col animate-in slide-in-from-right">
         {/* Header */}
         <div className="flex items-start gap-3 px-5 py-5 bg-white border-b border-gray-100 shrink-0">
           <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">

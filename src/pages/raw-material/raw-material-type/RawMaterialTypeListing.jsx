@@ -20,6 +20,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddRawMaterialTypeModal from './AddRawMaterialModal';
+import { Container } from "@/components/common/container";
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -215,7 +216,8 @@ const RawMaterialTypeListing = () => {
     ];
 
     return (
-        <div className="p-4 md:p-6">
+      <Container>
+          <div className="p-4 md:p-6">
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
@@ -227,7 +229,7 @@ const RawMaterialTypeListing = () => {
 
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-[#084E92]">Raw Material Type Master</h1>
+                    <h1 className="text-2xl font-bold">Raw Material Type Master</h1>
                 </div>
 
                 <div className="flex gap-3 self-end">
@@ -264,8 +266,8 @@ const RawMaterialTypeListing = () => {
 
             {/* Filters */}
             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                    <div className="relative col-span-1 min-w-0 border border-[#C3C6D1] rounded-lg md:col-span-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                    <div className="relative min-w-0 border border-[#C3C6D1] rounded-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input
                             placeholder="Search by type name..."
@@ -286,22 +288,6 @@ const RawMaterialTypeListing = () => {
                             <option>Inactive</option>
                         </select>
                     </p>
-
-                    <div className="flex items-center gap-2 min-w-0">
-                        <button
-                            type="button"
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition w-full justify-center"
-                        >
-                            Apply Filters
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { setSearchTerm(''); setStatusFilter('All Status'); }}
-                            className="px-4 py-2 border border-[#C3C6D1] text-[#43474F] rounded-lg cursor-pointer hover:bg-gray-50 transition w-full"
-                        >
-                            Reset
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -331,6 +317,7 @@ const RawMaterialTypeListing = () => {
                 initialData={editingType}
             />
         </div>
+      </Container>
     );
 };
 

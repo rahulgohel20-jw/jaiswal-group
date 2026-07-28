@@ -8,6 +8,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link } from 'react-router';
+import { Container } from "@/components/common/container";
 import { ChevronRight, CircleCheck, CircleEllipsis, CircleX, ClipboardList, Download, Eye, FileText, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react';
 
 
@@ -275,19 +276,20 @@ const AssetsMaintenance = () => {
         getPaginationRowModel: getPaginationRowModel(),
     });
     return (
-        <div className='p-4 md:p-6'>
+      <Container>
+          <div className='p-4 md:p-6'>
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
-                <span className="text-[#002246] font-medium">Maintenance Log</span>
+                <span className="text-[#084E92] font-medium">Maintenance Log</span>
             </div>
 
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div>
-                    <h1 className="text-[32px] font-bold text-[#0B3B75]">
+                    <h1 className="text-2xl font-bold">
                         Maintenance Log
                     </h1>
 
@@ -410,6 +412,7 @@ const AssetsMaintenance = () => {
             </div>
 
         </div>
+      </Container>
     )
 }
 

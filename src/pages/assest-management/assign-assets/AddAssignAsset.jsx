@@ -95,7 +95,7 @@ const AddAssignAsset = () => {
     });
 
   return (
-    <div className="mx-4 min-h-screen pb-8">
+    <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">
       <div className="flex items-center gap-3">
         <div>
           <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">Assign Asset</h1>

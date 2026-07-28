@@ -243,9 +243,9 @@ const PurchaseList = () => {
 
   return (
     <Container>
-      <div>
+      <div className="p-4 md:p-6">
         {/* Page header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 px-1">
           <h1 className="text-lg font-bold text-gray-900 leading-none">Purchase List</h1>
           <div className="flex items-center gap-2.5">
             <button
@@ -274,7 +274,7 @@ const PurchaseList = () => {
             <button
               type="button"
               onClick={() => window.print()}
-              className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white flex-shrink-0"
+              className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white shrink-0"
               title="Print"
             >
               <Printer className="w-4 h-4" />

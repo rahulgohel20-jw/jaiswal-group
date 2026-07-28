@@ -1,4 +1,4 @@
-import { AlertTriangle, CircleCheck, Download, Eye, Loader2, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
+import { AlertTriangle, ChevronRight, CircleCheck, Download, Eye, Loader2, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
 import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -11,6 +11,7 @@ import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link, useNavigate } from 'react-router';
 import AssetPreviewDetail from './AssetPreviewDetail';
 import { getAllAssets, deleteAsset } from '@/services/apiServices';
+import { Container } from "@/components/common/container";
 import { notify } from "@/utils/toast";
 
 const STATS = [
@@ -390,14 +391,24 @@ const AssetsManagement = () => {
         table.setPageIndex(0);
     }, [searchInput, categoryInput, statusInput, table]);
     return (
-        <div className="p-4 md:p-6">
+       <Container>
+         <div className="p-4 md:p-6">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                <span>Dashboard</span>
+                <ChevronRight size={12} />
+                <span>Asset Management</span>
+                <ChevronRight size={12} />
+                <span className="text-[#084E92] font-medium">Assets</span>
+            </div>
+
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-[#084E92]">
+                    <h1 className="text-2xl font-bold">
                         Assets
                     </h1>
 
-                    <p className="text-[#737781] mt-1">
+                    <p className="text-[#737781] mt-1 text-sm">
                         Manage, monitor, assign, and maintain all organizational assets
                         from a centralized dashboard.
                     </p>
@@ -590,6 +601,7 @@ const AssetsManagement = () => {
                 </>
             )}
         </div>
+       </Container>
     )
 }
 

@@ -18,6 +18,7 @@ import { Link } from "react-router";
 import { getUserIdFromToken } from "../../../utils/auth";
 import { deleteMenuItemById, getAllMenuItem } from "../../../services/apiServices";
 import { notify } from "@/utils/toast";
+import { Container } from "@/components/common/container";
 
 const StatCard = ({ label, value, icon, tone }) => (
     <div className="bg-white border rounded-xl py-3 px-4">
@@ -148,7 +149,8 @@ const MenuItemsListing = ({ onAddNew }) => {
         }
     };
     return (
-        <div className="p-4 md:p-6 text-gray-600 min-h-screen">
+       <Container>
+         <div className="p-4 md:p-6 text-gray-600 min-h-screen">
             {/* Breadcrumb */}
             <p className="text-xs text-gray-400 mb-1">
                 Dashboard &gt; Master Data &gt;{" "}
@@ -359,6 +361,7 @@ const MenuItemsListing = ({ onAddNew }) => {
                 </div>
             </div>
         </div>
+       </Container>
     );
 };
 

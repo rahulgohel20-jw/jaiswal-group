@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Share2,
 } from "lucide-react";
+import { Container } from "@/components/common/container";
 
 // ---------------------------------------------------------------------------
 // Design tokens
@@ -175,7 +176,15 @@ function ListView({ onApprove }) {
   }, [query]);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+    <Container>
+      <div className="mx-auto py-10 p-6">
+      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+        <span>Dashboard</span>
+        <ChevronRight size={12} />
+        <span>Purchase</span>
+        <ChevronRight size={12} />
+        <span className="text-[#084E92] font-medium">Purchase Approval</span>
+      </div>
       <div className="mb-8">
         <h1
           className="text-[28px] font-bold text-[#101828]"
@@ -267,9 +276,8 @@ function ListView({ onApprove }) {
             {filtered.map((r, i) => (
               <tr
                 key={r.code}
-                className={`transition-colors ${
-                  i !== filtered.length - 1 ? "border-b border-[#EFF1F5]" : ""
-                }`}
+                className={`transition-colors ${i !== filtered.length - 1 ? "border-b border-[#EFF1F5]" : ""
+                  }`}
               >
                 <td className="px-5 py-4">
                   <span
@@ -326,11 +334,10 @@ function ListView({ onApprove }) {
             {[1, 2, 3].map((p) => (
               <button
                 key={p}
-                className={`w-8 h-8 rounded-lg text-xs font-semibold ${
-                  p === 1
+                className={`w-8 h-8 rounded-lg text-xs font-semibold ${p === 1
                     ? "bg-[#2952E3] text-white"
                     : "border border-[#E7EAF0] text-[#475467] hover:bg-[#F9FAFC]"
-                }`}
+                  }`}
               >
                 {p}
               </button>
@@ -346,6 +353,7 @@ function ListView({ onApprove }) {
         </div>
       </div>
     </div>
+    </Container>
   );
 }
 
@@ -397,7 +405,7 @@ function ApprovalView({ requisition, onBack }) {
   );
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+    <div className="max-w-6xl mx-auto py-10">
       <button
         onClick={onBack}
         className="flex items-center gap-1.5 text-sm font-medium text-[#475467] hover:text-[#101828] mb-5 transition-colors"
@@ -658,7 +666,7 @@ export default function PurchaseRequisitionApproval() {
   };
 
   return (
-    <div className="min-h-screen w-full" style={{ background: "#F4F6FB" }}>
+    <div className="min-h-screen w-full">
       <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
       {view === "list" ? (
         <ListView onApprove={openDetail} />

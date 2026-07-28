@@ -1,6 +1,7 @@
 import { ArrowRight, CircleAlert, HeartHandshake, Save, User } from 'lucide-react'
 import React from 'react'
 import { Link } from 'react-router';
+import { Container } from "@/components/common/container";
 
 const UserVendorSelectionPage = () => {
 
@@ -29,7 +30,8 @@ const UserVendorSelectionPage = () => {
         }
     ]
   return (
-    <div className='w-full'>
+  <Container>
+      <div className='w-full'>
       <div className='w-full flex items-center justify-center gap-10 flex-col'>
         <div className='md:w-[50%] w-full text-center px-3'>
             <h1 className='text-2xl md:text-3xl font-bold text-[#084E92]'>Register New Member</h1>
@@ -62,6 +64,7 @@ onboarding workflow designed for different roles.</p>
          </div>
         </div>
     </div>
+  </Container>
   )
 }
 
