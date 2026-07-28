@@ -1,5 +1,5 @@
 import { ChevronRight, Eye, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -8,29 +8,128 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import CreateSubCategory from './CreateSubCategory';
+import { deleteMenuSubCategoryById, getAllMenuSubCategoryById, updateMenuSubCategoryStatus } from '../../../services/apiServices';
+import { notify } from "@/utils/toast";
 
-
-
-const initialData = [
-    {
-        id: 1,
-        name: "Juice",
-        category: "Welcome Drinks",
-        status: true,
-    },
-
-];
 
 const MenuSubCategory = () => {
     const [search, setSearch] = useState("");
-    const [subCategories] = useState(initialData);
+    const [subCategories, setSubCategories] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
     const [openCategory, setOpenCategory] = useState(false);
+    const [editData, setEditData] = useState(null);
 
+    const handleEdit = (row) => {
+        setEditData(row.raw ?? row);
+        setOpenCategory(true);
+    };
 
+    const handleDelete = async (id) => {
+        if (!window.confirm("Delete this sub category?")) return;
+
+        try {
+            await deleteMenuSubCategoryById(id);
+            notify.success("Sub Category deleted Successfully")
+            fetchSubCategories();
+        } catch (err) {
+            console.error(err);
+            notify.error("Failed to delete sub category")
+        }
+    };
+
+    const getUserIdFromToken = () => {
+        try {
+            const token = localStorage.getItem("authToken");
+            if (!token) return null;
+
+            const payloadPart = token.split(".")[1];
+            if (!payloadPart) return null;
+
+            const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
+            const json = decodeURIComponent(
+                atob(base64)
+                    .split("")
+                    .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+                    .join("")
+            );
+            const payload = JSON.parse(json);
+
+            return payload.userId ?? payload.id ?? payload.sub ?? null;
+        } catch (err) {
+            console.error("Failed to decode authToken:", err);
+            return null;
+        }
+    };
+    
+    const userId = getUserIdFromToken()
+    const fetchSubCategories = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            const res = await getAllMenuSubCategoryById(userId);
+
+            const payload = res?.data?.data ?? res?.data ?? res;
+
+            const rawList = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.["Menu Sub Category Details"])
+                    ? payload["Menu Sub Category Details"]
+                    : Array.isArray(payload?.items)
+                        ? payload.items
+                        : [];
+
+            const list = rawList.map(item => ({
+                id: item.id,
+                name: item.nameEnglish ?? item.name ?? "",
+                category: item.menuCategory?.nameEnglish ?? "",
+                menuCategoryId: item.menuCategory?.id ?? "",
+                status: item.isActive ?? false,
+                raw: item,
+            }));
+
+            setSubCategories(list);
+
+        } catch (err) {
+            console.error(err);
+            setError("Failed to load sub categories");
+            setSubCategories([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [userId]);
+
+    useEffect(() => {
+        fetchSubCategories();
+    }, [fetchSubCategories]);
+
+    const handleToggleStatus = async (row) => {
+    try {
+        const newStatus = !row.status;
+
+        await updateMenuSubCategoryStatus({
+            id: row.id,
+            isActive: newStatus,
+        });
+
+        setSubCategories((prev) =>
+            prev.map((item) =>
+                item.id === row.id
+                    ? { ...item, status: newStatus }
+                    : item
+            )
+        );
+
+        notify.success("Sub Category status updated Successfully");
+
+    } catch (err) {
+        console.error("Status Update Error:", err.response?.data || err);
+        notify.error("Failed to update status");
+    }
+};
     const columns = useMemo(() => [
 
         {
@@ -122,8 +221,8 @@ const MenuSubCategory = () => {
 
                     <input
                         type="checkbox"
-                        checked={row.original.status}
-                        readOnly
+                        checked={!!row.original.status}
+                        onChange={() => handleToggleStatus(row.original)}
                         className="sr-only peer"
                     />
 
@@ -171,18 +270,20 @@ const MenuSubCategory = () => {
 
                 <div className="flex items-center gap-3">
 
-                    <button>
+                    <button
+                        onClick={() => handleEdit(row.original)}>
                         <SquarePen
                             size={18}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-600 hover:text-blue-800 cursor-pointer"
                         />
                     </button>
 
 
                     <button>
                         <Trash2
+                            onClick={() => handleDelete(row.original.id)}
                             size={18}
-                            className="text-red-500 hover:text-red-700"
+                            className="text-red-500 hover:text-red-700 cursor-pointer"
                         />
                     </button>
 
@@ -200,7 +301,7 @@ const MenuSubCategory = () => {
 
     const filteredCategories = useMemo(() => {
         return subCategories.filter((item) =>
-            item.name.toLowerCase().includes(search.toLowerCase())
+            item.name?.toLowerCase().includes(search.toLowerCase())
         );
     }, [search, subCategories]);
 
@@ -236,7 +337,10 @@ const MenuSubCategory = () => {
                 <div className="flex gap-3 self-end">
                     <button
                         type="button"
-                        onClick={() => setOpenCategory(true)}
+                        onClick={() => {
+                            setEditData(null);
+                            setOpenCategory(true);
+                        }}
                         className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
                     >
                         <Plus size={16} />
@@ -276,7 +380,7 @@ const MenuSubCategory = () => {
             </div>
 
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                {loading && <p className="p-4 text-sm text-gray-500">Loading categories...</p>}
+                {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
                 {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                 <DataGrid table={table} recordCount={filteredCategories.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
@@ -294,7 +398,12 @@ const MenuSubCategory = () => {
             </div>
             <CreateSubCategory
                 open={openCategory}
-                onClose={() => setOpenCategory(false)}
+                editData={editData}
+                onClose={() => {
+                    setOpenCategory(false);
+                    setEditData(null);
+                }}
+                onSuccess={fetchSubCategories}
             />
         </div>
     )

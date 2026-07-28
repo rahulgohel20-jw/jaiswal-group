@@ -2,7 +2,7 @@ import axiosInstance, { POST, GET, PUT, DELETE, UPLOAD } from "./axiosInstance";
 import axios from "./axiosInstance";
 
 // ---- Auth APIs ----
-  
+
 export const loginUser = (payload) => POST('/auth/login', payload);
 
 // ---- Password Reset APIs ----
@@ -204,7 +204,7 @@ export const getAllCountry = () => {
 
 //-- state API
 export const getStateByCountry = (id) => {
-  return GET('/state/by-country',  { countryId: id });
+  return GET('/state/by-country', { countryId: id });
 }
 
 //-- city API
@@ -253,9 +253,9 @@ export const getCitiesByState = (stateId) => {
   return GET("/city/getbystateid", { stateId });
 };
 
- 
+
 export const getAllEmployees = () => {
-   return GET('/employee/get-all');
+  return GET('/employee/get-all');
 }
 
 export const getAllActiveEmployees = () => {
@@ -263,7 +263,7 @@ export const getAllActiveEmployees = () => {
 }
 
 export const getEmployeeById = (id) => {
-   return GET(`/employee/get/${id}`);
+  return GET(`/employee/get/${id}`);
 }
 
 export const saveEmployee = (payload) => {
@@ -321,16 +321,16 @@ export const createAsset = (formData) => {
 };
 
 export const getAssetById = (id) => {
-  return GET(`/assets/get`, { id } );
+  return GET(`/assets/get`, { id });
 }
 
 // Fetch images for an asset by id
 export const getAssetImagesById = (id) => {
-  return GET(`/assets/get/images`, { id } );
+  return GET(`/assets/get/images`, { id });
 }
 
-export const deleteAsset = (id) => { 
-  return DELETE('/assets/delete', { id } );
+export const deleteAsset = (id) => {
+  return DELETE('/assets/delete', { id });
 }
 export const updateAsset = (id, formData) => {
   return axiosInstance.put(`/assets/update?id=${id}`, formData, {
@@ -364,6 +364,46 @@ export const deleteMenuCategoryById = (id) => {
   return DELETE("/menucategory/deletebyid", { id });
 };
 
-export const updateMenuCategoryStatus = ({ id, status }) => {
-  return PUT("/menucategory/updatestatus", { status }, { id });
+export const updateMenuCategoryStatus = ({ id, isActive }) => {
+  return PUT(`/menucategory/updatestatus?id=${id}&isActive=${isActive}`);
 };
+
+// Subcategory API
+export const getAllMenuSubCategoryById = (userId) => {
+  return GET(`/menusubcategory/getallbyuserid?userid=${userId}`);
+};
+export const updateMenuSubCategory = (id, data) => {
+  return PUT(`/menusubcategory/update?id=${id}`, data);
+};
+export const updateMenuSubCategoryStatus = ({ id, isActive }) => {
+    return PUT(
+        `/menusubcategory/updatestatus?id=${id}&isActive=${isActive}`
+    );
+};
+export const deleteMenuSubCategoryById = (id) => {
+  return DELETE(`/menusubcategory/deletebyid?id=${id}`);
+};
+export const addMenuSubCategory = (data) => {
+  return axiosInstance.post("/menusubcategory/add", data);
+};
+
+//Menu Item API
+export const addMenuItem = (data) => {
+  return axiosInstance.post("/menuitems/add", data);
+};
+export const getAllMenuItem = (params) => {
+  return axiosInstance.get("/menuitems/getallbyuserid", {
+    params,
+  });
+};
+export const getMenuItemById = (id) => {
+  return GET(`/menuitems/getbyid?id=${id}`);
+}
+export const updateMenuItem = (id, data) => {
+  return axiosInstance.put("/menuitems/update", data, {
+    params: { id },
+  });
+};
+export const deleteMenuItemById = (id) => {
+    return DELETE(`/menuitems/deletebyid?id=${id}`)
+}
