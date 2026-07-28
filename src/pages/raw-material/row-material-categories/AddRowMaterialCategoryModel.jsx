@@ -262,20 +262,6 @@ const AddRawMaterialCategoryModal = ({
           </Button>
 
           <div className="flex items-center gap-2">
-            {!isEditMode && (
-              <Button
-                variant="outline"
-                onClick={handleSaveAndAddAnother}
-                disabled={
-                  !form.categoryName.trim() ||
-                  !form.typeName.trim() ||
-                  saving
-                }
-              >
-                Save & Add Another
-              </Button>
-            )}
-
             <Button
               onClick={handleSave}
               disabled={
