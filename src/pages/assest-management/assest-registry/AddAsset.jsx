@@ -40,9 +40,17 @@ const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
   'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
 
+const errorInputCls =
+  'w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
+  'placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300';
+
 const selectCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
   'outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer';
+
+const errorSelectCls =
+  'w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
+  'outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300 appearance-none cursor-pointer';
 
 const Label = ({ children, required, hint }) => (
   <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-1.5">
@@ -61,6 +69,9 @@ const MiniLabel = ({ children }) => (
     {children}
   </label>
 );
+
+const ErrorText = ({ message }) =>
+  message ? <p className="text-xs text-red-500 mt-1">{message}</p> : null;
 
 const Toggle = ({ checked, onChange, label }) => (
   <button
@@ -123,9 +134,15 @@ const SubHeading = ({ icon: Icon, title }) => (
 
 // Options can be plain strings (legacy static lists) or { value, label } objects
 // (dynamic API-backed lists, where value = id and label = display name).
-const Select = ({ value, onChange, options, placeholder, disabled }) => (
+const Select = ({ value, onChange, options, placeholder, disabled, hasError, name }) => (
   <div className="relative">
-    <select value={value} onChange={onChange} className={selectCls} disabled={disabled}>
+    <select
+      name={name}
+      value={value}
+      onChange={onChange}
+      className={hasError ? errorSelectCls : selectCls}
+      disabled={disabled}
+    >
       <option value="" disabled>
         {placeholder}
       </option>
@@ -292,6 +309,9 @@ const AddAsset = () => {
   const [amcActive, setAmcActive] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // ---- Validation ----
+  const [errors, setErrors] = useState({});
+
   // ---- Dynamic dropdown data ----
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
@@ -409,6 +429,7 @@ const AddAsset = () => {
       setForm(initialFormState);
       setAmcActive(false);
     }
+    setErrors({});
   };
 
 
@@ -547,7 +568,10 @@ const AddAsset = () => {
     : null;
 
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+  const set = (key, val) => {
+    setForm((f) => ({ ...f, [key]: val }));
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
+  };
 
   const handleCategoryChange = (e) => {
     const value = e.target.value;
@@ -641,7 +665,55 @@ const AddAsset = () => {
     reservedQuantity: form.reservedQty ? Number(form.reservedQty) : null,
   });
 
+  // Central validation — required fields + basic numeric sanity checks.
+  const validate = () => {
+    const e = {};
+
+    if (!form.category) e.category = 'Category is required';
+    if (!form.subCategory) e.subCategory = 'Sub category is required';
+    if (!form.assetType) e.assetType = 'Asset type is required';
+
+    if (!form.itemName.trim()) e.itemName = 'Item name is required';
+    if (!form.brand) e.brand = 'Brand is required';
+
+    if (form.purchaseCost && isNaN(Number(form.purchaseCost)))
+      e.purchaseCost = 'Purchase cost must be a number';
+    if (form.currentValue && isNaN(Number(form.currentValue)))
+      e.currentValue = 'Current value must be a number';
+    if (form.depreciation && isNaN(Number(form.depreciation)))
+      e.depreciation = 'Depreciation must be a number';
+    if (form.maintenanceCost && isNaN(Number(form.maintenanceCost)))
+      e.maintenanceCost = 'Maintenance cost must be a number';
+
+    if (form.totalQty === '' || isNaN(Number(form.totalQty)))
+      e.totalQty = 'Total quantity must be a number';
+    if (form.availableQty === '' || isNaN(Number(form.availableQty)))
+      e.availableQty = 'Available quantity must be a number';
+    if (form.reservedQty === '' || isNaN(Number(form.reservedQty)))
+      e.reservedQty = 'Reserved quantity must be a number';
+
+    if (amcActive && !form.amcExpiry) e.amcExpiry = 'AMC expiry date is required when AMC is active';
+
+    return e;
+  };
+
+  const focusFirstError = (errs) => {
+    const firstKey = Object.keys(errs)[0];
+    if (!firstKey) return;
+    const el = document.querySelector(`[name="${firstKey}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el?.focus?.();
+  };
+
   const handleSaveAsset = async () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      focusFirstError(errs);
+      notify.error('Please fill all required fields');
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -654,7 +726,6 @@ const AddAsset = () => {
         fd.append('assetImages', form.assetImage);
       }
 
-      // TODO: branch to updateAsset(assetIdParam, fd) once that endpoint exists
       let res;
 
       if (isEditMode) {
@@ -667,6 +738,7 @@ const AddAsset = () => {
       if (res?.status === 200 || res?.status === 201) {
         setForm(initialFormState);
         setAmcActive(false);
+        setErrors({});
         navigate('/assets/all-assets');
       }
     } catch (err) {
@@ -750,12 +822,15 @@ const AddAsset = () => {
                   </Button>
                 </div>
                 <Select
+                  name="category"
                   value={form.category}
                   onChange={handleCategoryChange}
                   placeholder={categoriesLoading ? 'Loading categories...' : 'Select category'}
                   options={categoryOptions}
                   disabled={categoriesLoading}
+                  hasError={!!errors.category}
                 />
+                <ErrorText message={errors.category} />
               </div>
 
               <div className="flex flex-col justify-end">
@@ -766,12 +841,15 @@ const AddAsset = () => {
                   </Button>
                 </div>
                 <Select
+                  name="subCategory"
                   value={form.subCategory}
                   onChange={(e) => set('subCategory', e.target.value)}
                   placeholder={subCategoriesLoading ? 'Loading sub categories...' : 'Select sub category'}
                   options={subCategoryOptions}
                   disabled={subCategoriesLoading}
+                  hasError={!!errors.subCategory}
                 />
+                <ErrorText message={errors.subCategory} />
               </div>
 
               <div className="flex flex-col justify-end">
@@ -782,12 +860,15 @@ const AddAsset = () => {
                   </Button>
                 </div>
                 <Select
+                  name="assetType"
                   value={form.assetType}
                   onChange={(e) => set('assetType', e.target.value)}
                   placeholder={assetTypesLoading ? 'Loading asset types...' : 'Select asset type'}
                   options={assetTypeOptions}
                   disabled={assetTypesLoading}
+                  hasError={!!errors.assetType}
                 />
+                <ErrorText message={errors.assetType} />
               </div>
             </div>
           </div>
@@ -811,11 +892,13 @@ const AddAsset = () => {
       <Label required>Item Name</Label>
     </div>
     <input
+      name="itemName"
       value={form.itemName}
       onChange={(e) => set('itemName', e.target.value)}
       placeholder="e.g. Commercial Freezer 400L"
-      className={inputCls}
+      className={errors.itemName ? errorInputCls : inputCls}
     />
+    <ErrorText message={errors.itemName} />
   </div>
   <div>
     <div className="flex items-center justify-between gap-2 mb-3">
@@ -825,12 +908,15 @@ const AddAsset = () => {
       </Button>
     </div>
     <Select
+      name="brand"
       value={form.brand}
       onChange={(e) => set('brand', e.target.value)}
       placeholder={assetBrandsLoading ? 'Loading asset brands...' : 'Select asset brand'}
       options={assetBrandOptions}
       disabled={assetBrandsLoading}
+      hasError={!!errors.brand}
     />
+    <ErrorText message={errors.brand} />
   </div>
 </div>
 
@@ -901,29 +987,35 @@ const AddAsset = () => {
                 <div>
                   <Label>Purchase Cost (₹)</Label>
                   <input
+                    name="purchaseCost"
                     value={form.purchaseCost}
                     onChange={(e) => set('purchaseCost', e.target.value)}
                     placeholder="55000"
-                    className={inputCls}
+                    className={errors.purchaseCost ? errorInputCls : inputCls}
                   />
+                  <ErrorText message={errors.purchaseCost} />
                 </div>
                 <div>
                   <Label>Current Value (₹)</Label>
                   <input
+                    name="currentValue"
                     value={form.currentValue}
                     onChange={(e) => set('currentValue', e.target.value)}
                     placeholder="48500"
-                    className={inputCls}
+                    className={errors.currentValue ? errorInputCls : inputCls}
                   />
+                  <ErrorText message={errors.currentValue} />
                 </div>
                 <div>
                   <Label>Depreciation % (p.a.)</Label>
                   <input
+                    name="depreciation"
                     value={form.depreciation}
                     onChange={(e) => set('depreciation', e.target.value)}
                     placeholder="10"
-                    className={inputCls}
+                    className={errors.depreciation ? errorInputCls : inputCls}
                   />
+                  <ErrorText message={errors.depreciation} />
                 </div>
               </div>
 
@@ -975,7 +1067,10 @@ const AddAsset = () => {
                     <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">AMC Coverage</h4>
                     <Toggle
                       checked={amcActive}
-                      onChange={setAmcActive}
+                      onChange={(val) => {
+                        setAmcActive(val);
+                        setErrors((prev) => ({ ...prev, amcExpiry: undefined }));
+                      }}
                       label={amcActive ? 'AMC Active' : 'AMC Inactive'}
                     />
                   </div>
@@ -985,11 +1080,13 @@ const AddAsset = () => {
                       <div>
                         <MiniLabel>AMC Expiry</MiniLabel>
                         <input
+                          name="amcExpiry"
                           type="date"
                           value={form.amcExpiry}
                           onChange={(e) => set('amcExpiry', e.target.value)}
-                          className={inputCls}
+                          className={errors.amcExpiry ? errorInputCls : inputCls}
                         />
+                        <ErrorText message={errors.amcExpiry} />
                       </div>
                       <div>
                         <MiniLabel>Provider</MiniLabel>
@@ -1041,11 +1138,13 @@ const AddAsset = () => {
                 <div>
                   <Label>Maintenance Cost (₹)</Label>
                   <input
+                    name="maintenanceCost"
                     value={form.maintenanceCost}
                     onChange={(e) => set('maintenanceCost', e.target.value)}
                     placeholder="2500"
-                    className={inputCls}
+                    className={errors.maintenanceCost ? errorInputCls : inputCls}
                   />
+                  <ErrorText message={errors.maintenanceCost} />
                 </div>
               </div>
             </div>
@@ -1087,26 +1186,32 @@ const AddAsset = () => {
               <div>
                 <Label>Total Quantity</Label>
                 <input
+                  name="totalQty"
                   value={form.totalQty}
                   onChange={(e) => set('totalQty', e.target.value)}
-                  className={inputCls}
+                  className={errors.totalQty ? errorInputCls : inputCls}
                 />
+                <ErrorText message={errors.totalQty} />
               </div>
               <div>
                 <Label>Available Qty</Label>
                 <input
+                  name="availableQty"
                   value={form.availableQty}
                   onChange={(e) => set('availableQty', e.target.value)}
-                  className={`${inputCls} bg-gray-50 text-gray-400`}
+                  className={`${errors.availableQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
                 />
+                <ErrorText message={errors.availableQty} />
               </div>
               <div>
                 <Label>Reserved Qty</Label>
                 <input
+                  name="reservedQty"
                   value={form.reservedQty}
                   onChange={(e) => set('reservedQty', e.target.value)}
-                  className={`${inputCls} bg-gray-50 text-gray-400`}
+                  className={`${errors.reservedQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
                 />
+                <ErrorText message={errors.reservedQty} />
               </div>
             </div>
           </div>

@@ -725,15 +725,6 @@ const AddUnit = () => {
                 </select>
               </p>
             </div>
-            <div>
-              <Label required>Service Type</Label>
-              <Select
-                value={form.serviceType}
-                onChange={(e) => set('serviceType', e.target.value)}
-                placeholder="Select service type"
-                options={SERVICE_TYPES}
-              />
-            </div>
           </div>
         )}
       </SectionCard>

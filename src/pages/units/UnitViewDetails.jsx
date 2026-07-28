@@ -166,12 +166,6 @@ const UnitViewDetails = () => {
         />
 
         <StatCard
-          label="Service Type"
-          value={unit.serviceType}
-          icon={Store}
-        />
-
-        <StatCard
           label="Location"
           value={unit.location}
           icon={MapPin}
@@ -200,7 +194,6 @@ const UnitViewDetails = () => {
               <InfoCard label="Unit Name" value={unit.name} />
               <InfoCard label="Unit Code" value={unit.code} />
               <InfoCard label="Company" value={unit.parentName} />
-              <InfoCard label="Service Type" value={unit.serviceType} />
               <InfoCard label="Email" value={unit.email} />
               <InfoCard label="Mobile" value={unit.mobile} />
 

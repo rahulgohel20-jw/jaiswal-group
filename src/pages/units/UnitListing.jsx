@@ -177,7 +177,6 @@ const UnitListing = () => {
     id: item.id,
     name: item.companyNameEnglish || "",
     code: item.companyCode || "",
-    serviceType: item.orgType || "OUTLET",
     location: item.cityName || "",
     email: item.emailid || "",
     mobile: item.mobilenumber || "",
@@ -293,13 +292,6 @@ const UnitListing = () => {
         header: ({ column }) => <DataGridColumnHeader title="Unit Code" column={column} />,
         cell: ({ row }) => <span className="text-gray-600 whitespace-nowrap">{row.original.code}</span>,
         size: 120,
-      },
-      {
-        id: "serviceType",
-        accessorFn: (row) => row.serviceType,
-        header: ({ column }) => <DataGridColumnHeader title="Service Type" column={column} />,
-        cell: ({ row }) => <ServiceTypeBadge type={row.original.serviceType} />,
-        size: 130,
       },
       {
         id: "location",
