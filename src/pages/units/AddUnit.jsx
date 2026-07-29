@@ -500,81 +500,75 @@ const AddUnit = () => {
   //     console.log(error.response?.data || error.message)
   //   }
   // }
+const handleSubmit = async () => {
+  try {
+    const payload = {
+      orgType: "OUTLET",
+      parentId: form.company ? Number(form.company) : null,
+      username: 1,
+      isverified: true,
 
-  const handleSubmit = async () => {
-    try {
-      const payload = {
-        id: editingUnit?.id,
-        orgType: "OUTLET",
-        parentId: Number(form.company),
-        username: 1,
-        isverified: true,
+      companyNameEnglish: form.UnitName,
+      shortCode: form.shortCode,
 
-        companyNameEnglish: form.UnitName,
-        shortCode: form.shortCode,
+      emailid: form.email,
+      mobilenumber: form.mobile,
+      alternatemobilenumber: form.altMobile,
 
-        emailid: form.email,
-        mobilenumber: form.mobile,
-        alternatemobilenumber: form.altMobile,
+      addressEnglish: form.addressLine1,
+      addressline2: form.addressLine2,
 
-        addressEnglish: form.addressLine1,
-        addressline2: form.addressLine2,
+      countryId: selectedCountry ? Number(selectedCountry) : null,
+      stateId: selectedState ? Number(selectedState) : null,
+      cityId: selectedCity ? Number(selectedCity) : null,
 
-        countryId: Number(selectedCountry),
-        stateId: Number(selectedState),
-        cityId: Number(selectedCity),
+      pincode: form.pincode,
+      latitude: form.latitude,
+      longitude: form.longitude,
 
-        pincode: form.pincode,
-        latitude: form.latitude,
-        longitude: form.longitude,
+      capacity: form.capacity,
+    };
 
-        capacity: form.capacity,
-      };
+    if (isEditMode) {
+      // updateCompany(data) -> PUT body is `data` (multipart/form-data).
+      // All fields, including id, must be inside this single FormData.
+      const formData = new FormData();
+      formData.append("id", editingUnit.id);
 
-      if (isEditMode) {
-        const formData = new FormData();
+      Object.entries(payload).forEach(([key, value]) => {
+        formData.append(key, value ?? "");
+      });
 
-        formData.append("id", editingUnit.id);
-
-        Object.entries(payload).forEach(([key, value]) => {
-          formData.append(key, value ?? "");
-        });
-
-        if (form.logo instanceof File) {
-          formData.append("logo", form.logo);
-        }
-
-        if (form.favicon instanceof File) {
-          formData.append("favicon", form.favicon);
-        }
-
-        const res = await updateCompany(formData);
-
-        notify.success("Unit updated successfully");
-      } else {
-        const formData = new FormData();
-
-        Object.entries(payload).forEach(([key, value]) => {
-          formData.append(key, value ?? "");
-        });
-
-        if (form.logo instanceof File) {
-          formData.append("logo", form.logo);
-        }
-
-        if (form.favicon instanceof File) {
-          formData.append("favicon", form.favicon);
-        }
-
-        await createCompany(formData);
-        notify.success("Unit Created successfully");
+      if (form.logo instanceof File) {
+        formData.append("logo", form.logo);
+      }
+      if (form.favicon instanceof File) {
+        formData.append("favicon", form.favicon);
       }
 
-      navigate("/Units");
-    } catch (error) {
-      console.log(error.response?.data || error.message);
+      await updateCompany(formData);
+      notify.success("Unit updated successfully");
+    } else {
+      // createCompany(params, formData) -> `params` becomes the query
+      // string, `formData` is the POST body — used only for files.
+      const formData = new FormData();
+
+      if (form.logo instanceof File) {
+        formData.append("logo", form.logo);
+      }
+      if (form.favicon instanceof File) {
+        formData.append("favicon", form.favicon);
+      }
+
+      await createCompany(payload, formData);
+      notify.success("Unit Created successfully");
     }
-  };
+
+    navigate("/Units");
+  } catch (error) {
+    console.log(error.response?.data || error.message);
+  }
+};
 
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
