@@ -222,12 +222,8 @@ export const getActiveCompany = () => {
 export const getCompanyById = (id) => {
   return GET(`/organization/get/${id}`);
 };
-export const createCompany = (params, formData) => {
-  return axiosInstance.post(
-    "/organization/save",
-    formData,
-    { params }
-  );
+export const createCompany = (formData) => {
+  return axiosInstance.post("/organization/save", formData);
 };
 
 export const updateCompany = (data) =>
