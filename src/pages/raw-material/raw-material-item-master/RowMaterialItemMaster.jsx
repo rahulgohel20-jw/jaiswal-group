@@ -8,6 +8,8 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddRawMaterialItemModal from './AddRawMaterialItemModal';
+import { Container } from "@/components/common/container";
+
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -280,7 +282,8 @@ const RowMaterialItemMaster = () => {
         getPaginationRowModel: getPaginationRowModel(),
     });
     return (
-        <div className='p-4 md:p-6'>
+       <Container>
+         <div className='p-4 md:p-6'>
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
@@ -324,9 +327,9 @@ const RowMaterialItemMaster = () => {
             </div>
 
             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
-                <div className="grid grid-cols-1 xl:grid-cols-4 sm:grid-col-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {/* Search */}
-                    <div className="relative md:col-span-1">
+                    <div className="relative md:col-span-2">
                         <Search
                             size={18}
                             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -362,19 +365,6 @@ const RowMaterialItemMaster = () => {
                             <option>Fuel Category</option>
                         </select>
                     </p>
-
-                    <div className='grid grid-cols-6 gap-3'>
-                        {/* Apply */}
-                        <button className="bg-[#084E92] col-span-4 text-sm text-white rounded-lg px-4 py-2 flex gap-3 justify-center items-center cursor-pointer">
-                            <ListFilter size={20} />
-                            Apply Filters
-                        </button>
-
-                        {/* Reset */}
-                        <button onClick={handleReset} className="border col-span-2 rounded-lg px-4 py-2 cursor-pointer ">
-                            Reset
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -402,6 +392,7 @@ const RowMaterialItemMaster = () => {
                 onClose={closeModal}
             />
         </div>
+       </Container>
     )
 }
 

@@ -17,6 +17,7 @@ import {
     Wrench,
     X,
     CircleCheck,
+    ChevronRight,
 } from 'lucide-react'
 import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
@@ -27,6 +28,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Link } from 'react-router';
+import { Container } from "@/components/common/container";
 
 const STATS = [
     {
@@ -576,11 +578,19 @@ const AssignAssets = () => {
     });
 
     return (
-        <div className="p-4 md:p-6">
+      <Container>
+          <div className="p-4 md:p-6">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                    <span>Dashboard</span>
+                    <ChevronRight size={12} />
+                    <span>Asset Management</span>
+                    <ChevronRight size={12} />
+                    <span className="text-[#084E92] font-medium">Assign Assets</span>
+                  </div>
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-[#084E92]">Assign Assets</h1>
-                    <p className="text-[#737781] mt-1">
+                    <h1 className="text-2xl font-bold">Assign Assets</h1>
+                    <p className="text-[#737781] mt-1 text-sm">
                         Assign registered assets to kitchens, outlets, departments, or users
                         while maintaining complete inventory tracking.
                     </p>
@@ -709,6 +719,7 @@ const AssignAssets = () => {
                 />
             )}
         </div>
+      </Container>
     );
 };
 

@@ -9,6 +9,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { Container } from "@/components/common/container";
 
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -290,22 +291,23 @@ const AssetsTransferLog = () => {
         getPaginationRowModel: getPaginationRowModel(),
     });
     return (
-        <div className='p-4 md:p-6'>
+       <Container>
+         <div className='p-4 md:p-6'>
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
-                <span className="text-[#002246] font-medium">Asset Transfer Log</span>
+                <span className="text-[#084E92] font-medium">Asset Transfer Log</span>
             </div>
 
             <div className='flex justify-between flex-col gap-5 sm:flex-row'>
                 <div>
-                    <h1 className="text-3xl font-bold text-[#0B3B75]">
+                    <h1 className="text-2xl font-bold">
                         Asset Transfer Log
                     </h1>
 
-                    <p className="text-[#6B7280] mt-1 w-[80%] md:w-full">
+                    <p className="text-[#6B7280] mt-1 w-[80%] md:w-full text-sm">
                         View and manage all asset transfer records across kitchens and operational
                         locations with high-fidelity tracking.
                     </p>
@@ -423,6 +425,7 @@ const AssetsTransferLog = () => {
                 </DataGrid>
             </div>
         </div>
+       </Container>
     )
 }
 

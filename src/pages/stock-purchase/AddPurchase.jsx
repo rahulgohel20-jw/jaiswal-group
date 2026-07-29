@@ -138,9 +138,9 @@ const AddPurchase = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 -mt-4">
-      <div className="max-w-5xl mx-auto space-y-5 pt-2">
-        <div className="mb-1">
+    <div className="min-h-screen -mt-4">
+      <div className="max-w-6xl mx-auto space-y-5 pt-2">
+        <div className="my-6">
           <h1 className="text-2xl font-bold text-sky-900 leading-none">Add Purchase</h1>
         </div>
 

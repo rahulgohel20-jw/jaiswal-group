@@ -111,7 +111,7 @@ const AvailableStocks = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 -mt-4">
+    <div className="min-h-screen -mt-4">
       <div className="max-w-6xl mx-auto space-y-5 pt-2">
         {/* Page header */}
         <div className="flex items-center justify-between">

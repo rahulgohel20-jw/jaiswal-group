@@ -22,6 +22,7 @@ import AddAssetBrandModal from './AddAssetBrandModal';
 import AssetBrandDetailsModal from './AssetBrandDetailsModal';
 import { getAssetBrands, getAssetBrandById, deleteAssetBrand } from '@/services/apiServices';
 import { notify } from "@/utils/toast";
+import { Container } from "@/components/common/container";
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -257,7 +258,8 @@ const AssetBrandListing = () => {
     });
 
     return (
-        <div className="p-4 md:p-6">
+       <Container>
+         <div className="p-4 md:p-6">
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
@@ -269,8 +271,8 @@ const AssetBrandListing = () => {
 
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-[#084E92]">Asset Brands</h1>
-                    <p className="text-[#737781] mt-1">
+                    <h1 className="text-2xl font-bold">Asset Brands</h1>
+                    <p className="text-[#737781] mt-1 text-sm">
                         Create and manage manufacturer/brand records used across the organization for asset
                         classification and reporting.
                     </p>
@@ -359,6 +361,7 @@ const AssetBrandListing = () => {
                 brand={viewingBrand}
             />
         </div>
+       </Container>
     );
 };
 

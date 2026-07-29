@@ -14,6 +14,7 @@ import {
     updateMenuCategoryStatus,
 } from "@/services/apiServices.js";
 import { notify } from "@/utils/toast";
+import { Container } from "@/components/common/container";
 
 const MenuCategory = () => {
     const [search, setSearch] = useState("");
@@ -272,7 +273,8 @@ const MenuCategory = () => {
     });
 
     return (
-        <div className='p-4 md:p-6'>
+        <Container>
+            <div className='p-4 md:p-6'>
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
@@ -343,6 +345,7 @@ const MenuCategory = () => {
                 onSuccess={fetchCategories}
             />
         </div>
+        </Container>
     )
 }
 

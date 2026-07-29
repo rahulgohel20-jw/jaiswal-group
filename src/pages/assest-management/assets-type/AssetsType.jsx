@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Building2, CircleCheck, CircleX, ClipboardList, Download, Eye, MonitorSmartphone, Package, Plus, RotateCcw, Search, SquareCheckBig, SquarePen, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Building2, ChevronRight, CircleCheck, CircleX, ClipboardList, Download, Eye, MonitorSmartphone, Package, Plus, RotateCcw, Search, SquareCheckBig, SquarePen, Trash2 } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -10,6 +10,7 @@ import AddAssetTypeModal from './AddAssetTypeModal';
 import AssetTypeDetailsModal from './AsssetTypeDetailsModal';
 import { getAssetTypes, getAssetTypeById, deleteAssetType } from '@/services/apiServices';
 import { notify } from "@/utils/toast";
+import { Container } from "@/components/common/container";
 
 
 const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
@@ -264,12 +265,23 @@ const AssetsType = () => {
         table.setPageIndex(0);
     }, [searchInput, typeInput, transferInput]);
     return (
-        <div className="space-y-6 p-6">
+        <Container>
+            <div className="space-y-6 p-6">
+
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                <span>Dashboard</span>
+                <ChevronRight size={12} />
+                <span>Asset Management</span>
+                <ChevronRight size={12} />
+                <span className="text-[#084E92] font-medium">Asset Types</span>
+            </div>
+
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-[#0B3B75]">Assign Asset Types</h1>
-                    <p className="text-[#5F6368] mt-2 max-w-3xl">
+                    <h1 className="text-2xl font-bold">Assign Asset Types</h1>
+                    <p className="text-[#5F6368] mt-2 max-w-3xl text-sm">
                         Configure classification rules and transfer protocols for organizational assets.
                     </p>
                 </div>
@@ -282,7 +294,7 @@ const AssetsType = () => {
             </div>
 
             {/* Stats Cards — unchanged, still static */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-2">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
@@ -399,6 +411,7 @@ const AssetsType = () => {
                 loading={viewLoading}
             />
         </div>
+        </Container>
     );
 };
 

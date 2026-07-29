@@ -222,12 +222,12 @@ const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-
 );
 
 const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, valueColor = "text-gray-900" }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-3.5">
-    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
+  <div className="bg-white rounded-2xl border border-gray-200 px-5 py-4">
+    <div className={`w-7 h-7 rounded mb-1 flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
       <Icon className="w-5 h-5" />
     </div>
     <div>
-      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-xs text-[#737781]">{label}</p>
       <p className={`text-lg font-bold leading-none mt-1 ${valueColor}`}>{value}</p>
     </div>
   </div>
@@ -415,7 +415,7 @@ const VendorList = () => {
 
   return (
     <Container>
-      <div>
+      <div className="p-4 md:p-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">

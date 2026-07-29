@@ -520,7 +520,7 @@ const CompanyRegistration = () => {
     }
   };
   return (
-    <div className="mx-4 min-h-screen">
+    <div className="mx-4 min-h-screen p-4 md:p-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
           {isEditMode ? 'Update Company' : 'Register New Company'}

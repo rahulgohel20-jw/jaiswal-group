@@ -419,7 +419,7 @@ const UnitListing = () => {
 
   return (
     <Container>
-      <div>
+      <div className="p-4 md:p-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -526,7 +526,7 @@ const UnitListing = () => {
           </div>
 
           {/* Table Card */}
-          <Card className="rounded-t-none border-t-0">
+          <Card className="rounded-t-none border-t-0 shadow-none border">
             <CardTable>
               <ScrollArea>
                 <DataGridTable />

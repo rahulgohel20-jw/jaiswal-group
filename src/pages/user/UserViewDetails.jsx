@@ -46,19 +46,19 @@ const StatCard = ({ label, value, icon: Icon }) => (
 );
 
 const SectionCard = ({ title, icon: Icon, children }) => (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                <Icon className="w-5 h-5 text-[#084E92]" />
-            </div>
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
+      <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+        <Icon className="w-5 h-5 text-[#084E92]" />
+      </div>
 
-            <h2 className="font-bold text-gray-800">{title}</h2>
-        </div>
-
-        <div className="px-6 py-4">
-            {children}
-        </div>
+      <h2 className="font-bold text-gray-800">{title}</h2>
     </div>
+
+    <div className="px-6 py-4">
+      {children}
+    </div>
+  </div>
 );
 
 const UserViewDetails = () => {
@@ -86,9 +86,11 @@ const UserViewDetails = () => {
       try {
         const res = await getEmployeeById(userRef.id);
 
-        if (!cancelled) {
-          setEmployee(mapEmployeeToForm(extractItem(res)));
-        }
+        // if (!cancelled) {
+        //   setEmployee(mapEmployeeToForm(extractItem(res)));
+        // }
+        const data = res.data.data;
+        setEmployee(data);
       } catch (err) {
         console.error(err);
 
@@ -111,12 +113,12 @@ const UserViewDetails = () => {
 
   const fullName = employee
     ? [
-        employee.firstName,
-        employee.middlename,
-        employee.lastName,
-      ]
-        .filter(Boolean)
-        .join(' ')
+      employee.firstName,
+      employee.middlename,
+      employee.lastName,
+    ]
+      .filter(Boolean)
+      .join(' ')
     : userRef?.name;
 
   return (
@@ -134,8 +136,8 @@ const UserViewDetails = () => {
             Back to Users
           </button>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-[#084E92]">
-            {fullName || 'User Details'}
+          <h1 className="text-3xl md:text-4xl font-bold">
+            User Details
           </h1>
 
           <p className="text-[#737781] mt-1">
@@ -189,7 +191,7 @@ const UserViewDetails = () => {
 
             <div className="text-center sm:text-left">
               <h2 className="text-2xl font-bold text-gray-900">
-                {fullName}
+                {employee.fullName}
               </h2>
 
               <p className="text-gray-500 mt-1">
@@ -197,7 +199,7 @@ const UserViewDetails = () => {
               </p>
 
               <p className="text-[#084E92] text-sm mt-2">
-                {employee.email}
+                {employee.emailid}
               </p>
 
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
@@ -264,7 +266,7 @@ const UserViewDetails = () => {
 
                   <InfoCard
                     label="Email Address"
-                    value={employee.email}
+                    value={employee.emailid}
                   />
 
                   <InfoCard
@@ -274,12 +276,12 @@ const UserViewDetails = () => {
 
                   <InfoCard
                     label="Mobile Number"
-                    value={employee.mobile}
+                    value={employee.mobileNumber}
                   />
 
                   <InfoCard
                     label="Alternate Mobile"
-                    value={employee.altMobile}
+                    value={employee.alternateMobile}
                   />
 
                   <InfoCard
@@ -305,35 +307,35 @@ const UserViewDetails = () => {
             </div>
 
             {/* Right */}
-              <SectionCard icon={MapPin} title="Address Information">
-                <div className="space-y-4">
-                  <InfoCard
-                    label="Address Line 1"
-                    value={employee.addressLine1}
-                  />
+            <SectionCard icon={MapPin} title="Address Information">
+              <div className="space-y-4">
+                <InfoCard
+                  label="Address Line 1"
+                  value={employee.addressLine1}
+                />
 
-                  <InfoCard
-                    label="Address Line 2"
-                    value={employee.addressLine2}
-                  />
+                <InfoCard
+                  label="Address Line 2"
+                  value={employee.addressLine2}
+                />
 
-                  <InfoCard
-                    label="Pincode"
-                    value={employee.pincode}
-                  />
+                <InfoCard
+                  label="Pincode"
+                  value={employee.pincode}
+                />
 
-                  <InfoCard
-                    label="Latitude"
-                    value={employee.latitude}
-                  />
+                <InfoCard
+                  label="Latitude"
+                  value={employee.latitude}
+                />
 
-                  <InfoCard
-                    label="Longitude"
-                    value={employee.longitude}
-                  />
-                </div>
-              </SectionCard>
-            </div>
+                <InfoCard
+                  label="Longitude"
+                  value={employee.longitude}
+                />
+              </div>
+            </SectionCard>
+          </div>
         </>
       ) : null}
     </div>

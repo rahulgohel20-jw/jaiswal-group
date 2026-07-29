@@ -23,6 +23,7 @@ import AddSubCategoryModal from './AddSubCategoryModal';
 import AssetSubCategoryDetailsModal from './AssetSubCategoryDetailsModal';
 import { getSubCategories, getAssetCategories, deleteSubCategory } from '@/services/apiServices';
 import { notify } from "@/utils/toast";
+import { Container } from "@/components/common/container";
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -311,7 +312,8 @@ const AssetSubCategory = () => {
     });
 
     return (
-        <div className="p-4 md:p-6">
+        <Container>
+            <div className="p-4 md:p-6">
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
@@ -323,8 +325,8 @@ const AssetSubCategory = () => {
 
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-[#084E92]">Asset Sub Categories</h1>
-                    <p className="text-[#737781] mt-1">
+                    <h1 className="text-2xl font-bold">Asset Sub Categories</h1>
+                    <p className="text-[#737781] mt-1 text-sm">
                         Manage sub-categories under each asset category for better classification, reporting, and
                         inventory management.
                     </p>
@@ -459,6 +461,7 @@ const AssetSubCategory = () => {
                 subCategory={viewingSubCategory}
             />
         </div>
+        </Container>
     );
 };
 

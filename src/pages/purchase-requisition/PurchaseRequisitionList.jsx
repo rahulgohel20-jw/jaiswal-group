@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { Container } from "@/components/common/container";
 
 /* -------------------------------------------------------------------------
  * Shared style tokens & primitives
@@ -63,9 +64,8 @@ const EDITABLE_STATUSES = new Set(['Draft', 'In Review']);
 
 const StatusBadge = ({ status, size = 'md' }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${
-      size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
-    } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
+    className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
+      } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
   >
     <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
     {status}
@@ -312,11 +312,10 @@ const Pagination = ({ page, totalPages, onChange }) => {
             key={p}
             type="button"
             onClick={() => onChange(p)}
-            className={`w-8 h-8 rounded-lg text-sm font-semibold transition cursor-pointer border ${
-              p === page
+            className={`w-8 h-8 rounded-lg text-sm font-semibold transition cursor-pointer border ${p === page
                 ? 'bg-[#084E92] text-white border-[#084E92]'
                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-            }`}
+              }`}
           >
             {p}
           </button>
@@ -413,141 +412,150 @@ const PurchaseRequisitionList = () => {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-screen pb-10">
-      <Breadcrumb items={['Dashboard', 'Purchase', 'Purchase Requisition List']} />
-
-      <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">Purchase Requisition List</h1>
-          <p className="text-[#43474F] mt-1 text-sm sm:text-base">
-            View and manage all purchase requisitions across enterprise departments.
-          </p>
+    <Container>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-screen pb-10">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Purchase</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">Purchase Requisition List</span>
         </div>
-        <Link
-          to="/purchase-requisition/add"
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-          Create Purchase Requisition
-        </Link>
-      </div>
 
-      <SectionCard className="mt-5">
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-100 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search PR Code, Outlet..."
-              className={`${inputCls} pl-9`}
-            />
+        <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl md:text-4xl font-semibold">Purchase Requisition List</h1>
+            <p className="text-[#43474F] mt-1 text-sm sm:text-base">
+              View and manage all purchase requisitions across enterprise departments.
+            </p>
           </div>
-
-          <button
-            type="button"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white shrink-0"
+          <Link
+            to="/purchase-requisition/add"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
           >
-            <Filter className="w-4 h-4" />
-            Filter
-          </button>
-
-          <div className="flex items-center gap-2 ml-auto shrink-0">
-            <button
-              type="button"
-              onClick={handleRefresh}
-              title="Refresh"
-              className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            </button>
-            <button
-              type="button"
-              onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-          </div>
+            <Plus className="w-4 h-4" />
+            Create Purchase Requisition
+          </Link>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                <th className="text-left font-semibold px-4 sm:px-6 py-3">PR Code</th>
-                <th className="text-left font-semibold px-4 py-3">Date</th>
-                <th className="text-left font-semibold px-4 py-3">Outlet Name</th>
-                <th className="text-left font-semibold px-4 py-3">Status</th>
-                <th className="text-left font-semibold px-4 py-3">Remarks</th>
-                <th className="text-left font-semibold px-4 sm:px-6 py-3 w-28">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-gray-400">
-                    No purchase requisitions match your search.
-                  </td>
+        <SectionCard className="mt-5">
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-100 flex-wrap">
+            <div className="relative flex-1 min-w-55">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search PR Code, Outlet..."
+                className={`${inputCls} pl-9`}
+              />
+            </div>
+
+            <button
+              type="button"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white shrink-0"
+            >
+              <Filter className="w-4 h-4" />
+              Filter
+            </button>
+
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                title="Refresh"
+                className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                type="button"
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+              >
+                <Download className="w-4 h-4" />
+                Export
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-190 text-sm">
+              <thead>
+                <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
+                  <th className="text-left font-semibold px-4 sm:px-6 py-3">PR Code</th>
+                  <th className="text-left font-semibold px-4 py-3">Date</th>
+                  <th className="text-left font-semibold px-4 py-3">Outlet Name</th>
+                  <th className="text-left font-semibold px-4 py-3">Status</th>
+                  <th className="text-left font-semibold px-4 py-3">Remarks</th>
+                  <th className="text-left font-semibold px-4 sm:px-6 py-3 w-28">Action</th>
                 </tr>
-              ) : (
-                pageRows.map((row) => (
-                  <tr key={row.id} className="border-t border-gray-100">
-                    <td className="px-4 sm:px-6 py-4 font-semibold text-[#084E92] whitespace-nowrap">{row.prCode}</td>
-                    <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{row.date}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
-                          <Building2 className="w-3.5 h-3.5" />
-                        </span>
-                        <span className="text-gray-700">{row.outlet}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <StatusBadge status={row.status} />
-                    </td>
-                    <td className="px-4 py-4 text-gray-500 max-w-[220px] truncate">{row.remarks}</td>
-                    <td className="px-4 sm:px-6 py-4">
-                      <div className="flex items-center gap-1">
-                        <IconButton icon={Eye} title="View" onClick={() => setViewingRow(row)} />
-                        {EDITABLE_STATUSES.has(row.status) && (
-                          <IconButton
-                            icon={Pencil}
-                            tone="edit"
-                            title="Edit"
-                            onClick={() => navigate(`/purchase-requisition/edit/${row.id}`)}
-                          />
-                        )}
-                        <IconButton icon={Trash2} tone="danger" title="Delete" onClick={() => handleDelete(row.id)} />
-                      </div>
+              </thead>
+              <tbody>
+                {pageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400">
+                      No purchase requisitions match your search.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  pageRows.map((row) => (
+                    <tr key={row.id} className="border-t border-gray-100">
+                      <td className="px-4 sm:px-6 py-4 font-semibold text-[#084E92] whitespace-nowrap">{row.prCode}</td>
+                      <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{row.date}</td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
+                            <Building2 className="w-3.5 h-3.5" />
+                          </span>
+                          <span className="text-gray-700">{row.outlet}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <StatusBadge status={row.status} />
+                      </td>
+                      <td className="px-4 py-4 text-gray-500 max-w-55 truncate">{row.remarks}</td>
+                      <td className="px-4 sm:px-6 py-4">
+                        <div className="flex items-center gap-1">
+                          <IconButton icon={Eye} title="View" onClick={() => setViewingRow(row)} />
+                          {EDITABLE_STATUSES.has(row.status) && (
+                            <IconButton
+                              icon={Pencil}
+                              tone="edit"
+                              title="Edit"
+                              onClick={() => navigate(`/purchase-requisition/edit/${row.id}`)}
+                            />
+                          )}
+                          <IconButton icon={Trash2} tone="danger" title="Delete" onClick={() => handleDelete(row.id)} />
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between flex-wrap gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
-          <p className="text-xs text-gray-400">
-            {totalResults === 0
-              ? 'Showing 0 results'
-              : `Showing ${firstResultIndex}-${lastResultIndex} of ${totalResults} results`}
-          </p>
-          <Pagination
-            page={currentPage}
-            totalPages={Math.max(pageCount, 1)}
-            onChange={(p) => setPagination((prev) => ({ ...prev, pageIndex: p - 1 }))}
-          />
-        </div>
-      </SectionCard>
+          {/* Footer */}
+          <div className="flex items-center justify-between flex-wrap gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
+            <p className="text-xs text-gray-400">
+              {totalResults === 0
+                ? 'Showing 0 results'
+                : `Showing ${firstResultIndex}-${lastResultIndex} of ${totalResults} results`}
+            </p>
+            <Pagination
+              page={currentPage}
+              totalPages={Math.max(pageCount, 1)}
+              onChange={(p) => setPagination((prev) => ({ ...prev, pageIndex: p - 1 }))}
+            />
+          </div>
+        </SectionCard>
 
-      <ViewRequisitionModal row={viewingRow} onClose={() => setViewingRow(null)} />
-    </div>
+        <ViewRequisitionModal row={viewingRow} onClose={() => setViewingRow(null)} />
+      </div>
+    </Container>
   );
 };
 

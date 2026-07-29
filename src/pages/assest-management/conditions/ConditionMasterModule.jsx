@@ -16,6 +16,7 @@ import {
   deleteCondition,
 } from "@/services/apiServices";
 import { notify } from "@/utils/toast";
+import { Container } from "@/components/common/container";
 
 
 const STATUS_COLORS = {
@@ -351,7 +352,8 @@ const ConditionMasterModule = () => {
   });
 
   return (
-    <div className="p-4 md:p-6">
+    <Container>
+      <div className="p-4 md:p-6">
       <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
         <span>Dashboard</span>
         <ChevronRight size={12} />
@@ -362,11 +364,11 @@ const ConditionMasterModule = () => {
 
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-[#0B3B75]">
+          <h1 className="text-2xl font-bold">
             Condition Master
           </h1>
 
-          <p className="text-[#5F6368] mt-2 max-w-2xl">
+          <p className="text-[#5F6368] mt-1 max-w-2xl text-sm">
             Configure and standardize asset health states
             across the enterprise.
           </p>
@@ -490,6 +492,7 @@ const ConditionMasterModule = () => {
         onSave={handleSave}
       />
     </div>
+    </Container>
   )
 }
 

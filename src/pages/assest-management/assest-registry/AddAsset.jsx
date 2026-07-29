@@ -749,7 +749,7 @@ const AddAsset = () => {
   };
 
   return (
-    <div className="mx-4 min-h-screen pb-8">
+    <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
@@ -1281,7 +1281,7 @@ const AddAsset = () => {
 
       {showQrPreview && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-6 w-[350px] relative">
+          <div className="bg-white rounded-2xl p-6 w-87.5 relative">
             <button
               type="button"
               onClick={() => setShowQrPreview(false)}

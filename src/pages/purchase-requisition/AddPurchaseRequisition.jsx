@@ -251,9 +251,15 @@ const PurchaseRequisition = () => {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 min-h-screen pb-10">
-      <Breadcrumb items={['Dashboard', 'Purchase', 'Purchase Requisition']} />
-
+    <div className="mx-auto max-w-6xl min-h-screen pb-10">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+        <span>Dashboard</span>
+        <ChevronRight size={12} />
+        <span>Purchase</span>
+        <ChevronRight size={12} />
+        <span className="text-[#084E92] font-medium">Purchase Requisition</span>
+      </div>
       <div className="flex flex-col gap-1 mt-3">
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">Purchase Requisition</h1>
         <p className="text-[#43474F] mt-1 text-sm sm:text-base">
