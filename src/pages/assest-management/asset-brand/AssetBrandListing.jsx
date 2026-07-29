@@ -199,7 +199,7 @@ const AssetBrandListing = () => {
                 <DataGridColumnHeader title="BRAND NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2">{row.original.name}</div>
+                <div className="font-semibold text-gray-800 py-2 first-letter:uppercase">{row.original.name}</div>
             ),
             size: 190,
         },
@@ -210,7 +210,7 @@ const AssetBrandListing = () => {
                 <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-1 line-clamp-1">{row.original.description}</span>
+                <span className="text-gray-500 py-1 line-clamp-1 first-letter:uppercase">{row.original.description}</span>
             ),
             size: 320,
         },

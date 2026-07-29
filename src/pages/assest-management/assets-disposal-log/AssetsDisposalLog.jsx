@@ -260,18 +260,12 @@ const AssetsDisposalLog = () => {
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
-                        {row.original.approvedBy
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                    </div>
                     <span className="font-medium text-sm">
                         {row.original.approvedBy}
                     </span>
                 </div>
             ),
-            size: 180,
+            size: 150,
         },
 
         {
@@ -284,30 +278,27 @@ const AssetsDisposalLog = () => {
             ),
             cell: () => (
                 <div className="flex items-center gap-2">
-                    <button className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                    <button  className="text-gray-500 hover:text-green-600 cursor-pointer" >
                         <Eye
-                            size={14}
-                            className="text-[#0B5CAB] cursor-pointer"
+                           size={18}
                         />
                     </button>
 
-                    <button className="w-8 h-8 rounded-lg bg-[#FFFBEB] flex items-center justify-center">
+                    <button className="text-gray-500 hover:text-blue-600 cursor-pointer">
                         <SquarePen
-                            size={14}
-                            className="text-[#B45309] cursor-pointer"
+                           size={18}
                         />
                     </button>
 
-                    <button className="w-8 h-8 rounded-lg bg-[#FEF2F2] flex items-center justify-center">
+                    <button  className="text-red-300 hover:text-red-600 cursor-pointer">
                         <Trash2
-                            size={14}
-                            className="text-[#BA1A1A] cursor-pointer"
+                           size={18}
                         />
                     </button>
                 </div>
             ),
             enableSorting: false,
-            size: 130,
+            size: 120,
         },
     ];
 

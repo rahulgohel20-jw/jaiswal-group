@@ -301,19 +301,13 @@ const VendorList = () => {
         header: ({ column }) => <DataGridColumnHeader title="User Name" column={column} />,
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
-              {row.original.name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")}
-            </div>
             <div>
               <p className="font-semibold text-gray-800 leading-none">{row.original.name}</p>
-              <p className="text-xs text-gray-400 mt-1">Created {row.original.createdOn}</p>
+              <p className="text-[12px] text-gray-400 mt-1">Created {row.original.createdOn}</p>
             </div>
           </div>
         ),
-        size: 220,
+        size: 160,
       },
       {
         id: "code",
@@ -327,7 +321,7 @@ const VendorList = () => {
         accessorFn: (row) => row.email,
         header: ({ column }) => <DataGridColumnHeader title="Email Address" column={column} />,
         cell: ({ row }) => <TruncatedCell value={row.original.email} widthClass="max-w-[190px]" />,
-        size: 210,
+        size: 140,
       },
       {
         id: "company",
@@ -373,26 +367,26 @@ const VendorList = () => {
                   state: { vendor: row.original },
                 })
               }
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
+              className="text-gray-500 hover:text-green-600 cursor-pointer"
               title="View vendor"
             >
-              <Eye className="w-4 h-4" />
+              <Eye size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleEdit(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
+              className="text-gray-500 hover:text-blue-600 cursor-pointer"
               title="Update vendor"
             >
-              <SquarePen className="w-4 h-4" />
+              <SquarePen size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleDelete(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition cursor-pointer bg-white"
+              className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete vendor"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={18} />
             </button>
           </div>
         ),

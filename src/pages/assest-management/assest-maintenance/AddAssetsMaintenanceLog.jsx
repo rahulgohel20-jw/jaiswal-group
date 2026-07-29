@@ -1,6 +1,7 @@
 import { ArrowLeft, Calendar, ChevronDown, ChevronRight, ClipboardList, Info, MapPin, Save, TriangleAlert, Wallet, Wrench, CircleDollarSign, Timer } from 'lucide-react';
 import React, { useState } from 'react'
 import { Link } from 'react-router';
+import { Container } from "@/components/common/container";
 
 const inputCls =
     'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-[#F8F9FF] ' +
@@ -61,7 +62,8 @@ const AddAssetsMaintenanceLog = () => {
     );
 
     return (
-        <div className='p-4 md:p-6'>
+       <Container>
+         <div className='p-4 md:p-6'>
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
                 <ChevronRight size={12} />
@@ -323,12 +325,14 @@ const AddAssetsMaintenanceLog = () => {
 
                         {/* Left Side */}
                         <div className="flex items-center gap-6">
+                           <Link to="/assets/asset-maintenance">
                             <button
                                 type="button"
                                 className="text-gray-600 cursor-pointer font-medium hover:text-gray-800 transition"
                             >
                                 Cancel
                             </button>
+                           </Link>
 
                             <button
                                 type="button"
@@ -362,6 +366,7 @@ const AddAssetsMaintenanceLog = () => {
             </div>
 
         </div>
+       </Container>
     )
 }
 

@@ -95,16 +95,14 @@ const normalizeAsset = (a) => ({
 
 const StatusBadge = ({ status }) => {
     const styles = {
-        Available: "bg-green-100 text-green-700",
-        Assigned: "bg-blue-100 text-blue-700",
-        Maintenance: "bg-orange-100 text-orange-700",
-        Expiring: "bg-[#FEE2E2] text-[#BA1A1A]"
+        "In Use": "bg-green-100 text-green-700",
+        Disposed: "bg-blue-100 text-blue-700",
+        Lost: "bg-orange-100 text-orange-700",
     };
     const dotStyle = {
-        Available: "bg-[#16A34A]",
-        Assigned: "bg-[#265FA4]",
-        Maintenance: "bg-[#C2410C]",
-        Expiring: "bg-[#BA1A1A]"
+         "In Use": "bg-[#16A34A]",
+        Disposed: "bg-[#265FA4]",
+        Lost: "bg-[#C2410C]",
     }
     return (
         <span
@@ -117,9 +115,10 @@ const StatusBadge = ({ status }) => {
 };
 const ConditionBadge = ({ condition }) => {
     const styles = {
-        excellent: "bg-blue-50 text-blue-600",
+        excellent: "bg-green-50 text-green-600",
         good: "bg-gray-100 text-gray-600",
         fair: "bg-yellow-50 text-yellow-600",
+        bad: "bg-red-50 text-red-600"
     };
 
     if (!condition) return null;
@@ -243,7 +242,7 @@ const AssetsManagement = () => {
             ),
 
             enableSorting: false,
-            size: 50,
+            size: 40,
         },
         {
             id: "assetId",
@@ -256,7 +255,7 @@ const AssetsManagement = () => {
                     {row.original.assetId}
                 </div>
             ),
-            size: 120,
+            size: 110,
         },
 
         {
@@ -284,7 +283,7 @@ const AssetsManagement = () => {
                     {row.original.category}
                 </span>
             ),
-            size: 170,
+            size: 150,
         },
 
         {
@@ -357,13 +356,13 @@ const AssetsManagement = () => {
                         <Eye size={18} onClick={() => {
                             setSelectedAsset(row.original);
                             setShowDetails(true);
-                        }} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
+                        }} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
 
                     <button onClick={() => navigate(`/assets/edit-asset/${row.original.id}`)}>
                         <SquarePen
                             size={18}
-                            className="text-gray-500 hover:text-green-600 cursor-pointer"
+                            className="text-gray-500 hover:text-blue-600 cursor-pointer"
                         />
                     </button>
 

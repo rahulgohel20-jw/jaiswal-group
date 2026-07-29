@@ -284,13 +284,6 @@ const UserManagementList = () => {
         header: ({ column }) => <DataGridColumnHeader title="USER NAME" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
           <div className='flex gap-3 items-center w-full'>
-            <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 text-xs font-bold flex items-center justify-center shrink-0">
-              {(row.original.name || '?')
-                .split(" ")
-                .filter(Boolean)
-                .map((n) => n[0])
-                .join("")}
-            </div>
             <div className='flex flex-col gap-1'>
               <span className="font-semibold text-gray-800">{row.original.name}</span>
               <span className="font-medium text-xs text-[#737781] ">{row.original.createdAt}</span>
@@ -299,7 +292,7 @@ const UserManagementList = () => {
           </div>
 
         ),
-        size: 200,
+        size: 140,
       },
       {
         id: "code",
@@ -313,14 +306,14 @@ const UserManagementList = () => {
         accessorFn: (row) => row.email,
         header: ({ column }) => <DataGridColumnHeader title="EMAIL ADDRESS" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => <TruncatedCell value={row.original.email} widthClass="max-w-[190px]" />,
-        size: 150,
+        size: 140,
       },
       {
         id: "company",
         accessorFn: (row) => row.company,
         header: ({ column }) => <DataGridColumnHeader title="COMPANY" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => <TruncatedCell value={row.original.company} widthClass="max-w-[190px]" />,
-        size: 150,
+        size: 140,
       },
       {
         id: "role",
@@ -373,31 +366,31 @@ const UserManagementList = () => {
             <button
               type="button"
               onClick={() => handleView(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
+               className="text-gray-500 hover:text-green-600 cursor-pointer" 
               title="View user"
             >
-              <Eye className="w-4 h-4" />
+              <Eye size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleEdit(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
+               className="text-gray-500 hover:text-blue-600 cursor-pointer"
               title="Update user"
             >
-              <SquarePen className="w-4 h-4" />
+              <SquarePen size={18}/>
             </button>
             <button
               type="button"
               onClick={() => handleDelete(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition cursor-pointer bg-white"
+              className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete user"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={18} />
             </button>
           </div>
         ),
         enableSorting: false,
-        size: 130,
+        size: 100,
       },
 
     ],

@@ -343,26 +343,24 @@ const UnitListing = () => {
                   state: { unit: row.original },
                 })
               }
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
+              className="text-gray-500 hover:text-green-600 cursor-pointer"
               title="View Unit"
             >
-              <Eye className="w-4 h-4" />
+              <Eye size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleEdit(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
-              title="Update Unit"
+              className="text-gray-500 hover:text-blue-600 cursor-pointer" title="Update Unit"
             >
-              <SquarePen className="w-4 h-4" />
+              <SquarePen size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleDelete(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition cursor-pointer bg-white"
-              title="Delete Unit"
+              className="text-red-300 hover:text-red-600 cursor-pointer" title="Delete Unit"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={18} />
             </button>
           </div>
         ),

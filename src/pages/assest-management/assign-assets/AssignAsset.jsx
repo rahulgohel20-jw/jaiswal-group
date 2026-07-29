@@ -486,7 +486,7 @@ const AssignAssets = () => {
             cell: ({ row }) => (
                 <span className="text-gray-700 py-1">{row.original.assetId}</span>
             ),
-            size: 120,
+            size: 110,
         },
         {
             id: "itemName",
@@ -497,7 +497,7 @@ const AssignAssets = () => {
             cell: ({ row }) => (
                 <div className="font-medium text-gray-800 py-1">{row.original.itemName}</div>
             ),
-            size: 190,
+            size: 160,
         },
         {
             id: "assignedTo",

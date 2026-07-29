@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
     Boxes, CheckCircle2, ChevronLeft, ChevronRight, Download, Eye,
-    History, Pencil, Plus, Search, Trash2, XCircle,
+    History, Pencil, Plus, Search, SquarePen, Trash2, XCircle,
 } from 'lucide-react';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -304,14 +304,14 @@ const Departmentlist = () => {
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center justify-end gap-3">
-                                                <button type="button" onClick={() => openDetails(dept)} className="text-primary hover:text-[#073e77] cursor-pointer" aria-label={`View ${dept.name}`}>
-                                                    <Eye size={16} />
+                                                <button type="button" onClick={() => openDetails(dept)} className="text-gray-500 hover:text-green-600 cursor-pointer"  aria-label={`View ${dept.name}`}>
+                                                    <Eye size={18} />
                                                 </button>
-                                                <button type="button" onClick={() => openEdit(dept)} className="text-[#43474F] hover:text-[#1B1B1F] cursor-pointer" aria-label={`Edit ${dept.name}`}>
-                                                    <Pencil size={16} />
+                                                <button type="button" onClick={() => openEdit(dept)} className="text-gray-500 hover:text-blue-600 cursor-pointer" aria-label={`Edit ${dept.name}`}>
+                                                    <SquarePen size={18} />
                                                 </button>
-                                                <button type="button" onClick={() => handleDelete(dept.id)} className="text-red-500 hover:text-red-700 cursor-pointer" aria-label={`Delete ${dept.name}`}>
-                                                    <Trash2 size={16} />
+                                                <button type="button" onClick={() => handleDelete(dept.id)} className="text-red-300 hover:text-red-600 cursor-pointer" aria-label={`Delete ${dept.name}`}>
+                                                    <Trash2 size={18} />
                                                 </button>
                                             </div>
                                         </td>

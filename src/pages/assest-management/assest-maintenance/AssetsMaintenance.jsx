@@ -149,30 +149,23 @@ const AssetsMaintenance = () => {
                     onChange={row.getToggleSelectedHandler()}
                 />
             ),
-            size: 40,
+            size: 30,
         },
 
         {
             accessorKey: "assetId",
             header: "ASSET IDENTITY",
             cell: ({ row }) => (
-                <span className="text-[#0B5CAB] font-semibold">
+                <span className="text-[#0B5CAB] font-semibold text-sm">
                     {row.original.assetId}
                 </span>
             ),
             size: 140,
         },
-
-        {
-            accessorKey: "asset",
-            header: "DESCRIPTION",
-            size: 140,
-        },
-
         {
             accessorKey: "unit",
             header: "UNIT/KITCHEN",
-            size: 140,
+            size: 130,
         },
 
         {
@@ -189,7 +182,7 @@ const AssetsMaintenance = () => {
                     "{row.original.issue}"
                 </span>
             ),
-            size: 170,
+            size: 160,
         },
 
         {
@@ -206,7 +199,7 @@ const AssetsMaintenance = () => {
                     {row.original.cost}
                 </span>
             ),
-            size: 120,
+            size: 100,
         },
 
         {
@@ -229,19 +222,20 @@ const AssetsMaintenance = () => {
             header: "ACTIONS",
             cell: () => (
                 <div className="flex gap-2 my-2">
-                    <button className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center cursor-pointer">
-                        <Eye size={14} className="text-blue-600" />
+                    <button className="text-gray-500 hover:text-green-600 cursor-pointer" >
+                        <Eye size={18}/>
                     </button>
 
-                    <button className="w-8 h-8 rounded bg-amber-50 flex items-center justify-center cursor-pointer">
-                        <SquarePen size={14} className="text-amber-500" />
+                    <button className="text-gray-500 hover:text-blue-600 cursor-pointer">
+                        <SquarePen size={18} />
                     </button>
 
-                    <button className="w-8 h-8 rounded bg-red-50 flex items-center justify-center cursor-pointer">
-                        <Trash2 size={14} className="text-red-500" />
+                    <button className="text-red-300 hover:text-red-600 cursor-pointer">
+                        <Trash2 size={18} />
                     </button>
                 </div>
             ),
+            size:90
         },
     ];
 

@@ -305,14 +305,14 @@ const StatusMasterModule = () => {
             cell: ({ row }) => (
                 <div className="flex items-center gap-4">
                     <Eye
-                        size={16}
-                        className="text-[#265FA4] cursor-pointer"
+                        size={18}
+                        className="text-gray-500 hover:text-green-600 cursor-pointer"
                         onClick={() => openViewModal(row.original.id)}
                     />
 
                     <SquarePen
-                        size={16}
-                        className="cursor-pointer"
+                        size={18}
+                        className="text-gray-500 hover:text-blue-600 cursor-pointer"
                         onClick={() => openEditModal(row.original.id)}
                     />
 
@@ -320,8 +320,8 @@ const StatusMasterModule = () => {
                         <Loader2 size={16} className="animate-spin text-red-500" />
                     ) : (
                         <Trash2
-                            size={16}
-                            className="text-red-500 cursor-pointer"
+                            size={18}
+                            className="text-red-300 hover:text-red-600 cursor-pointer"
                             onClick={() => handleDelete(row.original.id)}
                         />
                     )}
@@ -368,140 +368,140 @@ const StatusMasterModule = () => {
     return (
         <Container>
             <div className='p-4 md:px-6'>
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Status Master</span>
-            </div>
-            <div className="flex justify-between items-start mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold">
-                        Status Master
-                    </h1>
-
-                    <p className="text-[#737781] mt-1 text-sm">
-                        Streamline operational tracking with comprehensive asset status management.
-                    </p>
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                    <span>Dashboard</span>
+                    <ChevronRight size={12} />
+                    <span>Asset Management</span>
+                    <ChevronRight size={12} />
+                    <span className="text-[#084E92] font-medium">Status Master</span>
                 </div>
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <h1 className="text-2xl font-bold">
+                            Status Master
+                        </h1>
 
-                <div className="flex gap-3">
-                    <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
-                        <Plus size={16} />
-                        Add Status
-                    </button>
+                        <p className="text-[#737781] mt-1 text-sm">
+                            Streamline operational tracking with comprehensive asset status management.
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
+                            <Plus size={16} />
+                            Add Status
+                        </button>
+                    </div>
                 </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
-                {STATS.map((item, index) => {
-                    const Icon = item.icon;
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
+                    {STATS.map((item, index) => {
+                        const Icon = item.icon;
 
-                    return (
-                        <div
-                            key={index}
-                            className="border border-[#C3C6D1] rounded-2xl p-4"
-                        >
+                        return (
                             <div
-                                className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
+                                key={index}
+                                className="border border-[#C3C6D1] rounded-2xl p-4"
                             >
-                                <Icon
-                                    size={15}
-                                    className={item.iconColor}
-                                />
-                            </div>
-
-                            <div className='mt-2'>
-                                <p className="text-sm text-[#43474F]">
-                                    {item.title}
-                                </p>
-
-                                <h3 className="text-xl font-bold">
-                                    {item.value}
-                                </h3>
-                                <span
-                                    className={`text-xs ${item.iconColor}`}
+                                <div
+                                    className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
                                 >
-                                    {item.badge}
-                                </span>
+                                    <Icon
+                                        size={15}
+                                        className={item.iconColor}
+                                    />
+                                </div>
+
+                                <div className='mt-2'>
+                                    <p className="text-sm text-[#43474F]">
+                                        {item.title}
+                                    </p>
+
+                                    <h3 className="text-xl font-bold">
+                                        {item.value}
+                                    </h3>
+                                    <span
+                                        className={`text-xs ${item.iconColor}`}
+                                    >
+                                        {item.badge}
+                                    </span>
+                                </div>
                             </div>
+                        );
+                    })}
+                </div>
+
+
+                <div className="bg-white rounded-2xl border border-[#D9DEE8] p-5 my-6">
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <div className="relative mt-1 rounded-lg md:col-span-2 col-span-1 border border-[#C3C6D1]">
+                            <Search
+                                size={16}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+
+                            <input
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                placeholder="Search by name..."
+                                className="w-full pl-10 py-2 outline-none"
+                            />
                         </div>
-                    );
-                })}
-            </div>
 
-
-            <div className="bg-white rounded-2xl border border-[#D9DEE8] p-5 my-6">
-                <div className="grid md:grid-cols-3 gap-4">
-                    <div className="relative mt-1 rounded-lg md:col-span-2 col-span-1 border border-[#C3C6D1]">
-                        <Search
-                            size={16}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
-
-                        <input
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            placeholder="Search by name..."
-                            className="w-full pl-10 py-2 outline-none"
-                        />
+                        <p className='border rounded-lg px-3 py-2 mt-1 border-[#C3C6D1]'>
+                            <select
+                                value={statusInput}
+                                onChange={(e) => setStatusInput(e.target.value)}
+                                className="w-full outline-none"
+                            >
+                                <option value="All Status">All Status</option>
+                                <option value="Active">Active</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </p>
                     </div>
-
-                    <p className='border rounded-lg px-3 py-2 mt-1 border-[#C3C6D1]'>
-                        <select
-                            value={statusInput}
-                            onChange={(e) => setStatusInput(e.target.value)}
-                            className="w-full outline-none"
-                        >
-                            <option value="All Status">All Status</option>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-                    </p>
                 </div>
-            </div>
 
-            {listError && (
-                <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
-                    {listError}
-                </div>
-            )}
-
-            {/* Table */}
-            <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                {listLoading ? (
-                    <div className="flex items-center justify-center gap-2 py-16 text-[#5F6368]">
-                        <Loader2 size={18} className="animate-spin" />
-                        Loading Status...
+                {listError && (
+                    <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
+                        {listError}
                     </div>
-                ) : (
-                    <DataGrid table={table} recordCount={filteredStatusData.length} className="rounded-2xl">
-                        <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
-                            </CardTable>
-                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                                <DataGridPagination />
-                            </CardFooter>
-                        </Card>
-                    </DataGrid>
                 )}
-            </div>
 
-            <StatusModal
-                mode={modalMode}
-                formData={formData}
-                loading={modalLoading}
-                error={modalError}
-                saving={saving}
-                onChange={setFormData}
-                onClose={closeModal}
-                onSave={handleSave}
-            />
-        </div>
+                {/* Table */}
+                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                    {listLoading ? (
+                        <div className="flex items-center justify-center gap-2 py-16 text-[#5F6368]">
+                            <Loader2 size={18} className="animate-spin" />
+                            Loading Status...
+                        </div>
+                    ) : (
+                        <DataGrid table={table} recordCount={filteredStatusData.length} className="rounded-2xl">
+                            <Card className="rounded-t-none border-t-0 rounded-2xl">
+                                <CardTable>
+                                    <ScrollArea>
+                                        <DataGridTable />
+                                        <ScrollBar orientation="horizontal" />
+                                    </ScrollArea>
+                                </CardTable>
+                                <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                                    <DataGridPagination />
+                                </CardFooter>
+                            </Card>
+                        </DataGrid>
+                    )}
+                </div>
+
+                <StatusModal
+                    mode={modalMode}
+                    formData={formData}
+                    loading={modalLoading}
+                    error={modalError}
+                    saving={saving}
+                    onChange={setFormData}
+                    onClose={closeModal}
+                    onSave={handleSave}
+                />
+            </div>
         </Container>
     )
 }

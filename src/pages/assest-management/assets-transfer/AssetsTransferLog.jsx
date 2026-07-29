@@ -175,17 +175,6 @@ const AssetsTransferLog = () => {
         },
 
         {
-            accessorKey: "assetId",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="ASSET ID" column={column} />
-            ),
-            cell: ({ row }) => (
-                <span className="text-[#121C2A] font-semibold">{row.original.assetId}</span>
-            ),
-            size: 140,
-        },
-
-        {
             accessorKey: "fromLocation",
             header: ({ column }) => (
                 <DataGridColumnHeader title="FROM LOCATION" column={column} />
@@ -219,13 +208,6 @@ const AssetsTransferLog = () => {
 
                 return (
                     <div className="flex items-center gap-2 my-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-[#0B5CAB] flex items-center justify-center text-xs font-bold">
-                            {name
-                                .split(" ")
-                                .map((i) => i[0])
-                                .join("")}
-                        </div>
-
                         <span className='text-[#121C2A] font-semibold'>{name}</span>
                     </div>
                 );
@@ -262,16 +244,16 @@ const AssetsTransferLog = () => {
             ),
             cell: () => (
                 <div className="flex gap-2">
-                    <button className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center cursor-pointer">
-                        <Eye size={15} className="text-[#0B5CAB]" />
+                    <button  className="text-gray-500 hover:text-green-600 cursor-pointer" >
+                        <Eye size={18}/>
                     </button>
 
-                    <button className="w-8 h-8 rounded-lg bg-[#FFF7E8] flex items-center justify-center cursor-pointer">
-                        <SquarePen size={15} className="text-[#D97706]" />
+                    <button className="text-gray-500 hover:text-blue-600 cursor-pointer">
+                        <SquarePen size={18}/>
                     </button>
 
-                    <button className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center cursor-pointer">
-                        <Trash2 size={15} className="text-red-500" />
+                    <button  className="text-red-300 hover:text-red-600 cursor-pointer">
+                        <Trash2 size={18} />
                     </button>
                 </div>
             ),
