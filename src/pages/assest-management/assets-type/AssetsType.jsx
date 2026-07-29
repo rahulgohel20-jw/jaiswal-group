@@ -233,18 +233,18 @@ const AssetsType = () => {
             cell: ({ row }) => (
                 <div className="flex items-center gap-4">
                     <Eye
-                        size={16}
-                        className="text-[#64748B] hover:text-[#084E92] cursor-pointer"
+                        size={18}
+                        className="text-[#64748B] hover:text-green-600 cursor-pointer"
                         onClick={() => handleView(row.original)}
                     />
                     <SquarePen
-                        size={16}
-                        className="text-[#64748B] hover:text-green-600 cursor-pointer"
+                        size={18}
+                        className="text-[#64748B] hover:text-blue-600 cursor-pointer"
                         onClick={() => openEditModal(row.original)}
                     />
                     <Trash2
-                        size={16}
-                        className="text-red-500 hover:text-red-700 cursor-pointer"
+                        size={18}
+                        className="text-red-300 hover:text-red-600 cursor-pointer"
                         onClick={() => handleDelete(row.original.id)}
                     />
                 </div>

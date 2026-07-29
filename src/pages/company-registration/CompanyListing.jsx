@@ -209,6 +209,7 @@ const CompanyRegistration = () => {
         cell: ({ row }) => (
           <span className="font-semibold text-gray-800">{row.original.name}</span>
         ),
+        size:220,
       },
       {
         id: "code",
@@ -257,26 +258,26 @@ const CompanyRegistration = () => {
             <button
               type="button"
               onClick={() => handleViewClick(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
+             className="text-gray-500 hover:text-green-600 cursor-pointer"
               title="View company"
             >
-              <Eye className="w-4 h-4" />
+              <Eye  size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleEdit(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
+               className="text-gray-500 hover:text-blue-600 cursor-pointer"
               title="Update company"
             >
-              <SquarePen className="w-4 h-4" />
+              <SquarePen  size={18}/>
             </button>
             <button
               type="button"
               onClick={() => handleDelete(row.original)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition cursor-pointer bg-white"
+             className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete company"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={18} />
             </button>
           </div>
         ),

@@ -289,23 +289,23 @@ const ConditionMasterModule = () => {
       cell: ({ row }) => (
         <div className="flex items-center gap-4">
           <Eye
-            size={16}
-            className="text-[#265FA4] cursor-pointer"
+            size={18}
+            className="text-gray-500 hover:text-green-600 cursor-pointer"
             onClick={() => openViewModal(row.original.id)}
           />
 
           <SquarePen
-            size={16}
-            className="cursor-pointer"
+            size={18}
+            className="text-gray-500 hover:text-blue-600 cursor-pointer"
             onClick={() => openEditModal(row.original.id)}
           />
 
           {deletingId === row.original.id ? (
-            <Loader2 size={16} className="animate-spin text-red-500" />
+            <Loader2 size={18} className="animate-spin text-red-500" />
           ) : (
             <Trash2
-              size={16}
-              className="text-red-500 cursor-pointer"
+              size={18}
+              className="text-red-300 hover:text-red-600 cursor-pointer"
               onClick={() => handleDelete(row.original.id)}
             />
           )}
@@ -354,144 +354,144 @@ const ConditionMasterModule = () => {
   return (
     <Container>
       <div className="p-4 md:p-6">
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-        <span>Dashboard</span>
-        <ChevronRight size={12} />
-        <span>Asset Management</span>
-        <ChevronRight size={12} />
-        <span className="text-[#084E92] font-medium">Condition Master</span>
-      </div>
-
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">
-            Condition Master
-          </h1>
-
-          <p className="text-[#5F6368] mt-1 max-w-2xl text-sm">
-            Configure and standardize asset health states
-            across the enterprise.
-          </p>
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Asset Management</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">Condition Master</span>
         </div>
 
-        <div className="flex gap-3">
-          <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
-            <Plus size={16} />
-            Add Condition
-          </button>
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">
+              Condition Master
+            </h1>
+
+            <p className="text-[#5F6368] mt-1 max-w-2xl text-sm">
+              Configure and standardize asset health states
+              across the enterprise.
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
+              <Plus size={16} />
+              Add Condition
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
-        {STATS.map((item, index) => {
-          const Icon = item.icon;
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
+          {STATS.map((item, index) => {
+            const Icon = item.icon;
 
-          return (
-            <div
-              key={index}
-              className="bg-white rounded-3xl border border-[#E6EBF4] p-5 shadow-sm"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div
-                  className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
-                >
-                  <Icon
-                    size={15}
-                    className={item.iconColor}
-                  />
+            return (
+              <div
+                key={index}
+                className="bg-white rounded-3xl border border-[#E6EBF4] p-5 shadow-sm"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <div
+                    className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
+                  >
+                    <Icon
+                      size={15}
+                      className={item.iconColor}
+                    />
+                  </div>
+
+                  {index === 0 && (
+                    <MoreVertical
+                      size={16}
+                      className="text-[#9CA3AF]"
+                    />
+                  )}
                 </div>
-
-                {index === 0 && (
-                  <MoreVertical
-                    size={16}
-                    className="text-[#9CA3AF]"
-                  />
-                )}
+                <h1 className="text-sm text-[#43474F]">{item.title}</h1>
+                <h2 className={`text-xl font-bold`}>{item.value}</h2>
+                <p className={`text-xs ${item.iconColor}`}>{item.badge}</p>
               </div>
-              <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-              <h2 className={`text-xl font-bold`}>{item.value}</h2>
-              <p className={`text-xs ${item.iconColor}`}>{item.badge}</p>
+            );
+          })}
+        </div>
+
+        <div className="rounded-2xl border border-[#D9DEE8] p-5 my-10 bg-white">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+            {/* Search  */}
+            <div className="relative border border-[#C3C6D1] rounded-lg col-span-1 md:col-span-2">
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+
+              <input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Type to search conditions..."
+                className="w-full pl-10 py-2.5 rounded-lg outline-none"
+              />
             </div>
-          );
-        })}
-      </div>
-
-      <div className="rounded-2xl border border-[#D9DEE8] p-5 my-10 bg-white">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-          {/* Search  */}
-          <div className="relative border border-[#C3C6D1] rounded-lg col-span-1 md:col-span-2">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Type to search conditions..."
-              className="w-full pl-10 py-2.5 rounded-lg outline-none"
-            />
-          </div>
 
 
-          {/* Status */}
-          <div className="border border-[#C3C6D1] rounded-lg px-3 py-2.5">
-            <select
-              value={statusInput}
-              onChange={(e) => setStatusInput(e.target.value)}
-              className="outline-none w-full bg-transparent"
-            >
-              <option value="All Status">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+            {/* Status */}
+            <div className="border border-[#C3C6D1] rounded-lg px-3 py-2.5">
+              <select
+                value={statusInput}
+                onChange={(e) => setStatusInput(e.target.value)}
+                className="outline-none w-full bg-transparent"
+              >
+                <option value="All Status">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
           </div>
         </div>
-      </div>
 
-      {listError && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
-          {listError}
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-        {listLoading ? (
-          <div className="flex items-center justify-center gap-2 py-16 text-[#5F6368]">
-            <Loader2 size={18} className="animate-spin" />
-            Loading conditions...
+        {listError && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
+            {listError}
           </div>
-        ) : (
-          <DataGrid table={table} recordCount={filteredConditions.length} className="rounded-2xl">
-            <Card className="rounded-t-none border-t-0 rounded-2xl">
-              <CardTable>
-                <ScrollArea>
-                  <DataGridTable />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-              </CardTable>
-              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                <DataGridPagination />
-              </CardFooter>
-            </Card>
-          </DataGrid>
         )}
-      </div>
 
-      <ConditionModal
-        mode={modalMode}
-        formData={formData}
-        loading={modalLoading}
-        error={modalError}
-        saving={saving}
-        onChange={setFormData}
-        onClose={closeModal}
-        onSave={handleSave}
-      />
-    </div>
+        {/* Table */}
+        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+          {listLoading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-[#5F6368]">
+              <Loader2 size={18} className="animate-spin" />
+              Loading conditions...
+            </div>
+          ) : (
+            <DataGrid table={table} recordCount={filteredConditions.length} className="rounded-2xl">
+              <Card className="rounded-t-none border-t-0 rounded-2xl">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+                <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
+          )}
+        </div>
+
+        <ConditionModal
+          mode={modalMode}
+          formData={formData}
+          loading={modalLoading}
+          error={modalError}
+          saving={saving}
+          onChange={setFormData}
+          onClose={closeModal}
+          onSave={handleSave}
+        />
+      </div>
     </Container>
   )
 }
