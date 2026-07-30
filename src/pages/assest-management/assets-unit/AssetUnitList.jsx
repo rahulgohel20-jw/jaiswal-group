@@ -275,12 +275,12 @@ const AssetUnitList = () => {
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Unit Master</span>
+                <span className="text-[#084E92] font-medium">Measure of unit Master</span>
             </div>
 
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Unit Master</h1>
+                    <h1 className="text-2xl font-bold">Measure of unit Master</h1>
                     <p className="text-[#737781] mt-1 text-sm">
                         Manage all measurement units used throughout the Asset Management module.
                     </p>

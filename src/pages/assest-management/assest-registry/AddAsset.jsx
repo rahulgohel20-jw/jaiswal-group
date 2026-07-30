@@ -1240,14 +1240,6 @@ const AddAsset = () => {
                 ? 'Update Asset'
                 : 'Save Asset'}
           </button>
-          {!isEditMode &&
-            <button
-              type="button"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 hover:bg-[#073e77] transition cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              Save &amp; Assign
-            </button>}
         </div>
       </div>
 

@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
       await resetPassword({
         email,
         newPassword: trimmedPassword,
-        organizationId: 8,
+        organizationId: 11,
         otp,
       });
       setResetSuccess(true);

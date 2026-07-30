@@ -901,20 +901,6 @@ useEffect(() => {
                   </div>
 
                   <div>
-                    <Label required>Salary</Label>
-                    <input
-                      name="salary"
-                      type="number"
-                      min="0"
-                      value={form.salary}
-                      onChange={(e) => set('salary', e.target.value)}
-                      placeholder="e.g., 50000"
-                      className={errors.salary ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.salary} />
-                  </div>
-
-                  <div>
                     <Label required>Joining Date</Label>
                     <input
                       name="joiningDate"
