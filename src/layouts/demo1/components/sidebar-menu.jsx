@@ -11,7 +11,7 @@ import {
   AccordionMenuItem,
   AccordionMenuLabel,
   AccordionMenuSub,
-  AccordionMenuSubContent,
+  AccordionMenuSubContent,  
   AccordionMenuSubTrigger,
 } from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
