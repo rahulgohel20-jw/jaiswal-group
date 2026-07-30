@@ -38,32 +38,32 @@ const STATUS = {
         "bg-red-50 text-red-600 border border-red-200",
 };
 const InfoCard = ({ label, value }) => (
-  <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
-    <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">
-      {label}
-    </p>
-    <p className="text-sm font-semibold text-gray-800 mt-1">
-      {value || '—'}
-    </p>
-  </div>
+    <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
+        <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">
+            {label}
+        </p>
+        <p className="text-sm font-semibold text-gray-800 mt-1">
+            {value || '—'}
+        </p>
+    </div>
 );
 
 const StatCard = ({ label, value, icon: Icon }) => (
-  <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-    <div className="flex items-center justify-between">
-      <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">
-        {label}
-      </p>
+    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">
+                {label}
+            </p>
 
-      <div className="w-9 h-9 rounded-xl bg-[#084E92]/10 flex items-center justify-center">
-        <Icon className="w-4 h-4 text-[#084E92]" />
-      </div>
+            <div className="w-9 h-9 rounded-xl bg-[#084E92]/10 flex items-center justify-center">
+                <Icon className="w-4 h-4 text-[#084E92]" />
+            </div>
+        </div>
+
+        <p className="mt-3 text-sm font-semibold text-gray-800">
+            {value || '—'}
+        </p>
     </div>
-
-    <p className="mt-3 text-sm font-semibold text-gray-800">
-      {value || '—'}
-    </p>
-  </div>
 );
 
 const VendorViewDetails = () => {
@@ -271,26 +271,28 @@ const VendorViewDetails = () => {
                         value={vendor.addressLine2}
                     />
 
-                    <InfoCard
-                        label="City"
-                        value={vendor.city}
-                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <InfoCard
+                            label="City"
+                            value={vendor.city}
+                        />
 
-                    <InfoCard
-                        label="State"
-                        value={vendor.state}
-                    />
+                        <InfoCard
+                            label="State"
+                            value={vendor.state}
+                        />
 
-                    <InfoCard
-                        label="Country"
-                        value={vendor.country}
-                    />
+                        <InfoCard
+                            label="Country"
+                            value={vendor.country}
+                        />
 
-                    <InfoCard
-                        label="Pincode"
-                        value={vendor.pincode}
-                    />
+                        <InfoCard
+                            label="Pincode"
+                            value={vendor.pincode}
+                        />
 
+                    </div>
                 </div>
 
             </SectionCard>

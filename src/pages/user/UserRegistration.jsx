@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ChevronDown, Map, MapPin, User, X, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { getAllCountries, getStatesByCountry, getCitiesByState } from '@/services/apiServices';
-import { getEmployeeById, saveEmployee, getActiveCompany, updateEmployee,getDepartmentsByOrganization   } from '@/services/apiServices';
+import { getEmployeeById, saveEmployee, getActiveCompany, updateEmployee, getDepartmentsByOrganization } from '@/services/apiServices';
 import {
   DEFAULT_FORM,
   extractList,
@@ -36,9 +36,8 @@ const Select = ({ value, onChange, placeholder, options, hasError }) => (
     <select
       value={value}
       onChange={onChange}
-      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${
-        value === '' ? 'text-gray-400' : 'text-gray-800'
-      }`}
+      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${value === '' ? 'text-gray-400' : 'text-gray-800'
+        }`}
     >
       <option value="" disabled>
         {placeholder}
@@ -60,9 +59,8 @@ const IdSelect = ({ value, onChange, placeholder, options, hasError, disabled, l
       value={value}
       onChange={onChange}
       disabled={disabled || loading}
-      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${
-        value === '' ? 'text-gray-400' : 'text-gray-800'
-      } ${disabled || loading ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${value === '' ? 'text-gray-400' : 'text-gray-800'
+        } ${disabled || loading ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
     >
       <option value="" disabled>
         {loading ? 'Loading...' : placeholder}
@@ -254,7 +252,7 @@ const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/
 // like "hiten@gmail.commm" or "hiten@gmail.c").
 const EMAIL_REGEX =
   /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,24}$/;
-  
+
 const KNOWN_TLDS = new Set([
   'com', 'net', 'org', 'edu', 'gov', 'mil', 'info', 'biz', 'co',
   'in', 'io', 'us', 'uk', 'ca', 'au', 'de', 'fr', 'jp', 'cn', 'ai',
@@ -350,8 +348,8 @@ const UserRegistration = () => {
     () =>
       form.companyId
         ? allOrgs
-            .filter((o) => String(o.parentId) === String(form.companyId))
-            .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name }))
+          .filter((o) => String(o.parentId) === String(form.companyId))
+          .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name }))
         : [],
     [allOrgs, form.companyId],
   );
@@ -475,35 +473,35 @@ const UserRegistration = () => {
     };
   }, [form.stateId]);
 
-// Departments are scoped to whichever org level is selected: Unit takes
-// precedence, then Company, and — with nothing picked — we fall back to
-// the Main Group (Jaiswal Group, id 1) so the list is never empty by default.
-useEffect(() => {
-  const organizationId = form.outletId || form.companyId || MAIN_GROUP_ID;
-  let cancelled = false;
-  const fetchDepartments = async () => {
-    setLoadingDepartments(true);
-    try {
-      const res = await getDepartmentsByOrganization(organizationId);
-      if (!cancelled) {
-        const list = extractList(res).map((d) => ({
-          id: d.id,
-          name: d.departmentName,
-        }));
-        setDepartments(list);
+  // Departments are scoped to whichever org level is selected: Unit takes
+  // precedence, then Company, and — with nothing picked — we fall back to
+  // the Main Group (Jaiswal Group, id 1) so the list is never empty by default.
+  useEffect(() => {
+    const organizationId = form.outletId || form.companyId || MAIN_GROUP_ID;
+    let cancelled = false;
+    const fetchDepartments = async () => {
+      setLoadingDepartments(true);
+      try {
+        const res = await getDepartmentsByOrganization(organizationId);
+        if (!cancelled) {
+          const list = extractList(res).map((d) => ({
+            id: d.id,
+            name: d.departmentName,
+          }));
+          setDepartments(list);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setDepartments([]);
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
       }
-    } catch (err) {
-      console.error(err);
-      if (!cancelled) setDepartments([]);
-    } finally {
-      if (!cancelled) setLoadingDepartments(false);
-    }
-  };
-  fetchDepartments();
-  return () => {
-    cancelled = true;
-  };
-}, [form.companyId, form.outletId]);
+    };
+    fetchDepartments();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.companyId, form.outletId]);
 
   const set = (key, val) => {
     setForm((f) => ({ ...f, [key]: val }));
@@ -629,7 +627,7 @@ useEffect(() => {
       console.error(err);
       setSubmitError(
         err?.response?.data?.message ||
-          `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
+        `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
       );
       notify.error(`Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`);
     } finally {
@@ -738,7 +736,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <div className={`grid gap-4 ${isEditMode ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                <div className={`grid gap-4 grid-cols-3`}>
                   {isEditMode && (
                     <div>
                       <Label>User Code (Auto Generated)</Label>
@@ -758,9 +756,8 @@ useEffect(() => {
                       onChange={(e) => set('username', e.target.value)}
                       placeholder="e.g., rjaiswal"
                       disabled={isEditMode}
-                      className={`${errors.username ? errorInputCls : inputCls} ${
-                        isEditMode ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
-                      }`}
+                      className={`${errors.username ? errorInputCls : inputCls} ${isEditMode ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
+                        }`}
                     />
                     <ErrorText message={errors.username} />
                   </div>
@@ -777,38 +774,6 @@ useEffect(() => {
                       className={errors.email ? errorInputCls : inputCls}
                     />
                     <ErrorText message={errors.email} />
-                  </div>
-
-                  <div>
-                    <Label required>Company</Label>
-                    <IdSelect
-                      value={form.companyId}
-                      onChange={handleCompanyChange}
-                      placeholder="Select Company"
-                      options={companies}
-                      hasError={!!errors.companyId}
-                      loading={loadingOrgs}
-                    />
-                    <ErrorText message={errors.companyId} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <Label>Unit</Label>
-                    <IdSelect
-                      value={form.outletId}
-                      onChange={handleUnitChange}
-                      placeholder={form.companyId ? 'Select Unit (optional)' : 'Select company first'}
-                      options={outlets}
-                      hasError={!!errors.outletId}
-                      disabled={!form.companyId}
-                      loading={loadingOrgs}
-                    />
-                    <ErrorText message={errors.outletId} />
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      Leave blank to register the user directly under the company.
-                    </p>
                   </div>
 
                   {!isEditMode && (
@@ -842,6 +807,75 @@ useEffect(() => {
                     </div>
                   )}
 
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+
+                  
+                  <div>
+                    <Label required>Company</Label>
+                    <IdSelect
+                      value={form.companyId}
+                      onChange={handleCompanyChange}
+                      placeholder="Select Company"
+                      options={companies}
+                      hasError={!!errors.companyId}
+                      loading={loadingOrgs}
+                    />
+                    <ErrorText message={errors.companyId} />
+                  </div>
+                  <div>
+                    <Label>Unit</Label>
+                    <IdSelect
+                      value={form.outletId}
+                      onChange={handleUnitChange}
+                      placeholder={form.companyId ? 'Select Unit (optional)' : 'Select company first'}
+                      options={outlets}
+                      hasError={!!errors.outletId}
+                      disabled={!form.companyId}
+                      loading={loadingOrgs}
+                    />
+                    <ErrorText message={errors.outletId} />
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Leave blank to register the user directly under the company.
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label required>Department</Label>
+                    <IdSelect
+                      value={form.departmentId}
+                      onChange={(e) => set('departmentId', e.target.value)}
+                      placeholder="Select Department"
+                      options={departments}
+                      hasError={!!errors.departmentId}
+                      disabled={false}
+                      loading={loadingDepartments}
+                    />
+                    <ErrorText message={errors.departmentId} />
+                    {!form.companyId && (
+                      <p className="text-[11px] text-gray-400 mt-1">
+                        Showing departments under Jaiswal Group. Select a company or unit to narrow this list.
+                      </p>
+                    )}
+                  </div>
+
+                  
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  
+                  <div>
+                    <Label required>Designation</Label>
+                    <input
+                      name="designation"
+                      value={form.designation}
+                      onChange={(e) => set('designation', e.target.value)}
+                      placeholder="e.g., Manager"
+                      className={errors.designation ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.designation} />
+                  </div>
                   <div>
                     <Label required>Mobile Number</Label>
                     <input
@@ -866,41 +900,9 @@ useEffect(() => {
                     />
                     <ErrorText message={errors.altMobile} />
                   </div>
-                </div>
+                  
 
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <Label required>Department</Label>
-                    <IdSelect
-                      value={form.departmentId}
-                      onChange={(e) => set('departmentId', e.target.value)}
-                      placeholder="Select Department"
-                      options={departments}
-                      hasError={!!errors.departmentId}
-                      disabled={false}
-                      loading={loadingDepartments}
-                    />
-                    <ErrorText message={errors.departmentId} />
-                    {!form.companyId && (
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Showing departments under Jaiswal Group. Select a company or unit to narrow this list.
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label required>Designation</Label>
-                    <input
-                      name="designation"
-                      value={form.designation}
-                      onChange={(e) => set('designation', e.target.value)}
-                      placeholder="e.g., Manager"
-                      className={errors.designation ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.designation} />
-                  </div>
-
-                  <div>
+                  {/* <div>
                     <Label required>Salary</Label>
                     <input
                       name="salary"
@@ -924,7 +926,7 @@ useEffect(() => {
                       className={errors.joiningDate ? errorInputCls : inputCls}
                     />
                     <ErrorText message={errors.joiningDate} />
-                  </div>
+                  </div> */}
                 </div>
               </div>
             )}
