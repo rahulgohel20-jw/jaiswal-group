@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '@/auth/context/auth-context';
 import * as authHelper from '@/auth/lib/helpers';
 
@@ -12,10 +13,26 @@ export function AuthProvider({ children }) {
     setIsAdmin(currentUser?.is_admin === true);
   }, [currentUser]);
 
+  const enrichAuth = (nextAuth) => {
+    if (!nextAuth?.token) return nextAuth;
+    try {
+      const decoded = jwtDecode(nextAuth.token);
+      return {
+        ...nextAuth,
+        organizationId: decoded.organizationId,
+        departmentId: decoded.departmentId,
+        userType: decoded.userType,
+      };
+    } catch {
+      return nextAuth;
+    }
+  };
+
   const saveAuth = (nextAuth) => {
-    setAuth(nextAuth);
-    if (nextAuth) {
-      authHelper.setAuth(nextAuth);
+    const enriched = enrichAuth(nextAuth);
+    setAuth(enriched);
+    if (enriched) {
+      authHelper.setAuth(enriched);
     } else {
       authHelper.removeAuth();
     }

@@ -70,6 +70,7 @@ import {
   ClipboardList,
   Group,
   Fence,
+  NetworkIcon,
 } from 'lucide-react';
 
 // export const MENU_SIDEBAR = [
@@ -415,7 +416,6 @@ export const MENU_SIDEBAR = [
   {
     title: 'Dashboard',
     icon: LayoutGrid,
-
     path: '/',
   },
   {
@@ -429,9 +429,14 @@ export const MENU_SIDEBAR = [
     path: '/units',
   },
   {
+    title: 'Sub Units',
+    icon: NetworkIcon,
+    path: '/sub-units',
+  },
+  {
     title: 'User/Vendor Selection',
     icon: UserPlus,
-    path:'/user-vendor-selection',
+    path: '/user-vendor-selection',
   },
   {
     title: 'Users',
@@ -446,7 +451,7 @@ export const MENU_SIDEBAR = [
   {
     title: 'Department',
     icon: Group,
-     children: [
+    children: [
       { title: 'Departments', path: '/department' },
     ],
   },
@@ -454,18 +459,24 @@ export const MENU_SIDEBAR = [
     title: 'Asset Management',
     icon: LayoutGrid,
     children: [
-      { title: 'Category Master',path: '/assets/categories' },
-      { title: 'Sub Category Master', path: '/assets/sub-categories' },
-      { title: 'Assets Type Master',  path: '/assets/asset-type' },
+      {
+        title: 'Masters',
+        icon: Settings,
+        children: [
+          { title: 'Category Master', path: '/assets/categories' },
+          { title: 'Sub Category Master', path: '/assets/sub-categories' },
+          { title: 'Assets Type Master', path: '/assets/asset-type' },
+          { title: 'Conditions Master', path: '/assets/conditions' },
+          { title: 'Status Master', path: '/assets/status' },
+          { title: 'Asset Brand Master', path: '/assets/asset-brand' },
+          { title: 'Measure of unit Master', path: '/assets/asset-unit' },
+        ],
+      },
       { title: 'Assets', path: '/assets/all-assets' },
       { title: 'Assigned Asset', path: '/assigned-assets' },
-      { title: 'Conditions Master', path: '/assets/conditions' },
-      { title: 'Status Master', path: '/assets/status' },
-      { title: 'Asset Brand Master', path: '/assets/asset-brand' },
-      { title: 'Measure of unit Master', path: '/assets/asset-unit' },
       { title: 'Asset Maintenance', path: '/assets/asset-maintenance' },
       { title: 'Asset Transfer', path: '/assets/asset-transfer-log' },
-      { title: 'Asset Disposal', path: '/assets/asset-disposal' }
+      { title: 'Asset Disposal', path: '/assets/asset-disposal' },
     ],
   },
 ];
@@ -483,10 +494,8 @@ export const MENU_SIDEBAR_ADMIN = [
     children: [
       { title: 'Purchase Requisition', path: '/purchase-requisition/list'},
       { title: 'Approve Purchase Requisition', path: '/approve-purchase-requisition/list'},
-      { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' },
-  
-      { title: 'Purchase Order', path: '/purchase/purchase-order' },
-      { title: 'Approved Purchase Order', path: '/purchase/approved-order'},
+      { title: 'Purchase Order Requests', path: '/purchase-order-request/purchase' },
+      { title: 'Purchase Order', path: '/purchase/approved-order'},
 
     ],
   },

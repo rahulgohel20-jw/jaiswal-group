@@ -209,7 +209,7 @@ const PurchaseOrderRequest = () => {
                     {row.original.action === "Generate PO" ? (
                         <>
                             <Link 
-                            to="/purchase/purchase-order-requests/create" 
+                            to="/purchase/create-purchase-order-requests" 
                             state={row.original}>
                             <button className="bg-[#084E92] text-white px-4 py-1 rounded-lg text-xs cursor-pointer">
                                 Generate PO

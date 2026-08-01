@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, KeyRound, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, KeyRound, AlertTriangle, X, CheckCircle2, Building2 } from 'lucide-react';
 import { resetPassword } from '@/services/apiServices';
 
 export default function ResetPasswordPage() {
@@ -16,7 +16,11 @@ export default function ResetPasswordPage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
-  
+
+  const organizations = location.state?.organizations || [];
+  const [organizationId, setOrganizationId] = useState(
+    organizations.length === 1 ? String(organizations[0].organizationId) : ''
+  );
 
   const emailFromState = Boolean(location.state?.email);
 
@@ -32,12 +36,17 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    if (!organizationId) {
+      setErrorMsg('Please select an organization.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await resetPassword({
         email,
         newPassword: trimmedPassword,
-        organizationId: 11,
+        organizationId: Number(organizationId),
         otp,
       });
       setResetSuccess(true);
@@ -134,6 +143,30 @@ export default function ResetPasswordPage() {
                     </div>
                   </div>
 
+                  {organizations.length > 1 && (
+                    <div>
+                      <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">Organization</label>
+                      <div className="flex items-center gap-2 rounded-lg border border-[#E1E4E9] px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors">
+                        <Building2 className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
+                        <select
+                          value={organizationId}
+                          onChange={(e) => setOrganizationId(e.target.value)}
+                          required
+                          className="flex-1 outline-none text-[13px] text-[#0F2A4A] bg-transparent cursor-pointer"
+                        >
+                          <option value="" disabled>
+                            Choose an organization
+                          </option>
+                          {organizations.map((org) => (
+                            <option key={org.organizationId} value={org.organizationId}>
+                              {org.companyName?.trim()} ({org.companyCode})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">OTP</label>
                     <div className="flex items-center gap-2 rounded-lg border border-[#E1E4E9] px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors">
@@ -201,7 +234,7 @@ export default function ResetPasswordPage() {
                     className="w-full bg-[#0F2A4A] hover:bg-[#123256] cursor-pointer text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
                   >
                     {submitting ? 'Updating...' : 'Update Password'}
-                  </button>               
+                  </button>
                 </form>
 
                 <a href="/" className="mt-5 flex items-center justify-center text-[12px] text-[#1D4E89] font-medium hover:underline">

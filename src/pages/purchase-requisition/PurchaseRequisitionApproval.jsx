@@ -464,7 +464,6 @@ function ApprovalView({ requisition, onBack }) {
               Raised by
             </div>
             <div className="flex items-center gap-2.5">
-              <Avatar initials={requisition?.initials ?? "SK"} />
               <span className="text-[#101828] font-medium text-sm">
                 {requisition?.raisedBy ?? "Sanjay Kapoor"}{" "}
                 <span className="text-[#98A2B3] font-normal">(Inv. Mgr)</span>
