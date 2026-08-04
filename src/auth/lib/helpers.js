@@ -16,9 +16,6 @@ const getAuth = () => {
   }
 };
 
-/**
- * Save auth information to local storage
- */
 const setAuth = (auth) => {
   setData(AUTH_LOCAL_STORAGE_KEY, auth);
 };

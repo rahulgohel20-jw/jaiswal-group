@@ -879,17 +879,8 @@ const CompanyRegistration = () => {
           onClick={handleSubmit}
           className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white"
         >
-          {isEditMode ? 'Update Company' : 'Save Company'}
+          {isEditMode ? 'Update' : 'Save'}
         </button>
-        {!isEditMode && (
-          <button
-            type="button"
-            onClick={handleSubmit}
-            className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
-          >
-            Save &amp; Add Outlet
-          </button>
-        )}
       </div>
 
       {showMapPicker && (

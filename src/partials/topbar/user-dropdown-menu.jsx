@@ -7,6 +7,7 @@ import {
   FileText,
   Globe,
   IdCard,
+  KeyRound,
   Moon,
   Settings,
   Shield,
@@ -239,7 +240,15 @@ const navigate = useNavigate();
         </DropdownMenuSub> */}
 
         <DropdownMenuSeparator />
-
+        <DropdownMenuItem asChild>
+          <Link
+            to="/change-password"
+            className="flex items-center gap-2"
+          >
+            <KeyRound />
+            Change Password
+          </Link>
+        </DropdownMenuItem>
         {/* Footer */}
         <DropdownMenuItem
           className="flex items-center gap-2"

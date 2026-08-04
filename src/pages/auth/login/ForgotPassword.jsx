@@ -9,13 +9,16 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [organizations, setOrganizations] = useState([]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSubmitting(true);
     try {
-      await forgotPassword({ email, organizationId: 1 });
+      const res = await forgotPassword({ email });
+      const orgs = res?.data?.data?.organizations || [];
+      setOrganizations(orgs);
       setSent(true);
     } catch (err) {
       console.error(err);
@@ -30,7 +33,9 @@ export default function ForgotPasswordPage() {
   };
 
   const handleContinueToReset = () => {
-    navigate('/auth/reset-password', { state: { email } });
+    navigate('/auth/reset-password', {
+      state: { email, organizations },
+    });
   };
 
   return (

@@ -160,6 +160,11 @@ import Departmentlist from '../pages/department/Departmentlist';
 import MenuItemsListing from '../pages/menu-item/create-menu-item/MenuItemListing';
 import CreatePurchaseOrder from '../pages/purchase-order-requests/CreatePurchaseOrder';
 import PurchaseOrderApproved from '../pages/purchase-approved-order/PurchaseOrderApproved';
+import SubUnitList from '../pages/sub-unit/SubUnitListing';
+import AddSubUnit from '../pages/sub-unit/AddSubunit';
+import SubUnitListing from '../pages/sub-unit/SubUnitListing';
+import SubUnitDetails from '../pages/sub-unit/Subunitdetails';
+import ChangePasswordPage from '../pages/auth/login/ChangePasswordPage';
 
 export function AppRoutingSetup() {
   return (
@@ -179,6 +184,7 @@ export function AppRoutingSetup() {
 
   <Route element={<RequireAuth />}>
     <Route element={<Demo1Layout />}>
+          <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
 
@@ -191,6 +197,11 @@ export function AppRoutingSetup() {
           <Route path="/units/add-unit" element={<AddUnit />} />
           <Route path="/units/update-unit" element={<AddUnit />} />
           <Route path='/units/view-unit' element={<UnitViewDetails/>}/>
+
+          <Route path="/sub-units" element={<SubUnitListing />} />
+          <Route path="/sub-units/add" element={<AddSubUnit />} />
+          <Route path="/sub-units/update-sub-unit" element={<AddSubUnit />} />
+          <Route path="/sub-units/sub-unit-details" element={<SubUnitDetails />} />
 
           <Route path="/assets/assets-items" element={<AssetItemsList />} />
 
@@ -245,8 +256,8 @@ export function AppRoutingSetup() {
           <Route path='/menu-item/sub-category' element={<MenuSubCategory/>}/>
 
           <Route path='/menu-item/menu-items' element={<MenuItemsListing/>}/>
-             <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
-             <Route path="/menu-item/edit-menu-item/:id" element={<CreateMenuItem />}/>
+          <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
+          <Route path="/menu-item/edit-menu-item/:id" element={<CreateMenuItem />}/>
 
           <Route path="/purchase-requisition/list" element={<PurchaseRequisitionList/>} />
           <Route path='/purchase-requisition/add' element={<AddPurchaseRequisition />} />
@@ -254,8 +265,8 @@ export function AppRoutingSetup() {
           <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
           <Route path='/purchase/purchase-order' element={<AddPurchaseOrder/>}/>
-          <Route path='/purchase/purchase-order-requests' element={<PurchaseOrderRequest/>}/>
-          <Route path='/purchase/purchase-order-requests/create' element={<CreatePurchaseOrder/>}/>
+          <Route path='/purchase-order-request/purchase' element={<PurchaseOrderRequest/>}/>
+          <Route path='/purchase/create-purchase-order-requests' element={<CreatePurchaseOrder/>}/>
           <Route path='/purchase/approved-order' element={<PurchaseOrderApproved/>}/>
 
 

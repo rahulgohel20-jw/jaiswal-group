@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  Store,
   Eye,
   SquarePen,
   Plus,
@@ -28,8 +27,9 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { Link, useNavigate } from "react-router";
-import { deleteCompany, getRegisteredCompany } from "../../services/apiServices";
+import { deleteCompany, getRegisteredCompany, getOrganizationByType } from "../../services/apiServices";
 import { notify } from "@/utils/toast";
+import { OrgTypes } from "../../constants/orgTypes";
 
 const STATUS_STYLES = {
   active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -41,11 +41,6 @@ const STATUS_LABELS = {
   active: "Active",
   pending: "Pending",
   maintenance: "Maintenance",
-};
-
-const SERVICE_TYPE_LABELS = {
-  restaurant: "Restaurant",
-  Unit: "Unit",
 };
 
 const StatusBadge = ({ status }) => (
@@ -61,12 +56,6 @@ const StatusBadge = ({ status }) => (
         }`}
     />
     {STATUS_LABELS[status]}
-  </span>
-);
-
-const ServiceTypeBadge = ({ type }) => (
-  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200">
-    {SERVICE_TYPE_LABELS[type]}
   </span>
 );
 
@@ -104,7 +93,6 @@ const DeleteConfirmModal = ({ Unit, onCancel, onConfirm }) => (
     </div>
   </div>
 );
-
 
 // Generic dropdown used for the filters and export menus
 const Dropdown = ({ label, icon: Icon, children, widthClass = "w-48" }) => {
@@ -169,7 +157,6 @@ const UnitListing = () => {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [deletingUnit, setDeletingUnit] = useState(null);
 
@@ -191,7 +178,7 @@ const UnitListing = () => {
     setError(null);
 
     try {
-      const res = await getRegisteredCompany();
+      const res = await getOrganizationByType(OrgTypes.OUTLET);
 
       const list =
         res?.data?.data ||
@@ -199,14 +186,9 @@ const UnitListing = () => {
         res?.data ||
         [];
 
-      const outlets = Array.isArray(list)
-        ? list.filter(
-          (item) => item.orgType?.toLowerCase() === "outlet"
-        )
-        : [];
+      const outlets = Array.isArray(list) ? list : [];
 
       setUnits(outlets.map(normalizeUnit));
-
     } catch (err) {
       console.error(err);
       setError("Failed to load units.");
@@ -234,12 +216,9 @@ const UnitListing = () => {
         const matchesStatus =
           statusFilter === "all" || o.status === statusFilter;
 
-        const matchesType =
-          typeFilter === "all" || o.serviceType === typeFilter;
-
-        return matchesSearch && matchesStatus && matchesType;
+        return matchesSearch && matchesStatus;
       }),
-    [Units, search, statusFilter, typeFilter]
+    [Units, search, statusFilter]
   );
 
   // Sends the user to the same form used for creating a Unit, but with the
@@ -388,12 +367,6 @@ const UnitListing = () => {
     { key: "maintenance", label: "Maintenance" },
   ];
 
-  const TYPE_OPTIONS = [
-    { key: "all", label: "All Units & restaurants" },
-    { key: "Unit", label: "Units" },
-    { key: "restaurant", label: "Restaurants" },
-  ];
-
   if (loading) {
     return (
       <Container>
@@ -403,7 +376,6 @@ const UnitListing = () => {
       </Container>
     );
   }
-
 
   if (error) {
     return (
@@ -466,24 +438,6 @@ const UnitListing = () => {
                         active={statusFilter === opt.key}
                         onClick={() => {
                           setStatusFilter(opt.key);
-                          close();
-                        }}
-                      />
-                    ))}
-                  </>
-                )}
-              </Dropdown>
-
-              <Dropdown label="Type" icon={SlidersHorizontal} widthClass="w-56">
-                {(close) => (
-                  <>
-                    {TYPE_OPTIONS.map((opt) => (
-                      <DropdownItem
-                        key={opt.key}
-                        label={opt.label}
-                        active={typeFilter === opt.key}
-                        onClick={() => {
-                          setTypeFilter(opt.key);
                           close();
                         }}
                       />

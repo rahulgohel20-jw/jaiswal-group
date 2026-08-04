@@ -885,7 +885,7 @@ const handleSubmit = async () => {
           onClick={handleSubmit}
           className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
         >
-          {isEditMode ? 'Update Unit' : 'Save Unit'}
+          {isEditMode ? 'Update' : 'Save'}
         </button>
       </div>
 

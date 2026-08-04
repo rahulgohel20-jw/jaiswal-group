@@ -1,31 +1,54 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Mail, IdCard, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertTriangle, Building2, Info } from 'lucide-react';
 import { loginUser } from '@/services/apiServices';
+import { useAuth } from '@/auth/context/auth-context';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();  
+  const { saveAuth, setUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [email, setEmail] = useState('');
-  const [userCode, setUserCode] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
+  const [requiresOrgSelection, setRequiresOrgSelection] = useState(false);
+  const [organizations, setOrganizations] = useState([]);
+  const [organizationId, setOrganizationId] = useState('');
+
   const validate = () => {
     const e = {};
     if (!email.trim()) e.email = 'Email is required';
     else if (!EMAIL_REGEX.test(email)) e.email = 'Enter a valid email address';
-
     if (!password) e.password = 'Password is required';
-
+    if (requiresOrgSelection && !organizationId) {
+      e.organizationId = 'Please select an organization';
+    }
     return e;
   };
+
+ const finishLogin = (res) => {
+  const payload = res?.data?.data ?? res?.data;
+  if (!payload?.token) return;
+
+   if (payload.token) {
+    console.log('Storing auth token in localStorage:', payload.token);
+        localStorage.setItem('authToken', payload.token);
+    }
+
+  saveAuth(payload);
+  const user = payload?.user || payload?.data || payload;
+  setUser(user);
+
+  const next = searchParams.get('next');
+  navigate(next || '/dashboard', { replace: true });
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,13 +64,16 @@ export default function LoginPage() {
       const res = await loginUser({
         email,
         password,
+        organizationId: requiresOrgSelection ? Number(organizationId) : 0,
       });
-      const token = res?.data?.data?.token ?? res?.data?.token;
-      if (token) {
-        localStorage.setItem('authToken', token);
+
+      if (res?.data?.data?.requiresOrganizationSelection) {
+        setOrganizations(res.data.data.organizations || []);
+        setRequiresOrgSelection(true);
+        return;
       }
-      const next = searchParams.get('next');
-      navigate(next || '/dashboard', { replace: true });
+
+      finishLogin(res);
     } catch (err) {
       console.error(err);
       setSubmitError(
@@ -92,6 +118,15 @@ export default function LoginPage() {
             Enter your credentials to access the super admin panel.
           </p>
 
+          {requiresOrgSelection && (
+            <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12px] text-blue-800">
+              <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>
+                Multiple accounts found for <strong>{email}</strong>. Please select an organization below to continue.
+              </span>
+            </div>
+          )}
+
           {submitError && (
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] text-red-700">
               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
@@ -102,17 +137,18 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
               <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">Email ID</label>
-              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.email ? 'border-red-400' : 'border-[#E1E4E9]'}`}>
+              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.email ? 'border-red-400' : 'border-[#E1E4E9]'} ${requiresOrgSelection ? 'bg-[#F7F8FA]' : ''}`}>
                 <Mail className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
                 <input
                   type="email"
                   value={email}
+                  disabled={requiresOrgSelection}
                   onChange={(e) => {
                     setEmail(e.target.value);
                     if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
                   }}
                   placeholder="admin@jaiswal-erp.com"
-                  className="flex-1 outline-none text-[13px] text-[#0F2A4A] placeholder:text-[#B3B9C4] bg-transparent"
+                  className={`flex-1 outline-none text-[13px] bg-transparent ${requiresOrgSelection ? 'text-[#54607A] cursor-not-allowed' : 'text-[#0F2A4A] placeholder:text-[#B3B9C4]'}`}
                 />
               </div>
               {errors.email && <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>}
@@ -120,17 +156,18 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">Password</label>
-              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.password ? 'border-red-400' : 'border-[#E1E4E9]'}`}>
+              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.password ? 'border-red-400' : 'border-[#E1E4E9]'} ${requiresOrgSelection ? 'bg-[#F7F8FA]' : ''}`}>
                 <Lock className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
+                  disabled={requiresOrgSelection}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
                   }}
                   placeholder="••••••••"
-                  className="flex-1 outline-none text-[13px] text-[#0F2A4A] placeholder:text-[#B3B9C4] bg-transparent"
+                  className={`flex-1 outline-none text-[13px] bg-transparent ${requiresOrgSelection ? 'text-[#54607A] cursor-not-allowed' : 'text-[#0F2A4A] placeholder:text-[#B3B9C4]'}`}
                 />
                 <button
                   type="button"
@@ -144,18 +181,47 @@ export default function LoginPage() {
               {errors.password && <p className="text-[11px] text-red-500 mt-1">{errors.password}</p>}
             </div>
 
-            <div className="flex items-center justify-end pt-1">
-              <Link to="/auth/forgot-password" className="text-[12px] text-[#1D4E89] font-medium hover:underline">
-                Forgot Password?
-              </Link>
-            </div>
+            {requiresOrgSelection && (
+              <div>
+                <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">Organization</label>
+                <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.organizationId ? 'border-red-400' : 'border-[#E1E4E9]'}`}>
+                  <Building2 className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
+                  <select
+                    value={organizationId}
+                    onChange={(e) => {
+                      setOrganizationId(e.target.value);
+                      if (errors.organizationId) setErrors((prev) => ({ ...prev, organizationId: undefined }));
+                    }}
+                    className="flex-1 outline-none text-[13px] text-[#0F2A4A] bg-transparent cursor-pointer"
+                  >
+                    <option value="" disabled>
+                      Choose an organization
+                    </option>
+                    {organizations.map((org) => (
+                      <option key={org.organizationId} value={org.organizationId}>
+                        {org.companyName?.trim()} ({org.companyCode})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {errors.organizationId && <p className="text-[11px] text-red-500 mt-1">{errors.organizationId}</p>}
+              </div>
+            )}
+
+            {!requiresOrgSelection && (
+              <div className="flex items-center justify-end pt-1">
+                <Link to="/auth/forgot-password" className="text-[12px] text-[#1D4E89] font-medium hover:underline">
+                  Forgot Password?
+                </Link>
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={submitting}
               className="w-full bg-[#0F2A4A] hover:bg-[#123256] cursor-pointer text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
             >
-              {submitting ? 'Logging in...' : 'Login'}
+              {submitting ? 'Logging in...' : requiresOrgSelection ? 'Continue' : 'Login'}
             </button>
           </form>
 
