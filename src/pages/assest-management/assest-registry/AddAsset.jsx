@@ -296,7 +296,7 @@ const toMMDDYYYY = (dateStr) => {
 
 const AddAsset = () => {
   const { id: assetIdParam } = useParams();
-  const navigate = useNavigate();
+  const navigate = useNavigate(); 
   const isEditMode = !!assetIdParam;
 
   const [openSections, setOpenSections] = useState({
@@ -1267,7 +1267,7 @@ const AddAsset = () => {
       <AddAssetBrandModal
         isOpen={showAddAssetBrandCategoryModal}
         onClose={() => setShowAddAssetBrandCategoryModal(false)}
-        onSaved={fetchAssetTypes}
+        onSaved={fetchAssetBrand}
         initialData={null}
       />
 

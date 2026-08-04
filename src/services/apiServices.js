@@ -4,7 +4,7 @@ import axios from "./axiosInstance";
 // ---- Auth APIs ----
 
 export const loginUser = (payload) => POST('/auth/login', payload);
-
+export const changePassword = (payload) => POST('/auth/change-password', payload);
 // ---- Password Reset APIs ----
 
 export const forgotPassword = (payload) => POST('/auth/forgot-password', payload);
@@ -241,6 +241,10 @@ export const deleteCompany = (id) => {
   return DELETE(`/organization/delete/${id}`);
 };
 
+export const getOrganizationByType = (orgType) => {
+  return GET(`/organization/by-type/${orgType}`);
+}
+
 export const getAllCountries = () => {
   return GET("/country/getall");
 };
@@ -407,3 +411,41 @@ export const updateMenuItem = (id, data) => {
 export const deleteMenuItemById = (id) => {
     return DELETE(`/menuitems/deletebyid?id=${id}`)
 }
+
+// ---- Sub-Outlet APIs ----
+
+export const getAllSubOutlets = () => {
+  return GET('/sub-outlet/get-all');
+};
+
+export const getAllActiveSubOutlets = () => {
+  return GET('/sub-outlet/get-all-active');
+};
+
+export const getAllSubOutletsByOrganization = (organizationId) => {
+  return GET(`/sub-outlet/get-all-by-organization/${organizationId}`);
+};
+
+export const getAllOutletsWithSubOutlets = () => {
+  return GET('/sub-outlet/get-all-outlets-with-suboutlets');
+};
+
+export const getOutletWithSubOutletsByOrganizationId = (organizationId) => {
+  return GET(`/sub-outlet/get-outlet-with-suboutlets/${organizationId}`);
+};
+
+export const getSubOutletById = (id) => {
+  return GET(`/sub-outlet/get/${id}`);
+};
+
+export const saveSubOutlet = (payload) => {
+  return POST('/sub-outlet/save', payload);
+};
+
+export const updateSubOutlet = ({ id, ...payload }) => {
+  return PUT('/sub-outlet/update', payload, { id });
+};
+
+export const deleteSubOutletById = (id) => {
+  return DELETE(`/sub-outlet/delete/${id}`);
+};

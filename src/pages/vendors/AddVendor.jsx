@@ -1147,21 +1147,12 @@ const VendorRegistration = () => {
         >
           Cancel
         </button>
-        {!isEditMode && (
-          <button
-            type="button"
-            onClick={handleSaveAndAddAnother}
-            className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white"
-          >
-            Save & Add Another
-          </button>
-        )}
         <button
           type="button"
           onClick={handleSubmit}
           className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
         >
-          {isEditMode ? 'Update Vendor' : 'Save Vendor'}
+          {isEditMode ? 'Update' : 'Save'}
         </button>
       </div>
 

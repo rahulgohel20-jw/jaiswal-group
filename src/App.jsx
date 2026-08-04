@@ -27,7 +27,7 @@ export function App() {
                 <TooltipsProvider>
                   <QueryProvider>
                     <LoadingBarContainer>
-                      <BrowserRouter basename="/justerp">
+                      <BrowserRouter basename="/">
                         <Toaster
                           richColors
                           position="top-right"

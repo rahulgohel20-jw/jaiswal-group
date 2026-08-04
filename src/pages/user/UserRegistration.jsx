@@ -579,11 +579,6 @@ useEffect(() => {
     if (!form.departmentId) e.departmentId = 'Department is required';
     if (!form.designation.trim()) e.designation = 'Designation is required';
 
-    if (form.salary === '' || form.salary === null || form.salary === undefined)
-      e.salary = 'Salary is required';
-    else if (Number.isNaN(Number(form.salary))) e.salary = 'Salary must be a number';
-    else if (Number(form.salary) < 0) e.salary = 'Salary cannot be negative';
-
     if (!form.joiningDate) e.joiningDate = 'Joining date is required';
 
     if (!form.addressLine1.trim()) e.addressLine1 = 'Address line 1 is required';
@@ -612,10 +607,12 @@ useEffect(() => {
       focusFirstError(errs);
       return;
     }
-
+    
     const payload = buildEmployeePayload(form, { isEditMode });
+    console.log("payload",payload)
     setSubmitting(true);
     setSubmitError('');
+  
     try {
       if (isEditMode) {
         await updateEmployee(payload);
@@ -1045,23 +1042,13 @@ useEffect(() => {
         >
           Cancel
         </button>
-        {!isEditMode && (
-          <button
-            type="button"
-            onClick={handleSaveAndAddAnother}
-            disabled={submitting || loadingUser}
-            className="px-6 py-2.5 rounded-lg text-sky-900 border border-[#084E92] font-semibold text-sm transition cursor-pointer bg-white disabled:opacity-50"
-          >
-            {submitting ? 'Saving...' : 'Save & Add Another'}
-          </button>
-        )}
         <button
           type="button"
           onClick={handleSubmit}
           disabled={submitting || loadingUser}
           className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-50"
         >
-          {submitting ? 'Saving...' : isEditMode ? 'Update User' : 'Save User'}
+          {submitting ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
         </button>
       </div>
 
