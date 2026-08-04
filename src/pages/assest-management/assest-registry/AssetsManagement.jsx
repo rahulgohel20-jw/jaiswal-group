@@ -24,7 +24,7 @@ const STATS = [
         bgColor: "bg-[#fffff]"
     },
     {
-        title: "Available",
+        title: "Warehouse",
         value: "845",
         badge: "67%",
         icon: <CircleCheck size={25} className='text-[#15803D] p-1 bg-[#DCFCE7] rounded' />,

@@ -462,7 +462,7 @@ export const MENU_SIDEBAR = [
       { title: 'Conditions Master', path: '/assets/conditions' },
       { title: 'Status Master', path: '/assets/status' },
       { title: 'Asset Brand Master', path: '/assets/asset-brand' },
-      { title: 'Asset Unit Master', path: '/assets/asset-unit' },
+      { title: 'Measure of unit Master', path: '/assets/asset-unit' },
       { title: 'Asset Maintenance', path: '/assets/asset-maintenance' },
       { title: 'Asset Transfer', path: '/assets/asset-transfer-log' },
       { title: 'Asset Disposal', path: '/assets/asset-disposal' }
@@ -484,10 +484,9 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Purchase Requisition', path: '/purchase-requisition/list'},
       { title: 'Approve Purchase Requisition', path: '/approve-purchase-requisition/list'},
       { title: 'Purchase Order Requests', path: '/purchase/purchase-order-requests' },
-      { title: 'Stock Purchase', path: '/purchase/stock-purchase' },
+  
       { title: 'Purchase Order', path: '/purchase/purchase-order' },
       { title: 'Approved Purchase Order', path: '/purchase/approved-order'},
-      { title: 'Purchase Return', path: '/purchase/purchase-return' },
 
     ],
   },
