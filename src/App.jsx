@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { LoadingBarContainer } from 'react-top-loading-bar';
 import { Toaster } from '@/components/ui/sonner';
+import { GlobalLoader } from '@/components/common/GlobalLoader';
 import { AuthProvider } from './auth/providers/auth-provider';
 import { I18nProvider } from './providers/i18n-provider';
 import { ModulesProvider } from './providers/modules-provider';
@@ -34,6 +35,7 @@ export function App() {
                           closeButton
                           duration={2000}
                         />
+                        <GlobalLoader />
                         <ModulesProvider>
                           <AppRouting />
                         </ModulesProvider>

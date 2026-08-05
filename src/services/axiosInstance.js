@@ -1,4 +1,32 @@
 import axios from "axios";
+import { toast } from "sonner";
+
+let activeRequests = 0;
+
+const updateLoader = (delta, config) => {
+  if (!config || config.skipGlobalLoader) return;
+
+  // Only show the global backdrop loader for mutating requests (POST, PUT, DELETE).
+  // Background GET requests should not block the user interface.
+  const method = config.method?.toUpperCase();
+  if (method === 'GET' && !config.showGlobalLoader) return;
+
+  activeRequests += delta;
+  if (activeRequests < 0) activeRequests = 0;
+
+  console.log(`[axiosInstance] activeRequests: ${activeRequests}, delta: ${delta}, url: ${config.url}`);
+
+  if (typeof window !== 'undefined') {
+    if (activeRequests === 1 && delta > 0) {
+      console.log("[axiosInstance] Dispatching show-global-loader event");
+      window.dispatchEvent(new CustomEvent("show-global-loader"));
+    } else if (activeRequests === 0 && delta < 0) {
+      console.log("[axiosInstance] Dispatching hide-global-loader event");
+      window.dispatchEvent(new CustomEvent("hide-global-loader"));
+    }
+  }
+};
+
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -6,6 +34,7 @@ const axiosInstance = axios.create({
 });
 
 axiosInstance.interceptors.request.use((config) => {
+  updateLoader(1, config);
   if (config.url?.includes("/v1/api/auth/login")) {
     const systemToken = localStorage.getItem("token");
     config.headers["x-am-authorization"] = systemToken || "__token__";
@@ -34,7 +63,10 @@ axiosInstance.interceptors.request.use((config) => {
   }
 
   return config;
-}, (error) => Promise.reject(error));
+}, (error) => {
+  updateLoader(-1, error?.config);
+  return Promise.reject(error);
+});
 
 export const getNewToken = async () => {
   try {
@@ -76,8 +108,18 @@ export const getNewToken = async () => {
 };
 
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    updateLoader(-1, response.config);
+    const method = response.config?.method?.toUpperCase();
+    const skipToast = response.config?.skipGlobalToast;
+    if (method && method !== 'GET' && !skipToast) {
+      const msg = response.data?.message || response.data?.msg || "Operation completed successfully.";
+      toast.success(msg);
+    }
+    return response;
+  },
   async (error) => {
+    updateLoader(-1, error.config);
     const originalRequest = error.config;
     const isSharePage = window.location.pathname.includes("/menu-share");
 
@@ -86,6 +128,16 @@ axiosInstance.interceptors.response.use(
       error.response?.data?.errors?.[0]?.message?.includes(
         "Authorization header 'x-am-authorization' is not valid",
       );
+
+    const willRetry = isUnauthorized && !originalRequest?._retry;
+
+    if (error.config && !error.config.skipGlobalToast && !willRetry) {
+      const isAuthPath = error.config.url?.includes("/auth/login") || error.config.url?.includes("/system-api/admin/token");
+      if (!isAuthPath) {
+        const msg = error.response?.data?.message || error.response?.data?.msg || error.message || "An error occurred.";
+        toast.error(msg);
+      }
+    }
 
     if (isUnauthorized && !originalRequest._retry) {
       originalRequest._retry = true;
@@ -107,7 +159,7 @@ axiosInstance.interceptors.response.use(
 
     if (
       error.response?.status === 401 &&
-      originalRequest.url?.includes("/v1/api/auth/") &&
+      originalRequest?.url?.includes("/v1/api/auth/") &&
       !isSharePage // ← skip for share users
     ) {
       localStorage.removeItem("userToken");

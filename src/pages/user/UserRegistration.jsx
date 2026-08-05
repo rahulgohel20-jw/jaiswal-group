@@ -579,8 +579,6 @@ useEffect(() => {
     if (!form.departmentId) e.departmentId = 'Department is required';
     if (!form.designation.trim()) e.designation = 'Designation is required';
 
-    if (!form.joiningDate) e.joiningDate = 'Joining date is required';
-
     if (!form.addressLine1.trim()) e.addressLine1 = 'Address line 1 is required';
     if (!form.countryId) e.countryId = 'Country is required';
     if (!form.stateId) e.stateId = 'State is required';
@@ -865,7 +863,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label required>Department</Label>
                     <IdSelect
@@ -895,18 +893,6 @@ useEffect(() => {
                       className={errors.designation ? errorInputCls : inputCls}
                     />
                     <ErrorText message={errors.designation} />
-                  </div>
-
-                  <div>
-                    <Label required>Joining Date</Label>
-                    <input
-                      name="joiningDate"
-                      type="date"
-                      value={form.joiningDate}
-                      onChange={(e) => set('joiningDate', e.target.value)}
-                      className={errors.joiningDate ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.joiningDate} />
                   </div>
                 </div>
               </div>
