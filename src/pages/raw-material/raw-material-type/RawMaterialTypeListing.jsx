@@ -21,6 +21,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddRawMaterialTypeModal from './AddRawMaterialModal';
 import { Container } from "@/components/common/container";
+import { notify } from "@/utils/toast";
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -72,10 +73,11 @@ const RawMaterialTypeListing = () => {
         if (!window.confirm('Delete this material type? This cannot be undone.')) return;
         try {
             await deleteRawMaterialType(id);
+            notify.success('Raw material type successfully deleted');
             fetchTypes();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete material type.');
+            notify.error('Failed to delete material type.');
         }
     };
 
@@ -90,6 +92,7 @@ const RawMaterialTypeListing = () => {
         } catch (err) {
             console.error(err);
             setError('Failed to load raw material types');
+            notify.error('Failed to load raw material type');
         } finally {
             setLoading(false);
         }

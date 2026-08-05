@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { notify } from "@/utils/toast";
 
 const emptyForm = {
   categoryName: '',
@@ -75,11 +76,13 @@ const AddRawMaterialCategoryModal = ({
         id: initialData.id,
         ...payload,
       });
+      notify.success('Raw material type Updated Successfully');
     } else {
       await createRawMaterialCategory({
         ...payload,
         createdBy: 0,
       });
+      notify.success('Raw material type Created Successfully');
     }
   };
 
@@ -102,6 +105,10 @@ const AddRawMaterialCategoryModal = ({
             isEditMode ? 'update' : 'create'
           } material category. Please try again.`
       );
+      notify.error(`Failed to ${
+            isEditMode ? 'update' : 'create'
+          } material category. Please try again.`);
+      
     } finally {
       setSaving(false);
     }
@@ -123,6 +130,7 @@ const AddRawMaterialCategoryModal = ({
         err?.response?.data?.message ||
           'Failed to create material category. Please try again.'
       );
+      notify.error( 'Failed to create material category. Please try again.');
     } finally {
       setSaving(false);
     }

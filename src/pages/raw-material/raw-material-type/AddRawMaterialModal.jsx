@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { notify } from "@/utils/toast";
 
 const emptyForm = { name: '', description: '', status: 'Active' };
 
@@ -56,6 +57,7 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
         active: form.status === 'Active',
       };
       await updateRawMaterialType(payload);
+      notify.success("Row Material Type Updated Successfully")
     } else {
       // Matches the create endpoint's request schema exactly:
       // { active, createdBy, description, name }
@@ -66,6 +68,7 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
         name: form.name,
       };
       await createRawMaterialType(payload);
+      notify.success("Row Material Type Added Successfully")
     }
   };
 
@@ -83,6 +86,7 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
         err?.response?.data?.message ||
           `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`
       );
+       notify.error( `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`)
     } finally {
       setSaving(false);
     }
@@ -102,6 +106,7 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
       setError(
         err?.response?.data?.message || 'Failed to create material type. Please try again.'
       );
+      notify.error('Failed to create material type. Please try again.')
     } finally {
       setSaving(false);
     }
