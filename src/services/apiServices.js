@@ -449,3 +449,51 @@ export const updateSubOutlet = ({ id, ...payload }) => {
 export const deleteSubOutletById = (id) => {
   return DELETE(`/sub-outlet/delete/${id}`);
 };
+
+export const getAllRawMaterialCategoryType = () => {
+  return GET(`/rawmaterialcattype/getall`);
+};
+
+export const getRawMaterialCategoryTypeById = (id) => {
+  return GET(`/rawmaterialcattype/getbyid?id=${id}`);
+};
+
+export const addRawMaterialCategoryType = (data) => {
+  return POST(`/rawmaterialcattype/add`, data);
+};
+
+export const updateRawMaterialCategoryType = (id, data) => {
+  return PUT(`/rawmaterialcattype/update?id=${id}`, data);
+};
+
+export const deleteRawMaterialCategoryTypeById = (id) => {
+  return DELETE(`/rawmaterialcattype/delete?id=${id}`);
+};
+
+export const updateRawMaterialCategoryTypeStatus = (id, active) => {
+  return PUT(`/rawmaterialcattype/updatestatus?id=${id}&isActive=${active}`);
+};
+
+export const getAllRawMaterialCategory = (categoryTypeId) => {
+  return GET(`/rawmaterialcategory/getall`, { categoryTypeId });
+};
+
+export const getRawMaterialCategoryById = (id) => {
+  return GET(`/rawmaterialcategory/getbyid?id=${id}`);
+};
+
+export const addRawMaterialCategory = (data) => {
+  return POST(`/rawmaterialcategory/add`, data);
+};
+
+export const updateRawMaterialCategory = (id, data) => {
+  return PUT(`/rawmaterialcategory/update?id=${id}`, data);
+};
+
+export const deleteRawMaterialCategoryById = (id) => {
+  return DELETE(`/rawmaterialcategory/delete?id=${id}`);
+};
+
+export const updateRawMaterialCategoryStatus = (id, active) => {
+  return PUT(`/rawmaterialcategory/updatestatus?id=${id}&active=${active}`);
+};

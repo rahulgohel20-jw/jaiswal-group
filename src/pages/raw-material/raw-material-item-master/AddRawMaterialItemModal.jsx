@@ -431,16 +431,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose }) => {
 
                 {/* Footer */}
 
-                <div className="border-t p-5 flex justify-between bg-[#EFF4FF] border border-[#C3C6D1] flex-col sm:flex-row gap-4">
-                    <button
-                        onClick={() => {
-                            setForm(emptyForm);
-                            onClose();
-                        }}
-                        className="border border-[#E2E8F0] cursor-pointer px-5 py-2 rounded-lg"
-                    >
-                        Cancel & Reset
-                    </button>
+                <div className="border-t p-5 flex justify-end bg-[#EFF4FF] border border-[#C3C6D1] flex-col sm:flex-row gap-4"> 
                     <div className="grid sm:grid-cols-2 gap-3">
                         <button className="border border-[#00376C] text-[#00376C] px-5 py-2 rounded-lg cursor-pointer">
                             Save as Draft
