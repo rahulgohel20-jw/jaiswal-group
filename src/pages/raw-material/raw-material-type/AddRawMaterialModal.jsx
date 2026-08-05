@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Package, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -12,25 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { notify } from "@/utils/toast";
 
-const emptyForm = { name: '', description: '', status: 'Active' };
+const emptyForm = { nameEnglish: '' };
 
-const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
+const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const isEditMode = Boolean(initialData?.id);
 
-  // Populate form for edit, or reset for create — same pattern as AddCategoryModal
   useEffect(() => {
     if (!isOpen) return;
     if (initialData) {
       setForm({
-        name: initialData.name || '',
-        description: initialData.description || '',
-        status: initialData.status || 'Active',
+        nameEnglish: initialData.nameEnglish || '',
       });
     } else {
       setForm(emptyForm);
@@ -50,25 +45,18 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
   const save = async () => {
     if (isEditMode) {
+      // Edit mode only updates the name — status is changed separately via the toggle + confirm flow
       const payload = {
-        id: initialData.id,
-        name: form.name,
-        description: form.description,
-        active: form.status === 'Active',
+        nameEnglish: form.nameEnglish,
       };
       await updateRawMaterialType(payload);
-      notify.success("Row Material Type Updated Successfully")
     } else {
-      // Matches the create endpoint's request schema exactly:
-      // { active, createdBy, description, name }
       const payload = {
-        active: form.status === 'Active',
-        createdBy: 0,
-        description: form.description,
-        name: form.name,
+        active: true, // new records default to Active; status is changed afterward via the toggle
+        createdBy: getUserIdFromToken(),
+        nameEnglish: form.nameEnglish,
       };
       await createRawMaterialType(payload);
-      notify.success("Row Material Type Added Successfully")
     }
   };
 
@@ -82,8 +70,9 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
       onClose?.();
     } catch (err) {
       console.error(err);
+      const backendMsg = err?.response?.data?.msg || err?.response?.data?.message;
       setError(
-        err?.response?.data?.message ||
+        backendMsg ||
           `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`
       );
        notify.error( `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`)
@@ -106,7 +95,6 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
       setError(
         err?.response?.data?.message || 'Failed to create material type. Please try again.'
       );
-      notify.error('Failed to create material type. Please try again.')
     } finally {
       setSaving(false);
     }
@@ -127,7 +115,7 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
               </h3>
               <p className="text-xs text-gray-500 mt-2">
                 {isEditMode
-                  ? 'Update this Material Type.'
+                  ? 'Update the name of this Material Type.'
                   : 'Configure a new Material Type.'}
               </p>
             </div>
@@ -140,7 +128,7 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
           </button>
         </div>
 
-        {/* Content - Scrollable */}
+        {/* Content */}
         <div className="p-4 overflow-y-auto flex-1 space-y-4">
           {error && (
             <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
@@ -148,41 +136,15 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm font-medium">
-                Type Name <span className="text-red-500">*</span>
-              </label>
-              <Input
-                placeholder="e.g. Food Category"
-                className="mt-1"
-                value={form.name}
-                onChange={(e) => set('name', e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Status</label>
-              <Select value={form.status} onValueChange={(value) => set('status', value)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
           <div>
-            <label className="text-sm font-medium">Description</label>
-            <Textarea
-              placeholder="Describe the purpose of this material type..."
+            <label className="text-sm font-medium">
+              Type Name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              placeholder="e.g. Food Category"
               className="mt-1"
-              rows={3}
-              value={form.description}
-              onChange={(e) => set('description', e.target.value)}
+              value={form.nameEnglish}
+              onChange={(e) => set('nameEnglish', e.target.value)}
             />
           </div>
         </div>
@@ -194,7 +156,7 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
           <div className="flex items-center gap-2">
             <Button
               onClick={handleSave}
-              disabled={!form.name.trim() || saving}
+              disabled={!form.nameEnglish.trim() || saving}
               className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
             >
               <Save className="h-4 w-4" />
@@ -207,4 +169,4 @@ const AddRawMaterialTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
   );
 };
 
-export default AddRawMaterialTypeModal;
+export default AddRawMaterialModal;
