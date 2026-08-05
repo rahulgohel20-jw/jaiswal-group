@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { notify } from "@/utils/toast";
+import { getUserIdFromToken } from '@/utils/auth';
 
 const emptyForm = { nameEnglish: '' };
 
@@ -50,6 +52,7 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
         nameEnglish: form.nameEnglish,
       };
       await updateRawMaterialType(payload);
+      notify.success("Row Material Type Updated Successfully")
     } else {
       const payload = {
         active: true, // new records default to Active; status is changed afterward via the toggle
@@ -57,6 +60,7 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
         nameEnglish: form.nameEnglish,
       };
       await createRawMaterialType(payload);
+       notify.success("Row Material Type Created Successfully")
     }
   };
 

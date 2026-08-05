@@ -99,11 +99,13 @@ const save = async () => {
         id: initialData.id,
         ...payload,
       });
+      notify.success("Row Material Category Updated Successfully")
     } else {
       await createRawMaterialCategory({
         ...payload,
         createdBy: 0,
       });
+       notify.success("Row Material Category Created Successfully")
     }
 };
   const handleSave = async () => {
