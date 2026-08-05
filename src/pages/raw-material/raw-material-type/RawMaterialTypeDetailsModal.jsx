@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Package, X } from 'lucide-react';
+import { Package, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const StatusBadge = ({ status }) => {
@@ -23,8 +23,9 @@ const Field = ({ label, children }) => (
   </div>
 );
 
-const RawMaterialTypeDetailsModal = ({ isOpen, onClose, type }) => {
-  if (!isOpen || !type) return null;
+// View-only — no editable inputs, no onSave. Just displays whatever getById returned.
+const RawMaterialTypeDetailsModal = ({ isOpen, onClose, type, loading }) => {
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -36,7 +37,9 @@ const RawMaterialTypeDetailsModal = ({ isOpen, onClose, type }) => {
               <Package className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold leading-none">{type.name}</h3>
+              <h3 className="text-lg font-semibold leading-none">
+                {type?.nameEnglish || 'Raw Material Type'}
+              </h3>
               <p className="text-xs text-gray-500 mt-2">Material type details</p>
             </div>
           </div>
@@ -50,17 +53,30 @@ const RawMaterialTypeDetailsModal = ({ isOpen, onClose, type }) => {
 
         {/* Content - Scrollable */}
         <div className="p-4 overflow-y-auto flex-1 space-y-4">
-          <Field label="Type Name">{type.name || '—'}</Field>
+          {loading && (
+            <div className="flex items-center gap-2 text-sm text-gray-500 py-6 justify-center">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading details...
+            </div>
+          )}
 
-          <Field label="Description">
-            {type.description || <span className="text-gray-400">No description provided.</span>}
-          </Field>
+          {!loading && type && (
+            <>
+              <Field label="Type Name">
+                {type.nameEnglish || <span className="text-gray-400">—</span>}
+              </Field>
 
-          <Field label="Status">
-            <StatusBadge status={type.status} />
-          </Field>
+              <Field label="Status">
+                <StatusBadge status={type.isActive ? 'Active' : 'Inactive'} />
+              </Field>
 
-          {type.updatedAt && <Field label="Last Updated">{type.updatedAt}</Field>}
+              {type.createdAt && <Field label="Created At">{type.createdAt}</Field>}
+            </>
+          )}
+
+          {!loading && !type && (
+            <p className="text-sm text-gray-500 py-6 text-center">No details found.</p>
+          )}
         </div>
 
         <div className="flex items-center justify-end gap-3 p-4 border-t bg-gray-50 flex-shrink-0">

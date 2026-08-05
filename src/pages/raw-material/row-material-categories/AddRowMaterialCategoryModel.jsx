@@ -11,12 +11,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  addRawMaterialCategory,
+  updateRawMaterialCategory,
+  getAllRawMaterialCategoryType,
+} from '@/services/apiServices';
+import { getUserIdFromToken } from '@/utils/auth';
 
 const emptyForm = {
-  categoryName: '',
-  typeName: '',
+  nameEnglish: '',
+  rawMaterialCatTypeId: undefined,
   sequence: '',
-  status: 'Active',
+  isDirect: false
 };
 
 const AddRawMaterialCategoryModal = ({
@@ -28,18 +34,42 @@ const AddRawMaterialCategoryModal = ({
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [typeOptions, setTypeOptions] = useState([]);
+  const [loadingTypes, setLoadingTypes] = useState(false);
 
   const isEditMode = Boolean(initialData?.id);
+  
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchTypes = async () => {
+      setLoadingTypes(true);
+      try {
+        const res = await getAllRawMaterialCategoryType();
+        const raw = res.data?.data?.["Raw Material Category Type Details"] ?? [];
+        setTypeOptions(
+          raw
+            .filter((t) => t.nameEnglish) // skip empty/placeholder rows like the null-name one seen earlier
+            .map((t) => ({ value: t.id, label: t.nameEnglish }))
+        );
+      } catch (err) {
+        console.error('Failed to fetch category types:', err);
+        setTypeOptions([]);
+      } finally {
+        setLoadingTypes(false);
+      }
+    };
+    fetchTypes();
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     if (initialData) {
       setForm({
-        categoryName: initialData.categoryName || '',
-        typeName: initialData.typeName || '',
-        sequence: initialData.sequence || '',
-        status: initialData.status || 'Active',
+        nameEnglish: initialData.nameEnglish || '',
+        rawMaterialCatTypeId: initialData.rawMaterialCatTypeId,
+        sequence: initialData.sequence ?? '',
+        isDirect: Boolean(initialData.isDirect)
       });
     } else {
       setForm(emptyForm);
@@ -62,45 +92,41 @@ const AddRawMaterialCategoryModal = ({
     onClose?.();
   };
 
-  const save = async () => {
-    const payload = {
-      categoryName: form.categoryName,
-      typeName: form.typeName,
-      sequence: Number(form.sequence),
-      active: form.status === 'Active',
-    };
-
+const save = async () => {
     if (isEditMode) {
-      await updateRawMaterialCategory({
-        id: initialData.id,
-        ...payload,
-      });
+      const payload = {
+        nameEnglish: form.nameEnglish, 
+        rawMaterialCatTypeId: form.rawMaterialCatTypeId,
+        sequence: Number(form.sequence),
+        isDirect: form.isDirect,  
+      };
+      await updateRawMaterialCategory(initialData.id, payload);
     } else {
-      await createRawMaterialCategory({
-        ...payload,
-        createdBy: 0,
-      });
+      const payload = {
+        nameEnglish: form.nameEnglish,
+        rawMaterialCatTypeId: form.rawMaterialCatTypeId,
+        sequence: Number(form.sequence),
+        createdBy: getUserIdFromToken(),
+        isDirect: form.isDirect || false
+      };
+      await addRawMaterialCategory(payload);
     }
-  };
-
+};
   const handleSave = async () => {
     setSaving(true);
     setError(null);
 
     try {
       await save();
-
       setForm(emptyForm);
       onSaved?.();
       onClose?.();
     } catch (err) {
       console.error(err);
-
+      const backendMsg = err?.response?.data?.msg || err?.response?.data?.message;
       setError(
-        err?.response?.data?.message ||
-          `Failed to ${
-            isEditMode ? 'update' : 'create'
-          } material category. Please try again.`
+        backendMsg ||
+          `Failed to ${isEditMode ? 'update' : 'create'} material category. Please try again.`
       );
     } finally {
       setSaving(false);
@@ -113,16 +139,12 @@ const AddRawMaterialCategoryModal = ({
 
     try {
       await save();
-
       setForm(emptyForm);
       onSaved?.();
     } catch (err) {
       console.error(err);
-
-      setError(
-        err?.response?.data?.message ||
-          'Failed to create material category. Please try again.'
-      );
+      const backendMsg = err?.response?.data?.msg || err?.response?.data?.message;
+      setError(backendMsg || 'Failed to create material category. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -140,15 +162,13 @@ const AddRawMaterialCategoryModal = ({
 
             <div>
               <h3 className="text-lg font-semibold leading-none">
-                {isEditMode
-                  ? 'Edit Raw Material Category'
-                  : 'Add Raw Material Category'}
+                {isEditMode ? 'Edit Raw Material Category' : 'Add Raw Material Category'}
               </h3>
 
               <p className="text-xs text-gray-500 mt-2">
                 {isEditMode
                   ? 'Update this Material Category.'
-                  : 'Configure a new Material Category Type.'}
+                  : 'Configure a new Material Category.'}
               </p>
             </div>
           </div>
@@ -173,111 +193,70 @@ const AddRawMaterialCategoryModal = ({
             {/* Category Name */}
             <div>
               <label className="text-sm font-medium">
-                Category Name
-                <span className="text-red-500">*</span>
+                Category Name <span className="text-red-500">*</span>
               </label>
 
               <Input
                 placeholder="e.g. Grocery"
                 className="mt-1"
-                value={form.categoryName}
-                onChange={(e) =>
-                  set('categoryName', e.target.value)
-                }
+                value={form.nameEnglish}
+                onChange={(e) => set('nameEnglish', e.target.value)}
               />
             </div>
 
-            {/* Type Name */}
+            {/* Type Name — live dropdown sourced from Raw Material Category Type master */}
             <div>
               <label className="text-sm font-medium">
-                Type Name
-                <span className="text-red-500">*</span>
+                Type Name <span className="text-red-500">*</span>
               </label>
 
-              <Input
-                placeholder="e.g. Food Category"
-                className="mt-1"
-                value={form.typeName}
-                onChange={(e) =>
-                  set('typeName', e.target.value)
-                }
-              />
+              <Select
+                value={form.rawMaterialCatTypeId}
+                onValueChange={(value) => set('rawMaterialCatTypeId', value)}
+                disabled={loadingTypes}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder={loadingTypes ? 'Loading...' : 'Select Type'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {typeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Sequence */}
             <div>
-              <label className="text-sm font-medium">
-                Sequence
-              </label>
+              <label className="text-sm font-medium">Sequence</label>
 
               <Input
                 type="number"
                 placeholder="e.g. 10"
                 className="mt-1"
                 value={form.sequence}
-                onChange={(e) =>
-                  set('sequence', e.target.value)
-                }
+                onChange={(e) => set('sequence', e.target.value)}
               />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="text-sm font-medium">
-                Status
-              </label>
-
-              <Select
-                value={form.status}
-                onValueChange={(value) =>
-                  set('status', value)
-                }
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent>
-                  <SelectItem value="Active">
-                    Active
-                  </SelectItem>
-
-                  <SelectItem value="Inactive">
-                    Inactive
-                  </SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 p-4 border-t bg-gray-50 shrink-0">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={saving}
-          >
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
             Cancel
           </Button>
 
           <div className="flex items-center gap-2">
             <Button
               onClick={handleSave}
-              disabled={
-                !form.categoryName.trim() ||
-                !form.typeName.trim() ||
-                saving
-              }
+         
               className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
             >
               <Save className="h-4 w-4" />
-
-              {saving
-                ? 'Saving...'
-                : isEditMode
-                ? 'Update Category'
-                : 'Save Category'}
+              {saving ? 'Saving...' : isEditMode ? 'Update Category' : 'Save Category'}
             </Button>
           </div>
         </div>

@@ -1,17 +1,5 @@
-import {
-    Blocks,
-    ChevronRight,
-    CircleCheck,
-    CircleX,
-    Clock,
-    Eye,
-    Plus,
-    Search,
-    SquarePen,
-    Trash2,
-    Upload,
-} from 'lucide-react'
-import React, { useState, useEffect, useMemo } from 'react'
+import { Blocks, ChevronRight, CircleCheck, CircleX, Eye, Plus, Search, SquarePen, Trash2, Upload } from 'lucide-react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -19,24 +7,23 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import AddRawMaterialTypeModal from './AddRawMaterialModal';
-import RawMaterialTypeDetailsModal from './RawMaterialTypeDetailsModal';
+import AddRawMaterialCategoryModal from './AddRowMaterialCategoryModel';
+import RawMaterialCategoryDetailsModal from './RawMaterialCategoryDetailsModal';
 import StatusConfirmModal from '@/utils/StatusConfirmModal';
 import { Container } from "@/components/common/container";
 import {
-    getAllRawMaterialCategoryType,
-    getRawMaterialCategoryTypeById,
-    deleteRawMaterialCategoryTypeById,
-    updateRawMaterialCategoryTypeStatus,
+    getAllRawMaterialCategory,
+    getRawMaterialCategoryById,
+    deleteRawMaterialCategoryById,
+    updateRawMaterialCategoryStatus,
 } from '@/services/apiServices';
-
 
 const StatusToggle = ({ isActive, onClick }) => (
     <div className="flex items-center gap-2">
         <button
             type="button"
             onClick={onClick}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full cursor-pointer transition-colors ${
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 isActive ? "bg-green-600" : "bg-gray-300"
             }`}
         >
@@ -56,32 +43,42 @@ const StatusToggle = ({ isActive, onClick }) => (
     </div>
 );
 
-const mapType = (t) => ({
-    id: t.id,
-    nameEnglish: t.nameEnglish || '',
-    isActive: Boolean(t.isActive),          
-    status: t.isActive ? "Active" : "Inactive", 
-    createdAt: t.createdAt || null,
-});
+// Maps raw API row into the shape the table/UI expects.
+// Adjust field names once you confirm getall's exact response shape for this controller.
+const mapCategory = (c) => {
+    const isActive = Boolean(c.isActive ?? c.active);
+    return {
+        id: c.id,
+        nameEnglish: c.nameEnglish || '',
+        typeName: c.rawMaterialCategoryTypeName || c.typeName || '',
+        rawMaterialCatTypeId: c.rawMaterialCatTypeId,
+        sequence: c.sequence,
+        isDirect: Boolean(c.isDirect),
+        isActive,
+        status: isActive ? "Active" : "Inactive",
+        createdAt: c.createdAt || null,
+    };
+};
 
-const RawMaterialTypeListing = () => {
-    const [types, setTypes] = useState([]);
+const RowMaterialCategories = () => {
+    const [categoriesData, setCategoriesData] = useState([]);
+    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('All Status');
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState("All Status");
+    const [typeFilter, setTypeFilter] = useState("Category Type");
     const [showAddType, setShowAddType] = useState(false);
     const [editingType, setEditingType] = useState(null);
 
     // View-only modal state
     const [showViewModal, setShowViewModal] = useState(false);
-    const [viewingType, setViewingType] = useState(null);
+    const [viewingCategory, setViewingCategory] = useState(null);
     const [viewLoading, setViewLoading] = useState(false);
 
     // Status toggle confirm modal state
     const [showStatusConfirm, setShowStatusConfirm] = useState(false);
-    const [statusTarget, setStatusTarget] = useState(null); // { id, name, nextActive }
+    const [statusTarget, setStatusTarget] = useState(null); // { id, nameEnglish, nextActive }
     const [statusSaving, setStatusSaving] = useState(false);
 
     const openEditModal = (row) => {
@@ -99,20 +96,17 @@ const RawMaterialTypeListing = () => {
         setEditingType(null);
     };
 
-    // Eye button — fetches fresh data by id and shows it read-only
     const openViewModal = async (row) => {
         setShowViewModal(true);
         setViewLoading(true);
-        setViewingType(null);
+        setViewingCategory(null);
         try {
-            const res = await getRawMaterialCategoryTypeById(row.id);
-            const detail = res.data?.data?.["Raw Material Category Type Details"]?.[0]
-                ?? res.data?.data
-                ?? null;
-            setViewingType(detail);
+            const res = await getRawMaterialCategoryById(row.id);
+            const detail = res.data?.data ?? null;
+            setViewingCategory(detail);
         } catch (err) {
             console.error(err);
-            setViewingType(null);
+            setViewingCategory(null);
         } finally {
             setViewLoading(false);
         }
@@ -120,14 +114,14 @@ const RawMaterialTypeListing = () => {
 
     const closeViewModal = () => {
         setShowViewModal(false);
-        setViewingType(null);
+        setViewingCategory(null);
     };
 
     const openStatusConfirm = (row) => {
         setStatusTarget({
             id: row.id,
-            name: row.nameEnglish,
-            nextActive: row.status !== 'Active', 
+            nameEnglish: row.nameEnglish,
+            nextActive: !row.isActive,
         });
         setShowStatusConfirm(true);
     };
@@ -142,10 +136,10 @@ const RawMaterialTypeListing = () => {
         if (!statusTarget) return;
         setStatusSaving(true);
         try {
-            await updateRawMaterialCategoryTypeStatus(statusTarget.id, statusTarget.nextActive);
+            await updateRawMaterialCategoryStatus(statusTarget.id, statusTarget.nextActive);
             setShowStatusConfirm(false);
             setStatusTarget(null);
-            fetchTypes();
+            fetchCategories();
         } catch (err) {
             console.error(err);
             alert('Failed to update status.');
@@ -155,72 +149,76 @@ const RawMaterialTypeListing = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('Delete this material type? This cannot be undone.')) return;
+        if (!window.confirm('Delete this material category? This cannot be undone.')) return;
         try {
-            await deleteRawMaterialCategoryTypeById(id);
-            fetchTypes();
+            await deleteRawMaterialCategoryById(id);
+            fetchCategories();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete material type.');
+            alert('Failed to delete material category.');
         }
     };
 
-    const fetchTypes = async () => {
+    const fetchCategories = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
-            const res = await getAllRawMaterialCategoryType();
-            const raw = res.data?.data?.["Raw Material Category Type Details"] ?? [];
-            setTypes(Array.isArray(raw) ? raw.map(mapType) : []);
+            const res = await getAllRawMaterialCategory();
+            // Adjust once you confirm getall's exact response envelope
+            const raw = res.data?.data ?? [];
+            setCategoriesData(Array.isArray(raw) ? raw.map(mapCategory) : []);
         } catch (err) {
             console.error(err);
-            setError('Failed to load raw material types');
+            setError('Failed to load raw material categories');
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
-        fetchTypes();
     }, []);
 
-    const filteredTypes = useMemo(() => {
-        return types.filter((t) => {
-            const matchesSearch = t.nameEnglish?.toLowerCase().includes(searchTerm.trim().toLowerCase());
-            const matchesStatus = statusFilter === 'All Status' || t.status === statusFilter;
-            return matchesSearch && matchesStatus;
-        });
-    }, [types, searchTerm, statusFilter]);
+    useEffect(() => {
+        fetchCategories();
+    }, [fetchCategories]);
 
     const stats = useMemo(() => {
-        const total = types.length;
-        const active = types.filter((t) => t.status === 'Active').length;
+        const total = categoriesData.length;
+        const active = categoriesData.filter((t) => t.status === 'Active').length;
         const inactive = total - active;
         return { total, active, inactive };
-    }, [types]);
+    }, [categoriesData]);
 
     const columns = [
         {
             id: "sno",
             header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, "0")}</span>
             ),
             enableSorting: false,
             size: 70,
         },
         {
-            id: "name",
+            id: "categoryName",
             accessorFn: (row) => row.nameEnglish,
             header: ({ column }) => (
-                <DataGridColumnHeader title="TYPE NAME" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="CATEGORY NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
                 <div className="font-semibold text-gray-800 py-2">{row.original.nameEnglish}</div>
             ),
-            size: 260,
+            size: 220,
+        },
+        {
+            id: "typeName",
+            accessorFn: (row) => row.typeName,
+            header: ({ column }) => (
+                <DataGridColumnHeader title="TYPE NAME" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => (
+                <div className="font-semibold text-gray-800 py-2">{row.original.typeName}</div>
+            ),
+            size: 220,
         },
         {
             id: "status",
@@ -230,12 +228,11 @@ const RawMaterialTypeListing = () => {
             ),
             cell: ({ row }) => (
                 <StatusToggle
-                    isActive={row.original.status === 'Active'}
-                    status={row.original.status}
+                    isActive={row.original.isActive}
                     onClick={() => openStatusConfirm(row.original)}
                 />
             ),
-            size: 160,
+            size: 180,
         },
         {
             id: "actions",
@@ -245,7 +242,7 @@ const RawMaterialTypeListing = () => {
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
                     <button type="button" onClick={() => openViewModal(row.original)}>
-                        <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
+                        <Eye size={18} className="text-[#084E92] hover:text-blue-700 cursor-pointer" />
                     </button>
                     <button type="button" onClick={() => openEditModal(row.original)}>
                         <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
@@ -256,12 +253,23 @@ const RawMaterialTypeListing = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 110,
+            size: 120,
         },
     ];
 
+    const filteredCategories = useMemo(() => {
+        return categoriesData.filter((item) => {
+            const matchesSearch = (item.nameEnglish || '')
+                .toLowerCase()
+                .includes(searchTerm.toLowerCase());
+            const matchesStatus = statusFilter === "All Status" || item.status === statusFilter;
+            const matchesType = typeFilter === "Category Type" || item.typeName === typeFilter;
+            return matchesSearch && matchesStatus && matchesType;
+        });
+    }, [categoriesData, searchTerm, statusFilter, typeFilter]);
+
     const table = useReactTable({
-        data: filteredTypes,
+        data: filteredCategories,
         columns,
         state: { pagination },
         onPaginationChange: setPagination,
@@ -269,59 +277,42 @@ const RawMaterialTypeListing = () => {
         getPaginationRowModel: getPaginationRowModel(),
     });
 
-    const lastUpdatedLabel = useMemo(() => {
-        const withDates = types.filter((t) => t.createdAt);
-        if (!withDates.length) return '—';
-        const parse = (s) => {
-            const [d, m, y] = s.split('/').map(Number);
-            return new Date(y, m - 1, d);
-        };
-        const latest = withDates.reduce((a, b) => (parse(a.createdAt) > parse(b.createdAt) ? a : b));
-        return latest.createdAt;
-    }, [types]);
-
     const STATS = [
         {
-            title: "Total Types",
+            title: "Total Category",
             value: String(stats.total),
             icon: <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
             color: "text-[#1B1B1F]",
         },
         {
-            title: "Active Types",
+            title: "Active Category",
             value: String(stats.active).padStart(2, '0'),
             icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
             color: "text-[#15803D]",
         },
         {
-            title: "Inactive Types",
+            title: "Inactive Category",
             value: String(stats.inactive).padStart(2, '0'),
             icon: <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />,
-            color: "text-[#1B1B1F]",
-        },
-        {
-            title: "Last Updated",
-            value: lastUpdatedLabel,
-            icon: <Clock size={22} className="text-[#7C3AED] p-1 bg-[#EDE9FE] rounded" />,
             color: "text-[#1B1B1F]",
         },
     ];
 
     return (
-      <Container>
-          <div className="p-4 md:p-6">
+       <Container>
+         <div className='p-4 md:p-6'>
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
                 <span>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Master Data</span>
                 <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Raw Material Type</span>
+                <span className="text-[#084E92] font-medium">Raw Material Categories</span>
             </div>
 
             <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Raw Material Type Master</h1>
+                    <h1 className="text-3xl font-bold text-[#084E92]">Raw Material Category Master</h1>
                 </div>
 
                 <div className="flex gap-3 self-end">
@@ -338,13 +329,13 @@ const RawMaterialTypeListing = () => {
                         className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                     >
                         <Plus size={16} />
-                        Add Type
+                        Add Category
                     </button>
                 </div>
             </div>
 
             {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
                 {STATS.map((item) => (
                     <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
                         <div className="flex justify-between items-center pb-2">
@@ -356,22 +347,22 @@ const RawMaterialTypeListing = () => {
                 ))}
             </div>
 
-            {/* Filters */}
             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                    <div className="relative min-w-0 border border-[#C3C6D1] rounded-lg">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <div className="grid grid-cols-1 xl:grid-cols-4 sm:grid-col-2 gap-4">
+                    <div className="relative md:col-span-2">
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input
-                            placeholder="Search by type name..."
-                            className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg"
+                            type="text"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by category name..."
+                            className="w-full pl-10 py-2 border rounded-lg outline-none"
                         />
                     </div>
 
-                    <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
+                    <p className='border rounded-lg px-3 py-2'>
                         <select
-                            className="outline-none w-full min-w-0 bg-transparent"
+                            className="outline-none w-full"
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
                         >
@@ -380,14 +371,26 @@ const RawMaterialTypeListing = () => {
                             <option>Inactive</option>
                         </select>
                     </p>
+
+                    <p className='border rounded-lg px-3 py-2'>
+                        <select
+                            className="w-full outline-none"
+                            value={typeFilter}
+                            onChange={(e) => setTypeFilter(e.target.value)}
+                        >
+                            <option>Category Type</option>
+                            <option>Food Category</option>
+                            <option>Fuel Category</option>
+                        </select>
+                    </p>
                 </div>
             </div>
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
+                {loading && <p className="p-4 text-sm text-gray-500">Loading raw material categories...</p>}
                 {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl">
+                <DataGrid table={table} recordCount={filteredCategories.length} className="rounded-2xl">
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>
@@ -402,17 +405,17 @@ const RawMaterialTypeListing = () => {
                 </DataGrid>
             </div>
 
-            <AddRawMaterialTypeModal
+            <AddRawMaterialCategoryModal
                 isOpen={showAddType}
                 onClose={closeModal}
-                onSaved={fetchTypes}
+                onSaved={fetchCategories}
                 initialData={editingType}
             />
 
-            <RawMaterialTypeDetailsModal
+            <RawMaterialCategoryDetailsModal
                 isOpen={showViewModal}
                 onClose={closeViewModal}
-                type={viewingType}
+                category={viewingCategory}
                 loading={viewLoading}
             />
 
@@ -420,13 +423,13 @@ const RawMaterialTypeListing = () => {
                 isOpen={showStatusConfirm}
                 onClose={closeStatusConfirm}
                 onConfirm={confirmStatusChange}
-                targetName={statusTarget?.name}
+                targetName={statusTarget?.nameEnglish}
                 targetStatus={statusTarget?.nextActive}
                 saving={statusSaving}
             />
         </div>
-      </Container>
-    );
-};
+       </Container>
+    )
+}
 
-export default RawMaterialTypeListing;
+export default RowMaterialCategories
