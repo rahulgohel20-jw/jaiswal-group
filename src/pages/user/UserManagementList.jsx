@@ -354,21 +354,6 @@ const UserManagementList = () => {
         size: 140,
       },
       {
-        id: 'role',
-        accessorFn: (row) => row.role,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="ROLE"
-            column={column}
-            className="my-2 text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <span className="text-gray-600">{row.original.role}</span>
-        ),
-        size: 120,
-      },
-      {
         id: 'department',
         accessorFn: (row) => row.department,
         header: ({ column }) => (
