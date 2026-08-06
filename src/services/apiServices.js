@@ -255,8 +255,8 @@ export const getCitiesByState = (stateId) => {
   return GET('/city/getbystateid', { stateId });
 };
 
-export const getAllEmployees = () => {
-  return GET('/employee/get-all');
+export const getAllEmployees = (roleId = 0) => {
+  return GET('/employee/get-all', { roleId });
 };
 
 export const getAllActiveEmployees = () => {
@@ -491,4 +491,24 @@ export const deleteRawMaterialCategoryById = (id) => {
 
 export const updateRawMaterialCategoryStatus = (id, active) => {
   return PUT(`/rawmaterialcategory/updatestatus?id=${id}&isActive=${active}`);
+};
+
+export const getAllRoleMasterByUserId = (userId) => {
+  return GET('/rolemaster/getall', { userId });
+};
+
+export const getRoleMasterById = (id) => {
+  return GET('/rolemaster/gebyid', { id });
+};
+
+export const addRoleMaster = (payload) => {
+  return POST('/rolemaster/add', payload);
+};
+
+export const updateRoleMaster = (payload) => {
+  return PUT('/rolemaster/update', payload, { id: payload.id });
+};
+
+export const deleteRoleMasterById = (id) => {
+  return DELETE('/rolemaster/deletebyid', { id });
 };

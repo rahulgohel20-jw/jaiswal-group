@@ -223,7 +223,7 @@ const UserViewDetails = () => {
 
             <StatCard
               label="Department"
-              value={employee.departmentName}
+              value={employee.departmentName ?? employee.department?.name}
               icon={Briefcase}
             />
           </div>
