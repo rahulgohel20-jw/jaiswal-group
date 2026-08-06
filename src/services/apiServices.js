@@ -406,7 +406,9 @@ export const updateMenuItem = (id, data) => {
 export const deleteMenuItemById = (id) => {
   return DELETE(`/menuitems/deletebyid?id=${id}`);
 };
-
+export const updateMenuItemStatus = ({ id, isActive }) => {
+    return PUT(`/menuitems/updatestatus?id=${id}&isActive=${isActive}`);
+};
 // ---- Sub-Outlet APIs ----
 
 export const getAllSubOutlets = () => {
@@ -511,4 +513,27 @@ export const updateRoleMaster = (payload) => {
 
 export const deleteRoleMasterById = (id) => {
   return DELETE('/rolemaster/deletebyid', { id });
+};
+//Raw Material Unit APIs
+export const getAllRawMaterialUnits = () => {
+  return GET(`/unit/getall`);
+}
+
+export const getRawMaterialUnitById = (id) => {
+  return GET(`/unit/getbyid?id=${id}`);
+}
+export const addUnitMaster = (data) => {
+  return POST("/unit/add", data);
+};
+
+export const updateUnitMaster = (id, data) => {
+  return PUT(`/unit/update?id=${id}`, data);
+};
+
+export const deleteUnitMasterById = (id) => {
+  return DELETE(`/unit/deletebyid?id=${id}`);
+}
+
+export const updateUnitStatusById = (id, isActive) => {
+  return PUT(`/unit/updatestatusbyid?id=${id}&isActive=${isActive}`);
 };

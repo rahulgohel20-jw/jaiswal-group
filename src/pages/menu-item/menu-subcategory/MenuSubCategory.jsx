@@ -11,6 +11,7 @@ import CreateSubCategory from './CreateSubCategory';
 import { deleteMenuSubCategoryById, getAllMenuSubCategoryById, updateMenuSubCategoryStatus } from '../../../services/apiServices';
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
+import StatusConfirmModal from "@/utils/StatusConfirmModal";
 
 const MenuSubCategory = () => {
     const [search, setSearch] = useState("");
@@ -21,6 +22,9 @@ const MenuSubCategory = () => {
     const [rowSelection, setRowSelection] = useState({});
     const [openCategory, setOpenCategory] = useState(false);
     const [editData, setEditData] = useState(null);
+    const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+    const [statusTarget, setStatusTarget] = useState(null);
+    const [statusSaving, setStatusSaving] = useState(false);
 
     const handleEdit = (row) => {
         setEditData(row.raw ?? row);
@@ -32,7 +36,6 @@ const MenuSubCategory = () => {
 
         try {
             await deleteMenuSubCategoryById(id);
-            notify.success("Sub Category deleted Successfully")
             fetchSubCategories();
         } catch (err) {
             console.error(err);
@@ -63,7 +66,7 @@ const MenuSubCategory = () => {
             return null;
         }
     };
-    
+
     const userId = getUserIdFromToken()
     const fetchSubCategories = useCallback(async () => {
         setLoading(true);
@@ -106,30 +109,43 @@ const MenuSubCategory = () => {
         fetchSubCategories();
     }, [fetchSubCategories]);
 
-    const handleToggleStatus = async (row) => {
-    try {
-        const newStatus = !row.status;
-
-        await updateMenuSubCategoryStatus({
+    const openStatusConfirm = (row) => {
+        setStatusTarget({
             id: row.id,
-            isActive: newStatus,
+            itemLabel: row.name,
+            nextStatusLabel: row.status ? "Inactive" : "Active",
+            nextActive: !row.status,
         });
 
-        setSubCategories((prev) =>
-            prev.map((item) =>
-                item.id === row.id
-                    ? { ...item, status: newStatus }
-                    : item
-            )
-        );
+        setShowStatusConfirm(true);
+    };
 
-        notify.success("Sub Category status updated Successfully");
+    const closeStatusConfirm = () => {
+        if (statusSaving) return;
 
-    } catch (err) {
-        console.error("Status Update Error:", err.response?.data || err);
-        notify.error("Failed to update status");
-    }
-};
+        setShowStatusConfirm(false);
+        setStatusTarget(null);
+    };
+
+    const confirmStatusChange = async () => {
+        if (!statusTarget) return;
+
+        setStatusSaving(true);
+
+        try {
+            await updateMenuSubCategoryStatus({
+                id: statusTarget.id,
+                isActive: statusTarget.nextActive,
+            });
+
+            closeStatusConfirm();
+            fetchSubCategories();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setStatusSaving(false);
+        }
+    };
     const columns = useMemo(() => [
 
         {
@@ -222,7 +238,7 @@ const MenuSubCategory = () => {
                     <input
                         type="checkbox"
                         checked={!!row.original.status}
-                        onChange={() => handleToggleStatus(row.original)}
+                        onChange={() => openStatusConfirm(row.original)}
                         className="sr-only peer"
                     />
 
@@ -319,94 +335,103 @@ const MenuSubCategory = () => {
     return (
         <Container>
             <div className='p-4 md:p-6'>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Menu Item</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Sub Category</span>
-            </div>
-
-
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-[#0F172A] text-start">Menu Item Sub Category</h1>
-
+                {/* Breadcrumb */}
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                    <span>Dashboard</span>
+                    <ChevronRight size={12} />
+                    <span>Menu Item</span>
+                    <ChevronRight size={12} />
+                    <span className="text-[#084E92] font-medium">Sub Category</span>
                 </div>
 
-                <div className="flex gap-3 self-end">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setEditData(null);
-                            setOpenCategory(true);
-                        }}
-                        className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-                    >
-                        <Plus size={16} />
-                        Create New
-                    </button>
-                </div>
-            </div>
 
-
-            <div className="bg-white  py-5">
-
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
-                    <div className="relative w-full md:w-96">
-
-                        <Search
-                            size={18}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
-
-                        <input
-                            type="text"
-                            placeholder="Search Sub Category..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
-                        />
+                <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-[#0F172A] text-start">Menu Item Sub Category</h1>
 
                     </div>
 
-                    <p className="text-sm text-gray-500">
-                        Showing {filteredCategories.length} of {subCategories.length} sub categories
-                    </p>
+                    <div className="flex gap-3 self-end">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setEditData(null);
+                                setOpenCategory(true);
+                            }}
+                            className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
+                        >
+                            <Plus size={16} />
+                            Create New
+                        </button>
+                    </div>
+                </div>
+
+
+                <div className="bg-white  py-5">
+
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
+                        <div className="relative w-full md:w-96">
+
+                            <Search
+                                size={18}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
+
+                            <input
+                                type="text"
+                                placeholder="Search Sub Category..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
+                            />
+
+                        </div>
+
+                        <p className="text-sm text-gray-500">
+                            Showing {filteredCategories.length} of {subCategories.length} sub categories
+                        </p>
+
+                    </div>
 
                 </div>
 
-            </div>
+                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                    {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
+                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+                    <DataGrid table={table} recordCount={filteredCategories.length} className="rounded-2xl">
+                        <Card className="rounded-t-none border-t-0 rounded-2xl">
+                            <CardTable>
+                                <ScrollArea>
+                                    <DataGridTable />
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
+                            </CardTable>
+                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                                <DataGridPagination />
+                            </CardFooter>
+                        </Card>
+                    </DataGrid>
+                </div>
+                <CreateSubCategory
+                    open={openCategory}
+                    editData={editData}
+                    onClose={() => {
+                        setOpenCategory(false);
+                        setEditData(null);
+                    }}
+                    onSuccess={fetchSubCategories}
+                />
 
-            <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
-                {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                <DataGrid table={table} recordCount={filteredCategories.length} className="rounded-2xl">
-                    <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardTable>
-                        <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                            <DataGridPagination />
-                        </CardFooter>
-                    </Card>
-                </DataGrid>
+                <StatusConfirmModal
+                    isOpen={showStatusConfirm}
+                    onClose={closeStatusConfirm}
+                    onConfirm={confirmStatusChange}
+                    itemLabel={statusTarget?.itemLabel}
+                    nextStatusLabel={statusTarget?.nextStatusLabel}
+                    saving={statusSaving}
+                />
             </div>
-            <CreateSubCategory
-                open={openCategory}
-                editData={editData}
-                onClose={() => {
-                    setOpenCategory(false);
-                    setEditData(null);
-                }}
-                onSuccess={fetchSubCategories}
-            />
-        </div>
         </Container>
     )
 }

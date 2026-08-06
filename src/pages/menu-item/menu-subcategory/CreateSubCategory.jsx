@@ -50,10 +50,8 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
 
       if (editData) {
         await updateMenuSubCategory(editData.id, payload);
-        notify.success("Sub Category Updated Successfully");
       } else {
         await addMenuSubCategory(payload);
-        notify.success("Sub Category Added Successfully");
       }
 
       onSuccess?.();
@@ -76,7 +74,6 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
         setCategories(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Failed to load categories", err);
-        notify.error("Failed to load categories")
       }
     };
 
