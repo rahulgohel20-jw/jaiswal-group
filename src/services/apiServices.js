@@ -497,3 +497,23 @@ export const deleteRawMaterialCategoryById = (id) => {
 export const updateRawMaterialCategoryStatus = (id, active) => {
   return PUT(`/rawmaterialcategory/updatestatus?id=${id}&active=${active}`);
 };
+
+//Raw Material Unit APIs
+export const getAllRawMaterialUnits = () => {
+  return GET(`/unit/getall`);
+}
+
+export const getRawMaterialUnitById = (id) => {
+  return GET(`/unit/getbyid?id=${id}`);
+}
+export const addUnitMaster = (data) => {
+  return POST("/unit/add", data);
+};
+
+export const updateUnitMaster = (id, data) => {
+  return PUT(`/unit/update?id=${id}`, data);
+};
+
+export const deleteUnitMasterById = (id) => {
+  return DELETE(`/unit/delete?id=${id}`);
+}

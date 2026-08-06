@@ -295,11 +295,11 @@ const RowMaterialItemMaster = () => {
 
             <div className="flex justify-between items-start flex-col lg:flex-row gap-4">
                 <div>
-                    <h1 className="text-[32px] font-bold text-[#084E92]">
+                    <h1  className="text-2xl font-bold text-[#0F172A] text-start">
                         Raw Material Items Master
                     </h1>
 
-                    <p className="text-[#43474F] text-xs mt-2 max-w-162.5">
+                    <p className="text-sm text-gray-400 mt-1 max-w-xl">
                         Centralized inventory registry for global raw material tracking,
                         specification management, and real-time stock valuation monitoring.
                     </p>
