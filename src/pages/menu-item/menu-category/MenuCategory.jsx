@@ -15,6 +15,7 @@ import {
 } from "@/services/apiServices.js";
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
+import StatusConfirmModal from "@/utils/StatusConfirmModal";
 
 const MenuCategory = () => {
     const [search, setSearch] = useState("");
@@ -25,6 +26,10 @@ const MenuCategory = () => {
     const [rowSelection, setRowSelection] = useState({});
     const [openCategory, setOpenCategory] = useState(false);
     const [editData, setEditData] = useState(null);
+
+    const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+    const [statusTarget, setStatusTarget] = useState(null);
+    const [statusSaving, setStatusSaving] = useState(false);
 
     const fetchCategories = useCallback(async () => {
         setLoading(true);
@@ -90,22 +95,46 @@ const MenuCategory = () => {
         if (!window.confirm("Delete this category?")) return;
         try {
             await deleteMenuCategoryById(id);
-            notify.success("Menu Category Deleted Successfully");
             fetchCategories();
         } catch (err) {
             console.error("Failed to delete category:", err);
-            notify.error("Failed to delete category")
         }
     };
 
-    const handleToggleStatus = async (row) => {
+    const openStatusConfirm = (row) => {
+        setStatusTarget({
+            id: row.id,
+            itemLabel: row.name,
+            nextStatusLabel: row.status ? "Inactive" : "Active",
+            nextActive: !row.status,
+        });
+
+        setShowStatusConfirm(true);
+    };
+
+    const closeStatusConfirm = () => {
+        if (statusSaving) return;
+
+        setShowStatusConfirm(false);
+        setStatusTarget(null);
+    };
+
+    const confirmStatusChange = async () => {
+        if (!statusTarget) return;
+
+        setStatusSaving(true);
+
         try {
-            await updateMenuCategoryStatus({ id: row.id, isActive : !row.status });
-             notify.success("Menu Category Status Updated")
+            await updateMenuCategoryStatus({
+                id: statusTarget.id,
+                isActive: statusTarget.nextActive,
+            });
+            closeStatusConfirm();
             fetchCategories();
         } catch (err) {
-            notify.error("Failed to update status")
-            console.error("Failed to update status:", err);
+            console.error(err);
+        } finally {
+            setStatusSaving(false);
         }
     };
 
@@ -209,7 +238,7 @@ const MenuCategory = () => {
                     <input
                         type="checkbox"
                         checked={!!row.original.status}
-                        onChange={() => handleToggleStatus(row.original)}
+                        onChange={() => openStatusConfirm(row.original)}
                         className="sr-only peer"
                     />
                     <div
@@ -275,76 +304,85 @@ const MenuCategory = () => {
     return (
         <Container>
             <div className='p-4 md:p-6'>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Menu Item</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Category</span>
-            </div>
-
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-[#0F172A] text-start">Menu Category Master</h1>
+                {/* Breadcrumb */}
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                    <span>Dashboard</span>
+                    <ChevronRight size={12} />
+                    <span>Menu Item</span>
+                    <ChevronRight size={12} />
+                    <span className="text-[#084E92] font-medium">Category</span>
                 </div>
 
-                <div className="flex gap-3 self-end">
-                    <button
-                        type="button"
-                        onClick={() => { setEditData(null); setOpenCategory(true); }}
-                        className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-                    >
-                        <Plus size={16} />
-                        Create New
-                    </button>
-                </div>
-            </div>
-
-            <div className="bg-white py-5">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div className="relative w-full md:w-96">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search Category..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
-                        />
+                <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-[#0F172A] text-start">Menu Category Master</h1>
                     </div>
 
-                    <p className="text-sm text-gray-500">
-                        Showing {filteredCategories.length} of {Array.isArray(categories) ? categories.length : 0} categories
-                    </p>
+                    <div className="flex gap-3 self-end">
+                        <button
+                            type="button"
+                            onClick={() => { setEditData(null); setOpenCategory(true); }}
+                            className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
+                        >
+                            <Plus size={16} />
+                            Create New
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                {loading && <p className="p-4 text-sm text-gray-500">Loading categories...</p>}
-                {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                <DataGrid table={table} recordCount={filteredCategories.length} className="rounded-2xl">
-                    <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardTable>
-                        <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                            <DataGridPagination />
-                        </CardFooter>
-                    </Card>
-                </DataGrid>
-            </div>
+                <div className="bg-white py-5">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="relative w-full md:w-96">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search Category..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
+                            />
+                        </div>
 
-            <CreateMenuCategory
-                open={openCategory}
-                editData={editData}
-                onClose={() => { setOpenCategory(false); setEditData(null); }}
-                onSuccess={fetchCategories}
-            />
-        </div>
+                        <p className="text-sm text-gray-500">
+                            Showing {filteredCategories.length} of {Array.isArray(categories) ? categories.length : 0} categories
+                        </p>
+                    </div>
+                </div>
+
+                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                    {loading && <p className="p-4 text-sm text-gray-500">Loading categories...</p>}
+                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+                    <DataGrid table={table} recordCount={filteredCategories.length} className="rounded-2xl">
+                        <Card className="rounded-t-none border-t-0 rounded-2xl">
+                            <CardTable>
+                                <ScrollArea>
+                                    <DataGridTable />
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
+                            </CardTable>
+                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                                <DataGridPagination />
+                            </CardFooter>
+                        </Card>
+                    </DataGrid>
+                </div>
+
+                <CreateMenuCategory
+                    open={openCategory}
+                    editData={editData}
+                    onClose={() => { setOpenCategory(false); setEditData(null); }}
+                    onSuccess={fetchCategories}
+                />
+
+                <StatusConfirmModal
+                    isOpen={showStatusConfirm}
+                    onClose={closeStatusConfirm}
+                    onConfirm={confirmStatusChange}
+                    itemLabel={statusTarget?.itemLabel}
+                    nextStatusLabel={statusTarget?.nextStatusLabel}
+                    saving={statusSaving}
+                />
+            </div>
         </Container>
     )
 }

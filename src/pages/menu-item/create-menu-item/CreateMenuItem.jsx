@@ -280,10 +280,8 @@ const CreateMenuItem = () => {
 
             if (isEdit) {
                 await updateMenuItem(id, formData);
-                notify.success("Menu Item updated successfully");
             } else {
                 await addMenuItem(formData);
-                notify.success("Menu Item created successfully");
             }
             setForm(initialForm);
             setSelectedCategory("");
