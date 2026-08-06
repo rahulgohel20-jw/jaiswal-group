@@ -1,16 +1,35 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useLocation, useNavigate } from 'react-router';
-import { ChevronDown, Map, MapPin, User, X, Check, Eye, EyeOff, AlertTriangle } from 'lucide-react';
-import { getAllCountries, getStatesByCountry, getCitiesByState } from '@/services/apiServices';
-import { getEmployeeById, saveEmployee, getActiveCompany, updateEmployee,getDepartmentsByOrganization   } from '@/services/apiServices';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { notify } from '@/utils/toast';
 import {
-  DEFAULT_FORM,
-  extractList,
-  extractItem,
-  mapEmployeeToForm,
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Map,
+  MapPin,
+  User,
+  X,
+} from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router';
+import {
+  getActiveCompany,
+  getAllCountries,
+  getAllRoleMasterByUserId,
+  getCitiesByState,
+  getEmployeeById,
+  getStatesByCountry,
+  saveEmployee,
+  updateEmployee,
+} from '@/services/apiServices';
+import { getUserIdFromToken } from '../../utils/auth';
+import {
   buildEmployeePayload,
+  DEFAULT_FORM,
+  extractItem,
+  extractList,
+  mapEmployeeToForm,
 } from './utils/Employeemappers';
-import { notify } from "@/utils/toast";;
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -53,8 +72,16 @@ const Select = ({ value, onChange, placeholder, options, hasError }) => (
   </div>
 );
 
-// {id, name} option select — used for Country / State / City / Company / Unit
-const IdSelect = ({ value, onChange, placeholder, options, hasError, disabled, loading }) => (
+// {id, name} option select — used for Country / State / City / Company / Unit / Department
+const IdSelect = ({
+  value,
+  onChange,
+  placeholder,
+  options,
+  hasError,
+  disabled,
+  loading,
+}) => (
   <div className="relative">
     <select
       value={value}
@@ -78,7 +105,9 @@ const IdSelect = ({ value, onChange, placeholder, options, hasError, disabled, l
 );
 
 const SectionCard = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>
+  <div
+    className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}
+  >
     {children}
   </div>
 );
@@ -103,7 +132,9 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
       }}
       className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
     >
-      <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      <ChevronDown
+        className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+      />
     </button>
   </div>
 );
@@ -118,7 +149,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
     lat: initialLat ? parseFloat(initialLat) : 23.0225,
     lng: initialLng ? parseFloat(initialLng) : 72.5714,
   });
-  const [loaded, setLoaded] = useState(!!(typeof window !== 'undefined' && window.L));
+  const [loaded, setLoaded] = useState(
+    !!(typeof window !== 'undefined' && window.L),
+  );
 
   useEffect(() => {
     if (window.L) {
@@ -137,7 +170,10 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 
     const existingScript = document.querySelector('script[data-leaflet]');
     if (existingScript) {
-      existingScript.addEventListener('load', () => !cancelled && setLoaded(true));
+      existingScript.addEventListener(
+        'load',
+        () => !cancelled && setLoaded(true),
+      );
     } else {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
@@ -162,7 +198,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
       maxZoom: 19,
     }).addTo(map);
 
-    const marker = L.marker([coords.lat, coords.lng], { draggable: true }).addTo(map);
+    const marker = L.marker([coords.lat, coords.lng], {
+      draggable: true,
+    }).addTo(map);
 
     const updateFromLatLng = (latlng) => {
       setCoords({ lat: latlng.lat, lng: latlng.lng });
@@ -184,11 +222,16 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Pick Location on Map</h2>
+            <h2 className="text-base font-bold text-gray-900">
+              Pick Location on Map
+            </h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Click on the map or drag the pin to set coordinates.
             </p>
@@ -208,16 +251,25 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
               Loading map...
             </div>
           )}
-          <div ref={mapRef} className={loaded ? 'h-80 w-full' : 'h-0 w-full overflow-hidden'} />
+          <div
+            ref={mapRef}
+            className={loaded ? 'h-80 w-full' : 'h-0 w-full overflow-hidden'}
+          />
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 gap-4 flex-wrap">
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <span>
-              Lat: <span className="font-semibold text-gray-800">{coords.lat.toFixed(6)}</span>
+              Lat:{' '}
+              <span className="font-semibold text-gray-800">
+                {coords.lat.toFixed(6)}
+              </span>
             </span>
             <span>
-              Lng: <span className="font-semibold text-gray-800">{coords.lng.toFixed(6)}</span>
+              Lng:{' '}
+              <span className="font-semibold text-gray-800">
+                {coords.lng.toFixed(6)}
+              </span>
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -247,26 +299,51 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 const MAIN_GROUP_ID = 1;
 
 // Password must be at least 8 chars with 1 uppercase, 1 lowercase, 1 number, 1 special char
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const PASSWORD_REGEX =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
 // Stricter email pattern: no consecutive dots, no leading/trailing dots in the
-// local or domain part, and the TLD must be 2-24 letters only (blocks things
-// like "hiten@gmail.commm" or "hiten@gmail.c").
+// local or domain part, and the TLD must be 2-24 letters only.
 const EMAIL_REGEX =
   /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,24}$/;
-  
+
 const KNOWN_TLDS = new Set([
-  'com', 'net', 'org', 'edu', 'gov', 'mil', 'info', 'biz', 'co',
-  'in', 'io', 'us', 'uk', 'ca', 'au', 'de', 'fr', 'jp', 'cn', 'ai',
-  'me', 'app', 'dev', 'tech', 'store', 'online', 'xyz', 'name', 'pro',
+  'com',
+  'net',
+  'org',
+  'edu',
+  'gov',
+  'mil',
+  'info',
+  'biz',
+  'co',
+  'in',
+  'io',
+  'us',
+  'uk',
+  'ca',
+  'au',
+  'de',
+  'fr',
+  'jp',
+  'cn',
+  'ai',
+  'me',
+  'app',
+  'dev',
+  'tech',
+  'store',
+  'online',
+  'xyz',
+  'name',
+  'pro',
 ]);
 
 const isValidEmail = (rawEmail) => {
   const email = rawEmail.trim();
   if (!email) return false;
-  if (email.includes('..')) return false; // no consecutive dots anywhere
+  if (email.includes('..')) return false;
   if (!EMAIL_REGEX.test(email)) return false;
-
   const tld = email.split('.').pop().toLowerCase();
   return KNOWN_TLDS.has(tld);
 };
@@ -307,6 +384,7 @@ const UserRegistration = () => {
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
 
+  // Roles / departments — fetched once from /api/rolemaster/getall
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
 
@@ -316,6 +394,7 @@ const UserRegistration = () => {
   const [allOrgs, setAllOrgs] = useState([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
 
+  // Fetch org tree once on mount
   useEffect(() => {
     let cancelled = false;
     const fetchOrgs = async () => {
@@ -335,6 +414,34 @@ const UserRegistration = () => {
       cancelled = true;
     };
   }, []);
+
+  // Fetch all roles once on mount — these serve as the Department options
+  useEffect(() => {
+    let cancelled = false;
+    const fetchRoles = async () => {
+      setLoadingDepartments(true);
+      try {
+        const res = await getAllRoleMasterByUserId(getUserIdFromToken());
+        if (!cancelled) {
+          const list = extractList(res).map((d) => ({
+            id: d.id,
+            // Adjust the field name below if the API returns a different key
+            name: d.name ?? d.roleName ?? d.departmentName ?? '',
+          }));
+          setDepartments(list);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setDepartments([]);
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
+      }
+    };
+    fetchRoles();
+    return () => {
+      cancelled = true;
+    };
+  }, []); // no dependency on companyId / outletId — roles are global
 
   // Companies = orgs whose parent is the root MAIN_GROUP.
   const companies = useMemo(
@@ -359,14 +466,16 @@ const UserRegistration = () => {
   const handleCompanyChange = (e) => {
     const value = e.target.value;
     setForm((f) => ({ ...f, companyId: value, outletId: '' }));
-    setDepartments([]);
-    setErrors((prev) => ({ ...prev, companyId: undefined, outletId: undefined }));
+    setErrors((prev) => ({
+      ...prev,
+      companyId: undefined,
+      outletId: undefined,
+    }));
   };
 
   const handleUnitChange = (e) => {
     const value = e.target.value;
     setForm((f) => ({ ...f, outletId: value }));
-    setDepartments([]);
     setErrors((prev) => ({ ...prev, outletId: undefined }));
   };
 
@@ -475,53 +584,19 @@ const UserRegistration = () => {
     };
   }, [form.stateId]);
 
-// Departments are scoped to whichever org level is selected: Unit takes
-// precedence, then Company, and — with nothing picked — we fall back to
-// the Main Group (Jaiswal Group, id 1) so the list is never empty by default.
-useEffect(() => {
-  const organizationId = form.outletId || form.companyId || MAIN_GROUP_ID;
-  let cancelled = false;
-  const fetchDepartments = async () => {
-    setLoadingDepartments(true);
-    try {
-      const res = await getDepartmentsByOrganization(organizationId);
-      if (!cancelled) {
-        const list = extractList(res).map((d) => ({
-          id: d.id,
-          name: d.departmentName,
-        }));
-        setDepartments(list);
-      }
-    } catch (err) {
-      console.error(err);
-      if (!cancelled) setDepartments([]);
-    } finally {
-      if (!cancelled) setLoadingDepartments(false);
-    }
-  };
-  fetchDepartments();
-  return () => {
-    cancelled = true;
-  };
-}, [form.companyId, form.outletId]);
-
   const set = (key, val) => {
     setForm((f) => ({ ...f, [key]: val }));
     setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
   };
 
-  // Email gets its own setter so we can validate live as the user types,
-  // instead of only surfacing the "commm" style typo on submit.
+  // Email gets its own setter so we can validate live as the user types.
   const handleEmailChange = (e) => {
     const value = e.target.value;
     setForm((f) => ({ ...f, email: value }));
     setErrors((prev) => {
-      if (!value.trim()) {
-        return { ...prev, email: undefined };
-      }
-      if (!isValidEmail(value)) {
+      if (!value.trim()) return { ...prev, email: undefined };
+      if (!isValidEmail(value))
         return { ...prev, email: 'Enter a valid email address' };
-      }
       return { ...prev, email: undefined };
     });
   };
@@ -531,7 +606,12 @@ useEffect(() => {
     setForm((f) => ({ ...f, countryId: value, stateId: '', cityId: '' }));
     setStates([]);
     setCities([]);
-    setErrors((prev) => ({ ...prev, countryId: undefined, stateId: undefined, cityId: undefined }));
+    setErrors((prev) => ({
+      ...prev,
+      countryId: undefined,
+      stateId: undefined,
+      cityId: undefined,
+    }));
   };
 
   const handleStateChange = (e) => {
@@ -553,7 +633,8 @@ useEffect(() => {
 
     if (!form.username.trim()) e.username = 'Username is required';
     else if (!USERNAME_REGEX.test(form.username))
-      e.username = 'Username must be 3-20 characters (letters, numbers, . _ - only)';
+      e.username =
+        'Username must be 3-20 characters (letters, numbers, . _ - only)';
 
     if (!form.email.trim()) e.email = 'Email address is required';
     else if (!isValidEmail(form.email))
@@ -567,25 +648,26 @@ useEffect(() => {
     }
 
     if (!form.mobile.trim()) e.mobile = 'Mobile number is required';
-    else if (!MOBILE_REGEX.test(form.mobile)) e.mobile = 'Enter a valid 10-digit mobile number';
+    else if (!MOBILE_REGEX.test(form.mobile))
+      e.mobile = 'Enter a valid 10-digit mobile number';
 
     if (form.altMobile && !MOBILE_REGEX.test(form.altMobile))
       e.altMobile = 'Enter a valid 10-digit mobile number';
 
     if (!form.companyId) e.companyId = 'Company is required';
-    // Unit is intentionally optional — if not selected, the user is
-    // registered directly under the company.
 
     if (!form.departmentId) e.departmentId = 'Department is required';
     if (!form.designation.trim()) e.designation = 'Designation is required';
 
-    if (!form.addressLine1.trim()) e.addressLine1 = 'Address line 1 is required';
+    if (!form.addressLine1.trim())
+      e.addressLine1 = 'Address line 1 is required';
     if (!form.countryId) e.countryId = 'Country is required';
     if (!form.stateId) e.stateId = 'State is required';
     if (!form.cityId) e.cityId = 'City is required';
 
     if (!form.pincode.trim()) e.pincode = 'Pincode is required';
-    else if (!PINCODE_REGEX.test(form.pincode)) e.pincode = 'Enter a valid 6-digit pincode';
+    else if (!PINCODE_REGEX.test(form.pincode))
+      e.pincode = 'Enter a valid 6-digit pincode';
 
     return e;
   };
@@ -605,19 +687,19 @@ useEffect(() => {
       focusFirstError(errs);
       return;
     }
-    
+
     const payload = buildEmployeePayload(form, { isEditMode });
-    console.log("payload",payload)
+    console.log('payload', payload);
     setSubmitting(true);
     setSubmitError('');
-  
+
     try {
       if (isEditMode) {
         await updateEmployee(payload);
-        notify.success("User Updated Successfully");
+        notify.success('User Updated Successfully');
       } else {
         await saveEmployee(payload);
-        notify.success("User Created Successfully");
+        notify.success('User Created Successfully');
       }
       navigate('/users');
     } catch (err) {
@@ -626,7 +708,9 @@ useEffect(() => {
         err?.response?.data?.message ||
           `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
       );
-      notify.error(`Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`);
+      notify.error(
+        `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
+      );
     } finally {
       setSubmitting(false);
     }
@@ -645,16 +729,19 @@ useEffect(() => {
     try {
       await saveEmployee(payload);
       setForm(DEFAULT_FORM);
-      notify.success("User Created Successfully");
+      notify.success('User Created Successfully');
       setStates([]);
       setCities([]);
       setErrors({});
     } catch (err) {
       console.error(err);
       setSubmitError(
-        err?.response?.data?.message || 'Something went wrong while saving this user. Please try again.',
+        err?.response?.data?.message ||
+          'Something went wrong while saving this user. Please try again.',
       );
-      notify.error('Something went wrong while saving this user. Please try again.');
+      notify.error(
+        'Something went wrong while saving this user. Please try again.',
+      );
     } finally {
       setSubmitting(false);
     }
@@ -686,6 +773,7 @@ useEffect(() => {
         </div>
       ) : (
         <>
+          {/* ── Personal Information ── */}
           <SectionCard className="mt-4">
             <SectionHeader
               icon={User}
@@ -696,6 +784,7 @@ useEffect(() => {
 
             {openSections.personal && (
               <div className="px-6 py-6 space-y-5">
+                {/* Row 1 — Name */}
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label required>First Name</Label>
@@ -733,7 +822,10 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <div className={`grid gap-4 ${isEditMode ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                {/* Row 2 — Username / Email / Company (+ User Code in edit mode) */}
+                <div
+                  className={`grid gap-4 ${isEditMode ? 'grid-cols-4' : 'grid-cols-3'}`}
+                >
                   {isEditMode && (
                     <div>
                       <Label>User Code (Auto Generated)</Label>
@@ -754,7 +846,9 @@ useEffect(() => {
                       placeholder="e.g., rjaiswal"
                       disabled={isEditMode}
                       className={`${errors.username ? errorInputCls : inputCls} ${
-                        isEditMode ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
+                        isEditMode
+                          ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                          : ''
                       }`}
                     />
                     <ErrorText message={errors.username} />
@@ -788,13 +882,18 @@ useEffect(() => {
                   </div>
                 </div>
 
+                {/* Row 3 — Unit / Password / Mobile / Alt Mobile */}
                 <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label>Unit</Label>
                     <IdSelect
                       value={form.outletId}
                       onChange={handleUnitChange}
-                      placeholder={form.companyId ? 'Select Unit (optional)' : 'Select company first'}
+                      placeholder={
+                        form.companyId
+                          ? 'Select Unit (optional)'
+                          : 'Select company first'
+                      }
                       options={outlets}
                       hasError={!!errors.outletId}
                       disabled={!form.companyId}
@@ -802,7 +901,8 @@ useEffect(() => {
                     />
                     <ErrorText message={errors.outletId} />
                     <p className="text-[11px] text-gray-400 mt-1">
-                      Leave blank to register the user directly under the company.
+                      Leave blank to register the user directly under the
+                      company.
                     </p>
                   </div>
 
@@ -824,14 +924,19 @@ useEffect(() => {
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0 p-0"
                           tabIndex={-1}
                         >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {showPassword ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                       {errors.password ? (
                         <ErrorText message={errors.password} />
                       ) : (
                         <p className="text-[11px] text-gray-400 mt-1">
-                          Min 8 characters, with uppercase, lowercase, number & special character.
+                          Min 8 characters, with uppercase, lowercase, number
+                          &amp; special character.
                         </p>
                       )}
                     </div>
@@ -842,19 +947,24 @@ useEffect(() => {
                     <input
                       name="mobile"
                       value={form.mobile}
-                      onChange={(e) => set('mobile', e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) =>
+                        set('mobile', e.target.value.replace(/\D/g, ''))
+                      }
                       placeholder="+91 00000 00000"
                       maxLength={10}
                       className={errors.mobile ? errorInputCls : inputCls}
                     />
                     <ErrorText message={errors.mobile} />
                   </div>
+
                   <div>
                     <Label>Alternate Mobile Number</Label>
                     <input
                       name="altMobile"
                       value={form.altMobile}
-                      onChange={(e) => set('altMobile', e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) =>
+                        set('altMobile', e.target.value.replace(/\D/g, ''))
+                      }
                       placeholder="+91 00000 00000"
                       maxLength={10}
                       className={errors.altMobile ? errorInputCls : inputCls}
@@ -863,6 +973,7 @@ useEffect(() => {
                   </div>
                 </div>
 
+                {/* Row 4 — Department / Designation */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label required>Department</Label>
@@ -876,11 +987,6 @@ useEffect(() => {
                       loading={loadingDepartments}
                     />
                     <ErrorText message={errors.departmentId} />
-                    {!form.companyId && (
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Showing departments under Jaiswal Group. Select a company or unit to narrow this list.
-                      </p>
-                    )}
                   </div>
 
                   <div>
@@ -899,6 +1005,7 @@ useEffect(() => {
             )}
           </SectionCard>
 
+          {/* ── Residential Address ── */}
           <SectionCard className="mt-4">
             <SectionHeader
               icon={MapPin}
@@ -949,7 +1056,9 @@ useEffect(() => {
                     <IdSelect
                       value={form.stateId}
                       onChange={handleStateChange}
-                      placeholder={form.countryId ? 'Select State' : 'Select country first'}
+                      placeholder={
+                        form.countryId ? 'Select State' : 'Select country first'
+                      }
                       options={states}
                       hasError={!!errors.stateId}
                       loading={loadingStates}
@@ -962,7 +1071,9 @@ useEffect(() => {
                     <IdSelect
                       value={form.cityId}
                       onChange={handleCityChange}
-                      placeholder={form.stateId ? 'Select City' : 'Select state first'}
+                      placeholder={
+                        form.stateId ? 'Select City' : 'Select state first'
+                      }
                       options={cities}
                       hasError={!!errors.cityId}
                       loading={loadingCities}
@@ -975,7 +1086,9 @@ useEffect(() => {
                     <input
                       name="pincode"
                       value={form.pincode}
-                      onChange={(e) => set('pincode', e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) =>
+                        set('pincode', e.target.value.replace(/\D/g, ''))
+                      }
                       placeholder="6 Digits"
                       maxLength={6}
                       className={errors.pincode ? errorInputCls : inputCls}
@@ -1018,7 +1131,7 @@ useEffect(() => {
         </>
       )}
 
-      {/* Footer actions */}
+      {/* ── Footer actions ── */}
       <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
         <button
           type="button"
