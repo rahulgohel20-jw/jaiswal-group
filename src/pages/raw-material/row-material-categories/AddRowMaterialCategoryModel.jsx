@@ -1,7 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { getUserIdFromToken } from '@/utils/auth';
 import { Package, Save, X } from 'lucide-react';
+import {
+  addRawMaterialCategory,
+  getAllRawMaterialCategoryType,
+  updateRawMaterialCategory,
+} from '@/services/apiServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,18 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  addRawMaterialCategory,
-  updateRawMaterialCategory,
-  getAllRawMaterialCategoryType,
-} from '@/services/apiServices';
-import { getUserIdFromToken } from '@/utils/auth';
 
 const emptyForm = {
   nameEnglish: '',
   rawMaterialCatTypeId: undefined,
   sequence: '',
-  isDirect: false
+  isDirect: false,
 };
 
 const AddRawMaterialCategoryModal = ({
@@ -38,18 +38,23 @@ const AddRawMaterialCategoryModal = ({
   const [loadingTypes, setLoadingTypes] = useState(false);
 
   const isEditMode = Boolean(initialData?.id);
-  
+
   useEffect(() => {
     if (!isOpen) return;
     const fetchTypes = async () => {
       setLoadingTypes(true);
       try {
         const res = await getAllRawMaterialCategoryType();
-        const raw = res.data?.data?.["Raw Material Category Type Details"] ?? [];
+        const raw =
+          res.data?.data?.['Raw Material Category Type Details'] ?? [];
         setTypeOptions(
           raw
             .filter((t) => t.nameEnglish) // skip empty/placeholder rows like the null-name one seen earlier
-            .map((t) => ({ value: t.id, label: t.nameEnglish }))
+            // Radix Select values are always strings, so coerce here to
+            // match the string we set on rawMaterialCatTypeId below —
+            // otherwise a numeric id won't match and the trigger shows
+            // the placeholder even when a type is selected.
+            .map((t) => ({ value: String(t.id), label: t.nameEnglish })),
         );
       } catch (err) {
         console.error('Failed to fetch category types:', err);
@@ -67,9 +72,16 @@ const AddRawMaterialCategoryModal = ({
     if (initialData) {
       setForm({
         nameEnglish: initialData.nameEnglish || '',
-        rawMaterialCatTypeId: initialData.rawMaterialCatTypeId,
+        // initialData comes from mapCategory() in the listing table, where
+        // rawMaterialCatTypeId is a number (or null) pulled out of the
+        // nested rawMaterialCatType object. Coerce to string so it matches
+        // the string values Select uses internally.
+        rawMaterialCatTypeId:
+          initialData.rawMaterialCatTypeId != null
+            ? String(initialData.rawMaterialCatTypeId)
+            : undefined,
         sequence: initialData.sequence ?? '',
-        isDirect: Boolean(initialData.isDirect)
+        isDirect: Boolean(initialData.isDirect),
       });
     } else {
       setForm(emptyForm);
@@ -92,13 +104,13 @@ const AddRawMaterialCategoryModal = ({
     onClose?.();
   };
 
-const save = async () => {
+  const save = async () => {
     if (isEditMode) {
       const payload = {
-        nameEnglish: form.nameEnglish, 
+        nameEnglish: form.nameEnglish,
         rawMaterialCatTypeId: form.rawMaterialCatTypeId,
         sequence: Number(form.sequence),
-        isDirect: form.isDirect,  
+        isDirect: form.isDirect,
       };
       await updateRawMaterialCategory(initialData.id, payload);
     } else {
@@ -107,11 +119,12 @@ const save = async () => {
         rawMaterialCatTypeId: form.rawMaterialCatTypeId,
         sequence: Number(form.sequence),
         createdBy: getUserIdFromToken(),
-        isDirect: form.isDirect || false
+        isDirect: form.isDirect || false,
       };
       await addRawMaterialCategory(payload);
     }
-};
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -123,10 +136,11 @@ const save = async () => {
       onClose?.();
     } catch (err) {
       console.error(err);
-      const backendMsg = err?.response?.data?.msg || err?.response?.data?.message;
+      const backendMsg =
+        err?.response?.data?.msg || err?.response?.data?.message;
       setError(
         backendMsg ||
-          `Failed to ${isEditMode ? 'update' : 'create'} material category. Please try again.`
+          `Failed to ${isEditMode ? 'update' : 'create'} material category. Please try again.`,
       );
     } finally {
       setSaving(false);
@@ -143,8 +157,11 @@ const save = async () => {
       onSaved?.();
     } catch (err) {
       console.error(err);
-      const backendMsg = err?.response?.data?.msg || err?.response?.data?.message;
-      setError(backendMsg || 'Failed to create material category. Please try again.');
+      const backendMsg =
+        err?.response?.data?.msg || err?.response?.data?.message;
+      setError(
+        backendMsg || 'Failed to create material category. Please try again.',
+      );
     } finally {
       setSaving(false);
     }
@@ -162,7 +179,9 @@ const save = async () => {
 
             <div>
               <h3 className="text-lg font-semibold leading-none">
-                {isEditMode ? 'Edit Raw Material Category' : 'Add Raw Material Category'}
+                {isEditMode
+                  ? 'Edit Raw Material Category'
+                  : 'Add Raw Material Category'}
               </h3>
 
               <p className="text-xs text-gray-500 mt-2">
@@ -216,7 +235,9 @@ const save = async () => {
                 disabled={loadingTypes}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder={loadingTypes ? 'Loading...' : 'Select Type'} />
+                  <SelectValue
+                    placeholder={loadingTypes ? 'Loading...' : 'Select Type'}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {typeOptions.map((opt) => (
@@ -252,11 +273,14 @@ const save = async () => {
           <div className="flex items-center gap-2">
             <Button
               onClick={handleSave}
-         
               className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
             >
               <Save className="h-4 w-4" />
-              {saving ? 'Saving...' : isEditMode ? 'Update Category' : 'Save Category'}
+              {saving
+                ? 'Saving...'
+                : isEditMode
+                  ? 'Update Category'
+                  : 'Save Category'}
             </Button>
           </div>
         </div>

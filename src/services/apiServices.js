@@ -1,211 +1,213 @@
-import axiosInstance, { POST, GET, PUT, DELETE, UPLOAD } from "./axiosInstance";
-import axios from "./axiosInstance";
+import axiosInstance, { DELETE, GET, POST, PUT, UPLOAD } from './axiosInstance';
+import axios from './axiosInstance';
 
 // ---- Auth APIs ----
 
 export const loginUser = (payload) => POST('/auth/login', payload);
-export const changePassword = (payload) => POST('/auth/change-password', payload);
+export const changePassword = (payload) =>
+  POST('/auth/change-password', payload);
 // ---- Password Reset APIs ----
 
-export const forgotPassword = (payload) => POST('/auth/forgot-password', payload);
+export const forgotPassword = (payload) =>
+  POST('/auth/forgot-password', payload);
 
 export const resetPassword = (payload) => POST('/auth/reset-password', payload);
 
 // ---- Asset Category APIs ----
 
 export const getAssetCategories = () => {
-  return GET("/assets-category/getall");
+  return GET('/assets-category/getall');
 };
 
 export const createAssetCategory = (payload) => {
-  return POST("/assets-category/create", payload);
+  return POST('/assets-category/create', payload);
 };
 
 export const getAssetCategoryById = (id) => {
-  return GET("/assets-category/getbyid", { id });
+  return GET('/assets-category/getbyid', { id });
 };
 
 export const updateAssetCategory = ({ id, ...payload }) => {
-  return PUT("/assets-category/update", payload, { id });
+  return PUT('/assets-category/update', payload, { id });
 };
 
 export const deleteAssetCategory = (id) => {
-  return DELETE("/assets-category/delete", { id });
+  return DELETE('/assets-category/delete', { id });
 };
 
 // ---- Asset Sub-Category APIs ----
 
 export const getSubCategories = () => {
-  return GET("/asset-subcategory/getall");
+  return GET('/asset-subcategory/getall');
 };
 
 export const getActiveSubCategories = () => {
-  return GET("/asset-subcategory/getallactive");
+  return GET('/asset-subcategory/getallactive');
 };
 
 export const getSubCategoriesByCategory = (categoryId) => {
-  return GET("/asset-subcategory/getbycategory", { categoryId });
+  return GET('/asset-subcategory/getbycategory', { categoryId });
 };
 
 export const getSubCategoryById = (id) => {
-  return GET("/asset-subcategory/get", { id });
+  return GET('/asset-subcategory/get', { id });
 };
 
 export const createSubCategory = (payload) => {
-  return POST("/asset-subcategory/create", payload);
+  return POST('/asset-subcategory/create', payload);
 };
 
 export const updateSubCategory = ({ id, ...payload }) => {
-  return PUT("/asset-subcategory/update", payload, { id });
+  return PUT('/asset-subcategory/update', payload, { id });
 };
 
 export const deleteSubCategory = (id) => {
-  return DELETE("/asset-subcategory/delete", { id });
+  return DELETE('/asset-subcategory/delete', { id });
 };
 
 // ---- Asset Type APIs ----
 
 export const getAssetTypes = () => {
-  return GET("/asset-type/getall");
+  return GET('/asset-type/getall');
 };
 
 export const getActiveAssetTypes = () => {
-  return GET("/asset-type/getallactive");
+  return GET('/asset-type/getallactive');
 };
 
 export const getAssetTypeById = (id) => {
-  return GET("/asset-type/get", { id });
+  return GET('/asset-type/get', { id });
 };
 
 export const createAssetType = (payload) => {
-  return POST("/asset-type/create", payload);
+  return POST('/asset-type/create', payload);
 };
 
 export const updateAssetType = ({ id, ...payload }) => {
-  return PUT("/asset-type/update", payload, { id });
+  return PUT('/asset-type/update', payload, { id });
 };
 
 export const deleteAssetType = (id) => {
-  return DELETE("/asset-type/delete", { id });
+  return DELETE('/asset-type/delete', { id });
 };
 
 export const getConditions = () => {
-  return GET("/asset-condition/getall");
+  return GET('/asset-condition/getall');
 };
 
 export const getActiveConditions = () => {
-  return GET("/asset-condition/getallactive");
+  return GET('/asset-condition/getallactive');
 };
 
 export const getConditionById = (id) => {
-  return GET("/asset-condition/get", { id });
+  return GET('/asset-condition/get', { id });
 };
 
 export const createCondition = (payload) => {
-  return POST("/asset-condition/create", payload);
+  return POST('/asset-condition/create', payload);
 };
 
 export const updateCondition = ({ id, ...payload }) => {
-  return PUT("/asset-condition/update", payload, { id });
+  return PUT('/asset-condition/update', payload, { id });
 };
 
 export const deleteCondition = (id) => {
-  return DELETE("/asset-condition/delete", { id });
+  return DELETE('/asset-condition/delete', { id });
 };
 
 export const getStatuses = () => {
-  return GET("/asset-status/getall");
+  return GET('/asset-status/getall');
 };
 
 export const getActiveStatuses = () => {
-  return GET("/asset-status/getallactive");
+  return GET('/asset-status/getallactive');
 };
 
 export const getStatusById = (id) => {
-  return GET("/asset-status/get", { id });
+  return GET('/asset-status/get', { id });
 };
 
 export const createStatus = (payload) => {
-  return POST("/asset-status/create", payload);
+  return POST('/asset-status/create', payload);
 };
 
 export const updateStatus = ({ id, ...payload }) => {
-  return PUT("/asset-status/update", payload, { id });
+  return PUT('/asset-status/update', payload, { id });
 };
 
 export const deleteStatus = (id) => {
-  return DELETE("/asset-status/delete", { id });
+  return DELETE('/asset-status/delete', { id });
 };
 
 // ---- Asset Brand APIs ----
 
 export const getAssetBrands = () => {
-  return GET("/asset-brand/getall");
+  return GET('/asset-brand/getall');
 };
 
 export const getActiveAssetBrands = () => {
-  return GET("/asset-brand/getallactive");
+  return GET('/asset-brand/getallactive');
 };
 
 export const getActiveAssetBrandsPaginated = (params) => {
-  return GET("/asset-brand/getallactive/page", params);
+  return GET('/asset-brand/getallactive/page', params);
 };
 
 export const getAssetBrandById = (id) => {
-  return GET("/asset-brand/get", { id });
+  return GET('/asset-brand/get', { id });
 };
 
 export const createAssetBrand = (payload) => {
-  return POST("/asset-brand/create", payload);
+  return POST('/asset-brand/create', payload);
 };
 
 export const updateAssetBrand = ({ id, ...payload }) => {
-  return PUT("/asset-brand/update", payload, { id });
+  return PUT('/asset-brand/update', payload, { id });
 };
 
 export const deleteAssetBrand = (id) => {
-  return DELETE("/asset-brand/delete", { id });
+  return DELETE('/asset-brand/delete', { id });
 };
 
 // ---- Asset Unit APIs ----
 
 export const getAssetUnits = () => {
-  return GET("/asset-unit/getall");
+  return GET('/asset-unit/getall');
 };
 
 export const getActiveAssetUnits = () => {
-  return GET("/asset-unit/getallactive");
+  return GET('/asset-unit/getallactive');
 };
 
 export const getActiveAssetUnitsPaginated = (params) => {
-  return GET("/asset-unit/getallactive/page", params);
+  return GET('/asset-unit/getallactive/page', params);
 };
 
 export const getAssetUnitById = (id) => {
-  return GET("/asset-unit/get", { id });
+  return GET('/asset-unit/get', { id });
 };
 
 export const createAssetUnit = (payload) => {
-  return POST("/asset-unit/create", payload);
+  return POST('/asset-unit/create', payload);
 };
 
 export const updateAssetUnit = ({ id, ...payload }) => {
-  return PUT("/asset-unit/update", payload, { id });
+  return PUT('/asset-unit/update', payload, { id });
 };
 
 export const deleteAssetUnit = (id) => {
-  return DELETE("/asset-unit/delete", { id });
+  return DELETE('/asset-unit/delete', { id });
 };
 
 //-- country API
 export const getAllCountry = () => {
-  return GET('/country/getall')
-}
+  return GET('/country/getall');
+};
 
 //-- state API
 export const getStateByCountry = (id) => {
   return GET('/state/by-country', { countryId: id });
-}
+};
 
 //-- city API
 export const getCityByState = (stateId) => {
@@ -214,26 +216,22 @@ export const getCityByState = (stateId) => {
 
 // ---Company API and Unit API
 export const getRegisteredCompany = () => {
-  return GET("/organization/get-all");
+  return GET('/organization/get-all');
 };
 export const getActiveCompany = () => {
-  return GET("/organization/get-all-active");
+  return GET('/organization/get-all-active');
 };
 export const getCompanyById = (id) => {
   return GET(`/organization/get/${id}`);
 };
 export const createCompany = (params, formData) => {
-  return axiosInstance.post(
-    "/organization/save",
-    formData,
-    { params }
-  );
+  return axiosInstance.post('/organization/save', formData, { params });
 };
 
 export const updateCompany = (data) =>
-  axiosInstance.put("/organization/update", data, {
+  axiosInstance.put('/organization/update', data, {
     headers: {
-      "Content-Type": "multipart/form-data",
+      'Content-Type': 'multipart/form-data',
     },
   });
 
@@ -243,36 +241,35 @@ export const deleteCompany = (id) => {
 
 export const getOrganizationByType = (orgType) => {
   return GET(`/organization/by-type/${orgType}`);
-}
+};
 
 export const getAllCountries = () => {
-  return GET("/country/getall");
+  return GET('/country/getall');
 };
 
 export const getStatesByCountry = (countryId) => {
-  return GET("/state/by-country", { countryId });
+  return GET('/state/by-country', { countryId });
 };
 
 export const getCitiesByState = (stateId) => {
-  return GET("/city/getbystateid", { stateId });
+  return GET('/city/getbystateid', { stateId });
 };
-
 
 export const getAllEmployees = () => {
   return GET('/employee/get-all');
-}
+};
 
 export const getAllActiveEmployees = () => {
   return GET('/employee/get-all-active');
-}
+};
 
 export const getEmployeeById = (id) => {
   return GET(`/employee/get/${id}`);
-}
+};
 
 export const saveEmployee = (payload) => {
   return POST('/employee/save', payload);
-}
+};
 
 export const updateEmployee = (payload) => {
   return PUT('/employee/update', payload, { id: payload.id });
@@ -280,7 +277,7 @@ export const updateEmployee = (payload) => {
 
 export const deleteEmployeeById = (id) => {
   return DELETE(`/employee/delete/${id}`);
-}
+};
 
 // ---- Department APIs ----
 
@@ -316,56 +313,56 @@ export const deleteDepartmentById = (id) => {
 
 export const getAllAssets = () => {
   return GET('/assets/getall');
-}
+};
 
 export const createAsset = (formData) => {
-  return axiosInstance.post("/assets/create", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+  return axiosInstance.post('/assets/create', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
 
 export const getAssetById = (id) => {
   return GET(`/assets/get`, { id });
-}
+};
 
 // Fetch images for an asset by id
 export const getAssetImagesById = (id) => {
   return GET(`/assets/get/images`, { id });
-}
+};
 
 export const deleteAsset = (id) => {
   return DELETE('/assets/delete', { id });
-}
+};
 export const updateAsset = (id, formData) => {
   return axiosInstance.put(`/assets/update?id=${id}`, formData, {
     headers: {
-      "Content-Type": "multipart/form-data",
+      'Content-Type': 'multipart/form-data',
     },
   });
 };
 
 export const getAllMenuCategory = () => {
-  return GET("/menucategory/getall");
+  return GET('/menucategory/getall');
 };
 
 export const getMenuCategoryById = (id) => {
-  return GET("/menucategory/getid", { id });
+  return GET('/menucategory/getid', { id });
 };
 
 export const addMenuCategory = (formData) => {
-  return axiosInstance.post("/menucategory/add", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+  return axiosInstance.post('/menucategory/add', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
 
 export const updateMenuCategory = (formData) => {
-  return axiosInstance.put("/menucategory/update", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+  return axiosInstance.put('/menucategory/update', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
 
 export const deleteMenuCategoryById = (id) => {
-  return DELETE("/menucategory/deletebyid", { id });
+  return DELETE('/menucategory/deletebyid', { id });
 };
 
 export const updateMenuCategoryStatus = ({ id, isActive }) => {
@@ -380,37 +377,35 @@ export const updateMenuSubCategory = (id, data) => {
   return PUT(`/menusubcategory/update?id=${id}`, data);
 };
 export const updateMenuSubCategoryStatus = ({ id, isActive }) => {
-    return PUT(
-        `/menusubcategory/updatestatus?id=${id}&isActive=${isActive}`
-    );
+  return PUT(`/menusubcategory/updatestatus?id=${id}&isActive=${isActive}`);
 };
 export const deleteMenuSubCategoryById = (id) => {
   return DELETE(`/menusubcategory/deletebyid?id=${id}`);
 };
 export const addMenuSubCategory = (data) => {
-  return axiosInstance.post("/menusubcategory/add", data);
+  return axiosInstance.post('/menusubcategory/add', data);
 };
 
 //Menu Item API
 export const addMenuItem = (data) => {
-  return axiosInstance.post("/menuitems/add", data);
+  return axiosInstance.post('/menuitems/add', data);
 };
 export const getAllMenuItem = (params) => {
-  return axiosInstance.get("/menuitems/getallbyuserid", {
+  return axiosInstance.get('/menuitems/getallbyuserid', {
     params,
   });
 };
 export const getMenuItemById = (id) => {
   return GET(`/menuitems/getbyid?id=${id}`);
-}
+};
 export const updateMenuItem = (id, data) => {
-  return axiosInstance.put("/menuitems/update", data, {
+  return axiosInstance.put('/menuitems/update', data, {
     params: { id },
   });
 };
 export const deleteMenuItemById = (id) => {
-    return DELETE(`/menuitems/deletebyid?id=${id}`)
-}
+  return DELETE(`/menuitems/deletebyid?id=${id}`);
+};
 
 // ---- Sub-Outlet APIs ----
 
@@ -474,7 +469,7 @@ export const updateRawMaterialCategoryTypeStatus = (id, active) => {
   return PUT(`/rawmaterialcattype/updatestatus?id=${id}&isActive=${active}`);
 };
 
-export const getAllRawMaterialCategory = (categoryTypeId) => {
+export const getAllRawMaterialCategory = (categoryTypeId = 0) => {
   return GET(`/rawmaterialcategory/getall`, { categoryTypeId });
 };
 
@@ -495,5 +490,5 @@ export const deleteRawMaterialCategoryById = (id) => {
 };
 
 export const updateRawMaterialCategoryStatus = (id, active) => {
-  return PUT(`/rawmaterialcategory/updatestatus?id=${id}&active=${active}`);
+  return PUT(`/rawmaterialcategory/updatestatus?id=${id}&isActive=${active}`);
 };

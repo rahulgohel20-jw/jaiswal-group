@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Package, X, Loader2 } from 'lucide-react';
+import { Loader2, Package, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const StatusBadge = ({ status }) => {
@@ -10,7 +10,9 @@ const StatusBadge = ({ status }) => {
     Inactive: 'bg-gray-200 text-gray-600',
   };
   return (
-    <span className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${styles[status] || 'bg-gray-200 text-gray-600'}`}>
+    <span
+      className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${styles[status] || 'bg-gray-200 text-gray-600'}`}
+    >
       {status}
     </span>
   );
@@ -18,16 +20,25 @@ const StatusBadge = ({ status }) => {
 
 const Field = ({ label, children }) => (
   <div>
-    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
+    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+      {label}
+    </p>
     <div className="mt-1 text-sm text-gray-800">{children}</div>
   </div>
 );
 
 // View-only — displays whatever getById returned for Raw Material Category.
-const RawMaterialCategoryDetailsModal = ({ isOpen, onClose, category, loading }) => {
+const RawMaterialCategoryDetailsModal = ({
+  isOpen,
+  onClose,
+  category,
+  loading,
+}) => {
   if (!isOpen) return null;
 
-  const isActive = category ? Boolean(category.isActive ?? category.active) : false;
+  const isActive = category
+    ? Boolean(category.isActive ?? category.active)
+    : false;
   const statusStr = isActive ? 'Active' : 'Inactive';
 
   return (
@@ -43,7 +54,9 @@ const RawMaterialCategoryDetailsModal = ({ isOpen, onClose, category, loading })
               <h3 className="text-lg font-semibold leading-none">
                 {category?.nameEnglish || 'Raw Material Category'}
               </h3>
-              <p className="text-xs text-gray-500 mt-2">Material category details</p>
+              <p className="text-xs text-gray-500 mt-2">
+                Material category details
+              </p>
             </div>
           </div>
           <button
@@ -66,19 +79,36 @@ const RawMaterialCategoryDetailsModal = ({ isOpen, onClose, category, loading })
           {!loading && category && (
             <>
               <Field label="Category Name">
-                {category.nameEnglish || <span className="text-gray-400">—</span>}
+                {category.nameEnglish || (
+                  <span className="text-gray-400">—</span>
+                )}
               </Field>
 
               <Field label="Category Type">
-                {category.rawMaterialCategoryTypeName || category.typeName || <span className="text-gray-400">—</span>}
+                {category.rawMaterialCatType?.nameEnglish || (
+                  <span className="text-gray-400">—</span>
+                )}
               </Field>
 
               <Field label="Sequence">
-                {category.sequence !== undefined && category.sequence !== null ? category.sequence : <span className="text-gray-400">—</span>}
+                {category.sequence !== undefined &&
+                category.sequence !== null ? (
+                  category.sequence
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
               </Field>
 
               <Field label="Direct Category">
-                {category.isDirect !== undefined ? (category.isDirect ? 'Yes' : 'No') : <span className="text-gray-400">—</span>}
+                {category.isDirect !== undefined ? (
+                  category.isDirect ? (
+                    'Yes'
+                  ) : (
+                    'No'
+                  )
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
               </Field>
 
               <Field label="Status">
@@ -86,15 +116,15 @@ const RawMaterialCategoryDetailsModal = ({ isOpen, onClose, category, loading })
               </Field>
 
               {category.createdAt && (
-                <Field label="Created At">
-                  {new Date(category.createdAt).toLocaleString()}
-                </Field>
+                <Field label="Created At">{category.createdAt}</Field>
               )}
             </>
           )}
 
           {!loading && !category && (
-            <p className="text-sm text-gray-500 py-6 text-center">No details found.</p>
+            <p className="text-sm text-gray-500 py-6 text-center">
+              No details found.
+            </p>
           )}
         </div>
 
