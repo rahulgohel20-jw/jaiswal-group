@@ -518,3 +518,37 @@ export const deleteUnitMasterById = (id) => {
 export const updateUnitStatusById = (id, isActive) => {
   return PUT(`/unit/updatestatusbyid?id=${id}&isActive=${isActive}`);
 };
+
+//Raw Material Item APIs
+export const getAllRawMaterialItems = ( rawMateriaCatlId,unitid, isActive = "", rawMaterialName = "", pageNo = "",pageSize = "") => {
+  return GET(
+    `/rawmaterial/getall?rawMateriaCatlId=${rawMateriaCatlId}&unitid=${unitid}&isActive=${isActive}&pageNo=${pageNo}&pageSize=${pageSize}&rawMaterialName=${encodeURIComponent(rawMaterialName)}`
+  );
+};
+export const addRawMaterialItem = (formData) => {
+  return POST("/rawmaterial/add", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+export const updateRawMaterialItem = (formData) => {
+  return PUT("/rawmaterial/update", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+export const updateRawMaterialItemStatusById = (id, isActive) => {
+  return PUT(
+    `/rawmaterial/updatestatus?id=${id}&isActive=${isActive}`
+  );
+};
+
+export const getRawMaterialById = (id) => {
+  return GET("/rawmaterial/getbyid?id=" + id);
+};
+
+export const deleteRawMaterialItemById = (id) => {
+  return DELETE(`/rawmaterial/delete?id=${id}`);
+};
