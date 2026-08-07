@@ -10,9 +10,6 @@ import {
   Phone,
   Building2,
   Briefcase,
-  Calendar,
-  IndianRupee,
-  Sparkles,
 } from 'lucide-react';
 import { getEmployeeById } from '@/services/apiServices';
 import { extractItem, mapEmployeeToForm } from './utils/Employeemappers';
@@ -217,7 +214,7 @@ const UserViewDetails = () => {
 
           {/* Quick Stats */}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mt-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
             <StatCard
               label="Company"
               value={employee.organizationName}
@@ -226,14 +223,8 @@ const UserViewDetails = () => {
 
             <StatCard
               label="Department"
-              value={employee.departmentName}
+              value={employee.roleName ?? employee.department?.name}
               icon={Briefcase}
-            />
-
-            <StatCard
-                label="Designation"
-                    value={employee.designation}
-              icon={Sparkles}
             />
           </div>
 
@@ -269,6 +260,11 @@ const UserViewDetails = () => {
                   <InfoCard
                     label="Alternate Mobile"
                     value={employee.alternateMobile}
+                  />
+
+                  <InfoCard
+                    label="Designation"
+                    value={employee.designation}
                   />
 
 
