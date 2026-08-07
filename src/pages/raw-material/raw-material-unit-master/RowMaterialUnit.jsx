@@ -80,7 +80,7 @@ const RowMaterialUnit = () => {
       setLoading(true);
       const res = await getAllRawMaterialUnits();
 
-      const data = (res?.data?.data || []).map((item) => ({
+      const data = (res?.data?.data["Unit Details"] || []).map((item) => ({
         ...item,
         name: item.nameEnglish,
         symbol: item.symbolEnglish,
