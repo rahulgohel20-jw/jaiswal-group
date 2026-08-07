@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, UploadCloud, Users, PackagePlus, Search } from "lucide-react";
+import { X, UploadCloud, Users, PackagePlus, Search, Plus } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/select';
 import { getUserIdFromToken } from "../../../utils/auth";
 import { addRawMaterialItem, getAllRawMaterialCategory, getAllRawMaterialUnits, updateRawMaterialItem } from "../../../services/apiServices";
+import AddRawMaterialCategoryModal from "../row-material-categories/AddRowMaterialCategoryModel";
+import AddRawMaterialUnit from "../raw-material-unit-master/AddRawMaterialUnit";
 
 
 
@@ -40,6 +42,8 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
     const [units, setUnits] = useState([]);
     const [categories, setCategories] = useState([]);
     const [errors, setErrors] = useState({});
+    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+    const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
 
     const validate = () => {
         const newErrors = {};
@@ -60,31 +64,36 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
 
         return Object.keys(newErrors).length === 0;
     };
+    const fetchUnits = async () => {
+        try {
+            const res = await getAllRawMaterialUnits();
+            setUnits(
+                res?.data?.data["Unit Details"] ||
+                res?.data?.data ||
+                []
+            );
+        } catch (err) {
+            console.error("Failed to load units:", err);
+        }
+    };
+
+    const fetchCategories = async () => {
+        try {
+            const res = await getAllRawMaterialCategory();
+            setCategories(
+                res?.data?.data?.["Raw Material Category Details"] ||
+                res?.data?.data ||
+                []
+            );
+        } catch (err) {
+            console.error("Failed to load categories:", err);
+        }
+    };
+
     useEffect(() => {
-        const loadDropdowns = async () => {
-            try {
-                const [unitRes, categoryRes] = await Promise.all([
-                    getAllRawMaterialUnits(),
-                    getAllRawMaterialCategory(1),
-                ]);
-                setUnits(
-                    unitRes?.data?.data["Unit Details"] ||
-                    unitRes?.data?.data ||
-                    []
-                );
-
-                setCategories(
-                    categoryRes?.data?.data?.["Raw Material Category Details"] ||
-                    categoryRes?.data?.data ||
-                    []
-                );
-            } catch (err) {
-                console.error(err);
-            }
-        };
-
         if (isOpen) {
-            loadDropdowns();
+            fetchUnits();
+            fetchCategories();
         }
     }, [isOpen]);
 
@@ -283,25 +292,37 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                                 <span className="text-red-500">*</span>
                             </label>
 
-                            <Select
-                                value={String(form.rawMaterialCatId || "")}
-                                onValueChange={(value) => set("rawMaterialCatId", value)}
-                            >
-                                <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Select Category" />
-                                </SelectTrigger>
+                            <div className="flex gap-2 items-center mt-1">
+                                <div className="flex-1">
+                                    <Select
+                                        value={String(form.rawMaterialCatId || "")}
+                                        onValueChange={(value) => set("rawMaterialCatId", value)}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select Category" />
+                                        </SelectTrigger>
 
-                                <SelectContent>
-                                    {categories.map((item) => (
-                                        <SelectItem
-                                            key={item.id}
-                                            value={String(item.id)}
-                                        >
-                                            {item.nameEnglish}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                        <SelectContent>
+                                            {categories.map((item) => (
+                                                <SelectItem
+                                                    key={item.id}
+                                                    value={String(item.id)}
+                                                >
+                                                    {item.nameEnglish}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCategoryModalOpen(true)}
+                                    className="p-2.5 border rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary border-[#C3C6D1] shrink-0"
+                                    title="Add New Category"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </button>
+                            </div>
                             {errors.rawMaterialCatId && (
                                 <p className="text-red-500 text-xs mt-1">
                                     {errors.rawMaterialCatId}
@@ -320,25 +341,37 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                                 <span className="text-red-500">*</span>
                             </label>
 
-                            <Select
-                                value={String(form.unitId || "")}
-                                onValueChange={(value) => set("unitId", value)}
-                            >
-                                <SelectTrigger className="mt-1">
-                                    <SelectValue placeholder="Select Unit" />
-                                </SelectTrigger>
+                            <div className="flex gap-2 items-center mt-1">
+                                <div className="flex-1">
+                                    <Select
+                                        value={String(form.unitId || "")}
+                                        onValueChange={(value) => set("unitId", value)}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select Unit" />
+                                        </SelectTrigger>
 
-                                <SelectContent>
-                                    {units.map((item) => (
-                                        <SelectItem
-                                            key={item.id}
-                                            value={String(item.id)}
-                                        >
-                                            {item.nameEnglish}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                                        <SelectContent>
+                                            {units.map((item) => (
+                                                <SelectItem
+                                                    key={item.id}
+                                                    value={String(item.id)}
+                                                >
+                                                    {item.nameEnglish}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsUnitModalOpen(true)}
+                                    className="p-2.5 border rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary border-[#C3C6D1] shrink-0"
+                                    title="Add New Unit"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </button>
+                            </div>
                             {errors.unitId && (
                                 <p className="text-red-500 text-xs mt-1">
                                     {errors.unitId}
@@ -598,7 +631,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                 <div className="border-t p-5 flex justify-end bg-[#EFF4FF] border border-[#C3C6D1] flex-col sm:flex-row gap-4">
                     <div className="grid sm:grid-cols-2 gap-3">
                         <button onClick={onClose} className="border border-[#00376C] text-[#00376C] px-5 py-2 rounded-lg cursor-pointer">
-                            Cancle
+                            Cancel
                         </button>
 
                         <button
@@ -681,6 +714,22 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
 
                     </div>
                 </div>
+            )}
+
+            {isCategoryModalOpen && (
+                <AddRawMaterialCategoryModal
+                    isOpen={isCategoryModalOpen}
+                    onClose={() => setIsCategoryModalOpen(false)}
+                    onSaved={fetchCategories}
+                />
+            )}
+
+            {isUnitModalOpen && (
+                <AddRawMaterialUnit
+                    isOpen={isUnitModalOpen}
+                    onClose={() => setIsUnitModalOpen(false)}
+                    onSaved={fetchUnits}
+                />
             )}
         </div>
     );
