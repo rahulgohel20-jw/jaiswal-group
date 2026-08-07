@@ -5,9 +5,13 @@ import { Package, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  addRawMaterialCategoryType,
-  updateRawMaterialCategoryType,
-} from '@/services/apiServices';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { notify } from "@/utils/toast";
 import { getUserIdFromToken } from '@/utils/auth';
 
 const emptyForm = { nameEnglish: '' };
@@ -47,14 +51,16 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
       const payload = {
         nameEnglish: form.nameEnglish,
       };
-      await updateRawMaterialCategoryType(initialData.id, payload);
+      await updateRawMaterialType(payload);
+      notify.success("Row Material Type Updated Successfully")
     } else {
       const payload = {
         active: true, // new records default to Active; status is changed afterward via the toggle
         createdBy: getUserIdFromToken(),
         nameEnglish: form.nameEnglish,
       };
-      await addRawMaterialCategoryType(payload);
+      await createRawMaterialType(payload);
+       notify.success("Row Material Type Created Successfully")
     }
   };
 
@@ -72,6 +78,26 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
       setError(
         backendMsg ||
           `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`
+      );
+       notify.error( `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`)
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // "Save & Add Another" only applies to create mode: saves, then clears
+  // the form and keeps the modal open for the next entry.
+  const handleSaveAndAddAnother = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await save();
+      setForm(emptyForm);
+      onSaved?.();
+    } catch (err) {
+      console.error(err);
+      setError(
+        err?.response?.data?.message || 'Failed to create material type. Please try again.'
       );
     } finally {
       setSaving(false);

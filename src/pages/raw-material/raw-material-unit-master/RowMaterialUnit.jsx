@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronRight, CircleCheck, CircleX, Plus, Ruler, Search, SquarePen, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, CircleCheck, CircleX, Plus, Ruler, Search, SquarePen, Trash2, Upload } from 'lucide-react'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Container } from "@/components/common/container";
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
@@ -9,55 +9,60 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddRawMaterialUnit from './AddRawMaterialUnit';
-import { deleteUnitMasterById, getAllRawMaterialUnits, updateUnitStatusById } from '../../../services/apiServices';
+import { deleteUnitMasterById, getAllRawMaterialUnits } from '../../../services/apiServices';
 import { notify } from "@/utils/toast";
-import StatusConfirmModal from '@/utils/StatusConfirmModal';
 
+const units_data = [
+  {
+    id: 1,
+    name: "PAX",
+    symbol: "PAX",
+    status: "Active",
+  },
+  {
+    id: 2,
+    name: "MTR(S)",
+    symbol: "MTR(S)",
+    status: "Active",
+  },
+  {
+    id: 3,
+    name: "NONE",
+    symbol: "NONE",
+    status: "Active",
+  },
+  {
+    id: 4,
+    name: "BOTTEL",
+    symbol: "BOTTEL",
+    status: "Active",
+  },
+  {
+    id: 5,
+    name: "KILO",
+    symbol: "KILO",
+    status: "Inactive",
+  },
+  {
+    id: 6,
+    name: "PKT",
+    symbol: "PKT",
+    status: "Active",
+  },
+  {
+    id: 7,
+    name: "BOX",
+    symbol: "BOX",
+    status: "Inactive",
+  },
+  {
+    id: 8,
+    name: "LITER",
+    symbol: "LITER",
+    status: "Active",
+  },
+];
 
-const DeleteConfirmModal = ({ unit, onCancel, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div
-      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-      onClick={onCancel}
-    />
-
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-      <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
-        <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
-          <AlertTriangle className="w-5 h-5" />
-        </div>
-
-        <h2 className="text-base font-bold text-gray-900">
-          Delete Unit?
-        </h2>
-
-        <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{" "}
-          <span className="font-semibold text-gray-700">
-            {unit.name}
-          </span>{" "}
-          from the unit list. This action cannot be undone.
-        </p>
-      </div>
-
-      <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
-        <button
-          onClick={onCancel}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={onConfirm}
-          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-);
 const RowMaterialUnit = () => {
   const [units, setUnit] = useState([])
   const [loading, setLoading] = useState(false);
@@ -69,19 +74,13 @@ const RowMaterialUnit = () => {
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
-  const [deletingUnit, setDeletingUnit] = useState(null);
-
-
-  // Status toggle confirm modal state
-  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
-  const [statusTarget, setStatusTarget] = useState(null); // { id, name, nextActive }
-  const [statusSaving, setStatusSaving] = useState(false);
 
   const fetchUnits = async () => {
     try {
       setLoading(true);
       const res = await getAllRawMaterialUnits();
-      const data = (res?.data?.data['Unit Details'] || []).map((item) => ({
+
+      const data = (res?.data?.data || []).map((item) => ({
         ...item,
         name: item.nameEnglish,
         symbol: item.symbolEnglish,
@@ -120,76 +119,40 @@ const RowMaterialUnit = () => {
     fetchUnits();
   };
 
-  const handleDelete = (unit) => {
-    setDeletingUnit(unit);
-  };
-
-  const openStatusConfirm = (row) => {
-    setStatusTarget({
-      id: row.id,
-      name: row.name,
-      nextActive: !row.isActive,
-    });
-
-    setShowStatusConfirm(true);
-  };
-
-  const closeStatusConfirm = () => {
-    if (statusSaving) return;
-    setShowStatusConfirm(false);
-    setStatusTarget(null);
-  };
-
-  const confirmStatusChange = async () => {
-    if (!statusTarget) return;
-    setStatusSaving(true);
-
+  const handleDelete = async (unit) => {
     try {
-      await updateUnitStatusById(
-        statusTarget.id,
-        statusTarget.nextActive
-      );
+      await deleteUnitMasterById(unit.id);
 
-      setShowStatusConfirm(false);
-      setStatusTarget(null);
+      notify.success("Unit Deleted Successfully");
 
-      fetchUnits(); // refresh listing
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setStatusSaving(false);
-    }
-  };
-
-  const confirmDelete = async () => {
-    try {
-      await deleteUnitMasterById(deletingUnit.id)
       fetchUnits();
-      setDeletingUnit(null);
     } catch (err) {
       console.error(err);
+      notify.error("Failed to delete unit");
     }
   };
+  // const activeCount = units.filter((u) => u.status === 'Active').length;
+  // const inactiveCount = units.length - activeCount;
 
 
   const STATS = [
     {
       title: "Total Units",
-      value: `${units.length}`,
+      value: "5",
       badge: "OVERVIEW",
       icon: <Ruler size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
       color: "text-[#1B1B1F]",
     },
     {
       title: "Active Units",
-      value: `${units.filter((u) => u.status === 'Active').length}`,
+      value: "2",
       badge: "ACTIVE",
       icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
       color: "text-[#15803D]",
     },
     {
       title: "Inactive Units",
-      value: `${units.filter((u) => u.status === 'Inactive').length}`,
+      value: "3",
       badge: "INACTIVE",
       icon: <CircleX size={22} className="text-[#B45309] p-1 bg-[#FEF3C7] rounded" />,
       color: "text-[#B45309]",
@@ -252,12 +215,12 @@ const RowMaterialUnit = () => {
     {
       accessorKey: "name",
       header: "Name",
-      cell: ({ row }) => <p className="uppercase">{row.original.name}</p>,
+      cell: ({ row }) => row.original.name,
     },
     {
       accessorKey: "symbol",
       header: "Symbol",
-      cell: ({ row }) => <p className="uppercase">{row.original.symbol}</p>,
+      cell: ({ row }) => row.original.symbol,
     },
     {
       id: "status",
@@ -279,7 +242,6 @@ const RowMaterialUnit = () => {
           <input
             type="checkbox"
             checked={row.original.status === "Active"}
-            onChange={() => openStatusConfirm(row.original)}
             className="sr-only peer"
           />
 
@@ -451,6 +413,7 @@ const RowMaterialUnit = () => {
           )}
         </div>
 
+
         <AddRawMaterialUnit
           isOpen={isUnitModalOpen}
           onClose={handleModalClose}
@@ -458,22 +421,6 @@ const RowMaterialUnit = () => {
           initialData={editingUnit}
         />
       </div>
-      <StatusConfirmModal
-        isOpen={showStatusConfirm}
-        onClose={closeStatusConfirm}
-        onConfirm={confirmStatusChange}
-        targetName={statusTarget?.name}
-        nextStatusLabel={statusTarget?.nextActive ? "Active" : "Inactive"}
-        saving={statusSaving}
-      />
-
-      {deletingUnit && (
-        <DeleteConfirmModal
-          unit={deletingUnit}
-          onCancel={() => setDeletingUnit(null)}
-          onConfirm={confirmDelete}
-        />
-      )}
     </Container>
   )
 }

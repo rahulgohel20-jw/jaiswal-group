@@ -492,7 +492,7 @@ export const deleteRawMaterialCategoryById = (id) => {
 };
 
 export const updateRawMaterialCategoryStatus = (id, active) => {
-  return PUT(`/rawmaterialcategory/updatestatus?id=${id}&isActive=${active}`);
+  return PUT(`/rawmaterialcategory/updatestatus?id=${id}&active=${active}`);
 };
 
 export const getAllRoleMasterByUserId = (userId) => {

@@ -44,7 +44,7 @@ const StatCard = ({ label, value, icon: Icon }) => (
 );
 
 const SectionCard = ({ title, icon: Icon, children }) => (
-  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mt-6">
     <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100">
       <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
         <Icon className="w-5 h-5 text-[#084E92]" />
@@ -230,10 +230,6 @@ const UserViewDetails = () => {
 
           {/* Content */}
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
-            {/* Left */}
-
-            <div className="xl:col-span-2">
               <SectionCard icon={User} title="Personal Information">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <InfoCard
@@ -243,7 +239,7 @@ const UserViewDetails = () => {
 
                   <InfoCard
                     label="Username"
-                    value={employee.username}
+                    value={employee.updatedBy}
                   />
 
                   <InfoCard
@@ -274,7 +270,6 @@ const UserViewDetails = () => {
 
                 </div>
               </SectionCard>
-            </div>
 
             {/* Right */}
             <SectionCard icon={MapPin} title="Address Information">
@@ -287,6 +282,19 @@ const UserViewDetails = () => {
                 <InfoCard
                   label="Address Line 2"
                   value={employee.addressLine2}
+                />
+               <div className='grid grid-cols-2 gap-4'>
+                <InfoCard
+                  label="Country"
+                  value={employee.stateName}
+                />
+                <InfoCard
+                  label="Country"
+                  value={employee.cityName}
+                />
+                 <InfoCard
+                  label="Country"
+                  value={employee.countryName}
                 />
 
                 <InfoCard
@@ -304,8 +312,8 @@ const UserViewDetails = () => {
                   value={employee.longitude}
                 />
               </div>
+               </div>
             </SectionCard>
-          </div>
         </>
       ) : null}
     </div>

@@ -55,9 +55,8 @@ const Select = ({ value, onChange, placeholder, options, hasError }) => (
     <select
       value={value}
       onChange={onChange}
-      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${
-        value === '' ? 'text-gray-400' : 'text-gray-800'
-      }`}
+      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${value === '' ? 'text-gray-400' : 'text-gray-800'
+        }`}
     >
       <option value="" disabled>
         {placeholder}
@@ -87,9 +86,8 @@ const IdSelect = ({
       value={value}
       onChange={onChange}
       disabled={disabled || loading}
-      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${
-        value === '' ? 'text-gray-400' : 'text-gray-800'
-      } ${disabled || loading ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
+      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${value === '' ? 'text-gray-400' : 'text-gray-800'
+        } ${disabled || loading ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
     >
       <option value="" disabled>
         {loading ? 'Loading...' : placeholder}
@@ -457,8 +455,8 @@ const UserRegistration = () => {
     () =>
       form.companyId
         ? allOrgs
-            .filter((o) => String(o.parentId) === String(form.companyId))
-            .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name }))
+          .filter((o) => String(o.parentId) === String(form.companyId))
+          .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name }))
         : [],
     [allOrgs, form.companyId],
   );
@@ -706,7 +704,7 @@ const UserRegistration = () => {
       console.error(err);
       setSubmitError(
         err?.response?.data?.message ||
-          `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
+        `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
       );
       notify.error(
         `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
@@ -942,6 +940,11 @@ const UserRegistration = () => {
                     </div>
                   )}
 
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+
+                  
                   <div>
                     <Label required>Mobile Number</Label>
                     <input
@@ -954,7 +957,7 @@ const UserRegistration = () => {
                       maxLength={10}
                       className={errors.mobile ? errorInputCls : inputCls}
                     />
-                    <ErrorText message={errors.mobile} />
+                    <ErrorText message={errors.companyId} />
                   </div>
 
                   <div>
@@ -969,9 +972,11 @@ const UserRegistration = () => {
                       maxLength={10}
                       className={errors.altMobile ? errorInputCls : inputCls}
                     />
-                    <ErrorText message={errors.altMobile} />
+                    <ErrorText message={errors.outletId} />
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Leave blank to register the user directly under the company.
+                    </p>
                   </div>
-                </div>
 
                 {/* Row 4 — Department / Designation */}
                 <div className="grid grid-cols-2 gap-4">
@@ -989,6 +994,11 @@ const UserRegistration = () => {
                     <ErrorText message={errors.departmentId} />
                   </div>
 
+                  
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  
                   <div>
                     <Label required>Designation</Label>
                     <input
