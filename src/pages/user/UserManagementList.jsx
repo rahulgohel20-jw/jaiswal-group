@@ -1,4 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { notify } from '@/utils/toast';
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import {
   AlertTriangle,
   BadgeCheck,
@@ -17,39 +23,63 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { getAllEmployees, deleteEmployeeById, getActiveCompany, getAllActiveDepartments } from '@/services/apiServices';
+import {
+  deleteEmployeeById,
+  getActiveCompany,
+  getAllEmployees,
+  getAllRoleMasterByUserId,
+} from '@/services/apiServices';
+import { getUserIdFromToken } from '@/utils/auth';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Container } from '@/components/common/container';
 import { extractList, mapEmployeeToRow } from './utils/Employeemappers';
-import { Container } from "@/components/common/container";
-import { notify } from "@/utils/toast";
-
 
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
 // result length can at least drive "TOTAL USERS" in the meantime (see below).
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
-const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-[180px]',
+  className = 'text-gray-600',
+}) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
   </span>
 );
 
 const kycMeta = (status) => {
-  if (status === 'Verified') return { icon: <BadgeCheck size={20} />, color: 'text-[#15803D]', KycView: 'View Details' };
-  if (status === 'Rejected') return { icon: <CircleX size={20} />, color: 'text-[#BA1A1A]', KycView: 'View Details' };
-  return { icon: <ClockFading size={20} />, color: 'text-[#5F2600]', KycView: 'Review KYC' };
+  if (status === 'Verified')
+    return {
+      icon: <BadgeCheck size={20} />,
+      color: 'text-[#15803D]',
+      KycView: 'View Details',
+    };
+  if (status === 'Rejected')
+    return {
+      icon: <CircleX size={20} />,
+      color: 'text-[#BA1A1A]',
+      KycView: 'View Details',
+    };
+  return {
+    icon: <ClockFading size={20} />,
+    color: 'text-[#5F2600]',
+    KycView: 'Review KYC',
+  };
 };
 
 const DeleteConfirmModal = ({ user, onCancel, onConfirm, deleting }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+    <div
+      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      onClick={onCancel}
+    />
     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
       <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
         <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
@@ -57,9 +87,9 @@ const DeleteConfirmModal = ({ user, onCancel, onConfirm, deleting }) => (
         </div>
         <h2 className="text-base font-bold text-gray-900">Delete user?</h2>
         <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{" "}
-          <span className="font-semibold text-gray-700">{user.name}</span> from your
-          user list. This action cannot be undone.
+          This will permanently remove{' '}
+          <span className="font-semibold text-gray-700">{user.name}</span> from
+          your user list. This action cannot be undone.
         </p>
       </div>
       <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
@@ -84,20 +114,11 @@ const DeleteConfirmModal = ({ user, onCancel, onConfirm, deleting }) => (
   </div>
 );
 
-const ROLE_OPTIONS = [
-  { key: "all", label: "All Roles" },
-  { key: "Super Admin", label: "Super Admin" },
-  { key: "Finance Head", label: "Finance Head" },
-  { key: "Outlet Manager", label: "Outlet Manager" },
-  { key: "Logistics Executive", label: "Logistics Executive" },
-  { key: "System Analyst", label: "System Analyst" },
-];
-
 const KYC_OPTIONS = [
-  { key: "all", label: "All KYC Statuses" },
-  { key: "Verified", label: "Verified" },
-  { key: "Pending", label: "Pending" },
-  { key: "Rejected", label: "Rejected" },
+  { key: 'all', label: 'All KYC Statuses' },
+  { key: 'Verified', label: 'Verified' },
+  { key: 'Pending', label: 'Pending' },
+  { key: 'Rejected', label: 'Rejected' },
 ];
 
 const UserManagementList = () => {
@@ -108,39 +129,32 @@ const UserManagementList = () => {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [deletingUser, setDeletingUser] = useState(null);
   const [deleting, setDeleting] = useState(false);
-  const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [kycFilter, setKycFilter] = useState("all");
-  const [roleFilter, setRoleFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [kycFilter, setKycFilter] = useState('all');
   const [activeCompanies, setActiveCompanies] = useState([]);
-  const [search, setSearch] = useState("");
-
-  const [departmentOptions, setDepartmentOptions] = useState([{ key: "all", label: "All Categories" }]);
-  const [loadingDepartments, setLoadingDepartments] = useState(false);
-
-
-  const fetchDepartmentOptions = async () => {
-    setLoadingDepartments(true);
-    try {
-      const res = await getAllActiveDepartments();
-      const list = extractList(res).map((d) => ({
-        key: d.departmentName,
-        label: d.departmentName,
-      }));
-      setDepartmentOptions([{ key: "all", label: "All Categories" }, ...list]);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoadingDepartments(false);
-    }
-  };
+  const [search, setSearch] = useState('');
+  const [departments, setDepartments] = useState([]);
 
   const fetchActiveCompanies = async () => {
     try {
       const res = await getActiveCompany();
-      const companies =
-        res?.data?.data || [];
+      const companies = res?.data?.data || [];
 
       setActiveCompanies(companies);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const fetchDepartmentOptions = async () => {
+    try {
+      const userId = getUserIdFromToken();
+      const res = await getAllRoleMasterByUserId(userId);
+      const list = extractList(res).map((d) => ({
+        id: d.id,
+        name: d.name ?? d.roleName ?? d.departmentName ?? '',
+      }));
+      setDepartments(list);
     } catch (error) {
       console.error(error);
     }
@@ -210,31 +224,13 @@ const UserManagementList = () => {
           u.company?.toLowerCase().includes(searchText);
 
         const matchesCategory =
-          departmentFilter === "all" ||
-          u.department === departmentFilter;
+          departmentFilter === 'all' || u.department === departmentFilter;
 
-        const matchesKyc =
-          kycFilter === "all" ||
-          u.kycStatus === kycFilter;
+        const matchesKyc = kycFilter === 'all' || u.kycStatus === kycFilter;
 
-        const matchesRole =
-          roleFilter === "all" ||
-          u.role === roleFilter;
-
-        return (
-          matchesSearch &&
-          matchesCategory &&
-          matchesKyc &&
-          matchesRole
-        );
+        return matchesSearch && matchesCategory && matchesKyc;
       }),
-    [
-      userData,
-      search,
-      departmentFilter,
-      kycFilter,
-      roleFilter,
-    ]
+    [userData, search, departmentFilter, kycFilter],
   );
 
   useEffect(() => {
@@ -242,17 +238,19 @@ const UserManagementList = () => {
       ...prev,
       pageIndex: 0,
     }));
-  }, [search, roleFilter, departmentFilter, kycFilter]);
+  }, [search, departmentFilter, kycFilter]);
   // Edit reuses the same registration form component, switched into "update"
   // mode by the presence of state.user — the form fetches the full record
   // by id itself, so only the id needs to travel reliably here.
   const handleEdit = (user) => {
-    navigate('/users/update-user', { state: { user: { id: user.id, name: user.name } } });
+    navigate('/users/update-user', {
+      state: { user: { id: user.id, name: user.name } },
+    });
   };
 
   // View now opens a dedicated details page instead of a modal.
   const handleView = (user) => {
-    navigate('/users/view-user', { state: { user, } });
+    navigate('/users/view-user', { state: { user } });
   };
 
   const handleDelete = (user) => setDeletingUser(user);
@@ -273,70 +271,119 @@ const UserManagementList = () => {
   };
 
   const handleExport = (format) => {
-    alert(`Exporting ${filteredUser.length} user(s) as ${format.toUpperCase()}`);
+    alert(
+      `Exporting ${filteredUser.length} user(s) as ${format.toUpperCase()}`,
+    );
   };
 
   const columns = useMemo(
     () => [
       {
-        id: "name",
+        id: 'name',
         accessorFn: (row) => row.name,
-        header: ({ column }) => <DataGridColumnHeader title="USER NAME" column={column} className="my-2 text-xs" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="USER NAME"
+            column={column}
+            className="my-2 text-xs"
+          />
+        ),
         cell: ({ row }) => (
-          <div className='flex gap-3 items-center w-full'>
-            <div className='flex flex-col gap-1'>
-              <span className="font-semibold text-gray-800">{row.original.name}</span>
-              <span className="font-medium text-xs text-[#737781] ">{row.original.createdAt}</span>
+          <div className="flex gap-3 items-center w-full">
+            <div className="flex flex-col gap-1">
+              <span className="font-semibold text-gray-800">
+                {row.original.name}
+              </span>
+              <span className="font-medium text-xs text-[#737781] ">
+                {row.original.createdAt}
+              </span>
             </div>
-
           </div>
-
         ),
         size: 140,
       },
       {
-        id: "code",
+        id: 'code',
         accessorFn: (row) => row.code,
-        header: ({ column }) => <DataGridColumnHeader title="USER CODE" column={column} className="my-2 text-xs" />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.code}</span>,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="USER CODE"
+            column={column}
+            className="my-2 text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-600">{row.original.code}</span>
+        ),
         size: 150,
       },
       {
-        id: "email",
+        id: 'email',
         accessorFn: (row) => row.email,
-        header: ({ column }) => <DataGridColumnHeader title="EMAIL ADDRESS" column={column} className="my-2 text-xs" />,
-        cell: ({ row }) => <TruncatedCell value={row.original.email} widthClass="max-w-[190px]" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="EMAIL ADDRESS"
+            column={column}
+            className="my-2 text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell
+            value={row.original.email}
+            widthClass="max-w-[190px]"
+          />
+        ),
         size: 140,
       },
       {
-        id: "company",
+        id: 'company',
         accessorFn: (row) => row.company,
-        header: ({ column }) => <DataGridColumnHeader title="COMPANY" column={column} className="my-2 text-xs" />,
-        cell: ({ row }) => <TruncatedCell value={row.original.company} widthClass="max-w-[190px]" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="COMPANY"
+            column={column}
+            className="my-2 text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell
+            value={row.original.company}
+            widthClass="max-w-[190px]"
+          />
+        ),
         size: 140,
       },
       {
-        id: "role",
-        accessorFn: (row) => row.role,
-        header: ({ column }) => <DataGridColumnHeader title="ROLE" column={column} className="my-2 text-xs" />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.role}</span>,
-        size: 120,
-      },
-      {
-        id: "department",
+        id: 'department',
         accessorFn: (row) => row.department,
-        header: ({ column }) => <DataGridColumnHeader title="DEPARTMENT" column={column} className="my-2 text-xs" />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.department}</span>,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="DEPARTMENT"
+            column={column}
+            className="my-2 text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-600">{row.original.department}</span>
+        ),
         size: 120,
       },
       {
-        id: "kycStatus",
+        id: 'kycStatus',
         accessorFn: (row) => row.kycStatus,
-        header: ({ column }) => <DataGridColumnHeader title="KYC STATUS" column={column} className="my-2 text-xs" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="KYC STATUS"
+            column={column}
+            className="my-2 text-xs"
+          />
+        ),
         cell: ({ row }) => {
           const meta = kycMeta(row.original.kycStatus);
           return (
-            <div className={`flex gap-1 items-center ${meta.color} font-semibold`}>
+            <div
+              className={`flex gap-1 items-center ${meta.color} font-semibold`}
+            >
               <span>{meta.icon}</span>
               <span>{row.original.kycStatus}</span>
             </div>
@@ -345,13 +392,18 @@ const UserManagementList = () => {
         size: 120,
       },
       {
-        id: "KycView",
+        id: 'KycView',
         accessorFn: (row) => row.kycStatus,
-        header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Kyc View" column={column} />
+        ),
         cell: ({ row }) => {
           const meta = kycMeta(row.original.kycStatus);
           return (
-            <Link to="/user/kyc-information" className={`${meta.KycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>
+            <Link
+              to="/user/kyc-information"
+              className={`${meta.KycView === 'Re-verify' ? 'text-[#BA1A1A]' : 'text-[#084E92]'} font-bold`}
+            >
               {meta.KycView}
             </Link>
           );
@@ -359,14 +411,16 @@ const UserManagementList = () => {
         size: 120,
       },
       {
-        id: "action",
-        header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} />,
+        id: 'action',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="ACTIONS" column={column} />
+        ),
         cell: ({ row }) => (
           <div className="flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
               onClick={() => handleView(row.original)}
-               className="text-gray-500 hover:text-green-600 cursor-pointer" 
+              className="text-gray-500 hover:text-green-600 cursor-pointer"
               title="View user"
             >
               <Eye size={18} />
@@ -374,10 +428,10 @@ const UserManagementList = () => {
             <button
               type="button"
               onClick={() => handleEdit(row.original)}
-               className="text-gray-500 hover:text-blue-600 cursor-pointer"
+              className="text-gray-500 hover:text-blue-600 cursor-pointer"
               title="Update user"
             >
-              <SquarePen size={18}/>
+              <SquarePen size={18} />
             </button>
             <button
               type="button"
@@ -392,7 +446,6 @@ const UserManagementList = () => {
         enableSorting: false,
         size: 100,
       },
-
     ],
     [],
   );
@@ -411,9 +464,7 @@ const UserManagementList = () => {
       <div className="w-full p-4 sm:p-5 lg:p-6 max-w-[1600px] mx-auto">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
           <div>
-            <h1 className="text-2xl font-bold">
-              User Management List
-            </h1>
+            <h1 className="text-2xl font-bold">User Management List</h1>
             <p className="pt-2 text-md text-gray-400">
               Manage enterprise-wide user access, organizational roles, and
               compliance verification status from a centralized console.
@@ -430,12 +481,15 @@ const UserManagementList = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mt-8">
           {DATA.map((item) => (
-            <div key={item.label} className=" border border-[#C3C6D1] rounded-2xl p-4">
+            <div
+              key={item.label}
+              className=" border border-[#C3C6D1] rounded-2xl p-4"
+            >
               <div className="flex justify-between">
                 <span
                   className={`bg-[#084E921A]/50 p-2 w-7 h-7 rounded flex items-center justify-center`}
                 >
-                  <p className='text-xl'>{item.icon}</p>
+                  <p className="text-xl">{item.icon}</p>
                 </span>
               </div>
               <div className="mt-2">
@@ -447,9 +501,7 @@ const UserManagementList = () => {
         </div>
 
         <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 my-6">
-
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
-
             {/* Search Section - Left 50% */}
             <div className="relative w-full border border-[#C3C6D1] rounded-lg">
               <Search
@@ -466,45 +518,8 @@ const UserManagementList = () => {
               />
             </div>
 
-
             {/* Filters Section - Right 50% */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-
-              {/* Role */}
-              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                <select
-                  value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="outline-none w-full bg-transparent text-sm text-gray-600"
-                >
-                  {ROLE_OPTIONS.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-
-              {/* Department */}
-              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  disabled={loadingDepartments}
-                  className="outline-none w-full bg-transparent text-sm text-gray-600 disabled:opacity-60"
-                >
-                  {departmentOptions.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
-                      {loadingDepartments && opt.key === "all"
-                        ? "Loading..."
-                        : opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* KYC */}
               <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
                 <select
@@ -520,26 +535,49 @@ const UserManagementList = () => {
                 </select>
               </div>
 
+              {/* Department */}
+              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+                <select
+                  value={departmentFilter}
+                  onChange={(e) => setDepartmentFilter(e.target.value)}
+                  className="outline-none w-full bg-transparent text-sm text-gray-600"
+                >
+                  <option value="all">All Departments</option>
+                  {departments.map((opt) => (
+                    <option key={opt.id} value={opt.name}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-
           </div>
-
         </div>
         {loadError && (
           <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{loadError}</span>
-            <button type="button" onClick={fetchUsers} className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0">
+            <button
+              type="button"
+              onClick={fetchUsers}
+              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
+            >
               Retry
             </button>
           </div>
         )}
 
-        <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
+        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
           {loading ? (
-            <div className="px-6 py-16 text-center text-sm text-gray-400">Loading users...</div>
+            <div className="px-6 py-16 text-center text-sm text-gray-400">
+              Loading users...
+            </div>
           ) : (
-            <DataGrid table={table} recordCount={filteredUser.length} className="rounded-2xl">
+            <DataGrid
+              table={table}
+              recordCount={filteredUser.length}
+              className="rounded-2xl"
+            >
               {/* Table Card */}
               <Card className="rounded-t-none border-t-0 rounded-2xl">
                 <CardTable>
@@ -564,7 +602,6 @@ const UserManagementList = () => {
             onConfirm={confirmDelete}
           />
         )}
-
       </div>
     </Container>
   );

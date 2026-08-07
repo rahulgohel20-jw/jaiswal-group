@@ -11,6 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { notify } from "@/utils/toast";
+import {
+  addRawMaterialCategory,
+  updateRawMaterialCategory,
+  getAllRawMaterialCategoryType,
+} from '@/services/apiServices';
+import { getUserIdFromToken } from '@/utils/auth';
 
 const emptyForm = {
   nameEnglish: '',
@@ -136,6 +143,10 @@ const AddRawMaterialCategoryModal = ({
         backendMsg ||
           `Failed to ${isEditMode ? 'update' : 'create'} material category. Please try again.`,
       );
+      notify.error(`Failed to ${
+            isEditMode ? 'update' : 'create'
+          } material category. Please try again.`);
+      
     } finally {
       setSaving(false);
     }

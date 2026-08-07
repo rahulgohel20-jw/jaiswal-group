@@ -23,6 +23,7 @@ import AddRawMaterialTypeModal from './AddRawMaterialModal';
 import RawMaterialTypeDetailsModal from './RawMaterialTypeDetailsModal';
 import StatusConfirmModal from '@/utils/StatusConfirmModal';
 import { Container } from "@/components/common/container";
+import { notify } from "@/utils/toast";
 import {
     getAllRawMaterialCategoryType,
     getRawMaterialCategoryTypeById,
@@ -161,7 +162,7 @@ const RawMaterialTypeListing = () => {
             fetchTypes();
         } catch (err) {
             console.error(err);
-            alert('Failed to delete material type.');
+            notify.error('Failed to delete material type.');
         }
     };
 
@@ -175,6 +176,7 @@ const RawMaterialTypeListing = () => {
         } catch (err) {
             console.error(err);
             setError('Failed to load raw material types');
+            notify.error('Failed to load raw material type');
         } finally {
             setLoading(false);
         }
