@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { notify } from "@/utils/toast";
 import { getUserIdFromToken } from '@/utils/auth';
+import { addRawMaterialCategoryType, updateRawMaterialCategoryType } from '../../../services/apiServices';
 
 const emptyForm = { nameEnglish: '' };
 
@@ -48,19 +49,21 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const save = async () => {
     if (isEditMode) {
       // Edit mode only updates the name — status is changed separately via the toggle + confirm flow
+      console.log(initialData);
       const payload = {
         nameEnglish: form.nameEnglish,
+        nameGujarati: "",
+        nameHindi: "",
+        userId: getUserIdFromToken(),
       };
-      await updateRawMaterialType(payload);
-      notify.success("Row Material Type Updated Successfully")
+      await updateRawMaterialCategoryType(initialData.id, payload);
     } else {
       const payload = {
         active: true, // new records default to Active; status is changed afterward via the toggle
         createdBy: getUserIdFromToken(),
         nameEnglish: form.nameEnglish,
       };
-      await createRawMaterialType(payload);
-       notify.success("Row Material Type Created Successfully")
+      await addRawMaterialCategoryType(payload);
     }
   };
 
@@ -77,9 +80,9 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
       const backendMsg = err?.response?.data?.msg || err?.response?.data?.message;
       setError(
         backendMsg ||
-          `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`
+        `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`
       );
-       notify.error( `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`)
+      notify.error(`Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`)
     } finally {
       setSaving(false);
     }
