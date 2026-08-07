@@ -454,6 +454,49 @@ export const MENU_SIDEBAR = [
     children: [{ title: 'Departments', path: '/department' }],
   },
   {
+    title: 'Purchase',
+    icon: Fence,
+    children: [
+      { title: 'Purchase Requisition', path: '/purchase-requisition/list' },
+      {
+        title: 'Approve Purchase Requisition',
+        path: '/approve-purchase-requisition/list',
+      },
+      {
+        title: 'Purchase Order Requests',
+        path: '/purchase-order-request/purchase',
+      },
+      { title: 'Purchase Order', path: '/purchase/approved-order' },
+    ],
+  },
+  {
+    title: 'Raw Material',
+    icon: ShoppingCart,
+    children: [
+      { title: 'Types', path: '/material/types' },
+      { title: 'Categories', path: '/material/categories' },
+      { title: 'Raw Material Items', path: '/material/items' },
+      { title: 'Raw Material Unit Master', path: '/material/unit-master' },
+    ],
+  },
+  {
+    title: 'Menu Item',
+    icon: ShoppingCart,
+    children: [
+      { title: 'Categories', path: '/menu-item/categories' },
+      { title: 'Sub Category', path: '/menu-item/sub-category' },
+      { title: 'Menu Items', path: '/menu-item/menu-items' },
+    ],
+  },
+  {
+    title: 'Manage Stock',
+    icon: FolderClosed,
+    children: [
+      { title: 'Available Stock', path: '/stocks/available-stocks' },
+      { title: 'Closing Stock', path: '/stocks/closing-stock' },
+    ],
+  },
+  {
     title: 'Asset Management',
     icon: LayoutGrid,
     children: [
