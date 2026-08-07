@@ -407,7 +407,7 @@ export const deleteMenuItemById = (id) => {
   return DELETE(`/menuitems/deletebyid?id=${id}`);
 };
 export const updateMenuItemStatus = ({ id, isActive }) => {
-    return PUT(`/menuitems/updatestatus?id=${id}&isActive=${isActive}`);
+  return PUT(`/menuitems/updatestatus?id=${id}&isActive=${isActive}`);
 };
 // ---- Sub-Outlet APIs ----
 
@@ -517,13 +517,13 @@ export const deleteRoleMasterById = (id) => {
 //Raw Material Unit APIs
 export const getAllRawMaterialUnits = () => {
   return GET(`/unit/getall`);
-}
+};
 
 export const getRawMaterialUnitById = (id) => {
   return GET(`/unit/getbyid?id=${id}`);
-}
+};
 export const addUnitMaster = (data) => {
-  return POST("/unit/add", data);
+  return POST('/unit/add', data);
 };
 
 export const updateUnitMaster = (id, data) => {
@@ -532,8 +532,74 @@ export const updateUnitMaster = (id, data) => {
 
 export const deleteUnitMasterById = (id) => {
   return DELETE(`/unit/deletebyid?id=${id}`);
-}
+};
 
 export const updateUnitStatusById = (id, isActive) => {
   return PUT(`/unit/updatestatusbyid?id=${id}&isActive=${isActive}`);
+};
+// ---- User Rights: Pages APIs ----
+// Add these alongside the other exports in apiServices.js
+export const getPages = (isAdminRights = false, isCombine = true) => {
+  return GET(
+    `/user-rights/getPages?isAdminRights=${isAdminRights}&isCombine=${isCombine}`,
+  );
+};
+
+export const createPage = (payload) => {
+  return POST('/user-rights/addPage', payload);
+};
+
+// Swagger: POST /user-rights/updatePage/{id} -- note this is POST, not PUT
+export const updatePage = (id, payload) => {
+  return POST(`/user-rights/updatePage/${id}`, payload);
+};
+
+export const deletePage = (id) => {
+  return DELETE(`/user-rights/page/delete/${id}`);
+};
+
+// ---- User Rights: Role/User rights APIs ----
+// Not used by PageMaster itself, but part of the same User Right Master
+// module (e.g. the "Module Right Name" screen in the sidebar) — added
+// here since the endpoints came in together.
+
+export const addUserRights = (payload) => {
+  return POST('/user-rights/addRights', payload);
+};
+
+export const getUserRightsByRole = (roleId) => {
+  return GET('/user-rights/getByRole', { roleId });
+};
+
+export const getUserRightsByUser = (userId) => {
+  return GET('/user-rights/getByUser', { userId });
+};
+
+// ---- Module Rights APIs ----
+// Add these alongside the other exports in apiServices.js
+//
+// NOTE: these paths include /v1/api/... in full, unlike the /user-rights/*
+// endpoints added earlier which were just /user-rights/... (no /api prefix).
+// Check what axiosInstance's baseURL is set to — if it already includes
+// "/api", these will double up to ".../api/v1/api/modulerights/...".
+// Adjust the leading segment here to match your actual baseURL.
+
+export const getModuleRights = () => {
+  return GET('/modulerights/getall');
+};
+
+export const getModuleRightById = (id) => {
+  return GET('/modulerights/getbyid', { id });
+};
+
+export const createModuleRight = (payload) => {
+  return POST('/modulerights/add', payload);
+};
+
+export const updateModuleRight = ({ id, ...payload }) => {
+  return PUT('/modulerights/update', payload, { id });
+};
+
+export const deleteModuleRight = (id) => {
+  return DELETE('/modulerights/deletebyid', { id });
 };

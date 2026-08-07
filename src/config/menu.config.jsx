@@ -1,23 +1,30 @@
 import {
   AlertCircle,
+  ArrowLeft,
+  ArrowLeftRight,
   Award,
   Badge,
+  BadgeCheck,
   Bell,
   Bitcoin,
   Bolt,
   Book,
   Briefcase,
   Building,
+  Building2,
   CalendarCheck,
   Captions,
   CheckCircle,
-  Building2,
+  ClipboardList,
   Code,
   Codepen,
   Coffee,
+  Database,
   File as DocumentIcon,
   Euro,
   Eye,
+  Factory,
+  Fence,
   File,
   FileQuestion,
   FileText,
@@ -26,6 +33,7 @@ import {
   Ghost,
   Gift,
   Grid,
+  Group,
   Heart,
   HelpCircle,
   Info,
@@ -38,8 +46,10 @@ import {
   MessageSquare,
   Monitor,
   Network,
+  NetworkIcon,
   Users as PeopleIcon,
   Plug,
+  RotateCcw,
   ScrollText,
   Settings,
   Share2,
@@ -48,29 +58,19 @@ import {
   ShieldUser,
   ShoppingCart,
   SquareMousePointer,
-  Star, 
+  Star,
+  Store,
   Theater,
   ThumbsUp,
+  Trash2,
   TrendingUp,
   UserCheck,
   UserCircle,
   UserCog,
+  UserPlus,
   Users,
   Briefcase as WorkIcon,
   Zap,
-  Store,
-  UserPlus,
-  BadgeCheck,
-  ArrowLeft,
-  ArrowLeftRight,
-  RotateCcw,
-  Trash2,
-  Factory,
-  Database,
-  ClipboardList,
-  Group,
-  Fence,
-  NetworkIcon,
 } from 'lucide-react';
 
 // export const MENU_SIDEBAR = [
@@ -451,9 +451,7 @@ export const MENU_SIDEBAR = [
   {
     title: 'Department',
     icon: Group,
-    children: [
-      { title: 'Departments', path: '/department' },
-    ],
+    children: [{ title: 'Departments', path: '/department' }],
   },
   {
     title: 'Asset Management',
@@ -479,9 +477,17 @@ export const MENU_SIDEBAR = [
       { title: 'Asset Disposal', path: '/assets/asset-disposal' },
     ],
   },
+  {
+    title: 'Users Rights Master',
+    icon: Group,
+    children: [
+      { title: 'Pages', path: '/pages' },
+      { title: 'Module Rights', path: '/module-rights' },
+    ],
+  },
 ];
 
-export const MENU_SIDEBAR_ADMIN = [ 
+export const MENU_SIDEBAR_ADMIN = [
   {
     title: 'Dashboard',
     icon: LayoutGrid,
@@ -492,14 +498,19 @@ export const MENU_SIDEBAR_ADMIN = [
     title: 'Purchase',
     icon: Fence,
     children: [
-      { title: 'Purchase Requisition', path: '/purchase-requisition/list'},
-      { title: 'Approve Purchase Requisition', path: '/approve-purchase-requisition/list'},
-      { title: 'Purchase Order Requests', path: '/purchase-order-request/purchase' },
-      { title: 'Purchase Order', path: '/purchase/approved-order'},
-
+      { title: 'Purchase Requisition', path: '/purchase-requisition/list' },
+      {
+        title: 'Approve Purchase Requisition',
+        path: '/approve-purchase-requisition/list',
+      },
+      {
+        title: 'Purchase Order Requests',
+        path: '/purchase-order-request/purchase',
+      },
+      { title: 'Purchase Order', path: '/purchase/approved-order' },
     ],
   },
-    {
+  {
     title: 'Raw Material',
     icon: ShoppingCart,
     children: [
@@ -526,7 +537,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Closing Stock', path: '/stocks/closing-stock' },
     ],
   },
-]
+];
 
 export const MENU_SIDEBAR_CUSTOM = [
   {
