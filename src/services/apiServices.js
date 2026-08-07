@@ -537,6 +537,40 @@ export const deleteUnitMasterById = (id) => {
 export const updateUnitStatusById = (id, isActive) => {
   return PUT(`/unit/updatestatusbyid?id=${id}&isActive=${isActive}`);
 };
+
+//Raw Material Item APIs
+export const getAllRawMaterialItems = (rawMateriaCatlId, unitid, isActive = "", rawMaterialName = "", pageNo = "", pageSize = "") => {
+  return GET(
+    `/rawmaterial/getall?rawMateriaCatlId=${rawMateriaCatlId}&unitid=${unitid}&isActive=${isActive}&pageNo=${pageNo}&pageSize=${pageSize}&rawMaterialName=${encodeURIComponent(rawMaterialName)}`
+  );
+};
+export const addRawMaterialItem = (formData) => {
+  return POST("/rawmaterial/add", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+export const updateRawMaterialItem = (formData) => {
+  return PUT("/rawmaterial/update", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+export const updateRawMaterialItemStatusById = (id, isActive) => {
+  return PUT(
+    `/rawmaterial/updatestatus?id=${id}&isActive=${isActive}`
+  );
+};
+
+export const getRawMaterialById = (id) => {
+  return GET("/rawmaterial/getbyid?id=" + id);
+};
+
+export const deleteRawMaterialItemById = (id) => {
+  return DELETE(`/rawmaterial/delete?id=${id}`);
+};
 // ---- User Rights: Pages APIs ----
 // Add these alongside the other exports in apiServices.js
 export const getPages = (isAdminRights = false, isCombine = true) => {
@@ -576,8 +610,6 @@ export const getUserRightsByUser = (userId) => {
 };
 
 // ---- Module Rights APIs ----
-// Add these alongside the other exports in apiServices.js
-//
 // NOTE: these paths include /v1/api/... in full, unlike the /user-rights/*
 // endpoints added earlier which were just /user-rights/... (no /api prefix).
 // Check what axiosInstance's baseURL is set to — if it already includes
