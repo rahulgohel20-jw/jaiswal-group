@@ -166,6 +166,7 @@ import SubUnitListing from '../pages/sub-unit/SubUnitListing';
 import SubUnitDetails from '../pages/sub-unit/Subunitdetails';
 import ChangePasswordPage from '../pages/auth/login/ChangePasswordPage';
 import RowMaterialUnit from '../pages/raw-material/raw-material-unit-master/RowMaterialUnit';
+import RowMaterialBrandMaster from '../pages/raw-material/raw-material-brand-master/RowMaterialBrandMaster';
 
 export function AppRoutingSetup() {
   return (
@@ -253,6 +254,7 @@ export function AppRoutingSetup() {
           <Route path='/material/categories' element={<RowMaterialCategories/>}/>
           <Route path='/material/items' element={<RowMaterialItemMaster/>}/>
           <Route path='/material/unit-master' element={<RowMaterialUnit/>}/>
+           <Route path="/material/brand-master" element={<RowMaterialBrandMaster/>} />
 
           <Route path='/menu-item/categories' element={<MenuCategory/>}/>
           <Route path='/menu-item/sub-category' element={<MenuSubCategory/>}/>

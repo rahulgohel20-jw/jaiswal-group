@@ -507,6 +507,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Categories', path: '/material/categories' },
       { title: 'Raw Material Items', path: '/material/items' },
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
+      { title: 'Raw Material Brand Master', path: '/material/brand-master' },
     ],
   },
   {
