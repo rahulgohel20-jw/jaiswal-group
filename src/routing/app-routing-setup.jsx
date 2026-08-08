@@ -167,6 +167,7 @@ import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSele
 import AddVendor from '../pages/vendors/AddVendor';
 import VendorListing from '../pages/vendors/VendorListing';
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
+import UserRights from '../pages/department/UserRights';
 
 export function AppRoutingSetup() {
   return (
@@ -235,6 +236,7 @@ export function AppRoutingSetup() {
           <Route path="/users/view-user" element={<UserViewDetails />} />
 
           <Route path="/department" element={<Departmentlist />} />
+          <Route path="/user-rights" element={<UserRights />} />
 
           <Route path="/assets/all-assets" element={<AssetsManagement />} />
           <Route path="/assets/add-asset" element={<AddAsset />} />
