@@ -93,85 +93,85 @@ import {
 } from '@/pages/store-client';
 import { Tasks } from '@/pages/Tasks/Tasks';
 import { Navigate, Route, Routes } from 'react-router';
-import Dashboard from '../pages/dashboards/Dashboard';
-import TaskViewDashboard from '../pages/Projectscreen/TaskViewDashboard/TaskViewDashboard';
-import { UserManagement } from '../pages/UserManagement/UserManagement';
-import { AddUser } from '../pages/UserManagement/AddUser';
-import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
-import Setting from '../pages/settings/Settings';
-
-import UnitListing from '../pages/units/UnitListing';
-import CompaniesListing from '../pages/company-registration/CompanyListing';
-import CompanyRegistration from '../pages/company-registration/CompanyRegistration';
-import AddUnit from '../pages/units/AddUnit';
-import PurchaseListing from '../pages/stock-purchase/PurchaseListing';
-import AddPurchase from '../pages/stock-purchase/AddPurchase';
-import AddPurchaseOrder from '../pages/purchase-order/AddPurchaseOrder';
-import PurchaseReturnList from '../pages/purchase-return-list/PurchaseReturnListing';
-import AddPurchaseReturn from '../pages/purchase-return-list/AddPurchaseReturn';
-import AvailableStocks from '../pages/manage-stocks/AvailableStocks';
-import AddStock from '../pages/manage-stocks/AddStock';
-import ClosingStock from '../pages/manage-stocks/ClosingStock';
-import VendorListing from '../pages/vendors/VendorListing';
-import AddVendor from '../pages/vendors/AddVendor';
-import UserManagementList from '../pages/user/UserManagementList';
-import UserRegistration from '../pages/user/UserRegistration';
-import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSelectionPage';
-import KycInformation from '../pages/kyc-info/user-kycInformation/KycInformation';
-import VendorKycInfo from '../pages/kyc-info/vendor-kycInformation/VendorKycInfo';
-import LoginPage from '../pages/auth/login/Login';
-import AssetsManagement from '../pages/assest-management/assest-registry/AssetsManagement';
+import AddAssetsMaintenanceLog from '../pages/assest-management/assest-maintenance/AddAssetsMaintenanceLog';
+import AssetsMaintenance from '../pages/assest-management/assest-maintenance/AssetsMaintenance';
 import AddAsset from '../pages/assest-management/assest-registry/AddAsset';
-import AssignAssets from '../pages/assest-management/assign-assets/AssignAsset';
-import AddAssignAsset from '../pages/assest-management/assign-assets/AddAssignAsset';
-import AssetSubCategory from '../pages/assest-management/sub-categories/AssetSubCategory';
-import AssetCategory from '../pages/assest-management/categories/AssetCategory';
+import AssetsManagement from '../pages/assest-management/assest-registry/AssetsManagement';
+import AssetBrandListing from '../pages/assest-management/asset-brand/AssetBrandListing';
+import AddAssetsDisposal from '../pages/assest-management/assets-disposal-log/AddAssetsDisposal';
+import AssetsDisposalLog from '../pages/assest-management/assets-disposal-log/AssetsDisposalLog';
+import AssetItemsList from '../pages/assest-management/assets-items/AssetsItemList';
+import AddAssetsTransfer from '../pages/assest-management/assets-transfer/AddAssetsTranfer';
+import AssetsTransferLog from '../pages/assest-management/assets-transfer/AssetsTransferLog';
 import AssetsType from '../pages/assest-management/assets-type/AssetsType';
+import AssetUnitList from '../pages/assest-management/assets-unit/AssetUnitList';
+import AddAssignAsset from '../pages/assest-management/assign-assets/AddAssignAsset';
+import AssignAssets from '../pages/assest-management/assign-assets/AssignAsset';
+import AssetCategory from '../pages/assest-management/categories/AssetCategory';
 import ConditionMasterModule from '../pages/assest-management/conditions/ConditionMasterModule';
 import StatusMasterModule from '../pages/assest-management/status/StatusMasterModule';
-import AssetUnitList from '../pages/assest-management/assets-unit/AssetUnitList';
-import AssetItemsList from '../pages/assest-management/assets-items/AssetsItemList';
-import AssetsMaintenance from '../pages/assest-management/assest-maintenance/AssetsMaintenance';
-import AddAssetsMaintenanceLog from '../pages/assest-management/assest-maintenance/AddAssetsMaintenanceLog';
-import AssetsDisposalLog from '../pages/assest-management/assets-disposal-log/AssetsDisposalLog';
-import AddAssetsDisposal from '../pages/assest-management/assets-disposal-log/AddAssetsDisposal';
-import AssetsTransferLog from '../pages/assest-management/assets-transfer/AssetsTransferLog';
-import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawMaterialTypeListing';
-import RowMaterialCategories from '../pages/raw-material/row-material-categories/RowMaterialCategories';
-import AssetBrandListing from '../pages/assest-management/asset-brand/AssetBrandListing';
-import ForgotPasswordPage from '../pages/auth/login/ForgotPassword';
-import ResetPasswordPage from '../pages/auth/login/ResetPassword';
-import UserViewDetails from '../pages/user/UserViewDetails';
-import { GuestOnly } from '../pages/auth/login/GuestOnly';
-import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
-import VendorViewDetails from '../pages/vendors/VendorViewDetails';
-import CompanyViewDetails from '../pages/company-registration/CompanyViewDetails';
-import UnitViewDetails from '../pages/units/UnitViewDetails';
-import AddAssetsTransfer from '../pages/assest-management/assets-transfer/AddAssetsTranfer';
-import PurchaseOrderRequest from '../pages/purchase-order-requests/PurchaseOrderRequest';
-import MenuCategory from '../pages/menu-item/menu-category/MenuCategory';
-import CreateCategory from '../pages/menu-item/menu-category/CreateMenuCategory';
-import MenuSubCategory from '../pages/menu-item/menu-subcategory/MenuSubCategory';
-import CreateMenuItem from '../pages/menu-item/create-menu-item/CreateMenuItem';
-import AddPurchaseRequisition from '../pages/purchase-requisition/AddPurchaseRequisition';
-import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
-import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
-import Departmentlist from '../pages/department/Departmentlist';
-import MenuItemsListing from '../pages/menu-item/create-menu-item/MenuItemListing';
-import CreatePurchaseOrder from '../pages/purchase-order-requests/CreatePurchaseOrder';
-import PurchaseOrderApproved from '../pages/purchase-approved-order/PurchaseOrderApproved';
-import SubUnitList from '../pages/sub-unit/SubUnitListing';
-import AddSubUnit from '../pages/sub-unit/AddSubunit';
-import SubUnitListing from '../pages/sub-unit/SubUnitListing';
-import SubUnitDetails from '../pages/sub-unit/Subunitdetails';
+import AssetSubCategory from '../pages/assest-management/sub-categories/AssetSubCategory';
 import ChangePasswordPage from '../pages/auth/login/ChangePasswordPage';
+import ForgotPasswordPage from '../pages/auth/login/ForgotPassword';
+import { GuestOnly } from '../pages/auth/login/GuestOnly';
+import LoginPage from '../pages/auth/login/Login';
+import ResetPasswordPage from '../pages/auth/login/ResetPassword';
+import CompaniesListing from '../pages/company-registration/CompanyListing';
+import CompanyRegistration from '../pages/company-registration/CompanyRegistration';
+import CompanyViewDetails from '../pages/company-registration/CompanyViewDetails';
+import Dashboard from '../pages/dashboards/Dashboard';
+import Departmentlist from '../pages/department/Departmentlist';
+import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
+import KycInformation from '../pages/kyc-info/user-kycInformation/KycInformation';
+import VendorKycInfo from '../pages/kyc-info/vendor-kycInformation/VendorKycInfo';
+import AddStock from '../pages/manage-stocks/AddStock';
+import AvailableStocks from '../pages/manage-stocks/AvailableStocks';
+import ClosingStock from '../pages/manage-stocks/ClosingStock';
+import CreateMenuItem from '../pages/menu-item/create-menu-item/CreateMenuItem';
+import MenuItemsListing from '../pages/menu-item/create-menu-item/MenuItemListing';
+import CreateCategory from '../pages/menu-item/menu-category/CreateMenuCategory';
+import MenuCategory from '../pages/menu-item/menu-category/MenuCategory';
+import MenuSubCategory from '../pages/menu-item/menu-subcategory/MenuSubCategory';
+import TaskViewDashboard from '../pages/Projectscreen/TaskViewDashboard/TaskViewDashboard';
+import PurchaseOrderApproved from '../pages/purchase-approved-order/PurchaseOrderApproved';
+import CreatePurchaseOrder from '../pages/purchase-order-requests/CreatePurchaseOrder';
+import PurchaseOrderRequest from '../pages/purchase-order-requests/PurchaseOrderRequest';
+import AddPurchaseOrder from '../pages/purchase-order/AddPurchaseOrder';
+import AddPurchaseRequisition from '../pages/purchase-requisition/AddPurchaseRequisition';
+import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
+import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
+import AddPurchaseReturn from '../pages/purchase-return-list/AddPurchaseReturn';
+import PurchaseReturnList from '../pages/purchase-return-list/PurchaseReturnListing';
+import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
+import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawMaterialTypeListing';
 import RowMaterialUnit from '../pages/raw-material/raw-material-unit-master/RowMaterialUnit';
 import RowMaterialBrandMaster from '../pages/raw-material/raw-material-brand-master/RowMaterialBrandMaster';
+import RowMaterialCategories from '../pages/raw-material/row-material-categories/RowMaterialCategories';
+import Setting from '../pages/settings/Settings';
+import AddPurchase from '../pages/stock-purchase/AddPurchase';
+import PurchaseListing from '../pages/stock-purchase/PurchaseListing';
+import AddSubUnit from '../pages/sub-unit/AddSubunit';
+import SubUnitDetails from '../pages/sub-unit/Subunitdetails';
+import SubUnitList from '../pages/sub-unit/SubUnitListing';
+import SubUnitListing from '../pages/sub-unit/SubUnitListing';
+import AddUnit from '../pages/units/AddUnit';
+import UnitListing from '../pages/units/UnitListing';
+import UnitViewDetails from '../pages/units/UnitViewDetails';
+import ModuleMaster from '../pages/user-rights/module/ModuleMaster';
+import PageMaster from '../pages/user-rights/pages/PageMaster';
+import UserManagementList from '../pages/user/UserManagementList';
+import UserRegistration from '../pages/user/UserRegistration';
+import UserViewDetails from '../pages/user/UserViewDetails';
+import { AddUser } from '../pages/UserManagement/AddUser';
+import { UserManagement } from '../pages/UserManagement/UserManagement';
+import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSelectionPage';
+import AddVendor from '../pages/vendors/AddVendor';
+import VendorListing from '../pages/vendors/VendorListing';
+import VendorViewDetails from '../pages/vendors/VendorViewDetails';
 
 export function AppRoutingSetup() {
   return (
     <Routes>
-
       <Route element={<GuestOnly />}>
         <Route path="/" element={<LoginPage />} />
         <Route path="/auth/login" element={<LoginPage />} />
@@ -179,31 +179,42 @@ export function AppRoutingSetup() {
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       </Route>
 
-
       <Route path="error/*" element={<ErrorRouting />} />
       {/* <Route path="auth/*" element={<AuthRouting />} />  — remove or keep only for /auth/callback etc, no longer needed for signin */}
       <Route path="*" element={<Navigate to="/error/404" />} />
 
-  <Route element={<RequireAuth />}>
-    <Route element={<Demo1Layout />}>
+      <Route element={<RequireAuth />}>
+        <Route element={<Demo1Layout />}>
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
 
-          <Route path="/companies" element={<CompaniesListing />} /> 
-          <Route path="/companies/registration" element={<CompanyRegistration />} />
-          <Route path="/companies/update-company" element={<CompanyRegistration />} />
-          <Route path='/companies/company-details' element={<CompanyViewDetails/>} />
+          <Route path="/companies" element={<CompaniesListing />} />
+          <Route
+            path="/companies/registration"
+            element={<CompanyRegistration />}
+          />
+          <Route
+            path="/companies/update-company"
+            element={<CompanyRegistration />}
+          />
+          <Route
+            path="/companies/company-details"
+            element={<CompanyViewDetails />}
+          />
 
           <Route path="/units" element={<UnitListing />} />
           <Route path="/units/add-unit" element={<AddUnit />} />
           <Route path="/units/update-unit" element={<AddUnit />} />
-          <Route path='/units/view-unit' element={<UnitViewDetails/>}/>
+          <Route path="/units/view-unit" element={<UnitViewDetails />} />
 
           <Route path="/sub-units" element={<SubUnitListing />} />
           <Route path="/sub-units/add" element={<AddSubUnit />} />
           <Route path="/sub-units/update-sub-unit" element={<AddSubUnit />} />
-          <Route path="/sub-units/sub-unit-details" element={<SubUnitDetails />} />
+          <Route
+            path="/sub-units/sub-unit-details"
+            element={<SubUnitDetails />}
+          />
 
           <Route path="/assets/assets-items" element={<AssetItemsList />} />
 
@@ -211,15 +222,18 @@ export function AppRoutingSetup() {
 
           <Route path="/vendors" element={<VendorListing />} />
           <Route path="/vendors/add-vendor" element={<AddVendor />} />
-          <Route path='/vendors/view-vendor' element={<VendorViewDetails />}/>
-          
-          <Route path="/vendors/update-vendor" element={<AddVendor />} />
-          <Route path='/user-vendor-selection' element={<UserVendorSelectionPage/>} />
+          <Route path="/vendors/view-vendor" element={<VendorViewDetails />} />
 
-          <Route path='/users' element={<UserManagementList/>} />
-          <Route path='/users/add-user' element={<UserRegistration />} />
-          <Route path='/users/update-user' element={<UserRegistration />} />
-          <Route path='/users/view-user' element={<UserViewDetails />} />
+          <Route path="/vendors/update-vendor" element={<AddVendor />} />
+          <Route
+            path="/user-vendor-selection"
+            element={<UserVendorSelectionPage />}
+          />
+
+          <Route path="/users" element={<UserManagementList />} />
+          <Route path="/users/add-user" element={<UserRegistration />} />
+          <Route path="/users/update-user" element={<UserRegistration />} />
+          <Route path="/users/view-user" element={<UserViewDetails />} />
 
           <Route path="/department" element={<Departmentlist />} />
 
@@ -228,56 +242,122 @@ export function AppRoutingSetup() {
           <Route path="/assets/edit-asset/:id" element={<AddAsset />} />
 
           <Route path="/assigned-assets" element={<AssignAssets />} />
-          <Route path="/assets/assign-asset" element={<AddAssignAsset /> } />
+          <Route path="/assets/assign-asset" element={<AddAssignAsset />} />
 
-          <Route path='/assets/categories' element={<AssetCategory /> } />
-          <Route path='/assets/sub-categories' element={<AssetSubCategory /> } /> 
-          
+          <Route path="/assets/categories" element={<AssetCategory />} />
+          <Route path="/assets/sub-categories" element={<AssetSubCategory />} />
+
           <Route path="/assigned-assests" element={<AssignAssets />} />
-          <Route path='/assets/asset-type' element={<AssetsType/>}/>
+          <Route path="/assets/asset-type" element={<AssetsType />} />
 
           <Route path="/assets/asset-brand" element={<AssetBrandListing />} />
-          
-          <Route path='/assets/conditions' element={<ConditionMasterModule/>} />
-          <Route path='/assets/status' element={<StatusMasterModule/>}/>
 
-          <Route path='/assets/asset-maintenance' element={<AssetsMaintenance/>}/>
-          <Route path='/assets/add-maintenance-log' element={<AddAssetsMaintenanceLog/>}/>
+          <Route
+            path="/assets/conditions"
+            element={<ConditionMasterModule />}
+          />
+          <Route path="/assets/status" element={<StatusMasterModule />} />
 
-          <Route path='/assets/asset-transfer-log' element={<AssetsTransferLog/>}/>
-          <Route path='/assets/asset-transfer' element={<AddAssetsTransfer />} />
-          
-          <Route path='/assets/asset-disposal' element={<AssetsDisposalLog/>}/>
-          <Route path='/assets/add-disposal' element={<AddAssetsDisposal/>}/>
+          <Route
+            path="/assets/asset-maintenance"
+            element={<AssetsMaintenance />}
+          />
+          <Route
+            path="/assets/add-maintenance-log"
+            element={<AddAssetsMaintenanceLog />}
+          />
 
           <Route path='/material/types' element={<RawMaterialTypeListing/>} />
           <Route path='/material/categories' element={<RowMaterialCategories/>}/>
           <Route path='/material/items' element={<RowMaterialItemMaster/>}/>
           <Route path='/material/unit-master' element={<RowMaterialUnit/>}/>
            <Route path="/material/brand-master" element={<RowMaterialBrandMaster/>} />
+          <Route
+            path="/assets/asset-transfer-log"
+            element={<AssetsTransferLog />}
+          />
+          <Route
+            path="/assets/asset-transfer"
+            element={<AddAssetsTransfer />}
+          />
 
-          <Route path='/menu-item/categories' element={<MenuCategory/>}/>
-          <Route path='/menu-item/sub-category' element={<MenuSubCategory/>}/>
+          <Route
+            path="/assets/asset-disposal"
+            element={<AssetsDisposalLog />}
+          />
+          <Route path="/assets/add-disposal" element={<AddAssetsDisposal />} />
 
-          <Route path='/menu-item/menu-items' element={<MenuItemsListing/>}/>
-          <Route path='/menu-item/add-menu-items' element={<CreateMenuItem/>}/>
-          <Route path="/menu-item/edit-menu-item/:id" element={<CreateMenuItem />}/>
+          <Route path="/pages" element={<PageMaster />} />
+          <Route path="/module-rights" element={<ModuleMaster />} />
 
-          <Route path="/purchase-requisition/list" element={<PurchaseRequisitionList/>} />
-          <Route path='/purchase-requisition/add' element={<AddPurchaseRequisition />} />
-          <Route path='/approve-purchase-requisition/list' element={<PurchaseRequisitionApproval />} />
-          <Route path="/purchase/stock-purchase" element={<PurchaseListing />} />
+          <Route path="/material/types" element={<RawMaterialTypeListing />} />
+          <Route
+            path="/material/categories"
+            element={<RowMaterialCategories />}
+          />
+          <Route path="/material/items" element={<RowMaterialItemMaster />} />
+          <Route path="/material/unit-master" element={<RowMaterialUnit />} />
+
+          <Route path="/menu-item/categories" element={<MenuCategory />} />
+          <Route path="/menu-item/sub-category" element={<MenuSubCategory />} />
+
+          <Route path="/menu-item/menu-items" element={<MenuItemsListing />} />
+          <Route
+            path="/menu-item/add-menu-items"
+            element={<CreateMenuItem />}
+          />
+          <Route
+            path="/menu-item/edit-menu-item/:id"
+            element={<CreateMenuItem />}
+          />
+
+          <Route
+            path="/purchase-requisition/list"
+            element={<PurchaseRequisitionList />}
+          />
+          <Route
+            path="/purchase-requisition/add"
+            element={<AddPurchaseRequisition />}
+          />
+          <Route
+            path="/approve-purchase-requisition/list"
+            element={<PurchaseRequisitionApproval />}
+          />
+          <Route
+            path="/purchase/stock-purchase"
+            element={<PurchaseListing />}
+          />
           <Route path="/purchase/add-purchase" element={<AddPurchase />} />
-          <Route path='/purchase/purchase-order' element={<AddPurchaseOrder/>}/>
-          <Route path='/purchase-order-request/purchase' element={<PurchaseOrderRequest/>}/>
-          <Route path='/purchase/create-purchase-order-requests' element={<CreatePurchaseOrder/>}/>
-          <Route path='/purchase/approved-order' element={<PurchaseOrderApproved/>}/>
+          <Route
+            path="/purchase/purchase-order"
+            element={<AddPurchaseOrder />}
+          />
+          <Route
+            path="/purchase-order-request/purchase"
+            element={<PurchaseOrderRequest />}
+          />
+          <Route
+            path="/purchase/create-purchase-order-requests"
+            element={<CreatePurchaseOrder />}
+          />
+          <Route
+            path="/purchase/approved-order"
+            element={<PurchaseOrderApproved />}
+          />
 
+          <Route
+            path="/purchase/purchase-return"
+            element={<PurchaseReturnList />}
+          />
+          <Route
+            path="/purchase/add-purchase-return"
+            element={<AddPurchaseReturn />}
+          />
 
-          <Route path="/purchase/purchase-return" element={<PurchaseReturnList />} />
-          <Route path="/purchase/add-purchase-return" element={<AddPurchaseReturn />} />
-
-          <Route path="/stocks/available-stocks" element={<AvailableStocks />} />
+          <Route
+            path="/stocks/available-stocks"
+            element={<AvailableStocks />}
+          />
           <Route path="/stocks/closing-stock" element={<ClosingStock />} />
           <Route path="/stocks/add-stock" element={<AddStock />} />
           <Route
@@ -286,12 +366,12 @@ export function AppRoutingSetup() {
           />
           <Route path="/user-management" element={<UserManagement />} />
           <Route path="/user-management/adduser" element={<AddUser />} />
-   
-          <Route path="/issues-dashbiard" element={<IssuesDashboard/>}/>
 
-          <Route path='/user/kyc-information' element={<KycInformation/>} />
-          <Route path='/vendor/kyc-information' element={<VendorKycInfo/>}/>
-          
+          <Route path="/issues-dashbiard" element={<IssuesDashboard />} />
+
+          <Route path="/user/kyc-information" element={<KycInformation />} />
+          <Route path="/vendor/kyc-information" element={<VendorKycInfo />} />
+
           <Route path="/settings" element={<Setting />} />
 
           <Route
@@ -639,7 +719,6 @@ export function AppRoutingSetup() {
           />
 
           <Route path="/auth/get-started" element={<AccountGetStartedPage />} />
-
         </Route>
       </Route>
     </Routes>

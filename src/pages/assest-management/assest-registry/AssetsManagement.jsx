@@ -14,48 +14,7 @@ import { getAllAssets, deleteAsset } from '@/services/apiServices';
 import { Container } from "@/components/common/container";
 import { notify } from "@/utils/toast";
 
-const STATS = [
-    {
-        title: "Total Assets",
-        value: "1,250",
-        badge: "Live",
-        icon: <Package size={25} className='text-[#00376C] p-1 bg-[#D5E3FF] rounded' />,
-        color: "text-[#43474F]",
-        bgColor: "bg-[#fffff]"
-    },
-    {
-        title: "Warehouse",
-        value: "845",
-        badge: "67%",
-        icon: <CircleCheck size={25} className='text-[#15803D] p-1 bg-[#DCFCE7] rounded' />,
-        color: "text-[#15803D]",
-        bgColor: "bg-[#DCFCE7]"
-    },
-    {
-        title: "Assigned",
-        value: "310",
-        badge: "25%",
-        icon: <UserPen size={25} className='text-[#265FA4] p-1 bg-[#D5E3FF] rounded' />,
-        color: "text-[#265FA4]",
-        bgColor: "bg-[#D5E3FF]"
-    },
-    {
-        title: "Under Maintenance",
-        value: "52",
-        badge: "ACTION",
-        icon: <Wrench size={25} className='text-[#C2410C] p-1 bg-[#FFEDD5] rounded' />,
-        color: "text-[#C2410C]",
-        bgColor: "bg-[#FFEDD5]"
-    },
-    {
-        title: "Warranty Expiring",
-        value: "18",
-        badge: "URGENT",
-        icon: <ShieldAlert size={25} className='text-[#BA1A1A] p-1 bg-[#FEE2E2] rounded' />,
-        color: "text-[#BA1A1A]",
-        bgColor: "bg-[#FEE2E2]"
-    },
-];
+
 
 // Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
 const unwrapList = (res) => {
@@ -187,6 +146,98 @@ const AssetsManagement = () => {
     useEffect(() => {
         fetchAssets();
     }, []);
+
+    const stats = useMemo(() => {
+        const total = assets.length;
+
+        const warehouseCount = assets.filter(a => {
+            const s = (a.status || '').toLowerCase();
+            return s.includes('warehouse') || s.includes('available') || s.includes('store') || s.includes('stock') || s.includes('ready');
+        }).length;
+
+        const assignedCount = assets.filter(a => {
+            const s = (a.status || '').toLowerCase();
+            return s.includes('assigned') || s.includes('use') || s.includes('allocated') || s.includes('issued') || s.includes('deployed');
+        }).length;
+
+        const maintenanceCount = assets.filter(a => {
+            const s = (a.status || '').toLowerCase();
+            return s.includes('maintenance') || s.includes('repair') || s.includes('broken') || s.includes('damage') || s.includes('service');
+        }).length;
+
+        const expiringCount = assets.filter(a => a.warranty === 'expiring').length;
+
+        const totalValue = assets.reduce((sum, a) => sum + Number(a.value || 0), 0);
+
+        const warehousePercent = total > 0 ? Math.round((warehouseCount / total) * 100) : 0;
+        const assignedPercent = total > 0 ? Math.round((assignedCount / total) * 100) : 0;
+
+        return {
+            total,
+            warehouseCount,
+            warehousePercent,
+            assignedCount,
+            assignedPercent,
+            maintenanceCount,
+            expiringCount,
+            totalValue
+        };
+    }, [assets]);
+
+    const statsCards = useMemo(() => [
+        {
+            title: "Total Assets",
+            value: stats.total.toLocaleString(),
+            badge: "Live",
+            icon: <Package size={25} className='text-[#00376C] p-1 bg-[#D5E3FF] rounded' />,
+            color: "text-[#43474F]",
+            bgColor: "bg-white"
+        },
+        {
+            title: "Warehouse",
+            value: stats.warehouseCount.toLocaleString(),
+            badge: `${stats.warehousePercent}%`,
+            icon: <CircleCheck size={25} className='text-[#15803D] p-1 bg-[#DCFCE7] rounded' />,
+            color: "text-[#15803D]",
+            bgColor: "bg-[#DCFCE7]"
+        },
+        {
+            title: "Assigned",
+            value: stats.assignedCount.toLocaleString(),
+            badge: `${stats.assignedPercent}%`,
+            icon: <UserPen size={25} className='text-[#265FA4] p-1 bg-[#D5E3FF] rounded' />,
+            color: "text-[#265FA4]",
+            bgColor: "bg-[#D5E3FF]"
+        },
+        {
+            title: "Under Maintenance",
+            value: stats.maintenanceCount.toLocaleString(),
+            badge: "ACTION",
+            icon: <Wrench size={25} className='text-[#C2410C] p-1 bg-[#FFEDD5] rounded' />,
+            color: "text-[#C2410C]",
+            bgColor: "bg-[#FFEDD5]"
+        },
+        {
+            title: "Warranty Expiring",
+            value: stats.expiringCount.toLocaleString(),
+            badge: "URGENT",
+            icon: <ShieldAlert size={25} className='text-[#BA1A1A] p-1 bg-[#FEE2E2] rounded' />,
+            color: "text-[#BA1A1A]",
+            bgColor: "bg-[#FEE2E2]"
+        },
+    ], [stats]);
+
+    const formatTotalValue = (value) => {
+        if (value >= 10000000) {
+            const crValue = (value / 10000000).toFixed(2);
+            return `₹ ${parseFloat(crValue)} Cr`;
+        }
+        if (value >= 100000) {
+            const lakhValue = (value / 100000).toFixed(2);
+            return `₹ ${parseFloat(lakhValue)} Lakh`;
+        }
+        return `₹ ${value.toLocaleString('en-IN')}`;
+    };
 
     // Filter dropdown options derived from live data instead of a hardcoded list
     const categoryOptions = useMemo(
@@ -430,8 +481,8 @@ const AssetsManagement = () => {
             <div className='flex flex-col xl:flex-row gap-6 py-8 text-[#43474F]'>
                 <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 flex-1'>
                     {
-                        STATS.map((item) => (
-                            <div className='border border-[#C3C6D1] rounded-2xl p-4'>
+                        statsCards.map((item, index) => (
+                            <div key={index} className='border border-[#C3C6D1] rounded-2xl p-4'>
                                 <div className='flex justify-between items-center pb-2'>
                                     <p>{item.icon}</p>
 
@@ -446,7 +497,7 @@ const AssetsManagement = () => {
                 <div className='bg-[#002246]  text-white p-6 rounded-2xl flex flex-col gap-2 shrink-0'>
                     <Wallet size={20} />
                     <p>Total Asset Value</p>
-                    <p>₹ 5.8 Cr</p>
+                    <p>{formatTotalValue(stats.totalValue)}</p>
                 </div>
             </div>
 

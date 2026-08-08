@@ -1,23 +1,30 @@
 import {
   AlertCircle,
+  ArrowLeft,
+  ArrowLeftRight,
   Award,
   Badge,
+  BadgeCheck,
   Bell,
   Bitcoin,
   Bolt,
   Book,
   Briefcase,
   Building,
+  Building2,
   CalendarCheck,
   Captions,
   CheckCircle,
-  Building2,
+  ClipboardList,
   Code,
   Codepen,
   Coffee,
+  Database,
   File as DocumentIcon,
   Euro,
   Eye,
+  Factory,
+  Fence,
   File,
   FileQuestion,
   FileText,
@@ -26,6 +33,7 @@ import {
   Ghost,
   Gift,
   Grid,
+  Group,
   Heart,
   HelpCircle,
   Info,
@@ -38,8 +46,10 @@ import {
   MessageSquare,
   Monitor,
   Network,
+  NetworkIcon,
   Users as PeopleIcon,
   Plug,
+  RotateCcw,
   ScrollText,
   Settings,
   Share2,
@@ -48,29 +58,19 @@ import {
   ShieldUser,
   ShoppingCart,
   SquareMousePointer,
-  Star, 
+  Star,
+  Store,
   Theater,
   ThumbsUp,
+  Trash2,
   TrendingUp,
   UserCheck,
   UserCircle,
   UserCog,
+  UserPlus,
   Users,
   Briefcase as WorkIcon,
   Zap,
-  Store,
-  UserPlus,
-  BadgeCheck,
-  ArrowLeft,
-  ArrowLeftRight,
-  RotateCcw,
-  Trash2,
-  Factory,
-  Database,
-  ClipboardList,
-  Group,
-  Fence,
-  NetworkIcon,
 } from 'lucide-react';
 
 // export const MENU_SIDEBAR = [
@@ -451,55 +451,25 @@ export const MENU_SIDEBAR = [
   {
     title: 'Department',
     icon: Group,
-    children: [
-      { title: 'Departments', path: '/department' },
-    ],
+    children: [{ title: 'Departments', path: '/department' }],
   },
-  {
-    title: 'Asset Management',
-    icon: LayoutGrid,
-    children: [
-      {
-        title: 'Masters',
-        icon: Settings,
-        children: [
-          { title: 'Category Master', path: '/assets/categories' },
-          { title: 'Sub Category Master', path: '/assets/sub-categories' },
-          { title: 'Assets Type Master', path: '/assets/asset-type' },
-          { title: 'Conditions Master', path: '/assets/conditions' },
-          { title: 'Status Master', path: '/assets/status' },
-          { title: 'Asset Brand Master', path: '/assets/asset-brand' },
-          { title: 'Measure of unit Master', path: '/assets/asset-unit' },
-        ],
-      },
-      { title: 'Assets', path: '/assets/all-assets' },
-      { title: 'Assigned Asset', path: '/assigned-assets' },
-      { title: 'Asset Maintenance', path: '/assets/asset-maintenance' },
-      { title: 'Asset Transfer', path: '/assets/asset-transfer-log' },
-      { title: 'Asset Disposal', path: '/assets/asset-disposal' },
-    ],
-  },
-];
-
-export const MENU_SIDEBAR_ADMIN = [ 
-  {
-    title: 'Dashboard',
-    icon: LayoutGrid,
-    path: '/',
-  },
-  { heading: 'Supply Chain' },
   {
     title: 'Purchase',
     icon: Fence,
     children: [
-      { title: 'Purchase Requisition', path: '/purchase-requisition/list'},
-      { title: 'Approve Purchase Requisition', path: '/approve-purchase-requisition/list'},
-      { title: 'Purchase Order Requests', path: '/purchase-order-request/purchase' },
-      { title: 'Purchase Order', path: '/purchase/approved-order'},
-
+      { title: 'Purchase Requisition', path: '/purchase-requisition/list' },
+      {
+        title: 'Approve Purchase Requisition',
+        path: '/approve-purchase-requisition/list',
+      },
+      {
+        title: 'Purchase Order Requests',
+        path: '/purchase-order-request/purchase',
+      },
+      { title: 'Purchase Order', path: '/purchase/approved-order' },
     ],
   },
-    {
+  {
     title: 'Raw Material',
     icon: ShoppingCart,
     children: [
@@ -527,7 +497,91 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Closing Stock', path: '/stocks/closing-stock' },
     ],
   },
-]
+  {
+    title: 'Asset Management',
+    icon: LayoutGrid,
+    children: [
+      {
+        title: 'Masters',
+        icon: Settings,
+        children: [
+          { title: 'Category Master', path: '/assets/categories' },
+          { title: 'Sub Category Master', path: '/assets/sub-categories' },
+          { title: 'Assets Type Master', path: '/assets/asset-type' },
+          { title: 'Conditions Master', path: '/assets/conditions' },
+          { title: 'Status Master', path: '/assets/status' },
+          { title: 'Asset Brand Master', path: '/assets/asset-brand' },
+          { title: 'Measure of unit Master', path: '/assets/asset-unit' },
+        ],
+      },
+      { title: 'Assets', path: '/assets/all-assets' },
+      { title: 'Assigned Asset', path: '/assigned-assets' },
+      { title: 'Asset Maintenance', path: '/assets/asset-maintenance' },
+      { title: 'Asset Transfer', path: '/assets/asset-transfer-log' },
+      { title: 'Asset Disposal', path: '/assets/asset-disposal' },
+    ],
+  },
+  {
+    title: 'Users Rights Master',
+    icon: Group,
+    children: [
+      { title: 'Pages', path: '/pages' },
+      { title: 'Module Rights', path: '/module-rights' },
+    ],
+  },
+];
+
+export const MENU_SIDEBAR_ADMIN = [
+  {
+    title: 'Dashboard',
+    icon: LayoutGrid,
+    path: '/',
+  },
+  { heading: 'Supply Chain' },
+  {
+    title: 'Purchase',
+    icon: Fence,
+    children: [
+      { title: 'Purchase Requisition', path: '/purchase-requisition/list' },
+      {
+        title: 'Approve Purchase Requisition',
+        path: '/approve-purchase-requisition/list',
+      },
+      {
+        title: 'Purchase Order Requests',
+        path: '/purchase-order-request/purchase',
+      },
+      { title: 'Purchase Order', path: '/purchase/approved-order' },
+    ],
+  },
+  {
+    title: 'Raw Material',
+    icon: ShoppingCart,
+    children: [
+      { title: 'Types', path: '/material/types' },
+      { title: 'Categories', path: '/material/categories' },
+      { title: 'Raw Material Items', path: '/material/items' },
+      { title: 'Raw Material Unit Master', path: '/material/unit-master' },
+    ],
+  },
+  {
+    title: 'Menu Item',
+    icon: ShoppingCart,
+    children: [
+      { title: 'Categories', path: '/menu-item/categories' },
+      { title: 'Sub Category', path: '/menu-item/sub-category' },
+      { title: 'Menu Items', path: '/menu-item/menu-items' },
+    ],
+  },
+  {
+    title: 'Manage Stock',
+    icon: FolderClosed,
+    children: [
+      { title: 'Available Stock', path: '/stocks/available-stocks' },
+      { title: 'Closing Stock', path: '/stocks/closing-stock' },
+    ],
+  },
+];
 
 export const MENU_SIDEBAR_CUSTOM = [
   {
