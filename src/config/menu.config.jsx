@@ -57,6 +57,7 @@ import {
   ShieldOff,
   ShieldUser,
   ShoppingCart,
+  SlidersHorizontal,
   SquareMousePointer,
   Star,
   Store,
@@ -451,7 +452,9 @@ export const MENU_SIDEBAR = [
   {
     title: 'Department',
     icon: Group,
-    children: [{ title: 'Departments', path: '/department' }],
+    children: [{ title: 'Departments', path: '/department' },
+    { title: 'User Rights', path: '/user-rights' }
+    ],
   },
   {
     title: 'Purchase',
@@ -524,7 +527,7 @@ export const MENU_SIDEBAR = [
   },
   {
     title: 'Users Rights Master',
-    icon: Group,
+    icon: SlidersHorizontal,
     children: [
       { title: 'Pages', path: '/pages' },
       { title: 'Module Rights', path: '/module-rights' },
