@@ -1,13 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X, UploadCloud, Users, PackagePlus, Search, Plus } from "lucide-react";
+import { X, UploadCloud, Users, PackagePlus, Search, Plus, ChevronDown } from "lucide-react";
 import { Input } from '@/components/ui/input';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 import { getUserIdFromToken } from "../../../utils/auth";
 import { addRawMaterialItem, getAllRawMaterialCategory, getAllRawMaterialUnits, updateRawMaterialItem } from "../../../services/apiServices";
 import AddRawMaterialCategoryModal from "../row-material-categories/AddRowMaterialCategoryModel";
@@ -31,7 +29,7 @@ const emptyForm = {
     isGeneralFix: false,
     isApplyCal: false,
     file: null,
-     imageUrl: "", 
+    imageUrl: "",
 };
 const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMaterialList, fetchStats }) => {
     const [isFixedRawMaterial, setIsFixedRawMaterial] = useState(false);
@@ -44,7 +42,19 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
     const [errors, setErrors] = useState({});
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
+    const [unitSearch, setUnitSearch] = useState("");
+    const [categorySearch, setCategorySearch] = useState("");
+    const [unitOpen, setUnitOpen] = useState(false);
+    const [categoryOpen, setCategoryOpen] = useState(false);
 
+    const handleClose = () => {
+        setForm(emptyForm);
+        setErrors({});
+        setCategorySearch("");
+        setUnitSearch("");
+        setIsFixedRawMaterial(false);
+        onClose();
+    };
     const validate = () => {
         const newErrors = {};
 
@@ -64,27 +74,41 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
 
         return Object.keys(newErrors).length === 0;
     };
-    const fetchUnits = async () => {
+    const fetchUnits = async (editUnit = null) => {
         try {
             const res = await getAllRawMaterialUnits();
-            setUnits(
-                res?.data?.data["Unit Details"] ||
+            const unitData =
+                res?.data?.data?.["Unit Details"] ||
                 res?.data?.data ||
-                []
-            );
+                [];
+
+            let activeList = unitData.filter((item) => item.isActive === true);
+
+            if (editUnit && !activeList.some((u) => u.id === editUnit.id)) {
+                activeList = [...activeList, editUnit];
+            }
+
+            setUnits(activeList);
         } catch (err) {
             console.error("Failed to load units:", err);
         }
     };
 
-    const fetchCategories = async () => {
+    const fetchCategories = async (editCategory = null) => {
         try {
             const res = await getAllRawMaterialCategory();
-            setCategories(
+            const categoryData =
                 res?.data?.data?.["Raw Material Category Details"] ||
                 res?.data?.data ||
-                []
-            );
+                [];
+
+            let activeList = categoryData.filter((item) => item.isActive === true);
+
+            if (editCategory && !activeList.some((c) => c.id === editCategory.id)) {
+                activeList = [...activeList, editCategory];
+            }
+
+            setCategories(activeList);
         } catch (err) {
             console.error("Failed to load categories:", err);
         }
@@ -92,10 +116,10 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
 
     useEffect(() => {
         if (isOpen) {
-            fetchUnits();
-            fetchCategories();
+            fetchUnits(editData?.unit || null);
+            fetchCategories(editData?.rawMaterialCat || null);
         }
-    }, [isOpen]);
+    }, [isOpen, editData]);
 
     const userId = getUserIdFromToken();
 
@@ -140,7 +164,9 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                     editData.rawMaterialCat?.id || ""
                 ),
                 unitId: String(
-                    editData.unit?.id || ""
+                    editData.unit?.id ??
+                    editData.unitId ??
+                    ""
                 ),
                 supplierRate: editData.supplierRate ?? "",
                 status: editData.isActive ? "Active" : "Inactive",
@@ -161,11 +187,26 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
             });
 
             setIsFixedRawMaterial(editData.isGeneralFix ?? false);
+
         } else {
             setForm(emptyForm);
             setIsFixedRawMaterial(false);
         }
-    }, [editData]);
+
+    }, [editData?.id]);
+
+    useEffect(() => {
+        if (!editData) return;
+
+        const catId = editData.rawMaterialCat?.id ?? editData.rawMaterialCatId ?? "";
+        const unitId = editData.unit?.id ?? editData.unitId ?? "";
+
+        const selectedCategory = categories.find((item) => String(item.id) === String(catId));
+        const selectedUnit = units.find((item) => String(item.id) === String(unitId));
+
+        if (selectedCategory) setCategorySearch(selectedCategory.nameEnglish || "");
+        if (selectedUnit) setUnitSearch(selectedUnit.nameEnglish || "");
+    }, [editData, categories, units]);
 
     const handleSave = async () => {
         if (!validate()) return;
@@ -223,8 +264,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
 
             await fetchRawMaterialList?.();
             await fetchStats?.();
-            onClose();
-            setForm(emptyForm);
+            handleClose()
 
         } catch (err) {
             console.error(err);
@@ -256,7 +296,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                         </div>
                     </div>
 
-                    <button onClick={onClose} className="cursor-pointer">
+                    <button onClick={handleClose} className="cursor-pointer">
                         <X size={20} />
                     </button>
                 </div>
@@ -293,36 +333,104 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                             </label>
 
                             <div className="flex gap-2 items-center mt-1">
-                                <div className="flex-1">
-                                    <Select
-                                        value={String(form.rawMaterialCatId || "")}
-                                        onValueChange={(value) => set("rawMaterialCatId", value)}
+                                {/* Category Search Dropdown */}
+                                <div className="flex-1 min-w-0">
+                                    <Popover
+                                        open={categoryOpen}
+                                        onOpenChange={setCategoryOpen}
+                                        modal={false}
                                     >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select Category" />
-                                        </SelectTrigger>
+                                        <PopoverTrigger asChild>
+                                            <div className="relative w-full">
+                                                <Input
+                                                    type="text"
+                                                    value={categorySearch}
+                                                    placeholder="Select Category"
+                                                    onClick={() => setCategoryOpen(true)}
+                                                    onChange={(e) => {
+                                                        setCategorySearch(e.target.value);
+                                                        setCategoryOpen(true);
+                                                    }}
+                                                    className="w-full h-10 pr-10"
+                                                />
 
-                                        <SelectContent>
-                                            {categories.map((item) => (
-                                                <SelectItem
-                                                    key={item.id}
-                                                    value={String(item.id)}
-                                                >
-                                                    {item.nameEnglish}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                                <ChevronDown
+                                                    size={16}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                                                />
+                                            </div>
+                                        </PopoverTrigger>
+
+                                        <PopoverContent
+                                            side="bottom"
+                                            align="start"
+                                            sideOffset={4}
+                                            onOpenAutoFocus={(e) => e.preventDefault()}
+                                            className="p-0 w-[var(--radix-popover-trigger-width)] overflow-hidden z-[100]"
+                                        >
+                                            <div className="max-h-52 overflow-y-auto">
+                                                {categories
+                                                    .filter((item) =>
+                                                        item.nameEnglish
+                                                            ?.toLowerCase()
+                                                            .includes(
+                                                                categorySearch.trim().toLowerCase()
+                                                            )
+                                                    )
+                                                    .map((item) => (
+                                                        <button
+                                                            key={item.id}
+                                                            type="button"
+                                                            onMouseDown={(e) => e.preventDefault()}
+                                                            onClick={() => {
+                                                                set(
+                                                                    "rawMaterialCatId",
+                                                                    String(item.id)
+                                                                );
+
+                                                                setCategorySearch(
+                                                                    item.nameEnglish || ""
+                                                                );
+
+                                                                setCategoryOpen(false);
+                                                            }}
+                                                            className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${String(form.rawMaterialCatId) ===
+                                                                String(item.id)
+                                                                ? "bg-blue-50 text-primary font-medium"
+                                                                : "text-gray-700"
+                                                                }`}
+                                                        >
+                                                            {item.nameEnglish}
+                                                        </button>
+                                                    ))}
+
+                                                {categories.filter((item) =>
+                                                    item.nameEnglish
+                                                        ?.toLowerCase()
+                                                        .includes(
+                                                            categorySearch.trim().toLowerCase()
+                                                        )
+                                                ).length === 0 && (
+                                                        <div className="px-3 py-3 text-sm text-gray-500">
+                                                            No category found
+                                                        </div>
+                                                    )}
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
+
+                                {/* Plus Button */}
                                 <button
                                     type="button"
                                     onClick={() => setIsCategoryModalOpen(true)}
-                                    className="p-2.5 border rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary border-[#C3C6D1] shrink-0"
+                                    className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
                                     title="Add New Category"
                                 >
                                     <Plus className="h-4 w-4" />
                                 </button>
                             </div>
+
                             {errors.rawMaterialCatId && (
                                 <p className="text-red-500 text-xs mt-1">
                                     {errors.rawMaterialCatId}
@@ -342,36 +450,104 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                             </label>
 
                             <div className="flex gap-2 items-center mt-1">
-                                <div className="flex-1">
-                                    <Select
-                                        value={String(form.unitId || "")}
-                                        onValueChange={(value) => set("unitId", value)}
+                                {/* Unit Search Dropdown */}
+                                <div className="flex-1 min-w-0">
+                                    <Popover
+                                        open={unitOpen}
+                                        onOpenChange={setUnitOpen}
+                                        modal={false}
                                     >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder="Select Unit" />
-                                        </SelectTrigger>
+                                        <PopoverTrigger asChild>
+                                            <div className="relative w-full">
+                                                <Input
+                                                    type="text"
+                                                    value={unitSearch}
+                                                    placeholder="Select Unit"
+                                                    onClick={() => setUnitOpen(true)}
+                                                    onChange={(e) => {
+                                                        setUnitSearch(e.target.value);
+                                                        setUnitOpen(true);
+                                                    }}
+                                                    className="w-full h-10 pr-10"
+                                                />
 
-                                        <SelectContent>
-                                            {units.map((item) => (
-                                                <SelectItem
-                                                    key={item.id}
-                                                    value={String(item.id)}
-                                                >
-                                                    {item.nameEnglish}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                                <ChevronDown
+                                                    size={16}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                                                />
+                                            </div>
+                                        </PopoverTrigger>
+
+                                        <PopoverContent
+                                            side="bottom"
+                                            align="start"
+                                            sideOffset={4}
+                                            onOpenAutoFocus={(e) => e.preventDefault()}
+                                            className="p-0 w-[var(--radix-popover-trigger-width)] overflow-hidden z-[100]"
+                                        >
+                                            <div className="max-h-52 overflow-y-auto">
+                                                {units
+                                                    .filter((item) =>
+                                                        item.nameEnglish
+                                                            ?.toLowerCase()
+                                                            .includes(
+                                                                unitSearch.trim().toLowerCase()
+                                                            )
+                                                    )
+                                                    .map((item) => (
+                                                        <button
+                                                            key={item.id}
+                                                            type="button"
+                                                            onMouseDown={(e) => e.preventDefault()}
+                                                            onClick={() => {
+                                                                set(
+                                                                    "unitId",
+                                                                    String(item.id)
+                                                                );
+
+                                                                setUnitSearch(
+                                                                    item.nameEnglish || ""
+                                                                );
+
+                                                                setUnitOpen(false);
+                                                            }}
+                                                            className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${String(form.unitId) ===
+                                                                String(item.id)
+                                                                ? "bg-blue-50 text-primary font-medium"
+                                                                : "text-gray-700"
+                                                                }`}
+                                                        >
+                                                            {item.nameEnglish}
+                                                        </button>
+                                                    ))}
+
+                                                {units.filter((item) =>
+                                                    item.nameEnglish
+                                                        ?.toLowerCase()
+                                                        .includes(
+                                                            unitSearch.trim().toLowerCase()
+                                                        )
+                                                ).length === 0 && (
+                                                        <div className="px-3 py-3 text-sm text-gray-500">
+                                                            No unit found
+                                                        </div>
+                                                    )}
+                                            </div>
+                                        </PopoverContent>
+                                    </Popover>
                                 </div>
+
+                                {/* Plus Button */}
                                 <button
                                     type="button"
                                     onClick={() => setIsUnitModalOpen(true)}
-                                    className="p-2.5 border rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary border-[#C3C6D1] shrink-0"
+                                    className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
                                     title="Add New Unit"
                                 >
                                     <Plus className="h-4 w-4" />
                                 </button>
                             </div>
+
                             {errors.unitId && (
                                 <p className="text-red-500 text-xs mt-1">
                                     {errors.unitId}
@@ -630,7 +806,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
 
                 <div className="border-t p-5 flex justify-end bg-[#EFF4FF] border border-[#C3C6D1] flex-col sm:flex-row gap-4">
                     <div className="grid sm:grid-cols-2 gap-3">
-                        <button onClick={onClose} className="border border-[#00376C] text-[#00376C] px-5 py-2 rounded-lg cursor-pointer">
+                        <button onClick={handleClose} className="border border-[#00376C] text-[#00376C] px-5 py-2 rounded-lg cursor-pointer">
                             Cancel
                         </button>
 

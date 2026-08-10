@@ -145,6 +145,7 @@ import PurchaseReturnList from '../pages/purchase-return-list/PurchaseReturnList
 import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
 import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawMaterialTypeListing';
 import RowMaterialUnit from '../pages/raw-material/raw-material-unit-master/RowMaterialUnit';
+import RowMaterialBrandMaster from '../pages/raw-material/raw-material-brand-master/RowMaterialBrandMaster';
 import RowMaterialCategories from '../pages/raw-material/row-material-categories/RowMaterialCategories';
 import Setting from '../pages/settings/Settings';
 import AddPurchase from '../pages/stock-purchase/AddPurchase';
@@ -167,7 +168,7 @@ import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSele
 import AddVendor from '../pages/vendors/AddVendor';
 import VendorListing from '../pages/vendors/VendorListing';
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
-import UserRights from '../pages/department/UserRights';
+import RowCategoryBrandMapping from '../pages/raw-material/category-brand-mapping/RowCategoryBrandMapping';
 
 export function AppRoutingSetup() {
   return (
@@ -268,6 +269,13 @@ export function AppRoutingSetup() {
             element={<AddAssetsMaintenanceLog />}
           />
 
+          <Route path='/material/types' element={<RawMaterialTypeListing/>} />
+          <Route path='/material/categories' element={<RowMaterialCategories/>}/>
+          <Route path='/material/items' element={<RowMaterialItemMaster/>}/>
+          <Route path='/material/unit-master' element={<RowMaterialUnit/>}/>
+           <Route path="/material/brand-master" element={<RowMaterialBrandMaster/>} />
+          <Route path="/material/category-brand-mapping" element={<RowCategoryBrandMapping/>} />
+          
           <Route
             path="/assets/asset-transfer-log"
             element={<AssetsTransferLog />}

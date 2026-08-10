@@ -9,53 +9,11 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import AddRawMaterialUnit from './AddRawMaterialUnit';
-import { deleteUnitMasterById, getAllRawMaterialUnits, updateUnitStatusById } from '../../../services/apiServices';
+import { deleteUnitMasterById, getAllRawMaterialUnits, getRawMaterialUnitById, updateUnitStatusById } from '../../../services/apiServices';
 import { notify } from "@/utils/toast";
 import StatusConfirmModal from "@/utils/StatusConfirmModal";
-const DeleteConfirmModal = ({ item, onCancel, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div
-      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-      onClick={onCancel}
-    />
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-      <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
-        <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
-          <AlertTriangle className="w-5 h-5" />
-        </div>
-
-        <h2 className="text-base font-bold text-gray-900">
-          Delete Raw Material Item?
-        </h2>
-
-        <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{" "}
-          <span className="font-semibold text-gray-700">
-            {item.name}
-          </span>{" "}
-          from the raw material list. This action cannot be undone.
-        </p>
-      </div>
-
-      <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
-        <button
-          onClick={onCancel}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={onConfirm}
-          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 const RowMaterialUnit = () => {
   const [units, setUnit] = useState([])
@@ -126,11 +84,31 @@ const RowMaterialUnit = () => {
     setIsUnitModalOpen(true);
   };
 
-  const handleEditClick = (unit) => {
-    setEditingUnit(unit);
-    setIsUnitModalOpen(true);
-  };
+const handleEditClick = async (unit) => {
+    try {
+        setLoading(true);
 
+        const res = await getRawMaterialUnitById(unit.id);
+
+        const data =
+            res?.data?.data?.["Unit Details"]?.[0];
+
+        if (!data) {
+            notify.error("Unit details not found");
+            return;
+        }
+
+        console.log("EDIT UNIT DATA:", data);
+
+        setEditingUnit(data);
+        setIsUnitModalOpen(true);
+
+    } catch (err) {
+        console.error("Failed to fetch unit details:", err);
+    } finally {
+        setLoading(false);
+    }
+};
   const handleModalClose = () => {
     setIsUnitModalOpen(false);
     setEditingUnit(null);
@@ -143,6 +121,16 @@ const RowMaterialUnit = () => {
   const handleDelete = (unit) => {
     setDeleteTarget(unit);
     setShowDeleteConfirm(true);
+  };
+  const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, name: row.nameEnglish });
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteLoading) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
   };
 
   const confirmDelete = async () => {
@@ -244,20 +232,38 @@ const RowMaterialUnit = () => {
     },
     {
       id: "sno",
-      header: "Sr. No.",
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="S.No"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
       cell: ({ row }) => row.index + 1,
       enableSorting: false,
       size: 80,
     },
     {
       accessorKey: "name",
-      header: "Name",
-      cell: ({ row }) => row.original.name,
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="Name"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      cell: ({ row }) => <p className="font-semibold text-gray-800 py-2 capitalize">{row.original.name}</p>,
     },
     {
       accessorKey: "symbol",
-      header: "Symbol",
-      cell: ({ row }) => row.original.symbol,
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="Symbol"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      cell: ({ row }) => <p className="font-semibold text-gray-600 py-2 capitalize">{row.original.symbol}</p>,
     },
     {
       id: "status",
@@ -319,19 +325,25 @@ const RowMaterialUnit = () => {
     },
     {
       id: "actions",
-      header: "Actions",
+     header: ({ column }) => (
+        <DataGridColumnHeader
+          title="Actions"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
           <SquarePen
             size={18}
-            className="text-[#005BAC] cursor-pointer hover:text-blue-700"
+            className="text-gray-500 hover:text-blue-600 cursor-pointer"
             onClick={() => handleEditClick(row.original)}
           />
 
           <Trash2
             size={18}
-            className="text-red-500 cursor-pointer hover:text-red-700"
-            onClick={() => handleDelete(row.original)}
+            className="text-red-300 cursor-pointer hover:text-red-700"
+            onClick={() => openDeleteConfirm(row.original)}
           />
         </div>
       ),
@@ -476,18 +488,13 @@ const RowMaterialUnit = () => {
         nextStatusLabel={statusTarget?.nextStatusLabel}
         saving={statusLoading}
       />
-      {showDeleteConfirm && deleteTarget && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <DeleteConfirmModal
-            item={deleteTarget}
-            onCancel={() => {
-              setShowDeleteConfirm(false);
-              setDeleteTarget(null);
-            }}
-            onConfirm={confirmDelete}
-          />
-        </div>
-      )}
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+        itemLabel={deleteTarget?.name}
+        saving={deleteLoading}
+      />
     </Container>
   )
 }
