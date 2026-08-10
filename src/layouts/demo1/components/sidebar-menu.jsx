@@ -1,9 +1,9 @@
 'use client';
 
 import { useCallback, useMemo } from 'react';
+import { getOrgIdFromToken } from '@/utils/auth';
 import { Link, useLocation } from 'react-router-dom';
 import { MENU_SIDEBAR, MENU_SIDEBAR_ADMIN } from '@/config/menu.config';
-import { getOrgIdFromToken } from '@/utils/auth'; 
 import { cn } from '@/lib/utils';
 import {
   AccordionMenu,
@@ -11,20 +11,18 @@ import {
   AccordionMenuItem,
   AccordionMenuLabel,
   AccordionMenuSub,
-  AccordionMenuSubContent,  
+  AccordionMenuSubContent,
   AccordionMenuSubTrigger,
 } from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
 
-
 export function SidebarMenu() {
   const { pathname } = useLocation();
 
-  
-const menuItems = useMemo(() => {
-  const organizationId = getOrgIdFromToken();
-  return organizationId === 0  ? MENU_SIDEBAR : MENU_SIDEBAR_ADMIN;
-}, []);
+  const menuItems = useMemo(() => {
+    const organizationId = getOrgIdFromToken();
+    return organizationId === 1 ? MENU_SIDEBAR : MENU_SIDEBAR_ADMIN;
+  }, []);
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
