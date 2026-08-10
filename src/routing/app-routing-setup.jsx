@@ -168,6 +168,7 @@ import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSele
 import AddVendor from '../pages/vendors/AddVendor';
 import VendorListing from '../pages/vendors/VendorListing';
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
+import RowCategoryBrandMapping from '../pages/raw-material/category-brand-mapping/RowCategoryBrandMapping';
 
 export function AppRoutingSetup() {
   return (
@@ -272,6 +273,8 @@ export function AppRoutingSetup() {
           <Route path='/material/items' element={<RowMaterialItemMaster/>}/>
           <Route path='/material/unit-master' element={<RowMaterialUnit/>}/>
            <Route path="/material/brand-master" element={<RowMaterialBrandMaster/>} />
+          <Route path="/material/category-brand-mapping" element={<RowCategoryBrandMapping/>} />
+          
           <Route
             path="/assets/asset-transfer-log"
             element={<AssetsTransferLog />}

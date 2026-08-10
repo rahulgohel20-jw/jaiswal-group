@@ -234,7 +234,7 @@ const MenuCategory = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800">{row.original.name}</div>
+          <div className="font-semibold text-gray-800 capitalize">{row.original.name}</div>
         ),
         size: 220,
       },
@@ -325,10 +325,6 @@ const MenuCategory = () => {
         ),
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            <button>
-              <Eye size={18} className="text-green-600 hover:text-green-800" />
-            </button>
-
             <button onClick={() => handleEdit(row.original)}>
               <SquarePen
                 size={18}

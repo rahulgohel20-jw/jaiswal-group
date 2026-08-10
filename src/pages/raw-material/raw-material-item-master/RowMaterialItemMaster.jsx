@@ -12,63 +12,7 @@ import { Container } from "@/components/common/container";
 import StatusConfirmModal from "@/utils/StatusConfirmModal";
 import { updateRawMaterialItemStatusById } from "@/services/apiServices";
 import { deleteRawMaterialItemById, getAllRawMaterialCategory, getAllRawMaterialItems, getRawMaterialById } from '../../../services/apiServices';
-
-
-const DeleteConfirmModal = ({ item, onCancel, onConfirm }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-        <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={onCancel}
-        />
-
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-            <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
-                <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
-                    <AlertTriangle className="w-5 h-5" />
-                </div>
-
-                <h2 className="text-base font-bold text-gray-900">
-                    Delete Raw Material Item?
-                </h2>
-
-                <p className="text-sm text-gray-500 mt-1.5">
-                    This will permanently remove{" "}
-                    <span className="font-semibold text-gray-700">
-                        {item.name}
-                    </span>{" "}
-                    from the raw material list. This action cannot be undone.
-                </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
-                <button
-                    onClick={onCancel}
-                    className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
-                >
-                    Cancel
-                </button>
-
-                <button
-                    onClick={onConfirm}
-                    className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
-                >
-                    Delete
-                </button>
-            </div>
-        </div>
-    </div>
-);
-const StatusBadge = ({ status }) => {
-    const styles = {
-        Active: "bg-green-100 text-green-700",
-        Inactive: "bg-gray-200 text-gray-600",
-    };
-    return (
-        <span className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${styles[status]}`}>
-            {status}
-        </span>
-    );
-};
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 const RowMaterialItemMaster = () => {
     const [itemData, setItemData] = useState([]);
@@ -88,7 +32,7 @@ const RowMaterialItemMaster = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [deleteSaving, setDeleteSaving] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
     const [stats, setStats] = useState({
         total: 0,
         active: 0,
@@ -131,6 +75,8 @@ const RowMaterialItemMaster = () => {
         setShowAddItem(false);
         setSelectedItem(null);
     };
+
+
     const fetchCategories = useCallback(async () => {
         try {
             const res = await getAllRawMaterialCategory(0);
@@ -147,12 +93,21 @@ const RowMaterialItemMaster = () => {
     useEffect(() => {
         fetchCategories();
     }, [fetchCategories]);
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, name: row.nameEnglish });
+        setShowDeleteConfirm(true);
+    };
+
+    const closeDeleteConfirm = () => {
+        if (deleteLoading) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };
 
     const confirmDelete = async () => {
         if (!deleteTarget) return;
-        console.log("Deleting item with ID:", deleteTarget.id); // Debugging line
         try {
-            setDeleteSaving(true);
+            setDeleteLoading(true);
 
             await deleteRawMaterialItemById(deleteTarget.id);
 
@@ -164,7 +119,7 @@ const RowMaterialItemMaster = () => {
         } catch (err) {
             console.error(err);
         } finally {
-            setDeleteSaving(false);
+            setDeleteLoading(false);
         }
     };
 
@@ -304,6 +259,11 @@ const RowMaterialItemMaster = () => {
                     className="text-[#43474F] font-semibold py-4 text-xs"
                 />
             ),
+            cell: ({ row }) => (
+                <div className="font-semibold text-gray-800 py-2 capitalize">
+                    {row.original.name}
+                </div>
+            ),
         },
 
         {
@@ -399,16 +359,13 @@ const RowMaterialItemMaster = () => {
                     <SquarePen
                         size={17}
                         onClick={() => handleEdit(row.original.id)}
-                        className="text-gray-500 cursor-pointer"
+                        className="text-gray-500 hover:text-blue-600 cursor-pointer"
                     />
 
                     <Trash2
                         size={17}
-                        onClick={() => {
-                            setDeleteTarget(row.original);
-                            setShowDeleteConfirm(true);
-                        }}
-                        className="text-red-500 cursor-pointer"
+                        onClick={() => openDeleteConfirm(row.original)}
+                        className="text-red-300 cursor-pointer hover:text-red-700"
                     />
                 </div>
             ),
@@ -637,18 +594,13 @@ const RowMaterialItemMaster = () => {
                 saving={statusSaving}
             />
 
-            {showDeleteConfirm && deleteTarget && (
-                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                    <DeleteConfirmModal
-                        item={deleteTarget}
-                        onCancel={() => {
-                            setShowDeleteConfirm(false);
-                            setDeleteTarget(null);
-                        }}
-                        onConfirm={confirmDelete}
-                    />
-                </div>
-            )}
+            <DeleteConfirmModal
+                isOpen={showDeleteConfirm}
+                onClose={closeDeleteConfirm}
+                onConfirm={confirmDelete}
+                itemLabel={deleteTarget?.name}
+                saving={deleteLoading}
+            />
         </Container>
     )
 }

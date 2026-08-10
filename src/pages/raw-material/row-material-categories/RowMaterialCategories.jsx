@@ -33,31 +33,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import AddRawMaterialCategoryModal from './AddRowMaterialCategoryModel';
 import RawMaterialCategoryDetailsModal from './RawMaterialCategoryDetailsModal';
-
-const StatusToggle = ({ isActive, onClick }) => (
-  <div className="flex items-center gap-2">
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        isActive ? 'bg-green-600' : 'bg-gray-300'
-      }`}
-    >
-      <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-          isActive ? 'translate-x-6' : 'translate-x-1'
-        }`}
-      />
-    </button>
-    <span
-      className={`text-xs font-semibold uppercase tracking-wide ${
-        isActive ? 'text-green-700' : 'text-gray-500'
-      }`}
-    >
-      {isActive ? 'Active' : 'Inactive'}
-    </span>
-  </div>
-);
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 // Maps raw API row into the shape the table/UI expects.
 // Handles the nested `rawMaterialCatType` object the backend returns.
@@ -116,6 +92,10 @@ const RowMaterialCategories = () => {
 
   const [categoryTypes, setCategoryTypes] = useState([]);
   const [typeFilterId, setTypeFilterId] = useState('');
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -227,17 +207,29 @@ const RowMaterialCategories = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (
-      !window.confirm('Delete this material category? This cannot be undone.')
-    )
-      return;
+  const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, name: row.nameEnglish });
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteLoading) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteRawMaterialCategoryById(id);
+      setDeleteLoading(true);
+      await deleteRawMaterialCategoryById(deleteTarget.id);
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
       fetchCategories();
     } catch (err) {
       console.error(err);
-      alert('Failed to delete material category.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -289,7 +281,7 @@ const RowMaterialCategories = () => {
         />
       ),
       cell: ({ row }) => (
-        <div className="font-semibold text-gray-800 py-2">
+        <div className="font-semibold text-gray-800 py-2 capitalize">
           {row.original.nameEnglish}
         </div>
       ),
@@ -306,7 +298,7 @@ const RowMaterialCategories = () => {
         />
       ),
       cell: ({ row }) => (
-        <div className="font-semibold text-gray-800 py-2">
+        <div className="font-semibold text-gray-800 py-2 capitalize">
           {row.original.typeName}
         </div>
       ),
@@ -323,10 +315,26 @@ const RowMaterialCategories = () => {
         />
       ),
       cell: ({ row }) => (
-        <StatusToggle
-          isActive={row.original.isActive}
-          onClick={() => openStatusConfirm(row.original)}
-        />
+        <label className="relative inline-flex cursor-pointer">
+          <input
+            type="checkbox"
+            checked={row.original.status === "Active"}
+            className="sr-only peer"
+            onChange={() => {
+              setStatusTarget({
+                id: row.original.id,
+                itemLabel: row.original.name,
+                nextActive: row.original.status !== "Active",
+                nextStatusLabel:
+                  row.original.status === "Active" ? "Inactive" : "Active",
+              });
+              setShowStatusConfirm(true);
+            }}
+          />
+
+          <div className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
+              after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full " />
+        </label>
       ),
       size: 180,
     },
@@ -353,7 +361,7 @@ const RowMaterialCategories = () => {
               className="text-gray-500 hover:text-green-600 cursor-pointer"
             />
           </button>
-          <button type="button" onClick={() => handleDelete(row.original.id)}>
+          <button type="button" onClick={() => openDeleteConfirm(row.original)}>
             <Trash2
               size={18}
               className="text-red-300 hover:text-red-600 cursor-pointer"
@@ -556,6 +564,13 @@ const RowMaterialCategories = () => {
           itemLabel={statusTarget?.nameEnglish}
           nextStatusLabel={statusTarget?.nextActive ? 'Active' : 'Inactive'}
           saving={statusSaving}
+        />
+        <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={closeDeleteConfirm}
+          onConfirm={confirmDelete}
+          itemLabel={deleteTarget?.name}
+          saving={deleteLoading}
         />
       </div>
     </Container>

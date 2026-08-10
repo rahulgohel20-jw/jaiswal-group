@@ -50,12 +50,15 @@ const AddRawMaterialCategoryModal = ({
           res.data?.data?.['Raw Material Category Type Details'] ?? [];
         setTypeOptions(
           raw
-            .filter((t) => t.nameEnglish) // skip empty/placeholder rows like the null-name one seen earlier
-            // Radix Select values are always strings, so coerce here to
-            // match the string we set on rawMaterialCatTypeId below —
-            // otherwise a numeric id won't match and the trigger shows
-            // the placeholder even when a type is selected.
-            .map((t) => ({ value: String(t.id), label: t.nameEnglish })),
+            .filter(
+              (t) =>
+                t.nameEnglish &&
+                t.isActive === true
+            )
+            .map((t) => ({
+              value: String(t.id),
+              label: t.nameEnglish,
+            })),
         );
       } catch (err) {
         console.error('Failed to fetch category types:', err);
@@ -141,12 +144,11 @@ const AddRawMaterialCategoryModal = ({
         err?.response?.data?.msg || err?.response?.data?.message;
       setError(
         backendMsg ||
-          `Failed to ${isEditMode ? 'update' : 'create'} material category. Please try again.`,
+        `Failed to ${isEditMode ? 'update' : 'create'} material category. Please try again.`,
       );
-      notify.error(`Failed to ${
-            isEditMode ? 'update' : 'create'
-          } material category. Please try again.`);
-      
+      notify.error(`Failed to ${isEditMode ? 'update' : 'create'
+        } material category. Please try again.`);
+
     } finally {
       setSaving(false);
     }

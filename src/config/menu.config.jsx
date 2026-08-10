@@ -478,6 +478,7 @@ export const MENU_SIDEBAR = [
       { title: 'Raw Material Items', path: '/material/items' },
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
+      { title: 'Category Brand Mapping', path: '/material/category-brand-mapping' },
     ],
   },
   {
@@ -562,6 +563,8 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Categories', path: '/material/categories' },
       { title: 'Raw Material Items', path: '/material/items' },
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
+      { title: 'Raw Material Brand Master', path: '/material/brand-master' },
+      { title: 'Category Brand Mapping', path: '/material/category-brand-mapping' },
     ],
   },
   {

@@ -10,6 +10,8 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import StatusConfirmModal from '@/utils/StatusConfirmModal';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import AddRawMaterialBrand from './AddRawMaterialBrand';
 
 const brands_data = [
     {
@@ -41,20 +43,84 @@ const RowMaterialBrandMaster = () => {
     const [showStatusConfirm, setShowStatusConfirm] = useState(false);
     const [statusTarget, setStatusTarget] = useState(null); // { id, name, nextActive }
     const [statusSaving, setStatusSaving] = useState(false);
-    const handleAddClick = () => {
+    const [showBrandModal, setShowBrandModal] = useState(false);
+    const [editingBrand, setEditingBrand] = useState(null);
+      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+      const [deleteTarget, setDeleteTarget] = useState(null);
+      const [deleteLoading, setDeleteLoading] = useState(false);
 
+    const handleAddClick = () => {
+        setEditingBrand(null);
+        setShowBrandModal(true);
+    };
+
+    const handleExportClick = () => {
+        // UI only - hook up export flow later
     };
 
     const handleEditClick = (brand) => {
-
+        setEditingBrand(brand);
+        setShowBrandModal(true);
     };
 
-    const handleDelete = (brand) => {
-
-        setBrands((prev) => prev.filter((b) => b.id !== brand.id));
+    const closeBrandModal = () => {
+        setShowBrandModal(false);
+        setEditingBrand(null);
+    };
+    const handleBrandSaved = (payload) => {
+        // UI only - swap for refetch after real create/update API call later
+        if (payload.id) {
+            setBrands((prev) =>
+                prev.map((b) =>
+                    b.id === payload.id
+                        ? { ...b, nameEnglish: payload.nameEnglish, description: payload.description }
+                        : b
+                )
+            );
+        } else {
+            setBrands((prev) => [
+                ...prev,
+                {
+                    id: Date.now(),
+                    nameEnglish: payload.nameEnglish,
+                    description: payload.description,
+                    isActive: true,
+                    status: "Active",
+                },
+            ]);
+        }
+    };
+ const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, name: row.nameEnglish });
+        setShowDeleteConfirm(true);
     };
 
-     const openStatusConfirm = (row) => {
+    const closeDeleteConfirm = () => {
+        if (deleteLoading) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };
+ 
+  const handleDelete = (unit) => {
+    setDeleteTarget(unit);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      setDeleteLoading(true);
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error(err);
+
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+    const openStatusConfirm = (row) => {
         setStatusTarget({
             id: row.id,
             name: row.nameEnglish,
@@ -78,10 +144,10 @@ const RowMaterialBrandMaster = () => {
             prev.map((b) =>
                 b.id === statusTarget.id
                     ? {
-                          ...b,
-                          isActive: statusTarget.nextActive,
-                          status: statusTarget.nextActive ? "Active" : "Inactive",
-                      }
+                        ...b,
+                        isActive: statusTarget.nextActive,
+                        status: statusTarget.nextActive ? "Active" : "Inactive",
+                    }
                     : b
             )
         );
@@ -153,7 +219,7 @@ const RowMaterialBrandMaster = () => {
                 <DataGridColumnHeader title="NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <span className="font-medium text-[#1B1B1F]">{row.original.name}</span>
+                <span className="font-medium text-[#1B1B1F] capitalize">{row.original.name}</span>
             ),
         },
         {
@@ -199,12 +265,12 @@ const RowMaterialBrandMaster = () => {
                         type="button"
                         onClick={() => handleEditClick(row.original)}
                     >
-                        <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
+                        <SquarePen size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
 
                     <button
                         type="button"
-                        onClick={() => handleDelete(row.original)}
+                        onClick={() => openDeleteConfirm(row.original)}
                     >
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
@@ -246,15 +312,15 @@ const RowMaterialBrandMaster = () => {
                         </p>
                     </div>
 
-                        <button
-                            type="button"
-                            onClick={handleAddClick}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                        >
-                            <Plus size={16} />
-                            Create Brand
-                        </button>
-            
+                    <button
+                        type="button"
+                        onClick={handleAddClick}
+                        className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                    >
+                        <Plus size={16} />
+                        Create Brand
+                    </button>
+
                 </div>
 
                 {/* Stat cards */}
@@ -325,9 +391,25 @@ const RowMaterialBrandMaster = () => {
                 onClose={closeStatusConfirm}
                 onConfirm={confirmStatusChange}
                 targetName={statusTarget?.name}
-                targetStatus={statusTarget?.nextActive}
+                nextStatusLabel={statusTarget?.nextActive ? "Active" : "Inactive"}
                 saving={statusSaving}
             />
+
+            <AddRawMaterialBrand
+                isOpen={showBrandModal}
+                onClose={closeBrandModal}
+                onSaved={handleBrandSaved}
+                initialData={editingBrand}
+            />
+
+          <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+           onClose={closeDeleteConfirm}
+                onConfirm={confirmDelete}
+            itemLabel={deleteTarget?.name}
+              saving={deleteLoading}
+          />
+
         </Container>
     )
 }

@@ -220,7 +220,7 @@ const MenuSubCategory = () => {
         ),
 
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800">{row.original.name}</div>
+          <div className="font-semibold text-gray-800 capitalize">{row.original.name}</div>
         ),
 
         size: 120,
@@ -241,7 +241,7 @@ const MenuSubCategory = () => {
         ),
 
         cell: ({ row }) => (
-          <span className="text-gray-700">{row.original.category}</span>
+          <span className="text-gray-700 capitalize">{row.original.category}</span>
         ),
 
         size: 120,

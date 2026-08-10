@@ -35,7 +35,7 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
     name: "",
     price: "",
     sequence: "",
-    slogan: "",
+    menuSlogan: "",
     image: null,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -48,7 +48,7 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
         name: editData.name || editData.nameEnglish || "",
         price: editData.price ?? "",
         sequence: editData.sequence ?? "",
-        slogan: editData.slogan || "",
+        slogan: editData.menuSlogan || "",
         image: null, // existing image shown via editData.image, not re-uploaded unless changed
       });
       setImagePreview(editData.imagePath || "");
@@ -101,7 +101,7 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
       payload.append("sequence", formData.sequence);
     }
     if (formData.slogan && formData.slogan.trim() !== "") {
-      payload.append("slogan", formData.slogan.trim());
+      payload.append("menuSlogan", formData.slogan.trim());
     }
     if (formData.image) {
       payload.append("image", formData.image);
@@ -113,10 +113,8 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
     try {
       if (editData) {
         await updateMenuCategory(payload);
-        notify.success("Menu Category Updated Successfully")
       } else {
         await addMenuCategory(payload);
-         notify.success("Menu Category Created Successfully")
       }
       onSuccess?.();
       onClose();

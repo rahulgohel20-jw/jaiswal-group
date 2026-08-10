@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { notify } from '@/utils/toast';
-import { addUnitMaster, updateUnitMaster } from '../../../services/apiServices';
+import { addUnitMaster, getAllRawMaterialUnits, updateUnitMaster } from '../../../services/apiServices';
 import { getUserIdFromToken } from "../../../utils/auth";
 // Replace these with your actual API service calls
 
@@ -48,27 +48,35 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData }) => {
   const isEditMode = Boolean(initialData?.id);
 
   // Fetch units for the "Parent Unit" dropdown
-  //   useEffect(() => {
-  //     if (!isOpen) return;
-  //     const fetchParents = async () => {
-  //       setLoadingParents(true);
-  //       try {
-  //         const res = await getAllUnits();
-  //         const raw = res?.data?.data ?? [];
-  //         setParentUnitOptions(
-  //           raw
-  //             .filter((u) => u.isParentUnit && u.id !== initialData?.id)
-  //             .map((u) => ({ value: u.id, label: u.name }))
-  //         );
-  //       } catch (err) {
-  //         console.error('Failed to fetch parent units:', err);
-  //         setParentUnitOptions([]);
-  //       } finally {
-  //         setLoadingParents(false);
-  //       }
-  //     };
-  //     fetchParents();
-  //   }, [isOpen, initialData]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchParents = async () => {
+      setLoadingParents(true);
+      try {
+        const res = await getAllRawMaterialUnits();
+        const raw = res?.data?.data?.['Unit Details'] ?? [];
+        setParentUnitOptions(
+          raw
+            .filter(
+              (u) =>
+                u.isParentUnit === true &&
+                u.isActive === true &&
+                u.id !== initialData?.id
+            )
+            .map((u) => ({
+              value: u.id.toString(),
+              label: u.nameEnglish,
+            }))
+        );
+      } catch (err) {
+        console.error('Failed to fetch parent units:', err);
+        setParentUnitOptions([]);
+      } finally {
+        setLoadingParents(false);
+      }
+    };
+    fetchParents();
+  }, [isOpen, initialData]);
 
   // Populate form on edit / reset on add
   useEffect(() => {
@@ -76,18 +84,18 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData }) => {
 
     if (initialData) {
       setForm({
-        name: initialData.name || '',
-        symbol: initialData.symbol || '',
+        name: initialData.nameEnglish || '',
+        symbol: initialData.symbolEnglish || '',
         isParentUnit: Boolean(initialData.isParentUnit),
         decimalLimit: initialData.decimalLimit,
-        parentUnitId: initialData.parentUnitId,
-        equivalent: initialData.equivalent ?? '',
-        rangeType: initialData.rangeType || 'Range',
+        parentUnitId: initialData.parentUnit?.id?.toString() ?? '',
+        equivalent: initialData.equivalentValue ?? '',
+        rangeType: initialData.rangeType === 'STEPWISE' ? 'StepWiseRange' : 'Range',
         ranges:
           initialData.ranges?.length > 0
             ? initialData.ranges
             : [emptyRange()],
-        stepWiseRange: initialData.stepWiseRange ?? '',
+        stepWiseRange: initialData.stepValue ?? '',
       });
     } else {
       setForm(emptyForm);
@@ -355,7 +363,7 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData }) => {
                 Decimal Limit For Quantity <span className="text-red-500">*</span>
               </label>
               <Select
-                value={form.decimalLimit?.toString()}
+                value={form.decimalLimit !== undefined ? form.decimalLimit.toString() : ''}
                 onValueChange={(value) => set('decimalLimit', Number(value))}
               >
                 <SelectTrigger className="mt-1">
@@ -364,7 +372,7 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData }) => {
                 <SelectContent>
                   {DECIMAL_LIMIT_OPTIONS.map((opt) => (
                     <SelectItem key={opt} value={opt.toString()}>
-                      {opt}
+                      {opt.toString()}
                     </SelectItem>
                   ))}
                 </SelectContent>
