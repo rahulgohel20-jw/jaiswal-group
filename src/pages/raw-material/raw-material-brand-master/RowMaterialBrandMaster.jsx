@@ -12,29 +12,11 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import StatusConfirmModal from '@/utils/StatusConfirmModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddRawMaterialBrand from './AddRawMaterialBrand';
+import { deleteRawMaterialBrandById, getAllActiveRawMaterialBrand, getAllRawMaterialBrand, getRawMaterialBrandById, updateRawMaterialBrand } from '../../../services/apiServices';
 
-const brands_data = [
-    {
-        id: 1,
-        name: "Alpha Steel Co.",
-        description: "Metals",
-        status: "Active",
-    },
-    {
-        id: 2,
-        name: "Beta Polymers",
-        description: "Plastics",
-        status: "Active",
-    },
-    {
-        id: 3,
-        name: "Gamma Electronics",
-        description: "Components",
-        status: "Inactive",
-    },
-];
+
 const RowMaterialBrandMaster = () => {
-    const [brands, setBrands] = useState(brands_data);
+    const [brands, setBrands] = useState([]);
 
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
     const [rowSelection, setRowSelection] = useState({});
@@ -45,9 +27,38 @@ const RowMaterialBrandMaster = () => {
     const [statusSaving, setStatusSaving] = useState(false);
     const [showBrandModal, setShowBrandModal] = useState(false);
     const [editingBrand, setEditingBrand] = useState(null);
-      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-      const [deleteTarget, setDeleteTarget] = useState(null);
-      const [deleteLoading, setDeleteLoading] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [activeBrandCount, setActiveBrandCount] = useState(0);
+
+    const fetchBrands = async () => {
+        try {
+            const response = await getAllRawMaterialBrand();
+            const brandData = response?.data?.data || [];
+
+            setBrands(brandData);
+        } catch (error) {
+            console.error("Failed to fetch raw material brands:", error);
+            setBrands([]);
+        }
+    };
+    const fetchActiveBrands = async () => {
+        try {
+            const response = await getAllActiveRawMaterialBrand();
+            const activeBrands = response?.data?.data || [];
+
+            setActiveBrandCount(activeBrands.length);
+        } catch (error) {
+            console.error("Failed to fetch active raw material brands:", error);
+            setActiveBrandCount(0);
+        }
+    };
+
+    useEffect(() => {
+        fetchBrands();
+        fetchActiveBrands();
+    }, []);
 
     const handleAddClick = () => {
         setEditingBrand(null);
@@ -58,40 +69,37 @@ const RowMaterialBrandMaster = () => {
         // UI only - hook up export flow later
     };
 
-    const handleEditClick = (brand) => {
-        setEditingBrand(brand);
-        setShowBrandModal(true);
+    const handleEditClick = async (brand) => {
+        try {
+            const response = await getRawMaterialBrandById(brand.id);
+
+            const brandData = response?.data?.data;
+
+            if (!brandData) {
+                console.error("Brand data not found");
+                return;
+            }
+
+            setEditingBrand(brandData);
+            setShowBrandModal(true);
+
+        } catch (error) {
+            console.error("Failed to fetch brand by id:", error);
+        }
     };
 
     const closeBrandModal = () => {
         setShowBrandModal(false);
         setEditingBrand(null);
     };
-    const handleBrandSaved = (payload) => {
-        // UI only - swap for refetch after real create/update API call later
-        if (payload.id) {
-            setBrands((prev) =>
-                prev.map((b) =>
-                    b.id === payload.id
-                        ? { ...b, nameEnglish: payload.nameEnglish, description: payload.description }
-                        : b
-                )
-            );
-        } else {
-            setBrands((prev) => [
-                ...prev,
-                {
-                    id: Date.now(),
-                    nameEnglish: payload.nameEnglish,
-                    description: payload.description,
-                    isActive: true,
-                    status: "Active",
-                },
-            ]);
-        }
+    const handleBrandSaved = async () => {
+        await Promise.all([
+            fetchBrands(),
+            fetchActiveBrands(),
+        ]);
     };
- const openDeleteConfirm = (row) => {
-        setDeleteTarget({ id: row.id, name: row.nameEnglish });
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, name });
         setShowDeleteConfirm(true);
     };
 
@@ -100,31 +108,36 @@ const RowMaterialBrandMaster = () => {
         setShowDeleteConfirm(false);
         setDeleteTarget(null);
     };
- 
-  const handleDelete = (unit) => {
-    setDeleteTarget(unit);
-    setShowDeleteConfirm(true);
-  };
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
+    const handleDelete = (unit) => {
+        setDeleteTarget(unit);
+        setShowDeleteConfirm(true);
+    };
 
-    try {
-      setDeleteLoading(true);
-      setShowDeleteConfirm(false);
-      setDeleteTarget(null);
-    } catch (err) {
-      console.error(err);
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
 
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
+        try {
+            setDeleteLoading(true);
+            await deleteRawMaterialBrandById(deleteTarget.id);
+            await Promise.all([
+                fetchBrands(),
+                fetchActiveBrands(),
+            ]);
+            setShowDeleteConfirm(false);
+            setDeleteTarget(null);
+        } catch (err) {
+            console.error(err);
+
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
     const openStatusConfirm = (row) => {
         setStatusTarget({
             id: row.id,
-            name: row.nameEnglish,
-            nextActive: row.status !== 'Active',
+            name: row.name,
+            nextActive: !row.active,
         });
         setShowStatusConfirm(true);
     };
@@ -135,26 +148,46 @@ const RowMaterialBrandMaster = () => {
         setStatusTarget(null);
     };
 
-    const confirmStatusChange = () => {
+    const confirmStatusChange = async () => {
         if (!statusTarget) return;
-        setStatusSaving(true);
 
-        //  swap for updateRawMaterialBrandStatus API call later
-        setBrands((prev) =>
-            prev.map((b) =>
-                b.id === statusTarget.id
-                    ? {
-                        ...b,
-                        isActive: statusTarget.nextActive,
-                        status: statusTarget.nextActive ? "Active" : "Inactive",
-                    }
-                    : b
-            )
-        );
+        try {
+            setStatusSaving(true);
 
-        setStatusSaving(false);
-        setShowStatusConfirm(false);
-        setStatusTarget(null);
+            const currentBrand = brands.find(
+                (brand) => brand.id === statusTarget.id
+            );
+
+            if (!currentBrand) {
+                throw new Error("Brand not found");
+            }
+
+            const payload = {
+                active: statusTarget.nextActive,
+                createdBy: currentBrand.createdBy ?? 0,
+                description: currentBrand.description ?? '',
+                name: currentBrand.name ?? '',
+            };
+
+            await updateRawMaterialBrand(
+                statusTarget.id,
+                payload
+            );
+
+            // Refresh table + active count from API
+            await Promise.all([
+                fetchBrands(),
+                fetchActiveBrands(),
+            ]);
+
+            setShowStatusConfirm(false);
+            setStatusTarget(null);
+
+        } catch (error) {
+            console.error("Failed to update brand status:", error);
+        } finally {
+            setStatusSaving(false);
+        }
     };
 
 
@@ -167,7 +200,7 @@ const RowMaterialBrandMaster = () => {
         },
         {
             title: "Active Brands",
-            value: String(brands.filter((b) => b.status === "Active").length),
+            value: String(activeBrandCount),
             icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
             color: "text-[#15803D]",
         },
@@ -190,7 +223,7 @@ const RowMaterialBrandMaster = () => {
 
             const matchesStatus =
                 statusFilter === "All Status" ||
-                b.status === statusFilter;
+                (b.active ? "Active" : "Inactive") === statusFilter;
 
             return matchesSearch && matchesStatus;
         });
@@ -227,7 +260,7 @@ const RowMaterialBrandMaster = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold" />
             ),
-            cell: ({ row }) => row.original.description,
+            cell: ({ row }) => <span className="text-[#1B1B1F] capitalize">{row.original.description}</span>,
         },
         {
             id: "status",
@@ -243,7 +276,7 @@ const RowMaterialBrandMaster = () => {
                 <label className="relative inline-flex cursor-pointer">
                     <input
                         type="checkbox"
-                        checked={row.original.status === "Active"}
+                        checked={row.original.active === true}
                         onChange={() => openStatusConfirm(row.original)}
                         className="sr-only peer"
                     />
@@ -330,7 +363,7 @@ const RowMaterialBrandMaster = () => {
                             <div className="flex justify-between items-center pb-2">
                                 <p>{item.icon}</p>
                             </div>
-                            <h1 className="text-xs uppercase tracking-wide text-[#43474F]">{item.title}</h1>
+                            <h1 className="text-sm tracking-wide text-[#43474F]">{item.title}</h1>
                             <h2 className={`text-xl font-bold mt-1 ${item.color}`}>{item.value}</h2>
                         </div>
                     ))}
@@ -402,13 +435,13 @@ const RowMaterialBrandMaster = () => {
                 initialData={editingBrand}
             />
 
-          <DeleteConfirmModal
-          isOpen={showDeleteConfirm}
-           onClose={closeDeleteConfirm}
+            <DeleteConfirmModal
+                isOpen={showDeleteConfirm}
+                onClose={closeDeleteConfirm}
                 onConfirm={confirmDelete}
-            itemLabel={deleteTarget?.name}
-              saving={deleteLoading}
-          />
+                itemLabel={deleteTarget?.name}
+                saving={deleteLoading}
+            />
 
         </Container>
     )

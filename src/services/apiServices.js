@@ -635,3 +635,24 @@ export const updateModuleRight = ({ id, ...payload }) => {
 export const deleteModuleRight = (id) => {
   return DELETE('/modulerights/deletebyid', { id });
 };
+
+//Raw Material Brand Master API
+export const createRawMaterialBrand = (payload) => {
+  return POST(`/raw-material-brand/create`, payload);
+}; 
+
+export const getAllRawMaterialBrand = () => {
+  return GET('/raw-material-brand/getall');
+}
+export const getRawMaterialBrandById = (id) => {
+  return GET(`/raw-material-brand/get?id=${id}`)
+}
+export const updateRawMaterialBrand = (id, payload) => {
+  return PUT(`/raw-material-brand/update?id=${id}`, payload);
+};
+export const getAllActiveRawMaterialBrand = () => {
+  return GET('/raw-material-brand/getallactive');
+}
+export const deleteRawMaterialBrandById = (id) => {
+  return DELETE(`/raw-material-brand/delete?id=${id}`)
+}
