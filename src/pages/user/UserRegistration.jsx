@@ -18,6 +18,7 @@ import {
   getAllRoleMasterByUserId,
   getCitiesByState,
   getEmployeeById,
+  getOrganizationByType,
   getStatesByCountry,
   saveEmployee,
   updateEmployee,
@@ -26,8 +27,10 @@ import { getUserIdFromToken } from '../../utils/auth';
 import {
   buildEmployeePayload,
   DEFAULT_FORM,
+  deriveOrgSelection,
   extractItem,
   extractList,
+  getEmployeeOrgId,
   mapEmployeeToForm,
 } from './utils/Employeemappers';
 
@@ -72,7 +75,10 @@ const Select = ({ value, onChange, placeholder, options, hasError }) => (
   </div>
 );
 
-// {id, name} option select — used for Country / State / City / Company / Unit / Department
+// {id, name} option select — used for Country / State / City / Group / Sub Company / Unit / Department
+// Pass `optional` for fields that can be cleared back to "none" — this keeps
+// the placeholder option enabled so the user can re-select it to unset the
+// field, instead of being stuck once a value is chosen.
 const IdSelect = ({
   value,
   onChange,
@@ -81,6 +87,7 @@ const IdSelect = ({
   hasError,
   disabled,
   loading,
+  optional = false,
 }) => (
   <div className="relative">
     <select
@@ -91,7 +98,7 @@ const IdSelect = ({
         value === '' ? 'text-gray-400' : 'text-gray-800'
       } ${disabled || loading ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
     >
-      <option value="" disabled>
+      <option value="" disabled={!optional}>
         {loading ? 'Loading...' : placeholder}
       </option>
       {options.map((opt) => (
@@ -295,9 +302,6 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
-// Root org id — everything else in the org tree hangs off this via parentId.
-const MAIN_GROUP_ID = 1;
-
 // Password must be at least 8 chars with 1 uppercase, 1 lowercase, 1 number, 1 special char
 const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
@@ -373,6 +377,10 @@ const UserRegistration = () => {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [errors, setErrors] = useState({});
   const [loadingUser, setLoadingUser] = useState(false);
+  // The employee's flat organization id, held until the Group + org lists
+  // are loaded so we can work out which level (Group/Sub Company/Unit) it
+  // belongs to — see the derive-org effect below.
+  const [employeeOrgId, setEmployeeOrgId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
@@ -388,20 +396,54 @@ const UserRegistration = () => {
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
 
-  // Full org tree — every entity (companies, units) in one flat list, each
-  // carrying a parentId. We fetch it once and derive dropdown options from
-  // it on the frontend instead of hitting the API again per selection.
+  // Groups — top-level org entities, fetched via /api/organization/by-type/GROUP.
+  // This is a required selection; Sub Company and Unit underneath it are optional.
+  const [groups, setGroups] = useState([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+
+  // Full org tree — every non-group entity (sub-companies, units) in one flat
+  // list, each carrying a parentId. We fetch it once and derive Sub Company /
+  // Unit dropdown options from it on the frontend instead of hitting the API
+  // again per selection.
   const [allOrgs, setAllOrgs] = useState([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
 
-  // Fetch org tree once on mount
+  // Fetch GROUP-type orgs once on mount
+  useEffect(() => {
+    let cancelled = false;
+    const fetchGroups = async () => {
+      setLoadingGroups(true);
+      try {
+        const res = await getOrganizationByType('GROUP');
+        if (!cancelled) {
+          const list = extractList(res).map((g) => ({
+            id: g.id,
+            name: g.companyNameEnglish || g.name || '',
+          }));
+          setGroups(list);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setGroups([]);
+      } finally {
+        if (!cancelled) setLoadingGroups(false);
+      }
+    };
+    fetchGroups();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch remaining org tree (sub-companies, units) once on mount
   useEffect(() => {
     let cancelled = false;
     const fetchOrgs = async () => {
       setLoadingOrgs(true);
       try {
         const res = await getActiveCompany();
-        if (!cancelled) setAllOrgs(extractList(res));
+        const list = extractList(res);
+        if (!cancelled) setAllOrgs(list);
       } catch (err) {
         console.error(err);
         if (!cancelled) setAllOrgs([]);
@@ -443,16 +485,29 @@ const UserRegistration = () => {
     };
   }, []); // no dependency on companyId / outletId — roles are global
 
-  // Companies = orgs whose parent is the root MAIN_GROUP.
-  const companies = useMemo(
+  // Auto-select the Group by default when there's exactly one (the common
+  // case — a single organization like "Jaiswal Group"). If there are several,
+  // the user picks explicitly; nothing is pre-selected in edit mode since the
+  // employee's own record is loaded separately.
+  useEffect(() => {
+    if (!isEditMode && groups.length === 1 && !form.groupId) {
+      setForm((f) => ({ ...f, groupId: String(groups[0].id) }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups, isEditMode]);
+
+  // Sub Companies = orgs whose parent is whichever Group is currently selected.
+  const subCompanies = useMemo(
     () =>
-      allOrgs
-        .filter((o) => String(o.parentId) === String(MAIN_GROUP_ID))
-        .map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name })),
-    [allOrgs],
+      form.groupId
+        ? allOrgs
+            .filter((o) => String(o.parentId) === String(form.groupId))
+            .map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name }))
+        : [],
+    [allOrgs, form.groupId],
   );
 
-  // Units = orgs whose parent is whichever company is currently selected.
+  // Units = orgs whose parent is whichever Sub Company is currently selected.
   const outlets = useMemo(
     () =>
       form.companyId
@@ -462,6 +517,17 @@ const UserRegistration = () => {
         : [],
     [allOrgs, form.companyId],
   );
+
+  const handleGroupChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, groupId: value, companyId: '', outletId: '' }));
+    setErrors((prev) => ({
+      ...prev,
+      groupId: undefined,
+      companyId: undefined,
+      outletId: undefined,
+    }));
+  };
 
   const handleCompanyChange = (e) => {
     const value = e.target.value;
@@ -489,6 +555,7 @@ const UserRegistration = () => {
 
     if (!editingUser?.id) {
       setForm(DEFAULT_FORM);
+      setEmployeeOrgId('');
       return;
     }
 
@@ -498,10 +565,16 @@ const UserRegistration = () => {
       try {
         const res = await getEmployeeById(editingUser.id);
         const emp = extractItem(res);
-        if (!cancelled) setForm(mapEmployeeToForm(emp));
+        if (!cancelled) {
+          setForm(mapEmployeeToForm(emp));
+          setEmployeeOrgId(getEmployeeOrgId(emp));
+        }
       } catch (err) {
         console.error(err);
-        if (!cancelled) setForm(mapEmployeeToForm(editingUser));
+        if (!cancelled) {
+          setForm(mapEmployeeToForm(editingUser));
+          setEmployeeOrgId(getEmployeeOrgId(editingUser));
+        }
       } finally {
         if (!cancelled) setLoadingUser(false);
       }
@@ -513,6 +586,17 @@ const UserRegistration = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingUser?.id]);
+
+  // Once the employee's flat organization id AND both org lists (Group,
+  // Sub Company/Unit tree) have finished loading, work out which level
+  // that id sits at and pre-select Group / Sub Company / Unit accordingly.
+  useEffect(() => {
+    if (!isEditMode || !employeeOrgId) return;
+    if (loadingGroups || loadingOrgs) return; // wait for both lists to settle
+
+    const derived = deriveOrgSelection(employeeOrgId, groups, allOrgs);
+    setForm((f) => ({ ...f, ...derived }));
+  }, [isEditMode, employeeOrgId, groups, allOrgs, loadingGroups, loadingOrgs]);
 
   // Load countries once
   useEffect(() => {
@@ -654,7 +738,9 @@ const UserRegistration = () => {
     if (form.altMobile && !MOBILE_REGEX.test(form.altMobile))
       e.altMobile = 'Enter a valid 10-digit mobile number';
 
-    if (!form.companyId) e.companyId = 'Company is required';
+    // Group is required; Sub Company and Unit underneath it are optional —
+    // if neither is selected, the user is registered directly under the Group.
+    if (!form.groupId) e.groupId = 'Group is required';
 
     if (!form.departmentId) e.departmentId = 'Department is required';
     if (!form.designation.trim()) e.designation = 'Designation is required';
@@ -822,10 +908,8 @@ const UserRegistration = () => {
                   </div>
                 </div>
 
-                {/* Row 2 — Username / Email / Company (+ User Code in edit mode) */}
-                <div
-                  className={`grid gap-4 ${isEditMode ? 'grid-cols-4' : 'grid-cols-3'}`}
-                >
+                {/* Row 2 — Username / Email / Group (+ User Code in edit mode) */}
+                <div className={`grid gap-4 grid-cols-3`}>
                   {isEditMode && (
                     <div>
                       <Label>User Code (Auto Generated)</Label>
@@ -868,44 +952,6 @@ const UserRegistration = () => {
                     <ErrorText message={errors.email} />
                   </div>
 
-                  <div>
-                    <Label required>Company</Label>
-                    <IdSelect
-                      value={form.companyId}
-                      onChange={handleCompanyChange}
-                      placeholder="Select Company"
-                      options={companies}
-                      hasError={!!errors.companyId}
-                      loading={loadingOrgs}
-                    />
-                    <ErrorText message={errors.companyId} />
-                  </div>
-                </div>
-
-                {/* Row 3 — Unit / Password */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Unit</Label>
-                    <IdSelect
-                      value={form.outletId}
-                      onChange={handleUnitChange}
-                      placeholder={
-                        form.companyId
-                          ? 'Select Unit (optional)'
-                          : 'Select company first'
-                      }
-                      options={outlets}
-                      hasError={!!errors.outletId}
-                      disabled={!form.companyId}
-                      loading={loadingOrgs}
-                    />
-                    <ErrorText message={errors.outletId} />
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      Leave blank to register the user directly under the
-                      company.
-                    </p>
-                  </div>
-
                   {!isEditMode && (
                     <div>
                       <Label required>Password</Label>
@@ -943,8 +989,70 @@ const UserRegistration = () => {
                   )}
                 </div>
 
+                {/* Row 3 — Sub Company / Unit / Password */}
+                <div className={`grid grid-cols-3 gap-4`}>
+                  <div>
+                    <Label required>Group</Label>
+                    <IdSelect
+                      name="groupId"
+                      value={form.groupId}
+                      onChange={handleGroupChange}
+                      placeholder="Select Group"
+                      options={groups}
+                      hasError={!!errors.groupId}
+                      loading={loadingGroups}
+                    />
+                    <ErrorText message={errors.groupId} />
+                  </div>
+
+                  <div>
+                    <Label>Sub Company</Label>
+                    <IdSelect
+                      value={form.companyId}
+                      onChange={handleCompanyChange}
+                      placeholder={
+                        form.groupId
+                          ? 'Select Sub Company (optional)'
+                          : 'Select group first'
+                      }
+                      options={subCompanies}
+                      hasError={!!errors.companyId}
+                      disabled={!form.groupId}
+                      loading={loadingOrgs}
+                      optional
+                    />
+                    <ErrorText message={errors.companyId} />
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Leave blank to register the user directly under the Group.
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label>Unit</Label>
+                    <IdSelect
+                      value={form.outletId}
+                      onChange={handleUnitChange}
+                      placeholder={
+                        form.companyId
+                          ? 'Select Unit (optional)'
+                          : 'Select sub company first'
+                      }
+                      options={outlets}
+                      hasError={!!errors.outletId}
+                      disabled={!form.companyId}
+                      loading={loadingOrgs}
+                      optional
+                    />
+                    <ErrorText message={errors.outletId} />
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Leave blank to register the user directly under the Sub
+                      Company.
+                    </p>
+                  </div>
+                </div>
+
                 {/* Row 4 — Mobile / Alt Mobile / Department */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label required>Mobile Number</Label>
                     <input
@@ -988,10 +1096,7 @@ const UserRegistration = () => {
                     />
                     <ErrorText message={errors.departmentId} />
                   </div>
-                </div>
 
-                {/* Row 5 — Designation */}
-                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label required>Designation</Label>
                     <input

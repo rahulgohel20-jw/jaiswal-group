@@ -58,8 +58,9 @@ export const DEFAULT_FORM = {
   userCode: '',
   username: '',
   email: '',
-  companyId: '',
-  outletId: '',
+  groupId: '',
+  companyId: '', // sub-company (optional) — child of groupId
+  outletId: '', // unit (optional) — child of companyId
   password: '',
   mobile: '',
   altMobile: '',
@@ -77,30 +78,20 @@ export const DEFAULT_FORM = {
 
 // Employee (from API) -> registration form state
 export const mapEmployeeToForm = (emp = {}) => {
-  // The employee's registered org could be a company or a unit under one.
-  // TODO: confirm the actual field name/shape the API returns for this —
-  // assuming `emp.organization` is an object like { id, name, orgType, parentId }
-  // (orgType e.g. 'company' | 'unit' | 'outlet'), with `emp.organizationId`
-  // as a plain-id fallback if the API doesn't nest it.
-  const org = emp.organization;
-  const orgType = org?.orgType?.toLowerCase();
-  const isUnit = orgType === 'unit' || orgType === 'outlet';
-
-  const companyId = isUnit
-    ? (org?.parentId ?? '')
-    : (idOf(org) || emp.organizationId || emp.companyId || '');
-  const outletId = isUnit
-    ? (idOf(org) || emp.organizationId || emp.outletId || '')
-    : '';
-
   return {
     ...splitName(emp.fullName ?? emp.name ?? ''),
     id: emp.id ?? '',
     userCode: emp.code ?? emp.userCode ?? '',
     username: emp.username ?? emp.createdBy ?? '',
     email: emp.emailid ?? emp.email ?? '',
-    companyId,
-    outletId,
+    // Group / Sub Company / Unit are intentionally left blank here — which
+    // level the employee's flat organizationId sits at can't be determined
+    // from the employee record alone. UserRegistration derives and fills
+    // these in once the Group list and org tree have both loaded, via
+    // deriveOrgSelection() below.
+    groupId: '',
+    companyId: '',
+    outletId: '',
     password: '',
     mobile: emp.mobileNumber ?? emp.mobile ?? '',
     altMobile: emp.alternateMobile ?? emp.altMobile ?? '',
@@ -117,7 +108,56 @@ export const mapEmployeeToForm = (emp = {}) => {
   };
 };
 
-// Registration form state -> /api/employee/save|update payload
+// Pulls the flat organization id an employee is registered under, whatever
+// shape the API returns it in (nested object or plain id field).
+export const getEmployeeOrgId = (emp = {}) =>
+  idOf(emp.organization) || emp.organizationId || '';
+
+// Given the flat org id an employee is registered under, climbs the org tree
+// to work out which level it sits at (Group / Sub Company / Unit) and fills
+// in the other two ids accordingly. Needs the loaded Group list (each
+// {id, name}) and the raw Sub Company/Unit org tree (each {id, parentId, ...})
+// — both are fetched by the registration screen, this stays a pure function
+// so it's easy to test independent of that fetching.
+export const deriveOrgSelection = (orgId, groups = [], allOrgs = []) => {
+  if (!orgId) return { groupId: '', companyId: '', outletId: '' };
+
+  const idStr = String(orgId);
+  const groupIds = new Set(groups.map((g) => String(g.id)));
+  const orgById = new Map(allOrgs.map((o) => [String(o.id), o]));
+
+  // Selected org IS a Group.
+  if (groupIds.has(idStr)) {
+    return { groupId: idStr, companyId: '', outletId: '' };
+  }
+
+  const entity = orgById.get(idStr);
+  if (!entity) {
+    // Unknown id (org tree not loaded yet, or a stale/deleted org) — leave
+    // blank rather than guessing wrong.
+    return { groupId: '', companyId: '', outletId: '' };
+  }
+
+  const parentIdStr = String(entity.parentId);
+
+  // Direct child of a Group => Sub Company.
+  if (groupIds.has(parentIdStr)) {
+    return { groupId: parentIdStr, companyId: idStr, outletId: '' };
+  }
+
+  // Otherwise it's a Unit — its parent is a Sub Company, whose own parent
+  // is the Group.
+  const parentEntity = orgById.get(parentIdStr);
+  const grandParentId = parentEntity ? String(parentEntity.parentId) : '';
+
+  return {
+    groupId: grandParentId,
+    companyId: parentIdStr,
+    outletId: idStr,
+  };
+};
+
+
 export const buildEmployeePayload = (form, { isEditMode }) => ({
   ...(isEditMode && form.id ? { id: form.id } : {}),
   addressLine1: form.addressLine1,
@@ -133,9 +173,10 @@ export const buildEmployeePayload = (form, { isEditMode }) => ({
   latitude: form.latitude,
   longitude: form.longitude,
   mobileNumber: form.mobile,
-  // Unit takes precedence when selected — user is registered under the unit;
-  // otherwise falls back to the company itself.
-  organizationId: form.outletId || form.companyId,
+  // Most specific selection wins: Unit > Sub Company > Group.
+  // Sub Company and Unit are optional — if neither is picked, the user is
+  // registered directly under the Group.
+  organizationId: form.outletId || form.companyId || form.groupId,
   ...(isEditMode ? {} : { password: form.password }),
   pincode: form.pincode,
   stateId: form.stateId,
