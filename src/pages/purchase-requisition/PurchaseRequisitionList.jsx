@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
 import {
   Building2,
   Calendar,
@@ -17,8 +21,8 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { Container } from "@/components/common/container";
+import { Link, useNavigate } from 'react-router';
+import { Container } from '@/components/common/container';
 
 /* -------------------------------------------------------------------------
  * Shared style tokens & primitives
@@ -31,7 +35,11 @@ const inputCls =
   'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
 
 const SectionCard = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>{children}</div>
+  <div
+    className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}
+  >
+    {children}
+  </div>
 );
 
 const Breadcrumb = ({ items }) => (
@@ -39,7 +47,11 @@ const Breadcrumb = ({ items }) => (
     {items.map((item, i) => (
       <span key={item} className="flex items-center gap-1.5">
         {i > 0 && <span className="text-gray-300">/</span>}
-        <span className={i === items.length - 1 ? 'text-[#084E92] font-medium' : ''}>{item}</span>
+        <span
+          className={i === items.length - 1 ? 'text-[#084E92] font-medium' : ''}
+        >
+          {item}
+        </span>
       </span>
     ))}
   </nav>
@@ -64,10 +76,13 @@ const EDITABLE_STATUSES = new Set(['Draft', 'In Review']);
 
 const StatusBadge = ({ status, size = 'md' }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
-      } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
+    className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${
+      size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
+    } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
   >
-    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
+    <span
+      className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`}
+    />
     {status}
   </span>
 );
@@ -145,11 +160,17 @@ const ViewRequisitionModal = ({ row, onClose }) => {
           {/* PR Number / Status */}
           <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
             <div>
-              <p className="text-[11px] text-gray-400 uppercase tracking-wide">PR Number</p>
-              <p className="text-sm font-semibold text-gray-900 mt-0.5">{row.prCode}</p>
+              <p className="text-[11px] text-gray-400 uppercase tracking-wide">
+                PR Number
+              </p>
+              <p className="text-sm font-semibold text-gray-900 mt-0.5">
+                {row.prCode}
+              </p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-gray-400 uppercase tracking-wide">Status</p>
+              <p className="text-[11px] text-gray-400 uppercase tracking-wide">
+                Status
+              </p>
               <div className="mt-1">
                 <StatusBadge status={row.status} size="sm" />
               </div>
@@ -165,13 +186,25 @@ const ViewRequisitionModal = ({ row, onClose }) => {
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-xl border border-gray-100 px-4 py-3">
                 <p className="text-[11px] text-gray-400">Created Date</p>
-                <p className="text-sm font-medium text-gray-800 mt-0.5">{row.date}</p>
+                <p className="text-sm font-medium text-gray-800 mt-0.5">
+                  {row.date}
+                </p>
               </div>
               <div className="rounded-xl border border-gray-100 px-4 py-3">
+                <p className="text-[11px] text-gray-400">Required Date</p>
+                <p className="text-sm font-medium text-gray-800 mt-0.5">
+                  {row.requiredDate}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-100 px-4 py-3 col-span-2">
                 <p className="text-[11px] text-gray-400">Outlet/Branch</p>
-                <p className="text-sm font-medium text-gray-800 mt-0.5">{row.outlet}</p>
+                <p className="text-sm font-medium text-gray-800 mt-0.5">
+                  {row.outlet}
+                </p>
                 {row.section && (
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">{row.section}</p>
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
+                    {row.section}
+                  </p>
                 )}
               </div>
             </div>
@@ -222,6 +255,7 @@ const MOCK_REQUISITIONS = [
     id: 'pr-1',
     prCode: 'PR-2024-001',
     date: 'Oct 12, 2023',
+    requiredDate: 'Oct 25, 2023',
     outlet: 'South City Mall',
     section: 'Apparel Section',
     status: 'Approved',
@@ -233,41 +267,49 @@ const MOCK_REQUISITIONS = [
     id: 'pr-2',
     prCode: 'PR-2024-002',
     date: 'Oct 14, 2023',
+    requiredDate: 'Oct 25, 2023',
     outlet: 'Mumbai Airport Flagship',
     section: 'Electronics Section',
     status: 'Send for Approval',
     remarks: 'Urgent procurement for tec...',
-    notes: 'Urgent procurement for technical equipment ahead of the flagship relaunch. Vendor quotes are attached.',
+    notes:
+      'Urgent procurement for technical equipment ahead of the flagship relaunch. Vendor quotes are attached.',
   },
   {
     id: 'pr-3',
     prCode: 'PR-2024-003',
     date: 'Oct 15, 2023',
+    requiredDate: 'Oct 25, 2023',
     outlet: 'Bangalore Tech Park Hub',
     section: 'Facilities Section',
     status: 'In Review',
     remarks: 'Office furniture replacemen...',
-    notes: 'Office furniture replacement for the second floor workspace remodel, pending facilities sign-off.',
+    notes:
+      'Office furniture replacement for the second floor workspace remodel, pending facilities sign-off.',
   },
   {
     id: 'pr-4',
     prCode: 'PR-2024-004',
     date: 'Oct 18, 2023',
+    requiredDate: 'Oct 25, 2023',
     outlet: 'Delhi Connaught Place Store',
     section: 'Admin Section',
     status: 'Draft',
     remarks: 'Stationery and housekeepi...',
-    notes: 'Stationery and housekeeping supplies for the monthly admin order, still pending final line items.',
+    notes:
+      'Stationery and housekeeping supplies for the monthly admin order, still pending final line items.',
   },
   {
     id: 'pr-5',
     prCode: 'PR-2024-005',
     date: 'Oct 20, 2023',
+    requiredDate: 'Oct 25, 2023',
     outlet: 'Kolkata Head Office',
     section: 'IT Section',
     status: 'Approved',
     remarks: 'Annual IT hardware mainten...',
-    notes: 'Annual IT hardware maintenance contract renewal, approved as part of the FY24 budget cycle.',
+    notes:
+      'Annual IT hardware maintenance contract renewal, approved as part of the FY24 budget cycle.',
   },
 ];
 
@@ -282,7 +324,8 @@ const PAGE_SIZE = 10;
 const Pagination = ({ page, totalPages, onChange }) => {
   // Compact page list: 1, 2, 3, ..., last (matches the design's "1 2 3 ... 5" pattern)
   const pages = useMemo(() => {
-    if (totalPages <= 5) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    if (totalPages <= 5)
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
     const result = [1, 2, 3];
     if (page > 4 && page < totalPages - 1) result.push(page);
     result.push('ellipsis', totalPages);
@@ -304,7 +347,10 @@ const Pagination = ({ page, totalPages, onChange }) => {
 
       {pages.map((p, i) =>
         p === 'ellipsis' ? (
-          <span key={`e-${i}`} className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm">
+          <span
+            key={`e-${i}`}
+            className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm"
+          >
             ...
           </span>
         ) : (
@@ -312,14 +358,15 @@ const Pagination = ({ page, totalPages, onChange }) => {
             key={p}
             type="button"
             onClick={() => onChange(p)}
-            className={`w-8 h-8 rounded-lg text-sm font-semibold transition cursor-pointer border ${p === page
+            className={`w-8 h-8 rounded-lg text-sm font-semibold transition cursor-pointer border ${
+              p === page
                 ? 'bg-[#084E92] text-white border-[#084E92]'
                 : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-              }`}
+            }`}
           >
             {p}
           </button>
-        )
+        ),
       )}
 
       <button
@@ -344,14 +391,19 @@ const PurchaseRequisitionList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [rows, setRows] = useState(MOCK_REQUISITIONS);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
   const [viewingRow, setViewingRow] = useState(null);
 
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter(
-      (r) => r.prCode.toLowerCase().includes(q) || r.outlet.toLowerCase().includes(q)
+      (r) =>
+        r.prCode.toLowerCase().includes(q) ||
+        r.outlet.toLowerCase().includes(q),
     );
   }, [rows, searchQuery]);
 
@@ -362,6 +414,7 @@ const PurchaseRequisitionList = () => {
     () => [
       { id: 'prCode', accessorFn: (r) => r.prCode },
       { id: 'date', accessorFn: (r) => r.date },
+      { id: 'requiredDate', accessorFn: (r) => r.requiredDate },
       { id: 'outlet', accessorFn: (r) => r.outlet },
       { id: 'status', accessorFn: (r) => r.status },
       { id: 'remarks', accessorFn: (r) => r.remarks },
@@ -389,8 +442,12 @@ const PurchaseRequisitionList = () => {
   const pageCount = table.getPageCount();
   const currentPage = pagination.pageIndex + 1;
   const totalResults = filteredRows.length;
-  const firstResultIndex = totalResults === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
-  const lastResultIndex = Math.min((pagination.pageIndex + 1) * pagination.pageSize, totalResults);
+  const firstResultIndex =
+    totalResults === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
+  const lastResultIndex = Math.min(
+    (pagination.pageIndex + 1) * pagination.pageSize,
+    totalResults,
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -420,14 +477,19 @@ const PurchaseRequisitionList = () => {
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Purchase Requisition List</span>
+          <span className="text-[#084E92] font-medium">
+            Purchase Requisition List
+          </span>
         </div>
 
         <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl md:text-4xl font-semibold">Purchase Requisition List</h1>
+            <h1 className="text-2xl md:text-4xl font-semibold">
+              Purchase Requisition List
+            </h1>
             <p className="text-[#43474F] mt-1 text-sm sm:text-base">
-              View and manage all purchase requisitions across enterprise departments.
+              View and manage all purchase requisitions across enterprise
+              departments.
             </p>
           </div>
           <Link
@@ -467,7 +529,9 @@ const PurchaseRequisitionList = () => {
                 title="Refresh"
                 className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
               >
-                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
+                />
               </button>
               <button
                 type="button"
@@ -485,26 +549,45 @@ const PurchaseRequisitionList = () => {
             <table className="w-full min-w-190 text-sm">
               <thead>
                 <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                  <th className="text-left font-semibold px-4 sm:px-6 py-3">PR Code</th>
+                  <th className="text-left font-semibold px-4 sm:px-6 py-3">
+                    PR Code
+                  </th>
                   <th className="text-left font-semibold px-4 py-3">Date</th>
-                  <th className="text-left font-semibold px-4 py-3">Outlet Name</th>
+                  <th className="text-left font-semibold px-4 py-3">
+                    Required Date
+                  </th>
+                  <th className="text-left font-semibold px-4 py-3">
+                    Outlet Name
+                  </th>
                   <th className="text-left font-semibold px-4 py-3">Status</th>
                   <th className="text-left font-semibold px-4 py-3">Remarks</th>
-                  <th className="text-left font-semibold px-4 sm:px-6 py-3 w-28">Action</th>
+                  <th className="text-left font-semibold px-4 sm:px-6 py-3 w-28">
+                    Action
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-10 text-center text-gray-400">
+                    <td
+                      colSpan={7}
+                      className="px-6 py-10 text-center text-gray-400"
+                    >
                       No purchase requisitions match your search.
                     </td>
                   </tr>
                 ) : (
                   pageRows.map((row) => (
                     <tr key={row.id} className="border-t border-gray-100">
-                      <td className="px-4 sm:px-6 py-4 font-semibold text-[#084E92] whitespace-nowrap">{row.prCode}</td>
-                      <td className="px-4 py-4 text-gray-600 whitespace-nowrap">{row.date}</td>
+                      <td className="px-4 sm:px-6 py-4 font-semibold text-[#084E92] whitespace-nowrap">
+                        {row.prCode}
+                      </td>
+                      <td className="px-4 py-4 text-gray-600 whitespace-nowrap">
+                        {row.date}
+                      </td>
+                      <td className="px-4 py-4 text-gray-600 whitespace-nowrap">
+                        {row.requiredDate}
+                      </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
@@ -516,19 +599,32 @@ const PurchaseRequisitionList = () => {
                       <td className="px-4 py-4">
                         <StatusBadge status={row.status} />
                       </td>
-                      <td className="px-4 py-4 text-gray-500 max-w-55 truncate">{row.remarks}</td>
+                      <td className="px-4 py-4 text-gray-500 max-w-55 truncate">
+                        {row.remarks}
+                      </td>
                       <td className="px-4 sm:px-6 py-4">
                         <div className="flex items-center gap-1">
-                          <IconButton icon={Eye} title="View" onClick={() => setViewingRow(row)} />
+                          <IconButton
+                            icon={Eye}
+                            title="View"
+                            onClick={() => setViewingRow(row)}
+                          />
                           {EDITABLE_STATUSES.has(row.status) && (
                             <IconButton
                               icon={Pencil}
                               tone="edit"
                               title="Edit"
-                              onClick={() => navigate(`/purchase-requisition/edit/${row.id}`)}
+                              onClick={() =>
+                                navigate(`/purchase-requisition/edit/${row.id}`)
+                              }
                             />
                           )}
-                          <IconButton icon={Trash2} tone="danger" title="Delete" onClick={() => handleDelete(row.id)} />
+                          <IconButton
+                            icon={Trash2}
+                            tone="danger"
+                            title="Delete"
+                            onClick={() => handleDelete(row.id)}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -548,12 +644,17 @@ const PurchaseRequisitionList = () => {
             <Pagination
               page={currentPage}
               totalPages={Math.max(pageCount, 1)}
-              onChange={(p) => setPagination((prev) => ({ ...prev, pageIndex: p - 1 }))}
+              onChange={(p) =>
+                setPagination((prev) => ({ ...prev, pageIndex: p - 1 }))
+              }
             />
           </div>
         </SectionCard>
 
-        <ViewRequisitionModal row={viewingRow} onClose={() => setViewingRow(null)} />
+        <ViewRequisitionModal
+          row={viewingRow}
+          onClose={() => setViewingRow(null)}
+        />
       </div>
     </Container>
   );

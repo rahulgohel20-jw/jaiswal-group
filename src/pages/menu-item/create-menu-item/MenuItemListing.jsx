@@ -337,8 +337,10 @@ const MenuItemsListing = ({ onAddNew }) => {
                         {item.name}
                       </td>
                       <td className="px-4 py-3 capitalize">{item.category}</td>
-                      <td className="px-4 py-3 capitalize">{item.subCategory}</td>
-                      <td className="px-4 py-3">${item.price.toFixed(2)}</td>
+                      <td className="px-4 py-3 capitalize">
+                        {item.subCategory}
+                      </td>
+                      <td className="px-4 py-3">{item.price.toFixed(2)}</td>
                       <td className="px-4 py-3">{item.sequence}</td>
                       <td className="px-4 py-3">
                         <label className="relative inline-flex cursor-pointer">

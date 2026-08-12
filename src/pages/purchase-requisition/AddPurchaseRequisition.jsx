@@ -40,7 +40,9 @@ const Label = ({ children, required, hint }) => (
 );
 
 const SectionCard = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>
+  <div
+    className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}
+  >
     {children}
   </div>
 );
@@ -60,7 +62,12 @@ const SectionHeader = ({ icon: Icon, title, subtitle }) => (
 // Options can be plain strings or { value, label } objects (dynamic API-backed lists).
 const Select = ({ value, onChange, options, placeholder, disabled }) => (
   <div className="relative">
-    <select value={value} onChange={onChange} className={selectCls} disabled={disabled}>
+    <select
+      value={value}
+      onChange={onChange}
+      className={selectCls}
+      disabled={disabled}
+    >
       <option value="" disabled>
         {placeholder}
       </option>
@@ -83,7 +90,11 @@ const Breadcrumb = ({ items }) => (
     {items.map((item, i) => (
       <span key={item} className="flex items-center gap-1.5">
         {i > 0 && <span className="text-gray-300">/</span>}
-        <span className={i === items.length - 1 ? 'text-[#084E92] font-medium' : ''}>{item}</span>
+        <span
+          className={i === items.length - 1 ? 'text-[#084E92] font-medium' : ''}
+        >
+          {item}
+        </span>
       </span>
     ))}
   </nav>
@@ -98,22 +109,72 @@ const stockDotColor = {
 
 const StockBadge = ({ value, status }) => (
   <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-    <span className={`w-1.5 h-1.5 rounded-full ${stockDotColor[status] || 'bg-gray-300'}`} />
+    <span
+      className={`w-1.5 h-1.5 rounded-full ${stockDotColor[status] || 'bg-gray-300'}`}
+    />
     {Number(value).toFixed(2)}
   </span>
 );
 
 /* -------------------------------------------------------------------------
- * Mock catalogue ΓÇö stand-in for an item-master API in this standalone demo.
+ * Mock catalogue — stand-in for an item-master API in this standalone demo.
  * ---------------------------------------------------------------------- */
 
 const ITEM_CATALOGUE = [
-  { id: 'itm-1', code: 'GRC-LUB-050', name: 'Industrial Grade Lubricant XT-50', category: 'Grocery', unit: 'Litres', availableStock: 120, stockStatus: 'low' },
-  { id: 'itm-2', code: 'VEG-FLG-012', name: 'Stainless Steel Flange 12"', category: 'Vegetable', unit: 'Units', availableStock: 45, stockStatus: 'medium' },
-  { id: 'itm-3', code: 'GRC-CMP-240', name: 'Heavy Duty Compressor G-240', category: 'Grocery', unit: 'Units', availableStock: 3, stockStatus: 'good' },
-  { id: 'itm-4', code: 'GRC-RCE-025', name: 'Basmati Rice Premium 25kg', category: 'Grocery', unit: 'Bags', availableStock: 210, stockStatus: 'good' },
-  { id: 'itm-5', code: 'VEG-TOM-001', name: 'Fresh Tomatoes', category: 'Vegetable', unit: 'Kg', availableStock: 18, stockStatus: 'low' },
-  { id: 'itm-6', code: 'GRC-OIL-005', name: 'Refined Sunflower Oil 15L', category: 'Grocery', unit: 'Cans', availableStock: 60, stockStatus: 'medium' },
+  {
+    id: 'itm-1',
+    code: 'GRC-LUB-050',
+    name: 'Industrial Grade Lubricant XT-50',
+    category: 'Grocery',
+    unit: 'Litres',
+    availableStock: 120,
+    stockStatus: 'low',
+  },
+  {
+    id: 'itm-2',
+    code: 'VEG-FLG-012',
+    name: 'Stainless Steel Flange 12"',
+    category: 'Vegetable',
+    unit: 'Units',
+    availableStock: 45,
+    stockStatus: 'medium',
+  },
+  {
+    id: 'itm-3',
+    code: 'GRC-CMP-240',
+    name: 'Heavy Duty Compressor G-240',
+    category: 'Grocery',
+    unit: 'Units',
+    availableStock: 3,
+    stockStatus: 'good',
+  },
+  {
+    id: 'itm-4',
+    code: 'GRC-RCE-025',
+    name: 'Basmati Rice Premium 25kg',
+    category: 'Grocery',
+    unit: 'Bags',
+    availableStock: 210,
+    stockStatus: 'good',
+  },
+  {
+    id: 'itm-5',
+    code: 'VEG-TOM-001',
+    name: 'Fresh Tomatoes',
+    category: 'Vegetable',
+    unit: 'Kg',
+    availableStock: 18,
+    stockStatus: 'low',
+  },
+  {
+    id: 'itm-6',
+    code: 'GRC-OIL-005',
+    name: 'Refined Sunflower Oil 15L',
+    category: 'Grocery',
+    unit: 'Cans',
+    availableStock: 60,
+    stockStatus: 'medium',
+  },
 ];
 
 const OUTLET_OPTIONS = [
@@ -133,16 +194,25 @@ const todayInputDate = () => {
 };
 
 /* -------------------------------------------------------------------------
- * Item picker ΓÇö shared between the search box and the "Add Item" button.
+ * Item picker — shared between the search box and the "Add Item" button.
  * ---------------------------------------------------------------------- */
 
-const ItemPicker = ({ open, onClose, query, onQueryChange, results, onPick }) => {
+const ItemPicker = ({
+  open,
+  onClose,
+  query,
+  onQueryChange,
+  results,
+  onPick,
+}) => {
   if (!open) return null;
   return (
     <div className="absolute z-20 top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
       <div className="max-h-64 overflow-y-auto">
         {results.length === 0 ? (
-          <p className="text-sm text-gray-400 px-4 py-6 text-center">No items match "{query}"</p>
+          <p className="text-sm text-gray-400 px-4 py-6 text-center">
+            No items match "{query}"
+          </p>
         ) : (
           results.map((item) => (
             <button
@@ -152,10 +222,16 @@ const ItemPicker = ({ open, onClose, query, onQueryChange, results, onPick }) =>
               className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-blue-50/60 transition cursor-pointer border-0 bg-transparent"
             >
               <div className="min-w-0">
-                <p className="text-sm font-medium text-[#084E92] truncate">{item.name}</p>
-                <p className="text-[10px] uppercase tracking-wide text-gray-400">{item.category}</p>
+                <p className="text-sm font-medium text-[#084E92] truncate">
+                  {item.name}
+                </p>
+                <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                  {item.category}
+                </p>
               </div>
-              <span className="text-xs text-gray-400 shrink-0">{item.code}</span>
+              <span className="text-xs text-gray-400 shrink-0">
+                {item.code}
+              </span>
             </button>
           ))
         )}
@@ -174,6 +250,7 @@ const PurchaseRequisition = () => {
   const [form, setForm] = useState({
     prCode: genPRCode(),
     date: todayInputDate(),
+    purchaseRequiredDate: todayInputDate(),
     outlet: 'wh-mumbai',
     remarks: '',
   });
@@ -199,7 +276,10 @@ const PurchaseRequisition = () => {
   const filteredCatalogue = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return ITEM_CATALOGUE.filter((item) => !addedItemIds.has(item.id)).filter(
-      (item) => !q || item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q)
+      (item) =>
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q),
     );
   }, [searchQuery, addedItemIds]);
 
@@ -212,7 +292,11 @@ const PurchaseRequisition = () => {
 
   const handleQuantityChange = (rowId, value) => {
     const numeric = value.replace(/[^\d]/g, '');
-    setRows((r) => r.map((row) => (row.rowId === rowId ? { ...row, quantity: numeric } : row)));
+    setRows((r) =>
+      r.map((row) =>
+        row.rowId === rowId ? { ...row, quantity: numeric } : row,
+      ),
+    );
   };
 
   const handleRemoveRow = (rowId) => {
@@ -225,9 +309,14 @@ const PurchaseRequisition = () => {
   const buildRequisitionPayload = () => ({
     prCode: form.prCode,
     date: form.date,
+    purchaseRequiredDate: form.purchaseRequiredDate,
     outletId: form.outlet,
     remarks: form.remarks,
-    items: rows.map((r) => ({ itemId: r.id, code: r.code, quantity: Number(r.quantity) || 0 })),
+    items: rows.map((r) => ({
+      itemId: r.id,
+      code: r.code,
+      quantity: Number(r.quantity) || 0,
+    })),
   });
 
   const handleSave = async () => {
@@ -261,9 +350,12 @@ const PurchaseRequisition = () => {
         <span className="text-[#084E92] font-medium">Purchase Requisition</span>
       </div>
       <div className="flex flex-col gap-1 mt-3">
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">Purchase Requisition</h1>
+        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
+          Purchase Requisition
+        </h1>
         <p className="text-[#43474F] mt-1 text-sm sm:text-base">
-          Create a purchase requisition by selecting items and required quantities.
+          Create a purchase requisition by selecting items and required
+          quantities.
         </p>
       </div>
 
@@ -271,7 +363,7 @@ const PurchaseRequisition = () => {
       <SectionCard className="mt-5">
         <SectionHeader icon={Info} title="Purchase Requisition Information" />
         <div className="px-4 sm:px-6 py-6 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>PR Code</Label>
               <input
@@ -280,6 +372,18 @@ const PurchaseRequisition = () => {
                 className={`${inputCls} bg-blue-50/60 text-[#084E92] font-medium cursor-not-allowed`}
               />
             </div>
+            <div>
+              <Label>Outlet Name</Label>
+              <Select
+                value={form.outlet}
+                onChange={(e) => set('outlet', e.target.value)}
+                placeholder="Select outlet"
+                options={OUTLET_OPTIONS}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label>Date</Label>
               <input
@@ -290,12 +394,13 @@ const PurchaseRequisition = () => {
               />
             </div>
             <div>
-              <Label>Outlet Name</Label>
-              <Select
-                value={form.outlet}
-                onChange={(e) => set('outlet', e.target.value)}
-                placeholder="Select outlet"
-                options={OUTLET_OPTIONS}
+              <Label>Purchase Required Date</Label>
+              <input
+                type="date"
+                value={form.purchaseRequiredDate}
+                min={form.date}
+                onChange={(e) => set('purchaseRequiredDate', e.target.value)}
+                className={inputCls}
               />
             </div>
           </div>
@@ -369,39 +474,67 @@ const PurchaseRequisition = () => {
               <table className="w-full min-w-[640px] text-sm">
                 <thead>
                   <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                    <th className="text-left font-semibold px-4 py-3 w-16">Sr. No.</th>
-                    <th className="text-left font-semibold px-4 py-3">Item Name</th>
+                    <th className="text-left font-semibold px-4 py-3 w-16">
+                      Sr. No.
+                    </th>
+                    <th className="text-left font-semibold px-4 py-3">
+                      Item Name
+                    </th>
                     <th className="text-left font-semibold px-4 py-3">Unit</th>
-                    <th className="text-left font-semibold px-4 py-3">Available Stock</th>
-                    <th className="text-left font-semibold px-4 py-3 w-32">Quantity</th>
-                    <th className="text-left font-semibold px-4 py-3 w-16">Action</th>
+                    <th className="text-left font-semibold px-4 py-3">
+                      Available Stock
+                    </th>
+                    <th className="text-left font-semibold px-4 py-3 w-32">
+                      Quantity
+                    </th>
+                    <th className="text-left font-semibold px-4 py-3 w-16">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagedRows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-10 text-center text-gray-400">
-                        No items added yet. Use search or "Add Item" to get started.
+                      <td
+                        colSpan={6}
+                        className="px-4 py-10 text-center text-gray-400"
+                      >
+                        No items added yet. Use search or "Add Item" to get
+                        started.
                       </td>
                     </tr>
                   ) : (
                     pagedRows.map((row, idx) => (
                       <tr key={row.rowId} className="border-t border-gray-100">
                         <td className="px-4 py-3.5 text-gray-500">
-                          {String((page - 1) * PAGE_SIZE + idx + 1).padStart(2, '0')}
+                          {String((page - 1) * PAGE_SIZE + idx + 1).padStart(
+                            2,
+                            '0',
+                          )}
                         </td>
                         <td className="px-4 py-3.5">
-                          <p className="text-[#084E92] font-medium">{row.name}</p>
-                          <p className="text-[10px] uppercase tracking-wide text-gray-400">{row.category}</p>
+                          <p className="text-[#084E92] font-medium">
+                            {row.name}
+                          </p>
+                          <p className="text-[10px] uppercase tracking-wide text-gray-400">
+                            {row.category}
+                          </p>
                         </td>
-                        <td className="px-4 py-3.5 text-gray-600">{row.unit}</td>
+                        <td className="px-4 py-3.5 text-gray-600">
+                          {row.unit}
+                        </td>
                         <td className="px-4 py-3.5">
-                          <StockBadge value={row.availableStock} status={row.stockStatus} />
+                          <StockBadge
+                            value={row.availableStock}
+                            status={row.stockStatus}
+                          />
                         </td>
                         <td className="px-4 py-3.5">
                           <input
                             value={row.quantity}
-                            onChange={(e) => handleQuantityChange(row.rowId, e.target.value)}
+                            onChange={(e) =>
+                              handleQuantityChange(row.rowId, e.target.value)
+                            }
                             inputMode="numeric"
                             className={`${inputCls} py-2`}
                           />
@@ -426,8 +559,9 @@ const PurchaseRequisition = () => {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <p className="text-xs text-gray-400">
               Showing {rows.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
-              {rows.length > 0 && `ΓÇô${Math.min(page * PAGE_SIZE, rows.length)}`} of {rows.length} items added to this
-              requisition.
+              {rows.length > 0 &&
+                `–${Math.min(page * PAGE_SIZE, rows.length)}`}{' '}
+              of {rows.length} items added to this requisition.
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -472,7 +606,11 @@ const PurchaseRequisition = () => {
         </button>
       </div>
 
-      <PurchaseRequisitionLog open={showLog} onClose={() => setShowLog(false)} prCode={form.prCode} />
+      <PurchaseRequisitionLog
+        open={showLog}
+        onClose={() => setShowLog(false)}
+        prCode={form.prCode}
+      />
     </div>
   );
 };
