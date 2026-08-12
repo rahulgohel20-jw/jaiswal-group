@@ -29,6 +29,14 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 const STATS = [
     {
@@ -352,6 +360,7 @@ const AssignmentPreviewDrawer = ({ assignment, onClose, onTransfer, onMarkReturn
     );
 };
 
+
 const AssignAssets = () => {
     const [assignments] = useState(INITIAL_ASSIGNMENTS);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
@@ -361,6 +370,10 @@ const AssignAssets = () => {
     const [outletInput, setOutletInput] = useState("All");
     const [categoryInput, setCategoryInput] = useState("All");
     const [statusInput, setStatusInput] = useState("All");
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
 
     const applyFilters = () => {
         setFilters({
@@ -442,6 +455,32 @@ const AssignAssets = () => {
         }));
     }, [searchInput, outletInput, categoryInput, statusInput]);
 
+        const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
+    };
+
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };    
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
+        try {
+            
+            closeDeleteConfirm();
+         
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeleteSaving(false);
+        }
+    };
+
+
     const columns = [
         {
             id: "select",
@@ -468,7 +507,7 @@ const AssignAssets = () => {
             id: "assignmentId",
             accessorFn: (row) => row.assignmentId,
             header: ({ column }) => (
-                <DataGridColumnHeader title="ASSIGNMENT ID" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="ASSIGNMENT ID" column={column} className="text-[#43474F] font-semibold my-3" />
             ),
             cell: ({ row }) => (
                 <Link to={`/assignments/${row.original.id}`} className="font-semibold text-[#123B6D] leading-5 py-2 hover:underline">
@@ -556,7 +595,7 @@ const AssignAssets = () => {
                     <button type="button">
                         <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
-                    <button type="button">
+                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -622,73 +661,118 @@ const AssignAssets = () => {
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1]">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-end">
+                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1]">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-end">
 
-                    {/*  Search */}
-                    <div className="relative">
-                        <Search
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
-                        <input
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            placeholder="Search by ID, Name, Kitchen..."
-                            className="w-full border border-[#C3C6D1] rounded-lg pl-10 pr-3 py-2 outline-none focus:border-[#084E92]"
-                        />
-                    </div>
+                        {/*  Search */}
+                        <div className="relative">
+                            <Search
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                size={18}
+                            />
+                            <input
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                placeholder="Search by ID, Name, Kitchen..."
+                                className="w-full border border-[#C3C6D1] rounded-lg pl-10 pr-3 py-2 outline-none focus:border-[#084E92]"
+                            />
+                        </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 
-                        {/* Outlet */}
-                        <div>
-                            <p className='border border-[#C3C6D1] rounded-lg px-3 py-2 bg-white'>
-                                <select
+                            {/* Outlet */}
+                            <div>
+                                <Select
                                     value={outletInput}
-                                    onChange={(e) => setOutletInput(e.target.value)}
-                                    className="w-full outline-none "
+                                    onValueChange={(value) => setOutletInput(value)}
                                 >
-                                    <option value="All">All Outlets</option>
-                                    <option value="Bandra Outlet">Bandra Outlet</option>
-                                    <option value="Worli Outlet">Worli Outlet</option>
-                                    <option value="Andheri Outlet">Andheri Outlet</option>
-                                </select>
-                            </p>
-                        </div>
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                        <SelectValue placeholder="All Outlets" />
+                                    </SelectTrigger>
 
-                        {/* Status */}
-                        <div>
-                            <p className='border border-[#C3C6D1] rounded-lg px-3 py-2 bg-white'>
-                                <select
+                                    <SelectContent>
+                                        <SelectItem value="All">
+                                            All Outlets
+                                        </SelectItem>
+
+                                        <SelectItem value="Bandra Outlet">
+                                            Bandra Outlet
+                                        </SelectItem>
+
+                                        <SelectItem value="Worli Outlet">
+                                            Worli Outlet
+                                        </SelectItem>
+
+                                        <SelectItem value="Andheri Outlet">
+                                            Andheri Outlet
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Status */}
+                            <div>
+                                <Select
                                     value={statusInput}
-                                    onChange={(e) => setStatusInput(e.target.value)}
-                                    className="w-full outline-none"
+                                    onValueChange={(value) => setStatusInput(value)}
                                 >
-                                    <option value="All">All Status</option>
-                                    <option value="Assigned">Assigned</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Returned">Returned</option>
-                                </select>
-                            </p>
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                        <SelectValue placeholder="All Status" />
+                                    </SelectTrigger>
 
-                        </div>
+                                    <SelectContent>
+                                        <SelectItem value="All">
+                                            All Status
+                                        </SelectItem>
 
-                        {/* Category */}
-                        <div>
-                            <p className='border border-[#C3C6D1] rounded-lg px-3 py-2 '>
-                                <select
+                                        <SelectItem value="Assigned">
+                                            Assigned
+                                        </SelectItem>
+
+                                        <SelectItem value="Pending">
+                                            Pending
+                                        </SelectItem>
+
+                                        <SelectItem value="Returned">
+                                            Returned
+                                        </SelectItem>
+
+                                        <SelectItem value="Overdue">
+                                            Overdue
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Category */}
+                            <div>
+                                <Select
                                     value={categoryInput}
-                                    onChange={(e) => setCategoryInput(e.target.value)}
-                                    className="w-full outline-none"
+                                    onValueChange={(value) => setCategoryInput(value)}
                                 >
-                                    <option value="All">All Category</option>
-                                    <option value="Industrial Cookers">Industrial Cookers</option>
-                                    <option value="Kitchen Equipment">Kitchen Equipment</option>
-                                    <option value="IT Equipment">IT Equipment</option>
-                                </select>
-                            </p>
-                        </div>
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                        <SelectValue placeholder="All Category" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        <SelectItem value="All">
+                                            All Category
+                                        </SelectItem>
+
+                                        <SelectItem value="Industrial Cookers">
+                                            Industrial Cookers
+                                        </SelectItem>
+
+                                        <SelectItem value="Kitchen Equipment">
+                                            Kitchen Equipment
+                                        </SelectItem>
+
+                                        <SelectItem value="IT Equipment">
+                                            IT Equipment
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
                     </div>
                 </div>
@@ -718,6 +802,13 @@ const AssignAssets = () => {
                     onMarkReturned={() => setPreviewAssignment(null)}
                 />
             )}
+            <DeleteConfirmModal
+                isOpen={showDeleteConfirm}
+                onClose={closeDeleteConfirm}
+                onConfirm={confirmDelete}
+                itemLabel={deleteTarget?.itemLabel}
+                saving={deleteSaving}
+            />
         </div>
       </Container>
     );

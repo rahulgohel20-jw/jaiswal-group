@@ -61,10 +61,8 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
       if (isEditMode) {
         await updateAssetUnit({ id: initialData.id, ...payload });
-        notify.success("Asset Unit Updated Successfully");
       } else {
         await createAssetUnit({ ...payload, createdBy: 0 });
-        notify.success("Asset Unit Created Successfully");
       }
 
       setForm(emptyForm);

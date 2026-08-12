@@ -34,6 +34,13 @@ import { Container } from '@/components/common/container';
 import AddRawMaterialCategoryModal from './AddRowMaterialCategoryModel';
 import RawMaterialCategoryDetailsModal from './RawMaterialCategoryDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 // Maps raw API row into the shape the table/UI expects.
 // Handles the nested `rawMaterialCatType` object the backend returns.
@@ -259,7 +266,7 @@ const RowMaterialCategories = () => {
         <DataGridColumnHeader
           title="S.NO"
           column={column}
-          className="text-[#43474F] font-semibold py-4"
+          className="py-4"
         />
       ),
       cell: ({ row }) => (
@@ -277,7 +284,6 @@ const RowMaterialCategories = () => {
         <DataGridColumnHeader
           title="CATEGORY NAME"
           column={column}
-          className="text-[#43474F] font-semibold"
         />
       ),
       cell: ({ row }) => (
@@ -429,7 +435,7 @@ const RowMaterialCategories = () => {
 
         <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#084E92]">
+            <h1 className="text-2xl font-bold">
               Raw Material Category Master
             </h1>
           </div>
@@ -487,32 +493,49 @@ const RowMaterialCategories = () => {
               />
             </div>
 
-            <p className="border rounded-lg px-3 py-2">
-              <select
-                className="outline-none w-full"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option>All Status</option>
-                <option>Active</option>
-                <option>Inactive</option>
-              </select>
-            </p>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
 
-            <p className="border rounded-lg px-3 py-2">
-              <select
-                className="w-full outline-none"
-                value={typeFilterId}
-                onChange={(e) => setTypeFilterId(e.target.value)}
-              >
-                <option value="">Category Type</option>
+              <SelectContent>
+                <SelectItem value="All Status">
+                  All Status
+                </SelectItem>
+
+                <SelectItem value="Active">
+                  Active
+                </SelectItem>
+
+                <SelectItem value="Inactive">
+                  Inactive
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={typeFilterId}
+              onValueChange={(value) => setTypeFilterId(value)}
+            >
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                <SelectValue placeholder="Category Type" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="0">
+                  Category Type
+                </SelectItem>
+
                 {categoryTypes.map((t) => (
-                  <option key={t.id} value={t.id}>
+                  <SelectItem key={t.id} value={String(t.id)}>
                     {t.name}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
-            </p>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

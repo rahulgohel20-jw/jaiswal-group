@@ -23,7 +23,7 @@ export function SidebarMenu() {
   
 const menuItems = useMemo(() => {
   const organizationId = getOrgIdFromToken();
-  return organizationId === 0  ? MENU_SIDEBAR : MENU_SIDEBAR_ADMIN;
+  return organizationId === 1  ? MENU_SIDEBAR : MENU_SIDEBAR_ADMIN;
 }, []);
 
   // Memoize matchPath to prevent unnecessary re-renders

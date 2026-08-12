@@ -9,6 +9,14 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
 
 const requests = [
     {
@@ -108,7 +116,7 @@ const PurchaseOrderRequest = () => {
                     className="text-[#43474F] font-semibold"
                 />
             ),
-             size: 140,
+            size: 140,
         },
         {
             accessorKey: "poCode",
@@ -138,7 +146,7 @@ const PurchaseOrderRequest = () => {
                     className="text-[#43474F] font-semibold"
                 />
             ),
-            size:120,
+            size: 120,
         },
         {
             accessorKey: "company",
@@ -179,7 +187,7 @@ const PurchaseOrderRequest = () => {
                     {row.original.raisedBy}
                 </div>
             ),
-            size:190,
+            size: 190,
         },
         {
             accessorKey: "status",
@@ -193,7 +201,7 @@ const PurchaseOrderRequest = () => {
             cell: ({ row }) => (
                 <StatusBadge status={row.original.status} />
             ),
-            size:110
+            size: 110
         },
         {
             id: "actions",
@@ -208,12 +216,12 @@ const PurchaseOrderRequest = () => {
                 <div className="flex gap-2">
                     {row.original.action === "Generate PO" ? (
                         <>
-                            <Link 
-                            to="/purchase/create-purchase-order-requests" 
-                            state={row.original}>
-                            <button className="bg-[#084E92] text-white px-4 py-1 rounded-lg text-xs cursor-pointer">
-                                Generate PO
-                            </button>
+                            <Link
+                                to="/purchase/create-purchase-order-requests"
+                                state={row.original}>
+                                <button className="bg-[#084E92] text-white px-4 py-1 rounded-lg text-xs cursor-pointer">
+                                    Generate PO
+                                </button>
                             </Link>
                             <button className="border px-4 py-1 rounded-lg text-xs cursor-pointer">
                                 Reject
@@ -226,7 +234,7 @@ const PurchaseOrderRequest = () => {
                     )}
                 </div>
             ),
-            size:230
+            size: 230
         },
     ];
 
@@ -292,162 +300,218 @@ const PurchaseOrderRequest = () => {
         },
     ];
     return (
-       <Container>
-         <div className='p-4 md:p-6'>
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Purchase</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Purchase Order Requests</span>
-            </div>
-
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-[#0F172A]">Purchase Order Requests</h1>
-                    <p className="text-[#737781] mt-1 md:w-[90%]">
-                        Review approved purchase requisitions and generate purchase orders for procurement
-                        workflows.
-                    </p>
+        <Container>
+            <div className='p-4 md:p-6'>
+                {/* Breadcrumb */}
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                    <span>Dashboard</span>
+                    <ChevronRight size={12} />
+                    <span>Purchase</span>
+                    <ChevronRight size={12} />
+                    <span className="text-[#084E92] font-medium">Purchase Order Requests</span>
                 </div>
 
-                <div className="flex gap-3 self-end">
-                    <button
-                        type="button"
-                        className="px-4 py-2 bg-[#FFFFFF] border border-[#E2E8F0] text-[#334155] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-gray-50 transition"
-                    >
-                        <RotateCcw size={16} />
-                        Refresh
-                    </button>
-                </div>
-            </div>
+                <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-[#0F172A]">Purchase Order Requests</h1>
+                        <p className="text-[#737781] mt-1 md:w-[90%]">
+                            Review approved purchase requisitions and generate purchase orders for procurement
+                            workflows.
+                        </p>
+                    </div>
 
-            {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
-                {STATS.map((item) => (
-                    <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
-                        <div className="flex justify-between items-center pb-2">
-                            <p>{item.icon}</p>
-                            {item.badge && (
-                                <p className={`text-xs rounded font-semibold px-1.5 py-1 ${item.badgeStyle}`}>{item.badge}</p>
-                            )}
+                    <div className="flex gap-3 self-end">
+                        <button
+                            type="button"
+                            className="px-4 py-2 bg-[#FFFFFF] border border-[#E2E8F0] text-[#334155] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-gray-50 transition"
+                        >
+                            <RotateCcw size={16} />
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                {/* Stat cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
+                    {STATS.map((item) => (
+                        <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
+                            <div className="flex justify-between items-center pb-2">
+                                <p>{item.icon}</p>
+                                {item.badge && (
+                                    <p className={`text-xs rounded font-semibold px-1.5 py-1 ${item.badgeStyle}`}>{item.badge}</p>
+                                )}
+                            </div>
+                            <h1 className="text-sm text-[#43474F]">{item.title}</h1>
+                            <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
                         </div>
-                        <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                        <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
 
-            {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1]">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Filters */}
+                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1]">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-                    {/* Search */}
-                    <div className="relative  pr-4 py-2.5 border border-[#C3C6D1] rounded-lg w-full">
-                        <Search
-                            size={18}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
+                        {/* Search */}
+                        <div className="relative  pr-4 py-2 border border-[#C3C6D1] rounded-lg w-full">
+                            <Search
+                                size={18}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                            />
 
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search by PR Code, Company or Raised By..."
-                            className="w-full pl-10 outline-none"
-                        />
-                    </div>
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Search by PR Code, Company or Raised By..."
+                                className="w-full pl-10 outline-none"
+                            />
+                        </div>
 
-                    {/* Filters */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {/* Filters */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 
-                        {/* Company */}
-                        <p className='border border-[#C3C6D1] rounded-lg px-3 py-2.5'>
-                            <select
+                            {/* Company */}
+                            <Select
                                 value={companyFilter}
-                                onChange={(e) => setCompanyFilter(e.target.value)}
-                                className="w-full outline-none"
+                                onValueChange={setCompanyFilter}
                             >
-                                <option value="All Companies">All Companies</option>
-                                <option value="Reliance Retail Ltd.">Reliance Retail Ltd.</option>
-                                <option value="Tata Consumer Products">Tata Consumer Products</option>
-                                <option value="Britannia Industries">Britannia Industries</option>
-                                <option value="Amul India">Amul India</option>
-                                <option value="Nestle Waters">Nestle Waters</option>
-                            </select>
-                        </p>
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                    <SelectValue placeholder="All Companies" />
+                                </SelectTrigger>
 
-                        {/* Outlet */}
-                        <p className='border border-[#C3C6D1] rounded-lg px-3 py-2.5 '>
-                            <select
+                                <SelectContent>
+                                    <SelectItem value="All Companies">
+                                        All Companies
+                                    </SelectItem>
+
+                                    <SelectItem value="Reliance Retail Ltd.">
+                                        Reliance Retail Ltd.
+                                    </SelectItem>
+
+                                    <SelectItem value="Tata Consumer Products">
+                                        Tata Consumer Products
+                                    </SelectItem>
+
+                                    <SelectItem value="Britannia Industries">
+                                        Britannia Industries
+                                    </SelectItem>
+
+                                    <SelectItem value="Amul India">
+                                        Amul India
+                                    </SelectItem>
+
+                                    <SelectItem value="Nestle Waters">
+                                        Nestle Waters
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+
+
+                            {/* Outlet */}
+                            <Select
                                 value={outletFilter}
-                                onChange={(e) => setOutletFilter(e.target.value)}
-                                className="w-full outline-none"
+                                onValueChange={setOutletFilter}
                             >
-                                <option value="All Outlets">All Outlets</option>
-                                <option value="Mumbai - Main Hub">Mumbai - Main Hub</option>
-                                <option value="Delhi North Outlet">Delhi North Outlet</option>
-                                <option value="Bangalore Central">Bangalore Central</option>
-                                <option value="Ahmedabad Plant">Ahmedabad Plant</option>
-                                <option value="Pune South Hub">Pune South Hub</option>
-                            </select>
-                        </p>
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                    <SelectValue placeholder="All Outlets" />
+                                </SelectTrigger>
 
-                        {/* Status */}
-                        <p className='border border-[#C3C6D1] rounded-lg px-3 py-2.5 '>
-                            <select
+                                <SelectContent>
+                                    <SelectItem value="All Outlets">
+                                        All Outlets
+                                    </SelectItem>
+
+                                    <SelectItem value="Mumbai - Main Hub">
+                                        Mumbai - Main Hub
+                                    </SelectItem>
+
+                                    <SelectItem value="Delhi North Outlet">
+                                        Delhi North Outlet
+                                    </SelectItem>
+
+                                    <SelectItem value="Bangalore Central">
+                                        Bangalore Central
+                                    </SelectItem>
+
+                                    <SelectItem value="Ahmedabad Plant">
+                                        Ahmedabad Plant
+                                    </SelectItem>
+
+                                    <SelectItem value="Pune South Hub">
+                                        Pune South Hub
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+
+
+                            {/* Status */}
+                            <Select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full outline-none"
+                                onValueChange={setStatusFilter}
                             >
-                                <option value="All Status">All Status</option>
-                                <option value="Approved">Approved</option>
-                                <option value="Pending">Pending</option>
-                                <option value="Rejected">Rejected</option>
-                            </select>
-                        </p>
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                    <SelectValue placeholder="All Status" />
+                                </SelectTrigger>
+
+                                <SelectContent>
+                                    <SelectItem value="All Status">
+                                        All Status
+                                    </SelectItem>
+
+                                    <SelectItem value="Approved">
+                                        Approved
+                                    </SelectItem>
+
+                                    <SelectItem value="Pending">
+                                        Pending
+                                    </SelectItem>
+
+                                    <SelectItem value="Rejected">
+                                        Rejected
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                        </div>
 
                     </div>
+                </div>
 
+                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+
+                    {loading && (
+                        <p className="p-4 text-sm text-gray-500">
+                            Loading purchase requests...
+                        </p>
+                    )}
+
+                    {error && (
+                        <p className="p-4 text-sm text-red-600">
+                            {error}
+                        </p>
+                    )}
+
+                    <DataGrid
+                        table={table}
+                        recordCount={filteredRequests.length}
+                        className="rounded-2xl"
+                    >
+                        <Card className="rounded-t-none border-t-0 rounded-2xl">
+                            <CardTable>
+                                <ScrollArea>
+                                    <DataGridTable />
+                                    <ScrollBar orientation="horizontal" />
+                                </ScrollArea>
+                            </CardTable>
+
+                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                                <DataGridPagination />
+                            </CardFooter>
+                        </Card>
+                    </DataGrid>
                 </div>
             </div>
-
-            <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-
-                {loading && (
-                    <p className="p-4 text-sm text-gray-500">
-                        Loading purchase requests...
-                    </p>
-                )}
-
-                {error && (
-                    <p className="p-4 text-sm text-red-600">
-                        {error}
-                    </p>
-                )}
-
-                <DataGrid
-                    table={table}
-                    recordCount={filteredRequests.length}
-                    className="rounded-2xl"
-                >
-                    <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
-                        </CardTable>
-
-                        <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                            <DataGridPagination />
-                        </CardFooter>
-                    </Card>
-                </DataGrid>
-            </div>
-        </div>
-       </Container>
+        </Container>
     )
 }
 

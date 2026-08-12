@@ -11,6 +11,14 @@ import AssetTypeDetailsModal from './AsssetTypeDetailsModal';
 import { getAssetTypes, getAssetTypeById, deleteAssetType } from '@/services/apiServices';
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 
 const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
@@ -53,6 +61,9 @@ const AssetsType = () => {
     const [searchInput, setSearchInput] = useState("");
     const [typeInput, setTypeInput] = useState("All");
     const [transferInput, setTransferInput] = useState("Any");
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+const [deleteTarget, setDeleteTarget] = useState(null);
+const [deleteSaving, setDeleteSaving] = useState(false);
 
 
     const openCreateModal = () => {
@@ -102,7 +113,6 @@ const AssetsType = () => {
         } catch (err) {
             console.error(err);
             setError("Failed to load asset types");
-            notify.error("Failed to load asset types.");
         } finally {
             setLoading(false);
         }
@@ -110,17 +120,31 @@ const AssetsType = () => {
     useEffect(() => {
         fetchTypes();
     }, []);
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this asset type? This cannot be undone.')) return;
-        try {
-            await deleteAssetType(id);
-            notify.success("Asset Type Deleted successfully");
-            fetchTypes();
-        } catch (err) {
-            console.error(err);
-            notify.error('Failed to delete asset type.');
-        }
-    };
+
+    const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, itemLabel: row.name });
+    setShowDeleteConfirm(true);
+};
+
+const closeDeleteConfirm = () => {
+    if (deleteSaving) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+};
+
+const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    try {
+        await deleteAssetType(deleteTarget.id);
+        closeDeleteConfirm();
+        fetchTypes();
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setDeleteSaving(false);
+    }
+};
     const filteredTypes = useMemo(() => {
         return type.filter((item) => {
 
@@ -206,7 +230,7 @@ const AssetsType = () => {
         {
             accessorKey: "description",
             header: ({ column }) => (
-                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold my-4" />
+                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold my-2.5" />
             ),
             cell: ({ row }) => (
                 <TruncatedCell value={row.original.description} widthClass="max-w-[220px]" />
@@ -245,7 +269,7 @@ const AssetsType = () => {
                     <Trash2
                         size={18}
                         className="text-red-300 hover:text-red-600 cursor-pointer"
-                        onClick={() => handleDelete(row.original.id)}
+                        onClick={() => openDeleteConfirm(row.original)}
                     />
                 </div>
             ),
@@ -343,38 +367,50 @@ const AssetsType = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                         {/* Asset Type */}
-                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
-                                value={typeInput}
-                                onChange={(e) => setTypeInput(e.target.value)}
-                                className="outline-none w-full bg-transparent text-sm text-gray-600"
-                            >
-                                <option value="All">All Types</option>
+                            <div className="border border-[#C3C6D1] rounded-lg py-0.5 my-auto">
+                                <Select
+                                    value={typeInput}
+                                    onValueChange={(value) => setTypeInput(value)}
+                                >
+                                    <SelectTrigger className="w-full border-0 shadow-none focus:ring-0 text-sm text-gray-600">
+                                        <SelectValue placeholder="All Types" />
+                                    </SelectTrigger>
 
-                                {type.map((t) => (
-                                    <option key={t.id || t.name} value={t.name}>
-                                        {t.name}
-                                    </option>
-                                ))}
+                                    <SelectContent>
+                                        <SelectItem value="All">All Types</SelectItem>
 
-                            </select>
+                                        {type.map((t) => (
+                                            <SelectItem
+                                                key={t.id || t.name}
+                                                value={t.name}
+                                            >
+                                                {t.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+
+                            {/* Transfer Allowed */}
+                            <div className="border border-[#C3C6D1] rounded-lg py-0.5 my-auto">
+                                <Select
+                                    value={transferInput}
+                                    onValueChange={(value) => setTransferInput(value)}
+                                >
+                                    <SelectTrigger className="w-full border-0 shadow-none focus:ring-0 text-sm text-gray-600">
+                                        <SelectValue placeholder="Any Transfer" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        <SelectItem value="Any">Any Transfer</SelectItem>
+                                        <SelectItem value="Yes">Yes</SelectItem>
+                                        <SelectItem value="No">No</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
                         </div>
-
-
-                        {/* Transfer Allowed */}
-                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
-                                value={transferInput}
-                                onChange={(e) => setTransferInput(e.target.value)}
-                                className="outline-none w-full bg-transparent text-sm text-gray-600"
-                            >
-                                <option value="Any">Any Transfer</option>
-                                <option value="Yes">Yes</option>
-                                <option value="No">No</option>
-                            </select>
-                        </div>
-
-                    </div>
 
                 </div>
 
@@ -410,6 +446,14 @@ const AssetsType = () => {
                 assetType={viewingType}
                 loading={viewLoading}
             />
+
+            <DeleteConfirmModal
+    isOpen={showDeleteConfirm}
+    onClose={closeDeleteConfirm}
+    onConfirm={confirmDelete}
+    itemLabel={deleteTarget?.itemLabel}
+    saving={deleteSaving}
+/>
         </div>
         </Container>
     );

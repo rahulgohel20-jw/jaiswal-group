@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { Container } from "@/components/common/container";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 /* -------------------------------------------------------------------------
  * Shared style tokens & primitives
@@ -75,10 +76,10 @@ const StatusBadge = ({ status, size = 'md' }) => (
 const IconButton = ({ icon: Icon, onClick, tone = 'default', title }) => {
   const toneCls =
     tone === 'danger'
-      ? 'text-gray-400 hover:text-red-500 hover:bg-red-50'
+      ? 'text-gray-400 hover:text-red-500'
       : tone === 'edit'
-        ? 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
-        : 'text-gray-400 hover:text-[#084E92] hover:bg-blue-50';
+        ? 'text-gray-400 hover:text-blue-500'
+        : 'text-gray-400 hover:text-green-600 ';
   return (
     <button
       type="button"
@@ -313,8 +314,8 @@ const Pagination = ({ page, totalPages, onChange }) => {
             type="button"
             onClick={() => onChange(p)}
             className={`w-8 h-8 rounded-lg text-sm font-semibold transition cursor-pointer border ${p === page
-                ? 'bg-[#084E92] text-white border-[#084E92]'
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+              ? 'bg-[#084E92] text-white border-[#084E92]'
+              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
               }`}
           >
             {p}
@@ -347,6 +348,10 @@ const PurchaseRequisitionList = () => {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
   const [viewingRow, setViewingRow] = useState(null);
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return rows;
@@ -358,6 +363,32 @@ const PurchaseRequisitionList = () => {
   // Columns are only used to drive the pagination row model here — the
   // table body below is still rendered with the existing custom markup,
   // same split UserManagementList uses between table state and table UI.
+  const openDeleteConfirm = (item) => {
+    setDeleteTarget({ id: item.id, itemLabel: item.name });
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteSaving) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    setDeleteSaving(true);
+
+    try {
+      closeDeleteConfirm();
+      fetchMenuItems();
+    } catch (err) {
+      console.error(err);
+      notify.error('Failed to delete menu item');
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
   const columns = useMemo(
     () => [
       { id: 'prCode', accessorFn: (r) => r.prCode },
@@ -518,7 +549,7 @@ const PurchaseRequisitionList = () => {
                       </td>
                       <td className="px-4 py-4 text-gray-500 max-w-55 truncate">{row.remarks}</td>
                       <td className="px-4 sm:px-6 py-4">
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center">
                           <IconButton icon={Eye} title="View" onClick={() => setViewingRow(row)} />
                           {EDITABLE_STATUSES.has(row.status) && (
                             <IconButton
@@ -528,7 +559,7 @@ const PurchaseRequisitionList = () => {
                               onClick={() => navigate(`/purchase-requisition/edit/${row.id}`)}
                             />
                           )}
-                          <IconButton icon={Trash2} tone="danger" title="Delete" onClick={() => handleDelete(row.id)} />
+                          <IconButton icon={Trash2} tone="danger" title="Delete" onClick={() => openDeleteConfirm(row)} />
                         </div>
                       </td>
                     </tr>
@@ -554,6 +585,14 @@ const PurchaseRequisitionList = () => {
         </SectionCard>
 
         <ViewRequisitionModal row={viewingRow} onClose={() => setViewingRow(null)} />
+
+        <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={closeDeleteConfirm}
+          onConfirm={confirmDelete}
+          itemLabel={deleteTarget?.itemLabel}
+          saving={deleteSaving}
+        />
       </div>
     </Container>
   );

@@ -27,6 +27,15 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { Link, useNavigate } from "react-router";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 
 const INITIAL_VENDORS = [
   {
@@ -133,40 +142,6 @@ const CategoryBadge = ({ category }) => (
   </span>
 );
 
-const DeleteConfirmModal = ({ vendor, onCancel, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-      <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
-        <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
-          <AlertTriangle className="w-5 h-5" />
-        </div>
-        <h2 className="text-base font-bold text-gray-900">Delete vendor?</h2>
-        <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{" "}
-          <span className="font-semibold text-gray-700">{vendor.name}</span> from your
-          vendor list. This action cannot be undone.
-        </p>
-      </div>
-      <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold border-0 cursor-pointer transition"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 const ViewVendorModal = ({ vendor, onClose }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -259,6 +234,11 @@ const VendorList = () => {
   const [viewingVendor, setViewingVendor] = useState(null);
   const [deletingVendor, setDeletingVendor] = useState(null);
 
+  
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
   const filteredVendors = useMemo(
     () =>
       vendors.filter((v) => {
@@ -282,13 +262,33 @@ const VendorList = () => {
   const handleEdit = (vendor) => {
     navigate('/vendors/update-vendor', { state: { vendor } });
   };
-
-  const handleDelete = (vendor) => setDeletingVendor(vendor);
-  const confirmDelete = () => {
-    setVendors((v) => v.filter((ven) => ven.id !== deletingVendor.id));
-    setDeletingVendor(null);
+const openDeleteConfirm = (item) => {
+    setDeleteTarget({ id: item.id, itemLabel: item.name });
+    setShowDeleteConfirm(true);
   };
 
+  const closeDeleteConfirm = () => {
+    if (deleteSaving) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    setDeleteSaving(true);
+
+    try {
+   
+      closeDeleteConfirm();
+      fetchMenuItems();
+    } catch (err) {
+      console.error(err);
+      notify.error('Failed to delete menu item');
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
   const handleExport = (format) => {
     alert(`Exporting ${filteredVendors.length} vendor(s) as ${format.toUpperCase()}`);
   };
@@ -382,7 +382,7 @@ const VendorList = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleDelete(row.original)}
+              onClick={() => openDeleteConfirm(row.original)}
               className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete vendor"
             >
@@ -491,35 +491,46 @@ const VendorList = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
               {/* Category */}
-              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="outline-none w-full bg-transparent text-sm text-gray-600"
-                >
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                value={categoryFilter}
+                onValueChange={setCategoryFilter}
+              >
+                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
 
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((opt) => (
+                    <SelectItem
+                      key={opt.key}
+                      value={opt.key}
+                    >
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
               {/* KYC */}
-              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                <select
-                  value={kycFilter}
-                  onChange={(e) => setKycFilter(e.target.value)}
-                  className="outline-none w-full bg-transparent text-sm text-gray-600"
-                >
+              <Select
+                value={kycFilter}
+                onValueChange={setKycFilter}
+              >
+                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
                   {KYC_OPTIONS.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
+                    <SelectItem
+                      key={opt.key}
+                      value={opt.key}
+                    >
                       {opt.label}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-              </div>
+                </SelectContent>
+              </Select>
 
             </div>
 
@@ -543,13 +554,13 @@ const VendorList = () => {
         </DataGrid>
       </div>
 
-      {deletingVendor && (
-        <DeleteConfirmModal
-          vendor={deletingVendor}
-          onCancel={() => setDeletingVendor(null)}
+       <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={closeDeleteConfirm}
           onConfirm={confirmDelete}
+          itemLabel={deleteTarget?.itemLabel}
+          saving={deleteSaving}
         />
-      )}
     </Container>
   );
 };

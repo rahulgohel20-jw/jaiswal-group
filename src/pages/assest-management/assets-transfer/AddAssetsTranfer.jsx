@@ -1,6 +1,11 @@
-import { ChevronRight, ScanLine, RotateCcw } from 'lucide-react';
+import { ChevronRight, ScanLine, RotateCcw, ChevronDown } from 'lucide-react';
 import React, { useState } from 'react'
 import { Link } from 'react-router';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 const KITCHENS = [
     "Central Kitchen",
@@ -38,6 +43,145 @@ const selectClass =
 
 const inputClass =
     "w-full h-11 rounded-xl border border-[#D9E2EC] bg-[#F8F9FF80] px-4 text-sm text-[#121C2A] outline-none focus:ring-2 focus:ring-[#0B5CAB]/20";
+
+const Select = ({
+    value,
+    onChange,
+    options = [],
+    placeholder = "Select...",
+    name,
+}) => {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+
+    const selectedOption = options.find(
+        (option) => String(option.value ?? option) === String(value)
+    );
+
+    const selectedLabel = selectedOption
+        ? String(selectedOption.label ?? selectedOption)
+        : "";
+
+    React.useEffect(() => {
+        if (!open) {
+            setSearch(selectedLabel);
+        }
+    }, [open, selectedLabel]);
+
+    const filteredOptions = options.filter((option) => {
+        const label = String(option.label ?? option);
+
+        return label
+            .toLowerCase()
+            .includes(search.trim().toLowerCase());
+    });
+
+    const handleSelect = (option) => {
+        const optionValue = option.value ?? option;
+        const optionLabel = option.label ?? option;
+
+        onChange({
+            target: {
+                name,
+                value: String(optionValue),
+            },
+        });
+
+        setSearch(String(optionLabel));
+        setOpen(false);
+    };
+
+    const handleInputChange = (e) => {
+        const inputValue = e.target.value;
+
+        setSearch(inputValue);
+        setOpen(true);
+
+        // Clear old selected value when user starts searching
+        if (String(inputValue) !== String(selectedLabel)) {
+            onChange({
+                target: {
+                    name,
+                    value: "",
+                },
+            });
+        }
+    };
+
+    return (
+        <Popover
+            open={open}
+            onOpenChange={(nextOpen) => {
+                setOpen(nextOpen);
+
+                if (nextOpen) {
+                    setSearch(selectedLabel);
+                }
+            }}
+            modal={false}
+        >
+            <PopoverTrigger asChild>
+                <div className="relative w-full">
+                    <input
+                        name={name}
+                        value={search}
+                        placeholder={placeholder}
+                        onClick={() => {
+                            setOpen(true);
+                            setSearch(selectedLabel);
+                        }}
+                        onChange={handleInputChange}
+                        className={`${inputClass} pr-10 cursor-text`}
+                    />
+
+                    <ChevronDown
+                        size={16}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+                    />
+                </div>
+            </PopoverTrigger>
+
+            <PopoverContent
+                side="bottom"
+                align="start"
+                sideOffset={4}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
+            >
+                <div className="max-h-52 overflow-y-auto">
+                    {filteredOptions.length > 0 ? (
+                        filteredOptions.map((option) => {
+                            const optionValue = option.value ?? option;
+                            const optionLabel = option.label ?? option;
+
+                            const isSelected =
+                                String(value) === String(optionValue);
+
+                            return (
+                                <button
+                                    key={String(optionValue)}
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleSelect(option)}
+                                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${isSelected
+                                        ? "bg-blue-50 text-primary font-medium"
+                                        : "text-gray-700"
+                                        }`}
+                                >
+                                    {optionLabel}
+                                </button>
+                            );
+                        })
+                    ) : (
+                        <div className="px-3 py-3 text-sm text-gray-500">
+                            No options found
+                        </div>
+                    )}
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+};
 
 // Pass `transferToEdit` (an existing transfer record) to open the form in edit mode,
 // which reveals the read-only Transfer ID field. Omit it to open in "add new" mode,
@@ -98,7 +242,7 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
                     Asset Transfer Log
                 </button>
                 <ChevronRight size={12} />
-                <span className="text-[#002246] font-medium">
+                <span className="text-[#095ab1] font-medium">
                     {isEditMode ? "Edit Asset Transfer" : "Add Asset Transfer"}
                 </span>
             </div>
@@ -106,11 +250,11 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
             {/* Header */}
             <div className="flex justify-between flex-col gap-5 sm:flex-row sm:items-start">
                 <div>
-                    <h1 className="text-3xl font-bold text-[#0B3B75]">
+                    <h1 className="text-2xl font-bold ">
                         Asset Transfer Registration
                     </h1>
 
-                    <p className="text-[#6B7280] mt-1 w-[90%] md:w-full">
+                    <p className="text-sm text-gray-500 mt-1">
                         Systematically record and track the movement of operational assets between kitchen
                         facilities and hub locations.
                     </p>
@@ -178,32 +322,30 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
                     {/* From Kitchen */}
                     <div>
                         <FieldLabel required>From Kitchen</FieldLabel>
-                        <select
+                        <Select
                             value={form.fromKitchen}
                             onChange={handleChange("fromKitchen")}
                             className={selectClass}
-                        >
-                            <option value="">Select origin kitchen...</option>
-                            {KITCHENS.map((k) => (
-                                <option key={k} value={k}>{k}</option>
-                            ))}
-                        </select>
+                        
+                            options={
+                                KITCHENS
+                            }
+                        />
                         {errors.fromKitchen && <p className="text-xs text-red-500 mt-1">{errors.fromKitchen}</p>}
                     </div>
 
                     {/* To Kitchen */}
                     <div>
                         <FieldLabel required>To Kitchen</FieldLabel>
-                        <select
+                        <Select
                             value={form.toKitchen}
                             onChange={handleChange("toKitchen")}
                             className={selectClass}
-                        >
-                            <option value="">Select destination kitchen...</option>
-                            {KITCHENS.map((k) => (
-                                <option key={k} value={k}>{k}</option>
-                            ))}
-                        </select>
+                        
+                            options={
+                                KITCHENS
+                            }
+                        />
                         {errors.toKitchen && <p className="text-xs text-red-500 mt-1">{errors.toKitchen}</p>}
                     </div>
 
@@ -223,32 +365,25 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
                     {/* Approved By */}
                     <div>
                         <FieldLabel required>Approved By</FieldLabel>
-                        <select
+                        <Select
                             value={form.approvedBy}
                             onChange={handleChange("approvedBy")}
                             className={selectClass}
-                        >
-                            <option value="">Select Approver...</option>
-                            {APPROVERS.map((a) => (
-                                <option key={a} value={a}>{a}</option>
-                            ))}
-                        </select>
+                            options={APPROVERS}
+                        />
+                            
                         {errors.approvedBy && <p className="text-xs text-red-500 mt-1">{errors.approvedBy}</p>}
                     </div>
 
                     {/* Received By */}
                     <div>
                         <FieldLabel>Received By</FieldLabel>
-                        <select
+                        <Select
                             value={form.receivedBy}
                             onChange={handleChange("receivedBy")}
                             className={selectClass}
-                        >
-                            <option value="">Assign receiver...</option>
-                            {RECEIVERS.map((r) => (
-                                <option key={r} value={r}>{r}</option>
-                            ))}
-                        </select>
+                            options={RECEIVERS}
+                        />
                     </div>
 
                     {/* Reason */}

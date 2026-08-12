@@ -59,7 +59,6 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
           description: form.description,
           active: form.status === 'Active',
         });
-        notify.success("Asset Brand Updated Successfully");
       } else {
         // Matches the create endpoint's request schema exactly:
         // { active, createdBy, description, name }
@@ -69,7 +68,6 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
           description: form.description,
           name: form.name,
         });
-        notify.success("Asset Brand Created Successfully");
       }
 
       setForm(emptyForm);

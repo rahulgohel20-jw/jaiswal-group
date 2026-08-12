@@ -31,6 +31,13 @@ import {
     updateRawMaterialCategoryTypeStatus,
 } from '@/services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 
 const mapType = (t) => ({
@@ -204,10 +211,10 @@ const RawMaterialTypeListing = () => {
         {
             id: "sno",
             header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="S.NO" column={column} className="py-4" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-4">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 70,
@@ -216,7 +223,7 @@ const RawMaterialTypeListing = () => {
             id: "name",
             accessorFn: (row) => row.nameEnglish,
             header: ({ column }) => (
-                <DataGridColumnHeader title="TYPE NAME" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="TYPE NAME" column={column} />
             ),
             cell: ({ row }) => (
                 <div className="font-semibold text-gray-800 py-2 capitalize">{row.original.nameEnglish}</div>
@@ -227,7 +234,7 @@ const RawMaterialTypeListing = () => {
             id: "status",
             accessorFn: (row) => row.status,
             header: ({ column }) => (
-                <DataGridColumnHeader title="VISIBILITY STATUS" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="VISIBILITY STATUS" column={column} />
             ),
             cell: ({ row }) => (
                 <label className="relative inline-flex cursor-pointer">
@@ -271,7 +278,6 @@ const RawMaterialTypeListing = () => {
                     </button>
                 </div>
             ),
-            enableSorting: false,
             size: 110,
         },
     ];
@@ -384,18 +390,29 @@ const RawMaterialTypeListing = () => {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
+                        <Select
+                            value={statusFilter}
+                            onValueChange={(value) => setStatusFilter(value)}
+                        >
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
 
-                        <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                            <select
-                                className="outline-none w-full min-w-0 bg-transparent"
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                            >
-                                <option>All Status</option>
-                                <option>Active</option>
-                                <option>Inactive</option>
-                            </select>
-                        </p>
+                            <SelectContent>
+                                <SelectItem value="All Status">
+                                    All Status
+                                </SelectItem>
+
+                                <SelectItem value="Active">
+                                    Active
+                                </SelectItem>
+
+                                <SelectItem value="Inactive">
+                                    Inactive
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+
                     </div>
                 </div>
 
@@ -403,7 +420,7 @@ const RawMaterialTypeListing = () => {
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
                     {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                    <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl">
+                    <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl ">
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>

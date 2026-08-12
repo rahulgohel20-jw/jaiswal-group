@@ -70,6 +70,17 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
             newErrors.unitId = "Unit is required";
         }
 
+        if (form.supplierRate !== "" && Number(form.supplierRate) < 0) {
+            newErrors.supplierRate = "Rate must be positive";
+        }
+
+        // Daily Consumption validation
+        if (
+            form.dailyConsumption !== "" &&
+            Number(form.dailyConsumption) < 0
+        ) {
+            newErrors.dailyConsumption = "Daily Consumption must be positive";
+        }
         setErrors(newErrors);
 
         return Object.keys(newErrors).length === 0;
@@ -351,7 +362,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                                                         setCategorySearch(e.target.value);
                                                         setCategoryOpen(true);
                                                     }}
-                                                    className="w-full h-10 pr-10"
+                                                    className="w-full h-8.5 pr-10 py-1"
                                                 />
 
                                                 <ChevronDown
@@ -424,7 +435,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                                 <button
                                     type="button"
                                     onClick={() => setIsCategoryModalOpen(true)}
-                                    className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
+                                    className="w-8.5 h-8.5 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
                                     title="Add New Category"
                                 >
                                     <Plus className="h-4 w-4" />
@@ -468,7 +479,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                                                         setUnitSearch(e.target.value);
                                                         setUnitOpen(true);
                                                     }}
-                                                    className="w-full h-10 pr-10"
+                                                    className="w-full h-8.5 pr-10"
                                                 />
 
                                                 <ChevronDown
@@ -541,7 +552,7 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                                 <button
                                     type="button"
                                     onClick={() => setIsUnitModalOpen(true)}
-                                    className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
+                                    className="w-8.5 h-8.5 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
                                     title="Add New Unit"
                                 >
                                     <Plus className="h-4 w-4" />
@@ -564,8 +575,14 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                                 placeholder="₹ 0.00"
                                 className="mt-1"
                                 value={form.supplierRate}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 onChange={(e) => set("supplierRate", e.target.value)}
                             />
+                            {errors.supplierRate && (
+                                <p className="text-red-500 text-xs mt-1">
+                                    {errors.supplierRate}
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -582,10 +599,16 @@ const AddRawMaterialItemModal = ({ isOpen, onClose, editData = null, fetchRawMat
                                 placeholder="0"
                                 className="mt-1"
                                 value={form.dailyConsumption}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 onChange={(e) =>
                                     set("dailyConsumption", e.target.value)
                                 }
                             />
+                            {errors.dailyConsumption && (
+                                <p className="text-red-500 text-xs mt-1">
+                                    {errors.dailyConsumption}
+                                </p>
+                            )}
                         </div>
 
                         {/* <div>

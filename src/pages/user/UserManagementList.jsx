@@ -38,6 +38,14 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { extractList, mapEmployeeToRow } from './utils/Employeemappers';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
@@ -74,45 +82,6 @@ const kycMeta = (status) => {
   };
 };
 
-const DeleteConfirmModal = ({ user, onCancel, onConfirm, deleting }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div
-      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-      onClick={onCancel}
-    />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-      <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
-        <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
-          <AlertTriangle className="w-5 h-5" />
-        </div>
-        <h2 className="text-base font-bold text-gray-900">Delete user?</h2>
-        <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{' '}
-          <span className="font-semibold text-gray-700">{user.name}</span> from
-          your user list. This action cannot be undone.
-        </p>
-      </div>
-      <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={deleting}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={deleting}
-          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-50"
-        >
-          {deleting ? 'Deleting...' : 'Delete'}
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 const KYC_OPTIONS = [
   { key: 'all', label: 'All KYC Statuses' },
@@ -134,6 +103,11 @@ const UserManagementList = () => {
   const [activeCompanies, setActiveCompanies] = useState([]);
   const [search, setSearch] = useState('');
   const [departments, setDepartments] = useState([]);
+
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const fetchActiveCompanies = async () => {
     try {
@@ -252,23 +226,34 @@ const UserManagementList = () => {
   const handleView = (user) => {
     navigate('/users/view-user', { state: { user } });
   };
+  const openDeleteConfirm = (item) => {
+    setDeleteTarget({ id: item.id, itemLabel: item.name });
+    setShowDeleteConfirm(true);
+  };
 
-  const handleDelete = (user) => setDeletingUser(user);
+  const closeDeleteConfirm = () => {
+    if (deleteSaving) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
 
   const confirmDelete = async () => {
-    if (!deletingUser) return;
-    setDeleting(true);
+    if (!deleteTarget) return;
+
+    setDeleteSaving(true);
+
     try {
       await deleteEmployeeById(deletingUser.id);
-      setUserData((u) => u.filter((row) => row.id !== deletingUser.id));
-      setDeletingUser(null);
+      closeDeleteConfirm();
+      fetchMenuItems();
     } catch (err) {
       console.error(err);
-      alert('Could not delete this user. Please try again.');
+      notify.error('Failed to delete menu item');
     } finally {
-      setDeleting(false);
+      setDeleteSaving(false);
     }
   };
+
 
   const handleExport = (format) => {
     alert(
@@ -435,7 +420,7 @@ const UserManagementList = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleDelete(row.original)}
+              onClick={() => openDeleteConfirm(row.original)}
               className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete user"
             >
@@ -521,35 +506,45 @@ const UserManagementList = () => {
             {/* Filters Section - Right 50% */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* KYC */}
-              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                <select
-                  value={kycFilter}
-                  onChange={(e) => setKycFilter(e.target.value)}
-                  className="outline-none w-full bg-transparent text-sm text-gray-600"
-                >
-                  {KYC_OPTIONS.map((opt) => (
-                    <option key={opt.key} value={opt.key}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select
+                value={kycFilter}
+                onValueChange={setKycFilter}
+              >
+                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
 
-              {/* Department */}
-              <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                <select
-                  value={departmentFilter}
-                  onChange={(e) => setDepartmentFilter(e.target.value)}
-                  className="outline-none w-full bg-transparent text-sm text-gray-600"
-                >
-                  <option value="all">All Departments</option>
-                  {departments.map((opt) => (
-                    <option key={opt.id} value={opt.name}>
-                      {opt.name}
-                    </option>
+                <SelectContent>
+                  {KYC_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.key} value={opt.key}>
+                      {opt.label}
+                    </SelectItem>
                   ))}
-                </select>
-              </div>
+                </SelectContent>
+              </Select>
+              {/* Department */}
+              <Select
+                value={departmentFilter}
+                onValueChange={setDepartmentFilter}
+              >
+                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="all">All Department</SelectItem>
+
+                  {departments.map((opt) => (
+                    <SelectItem
+                      key={opt.id}
+                      value={opt.name}
+                    >
+                      {opt.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
             </div>
           </div>
         </div>
@@ -594,14 +589,13 @@ const UserManagementList = () => {
           )}
         </div>
 
-        {deletingUser && (
-          <DeleteConfirmModal
-            user={deletingUser}
-            deleting={deleting}
-            onCancel={() => setDeletingUser(null)}
-            onConfirm={confirmDelete}
-          />
-        )}
+        <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={closeDeleteConfirm}
+          onConfirm={confirmDelete}
+          itemLabel={deleteTarget?.itemLabel}
+          saving={deleteSaving}
+        />
       </div>
     </Container>
   );

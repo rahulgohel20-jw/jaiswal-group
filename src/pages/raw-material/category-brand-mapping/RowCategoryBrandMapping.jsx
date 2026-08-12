@@ -10,6 +10,13 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { getAllRawMaterialCategory } from '../../../services/apiServices';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const MultiSelectDropdown = ({ label, placeholder, options, selected, onChange, loading }) => {
     const [open, setOpen] = useState(false);
@@ -265,7 +272,7 @@ const RowCategoryBrandMapping = () => {
         {
             id: "sno",
             header: ({ column }) => (
-                <DataGridColumnHeader title="SR. NO" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="SR. NO" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
             ),
             cell: ({ row }) => pagination.pageIndex * pagination.pageSize + row.index + 1,
             enableSorting: false,
@@ -274,16 +281,16 @@ const RowCategoryBrandMapping = () => {
         {
             id: "category",
             header: ({ column }) => (
-                <DataGridColumnHeader title="RAW MATERIAL CATEGORY" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="RAW MATERIAL CATEGORY" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
             ),
             cell: ({ row }) => (
-                <span className="font-medium text-[#1B1B1F] capitalize">{row.original.category?.name}</span>
+                <span className="font-medium text-[#1B1B1F] capitalize py-4">{row.original.category?.name}</span>
             ),
         },
         {
             id: "brand",
             header: ({ column }) => (
-                <DataGridColumnHeader title="RAW MATERIAL BRAND" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="RAW MATERIAL BRAND" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
             ),
             cell: ({ row }) => (
                 <span className="text-[#43474F] capitalize">
@@ -294,7 +301,7 @@ const RowCategoryBrandMapping = () => {
         {
             id: "actions",
             header: ({ column }) => (
-                <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-semibold uppercase text-sm py-4" />
             ),
             cell: ({ row }) => (
                 <Trash2
@@ -388,31 +395,51 @@ const RowCategoryBrandMapping = () => {
                             />
                         </div>
 
-                        <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
-                                className="outline-none w-full bg-transparent"
-                                value={categoryFilter}
-                                onChange={(e) => setCategoryFilter(e.target.value)}
-                            >
-                                <option value="">Filter by Raw Material Category</option>
-                                {categories.map((c) => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                        </p>
+                        <Select
+                            value={categoryFilter || "all"}
+                            onValueChange={(value) =>
+                                setCategoryFilter(value === "all" ? "" : value)
+                            }
+                        >
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                <SelectValue placeholder="Filter by Raw Material Category" />
+                            </SelectTrigger>
 
-                        <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
-                                className="outline-none w-full bg-transparent"
-                                value={brandFilter}
-                                onChange={(e) => setBrandFilter(e.target.value)}
-                            >
-                                <option value="">Filter by Raw Material Brand</option>
-                                {brands.map((b) => (
-                                    <option key={b.id} value={b.id}>{b.name}</option>
+                            <SelectContent>
+                                <SelectItem value="all">
+                                    Filter by Raw Material Category
+                                </SelectItem>
+
+                                {categories.map((c) => (
+                                    <SelectItem key={c.id} value={String(c.id)}>
+                                        {c.name}
+                                    </SelectItem>
                                 ))}
-                            </select>
-                        </p>
+                            </SelectContent>
+                        </Select>
+
+                        <Select
+                            value={brandFilter || "all"}
+                            onValueChange={(value) =>
+                                setBrandFilter(value === "all" ? "" : value)
+                            }
+                        >
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                <SelectValue placeholder="Filter by Raw Material Brand" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="all">
+                                    Filter by Raw Material Brand
+                                </SelectItem>
+
+                                {brands.map((b) => (
+                                    <SelectItem key={b.id} value={String(b.id)}>
+                                        {b.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 

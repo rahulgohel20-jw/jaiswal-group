@@ -656,3 +656,36 @@ export const getAllActiveRawMaterialBrand = () => {
 export const deleteRawMaterialBrandById = (id) => {
   return DELETE(`/raw-material-brand/delete?id=${id}`)
 }
+
+//STATE API
+export const getAllStates = () => {
+  return GET('/state/getall')
+}
+
+export const addState = (payload) => {
+  return POST('/state/create' , payload)
+}
+
+export const updateState = (id, payload) => {
+  return PUT(`/state/update?id=${id}`, payload)
+}
+
+export const deleteStateById = (id) => {
+  return DELETE(`/state/delete?id=${id}`);
+}
+
+//City API
+export const getAllCities = () => {
+  return GET('/city/getall');
+}
+export const addCity = (payload) => {
+  return POST('/city/add' , payload)
+}
+
+export const updateCity = (id, payload) => {
+  return PUT(`/city/update?id=${id}`, payload)
+}
+
+export const deleteCityById = (id) => {
+  return DELETE(`/city/deletebyid?id=${id}`);
+}

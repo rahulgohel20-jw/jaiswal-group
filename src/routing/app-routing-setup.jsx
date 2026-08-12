@@ -169,6 +169,10 @@ import AddVendor from '../pages/vendors/AddVendor';
 import VendorListing from '../pages/vendors/VendorListing';
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
 import RowCategoryBrandMapping from '../pages/raw-material/category-brand-mapping/RowCategoryBrandMapping';
+import ExportAssetsQR from '../pages/assest-management/assest-qr/ExportAssetsQR';
+import VendorUnitMapping from '../pages/vendor-unit-mapping/VendorUnitMapping';
+import StateMaster from '../pages/location/state-master/StateMaster';
+import CityMaster from '../pages/location/city-master/CityMaster';
 
 export function AppRoutingSetup() {
   return (
@@ -236,8 +240,10 @@ export function AppRoutingSetup() {
           <Route path="/users/update-user" element={<UserRegistration />} />
           <Route path="/users/view-user" element={<UserViewDetails />} />
 
+          <Route path='/vendor-unit-mapping' element={<VendorUnitMapping/>}/>
+
           <Route path="/department" element={<Departmentlist />} />
-          <Route path="/user-rights" element={<UserRights />} />
+          {/* <Route path="/user-rights" element={<UserRights />} /> */}
 
           <Route path="/assets/all-assets" element={<AssetsManagement />} />
           <Route path="/assets/add-asset" element={<AddAsset />} />
@@ -275,7 +281,7 @@ export function AppRoutingSetup() {
           <Route path='/material/unit-master' element={<RowMaterialUnit/>}/>
            <Route path="/material/brand-master" element={<RowMaterialBrandMaster/>} />
           <Route path="/material/category-brand-mapping" element={<RowCategoryBrandMapping/>} />
-          
+
           <Route
             path="/assets/asset-transfer-log"
             element={<AssetsTransferLog />}
@@ -290,6 +296,11 @@ export function AppRoutingSetup() {
             element={<AssetsDisposalLog />}
           />
           <Route path="/assets/add-disposal" element={<AddAssetsDisposal />} />
+
+          <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
+
+          <Route path='/location/state' element={<StateMaster/>}/>
+          <Route path='/location/city' element={<CityMaster/>}/>
 
           <Route path="/pages" element={<PageMaster />} />
           <Route path="/module-rights" element={<ModuleMaster />} />

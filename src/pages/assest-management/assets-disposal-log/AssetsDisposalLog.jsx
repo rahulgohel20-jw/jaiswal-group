@@ -10,6 +10,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 const STATS = [
     {
@@ -112,6 +113,35 @@ const AssetsDisposalLog = () => {
     const [rowSelection, setRowSelection] = useState({});
     const [searchText, setSearchText] = useState("");
     const [dateFilter, setDateFilter] = useState("");
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
+
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
+    };
+
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };    
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
+        try {
+            
+            closeDeleteConfirm();
+         
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeleteSaving(false);
+        }
+    };
+
     const DisposalBadge = ({ type }) => {
         const styles = {
             Sale: "bg-green-100 text-green-700",
@@ -276,7 +306,7 @@ const AssetsDisposalLog = () => {
                     column={column}
                 />
             ),
-            cell: () => (
+            cell: ({row}) => (
                 <div className="flex items-center gap-2">
                     <button  className="text-gray-500 hover:text-green-600 cursor-pointer" >
                         <Eye
@@ -290,7 +320,7 @@ const AssetsDisposalLog = () => {
                         />
                     </button>
 
-                    <button  className="text-red-300 hover:text-red-600 cursor-pointer">
+                    <button onClick={() => openDeleteConfirm(row.original)}  className="text-red-300 hover:text-red-600 cursor-pointer">
                         <Trash2
                            size={18}
                         />
@@ -480,6 +510,13 @@ const AssetsDisposalLog = () => {
             </div>
 
         </div>
+        <DeleteConfirmModal
+                isOpen={showDeleteConfirm}
+                onClose={closeDeleteConfirm}
+                onConfirm={confirmDelete}
+                itemLabel={deleteTarget?.itemLabel}
+                saving={deleteSaving}
+            />
        </Container>
     )
 }

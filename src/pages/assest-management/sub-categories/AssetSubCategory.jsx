@@ -24,7 +24,14 @@ import AssetSubCategoryDetailsModal from './AssetSubCategoryDetailsModal';
 import { getSubCategories, getAssetCategories, deleteSubCategory } from '@/services/apiServices';
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
-
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 const StatusBadge = ({ status }) => {
     const styles = {
         Active: "bg-green-100 text-green-700",
@@ -72,7 +79,9 @@ const AssetSubCategory = () => {
         status: "All",
         category: "All",
     });
-
+const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+const [deleteTarget, setDeleteTarget] = useState(null);
+const [deleteSaving, setDeleteSaving] = useState(false);
     const handleApplyFilter = () => {
         setAppliedFilters({
             search,
@@ -173,17 +182,30 @@ const AssetSubCategory = () => {
         },
     ];
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this sub category? This cannot be undone.')) return;
-        try {
-            await deleteSubCategory(id);
-            notify.success("Subcategory Deleted successfully");
-            fetchAll();
-        } catch (err) {
-            console.error(err);
-            notify.error('Failed to delete sub category.');
-        }
-    };
+    const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, itemLabel: row.name });
+    setShowDeleteConfirm(true);
+};
+
+const closeDeleteConfirm = () => {
+    if (deleteSaving) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+};
+
+const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    try {
+        await deleteSubCategory(deleteTarget.id);
+        closeDeleteConfirm();
+        fetchAll();
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setDeleteSaving(false);
+    }
+};
 
     const openEditModal = (row) => {
         setEditingSubCategory(row);
@@ -280,7 +302,7 @@ const AssetSubCategory = () => {
         {
             id: "actions",
             header: ({ column }) => (
-                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
@@ -290,7 +312,7 @@ const AssetSubCategory = () => {
                     <button type="button" onClick={() => openEditModal(row.original)}>
                         <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
-                    <button type="button" onClick={() => handleDelete(row.original.id)}>
+                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -376,51 +398,63 @@ const AssetSubCategory = () => {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-                        {/* Category */}
-                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
+                            {/* Category */}
+                            <Select
                                 value={categoryFilter}
-                                onChange={(e) => setCategoryFilter(e.target.value)}
-                                className="outline-none w-full bg-transparent text-sm text-gray-600"
+                                onValueChange={(value) => setCategoryFilter(value)}
                             >
-                                <option value="All">
-                                    All Categories
-                                </option>
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                    <SelectValue placeholder="All Categories" />
+                                </SelectTrigger>
 
-                                {[...new Set(
-                                    subCategories.map(item => item.parentCategory)
-                                )].map(category => (
-                                    <option key={category} value={category}>
-                                        {category}
-                                    </option>
-                                ))}
+                                <SelectContent>
+                                    <SelectItem value="All">
+                                        All Categories
+                                    </SelectItem>
 
-                            </select>
-                        </div>
+                                    {[...new Set(
+                                        subCategories
+                                            .map(item => item.parentCategory)
+                                            .filter(Boolean)
+                                    )].map((category) => (
+                                        <SelectItem
+                                            key={category}
+                                            value={category}
+                                        >
+                                            {category}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
 
 
-                        {/* Status */}
-                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
+                            {/* Status */}
+                            <Select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="outline-none w-full bg-transparent text-sm text-gray-600"
+                                onValueChange={(value) => setStatusFilter(value)}
                             >
-                                <option value="All">
-                                    All Status
-                                </option>
-                                <option value="Active">
-                                    Active
-                                </option>
-                                <option value="Inactive">
-                                    Inactive
-                                </option>
-                            </select>
-                        </div>
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                    <SelectValue placeholder="All Status" />
+                                </SelectTrigger>
 
-                    </div>
+                                <SelectContent>
+                                    <SelectItem value="All">
+                                        All Status
+                                    </SelectItem>
+
+                                    <SelectItem value="Active">
+                                        Active
+                                    </SelectItem>
+
+                                    <SelectItem value="Inactive">
+                                        Inactive
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                        </div>
 
                 </div>
 
@@ -460,6 +494,14 @@ const AssetSubCategory = () => {
                 onClose={() => setViewingSubCategory(null)}
                 subCategory={viewingSubCategory}
             />
+
+            <DeleteConfirmModal
+    isOpen={showDeleteConfirm}
+    onClose={closeDeleteConfirm}
+    onConfirm={confirmDelete}
+    itemLabel={deleteTarget?.itemLabel}
+    saving={deleteSaving}
+/>
         </div>
         </Container>
     );

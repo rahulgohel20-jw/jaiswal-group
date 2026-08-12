@@ -83,6 +83,16 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
       return;
     }
 
+     if (formData.price === "" || Number(formData.price) <= 0) {
+        setError("Price must be Positive");
+        return;
+    }
+
+    if (formData.sequence === "" || Number(formData.sequence) <= 0) {
+        setError("Sequence must be Positive");
+        return;
+    }
+
     const userId = getUserIdFromToken();
     if (!userId) {
       setError("Could not identify the logged-in user. Please log in again.");
@@ -142,7 +152,7 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 mt-3">{error}</p>
+          <p className="text-[11px] text-red-600 mt-3">{error}</p>
         )}
 
         {/* Form */}
@@ -170,6 +180,7 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
               type="number"
               name="price"
               value={formData.price}
+              onWheel={(e) => e.currentTarget.blur()}
               onChange={handleChange}
               className="w-full border rounded px-4 py-2 outline-none"
             />
@@ -183,6 +194,7 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
               name="sequence"
               value={formData.sequence}
               onChange={handleChange}
+              onWheel={(e) => e.currentTarget.blur()}
               className="w-full border rounded px-4 py-2 outline-none"
             />
           </div>

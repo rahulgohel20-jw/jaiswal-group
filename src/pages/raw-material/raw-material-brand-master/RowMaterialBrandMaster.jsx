@@ -12,6 +12,13 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import StatusConfirmModal from '@/utils/StatusConfirmModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddRawMaterialBrand from './AddRawMaterialBrand';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { deleteRawMaterialBrandById, getAllActiveRawMaterialBrand, getAllRawMaterialBrand, getRawMaterialBrandById, updateRawMaterialBrand } from '../../../services/apiServices';
 
 
@@ -240,7 +247,7 @@ const RowMaterialBrandMaster = () => {
         {
             id: "sno",
             header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold uppercase text-sm py-4" />
             ),
             cell: ({ row }) => String(row.index + 1).padStart(2, "0"),
             enableSorting: false,
@@ -249,7 +256,7 @@ const RowMaterialBrandMaster = () => {
         {
             accessorKey: "name",
             header: ({ column }) => (
-                <DataGridColumnHeader title="NAME" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="NAME" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
             ),
             cell: ({ row }) => (
                 <span className="font-medium text-[#1B1B1F] capitalize">{row.original.name}</span>
@@ -258,7 +265,7 @@ const RowMaterialBrandMaster = () => {
         {
             accessorKey: "description",
             header: ({ column }) => (
-                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
             ),
             cell: ({ row }) => <span className="text-[#1B1B1F] capitalize">{row.original.description}</span>,
         },
@@ -269,7 +276,7 @@ const RowMaterialBrandMaster = () => {
                 <DataGridColumnHeader
                     title="STATUS"
                     column={column}
-                    className="text-[#43474F] font-semibold"
+                    className="text-[#43474F] font-semibold uppercase text-sm"
                 />
             ),
             cell: ({ row }) => (
@@ -290,7 +297,7 @@ const RowMaterialBrandMaster = () => {
         {
             id: "actions",
             header: ({ column }) => (
-                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3">
@@ -386,17 +393,28 @@ const RowMaterialBrandMaster = () => {
                             />
                         </div>
 
-                        <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
-                                className="outline-none w-full bg-transparent"
-                                value={statusFilter}
-                                onChange={(e) => { setStatusFilter(e.target.value); }}
-                            >
-                                <option value="All Status">All Status</option>
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                            </select>
-                        </p>
+                        <Select
+                            value={statusFilter}
+                            onValueChange={(value) => setStatusFilter(value)}
+                        >
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="All Status">
+                                    All Status
+                                </SelectItem>
+
+                                <SelectItem value="Active">
+                                    Active
+                                </SelectItem>
+
+                                <SelectItem value="Inactive">
+                                    Inactive
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
 
                     </div>
                 </div>

@@ -10,6 +10,11 @@ import {
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { getActiveCompany, getAllActiveEmployees } from '@/services/apiServices.js';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -37,26 +42,154 @@ const Label = ({ children, required }) => (
   </label>
 );
 
-const Select = ({ value, onChange, options, placeholder, disabled, loading }) => (
-  <div className="relative">
-    <select
-      value={value}
-      onChange={onChange}
-      disabled={disabled || loading}
-      className={selectCls}
-    >
-      <option value="" disabled>
-        {loading ? 'Loading...' : placeholder}
-      </option>
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-  </div>
-);
+const Select = ({
+    value,
+    onChange,
+    options = [],
+    placeholder = "Select...",
+    name,
+}) => {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+
+    const selectedOption = options.find(
+        (option) =>
+            String(option.value ?? option) === String(value)
+    );
+
+    const selectedLabel = selectedOption
+        ? String(selectedOption.label ?? selectedOption)
+        : "";
+
+    React.useEffect(() => {
+        if (!open) {
+            setSearch(selectedLabel);
+        }
+    }, [open, selectedLabel]);
+
+    const filteredOptions = options.filter((option) => {
+        const label = String(option.label ?? option);
+
+        return label
+            .toLowerCase()
+            .includes(search.trim().toLowerCase());
+    });
+
+    const handleSelect = (option) => {
+        const optionValue = option.value ?? option;
+        const optionLabel = option.label ?? option;
+
+        onChange({
+            target: {
+                name,
+                value: String(optionValue),
+            },
+        });
+
+        setSearch(String(optionLabel));
+        setOpen(false);
+    };
+
+    const handleInputChange = (e) => {
+        const inputValue = e.target.value;
+
+        setSearch(inputValue);
+        setOpen(true);
+
+        // Search start karte hi old selected value clear
+        if (String(inputValue) !== String(selectedLabel)) {
+            onChange({
+                target: {
+                    name,
+                    value: "",
+                },
+            });
+        }
+    };
+
+    return (
+        <Popover
+            open={open}
+            onOpenChange={(nextOpen) => {
+                setOpen(nextOpen);
+
+                if (nextOpen) {
+                    setSearch(selectedLabel);
+                }
+            }}
+            modal={false}
+        >
+            <PopoverTrigger asChild>
+                <div className="relative w-full">
+                    <input
+                        name={name}
+                        value={search}
+                        placeholder={placeholder}
+                        onClick={() => {
+                            setOpen(true);
+                            setSearch(selectedLabel);
+                        }}
+                        onChange={handleInputChange}
+                        className={`${inputCls} pr-10 cursor-text`}
+                    />
+
+                    <ChevronDown
+                        size={16}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+                    />
+                </div>
+            </PopoverTrigger>
+
+            <PopoverContent
+                side="bottom"
+                align="start"
+                sideOffset={4}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
+            >
+                <div className="max-h-52 overflow-y-auto">
+                    {filteredOptions.length > 0 ? (
+                        filteredOptions.map((option) => {
+                            const optionValue =
+                                option.value ?? option;
+
+                            const optionLabel =
+                                option.label ?? option;
+
+                            const isSelected =
+                                String(value) ===
+                                String(optionValue);
+
+                            return (
+                                <button
+                                    key={String(optionValue)}
+                                    type="button"
+                                    onMouseDown={(e) =>
+                                        e.preventDefault()
+                                    }
+                                    onClick={() =>
+                                        handleSelect(option)
+                                    }
+                                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${
+                                        isSelected
+                                            ? "bg-blue-50 text-primary font-medium"
+                                            : "text-gray-700"
+                                    }`}
+                                >
+                                    {optionLabel}
+                                </button>
+                            );
+                        })
+                    ) : (
+                        <div className="px-3 py-3 text-sm text-gray-500">
+                            No options found
+                        </div>
+                    )}
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+};
 
 const SectionCard = ({ children, className = '' }) => (
   <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>{children}</div>
@@ -197,7 +330,7 @@ const AddAssignAsset = () => {
     <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">
       <div className="flex items-center gap-3">
         <div>
-          <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">Assign Asset</h1>
+          <h1 className="text-2xl font-bold">Assign Asset</h1>
           <p className="text-[#43474F] mt-1">Configure deployment parameters for enterprise inventory.</p>
         </div>
       </div>

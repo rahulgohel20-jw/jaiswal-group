@@ -13,6 +13,13 @@ import { deleteUnitMasterById, getAllRawMaterialUnits, getRawMaterialUnitById, u
 import { notify } from "@/utils/toast";
 import StatusConfirmModal from "@/utils/StatusConfirmModal";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 
 const RowMaterialUnit = () => {
@@ -58,8 +65,7 @@ const RowMaterialUnit = () => {
     try {
       setLoading(true);
       const res = await getAllRawMaterialUnits();
-
-      const data = (res?.data?.data["Unit Details"] || []).map((item) => ({
+      const data = (res?.data?.data?.["Unit Details"] || []).map((item) => ({
         ...item,
         name: item.nameEnglish,
         symbol: item.symbolEnglish,
@@ -67,6 +73,7 @@ const RowMaterialUnit = () => {
       }));
 
       setUnit(data);
+      setError(null)
     } catch (err) {
       console.error(err);
       setError("Failed to load units");
@@ -144,7 +151,7 @@ const handleEditClick = async (unit) => {
       setShowDeleteConfirm(false);
       setDeleteTarget(null);
 
-      fetchUnits();
+      await fetchUnits();
     } catch (err) {
       console.error(err);
 
@@ -236,7 +243,7 @@ const handleEditClick = async (unit) => {
         <DataGridColumnHeader
           title="S.No"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold py-4 uppercase text-sm"
         />
       ),
       cell: ({ row }) => row.index + 1,
@@ -249,7 +256,7 @@ const handleEditClick = async (unit) => {
         <DataGridColumnHeader
           title="Name"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
       cell: ({ row }) => <p className="font-semibold text-gray-800 py-2 capitalize">{row.original.name}</p>,
@@ -260,7 +267,7 @@ const handleEditClick = async (unit) => {
         <DataGridColumnHeader
           title="Symbol"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
       cell: ({ row }) => <p className="font-semibold text-gray-600 py-2 capitalize">{row.original.symbol}</p>,
@@ -274,7 +281,7 @@ const handleEditClick = async (unit) => {
         <DataGridColumnHeader
           title="Status"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
 
@@ -285,7 +292,7 @@ const handleEditClick = async (unit) => {
           <input
             type="checkbox"
             checked={row.original.status === "Active"}
-            className="sr-only peer"
+            className="sr-only peer uppercase text-sm"
             onChange={() => {
               setStatusTarget({
                 id: row.original.id,
@@ -329,7 +336,7 @@ const handleEditClick = async (unit) => {
         <DataGridColumnHeader
           title="Actions"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
       cell: ({ row }) => (
@@ -430,17 +437,28 @@ const handleEditClick = async (unit) => {
               />
             </div>
 
-            <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-              <select
-                className="outline-none w-full bg-transparent"
-                value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value); }}
-              >
-                <option value="All Status">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </p>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="All Status">
+                  All Status
+                </SelectItem>
+
+                <SelectItem value="Active">
+                  Active
+                </SelectItem>
+
+                <SelectItem value="Inactive">
+                  Inactive
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
           </div>
         </div>

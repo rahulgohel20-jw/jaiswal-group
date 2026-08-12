@@ -37,6 +37,7 @@ const AddRawMaterialCategoryModal = ({
   const [error, setError] = useState(null);
   const [typeOptions, setTypeOptions] = useState([]);
   const [loadingTypes, setLoadingTypes] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const isEditMode = Boolean(initialData?.id);
 
@@ -94,12 +95,16 @@ const AddRawMaterialCategoryModal = ({
     setError(null);
   }, [isOpen, initialData]);
 
-  const set = (key, value) =>
+  const set = (key, value) => {
     setForm((prev) => ({
       ...prev,
       [key]: value,
     }));
-
+    setErrors((prev) => ({
+    ...prev,
+    [key]: '',
+  }));
+  }
   if (!isOpen) return null;
 
   const handleClose = () => {
@@ -129,7 +134,33 @@ const AddRawMaterialCategoryModal = ({
     }
   };
 
+  const validate = () => {
+    const newErrors = {};
+
+    // Category Name required
+    if (!form.nameEnglish.trim()) {
+      newErrors.nameEnglish = 'Category name is required';
+    }
+
+    // Type required
+    if (!form.rawMaterialCatTypeId) {
+      newErrors.rawMaterialCatTypeId = 'Type name is required';
+    }
+
+    // Sequence positive
+    if (form.sequence && (isNaN(Number(form.sequence)) ||Number(form.sequence) <= 0)) {
+      newErrors.sequence = 'Sequence must be Positive';
+    } 
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  };
+
+
   const handleSave = async () => {
+    if (!validate()) {
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -155,6 +186,10 @@ const AddRawMaterialCategoryModal = ({
   };
 
   const handleSaveAndAddAnother = async () => {
+    if (!validate()) {
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -228,6 +263,11 @@ const AddRawMaterialCategoryModal = ({
                 value={form.nameEnglish}
                 onChange={(e) => set('nameEnglish', e.target.value)}
               />
+              {errors.nameEnglish && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.nameEnglish}
+                </p>
+              )}
             </div>
 
             {/* Type Name — live dropdown sourced from Raw Material Category Type master */}
@@ -254,6 +294,11 @@ const AddRawMaterialCategoryModal = ({
                   ))}
                 </SelectContent>
               </Select>
+              {errors.rawMaterialCatTypeId && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.rawMaterialCatTypeId}
+                </p>
+              )}
             </div>
 
             {/* Sequence */}
@@ -267,6 +312,11 @@ const AddRawMaterialCategoryModal = ({
                 value={form.sequence}
                 onChange={(e) => set('sequence', e.target.value)}
               />
+              {errors.sequence && (
+                <p className="text-xs text-red-500 mt-1">
+                  {errors.sequence}
+                </p>
+              )}
             </div>
           </div>
         </div>

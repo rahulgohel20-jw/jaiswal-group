@@ -9,6 +9,13 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import PurchaseOrderDetailsModel from './PurchaseOrderDetailsModel';
 import { Container } from "@/components/common/container";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 const requests = [
   {
     poCode: "PO-2024-101",
@@ -117,7 +124,7 @@ const PurchaseOrderApproved = () => {
       header: ({ column }) => (
         <DataGridColumnHeader title="ACTION" column={column} />
       ),
-      cell: ({row}) => (
+      cell: ({ row }) => (
         <button onClick={() => {
           setSelectedOrder(row.original);
           setOpenModal(true);
@@ -196,147 +203,193 @@ const PurchaseOrderApproved = () => {
   return (
     <Container>
       <div className='p-4 md:p-6'>
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-        <span>Dashboard</span>
-        <ChevronRight size={12} />
-        <span>Purchase</span>
-        <ChevronRight size={12} />
-        <span className="text-[#084E92] font-medium">Approved Orders</span>
-      </div>
-
-      <div className='flex justify-between items-center'>
-        <div className='my-3'>
-          <h1 className="text-3xl font-semibold text-[#092B56]">
-            Approved Purchase Orders
-          </h1>
-
-          <p className="text-gray-500 mt-2">
-            Efficiently manage and track all validated procurement orders.
-          </p>
-
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Purchase</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">Approved Orders</span>
         </div>
-        <button
-          className="flex items-center gap-2 bg-[#0757A8] text-white px-6 py-3 rounded-full shadow-md  hover:bg-blue-700 cursor-pointer"
-        >
-          <Plus size={18} />
-          Create New PO
-        </button>
-      </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
-        {STATS.map((item) => (
-          <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
-            <div className="flex justify-between items-center pb-2">
-              <p>{item.icon}</p>
-              {item.badge && (
-                <p className={`text-xs rounded font-semibold px-1.5 py-1 ${item.badgeStyle}`}>{item.badge}</p>
-              )}
+        <div className='flex justify-between items-center'>
+          <div className='my-3'>
+            <h1 className="text-3xl font-semibold text-[#092B56]">
+              Approved Purchase Orders
+            </h1>
+
+            <p className="text-gray-500 mt-2">
+              Efficiently manage and track all validated procurement orders.
+            </p>
+
+          </div>
+          <button
+            className="flex items-center gap-2 bg-[#0757A8] text-white px-6 py-3 rounded-full shadow-md  hover:bg-blue-700 cursor-pointer"
+          >
+            <Plus size={18} />
+            Create New PO
+          </button>
+        </div>
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
+          {STATS.map((item) => (
+            <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
+              <div className="flex justify-between items-center pb-2">
+                <p>{item.icon}</p>
+                {item.badge && (
+                  <p className={`text-xs rounded font-semibold px-1.5 py-1 ${item.badgeStyle}`}>{item.badge}</p>
+                )}
+              </div>
+              <h1 className="text-sm text-[#43474F] py-1">{item.title}</h1>
+              <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
             </div>
-            <h1 className="text-sm text-[#43474F] py-1">{item.title}</h1>
-            <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 mb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-
-          {/* Search */}
-          <div className="relative col-span-2">
-            <Search
-              size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by PO Code or Company..."
-              className="w-full h-11 rounded-xl border border-[#D6DCE5] pl-11 pr-4 outline-none focus:ring-2 focus:ring-[#0B5CAD]/20"
-            />
-          </div>
-
-          {/* Company */}
-          <p className='border border-[#C3C6D1] rounded-lg px-3 py-2.5'>
-            <select
-              value={companyFilter}
-              onChange={(e) => setCompanyFilter(e.target.value)}
-              className="w-full outline-none"
-            >
-              <option value="All Companies">All Companies</option>
-              <option value="Reliance Retail Ltd.">Reliance Retail Ltd.</option>
-              <option value="Tata Consumer Products">Tata Consumer Products</option>
-              <option value="Adani Wilmar Ltd.">Adani Wilmar Ltd.</option>
-              <option value="Hindustan Unilever">Hindustan Unilever</option>
-              <option value="Britannia Industries">Britannia Industries</option>
-              <option value="Nestle India Ltd.">Nestle India Ltd.</option>
-            </select>
-          </p>
-
-          {/* Outlet */}
-          <p className='border border-[#C3C6D1] rounded-lg px-3 py-2.5'>
-            <select
-              value={outletFilter}
-              onChange={(e) => setOutletFilter(e.target.value)}
-              className="w-full outline-none"
-            >
-              <option value="All Outlets">All Outlets</option>
-              <option value="Mumbai - Main Hub">Mumbai - Main Hub</option>
-              <option value="Bangalore North Center">Bangalore North Center</option>
-              <option value="Ahmedabad Logistics">Ahmedabad Logistics</option>
-              <option value="Delhi Central Warehouse">Delhi Central Warehouse</option>
-              <option value="Kolkata Regional">Kolkata Regional</option>
-              <option value="Pune Distribution Hub">Pune Distribution Hub</option>
-            </select>
-          </p>
-
+          ))}
         </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-2xl border border-[#E2E8F0] p-5 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+
+            {/* Search */}
+            <div className="relative col-span-2">
+              <Search
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by PO Code or Company..."
+                className="w-full h-11 rounded-xl border border-[#D6DCE5] pl-11 pr-4 outline-none focus:ring-2 focus:ring-[#0B5CAD]/20"
+              />
+            </div>
+            {/* Company */}
+            <Select
+              value={companyFilter}
+              onValueChange={setCompanyFilter}
+            >
+              <SelectTrigger className="w-full h-11 border-[#C3C6D1] rounded-lg">
+                <SelectValue placeholder="All Companies" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="All Companies">
+                  All Companies
+                </SelectItem>
+
+                <SelectItem value="Reliance Retail Ltd.">
+                  Reliance Retail Ltd.
+                </SelectItem>
+
+                <SelectItem value="Tata Consumer Products">
+                  Tata Consumer Products
+                </SelectItem>
+
+                <SelectItem value="Adani Wilmar Ltd.">
+                  Adani Wilmar Ltd.
+                </SelectItem>
+
+                <SelectItem value="Hindustan Unilever">
+                  Hindustan Unilever
+                </SelectItem>
+
+                <SelectItem value="Britannia Industries">
+                  Britannia Industries
+                </SelectItem>
+
+                <SelectItem value="Nestle India Ltd.">
+                  Nestle India Ltd.
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+
+            {/* Outlet */}
+            <Select
+              value={outletFilter}
+              onValueChange={setOutletFilter}
+            >
+              <SelectTrigger className="w-full h-11 border-[#C3C6D1] rounded-lg">
+                <SelectValue placeholder="All Outlets" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="All Outlets">
+                  All Outlets
+                </SelectItem>
+
+                <SelectItem value="Mumbai - Main Hub">
+                  Mumbai - Main Hub
+                </SelectItem>
+
+                <SelectItem value="Bangalore North Center">
+                  Bangalore North Center
+                </SelectItem>
+
+                <SelectItem value="Ahmedabad Logistics">
+                  Ahmedabad Logistics
+                </SelectItem>
+
+                <SelectItem value="Delhi Central Warehouse">
+                  Delhi Central Warehouse
+                </SelectItem>
+
+                <SelectItem value="Kolkata Regional">
+                  Kolkata Regional
+                </SelectItem>
+
+                <SelectItem value="Pune Distribution Hub">
+                  Pune Distribution Hub
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+          </div>
+        </div>
+
+        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+
+          {loading && (
+            <p className="p-4 text-sm text-gray-500">
+              Loading purchase requests...
+            </p>
+          )}
+
+          {error && (
+            <p className="p-4 text-sm text-red-600">
+              {error}
+            </p>
+          )}
+
+          <DataGrid
+            table={table}
+            recordCount={filteredRequests.length}
+            className="rounded-2xl"
+          >
+            <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <CardTable>
+                <ScrollArea>
+                  <DataGridTable />
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </CardTable>
+
+              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                <DataGridPagination />
+              </CardFooter>
+            </Card>
+          </DataGrid>
+        </div>
+
+        <PurchaseOrderDetailsModel
+          open={openModal}
+          onClose={() => setOpenModal(false)}
+          order={selectedOrder}
+        />
       </div>
-
-      <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-
-        {loading && (
-          <p className="p-4 text-sm text-gray-500">
-            Loading purchase requests...
-          </p>
-        )}
-
-        {error && (
-          <p className="p-4 text-sm text-red-600">
-            {error}
-          </p>
-        )}
-
-        <DataGrid
-          table={table}
-          recordCount={filteredRequests.length}
-          className="rounded-2xl"
-        >
-          <Card className="rounded-t-none border-t-0 rounded-2xl">
-            <CardTable>
-              <ScrollArea>
-                <DataGridTable />
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </CardTable>
-
-            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-              <DataGridPagination />
-            </CardFooter>
-          </Card>
-        </DataGrid>
-      </div>
-
-      <PurchaseOrderDetailsModel
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        order={selectedOrder}
-      />
-    </div>
     </Container>
   )
 }

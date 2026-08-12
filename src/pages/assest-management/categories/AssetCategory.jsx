@@ -24,6 +24,14 @@ import AssetCategoryDetailsModal from './AssetCategoryDetailsModal';
 import { getAssetCategories, deleteAssetCategory } from '@/services/apiServices';
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 
 const StatusBadge = ({ status }) => {
@@ -61,16 +69,33 @@ const AssetCategory = () => {
     const [viewLoading, setViewLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("All");
+    const [userFilter, setUserFilter] = useState('All')
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this category? This cannot be undone.')) return;
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
+    };
+
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
         try {
-            await deleteAssetCategory(id);
-            notify.success("Category Deleted successfully");
+            await deleteAssetCategory(deleteTarget.id);
+            closeDeleteConfirm();
             fetchCategories();
         } catch (err) {
             console.error(err);
-            notify.error('Failed to delete category.');
+        } finally {
+            setDeleteSaving(false);
         }
     };
     const openEditModal = (row) => {
@@ -173,7 +198,7 @@ const AssetCategory = () => {
             id: "name",
             accessorFn: (row) => row.name,
             header: ({ column }) => (
-                <DataGridColumnHeader title="CATEGORY NAME" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="CATEGORY NAME" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
                 <div className="font-semibold text-gray-800 py-2">{row.original.name}</div>
@@ -184,10 +209,10 @@ const AssetCategory = () => {
             id: "description",
             accessorFn: (row) => row.description,
             header: ({ column }) => (
-                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold my-3" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-1 line-clamp-1">{row.original.description}</span>
+                <span className="text-gray-500 py-2 line-clamp-1">{row.original.description}</span>
             ),
             size: 320,
         },
@@ -213,7 +238,7 @@ const AssetCategory = () => {
                     <button type="button" onClick={() => openEditModal(row.original)}>
                         <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
-                    <button type="button" onClick={() => handleDelete(row.original.id)}>
+                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -301,22 +326,35 @@ const AssetCategory = () => {
                         />
                     </div>
 
-                    <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                        <select value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)} className="outline-none w-full min-w-0 bg-transparent">
-                            <option value="All">All Status</option>
-                            <option value="Active">Active</option>
-                            <option value="Inactive">Inactive</option>
-                        </select>
-                    </p>
+                        <Select
+                            value={statusFilter}
+                            onValueChange={(value) => setStatusFilter(value)}
+                        >
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
 
-                    <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                        <select className="outline-none w-full min-w-0 bg-transparent">
-                            <option>All Users</option>
-                            <option>Super Admin</option>
-                            <option>Rajesh Kumar</option>
-                        </select>
-                    </p>
+                            <SelectContent>
+                                <SelectItem value="All">All Status</SelectItem>
+                                <SelectItem value="Active">Active</SelectItem>
+                                <SelectItem value="Inactive">Inactive</SelectItem>
+                            </SelectContent>
+                        </Select>
+
+                        <Select
+                            value={userFilter}
+                            onValueChange={(value) => setUserFilter(value)}
+                        >
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                <SelectValue placeholder="All Users" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="All">All Users</SelectItem>
+                                <SelectItem value="super-admin">Super Admin</SelectItem>
+                                <SelectItem value="rajesh-kumar">Rajesh Kumar</SelectItem>
+                            </SelectContent>
+                        </Select>
                 </div>
             </div>
 
@@ -351,6 +389,14 @@ const AssetCategory = () => {
                 category={viewingCategory}
                 loading={viewLoading}
             />
+
+            <DeleteConfirmModal
+    isOpen={showDeleteConfirm}
+    onClose={closeDeleteConfirm}
+    onConfirm={confirmDelete}
+    itemLabel={deleteTarget?.itemLabel}
+    saving={deleteSaving}
+/>
         </div>
        </Container>
     );
