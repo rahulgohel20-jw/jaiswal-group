@@ -95,6 +95,7 @@ import { Tasks } from '@/pages/Tasks/Tasks';
 import { Navigate, Route, Routes } from 'react-router';
 import AddAssetsMaintenanceLog from '../pages/assest-management/assest-maintenance/AddAssetsMaintenanceLog';
 import AssetsMaintenance from '../pages/assest-management/assest-maintenance/AssetsMaintenance';
+import ExportAssetsQR from '../pages/assest-management/assest-qr/ExportAssetsQR';
 import AddAsset from '../pages/assest-management/assest-registry/AddAsset';
 import AssetsManagement from '../pages/assest-management/assest-registry/AssetsManagement';
 import AssetBrandListing from '../pages/assest-management/asset-brand/AssetBrandListing';
@@ -125,6 +126,8 @@ import UserRights from '../pages/department/UserRights';
 import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
 import KycInformation from '../pages/kyc-info/user-kycInformation/KycInformation';
 import VendorKycInfo from '../pages/kyc-info/vendor-kycInformation/VendorKycInfo';
+import CityMaster from '../pages/location/city-master/CityMaster';
+import StateMaster from '../pages/location/state-master/StateMaster';
 import AddStock from '../pages/manage-stocks/AddStock';
 import AvailableStocks from '../pages/manage-stocks/AvailableStocks';
 import ClosingStock from '../pages/manage-stocks/ClosingStock';
@@ -167,14 +170,10 @@ import UserViewDetails from '../pages/user/UserViewDetails';
 import { AddUser } from '../pages/UserManagement/AddUser';
 import { UserManagement } from '../pages/UserManagement/UserManagement';
 import UserVendorSelectionPage from '../pages/userVendorSelection/UserVendorSelectionPage';
+import VendorUnitMapping from '../pages/vendor-unit-mapping/VendorUnitMapping';
 import AddVendor from '../pages/vendors/AddVendor';
 import VendorListing from '../pages/vendors/VendorListing';
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
-import RowCategoryBrandMapping from '../pages/raw-material/category-brand-mapping/RowCategoryBrandMapping';
-import ExportAssetsQR from '../pages/assest-management/assest-qr/ExportAssetsQR';
-import VendorUnitMapping from '../pages/vendor-unit-mapping/VendorUnitMapping';
-import StateMaster from '../pages/location/state-master/StateMaster';
-import CityMaster from '../pages/location/city-master/CityMaster';
 
 export function AppRoutingSetup() {
   return (
@@ -242,7 +241,7 @@ export function AppRoutingSetup() {
           <Route path="/users/update-user" element={<UserRegistration />} />
           <Route path="/users/view-user" element={<UserViewDetails />} />
 
-          <Route path='/vendor-unit-mapping' element={<VendorUnitMapping/>}/>
+          <Route path="/vendor-unit-mapping" element={<VendorUnitMapping />} />
 
           <Route path="/department" element={<Departmentlist />} />
           {/* <Route path="/user-rights" element={<UserRights />} /> */}
@@ -277,12 +276,21 @@ export function AppRoutingSetup() {
             element={<AddAssetsMaintenanceLog />}
           />
 
-          <Route path='/material/types' element={<RawMaterialTypeListing/>} />
-          <Route path='/material/categories' element={<RowMaterialCategories/>}/>
-          <Route path='/material/items' element={<RowMaterialItemMaster/>}/>
-          <Route path='/material/unit-master' element={<RowMaterialUnit/>}/>
-           <Route path="/material/brand-master" element={<RowMaterialBrandMaster/>} />
-          <Route path="/material/category-brand-mapping" element={<RowCategoryBrandMapping/>} />
+          <Route path="/material/types" element={<RawMaterialTypeListing />} />
+          <Route
+            path="/material/categories"
+            element={<RowMaterialCategories />}
+          />
+          <Route path="/material/items" element={<RowMaterialItemMaster />} />
+          <Route path="/material/unit-master" element={<RowMaterialUnit />} />
+          <Route
+            path="/material/brand-master"
+            element={<RowMaterialBrandMaster />}
+          />
+          <Route
+            path="/material/category-brand-mapping"
+            element={<RowCategoryBrandMapping />}
+          />
 
           <Route
             path="/assets/asset-transfer-log"
@@ -301,8 +309,8 @@ export function AppRoutingSetup() {
 
           <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
 
-          <Route path='/location/state' element={<StateMaster/>}/>
-          <Route path='/location/city' element={<CityMaster/>}/>
+          <Route path="/location/state" element={<StateMaster />} />
+          <Route path="/location/city" element={<CityMaster />} />
 
           <Route path="/pages" element={<PageMaster />} />
           <Route path="/module-rights" element={<ModuleMaster />} />

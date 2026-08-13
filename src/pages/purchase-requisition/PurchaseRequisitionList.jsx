@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -21,9 +22,6 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { Container } from "@/components/common/container";
-import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { Link, useNavigate } from 'react-router';
 import { Container } from '@/components/common/container';
 
@@ -361,10 +359,11 @@ const Pagination = ({ page, totalPages, onChange }) => {
             key={p}
             type="button"
             onClick={() => onChange(p)}
-            className={`w-8 h-8 rounded-lg text-sm font-semibold transition cursor-pointer border ${p === page
-              ? 'bg-[#084E92] text-white border-[#084E92]'
-              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-              }`}
+            className={`w-8 h-8 rounded-lg text-sm font-semibold transition cursor-pointer border ${
+              p === page
+                ? 'bg-[#084E92] text-white border-[#084E92]'
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+            }`}
           >
             {p}
           </button>
@@ -636,7 +635,11 @@ const PurchaseRequisitionList = () => {
                       </td>
                       <td className="px-4 sm:px-6 py-4">
                         <div className="flex items-center">
-                          <IconButton icon={Eye} title="View" onClick={() => setViewingRow(row)} />
+                          <IconButton
+                            icon={Eye}
+                            title="View"
+                            onClick={() => setViewingRow(row)}
+                          />
                           {EDITABLE_STATUSES.has(row.status) && (
                             <IconButton
                               icon={Pencil}
@@ -647,7 +650,12 @@ const PurchaseRequisitionList = () => {
                               }
                             />
                           )}
-                          <IconButton icon={Trash2} tone="danger" title="Delete" onClick={() => openDeleteConfirm(row)} />
+                          <IconButton
+                            icon={Trash2}
+                            tone="danger"
+                            title="Delete"
+                            onClick={() => openDeleteConfirm(row)}
+                          />
                         </div>
                       </td>
                     </tr>
@@ -674,7 +682,10 @@ const PurchaseRequisitionList = () => {
           </div>
         </SectionCard>
 
-        <ViewRequisitionModal row={viewingRow} onClose={() => setViewingRow(null)} />
+        <ViewRequisitionModal
+          row={viewingRow}
+          onClose={() => setViewingRow(null)}
+        />
 
         <DeleteConfirmModal
           isOpen={showDeleteConfirm}

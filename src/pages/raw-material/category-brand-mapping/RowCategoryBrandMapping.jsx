@@ -1,44 +1,54 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
-import { getAllRawMaterialCategory } from '../../../services/apiServices';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import {
+  ChevronDown,
+  ChevronRight,
+  Link2,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Container } from '@/components/common/container';
+import {
+  assignBrandsToCategories,
+  deleteRawMaterialCategoryBrandById,
+  getAllActiveRawMaterialBrand,
+  getAllRawMaterialCategory,
+  getAllRawMaterialCategoryBrands,
+} from '../../../services/apiServices';
+import { getUserIdFromToken } from '../../../utils/auth';
 
-const MultiSelectDropdown = ({ label, placeholder, options, selected, onChange, loading }) => {
-    const [open, setOpen] = useState(false);
-    const [query, setQuery] = useState('');
-    const wrapperRef = useRef(null);
+// ---- Multi-select combobox: type directly in the field, no need to open first ----
+const MultiSelectDropdown = ({
+  label,
+  placeholder,
+  options,
+  selected,
+  onChange,
+  loading,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapperRef = useRef(null);
+  const inputRef = useRef(null);
 
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-                setOpen(false);
-                setQuery('');
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const filteredOptions = useMemo(() => {
-        const term = query.trim().toLowerCase();
-        if (!term) return options;
-        return options.filter((o) => (o.name ?? '').toLowerCase().includes(term));
-    }, [options, query]);
-
-    const isSelected = (id) => selected.some((s) => s.id === id);
-
-    const toggleOption = (option) => {
-        if (isSelected(option.id)) {
-            onChange(selected.filter((s) => s.id !== option.id));
-        } else {
-            onChange([...selected, option]);
-        }
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery('');
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -412,47 +422,42 @@ const RowCategoryBrandMapping = () => {
         !brandFilter ||
         (m.brands || []).some((b) => String(b.id) === String(brandFilter));
 
-    const columns = [
-        {
-            id: "sno",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="SR. NO" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
-            ),
-            cell: ({ row }) => pagination.pageIndex * pagination.pageSize + row.index + 1,
-            enableSorting: false,
-            size: 80,
-        },
-        {
-            id: "category",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="RAW MATERIAL CATEGORY" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
-            ),
-            cell: ({ row }) => (
-                <span className="font-medium text-[#1B1B1F] capitalize py-4">{row.original.category?.name}</span>
-            ),
-        },
-        {
-            id: "brand",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="RAW MATERIAL BRAND" column={column} className="text-[#43474F] font-semibold uppercase text-sm" />
-            ),
-            cell: ({ row }) => (
-                <span className="text-[#43474F] capitalize">
-                    {(row.original.brands || []).map((b) => b.name).join(', ')}
-                </span>
-            ),
-        },
-        {
-            id: "actions",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-semibold uppercase text-sm py-4" />
-            ),
-            cell: ({ row }) => (
-                <Trash2
-                    size={18}
-                    className="text-red-300 cursor-pointer hover:text-red-700"
-                    onClick={() => openDeleteConfirm(row.original)}
-                />
+      return matchesSearch && matchesCategory && matchesBrand;
+    });
+  }, [mappings, searchText, categoryFilter, brandFilter]);
+
+  useEffect(() => {
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [searchText, categoryFilter, brandFilter]);
+
+  const handleConfigure = async () => {
+    if (!selectedCategory || selectedBrands.length === 0) return;
+
+    setConfiguring(true);
+    try {
+      await assignBrandsToCategories({
+        categoryIds: [selectedCategory.id],
+        brandIds: selectedBrands.map((b) => b.id),
+        userId: getUserIdFromToken(),
+      });
+      setSelectedCategory(null);
+      setSelectedBrands([]);
+      await loadMappings();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setConfiguring(false);
+    }
+  };
+
+  // Opens the confirm modal for removing a single brand from a category.
+  const openDeleteConfirm = (category, brand) => {
+    setDeleteTarget({
+      mappingIds: [brand.mappingId],
+      name: `${category?.name} - ${brand.name}`,
+    });
+    setShowDeleteConfirm(true);
+  };
 
   const openRowDeleteConfirm = (row) => {
     setDeleteTarget({
@@ -590,139 +595,14 @@ const RowCategoryBrandMapping = () => {
           </span>
         </div>
 
-    return (
-        <Container>
-            <div className='p-4 md:p-6'>
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Masters</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Raw Material Category Brand Mapping</span>
-                </div>
-
-                <div>
-                    <h1 className="text-2xl font-bold text-[#0F172A] text-start">Raw Material Category Brand Mapping</h1>
-                    <p className="text-sm text-gray-400 mt-1 max-w-xl">
-                        Map raw material categories with their respective brands.
-                    </p>
-                </div>
-
-                {/* Configure card */}
-                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
-                        <MultiSelectDropdown
-                            label="Raw Material Category"
-                            placeholder="Select Categories..."
-                            options={categories}
-                            selected={selectedCategories}
-                            onChange={setSelectedCategories}
-                            loading={optionsLoading}
-                        />
-
-                        <MultiSelectDropdown
-                            label="Raw Material Brand"
-                            placeholder="Select Brands..."
-                            options={brands}
-                            selected={selectedBrands}
-                            onChange={setSelectedBrands}
-                            loading={false}
-                        />
-
-                        <button
-                            type="button"
-                            onClick={handleConfigure}
-                            disabled={configuring || selectedCategories.length === 0 || selectedBrands.length === 0}
-                            className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                        >
-                            <Link2 size={16} />
-                            {configuring ? 'Configuring...' : 'Configure'}
-                        </button>
-                    </div>
-                </div>
-
-                {/* Search + filters card */}
-                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="relative border border-[#C3C6D1] rounded-lg">
-                            <Search
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                                size={18}
-                            />
-                            <input
-                                placeholder="Search mappings..."
-                                className="w-full pl-10 py-2 outline-none rounded-lg"
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                            />
-                        </div>
-
-                        <Select
-                            value={categoryFilter || "all"}
-                            onValueChange={(value) =>
-                                setCategoryFilter(value === "all" ? "" : value)
-                            }
-                        >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
-                                <SelectValue placeholder="Filter by Raw Material Category" />
-                            </SelectTrigger>
-
-                            <SelectContent>
-                                <SelectItem value="all">
-                                    Filter by Raw Material Category
-                                </SelectItem>
-
-                                {categories.map((c) => (
-                                    <SelectItem key={c.id} value={String(c.id)}>
-                                        {c.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-
-                        <Select
-                            value={brandFilter || "all"}
-                            onValueChange={(value) =>
-                                setBrandFilter(value === "all" ? "" : value)
-                            }
-                        >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
-                                <SelectValue placeholder="Filter by Raw Material Brand" />
-                            </SelectTrigger>
-
-                            <SelectContent>
-                                <SelectItem value="all">
-                                    Filter by Raw Material Brand
-                                </SelectItem>
-
-                                {brands.map((b) => (
-                                    <SelectItem key={b.id} value={String(b.id)}>
-                                        {b.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-
-                {/* Table */}
-                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                    <DataGrid table={table} recordCount={filteredMappings.length} className="rounded-2xl">
-                        <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
-                            </CardTable>
-                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                                <DataGridPagination />
-                            </CardFooter>
-                        </Card>
-                    </DataGrid>
-                </div>
-            </div>
+        <div>
+          <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+            Raw Material Category Brand Mapping
+          </h1>
+          <p className="text-sm text-gray-400 mt-1 max-w-xl">
+            Map raw material categories with their respective brands.
+          </p>
+        </div>
 
         {/* Configure card */}
         <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
