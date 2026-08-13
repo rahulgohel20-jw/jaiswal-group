@@ -13,6 +13,13 @@ import StatusConfirmModal from "@/utils/StatusConfirmModal";
 import { updateRawMaterialItemStatusById } from "@/services/apiServices";
 import { deleteRawMaterialItemById, getAllRawMaterialCategory, getAllRawMaterialItems, getRawMaterialById } from '../../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 const RowMaterialItemMaster = () => {
     const [itemData, setItemData] = useState([]);
@@ -215,7 +222,7 @@ const RowMaterialItemMaster = () => {
                 <DataGridColumnHeader
                     title="S.NO"
                     column={column}
-                    className="text-[#43474F] font-semibold py-6 text-xs"
+                    className="text-[#43474F] font-semibold py-4 text-sm"
                 />
             ),
             cell: ({ row }) => (
@@ -233,7 +240,7 @@ const RowMaterialItemMaster = () => {
                 <DataGridColumnHeader
                     title="IMAGE"
                     column={column}
-                    className="text-[#43474F] font-semibold py-4 text-xs"
+                    className="text-[#43474F] font-semibold py-4 text-sm"
                 />
             ),
             cell: ({ row }) => (
@@ -256,7 +263,7 @@ const RowMaterialItemMaster = () => {
                 <DataGridColumnHeader
                     title="RAW MATERIAL NAME"
                     column={column}
-                    className="text-[#43474F] font-semibold py-4 text-xs"
+                    className="text-[#43474F] font-semibold py-4 text-sm"
                 />
             ),
             cell: ({ row }) => (
@@ -264,6 +271,7 @@ const RowMaterialItemMaster = () => {
                     {row.original.name}
                 </div>
             ),
+            size:180
         },
 
         {
@@ -272,10 +280,10 @@ const RowMaterialItemMaster = () => {
                 <DataGridColumnHeader
                     title="ROW MATERIAL CATEGORY"
                     column={column}
-                    className="text-[#43474F] font-semibold py-4 text-xs"
+                    className="text-[#43474F] font-semibold py-4 text-sm"
                 />
             ),
-            size: 190,
+            size: 220,
         },
 
         {
@@ -284,7 +292,7 @@ const RowMaterialItemMaster = () => {
                 <DataGridColumnHeader
                     title="UNIT"
                     column={column}
-                    className="text-[#43474F] font-semibold py-4 text-xs"
+                    className="text-[#43474F] font-semibold py-4 text-sm"
                 />
             ),
             size: 110,
@@ -296,10 +304,10 @@ const RowMaterialItemMaster = () => {
                 <DataGridColumnHeader
                     title="RATE"
                     column={column}
-                    className="text-[#43474F] font-semibold py-4 text-xs"
+                    className="text-[#43474F] font-semibold py-4 text-sm"
                 />
             ),
-            size: 110,
+            size: 90,
         },
 
         {
@@ -308,7 +316,7 @@ const RowMaterialItemMaster = () => {
                 <DataGridColumnHeader
                     title="STATUS"
                     column={column}
-                    className="text-[#43474F] font-semibold py-4 text-xs"
+                    className="text-[#43474F] font-semibold py-4 text-sm"
                 />
             ),
             cell: ({ row }) => (
@@ -342,6 +350,7 @@ const RowMaterialItemMaster = () => {
 
                 </label>
             ),
+            size:100
         },
 
         {
@@ -350,7 +359,7 @@ const RowMaterialItemMaster = () => {
                 <DataGridColumnHeader
                     title="ACTIONS"
                     column={column}
-                    className="text-[#43474F] font-semibold py-4 text-xs"
+                    className="text-[#43474F] font-semibold py-4 text-sm"
                 />
             ),
 
@@ -528,33 +537,56 @@ const RowMaterialItemMaster = () => {
                         </div>
 
                         {/* Status */}
-                        <p className='border rounded-lg px-3 py-2'>
-                            <select className="outline-none w-full"
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}>
-                                <option>All Status</option>
-                                <option>Active</option>
-                                <option>Inactive</option>
-                            </select>
-                        </p>
+                        <Select
+                            value={statusFilter}
+                            onValueChange={(value) => setStatusFilter(value)}
+                        >
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="All Status">
+                                    All Status
+                                </SelectItem>
+
+                                <SelectItem value="Active">
+                                    Active
+                                </SelectItem>
+
+                                <SelectItem value="Inactive">
+                                    Inactive
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
 
 
                         {/* Category Type */}
-                        <p className='border rounded-lg px-3 py-2'>
-                            <select
-                                className="outline-none w-full"
-                                value={typeFilter}
-                                onChange={(e) => setTypeFilter(e.target.value)}
-                            >
-                                <option value="">All Categories</option>
+                        <Select
+                            value={typeFilter || "all"}
+                            onValueChange={(value) => {
+                                setTypeFilter(value === "all" ? "" : value);
+                            }}
+                        >
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                                <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="all">
+                                    All Categories
+                                </SelectItem>
 
                                 {categoryList.map((category) => (
-                                    <option key={category.id} value={category.id}>
+                                    <SelectItem
+                                        key={category.id}
+                                        value={String(category.id)}
+                                    >
                                         {category.nameEnglish}
-                                    </option>
+                                    </SelectItem>
                                 ))}
-                            </select>
-                        </p>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 

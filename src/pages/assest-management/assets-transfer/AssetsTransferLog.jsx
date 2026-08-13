@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { Link } from 'react-router';
 import { fi } from '@faker-js/faker';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 
 
@@ -112,6 +113,9 @@ const AssetsTransferLog = () => {
     const [transferData, setTransferData] = useState(TRANSFER_DATA);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
+     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
 
     const filteredTransferData = useMemo(() => {
         return TRANSFER_DATA.filter((item) => {
@@ -139,6 +143,31 @@ const AssetsTransferLog = () => {
         });
 
     }, [search, dateRange]);
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
+    };
+
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };    
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
+        try {
+            
+            closeDeleteConfirm();
+         
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeleteSaving(false);
+        }
+    };
+
     const columns = [
         {
             id: "select",
@@ -147,7 +176,7 @@ const AssetsTransferLog = () => {
                     type="checkbox"
                     checked={table.getIsAllPageRowsSelected()}
                     onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className='my-6'
+                    className='my-5'
                 />
             ),
             cell: ({ row }) => (
@@ -242,7 +271,7 @@ const AssetsTransferLog = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="ACTIONS" column={column} />
             ),
-            cell: () => (
+            cell: ({row}) => (
                 <div className="flex gap-2">
                     <button  className="text-gray-500 hover:text-green-600 cursor-pointer" >
                         <Eye size={18}/>
@@ -252,7 +281,7 @@ const AssetsTransferLog = () => {
                         <SquarePen size={18}/>
                     </button>
 
-                    <button  className="text-red-300 hover:text-red-600 cursor-pointer">
+                    <button onClick={() => openDeleteConfirm(row.original)} className="text-red-300 hover:text-red-600 cursor-pointer">
                         <Trash2 size={18} />
                     </button>
                 </div>
@@ -407,6 +436,13 @@ const AssetsTransferLog = () => {
                 </DataGrid>
             </div>
         </div>
+        <DeleteConfirmModal
+                        isOpen={showDeleteConfirm}
+                        onClose={closeDeleteConfirm}
+                        onConfirm={confirmDelete}
+                        itemLabel={deleteTarget?.itemLabel}
+                        saving={deleteSaving}
+                    />
        </Container>
     )
 }

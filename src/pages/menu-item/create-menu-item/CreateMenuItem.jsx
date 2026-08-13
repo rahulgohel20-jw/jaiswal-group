@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ChevronDown, FileText, Image, Layers, Menu, Plus, UploadCloud } from "lucide-react";
+import { ChevronDown, FileText, Image, Layers, Menu, Plus, UploadCloud, Search } from "lucide-react";
 import CreateSubCategory from "../menu-subcategory/CreateSubCategory";
 import CreateMenuCategory from "../menu-category/CreateMenuCategory";
 import { Link, useNavigate, useParams } from "react-router";
@@ -7,6 +7,8 @@ import { addMenuItem, getAllMenuCategory, getAllMenuSubCategoryById, getMenuItem
 import { notify } from "@/utils/toast";
 import { getUserIdFromToken } from "../../../utils/auth";
 import { Container } from "@/components/common/container";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 const inputCls =
     'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -89,6 +91,12 @@ const CreateMenuItem = () => {
     const [imageFile, setImageFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(null);
     const [loading, setLoading] = useState(false);
+
+    const [categorySearch, setCategorySearch] = useState("");
+    const [subCategorySearch, setSubCategorySearch] = useState("");
+
+    const [categoryOpen, setCategoryOpen] = useState(false);
+    const [subCategoryOpen, setSubCategoryOpen] = useState(false);
     const { id } = useParams();
     const isEdit = !!id;
 
@@ -190,22 +198,27 @@ const CreateMenuItem = () => {
     }, [isEdit, fetchMenuItemById]);
 
 
-    useEffect(() => {
-        const fetchCategories = async () => {
-            try {
-                const res = await getAllMenuCategory();
-                const data =
-                    res.data.data['Menu Category Details'] ||
-                    [];
-                setCategories(Array.isArray(data) ? data : []);
-            } catch (err) {
-                console.error("Failed to load categories", err);
-                notify.error("Failed to load categories")
-            }
-        };
+    const fetchCategories = useCallback(async () => {
+    try {
+        const res = await getAllMenuCategory();
 
-        fetchCategories();
-    }, []);
+        const data =
+            res?.data?.data?.["Menu Category Details"] || [];
+
+        setCategories(
+            Array.isArray(data)
+                ? data.filter((item) => item.isActive === true)
+                : []
+        );
+    } catch (err) {
+        console.error("Failed to load categories", err);
+        notify.error("Failed to load categories");
+    }
+}, []);
+
+useEffect(() => {
+    fetchCategories();
+}, [fetchCategories]);
 
     const fetchSubCategories = useCallback(async () => {
         try {
@@ -218,13 +231,12 @@ const CreateMenuItem = () => {
                 : Array.isArray(payload?.["Menu Sub Category Details"])
                     ? payload["Menu Sub Category Details"]
                     : [];
-
             const list = rawList.map(item => ({
                 id: item.id,
                 name: item.nameEnglish ?? item.name ?? "",
                 menuCategoryId: item.menuCategory?.id,
+                isActive: item.isActive,
             }));
-
             setSubCategories(list);
         } catch (err) {
             console.error(err);
@@ -234,12 +246,48 @@ const CreateMenuItem = () => {
 
     const filteredSubCategories = selectedCategory
         ? subCategories.filter(
-            (item) => String(item.menuCategoryId) === String(selectedCategory)
+            (item) => String(item.menuCategoryId) === String(selectedCategory)&&
+            item.isActive === true
         )
         : [];
     useEffect(() => {
         fetchSubCategories();
     }, [fetchSubCategories]);
+
+    const selectedCategoryName =
+        categories.find(
+            (category) => String(category.id) === String(selectedCategory)
+        )?.nameEnglish || "";
+
+    const selectedSubCategoryName =
+        filteredSubCategories.find(
+            (sub) => String(sub.id) === String(selectedSubCategory)
+        )?.name || "";
+
+    useEffect(() => {
+        if (!selectedCategory || categories.length === 0) return;
+
+        const category = categories.find(
+            (item) => String(item.id) === String(selectedCategory)
+        );
+
+        if (category) {
+            setCategorySearch(category.nameEnglish || "");
+        }
+    }, [selectedCategory, categories]);
+
+
+    useEffect(() => {
+        if (!selectedSubCategory || filteredSubCategories.length === 0) return;
+
+        const subCategory = filteredSubCategories.find(
+            (item) => String(item.id) === String(selectedSubCategory)
+        );
+
+        if (subCategory) {
+            setSubCategorySearch(subCategory.name || "");
+        }
+    }, [selectedSubCategory, filteredSubCategories]);
 
     const handleSave = async () => {
         try {
@@ -254,6 +302,14 @@ const CreateMenuItem = () => {
             if (!form.instructionEnglish) {
                 notify.error("Instruction required")
                 return;
+            }
+            if(Number(form.price) <= 0){
+                notify.error("Price Must be Positive");
+                return
+            }
+            if(Number(form.sequence) <= 0){
+                notify.error("Sequence Must be Positive");
+                return
             }
             const formData = new FormData();
 
@@ -357,6 +413,7 @@ const CreateMenuItem = () => {
                                     value={form.price}
                                     onChange={handleChange}
                                     type="number"
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     placeholder="Enter Price"
                                     className={inputCls}
                                 />
@@ -369,6 +426,7 @@ const CreateMenuItem = () => {
                                     value={form.sequence}
                                     onChange={handleChange}
                                     type="number"
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     placeholder="Enter Sequence"
                                     className={inputCls}
                                 />
@@ -396,29 +454,87 @@ const CreateMenuItem = () => {
                                 </Label>
                                 <div className="flex gap-2">
 
-                                    <div className="flex-1 border rounded-lg px-4 py-2">
-                                        <select
-                                            value={selectedCategory}
-                                            onChange={(e) => {
-                                                setSelectedCategory(e.target.value);
-                                                setSelectedSubCategory("");
-                                            }}
-                                            className="w-full outline-none"
-                                        >
-                                            <option>
-                                                Select Category
-                                            </option>
-                                            {categories.map(category => (
-                                                <option
-                                                    key={category.id}
-                                                    value={category.id}
-                                                >
-                                                    {category.nameEnglish}
-                                                </option>
-                                            ))}
+                                        <div className="flex-1">
+                                            <Popover
+                                                open={categoryOpen}
+                                                onOpenChange={setCategoryOpen}
+                                                modal={false}
+                                            >
+                                                <PopoverTrigger asChild>
+                                                    <div className="relative w-full">
+                                                        <Input
+                                                            type="text"
+                                                            value={categorySearch}
+                                                            placeholder="Select Category"
+                                                            onClick={() => setCategoryOpen(true)}
+                                                            onChange={(e) => {
+                                                                setCategorySearch(e.target.value);
+                                                                setCategoryOpen(true);
 
-                                        </select>
-                                    </div>
+                                                                setSelectedCategory("");
+                                                                setSelectedSubCategory("");
+                                                                setSubCategorySearch("");
+                                                            }}
+                                                            className={`${inputCls} h-10.5 pr-10`}
+                                                        />
+
+                                                        <ChevronDown
+                                                            size={16}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                                                        />
+                                                    </div>
+                                                </PopoverTrigger>
+
+                                                <PopoverContent
+                                                    side="bottom"
+                                                    align="start"
+                                                    sideOffset={4}
+                                                    onOpenAutoFocus={(e) => e.preventDefault()}
+                                                    className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
+                                                >
+                                                    <div className="max-h-52 overflow-y-auto">
+                                                        {categories
+                                                            .filter((category) =>
+                                                                category.nameEnglish
+                                                                    ?.toLowerCase()
+                                                                    .includes(categorySearch.trim().toLowerCase())
+                                                            )
+                                                            .map((category) => (
+                                                                <button
+                                                                    key={category.id}
+                                                                    type="button"
+                                                                    onMouseDown={(e) => e.preventDefault()}
+                                                                    onClick={() => {
+                                                                        setSelectedCategory(String(category.id));
+                                                                        setCategorySearch(category.nameEnglish || "");
+
+                                                                        setSelectedSubCategory("");
+                                                                        setSubCategorySearch("");
+
+                                                                        setCategoryOpen(false);
+                                                                    }}
+                                                                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${String(selectedCategory) === String(category.id)
+                                                                            ? "bg-blue-50 text-primary font-medium"
+                                                                            : "text-gray-700"
+                                                                        }`}
+                                                                >
+                                                                    {category.nameEnglish}
+                                                                </button>
+                                                            ))}
+
+                                                        {categories.filter((category) =>
+                                                            category.nameEnglish
+                                                                ?.toLowerCase()
+                                                                .includes(categorySearch.trim().toLowerCase())
+                                                        ).length === 0 && (
+                                                                <div className="px-3 py-3 text-sm text-gray-500">
+                                                                    No category found
+                                                                </div>
+                                                            )}
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
                                     <button
                                         onClick={() => setOpenCategory(true)}
                                         className="w-10 h-10 bg-[#084E92] rounded-lg text-white flex items-center justify-center"
@@ -433,25 +549,96 @@ const CreateMenuItem = () => {
                                     Sub Category
                                 </Label>
                                 <div className="flex gap-2">
-                                    <div className="flex-1 border rounded-lg px-4 py-2">
-                                        <select
-                                            value={selectedSubCategory}
-                                            onChange={(e) => setSelectedSubCategory(e.target.value)}
-                                            className="w-full outline-none"
-                                        >
-                                            <option>
-                                                Select Sub Category
-                                            </option>
-                                            {filteredSubCategories.map(sub => (
-                                                <option
-                                                    key={sub.id}
-                                                    value={sub.id}
+                                        <div className="flex-1">
+                                            <Popover
+                                                open={subCategoryOpen}
+                                                onOpenChange={setSubCategoryOpen}
+                                                modal={false}
+                                            >
+                                                <PopoverTrigger asChild>
+                                                    <div className="relative w-full">
+                                                        <Input
+                                                            type="text"
+                                                            value={subCategorySearch}
+                                                            placeholder={
+                                                                selectedCategory
+                                                                    ? "Select Sub Category"
+                                                                    : "First Select Category"
+                                                            }
+                                                            disabled={!selectedCategory}
+                                                            onClick={() => {
+                                                                if (selectedCategory) {
+                                                                    setSubCategoryOpen(true);
+                                                                }
+                                                            }}
+                                                            onChange={(e) => {
+                                                                setSubCategorySearch(e.target.value);
+                                                                setSubCategoryOpen(true);
+                                                                setSelectedSubCategory("");
+                                                            }}
+                                                            className={`${inputCls} h-10.5 pr-10 ${!selectedCategory
+                                                                    ? "bg-gray-50 cursor-not-allowed"
+                                                                    : ""
+                                                                }`}
+                                                        />
+
+                                                        <ChevronDown
+                                                            size={16}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                                                        />
+                                                    </div>
+                                                </PopoverTrigger>
+
+                                                <PopoverContent
+                                                    side="bottom"
+                                                    align="start"
+                                                    sideOffset={4}
+                                                    onOpenAutoFocus={(e) => e.preventDefault()}
+                                                    className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
                                                 >
-                                                    {sub.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                                    <div className="max-h-52 overflow-y-auto">
+                                                        {filteredSubCategories
+                                                            .filter((sub) =>
+                                                                sub.name
+                                                                    ?.toLowerCase()
+                                                                    .includes(
+                                                                        subCategorySearch.trim().toLowerCase()
+                                                                    )
+                                                            )
+                                                            .map((sub) => (
+                                                                <button
+                                                                    key={sub.id}
+                                                                    type="button"
+                                                                    onMouseDown={(e) => e.preventDefault()}
+                                                                    onClick={() => {
+                                                                        setSelectedSubCategory(String(sub.id));
+                                                                        setSubCategorySearch(sub.name || "");
+                                                                        setSubCategoryOpen(false);
+                                                                    }}
+                                                                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${String(selectedSubCategory) === String(sub.id)
+                                                                            ? "bg-blue-50 text-primary font-medium"
+                                                                            : "text-gray-700"
+                                                                        }`}
+                                                                >
+                                                                    {sub.name}
+                                                                </button>
+                                                            ))}
+
+                                                        {filteredSubCategories.filter((sub) =>
+                                                            sub.name
+                                                                ?.toLowerCase()
+                                                                .includes(
+                                                                    subCategorySearch.trim().toLowerCase()
+                                                                )
+                                                        ).length === 0 && (
+                                                                <div className="px-3 py-3 text-sm text-gray-500">
+                                                                    No sub category found
+                                                                </div>
+                                                            )}
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
+                                        </div>
                                     <button
                                         onClick={() => setSubOpenCategory(true)}
                                         className="w-10 h-10 bg-[#084E92] rounded-lg text-white flex items-center justify-center"
@@ -610,13 +797,20 @@ const CreateMenuItem = () => {
 
             <CreateMenuCategory
                 open={openCategory}
+                selectedCategory={selectedCategory}
                 onClose={() => setOpenCategory(false)}
+                onSuccess={async () => {
+                    await fetchCategories();
+                }}
             />
 
 
             <CreateSubCategory
                 open={openSubCategory}
                 onClose={() => setSubOpenCategory(false)}
+                onSuccess={async () => {
+                    await fetchSubCategories();
+                }}
             />
 
 

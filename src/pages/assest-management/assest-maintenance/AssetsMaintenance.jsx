@@ -10,7 +10,14 @@ import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
 import { ChevronRight, CircleCheck, CircleEllipsis, CircleX, ClipboardList, Download, Eye, FileText, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react';
-
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 const STATS = [
     {
@@ -131,6 +138,36 @@ const AssetsMaintenance = () => {
     const [statusFilter, setStatusFilter] = useState("All Records");
     const [serviceDateFilter, setServiceDateFilter] = useState("");
 
+     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+        const [deleteTarget, setDeleteTarget] = useState(null);
+        const [deleteSaving, setDeleteSaving] = useState(false);
+
+        const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
+    };
+
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };    
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
+        try {
+            
+            closeDeleteConfirm();
+         
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeleteSaving(false);
+        }
+    };
+
+
     const columns = [
         {
             id: "select",
@@ -139,7 +176,7 @@ const AssetsMaintenance = () => {
                     type="checkbox"
                     checked={table.getIsAllPageRowsSelected()}
                     onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className='my-8'
+                    className='my-5'
                 />
             ),
             cell: ({ row }) => (
@@ -154,7 +191,9 @@ const AssetsMaintenance = () => {
 
         {
             accessorKey: "assetId",
-            header: "ASSET IDENTITY",
+            header: ({ column }) => (
+                            <DataGridColumnHeader title="ASSET IDENTITY" column={column} className="text-[#43474F] font-semibold" />
+                        ),
             cell: ({ row }) => (
                 <span className="text-[#0B5CAB] font-semibold text-sm">
                     {row.original.assetId}
@@ -164,19 +203,25 @@ const AssetsMaintenance = () => {
         },
         {
             accessorKey: "unit",
-            header: "UNIT/KITCHEN",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="UNIT/KITCHEN" column={column} className="text-[#43474F] font-semibold" />
+            ),
             size: 130,
         },
 
         {
             accessorKey: "date",
-            header: "DATE",
+           header: ({ column }) => (
+                <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-semibold" />
+            ),
             size: 120,
         },
 
         {
             accessorKey: "issue",
-            header: "REPORTED ISSUE",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="REPORTED ISSUE" column={column} className="text-[#43474F] font-semibold" />
+            ),
             cell: ({ row }) => (
                 <span className="text-gray-600">
                     "{row.original.issue}"
@@ -187,13 +232,17 @@ const AssetsMaintenance = () => {
 
         {
             accessorKey: "engineer",
-            header: "ENGINEER",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="ENGINEER" column={column} className="text-[#43474F] font-semibold" />
+            ),
             size: 120,
         },
 
         {
             accessorKey: "cost",
-            header: "SERVICE COST",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="SERVICE COST" column={column} className="text-[#43474F] font-semibold" />
+            ),
             cell: ({ row }) => (
                 <span className="font-semibold text-[#084E92]">
                     {row.original.cost}
@@ -204,7 +253,9 @@ const AssetsMaintenance = () => {
 
         {
             accessorKey: "status",
-            header: "STATUS",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
+            ),
             cell: ({ row }) => (
                 <StatusBadge status={row.original.status} />
             ),
@@ -213,14 +264,18 @@ const AssetsMaintenance = () => {
 
         {
             accessorKey: "nextDue",
-            header: "NEXT DUE",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="NEXT DUE" column={column} className="text-[#43474F] font-semibold" />
+            ),
             size: 120,
         },
 
         {
             id: "actions",
-            header: "ACTIONS",
-            cell: () => (
+            header: ({ column }) => (
+                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({row}) => (
                 <div className="flex gap-2 my-2">
                     <button className="text-gray-500 hover:text-green-600 cursor-pointer" >
                         <Eye size={18}/>
@@ -230,7 +285,7 @@ const AssetsMaintenance = () => {
                         <SquarePen size={18} />
                     </button>
 
-                    <button className="text-red-300 hover:text-red-600 cursor-pointer">
+                    <button onClick={() => openDeleteConfirm(row.original)} className="text-red-300 hover:text-red-600 cursor-pointer">
                         <Trash2 size={18} />
                     </button>
                 </div>
@@ -359,20 +414,34 @@ const AssetsMaintenance = () => {
                         </div>
                     </div>
 
-                    <div className="col-span-1">
-                        <p className='border rounded-lg px-3 py-2 mt-1'>
-                            <select
+                        <div className="col-span-1">
+                            <Select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full outline-none"
+                                onValueChange={(value) => setStatusFilter(value)}
                             >
-                                <option value="All Records">All Records</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Pending">Pending</option>
-                                <option value="In Progress">In Progress</option>
-                            </select>
-                        </p>
-                    </div>
+                                <SelectTrigger className="w-full h-10 mt-1 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                    <SelectValue placeholder="All Records" />
+                                </SelectTrigger>
+
+                                <SelectContent>
+                                    <SelectItem value="All Records">
+                                        All Records
+                                    </SelectItem>
+
+                                    <SelectItem value="Completed">
+                                        Completed
+                                    </SelectItem>
+
+                                    <SelectItem value="Pending">
+                                        Pending
+                                    </SelectItem>
+
+                                    <SelectItem value="In Progress">
+                                        In Progress
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
 
                     <div className="col-span-1">
                         <input
@@ -405,6 +474,13 @@ const AssetsMaintenance = () => {
                 </DataGrid>
             </div>
 
+            <DeleteConfirmModal
+                isOpen={showDeleteConfirm}
+                onClose={closeDeleteConfirm}
+                onConfirm={confirmDelete}
+                itemLabel={deleteTarget?.itemLabel}
+                saving={deleteSaving}
+            />
         </div>
       </Container>
     )

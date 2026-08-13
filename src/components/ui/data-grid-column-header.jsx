@@ -72,7 +72,7 @@ function DataGridColumnHeader({
     return (
       <div
         className={cn(
-          'text-accent-foreground font-normal inline-flex h-full items-center gap-1.5 text-[0.8125rem] leading-[calc(1.125/0.8125)] [&_svg]:size-3.5 [&_svg]:opacity-60',
+          'text-[#43474F] font-semibold text-xs! opacity-100!  inline-flex h-full items-center gap-1.5 text-[0.8125rem] leading-[calc(1.125/0.8125)] [&_svg]:size-3.5 [&_svg]:opacity-80',
           className,
         )}
       >
@@ -87,7 +87,7 @@ function DataGridColumnHeader({
       <Button
         variant="ghost"
         className={cn(
-          'text-secondary-foreground rounded-md font-normal -ms-2 px-2 h-7 hover:bg-secondary data-[state=open]:bg-secondary hover:text-foreground data-[state=open]:text-foreground',
+          'text-[#43474F] opacity-100! text-xs! font-semibold rounded-md -ms-2 px-2 h-7 hover:bg-secondary data-[state=open]:bg-secondary hover:text-foreground data-[state=open]:text-foreground',
           className,
         )}
         disabled={isLoading || recordCount === 0}

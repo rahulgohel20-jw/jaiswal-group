@@ -183,7 +183,7 @@ const MenuCategory = () => {
             type="checkbox"
             checked={table.getIsAllPageRowsSelected()}
             onChange={table.getToggleAllPageRowsSelectedHandler()}
-            className="w-4 h-4 cursor-pointer"
+            className="w-4 h-4 cursor-pointer my-4"
           />
         ),
         cell: ({ row }) => (
@@ -328,14 +328,14 @@ const MenuCategory = () => {
             <button onClick={() => handleEdit(row.original)}>
               <SquarePen
                 size={18}
-                className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                className="text-gray-500 hover:text-blue-800 cursor-pointer"
               />
             </button>
 
             <button onClick={() => openDeleteConfirm(row.original)}>
               <Trash2
                 size={18}
-                className="text-red-500 hover:text-red-700 cursor-pointer"
+                className="text-red-300 hover:text-red-700 cursor-pointer"
               />
             </button>
           </div>

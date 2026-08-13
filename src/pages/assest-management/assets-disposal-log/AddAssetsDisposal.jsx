@@ -12,6 +12,11 @@ import {
 import React, { useState } from "react";
 import { Link } from "react-router";
 import { Container } from "@/components/common/container";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 
 const inputCls =
     "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-[#fffff] placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300";
@@ -19,6 +24,154 @@ const inputCls =
 const selectCls =
     "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-[#fffff] outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer";
 
+const Select = ({
+    value,
+    onChange,
+    options = [],
+    placeholder = "Select...",
+    name,
+}) => {
+    const [open, setOpen] = useState(false);
+    const [search, setSearch] = useState("");
+
+    const selectedOption = options.find(
+        (option) =>
+            String(option.value ?? option) === String(value)
+    );
+
+    const selectedLabel = selectedOption
+        ? String(selectedOption.label ?? selectedOption)
+        : "";
+
+    React.useEffect(() => {
+        if (!open) {
+            setSearch(selectedLabel);
+        }
+    }, [open, selectedLabel]);
+
+    const filteredOptions = options.filter((option) => {
+        const label = String(option.label ?? option);
+
+        return label
+            .toLowerCase()
+            .includes(search.trim().toLowerCase());
+    });
+
+    const handleSelect = (option) => {
+        const optionValue = option.value ?? option;
+        const optionLabel = option.label ?? option;
+
+        onChange({
+            target: {
+                name,
+                value: String(optionValue),
+            },
+        });
+
+        setSearch(String(optionLabel));
+        setOpen(false);
+    };
+
+    const handleInputChange = (e) => {
+        const inputValue = e.target.value;
+
+        setSearch(inputValue);
+        setOpen(true);
+
+        // Search start karte hi old selected value clear
+        if (String(inputValue) !== String(selectedLabel)) {
+            onChange({
+                target: {
+                    name,
+                    value: "",
+                },
+            });
+        }
+    };
+
+    return (
+        <Popover
+            open={open}
+            onOpenChange={(nextOpen) => {
+                setOpen(nextOpen);
+
+                if (nextOpen) {
+                    setSearch(selectedLabel);
+                }
+            }}
+            modal={false}
+        >
+            <PopoverTrigger asChild>
+                <div className="relative w-full">
+                    <input
+                        name={name}
+                        value={search}
+                        placeholder={placeholder}
+                        onClick={() => {
+                            setOpen(true);
+                            setSearch(selectedLabel);
+                        }}
+                        onChange={handleInputChange}
+                        className={`${inputCls} pr-10 cursor-text`}
+                    />
+
+                    <ChevronDown
+                        size={16}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
+                    />
+                </div>
+            </PopoverTrigger>
+
+            <PopoverContent
+                side="bottom"
+                align="start"
+                sideOffset={4}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
+            >
+                <div className="max-h-52 overflow-y-auto">
+                    {filteredOptions.length > 0 ? (
+                        filteredOptions.map((option) => {
+                            const optionValue =
+                                option.value ?? option;
+
+                            const optionLabel =
+                                option.label ?? option;
+
+                            const isSelected =
+                                String(value) ===
+                                String(optionValue);
+
+                            return (
+                                <button
+                                    key={String(optionValue)}
+                                    type="button"
+                                    onMouseDown={(e) =>
+                                        e.preventDefault()
+                                    }
+                                    onClick={() =>
+                                        handleSelect(option)
+                                    }
+                                    className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${
+                                        isSelected
+                                            ? "bg-blue-50 text-primary font-medium"
+                                            : "text-gray-700"
+                                    }`}
+                                >
+                                    {optionLabel}
+                                </button>
+                            );
+                        })
+                    ) : (
+                        <div className="px-3 py-3 text-sm text-gray-500">
+                            No options found
+                        </div>
+                    )}
+                </div>
+            </PopoverContent>
+        </Popover>
+    );
+};
 const AddAssetsDisposal = () => {
     const [form, setForm] = useState({
         assetId: "AST-2024-0089",
@@ -45,26 +198,6 @@ const AddAssetsDisposal = () => {
         </label>
     );
 
-    const Select = ({ value, onChange, options, placeholder }) => (
-        <div className="relative">
-            <select value={value} onChange={onChange} className={selectCls}>
-                <option value="" disabled>
-                    {placeholder}
-                </option>
-
-                {options.map((item) => (
-                    <option key={item} value={item}>
-                        {item}
-                    </option>
-                ))}
-            </select>
-
-            <ChevronDown
-                size={16}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-            />
-        </div>
-    );
 
     return (
        <Container>
@@ -76,7 +209,7 @@ const AddAssetsDisposal = () => {
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
-                <span className="text-[#002246] font-medium">
+                <span className="text-[#0151a8] font-medium">
                     Asset Disposal Registration
                 </span>
             </div>
@@ -85,7 +218,7 @@ const AddAssetsDisposal = () => {
 
             <div className="flex items-start justify-between flex-wrap gap-4">
                 <div>
-                    <h1 className="text-3xl font-semibold text-[#084E92]">
+                    <h1 className="text-2xl font-semibold">
                         Asset Disposal Registration
                     </h1>
 

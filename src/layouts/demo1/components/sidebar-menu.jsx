@@ -19,10 +19,11 @@ import { Badge } from '@/components/ui/badge';
 export function SidebarMenu() {
   const { pathname } = useLocation();
 
-  const menuItems = useMemo(() => {
-    const organizationId = getOrgIdFromToken();
-    return organizationId === 1 ? MENU_SIDEBAR : MENU_SIDEBAR_ADMIN;
-  }, []);
+  
+const menuItems = useMemo(() => {
+  const organizationId = getOrgIdFromToken();
+  return organizationId === 1  ? MENU_SIDEBAR : MENU_SIDEBAR_ADMIN;
+}, []);
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(

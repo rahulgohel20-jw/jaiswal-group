@@ -1,23 +1,29 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import StatusConfirmModal from '@/utils/StatusConfirmModal';
 import { notify } from '@/utils/toast';
 import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import {
   CheckCircle2,
-  ChevronLeft,
   ChevronRight,
-  Clock,
-  Eye,
   Package,
-  Pencil,
   Plus,
-  RotateCcw,
   Search,
-  SlidersHorizontal,
+  SquarePen,
   Trash2,
   XCircle,
 } from 'lucide-react';
 import { Link } from 'react-router';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import {
   deleteMenuItemById,
@@ -25,6 +31,13 @@ import {
   updateMenuItemStatus,
 } from '../../../services/apiServices';
 import { getUserIdFromToken } from '../../../utils/auth';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const StatCard = ({ label, value, icon, tone }) => (
   <div className="bg-white border rounded-xl py-3 px-4">
@@ -43,12 +56,13 @@ const StatCard = ({ label, value, icon, tone }) => (
 const MenuItemsListing = ({ onAddNew }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
-  const [categoryFilter, setCategoryFilter] = useState('Category Type');
-  const [page, setPage] = useState(1);
-  const [size] = useState(10);
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [rowSelection, setRowSelection] = useState({});
   const [loading, setLoading] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [error, setError] = useState(null);
+
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
@@ -61,12 +75,13 @@ const MenuItemsListing = ({ onAddNew }) => {
 
   const fetchMenuItems = useCallback(async () => {
     setLoading(true);
+    setError(null);
 
     try {
       const res = await getAllMenuItem({
         userId,
-        page,
-        size,
+        page: pagination.pageIndex + 1,
+        size: pagination.pageSize,
       });
 
       const payload = res?.data?.data ?? {};
@@ -82,17 +97,18 @@ const MenuItemsListing = ({ onAddNew }) => {
         price: item.price,
         sequence: item.sequence,
         status: item.isActive ? 'Active' : 'Inactive',
+        raw: item,
       }));
 
       setMenuItems(list);
     } catch (err) {
       console.error(err);
       setMenuItems([]);
-      setError(err.msg);
+      setError('Failed to load menu items');
     } finally {
       setLoading(false);
     }
-  }, [userId, page, size]);
+  }, [userId, pagination.pageIndex, pagination.pageSize]);
 
   useEffect(() => {
     fetchMenuItems();
@@ -111,16 +127,20 @@ const MenuItemsListing = ({ onAddNew }) => {
     (item) => item.status === 'Inactive',
   ).length;
 
-  const filtered = menuItems.filter((item) => {
-    const matchesSearch = item.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const matchesStatus =
-      statusFilter === 'All Status' || item.status === statusFilter;
-    const matchesCategory =
-      categoryFilter === 'Category Type' || item.category === categoryFilter;
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
+  const filteredItems = useMemo(() => {
+    return menuItems.filter((item) => {
+      const matchesSearch = item.name
+        ?.toLowerCase()
+        .includes(search.toLowerCase());
+      const matchesStatus =
+        statusFilter === 'All Status' || item.status === statusFilter;
+      const matchesCategory =
+        categoryFilter === 'All' ||
+        item.category === categoryFilter;
+      return matchesSearch && matchesStatus && matchesCategory;
+    });
+  }, [menuItems, search, statusFilter, categoryFilter]);
+
   const openStatusConfirm = (item) => {
     setStatusTarget({
       id: item.id,
@@ -150,12 +170,11 @@ const MenuItemsListing = ({ onAddNew }) => {
         isActive: statusTarget.nextStatus,
       });
 
+      closeStatusConfirm();
       fetchMenuItems();
-
-      setShowStatusConfirm(false);
-      setStatusTarget(null);
     } catch (err) {
       console.error(err);
+      notify.error('Failed to update status');
     } finally {
       setStatusSaving(false);
     }
@@ -183,19 +202,250 @@ const MenuItemsListing = ({ onAddNew }) => {
       fetchMenuItems();
     } catch (err) {
       console.error(err);
+      notify.error('Failed to delete menu item');
     } finally {
       setDeleteSaving(false);
     }
   };
 
+  const columns = useMemo(
+    () => [
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.NO"
+            column={column}
+            className="text-[#43474F] font-semibold py-4 uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2">
+            {String(row.index + 1).padStart(2, '0')}
+          </span>
+        ),
+        enableSorting: false,
+        size: 70,
+      },
+
+      // IMAGE
+      {
+        id: 'image',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Image"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+            {row.original.image ? (
+              <img
+                src={row.original.image}
+                alt={row.original.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Package size={16} className="text-gray-300" />
+            )}
+          </div>
+        ),
+        enableSorting: false,
+        size: 80,
+      },
+
+      // NAME
+      {
+        id: 'name',
+        accessorFn: (row) => row.name,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Item Name"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="font-semibold text-gray-800 capitalize">
+            {row.original.name}
+          </div>
+        ),
+        size: 160,
+      },
+
+      // CATEGORY
+      {
+        id: 'category',
+        accessorFn: (row) => row.category,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Category"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-700 capitalize">
+            {row.original.category}
+          </span>
+        ),
+        size: 130,
+      },
+
+      // SUB CATEGORY
+      {
+        id: 'subCategory',
+        accessorFn: (row) => row.subCategory,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Sub Category"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-700 capitalize">
+            {row.original.subCategory}
+          </span>
+        ),
+        size: 140,
+      },
+
+      // PRICE
+      {
+        id: 'price',
+        accessorFn: (row) => row.price,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Price"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-700">
+            ₹{Number(row.original.price ?? 0).toFixed(2)}
+          </span>
+        ),
+        size: 100,
+      },
+
+      // SEQUENCE
+      {
+        id: 'sequence',
+        accessorFn: (row) => row.sequence,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Seq."
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-700">{row.original.sequence}</span>
+        ),
+        size: 80,
+      },
+
+      // STATUS
+      {
+        id: 'status',
+        accessorFn: (row) => row.status,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Status"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <label className="relative inline-flex cursor-pointer">
+            <input
+              type="checkbox"
+              checked={row.original.status === 'Active'}
+              onChange={() => openStatusConfirm(row.original)}
+              className="sr-only peer"
+            />
+            <div
+              className="
+                w-11 h-6
+                bg-gray-300
+                rounded-full
+                peer
+                peer-checked:bg-[#084E92]
+                after:absolute
+                after:top-0.5
+                after:left-0.5
+                after:h-5
+                after:w-5
+                after:bg-white
+                after:rounded-full
+                after:transition-all
+                peer-checked:after:translate-x-full
+              "
+            />
+          </label>
+        ),
+        size: 110,
+      },
+
+      // ACTIONS
+      {
+        id: 'actions',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Actions"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <Link to={`/menu-item/edit-menu-item/${row.original.id}`}>
+              <SquarePen
+                size={18}
+                className="text-gray-500 hover:text-blue-800 cursor-pointer"
+              />
+            </Link>
+
+            <button onClick={() => openDeleteConfirm(row.original)}>
+              <Trash2
+                size={18}
+                className="text-red-300 hover:text-red-700 cursor-pointer"
+              />
+            </button>
+          </div>
+        ),
+        enableSorting: false,
+        size: 120,
+      },
+    ],
+    [],
+  );
+
+  const table = useReactTable({
+    data: filteredItems,
+    columns,
+    state: { pagination, rowSelection },
+    onPaginationChange: setPagination,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
+
   return (
     <Container>
       <div className="p-4 md:p-6 text-gray-600 min-h-screen">
         {/* Breadcrumb */}
-        <p className="text-xs text-gray-400 mb-1">
-          Dashboard &gt; Master Data &gt;{' '}
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Master Data</span>
+          <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Menu Items</span>
-        </p>
+        </div>
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
@@ -210,7 +460,7 @@ const MenuItemsListing = ({ onAddNew }) => {
           </div>
 
           <Link
-            to="/menu-item/add-menu-items   "
+            to="/menu-item/add-menu-items"
             className="flex items-center gap-2 bg-[#084E92] text-white px-4 py-2.5 rounded-lg font-medium cursor-pointer whitespace-nowrap"
           >
             <Plus size={18} />
@@ -242,7 +492,7 @@ const MenuItemsListing = ({ onAddNew }) => {
 
         {/* Filters */}
         <div className="bg-white border rounded-xl p-3 py-4 grid md:grid-cols-4 grid-cols-1 gap-5 mb-6">
-          <div className="flex-1 flex items-center gap-2 border rounded-lg px-3 py-2 bg-[#F8FAFC] col-span-2">
+          <div className="flex-1 flex items-center gap-2 border rounded-lg px-3 py-2 col-span-2">
             <Search size={16} className="text-gray-400" />
             <input
               value={search}
@@ -252,171 +502,70 @@ const MenuItemsListing = ({ onAddNew }) => {
             />
           </div>
 
-          <p className="border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] ">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="outline-none w-full"
-            >
-              <option>All Status</option>
-              <option>Active</option>
-              <option>Inactive</option>
-            </select>
-          </p>
 
-          <p className="border rounded-lg px-3 py-2 text-sm bg-[#F8FAFC] ">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className="outline-none w-full"
-            >
-              <option>Category Type</option>
+          <Select
+            value={statusFilter}
+            onValueChange={(value) => setStatusFilter(value)}
+          >
+            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+
+            <SelectContent>
+              <SelectItem value="All Status">All Status</SelectItem>
+              <SelectItem value="Active">Active</SelectItem>
+              <SelectItem value="Inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={categoryFilter}
+            onValueChange={setCategoryFilter}
+          >
+            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+
+            <SelectContent>
+              <SelectItem value="All">All Categories</SelectItem>
+
               {categoryOptions.map((category) => (
-                <option key={category} value={category}>
+                <SelectItem
+                  key={category}
+                  value={category}
+                >
                   {category}
-                </option>
+                </SelectItem>
               ))}
-            </select>
-          </p>
+            </SelectContent>
+          </Select>
+
         </div>
 
         {/* Table */}
-        <div className="bg-white border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-gray-400 border-b bg-[#F8FAFC]">
-                  <th className="px-4 py-3 font-medium">S.NO</th>
-                  <th className="px-4 py-3 font-medium">IMAGE</th>
-                  <th className="px-4 py-3 font-medium">ITEM NAME</th>
-                  <th className="px-4 py-3 font-medium">CATEGORY</th>
-                  <th className="px-4 py-3 font-medium">SUB CATEGORY</th>
-                  <th className="px-4 py-3 font-medium">PRICE</th>
-                  <th className="px-4 py-3 font-medium">SEQ.</th>
-                  <th className="px-4 py-3 font-medium">STATUS</th>
-                  <th className="px-4 py-3 font-medium">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {error && (
-                  <tr>
-                    <td colSpan={9} className="text-red-700">
-                      Failed to load Menu Items
-                    </td>
-                  </tr>
-                )}
-                {loading ? (
-                  <tr>
-                    <td colSpan={9} className="py-8 text-center">
-                      Loading...
-                    </td>
-                  </tr>
-                ) : filtered.length > 0 ? (
-                  filtered.map((item, idx) => (
-                    <tr
-                      key={item.id}
-                      className="border-b last:border-0 hover:bg-gray-50"
-                    >
-                      <td className="px-4 py-3">
-                        {String(idx + 1).padStart(2, '0')}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
-                          {item.image ? (
-                            <img
-                              src={item.image}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Package size={16} className="text-gray-300" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-black capitalize ">
-                        {item.name}
-                      </td>
-                      <td className="px-4 py-3 capitalize">{item.category}</td>
-                      <td className="px-4 py-3 capitalize">
-                        {item.subCategory}
-                      </td>
-                      <td className="px-4 py-3">{item.price.toFixed(2)}</td>
-                      <td className="px-4 py-3">{item.sequence}</td>
-                      <td className="px-4 py-3">
-                        <label className="relative inline-flex cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={item.status === 'Active'}
-                            onChange={() => openStatusConfirm(item)}
-                            className="sr-only peer"
-                          />
+        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+          {loading && (
+            <p className="p-4 text-sm text-gray-500">Loading menu items...</p>
+          )}
+          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
 
-                          <div className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full" />
-                        </label>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3 text-gray-400">
-                          <Link to={`/menu-item/edit-menu-item/${item.id}`}>
-                            <Pencil
-                              size={16}
-                              className="text-[#084E92] cursor-pointer"
-                            />
-                          </Link>
-                          <button
-                            onClick={() => openDeleteConfirm(item)}
-                            className="text-red-500 cursor-pointer"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={9} className="py-8 text-center text-gray-400">
-                      No menu items found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Footer / Pagination */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 px-4 py-3 border-t text-sm">
-            <p className="text-gray-400">
-              Showing {filtered.length} of {totalItems} entries
-            </p>
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border cursor-pointer"
-              >
-                <ChevronLeft size={14} />
-              </button>
-              {[1, 2, 3].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={`w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer ${
-                    page === n
-                      ? 'bg-[#084E92] text-white'
-                      : 'border text-gray-500'
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
-              <button
-                onClick={() => setPage((p) => Math.min(3, p + 1))}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border cursor-pointer"
-              >
-                <ChevronRight size={14} />
-              </button>
-            </div>
-          </div>
+          <DataGrid
+            table={table}
+            recordCount={filteredItems.length}
+            className="rounded-2xl"
+          >
+            <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <CardTable>
+                <ScrollArea>
+                  <DataGridTable />
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </CardTable>
+              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                <DataGridPagination />
+              </CardFooter>
+            </Card>
+          </DataGrid>
         </div>
 
         <StatusConfirmModal

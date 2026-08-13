@@ -43,6 +43,7 @@ import {
   LayoutGrid,
   LifeBuoy,
   ListChecks,
+  MapPinned,
   MessageSquare,
   Monitor,
   Network,
@@ -70,6 +71,7 @@ import {
   UserCog,
   UserPlus,
   Users,
+  Workflow,
   Briefcase as WorkIcon,
   Zap,
 } from 'lucide-react';
@@ -450,6 +452,11 @@ export const MENU_SIDEBAR = [
     path: '/vendors',
   },
   {
+    title: 'Vendor Unit Mapping',
+    icon: Workflow,
+    path: '/vendor-unit-mapping',
+  },
+  {
     title: 'Department',
     icon: Group,
     children: [
@@ -527,6 +534,7 @@ export const MENU_SIDEBAR = [
       { title: 'Asset Maintenance', path: '/assets/asset-maintenance' },
       { title: 'Asset Transfer', path: '/assets/asset-transfer-log' },
       { title: 'Asset Disposal', path: '/assets/asset-disposal' },
+      { title: 'Export Assets QR', path: '/assets/export-assets-qr' },
     ],
   },
   {
@@ -535,6 +543,14 @@ export const MENU_SIDEBAR = [
     children: [
       { title: 'Pages', path: '/pages' },
       { title: 'Module Rights', path: '/module-rights' },
+    ],
+  },
+  {
+    title: 'Location Master',
+    icon: MapPinned,
+    children: [
+      { title: 'State', path: '/location/state' },
+      { title: 'City', path: '/location/city' },
     ],
   },
 ];

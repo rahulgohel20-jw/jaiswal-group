@@ -1,38 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
-import StatusConfirmModal from '@/utils/StatusConfirmModal';
-import { notify } from '@/utils/toast';
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
-import {
-  AlertTriangle,
-  ChevronRight,
-  CircleCheck,
-  CircleX,
-  Plus,
-  Ruler,
-  Search,
-  SquarePen,
-  Trash2,
-  Upload,
-} from 'lucide-react';
-import { Card, CardFooter, CardTable } from '@/components/ui/card';
-import { DataGrid } from '@/components/ui/data-grid';
-import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
-import { DataGridPagination } from '@/components/ui/data-grid-pagination';
-import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Container } from '@/components/common/container';
-import {
-  deleteUnitMasterById,
-  getAllRawMaterialUnits,
-  getRawMaterialUnitById,
-  updateUnitStatusById,
-} from '../../../services/apiServices';
-import AddRawMaterialUnit from './AddRawMaterialUnit';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
 
 const RowMaterialUnit = () => {
   const [units, setUnit] = useState([]);
@@ -75,8 +50,7 @@ const RowMaterialUnit = () => {
       setLoading(true);
       setError(null);
       const res = await getAllRawMaterialUnits();
-
-      const data = (res?.data?.data?.['Unit Details'] || []).map((item) => ({
+      const data = (res?.data?.data?.["Unit Details"] || []).map((item) => ({
         ...item,
         name: item.nameEnglish,
         symbol: item.symbolEnglish,
@@ -84,6 +58,7 @@ const RowMaterialUnit = () => {
       }));
 
       setUnit(data);
+      setError(null)
     } catch (err) {
       console.error(err);
       setError('Failed to load units');
@@ -158,7 +133,7 @@ const RowMaterialUnit = () => {
       setShowDeleteConfirm(false);
       setDeleteTarget(null);
 
-      fetchUnits();
+      await fetchUnits();
     } catch (err) {
       console.error(err);
     } finally {
@@ -259,7 +234,7 @@ const RowMaterialUnit = () => {
         <DataGridColumnHeader
           title="S.No"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold py-4 uppercase text-sm"
         />
       ),
       cell: ({ row }) => row.index + 1,
@@ -272,7 +247,7 @@ const RowMaterialUnit = () => {
         <DataGridColumnHeader
           title="Name"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
       cell: ({ row }) => (
@@ -287,7 +262,7 @@ const RowMaterialUnit = () => {
         <DataGridColumnHeader
           title="Symbol"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
       cell: ({ row }) => (
@@ -305,7 +280,7 @@ const RowMaterialUnit = () => {
         <DataGridColumnHeader
           title="Status"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
 
@@ -313,8 +288,8 @@ const RowMaterialUnit = () => {
         <label className="relative inline-flex cursor-pointer">
           <input
             type="checkbox"
-            checked={row.original.status === 'Active'}
-            className="sr-only peer"
+            checked={row.original.status === "Active"}
+            className="sr-only peer uppercase text-sm"
             onChange={() => {
               setStatusTarget({
                 id: row.original.id,
@@ -356,7 +331,7 @@ const RowMaterialUnit = () => {
         <DataGridColumnHeader
           title="Actions"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
       cell: ({ row }) => (
@@ -471,19 +446,29 @@ const RowMaterialUnit = () => {
               />
             </div>
 
-            <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-              <select
-                className="outline-none w-full bg-transparent"
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                }}
-              >
-                <option value="All Status">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </p>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="All Status">
+                  All Status
+                </SelectItem>
+
+                <SelectItem value="Active">
+                  Active
+                </SelectItem>
+
+                <SelectItem value="Inactive">
+                  Inactive
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
           </div>
         </div>
 

@@ -35,6 +35,12 @@ import AddAssetTypeModal from '../assets-type/AddAssetTypeModal';
 import AddAssetBrandModal from '../asset-brand/AddAssetBrandModal';
 import { getAssetById } from '../../../services/apiServices';
 import { notify } from "@/utils/toast";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -132,33 +138,148 @@ const SubHeading = ({ icon: Icon, title }) => (
   </div>
 );
 
-// Options can be plain strings (legacy static lists) or { value, label } objects
-// (dynamic API-backed lists, where value = id and label = display name).
-const Select = ({ value, onChange, options, placeholder, disabled, hasError, name }) => (
-  <div className="relative">
-    <select
-      name={name}
-      value={value}
-      onChange={onChange}
-      className={hasError ? errorSelectCls : selectCls}
-      disabled={disabled}
+const Select = ({
+  value,
+  onChange,
+  options = [],
+  placeholder = "Select...",
+  disabled = false,
+  hasError = false,
+  name,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const selectedOption = options.find(
+    (option) => String(option.value) === String(value)
+  );
+
+  const selectedLabel = selectedOption?.label || "";
+
+  useEffect(() => {
+    if (!open) {
+      setSearch(selectedLabel);
+    }
+  }, [open, selectedLabel]);
+
+  const filteredOptions = options.filter((option) =>
+    String(option.label || "")
+      .toLowerCase()
+      .includes(search.trim().toLowerCase())
+  );
+
+  const handleSelect = (option) => {
+    onChange({
+      target: {
+        name,
+        value: String(option.value),
+      },
+    });
+
+    setSearch(option.label || "");
+    setOpen(false);
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+
+    setSearch(value);
+    setOpen(true);
+
+    // User starts typing/searching -> don't keep old selection
+    if (String(value) !== String(selectedLabel)) {
+      onChange({
+        target: {
+          name,
+          value: "",
+        },
+      });
+    }
+  };
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (disabled) return;
+
+        setOpen(nextOpen);
+
+        if (nextOpen) {
+          setSearch(selectedLabel);
+        }
+      }}
+      modal={false}
     >
-      <option value="" disabled>
-        {placeholder}
-      </option>
-      {options.map((o) => {
-        const val = typeof o === 'object' && o !== null ? o.value : o;
-        const label = typeof o === 'object' && o !== null ? o.label : o;
-        return (
-          <option key={val} value={val}>
-            {label}
-          </option>
-        );
-      })}
-    </select>
-    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-  </div>
-);
+      <PopoverTrigger asChild>
+        <div className="relative w-full">
+          <Input
+            name={name}
+            value={search}
+            disabled={disabled}
+            placeholder={placeholder}
+            onClick={() => {
+              if (!disabled) {
+                setOpen(true);
+                setSearch(selectedLabel);
+              }
+            }}
+            onChange={handleInputChange}
+            className={
+              hasError
+                ? `${errorInputCls} pr-10 h-10.5`
+                : `${inputCls} pr-10 h-10.5`
+            }
+          />
+
+          <ChevronDown
+            size={16}
+            className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${
+              disabled ? "text-gray-300" : "text-gray-400"
+            }`}
+          />
+        </div>
+      </PopoverTrigger>
+
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={4}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
+      >
+        <div className="max-h-52 overflow-y-auto">
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => {
+              const isSelected =
+                String(value) === String(option.value);
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => handleSelect(option)}
+                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${
+                    isSelected
+                      ? "bg-blue-50 text-primary font-medium"
+                      : "text-gray-700"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })
+          ) : (
+            <div className="px-3 py-3 text-sm text-gray-500">
+              No options found
+            </div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const CodeBox = ({ label, icon: Icon, actions, qrUrl }) => (
   <div>
@@ -437,7 +558,13 @@ const AddAsset = () => {
     setCategoriesLoading(true);
     try {
       const res = await getAssetCategories();
-      setCategories(unwrapList(res));
+      const allCategories = unwrapList(res);
+
+    const activeCategories = allCategories.filter(
+      (category) => category.active === true
+    );
+
+    setCategories(activeCategories);
     } catch (err) {
       console.error(err);
     } finally {
@@ -449,7 +576,11 @@ const AddAsset = () => {
     setAssetTypesLoading(true);
     try {
       const res = await getActiveAssetTypes();
-      setAssetTypes(unwrapList(res));
+      const activeAssetTypes = unwrapList(res).filter(
+      (assetType) => assetType.active === true
+      );
+
+     setAssetTypes(activeAssetTypes);
     } catch (err) {
       console.error(err);
     } finally {
@@ -466,7 +597,13 @@ const AddAsset = () => {
       const res = categoryId
         ? await getSubCategoriesByCategory(categoryId)
         : await getActiveSubCategories();
-      setSubCategories(unwrapList(res));
+      const allSubCategories = unwrapList(res);
+
+      const activeSubCategories = allSubCategories.filter(
+        (subCategory) => subCategory.active === true
+      );
+
+    setSubCategories(activeSubCategories);
     } catch (err) {
       console.error(err);
       setSubCategories([]);
@@ -479,7 +616,11 @@ const AddAsset = () => {
     setAssetBrandsLoading(true);
     try {
       const res = await getActiveAssetBrands();
-      setAssetBrand(unwrapList(res));
+      const activeBrands = unwrapList(res).filter(
+      (brand) => brand.active === true
+      );
+
+      setAssetBrand(activeBrands);
     } catch (err) {
       console.error(err);
     } finally {
@@ -492,7 +633,11 @@ const AddAsset = () => {
     setConditionsLoading(true);
     try {
       const res = await getActiveConditions();
-      setConditions(unwrapList(res));
+      const activeConditions = unwrapList(res).filter(
+      (condition) => condition.active === true
+      );
+
+      setConditions(activeConditions);
     } catch (err) {
       console.error(err);
     } finally {
@@ -504,7 +649,11 @@ const AddAsset = () => {
     setStatusesLoading(true);
     try {
       const res = await getActiveStatuses();
-      setStatuses(unwrapList(res));
+      const activeStatuses = unwrapList(res).filter(
+      (status) => status.active === true
+    );
+
+    setStatuses(activeStatuses);
     } catch (err) {
       console.error(err);
     } finally {
@@ -676,21 +825,21 @@ const AddAsset = () => {
     if (!form.itemName.trim()) e.itemName = 'Item name is required';
     if (!form.brand) e.brand = 'Brand is required';
 
-    if (form.purchaseCost && isNaN(Number(form.purchaseCost)))
-      e.purchaseCost = 'Purchase cost must be a number';
-    if (form.currentValue && isNaN(Number(form.currentValue)))
-      e.currentValue = 'Current value must be a number';
-    if (form.depreciation && isNaN(Number(form.depreciation)))
-      e.depreciation = 'Depreciation must be a number';
-    if (form.maintenanceCost && isNaN(Number(form.maintenanceCost)))
-      e.maintenanceCost = 'Maintenance cost must be a number';
+    if (form.purchaseCost && (isNaN(Number(form.purchaseCost)) || Number(form.purchaseCost) <= 0))
+      e.purchaseCost = 'Purchase cost must be Positive';
+    if (form.currentValue && (isNaN(Number(form.currentValue)) || Number(form.currentValue) <= 0))
+      e.currentValue = 'Current value must be Positive';
+    if (form.depreciation && (isNaN(Number(form.depreciation)) || Number(form.depreciation) <= 0))
+      e.depreciation = 'Depreciation must be Positive';
+    if (form.maintenanceCost && (isNaN(Number(form.maintenanceCost)) || Number(form.maintenanceCost) <= 0))
+      e.maintenanceCost = 'Maintenance cost must be Positive';
 
-    if (form.totalQty === '' || isNaN(Number(form.totalQty)))
-      e.totalQty = 'Total quantity must be a number';
-    if (form.availableQty === '' || isNaN(Number(form.availableQty)))
-      e.availableQty = 'Available quantity must be a number';
-    if (form.reservedQty === '' || isNaN(Number(form.reservedQty)))
-      e.reservedQty = 'Reserved quantity must be a number';
+    if (form.totalQty === '' || isNaN(Number(form.totalQty)) || Number(form.totalQty) <= 0)
+      e.totalQty = 'Total quantity must be positive';
+    if (form.availableQty === '' || isNaN(Number(form.availableQty)) || Number(form.availableQty) <= 0)
+      e.availableQty = 'Available quantity must be positive';
+    if (form.reservedQty === '' || isNaN(Number(form.reservedQty)) || Number(form.reservedQty) <= 0)
+      e.reservedQty = 'Reserved quantity must be Positive';
 
     if (amcActive && !form.amcExpiry) e.amcExpiry = 'AMC expiry date is required when AMC is active';
 
@@ -730,10 +879,8 @@ const AddAsset = () => {
 
       if (isEditMode) {
         res = await updateAsset(assetIdParam, fd);
-        notify.success("Asset Updated Successfully")
       } else {
         res = await createAsset(fd);
-        notify.success("Asset Added Successfully")
       }
       if (res?.status === 200 || res?.status === 201) {
         setForm(initialFormState);
@@ -752,10 +899,10 @@ const AddAsset = () => {
     <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
+          <h1 className="text-2xl font-bold">
             {isEditMode ? 'Edit Asset' : 'Asset Registration'}
           </h1>
-          <p className="text-[#43474F] mt-2">
+          <p className="text-[#43474F] mt-2 text-sm">
             Register and manage all organizational assets to maintain complete lifecycle visibility and compliance.
           </p>
         </div>
@@ -991,6 +1138,7 @@ const AddAsset = () => {
                     value={form.purchaseCost}
                     onChange={(e) => set('purchaseCost', e.target.value)}
                     placeholder="55000"
+                    onWheel={(e) => e.currentTarget.blur()}
                     className={errors.purchaseCost ? errorInputCls : inputCls}
                   />
                   <ErrorText message={errors.purchaseCost} />
@@ -1002,6 +1150,7 @@ const AddAsset = () => {
                     value={form.currentValue}
                     onChange={(e) => set('currentValue', e.target.value)}
                     placeholder="48500"
+                    onWheel={(e) => e.currentTarget.blur()}
                     className={errors.currentValue ? errorInputCls : inputCls}
                   />
                   <ErrorText message={errors.currentValue} />
@@ -1011,6 +1160,7 @@ const AddAsset = () => {
                   <input
                     name="depreciation"
                     value={form.depreciation}
+                    onWheel={(e) => e.currentTarget.blur()}
                     onChange={(e) => set('depreciation', e.target.value)}
                     placeholder="10"
                     className={errors.depreciation ? errorInputCls : inputCls}
@@ -1142,6 +1292,7 @@ const AddAsset = () => {
                     value={form.maintenanceCost}
                     onChange={(e) => set('maintenanceCost', e.target.value)}
                     placeholder="2500"
+                    onWheel={(e) => e.currentTarget.blur()}
                     className={errors.maintenanceCost ? errorInputCls : inputCls}
                   />
                   <ErrorText message={errors.maintenanceCost} />
@@ -1189,6 +1340,7 @@ const AddAsset = () => {
                   name="totalQty"
                   value={form.totalQty}
                   onChange={(e) => set('totalQty', e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className={errors.totalQty ? errorInputCls : inputCls}
                 />
                 <ErrorText message={errors.totalQty} />
@@ -1199,6 +1351,7 @@ const AddAsset = () => {
                   name="availableQty"
                   value={form.availableQty}
                   onChange={(e) => set('availableQty', e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className={`${errors.availableQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
                 />
                 <ErrorText message={errors.availableQty} />
@@ -1209,6 +1362,7 @@ const AddAsset = () => {
                   name="reservedQty"
                   value={form.reservedQty}
                   onChange={(e) => set('reservedQty', e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className={`${errors.reservedQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
                 />
                 <ErrorText message={errors.reservedQty} />

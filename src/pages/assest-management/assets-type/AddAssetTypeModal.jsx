@@ -60,10 +60,8 @@ const AddAssetTypeModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
       if (isEditMode) {
         await updateAssetType({ id: initialData.id, ...payload });
-         notify.success("Asset Type Updated Successfully");
       } else {
         await createAssetType({ ...payload, createdBy: 0 });
-         notify.success("Asset Type Created Successfully");
       }
 
       setForm(emptyForm);

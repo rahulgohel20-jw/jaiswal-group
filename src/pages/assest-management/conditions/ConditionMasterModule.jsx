@@ -17,6 +17,14 @@ import {
 } from "@/services/apiServices";
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 
 const STATUS_COLORS = {
@@ -71,6 +79,12 @@ const ConditionMasterModule = () => {
   const [deletingId, setDeletingId] = useState(null);
   const [searchInput, setSearchInput] = useState("");
   const [statusInput, setStatusInput] = useState("All Status");
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
+
 
   const loadConditions = async () => {
     setListLoading(true);
@@ -172,10 +186,8 @@ const ConditionMasterModule = () => {
 
       if (modalMode === "edit") {
         await updateCondition({ id: formData.id, ...payload });
-        notify.success("Condition Updated Successfully");
       } else {
         await createCondition(payload);
-        notify.success("Condition Created Successfully");
       }
 
       await loadConditions();
@@ -191,18 +203,29 @@ const ConditionMasterModule = () => {
   // -------------------------------------------------------------------
   // Delete
   // -------------------------------------------------------------------
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this condition? This cannot be undone.")) return;
 
-    setDeletingId(id);
+  const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, itemLabel: row.name });
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteSaving) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
     try {
-      await deleteCondition(id);
-      notify.success("Condition Deleted Successfully");
+      await deleteCondition(deleteTarget.id);
+      closeDeleteConfirm();
       await loadConditions();
     } catch (err) {
       setListError(err?.message || "Failed to delete condition");
     } finally {
-      setDeletingId(null);
+      setDeleteSaving(false);
     }
   };
 
@@ -306,7 +329,7 @@ const ConditionMasterModule = () => {
             <Trash2
               size={18}
               className="text-red-300 hover:text-red-600 cursor-pointer"
-              onClick={() => handleDelete(row.original.id)}
+              onClick={() => openDeleteConfirm(row.original)}
             />
           )}
         </div>
@@ -421,7 +444,7 @@ const ConditionMasterModule = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             {/* Search  */}
-            <div className="relative border border-[#C3C6D1] rounded-lg col-span-1 md:col-span-2">
+            <div className="relative border border-[#C3C6D1] rounded-lg col-span-1 md:col-span-2 py-0">
               <Search
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -431,23 +454,34 @@ const ConditionMasterModule = () => {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Type to search conditions..."
-                className="w-full pl-10 py-2.5 rounded-lg outline-none"
+                className="w-full pl-10 py-2 rounded-lg outline-none"
               />
             </div>
 
 
             {/* Status */}
-            <div className="border border-[#C3C6D1] rounded-lg px-3 py-2.5">
-              <select
-                value={statusInput}
-                onChange={(e) => setStatusInput(e.target.value)}
-                className="outline-none w-full bg-transparent"
-              >
-                <option value="All Status">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
+               <Select
+                                              value={statusInput}
+                                              onValueChange={(value) => setStatusInput(value)}
+                                          >
+                                              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                                  <SelectValue placeholder="All Status" />
+                                              </SelectTrigger>
+              
+                                              <SelectContent>
+                                                  <SelectItem value="All Status">
+                                                      All Status
+                                                  </SelectItem>
+              
+                                                  <SelectItem value="Active">
+                                                      Active
+                                                  </SelectItem>
+              
+                                                  <SelectItem value="Inactive">
+                                                      Inactive
+                                                  </SelectItem>
+                                              </SelectContent>
+                                          </Select>
           </div>
         </div>
 
@@ -490,6 +524,14 @@ const ConditionMasterModule = () => {
           onChange={setFormData}
           onClose={closeModal}
           onSave={handleSave}
+        />
+
+        <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={closeDeleteConfirm}
+          onConfirm={confirmDelete}
+          itemLabel={deleteTarget?.itemLabel}
+          saving={deleteSaving}
         />
       </div>
     </Container>

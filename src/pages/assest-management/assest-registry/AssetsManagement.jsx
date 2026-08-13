@@ -13,8 +13,14 @@ import AssetPreviewDetail from './AssetPreviewDetail';
 import { getAllAssets, deleteAsset } from '@/services/apiServices';
 import { Container } from "@/components/common/container";
 import { notify } from "@/utils/toast";
-
-
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 // Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
 const unwrapList = (res) => {
@@ -106,8 +112,10 @@ const AssetsManagement = () => {
     const [searchInput, setSearchInput] = useState("");
     const [categoryInput, setCategoryInput] = useState("All Category");
     const [statusInput, setStatusInput] = useState("All Status");
-    const [deleting, setDeleting] = useState(false);
-    const [deletingAsset, setdeletingAsset] = useState(null);
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
 
     const fetchAssets = async () => {
         setAssetsLoading(true);
@@ -123,25 +131,30 @@ const AssetsManagement = () => {
             setAssetsLoading(false);
         }
     };
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
+    };
 
-    const handleDelete = (user) => setdeletingAsset(user);
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };    
 
     const confirmDelete = async () => {
-        if (!deletingAsset) return;
-        setDeleting(true);
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
         try {
-            await deleteAsset(deletingAsset.id);
-            notify.success("Asset Deleted Successfully");
+            await deleteAsset(deleteTarget.id);
+            closeDeleteConfirm();
             fetchAssets();
-
-            setdeletingAsset(null);
         } catch (err) {
             console.error(err);
-            notify.error('Could not delete this Asset. Please try again.')
         } finally {
-            setDeleting(false);
+            setDeleteSaving(false);
         }
-    };
+    }; 
 
     useEffect(() => {
         fetchAssets();
@@ -417,7 +430,7 @@ const AssetsManagement = () => {
                         />
                     </button>
 
-                    <button onClick={() => handleDelete(row.original)}>
+                    <button onClick={() => openDeleteConfirm(row.original)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -522,38 +535,55 @@ const AssetsManagement = () => {
                     </div>
 
                     {/* Right side  */}
-                    <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-2 gap-3">
 
-                        {/* Asset Type */}
-                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
-                                value={categoryInput}
-                                onChange={(e) => setCategoryInput(e.target.value)}
-                                className="w-full bg-transparent outline-none text-sm text-gray-600"
-                            >
-                                {categoryOptions.map((category) => (
-                                    <option key={category} value={category}>
-                                        {category}
-                                    </option>
-                                ))}
-                            </select>
+                            {/* Category */}
+                            <div>
+                                <Select
+                                    value={categoryInput}
+                                    onValueChange={(value) => setCategoryInput(value)}
+                                >
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                        <SelectValue placeholder="All Category" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        {categoryOptions.map((category) => (
+                                            <SelectItem
+                                                key={category}
+                                                value={category}
+                                            >
+                                                {category}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            {/* Status */}
+                            <div>
+                                <Select
+                                    value={statusInput}
+                                    onValueChange={(value) => setStatusInput(value)}
+                                >
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                        <SelectValue placeholder="All Status" />
+                                    </SelectTrigger>
+
+                                    <SelectContent>
+                                        {statusOptions.map((status) => (
+                                            <SelectItem
+                                                key={status}
+                                                value={status}
+                                            >
+                                                {status}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
                         </div>
-
-                        <div className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-                            <select
-                                value={statusInput}
-                                onChange={(e) => setStatusInput(e.target.value)}
-                                className="w-full bg-transparent outline-none text-sm text-gray-600"
-                            >
-                                {statusOptions.map((status) => (
-                                    <option key={status} value={status}>
-                                        {status}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                    </div>
                 </div>
             </div>
             <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
@@ -606,50 +636,13 @@ const AssetsManagement = () => {
                 </>
             )}
 
-            {deletingAsset && (
-                <>
-                    <div
-                        className="fixed inset-0 bg-black/40 z-50"
-                        onClick={() => setdeletingAsset(null)}
-                    />
-
-                    <div className="fixed inset-0 flex items-center justify-center z-50">
-                        <div className="bg-white rounded-xl p-6 w-100 shadow-lg">
-                            <h3 className="text-lg font-semibold mb-2">
-                                Delete Asset
-                            </h3>
-
-                            <p className="text-gray-600 mb-5">
-                                Are you sure you want to delete{" "}
-                                <span className="font-medium">
-                                    {deletingAsset.itemName}
-                                </span>
-                                ?
-                            </p>
-
-                            <div className="flex justify-end gap-3">
-                                <button
-                                    onClick={() => setdeletingAsset(null)}
-                                    className="px-4 py-2 border rounded-lg"
-                                >
-                                    Cancel
-                                </button>
-
-                                <button
-                                    onClick={confirmDelete}
-                                    disabled={deleting}
-                                    className="px-4 py-2 bg-red-600 text-white rounded-lg flex items-center gap-2"
-                                >
-                                    {deleting && (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    )}
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
+            <DeleteConfirmModal
+                isOpen={showDeleteConfirm}
+                onClose={closeDeleteConfirm}
+                onConfirm={confirmDelete}
+                itemLabel={deleteTarget?.itemLabel}
+                saving={deleteSaving}
+            />
         </div>
        </Container>
     )

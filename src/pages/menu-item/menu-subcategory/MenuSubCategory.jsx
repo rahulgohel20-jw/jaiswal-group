@@ -193,7 +193,7 @@ const MenuSubCategory = () => {
           <DataGridColumnHeader
             title="S.NO"
             column={column}
-            className="text-[#43474F] font-semibold py-6 text-xs"
+            className="text-[#43474F] font-semibold py-4 uppercase text-sm"
           />
         ),
         cell: ({ row }) => (
@@ -215,7 +215,7 @@ const MenuSubCategory = () => {
           <DataGridColumnHeader
             title="Name"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold uppercase text-sm"
           />
         ),
 
@@ -236,12 +236,12 @@ const MenuSubCategory = () => {
           <DataGridColumnHeader
             title="Category"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold uppercase text-sm"
           />
         ),
 
         cell: ({ row }) => (
-          <span className="text-gray-700 capitalize">{row.original.category}</span>
+          <span className="text-gray-700 capitalize my-4">{row.original.category}</span>
         ),
 
         size: 120,
@@ -257,7 +257,7 @@ const MenuSubCategory = () => {
           <DataGridColumnHeader
             title="Status"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold uppercase text-sm"
           />
         ),
 
@@ -302,7 +302,7 @@ const MenuSubCategory = () => {
           <DataGridColumnHeader
             title="Actions"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold uppercase text-sm"
           />
         ),
 
@@ -311,14 +311,14 @@ const MenuSubCategory = () => {
             <button onClick={() => handleEdit(row.original)}>
               <SquarePen
                 size={18}
-                className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                className="text-gray-500 hover:text-blue-800 cursor-pointer"
               />
             </button>
 
             <button onClick={() => handleDelete(row.original.id)}>
               <Trash2
                 size={18}
-                className="text-red-500 hover:text-red-700 cursor-pointer"
+                className="text-red-300 hover:text-red-700 cursor-pointer"
               />
             </button>
           </div>

@@ -61,11 +61,9 @@ const AddCategoryModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
       if (isEditMode) {
         await updateAssetCategory({ id: initialData.id, ...payload });
-        notify.success("Category Updated Successfully");
       } else {
         const res = await createAssetCategory({ ...payload, createdBy: 0 });
         console.log(res)
-        notify.success("Category Added successfully");
       }
 
       setForm(emptyForm);

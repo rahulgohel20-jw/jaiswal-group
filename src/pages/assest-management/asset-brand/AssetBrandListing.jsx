@@ -23,6 +23,14 @@ import AssetBrandDetailsModal from './AssetBrandDetailsModal';
 import { getAssetBrands, getAssetBrandById, deleteAssetBrand } from '@/services/apiServices';
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -58,6 +66,10 @@ const AssetBrandListing = () => {
     const [viewingBrand, setViewingBrand] = useState(null);
     const [editingBrand, setEditingBrand] = useState(null);
 
+        const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+const [deleteTarget, setDeleteTarget] = useState(null);
+const [deleteSaving, setDeleteSaving] = useState(false);
+
     // Shows the cached row immediately, then refreshes with the authoritative
     // record from getById (the list payload may not carry every detail field).
     const handleViewBrand = async (row) => {
@@ -72,17 +84,29 @@ const AssetBrandListing = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Delete this brand? This cannot be undone.')) return;
-        try {
-            await deleteAssetBrand(id);
-            notify.success("Brand Deleted Successfully");
-            fetchBrands();
-        } catch (err) {
-            console.error(err);
-            notify.error("Failed to delete brand.");
-        }
-    };
+        const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, itemLabel: row.name });
+    setShowDeleteConfirm(true);
+};
+
+const closeDeleteConfirm = () => {
+    if (deleteSaving) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+};
+const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    try {
+        await deleteAssetBrand(deleteTarget.id);
+        closeDeleteConfirm();
+        fetchBrands();
+    } catch (err) {
+        console.error(err);
+    } finally {
+        setDeleteSaving(false);
+    }
+};
 
     const openEditModal = async (row) => {
         setEditingBrand(row);
@@ -218,7 +242,7 @@ const AssetBrandListing = () => {
             id: "status",
             accessorFn: (row) => row.status,
             header: ({ column }) => (
-                <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold my-3" />
             ),
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
             size: 120,
@@ -236,7 +260,7 @@ const AssetBrandListing = () => {
                     <button type="button" onClick={() => openEditModal(row.original)}>
                         <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
-                    <button type="button" onClick={() => handleDelete(row.original.id)}>
+                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
                         <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
                     </button>
                 </div>
@@ -316,17 +340,28 @@ const AssetBrandListing = () => {
                         />
                     </div>
 
-                    <p className="border border-[#C3C6D1] rounded-lg px-3 py-2 min-w-0">
-                        <select
-                            className="outline-none w-full min-w-0 bg-transparent"
+                        <Select
                             value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
+                            onValueChange={(value) => setStatusFilter(value)}
                         >
-                            <option>All Status</option>
-                            <option>Active</option>
-                            <option>Inactive</option>
-                        </select>
-                    </p>
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                <SelectValue placeholder="All Status" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="All Status">
+                                    All Status
+                                </SelectItem>
+
+                                <SelectItem value="Active">
+                                    Active
+                                </SelectItem>
+
+                                <SelectItem value="Inactive">
+                                    Inactive
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
                 </div>
             </div>
 
@@ -359,6 +394,14 @@ const AssetBrandListing = () => {
                 isOpen={!!viewingBrand}
                 onClose={() => setViewingBrand(null)}
                 brand={viewingBrand}
+            />
+
+            <DeleteConfirmModal
+                    isOpen={showDeleteConfirm}
+                    onClose={closeDeleteConfirm}
+                    onConfirm={confirmDelete}
+                    itemLabel={deleteTarget?.itemLabel}
+                    saving={deleteSaving}
             />
         </div>
        </Container>

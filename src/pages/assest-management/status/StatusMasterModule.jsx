@@ -30,6 +30,14 @@ import {
 } from "@/services/apiServices";
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 // TODO: replace with the actual logged-in user id from your auth/session context
 const CURRENT_USER_ID = 1;
 
@@ -84,6 +92,9 @@ const StatusMasterModule = () => {
 
     const [searchInput, setSearchInput] = useState("");
     const [statusInput, setStatusInput] = useState("All Status");
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
 
     // -------------------------------------------------------------------
     // Load list
@@ -186,7 +197,6 @@ const StatusMasterModule = () => {
                     active: formData.active,
                 };
                 await updateStatus({ id: formData.id, ...payload });
-                notify.success("Status Updated Successfully");
             } else {
                 // create body: { active, createdBy, description, name } — description is optional
                 const payload = {
@@ -196,7 +206,6 @@ const StatusMasterModule = () => {
                     ...(formData.description?.trim() ? { description: formData.description.trim() } : {}),
                 };
                 await createStatus(payload);
-                notify.success("Status Created Successfully");
             }
 
             await loadStatus();
@@ -212,21 +221,29 @@ const StatusMasterModule = () => {
     // -------------------------------------------------------------------
     // Delete
     // -------------------------------------------------------------------
-    const handleDelete = async (id) => {
-        if (!window.confirm("Delete this status? This cannot be undone.")) return;
-
-        setDeletingId(id);
-        try {
-            await deleteStatus(id);
-            notify.success("Status Deleted Successfully");
-            await loadStatus();
-        } catch (err) {
-            setListError(err?.message || "Failed to delete status");
-        } finally {
-            setDeletingId(null);
-        }
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
     };
 
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
+        try {
+            await deleteStatus(deleteTarget.id);
+            closeDeleteConfirm();
+            await loadStatus();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeleteSaving(false);
+        }
+    };
     // -------------------------------------------------------------------
     // Table columns
     // -------------------------------------------------------------------
@@ -255,7 +272,7 @@ const StatusMasterModule = () => {
         {
             accessorKey: "srNo",
             header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} className="font-semibold my-4" />
+                <DataGridColumnHeader title="S.NO" column={column} className="font-semibold" />
             ),
             size: 50,
         },
@@ -266,7 +283,7 @@ const StatusMasterModule = () => {
                 <DataGridColumnHeader
                     title="STATUS NAME"
                     column={column}
-                    className="font-semibold my-4"
+                    className="font-semibold my-3"
                 />
             ),
             cell: ({ row }) => (
@@ -298,7 +315,7 @@ const StatusMasterModule = () => {
                 <DataGridColumnHeader
                     title="ACTIONS"
                     column={column}
-                    className="font-semibold"
+                    className="font-semibold text-[#43474F]"
                 />
             ),
 
@@ -322,7 +339,7 @@ const StatusMasterModule = () => {
                         <Trash2
                             size={18}
                             className="text-red-300 hover:text-red-600 cursor-pointer"
-                            onClick={() => handleDelete(row.original.id)}
+                            onClick={() => openDeleteConfirm(row.original)}
                         />
                     )}
                 </div>
@@ -447,17 +464,30 @@ const StatusMasterModule = () => {
                             />
                         </div>
 
-                        <p className='border rounded-lg px-3 py-2 mt-1 border-[#C3C6D1]'>
-                            <select
+                        <div className='my-auto'>
+                            <Select
                                 value={statusInput}
-                                onChange={(e) => setStatusInput(e.target.value)}
-                                className="w-full outline-none"
+                                onValueChange={(value) => setStatusInput(value)}
                             >
-                                <option value="All Status">All Status</option>
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                            </select>
-                        </p>
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                    <SelectValue placeholder="All Status" />
+                                </SelectTrigger>
+
+                                <SelectContent>
+                                    <SelectItem value="All Status">
+                                        All Status
+                                    </SelectItem>
+
+                                    <SelectItem value="Active">
+                                        Active
+                                    </SelectItem>
+
+                                    <SelectItem value="Inactive">
+                                        Inactive
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </div>
 
@@ -500,6 +530,14 @@ const StatusMasterModule = () => {
                     onChange={setFormData}
                     onClose={closeModal}
                     onSave={handleSave}
+                />
+
+                <DeleteConfirmModal
+                    isOpen={showDeleteConfirm}
+                    onClose={closeDeleteConfirm}
+                    onConfirm={confirmDelete}
+                    itemLabel={deleteTarget?.itemLabel}
+                    saving={deleteSaving}
                 />
             </div>
         </Container>
