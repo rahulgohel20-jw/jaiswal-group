@@ -224,8 +224,8 @@ export const getActiveCompany = () => {
 export const getCompanyById = (id) => {
   return GET(`/organization/get/${id}`);
 };
-export const createCompany = (params, formData) => {
-  return axiosInstance.post('/organization/save', formData, { params });
+export const createCompany = (formData) => {
+  return POST('/organization/save',formData)
 };
 
 export const updateCompany = (data) =>
@@ -747,4 +747,30 @@ export const updateVendor = (payload) => {
 
 export const deleteVendorById = (id) => {
   return DELETE(`/vendor/delete/${id}`);
+};
+
+// ---- Vendor-Outlet Mapping APIs ----
+
+export const assignVendorOutletMapping = (payload) => {
+  // payload: { outletIds: number[], username: string, vendorId: number }
+  return POST('/vendor-outlet-mapping/assign', payload);
+};
+
+export const deleteVendorOutletMapping = (vendorId, outletId) => {
+  return DELETE('/vendor-outlet-mapping/delete-by-vendor-and-outlet', {
+    vendorId,
+    outletId,
+  });
+};
+
+export const deleteVendorOutletMappingByVendor = (vendorId) => {
+  return DELETE(`/vendor-outlet-mapping/delete-by-vendor/${vendorId}`);
+};
+
+export const getAllVendorOutletMappings = () => {
+  return GET('/vendor-outlet-mapping/get-all');
+};
+
+export const getVendorOutletMappingByVendorId = (vendorId) => {
+  return GET(`/vendor-outlet-mapping/get-by-vendor/${vendorId}`);
 };

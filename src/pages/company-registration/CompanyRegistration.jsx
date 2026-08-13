@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { notify } from '@/utils/toast';
 import {
   Building2,
-  ChevronDown,
   Check,
+  ChevronDown,
   ImageUp,
   Info,
   Landmark,
@@ -11,8 +11,14 @@ import {
   MapPin,
   X,
 } from 'lucide-react';
-import { createCompany, getAllCountry, getCityByState, getStateByCountry, updateCompany } from '../../services/apiServices';
-import { notify } from "@/utils/toast";
+import { useLocation, useNavigate } from 'react-router';
+import {
+  createCompany,
+  getAllCountry,
+  getCityByState,
+  getStateByCountry,
+  updateCompany,
+} from '../../services/apiServices';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -129,7 +135,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
     lat: initialLat ? parseFloat(initialLat) : 23.0225,
     lng: initialLng ? parseFloat(initialLng) : 72.5714,
   });
-  const [loaded, setLoaded] = useState(!!(typeof window !== 'undefined' && window.L));
+  const [loaded, setLoaded] = useState(
+    !!(typeof window !== 'undefined' && window.L),
+  );
 
   useEffect(() => {
     if (window.L) {
@@ -148,7 +156,10 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 
     const existingScript = document.querySelector('script[data-leaflet]');
     if (existingScript) {
-      existingScript.addEventListener('load', () => !cancelled && setLoaded(true));
+      existingScript.addEventListener(
+        'load',
+        () => !cancelled && setLoaded(true),
+      );
     } else {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
@@ -173,7 +184,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
       maxZoom: 19,
     }).addTo(map);
 
-    const marker = L.marker([coords.lat, coords.lng], { draggable: true }).addTo(map);
+    const marker = L.marker([coords.lat, coords.lng], {
+      draggable: true,
+    }).addTo(map);
 
     const updateFromLatLng = (latlng) => {
       setCoords({ lat: latlng.lat, lng: latlng.lng });
@@ -195,11 +208,16 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Pick Location on Map</h2>
+            <h2 className="text-base font-bold text-gray-900">
+              Pick Location on Map
+            </h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Click on the map or drag the pin to set coordinates.
             </p>
@@ -219,16 +237,25 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
               Loading map...
             </div>
           )}
-          <div ref={mapRef} className={loaded ? 'h-80 w-full' : 'h-0 w-full overflow-hidden'} />
+          <div
+            ref={mapRef}
+            className={loaded ? 'h-80 w-full' : 'h-0 w-full overflow-hidden'}
+          />
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 gap-4 flex-wrap">
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <span>
-              Lat: <span className="font-semibold text-gray-800">{coords.lat.toFixed(6)}</span>
+              Lat:{' '}
+              <span className="font-semibold text-gray-800">
+                {coords.lat.toFixed(6)}
+              </span>
             </span>
             <span>
-              Lng: <span className="font-semibold text-gray-800">{coords.lng.toFixed(6)}</span>
+              Lng:{' '}
+              <span className="font-semibold text-gray-800">
+                {coords.lng.toFixed(6)}
+              </span>
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -289,33 +316,33 @@ const mapCompanyToForm = (company) => ({
 
   id: company.id,
 
-  companyName: company.companyNameEnglish || "",
-  companyCode: company.companyCode || "",
-  shortCode: company.shortCode || "",
+  companyName: company.companyNameEnglish || '',
+  companyCode: company.companyCode || '',
+  shortCode: company.shortCode || '',
 
-  gstNumber: company.gstNumber || "",
-  panNumber: company.panNumber || "",
+  gstNumber: company.gstNumber || '',
+  panNumber: company.panNumber || '',
 
-  mobile: company.mobilenumber || "",
-  altMobile: company.alternatemobilenumber || "",
+  mobile: company.mobilenumber || '',
+  altMobile: company.alternatemobilenumber || '',
 
-  email: company.emailid || "",
+  email: company.emailid || '',
 
-  addressLine1: company.addressEnglish || "",
-  addressLine2: company.addressline2 || "",
+  addressLine1: company.addressEnglish || '',
+  addressLine2: company.addressline2 || '',
 
-  pincode: company.pincode || "",
-  latitude: company.latitude || "",
-  longitude: company.longitude || "",
+  pincode: company.pincode || '',
+  latitude: company.latitude || '',
+  longitude: company.longitude || '',
 
-  accountHolder: company.accountholdername || "",
-  accountNumber: company.accountnumber || "",
+  accountHolder: company.accountholdername || '',
+  accountNumber: company.accountnumber || '',
 
-  bankName: company.bankname || "",
-  branchName: company.branchname || "",
-  ifsc: company.bankifsccode || "",
+  bankName: company.bankname || '',
+  branchName: company.branchname || '',
+  ifsc: company.bankifsccode || '',
 
-  upiId: company.upiid || "",
+  upiId: company.upiid || '',
 
   countryId: company.countryId,
   stateId: company.stateId,
@@ -331,18 +358,17 @@ const CompanyRegistration = () => {
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
 
-  const [selectedCountry, setSelectedCountry] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedCity, setSelectedCity] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
 
   useEffect(() => {
     const fetchCountries = async () => {
       try {
         const res = await getAllCountry();
         setCountries(res.data.data);
-
       } catch (error) {
-        console.log("Country error", error);
+        console.log('Country error', error);
       }
     };
 
@@ -350,41 +376,38 @@ const CompanyRegistration = () => {
   }, []);
 
   const handleCountryChange = async (e) => {
-
     const countryId = e.target.value;
 
     setSelectedCountry(countryId);
     setStates([]);
     setCities([]);
-    setSelectedState("");
-    setSelectedCity("");
+    setSelectedState('');
+    setSelectedCity('');
 
     try {
       const res = await getStateByCountry(countryId);
       setStates(res.data.data);
     } catch (error) {
-      console.log("State error", error);
+      console.log('State error', error);
     }
   };
 
   const handleStateChange = async (e) => {
-
     const stateId = e.target.value;
     setSelectedState(stateId);
     setCities([]);
-    setSelectedCity("");
+    setSelectedCity('');
 
     try {
       const res = await getCityByState(stateId);
-      const cityList = res?.data?.data?.["City Details"] || [];
+      const cityList = res?.data?.data?.['City Details'] || [];
 
-      console.log("cityList:", cityList);
+      console.log('cityList:', cityList);
 
       setCities(cityList);
     } catch (error) {
-      console.log("City error", error);
+      console.log('City error', error);
     }
-
   };
   // Edit mode is detected purely from router state: the list page's edit
   // button navigates here with `{ state: { company } }`. No company in
@@ -395,9 +418,9 @@ const CompanyRegistration = () => {
     if (!editingCompany) return;
 
     setForm(mapCompanyToForm(editingCompany));
-    setSelectedCountry(editingCompany.countryId?.toString() || "");
-    setSelectedState(editingCompany.stateId?.toString() || "");
-    setSelectedCity(editingCompany.cityId?.toString() || "");
+    setSelectedCountry(editingCompany.countryId?.toString() || '');
+    setSelectedState(editingCompany.stateId?.toString() || '');
+    setSelectedCity(editingCompany.cityId?.toString() || '');
   }, [editingCompany]);
 
   useEffect(() => {
@@ -409,7 +432,7 @@ const CompanyRegistration = () => {
         setStates(stateRes.data.data);
 
         const cityRes = await getCityByState(editingCompany.stateId);
-        setCities(cityRes.data.data["City Details"]);
+        setCities(cityRes.data.data['City Details']);
       } catch (error) {
         console.log(error);
       }
@@ -447,7 +470,7 @@ const CompanyRegistration = () => {
   const handleSubmit = async () => {
     try {
       const payload = {
-        orgType: "SUB_COMPANY",
+        orgType: 'SUB_COMPANY',
         parentId: 1,
         username: 1,
         isverified: true,
@@ -477,46 +500,49 @@ const CompanyRegistration = () => {
         bankifsccode: form.ifsc,
         upiid: form.upiId,
       };
-
       if (isEditMode) {
         const formData = new FormData();
 
-        formData.append("id", editingCompany.id);
+        formData.append('id', editingCompany.id);
 
         Object.entries(payload).forEach(([key, value]) => {
-          formData.append(key, value ?? "");
+          formData.append(key, value ?? '');
         });
 
         if (form.logo instanceof File) {
-          formData.append("logo", form.logo);
+          formData.append('logo', form.logo);
         }
 
         if (form.favicon instanceof File) {
-          formData.append("favicon", form.favicon);
+          formData.append('favicon', form.favicon);
         }
 
-       const res = await updateCompany(formData);
+        const res = await updateCompany(formData);
 
-        notify.success("Company Updated Successfully");
+        notify.success('Company Updated Successfully');
       } else {
         const formData = new FormData();
 
+        Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, value ?? '');
+        });
+
         if (form.logo instanceof File) {
-          formData.append("logo", form.logo);
+          formData.append('logo', form.logo);
         }
 
         if (form.favicon instanceof File) {
-          formData.append("favicon", form.favicon);
+          formData.append('favicon', form.favicon);
         }
 
-        await createCompany(payload, formData);
+        await createCompany(formData);
 
-        notify.success("Company Added Successfully");
+        notify.success('Company Added Successfully');
       }
 
-      navigate("/companies");
+      navigate('/companies');
     } catch (error) {
-      console.log("Company save error:", error.response?.data || error.message);
+      console.log('Company save error:', error.response?.data || error.message);
     }
   };
   return (
@@ -527,7 +553,7 @@ const CompanyRegistration = () => {
         </h1>
         <p className="text-[#43474F] mt-2">
           {isEditMode
-            ? `Edit the details for ${editingCompany.companyNameEnglish || ""} and save your changes.`
+            ? `Edit the details for ${editingCompany.companyNameEnglish || ''} and save your changes.`
             : 'Complete the form below to establish a new corporate entity in the Jaiswal Group ecosystem.'}
         </p>
       </div>
@@ -552,44 +578,48 @@ const CompanyRegistration = () => {
               />
             </div>
 
-          <div className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-1'}`}>
-            {isEditMode && (
-              <>
-                <div>
-                  <Label>Company Code</Label>
-                  <input
-                    value={form.companyCode}
-                    disabled
-                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                  />
-                </div>
-                <div>
-                  <Label>Short Code</Label>
-                  <input
-                    value={form.shortCode}
-                    disabled
-                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                  />
-                </div>
-              </>
-            )}
-            <div>
-              <Label>GST Number</Label>
-              <input
-                value={form.gstNumber}
-                onChange={(e) => set('gstNumber', e.target.value)}
-                placeholder="Enter GST Number"
-                className={inputCls}
-              />
+            <div
+              className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-1'}`}
+            >
+              {isEditMode && (
+                <>
+                  <div>
+                    <Label>Company Code</Label>
+                    <input
+                      value={form.companyCode}
+                      disabled
+                      className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                    />
+                  </div>
+                  <div>
+                    <Label>Short Code</Label>
+                    <input
+                      value={form.shortCode}
+                      disabled
+                      className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                    />
+                  </div>
+                </>
+              )}
+              <div>
+                <Label>GST Number</Label>
+                <input
+                  value={form.gstNumber}
+                  onChange={(e) => set('gstNumber', e.target.value)}
+                  placeholder="Enter GST Number"
+                  className={inputCls}
+                />
+              </div>
             </div>
-          </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label required>PAN Number</Label>
                 <input
                   value={form.panNumber}
-                  onChange={(e) => set('panNumber', e.target.value.toUpperCase())}
+                  onChange={(e) =>
+                    set('panNumber', e.target.value.toUpperCase())
+                  }
                   placeholder="ABCDE1234F"
                   maxLength={10}
                   className={inputCls}
@@ -682,21 +712,15 @@ const CompanyRegistration = () => {
                   <select
                     value={selectedCountry}
                     onChange={handleCountryChange}
-                    className='w-full outline-none'
+                    className="w-full outline-none"
                   >
-                    <option value="">
-                      Select Country
-                    </option>
+                    <option value="">Select Country</option>
 
                     {countries.map((country) => (
-                      <option
-                        key={country.id}
-                        value={country.id}
-                      >
+                      <option key={country.id} value={country.id}>
                         {country.name}
                       </option>
                     ))}
-
                   </select>
                 </p>
               </div>
@@ -706,21 +730,15 @@ const CompanyRegistration = () => {
                   <select
                     value={selectedState}
                     onChange={handleStateChange}
-                    className='w-full outline-none'
+                    className="w-full outline-none"
                   >
-                    <option value="">
-                      Select State
-                    </option>
+                    <option value="">Select State</option>
 
                     {states.map((state) => (
-                      <option
-                        key={state.id}
-                        value={state.id}
-                      >
+                      <option key={state.id} value={state.id}>
                         {state.name}
                       </option>
                     ))}
-
                   </select>
                 </p>
               </div>
@@ -730,21 +748,15 @@ const CompanyRegistration = () => {
                   <select
                     value={selectedCity}
                     onChange={(e) => setSelectedCity(e.target.value)}
-                    className='w-full outline-none'
+                    className="w-full outline-none"
                   >
-                    <option value="">
-                      Select City
-                    </option>
+                    <option value="">Select City</option>
 
                     {cities?.map((city) => (
-                      <option
-                        key={city.id}
-                        value={city.id}
-                      >
+                      <option key={city.id} value={city.id}>
                         {city.name}
                       </option>
                     ))}
-
                   </select>
                 </p>
               </div>
