@@ -714,3 +714,37 @@ export const assignBrandsToCategories = (payload) => {
 export const deleteRawMaterialCategoryBrandById = (id) => {
   return DELETE('/rawmaterialcategorybrand/delete', { id });
 };
+
+// ---- Vendor APIs ----
+
+export const getAllVendors = () => {
+  return GET('/vendor/get-all');
+};
+
+export const getAllActiveVendors = () => {
+  return GET('/vendor/get-all-active');
+};
+
+export const getVendorsByOrganization = (organizationId) => {
+  return GET(`/vendor/get-by-organization/${organizationId}`);
+};
+
+export const getVendorsPaginated = (params) => {
+  return GET('/vendor/get-paginated', params);
+};
+
+export const getVendorById = (id) => {
+  return GET(`/vendor/get/${id}`);
+};
+
+export const saveVendor = (payload) => {
+  return POST('/vendor/save', payload);
+};
+
+export const updateVendor = (payload) => {
+  return PUT('/vendor/update', payload, { id: payload.id });
+};
+
+export const deleteVendorById = (id) => {
+  return DELETE(`/vendor/delete/${id}`);
+};

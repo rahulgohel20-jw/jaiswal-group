@@ -1,268 +1,121 @@
-import { useState, useMemo, useEffect } from "react";
-import {
-  Handshake,
-  Eye,
-  SquarePen,
-  Plus,
-  Trash2,
-  Search,
-  X,
-  AlertTriangle,
-  SlidersHorizontal,
-  Download,
-  CheckCircle2,
-  Hourglass,
-  TrendingUp,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from 'react';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
-} from "@tanstack/react-table";
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Container } from "@/components/common/container";
-import { Link, useNavigate } from "react-router";
+} from '@tanstack/react-table';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
-
-const INITIAL_VENDORS = [
-  {
-    id: 1,
-    name: "Aditya Jaiswal",
-    code: "VND-2024-0042",
-    createdOn: "12 Oct, 2023",
-    email: "aditya.j@jaiswalgroup.com",
-    company: "Jaiswal India Pvt Ltd",
-    mobile: "+91 98250 12345",
-    category: "management",
-    kycStatus: "verified",
-    kycView: 'View Details',
-  },
-  {
-    id: 2,
-    name: "Priya Sharma",
-    code: "VND-2024-0089",
-    createdOn: "05 Nov, 2023",
-    email: "p.sharma@jaiswalgroup.com",
-    company: "Jaiswal India Pvt Ltd",
-    mobile: "+91 90040 55210",
-    category: "finance",
-    kycStatus: "pending",
-    kycView: 'Review KYC',
-  },
-  {
-    id: 3,
-    name: "Rahul Varma",
-    code: "VND-2024-0112",
-    createdOn: "20 Dec, 2023",
-    email: "rahul.v@jaiswalgroup.com",
-    company: "Jaiswal India Pvt Ltd",
-    mobile: "+91 99789 33421",
-    category: "operations",
-    kycStatus: "verified",
-    kycView: 'Re-verify',
-  },
-  {
-    id: 4,
-    name: "Sneha Patel",
-    code: "VND-2024-0155",
-    createdOn: "09 Jan, 2024",
-    email: "sneha.p@jaiswalgroup.com",
-    company: "Jaiswal India Pvt Ltd",
-    mobile: "+91 97250 87612",
-    category: "logistics",
-    kycStatus: "rejected",
-    kycView: 'View Details',
-  },
-  {
-    id: 5,
-    name: "Vikram Mehta",
-    code: "VND-2024-0201",
-    createdOn: "15 Jan, 2024",
-    email: "v.mehta@jaiswalgroup.com",
-    company: "Jaiswal India Pvt Ltd",
-    mobile: "+91 98980 44567",
-    category: "it_support",
-    kycStatus: "pending",
-    kycView: 'Review KYC',
-  },
-];
-
-const STATUS_STYLES = {
-  verified: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  pending: "bg-amber-50 text-amber-700 ring-amber-200",
-  rejected: "bg-red-50 text-red-600 ring-red-200",
-};
-
-const STATUS_LABELS = {
-  verified: "Verified",
-  pending: "Pending",
-  rejected: "Rejected",
-};
-
-const CATEGORY_LABELS = {
-  management: "Management",
-  finance: "Finance",
-  operations: "Operations",
-  logistics: "Logistics",
-  it_support: "IT Support",
-};
-
-const StatusBadge = ({ status }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}
-  >
-    <span
-      className={`w-1.5 h-1.5 rounded-full ${status === "verified"
-        ? "bg-emerald-500"
-        : status === "pending"
-          ? "bg-amber-500"
-          : "bg-red-500"
-        }`}
-    />
-    {STATUS_LABELS[status]}
-  </span>
-);
-
-const CategoryBadge = ({ category }) => (
-  <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200">
-    {CATEGORY_LABELS[category]}
-  </span>
-);
-
-
-const ViewVendorModal = ({ vendor, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900">Vendor Details</h2>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-      <div className="px-6 py-5 space-y-4">
-        {[
-          ["Vendor Name", vendor.name],
-          ["Vendor Code", vendor.code],
-          ["Company", vendor.company],
-          ["Category", CATEGORY_LABELS[vendor.category]],
-          ["Email Address", vendor.email],
-          ["Mobile Number", vendor.mobile],
-          ["Created On", vendor.createdOn],
-        ].map(([label, value]) => (
-          <div key={label} className="flex items-center justify-between text-sm gap-4">
-            <span className="text-gray-400 shrink-0">{label}</span>
-            <span className="font-semibold text-gray-800 text-right break-all">{value}</span>
-          </div>
-        ))}
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-400">KYC Status</span>
-          <StatusBadge status={vendor.kycStatus} />
-        </div>
-      </div>
-      <div className="flex items-center justify-end px-6 py-4 border-t border-gray-100">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-);
+  Eye,
+  Handshake,
+  Plus,
+  Search,
+  SquarePen,
+  Trash2,
+  TrendingUp,
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { deleteVendorById, getAllVendors } from '@/services/apiServices';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Container } from '@/components/common/container';
+import { extractList, mapVendorToRow } from './vendorHelper';
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
-const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-[180px]',
+  className = 'text-gray-600',
+}) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
   </span>
 );
 
-const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, valueColor = "text-gray-900" }) => (
+const StatCard = ({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  label,
+  value,
+  valueColor = 'text-gray-900',
+}) => (
   <div className="bg-white rounded-2xl border border-gray-200 px-5 py-4">
-    <div className={`w-7 h-7 rounded mb-1 flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
+    <div
+      className={`w-7 h-7 rounded mb-1 flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}
+    >
       <Icon className="w-5 h-5" />
     </div>
     <div>
       <p className="text-xs text-[#737781]">{label}</p>
-      <p className={`text-lg font-bold leading-none mt-1 ${valueColor}`}>{value}</p>
+      <p className={`text-lg font-bold leading-none mt-1 ${valueColor}`}>
+        {value}
+      </p>
     </div>
   </div>
 );
 
-const CATEGORY_OPTIONS = [
-  { key: "all", label: "All categories" },
-  { key: "management", label: "Management" },
-  { key: "finance", label: "Finance" },
-  { key: "operations", label: "Operations" },
-  { key: "logistics", label: "Logistics" },
-  { key: "it_support", label: "IT Support" },
-];
-
-const KYC_OPTIONS = [
-  { key: "all", label: "All KYC statuses" },
-  { key: "verified", label: "Verified" },
-  { key: "pending", label: "Pending" },
-  { key: "rejected", label: "Rejected" },
-];
-
 const VendorList = () => {
   const navigate = useNavigate();
-  const [vendors, setVendors] = useState(INITIAL_VENDORS);
-  const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [kycFilter, setKycFilter] = useState("all");
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [viewingVendor, setViewingVendor] = useState(null);
-  const [deletingVendor, setDeletingVendor] = useState(null);
 
-  
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const [search, setSearch] = useState('');
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, itemLabel }
   const [deleteSaving, setDeleteSaving] = useState(false);
+
+  const fetchVendors = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await getAllVendors();
+      const list = extractList(res);
+      setVendors(list.map(mapVendorToRow));
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load vendors. Please try again.');
+      setVendors([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchVendors();
+  }, []);
 
   const filteredVendors = useMemo(
     () =>
       vendors.filter((v) => {
-        const matchesSearch =
-          v.name.toLowerCase().includes(search.toLowerCase()) ||
-          v.code.toLowerCase().includes(search.toLowerCase()) ||
-          v.email.toLowerCase().includes(search.toLowerCase()) ||
-          v.company.toLowerCase().includes(search.toLowerCase());
-        const matchesCategory = categoryFilter === "all" || v.category === categoryFilter;
-        const matchesKyc = kycFilter === "all" || v.kycStatus === kycFilter;
-        return matchesSearch && matchesCategory && matchesKyc;
+        const term = search.toLowerCase();
+        return (
+          (v.name ?? '').toLowerCase().includes(term) ||
+          (v.code ?? '').toLowerCase().includes(term) ||
+          (v.email ?? '').toLowerCase().includes(term) ||
+          (v.company ?? '').toLowerCase().includes(term)
+        );
       }),
-    [vendors, search, categoryFilter, kycFilter],
+    [vendors, search],
   );
+
   useEffect(() => {
-    setPagination((prev) => ({
-      ...prev,
-      pageIndex: 0,
-    }));
-  }, [search, categoryFilter, kycFilter]);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+  }, [search]);
+
   const handleEdit = (vendor) => {
     navigate('/vendors/update-vendor', { state: { vendor } });
   };
-const openDeleteConfirm = (item) => {
+
+  const openDeleteConfirm = (item) => {
     setDeleteTarget({ id: item.id, itemLabel: item.name });
     setShowDeleteConfirm(true);
   };
@@ -277,82 +130,94 @@ const openDeleteConfirm = (item) => {
     if (!deleteTarget) return;
 
     setDeleteSaving(true);
-
     try {
-   
+      await deleteVendorById(deleteTarget.id);
       closeDeleteConfirm();
-      fetchMenuItems();
+      await fetchVendors();
     } catch (err) {
       console.error(err);
-      notify.error('Failed to delete menu item');
+      setError('Failed to delete vendor. Please try again.');
     } finally {
       setDeleteSaving(false);
     }
-  };
-  const handleExport = (format) => {
-    alert(`Exporting ${filteredVendors.length} vendor(s) as ${format.toUpperCase()}`);
   };
 
   const columns = useMemo(
     () => [
       {
-        id: "name",
+        id: 'name',
         accessorFn: (row) => row.name,
-        header: ({ column }) => <DataGridColumnHeader title="User Name" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="User Name" column={column} />
+        ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <div>
-              <p className="font-semibold text-gray-800 leading-none">{row.original.name}</p>
-              <p className="text-[12px] text-gray-400 mt-1">Created {row.original.createdOn}</p>
-            </div>
+          <div>
+            <p className="font-semibold text-gray-800 leading-none">
+              {row.original.name}
+            </p>
+            <p className="text-[12px] text-gray-400 mt-1">
+              Created on {row.original.createdAt?.split(' ')[0]}
+            </p>
           </div>
         ),
         size: 160,
       },
       {
-        id: "code",
+        id: 'code',
         accessorFn: (row) => row.code,
-        header: ({ column }) => <DataGridColumnHeader title="User Code" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600 whitespace-nowrap">{row.original.code}</span>,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Vendor Code" column={column} />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-600 whitespace-nowrap">
+            {row.original.code}
+          </span>
+        ),
         size: 130,
       },
       {
-        id: "email",
+        id: 'email',
         accessorFn: (row) => row.email,
-        header: ({ column }) => <DataGridColumnHeader title="Email Address" column={column} />,
-        cell: ({ row }) => <TruncatedCell value={row.original.email} widthClass="max-w-[190px]" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Email Address" column={column} />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell
+            value={row.original.emailid}
+            widthClass="max-w-[190px]"
+          />
+        ),
         size: 140,
       },
       {
-        id: "company",
+        id: 'mobile',
+        accessorFn: (row) => row.mobile,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Mobile Number" column={column} />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-600 whitespace-nowrap">
+            {row.original.mobile}
+          </span>
+        ),
+        size: 140,
+      },
+      {
+        id: 'company',
         accessorFn: (row) => row.company,
-        header: ({ column }) => <DataGridColumnHeader title="Company" column={column} />,
-        cell: ({ row }) => <TruncatedCell value={row.original.company} widthClass="max-w-[170px]" />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Company" column={column} />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell
+            value={row.original.company}
+            widthClass="max-w-[170px]"
+          />
+        ),
         size: 190,
       },
       {
-        id: "category",
-        accessorFn: (row) => row.category,
-        header: ({ column }) => <DataGridColumnHeader title="Category" column={column} />,
-        cell: ({ row }) => <CategoryBadge category={row.original.category} />,
-        size: 130,
-      },
-      {
-        id: "kycStatus",
-        accessorFn: (row) => row.kycStatus,
-        header: ({ column }) => <DataGridColumnHeader title="KYC Status" column={column} />,
-        cell: ({ row }) => <StatusBadge status={row.original.kycStatus} />,
-        size: 130,
-      },
-      {
-        id: "kycView",
-        accessorFn: (row) => row.kycView,
-        header: ({ column }) => <DataGridColumnHeader title="Kyc View" column={column} />,
-        cell: ({ row }) => <Link to="/vendor/kyc-information" className={`${row.original.kycView === "Re-verify" ? "text-[#BA1A1A]" : "text-[#084E92]"} font-bold`}>{row.original.kycView} </Link>,
-        size: 150,
-      },
-      {
-        id: "actions",
+        id: 'actions',
         header: () => (
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Actions
@@ -363,7 +228,7 @@ const openDeleteConfirm = (item) => {
             <button
               type="button"
               onClick={() =>
-                navigate("/vendors/view-vendor", {
+                navigate('/vendors/view-vendor', {
                   state: { vendor: row.original },
                 })
               }
@@ -404,7 +269,7 @@ const openDeleteConfirm = (item) => {
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    columnResizeMode: "onChange",
+    columnResizeMode: 'onChange',
   });
 
   return (
@@ -412,16 +277,15 @@ const openDeleteConfirm = (item) => {
       <div className="p-4 md:p-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 leading-none">
-                Vendor Management List
-              </h1>
-              <p className="text-md text-gray-400 mt-2.5">
-                View and manage all registered enterprise vendors across the Jaiswal Group <br />
-                ecosystem.
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 leading-none">
+              Vendor Management List
+            </h1>
+            <p className="text-md text-gray-400 mt-2.5">
+              View and manage all registered enterprise vendors across the
+              Jaiswal Group <br />
+              ecosystem.
+            </p>
           </div>
           <Link
             to="/vendors/add-vendor"
@@ -433,29 +297,13 @@ const openDeleteConfirm = (item) => {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-6">
           <StatCard
             icon={Handshake}
             iconBg="bg-blue-50"
             iconColor="text-blue-500"
             label="Total Vendors"
             value={vendors.length}
-          />
-          <StatCard
-            icon={CheckCircle2}
-            iconBg="bg-emerald-50"
-            iconColor="text-emerald-500"
-            label="Active Vendors"
-            value={vendors.filter((v) => v.kycStatus === "verified").length}
-            valueColor="text-emerald-600"
-          />
-          <StatCard
-            icon={Hourglass}
-            iconBg="bg-amber-50"
-            iconColor="text-amber-500"
-            label="Pending KYC"
-            value={vendors.filter((v) => v.kycStatus === "pending").length}
-            valueColor="text-amber-600"
           />
           <StatCard
             icon={TrendingUp}
@@ -469,77 +317,27 @@ const openDeleteConfirm = (item) => {
 
         {/* Filters */}
         <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mb-6">
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
-
-            {/* Search  */}
-            <div className="relative w-full border border-[#C3C6D1] rounded-lg">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by vendor name, code, email..."
-                className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-
-              {/* Category */}
-              <Select
-                value={categoryFilter}
-                onValueChange={setCategoryFilter}
-              >
-                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {CATEGORY_OPTIONS.map((opt) => (
-                    <SelectItem
-                      key={opt.key}
-                      value={opt.key}
-                    >
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* KYC */}
-              <Select
-                value={kycFilter}
-                onValueChange={setKycFilter}
-              >
-                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {KYC_OPTIONS.map((opt) => (
-                    <SelectItem
-                      key={opt.key}
-                      value={opt.key}
-                    >
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-            </div>
-
+          <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by vendor name, code, email..."
+              className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
+            />
           </div>
-
         </div>
 
+        {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+        {loading && (
+          <p className="text-sm text-gray-400 mb-4">Loading vendors...</p>
+        )}
+
         <DataGrid table={table} recordCount={filteredVendors.length}>
-          {/* Table Card */}
           <Card className="rounded-t-none border-t-0">
             <CardTable>
               <ScrollArea>
@@ -554,13 +352,13 @@ const openDeleteConfirm = (item) => {
         </DataGrid>
       </div>
 
-       <DeleteConfirmModal
-          isOpen={showDeleteConfirm}
-          onClose={closeDeleteConfirm}
-          onConfirm={confirmDelete}
-          itemLabel={deleteTarget?.itemLabel}
-          saving={deleteSaving}
-        />
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+        itemLabel={deleteTarget?.itemLabel}
+        saving={deleteSaving}
+      />
     </Container>
   );
 };
