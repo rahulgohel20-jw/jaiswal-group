@@ -437,6 +437,11 @@ export const MENU_SIDEBAR = [
     path: '/sub-units',
   },
   {
+    title: 'Department',
+    icon: Group,
+    children: [{ title: 'Departments', path: '/department' }],
+  },
+  {
     title: 'User/Vendor Selection',
     icon: UserPlus,
     path: '/user-vendor-selection',
@@ -543,6 +548,7 @@ export const MENU_SIDEBAR = [
     children: [
       { title: 'Pages', path: '/pages' },
       { title: 'Module Rights', path: '/module-rights' },
+      { title: 'User Rights', path: '/user-rights' },
     ],
   },
   {
