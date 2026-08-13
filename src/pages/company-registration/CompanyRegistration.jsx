@@ -13,10 +13,112 @@ import {
 } from 'lucide-react';
 import { createCompany, getAllCountry, getCityByState, getStateByCountry, updateCompany } from '../../services/apiServices';
 import { notify } from "@/utils/toast";
+import SearchableSelect from '../../utils/SearchableSelect';
 
-const inputCls =
-  'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
+// ---- Validation helpers ----
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+const GST_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const UPI_REGEX = /^[\w.-]{2,256}@[a-zA-Z]{2,64}$/;
+const MOBILE_REGEX = /^[6-9]\d{9}$/;
+const PINCODE_REGEX = /^\d{6}$/;
+
+const IFSC_BANK_PREFIXES = {
+  HDFC: 'hdfc',
+  ICIC: 'icici',
+  SBIN: 'state bank',
+  UTIB: 'axis',
+  PUNB: 'punjab national',
+  KKBK: 'kotak',
+  IDIB: 'indian bank',
+  BARB: 'bank of baroda',
+  CNRB: 'canara',
+  UBIN: 'union bank',
+  IOBA: 'indian overseas',
+  YESB: 'yes bank',
+  INDB: 'indusind',
+  AXIS: 'axis',
+};
+
+const validateField = (name, value, allValues) => {
+  const v = (value ?? '').toString().trim();
+
+  switch (name) {
+    case 'companyName':
+      return v ? '' : 'Company name is required';
+
+    case 'gstNumber':
+      if (!v) return '';
+      return GST_REGEX.test(v.toUpperCase()) ? '' : 'Enter a valid 15-character GST number';
+
+    case 'panNumber':
+      if (!v) return 'PAN number is required';
+      return PAN_REGEX.test(v.toUpperCase()) ? '' : 'Format must be like ABCDE1234F';
+
+    case 'mobile':
+      if (!v) return 'Mobile number is required';
+      if (!/^\d+$/.test(v)) return 'Only digits are allowed';
+      if (v.length !== 10) return 'Mobile number must be exactly 10 digits';
+      return MOBILE_REGEX.test(v) ? '' : 'Enter a valid mobile number';
+
+    case 'altMobile':
+      if (!v) return '';
+      if (!/^\d+$/.test(v)) return 'Only digits are allowed';
+      if (v.length !== 10) return 'Mobile number must be exactly 10 digits';
+      return MOBILE_REGEX.test(v) ? '' : 'Enter a valid mobile number';
+
+    case 'email':
+      if (!v) return 'Email is required';
+      return EMAIL_REGEX.test(v) ? '' : 'Enter a valid email address';
+
+    case 'addressLine1':
+      return v ? '' : 'Address line 1 is required';
+
+    case 'pincode':
+      if (!v) return 'Pincode is required';
+      return PINCODE_REGEX.test(v) ? '' : 'Pincode must be exactly 6 digits';
+
+    case 'accountHolder':
+      return v ? '' : 'Account holder name is required';
+
+    case 'accountNumber':
+      if (!v) return 'Account number is required';
+      return /^\d{9,18}$/.test(v) ? '' : 'Enter a valid account number (9–18 digits)';
+
+    case 'bankName':
+      return v ? '' : 'Bank name is required';
+
+    case 'branchName':
+      return v ? '' : 'Branch name is required';
+
+     case 'ifsc': {
+      if (!v) return 'IFSC code is required';
+      const upper = v.toUpperCase();
+
+      if (!IFSC_REGEX.test(upper)) return 'Format must be like HDFC0001234';
+
+      const prefix = upper.slice(0, 4);
+      const expectedBank = IFSC_BANK_PREFIXES[prefix];
+      const bankName = (allValues?.bankName ?? '').toLowerCase();
+      
+      if (expectedBank && bankName && !bankName.includes(expectedBank)) {
+        return `This IFSC belongs to ${expectedBank.replace(/\b\w/g, (c) => c.toUpperCase())} — check the bank name`;
+      }
+      return '';
+    }
+
+    case 'upiId':
+      if (!v) return '';
+      return UPI_REGEX.test(v) ? '' : 'Enter a valid UPI ID, e.g. name@bank';
+
+    default:
+      return '';
+  }
+};
+
+const FieldError = ({ message }) =>
+  message ? <p className="text-xs text-red-500 mt-1">{message}</p> : null;
 
 const Label = ({ children, required }) => (
   <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -24,6 +126,29 @@ const Label = ({ children, required }) => (
     {required && <span className="text-red-500 ml-0.5">*</span>}
   </label>
 );
+
+// Fields validated with validateField / shown with FieldError below the input.
+const TEXT_VALIDATED_FIELDS = [
+  'companyName',
+  'gstNumber',
+  'panNumber',
+  'mobile',
+  'altMobile',
+  'email',
+  'addressLine1',
+  'pincode',
+  'accountHolder',
+  'accountNumber',
+  'bankName',
+  'branchName',
+  'ifsc',
+  'upiId',
+];
+
+const inputCls =
+  'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
+  'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
+
 
 const SectionCard = ({ children, className = '' }) => (
   <div
@@ -324,6 +449,7 @@ const mapCompanyToForm = (company) => ({
   logo: company.companyLogo,
   favicon: company.favicon,
 });
+
 const CompanyRegistration = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -335,12 +461,14 @@ const CompanyRegistration = () => {
   const [selectedState, setSelectedState] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
 
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
   useEffect(() => {
     const fetchCountries = async () => {
       try {
         const res = await getAllCountry();
         setCountries(res.data.data);
-
       } catch (error) {
         console.log("Country error", error);
       }
@@ -350,7 +478,6 @@ const CompanyRegistration = () => {
   }, []);
 
   const handleCountryChange = async (e) => {
-
     const countryId = e.target.value;
 
     setSelectedCountry(countryId);
@@ -358,6 +485,8 @@ const CompanyRegistration = () => {
     setCities([]);
     setSelectedState("");
     setSelectedCity("");
+    setTouched((prev) => ({ ...prev, country: true }));
+    setErrors((prev) => ({ ...prev, country: countryId ? '' : 'Country is required' }));
 
     try {
       const res = await getStateByCountry(countryId);
@@ -368,56 +497,33 @@ const CompanyRegistration = () => {
   };
 
   const handleStateChange = async (e) => {
-
     const stateId = e.target.value;
     setSelectedState(stateId);
     setCities([]);
     setSelectedCity("");
+    setTouched((prev) => ({ ...prev, state: true }));
+    setErrors((prev) => ({ ...prev, state: stateId ? '' : 'State is required' }));
 
     try {
       const res = await getCityByState(stateId);
       const cityList = res?.data?.data?.["City Details"] || [];
-
-      console.log("cityList:", cityList);
-
       setCities(cityList);
     } catch (error) {
       console.log("City error", error);
     }
-
   };
+
+  const handleCityChange = (e) => {
+    const cityId = e.target.value;
+    setSelectedCity(cityId);
+    setTouched((prev) => ({ ...prev, city: true }));
+    setErrors((prev) => ({ ...prev, city: cityId ? '' : 'City is required' }));
+  };
+
   // Edit mode is detected purely from router state: the list page's edit
   // button navigates here with `{ state: { company } }`. No company in
   // state means this is a fresh "Register New Company" visit.
   const editingCompany = location.state?.company ?? null;
-
-  useEffect(() => {
-    if (!editingCompany) return;
-
-    setForm(mapCompanyToForm(editingCompany));
-    setSelectedCountry(editingCompany.countryId?.toString() || "");
-    setSelectedState(editingCompany.stateId?.toString() || "");
-    setSelectedCity(editingCompany.cityId?.toString() || "");
-  }, [editingCompany]);
-
-  useEffect(() => {
-    if (!editingCompany) return;
-
-    const loadLocationData = async () => {
-      try {
-        const stateRes = await getStateByCountry(editingCompany.countryId);
-        setStates(stateRes.data.data);
-
-        const cityRes = await getCityByState(editingCompany.stateId);
-        setCities(cityRes.data.data["City Details"]);
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
-    loadLocationData();
-  }, [editingCompany]);
-
   const isEditMode = !!editingCompany;
 
   const [openSections, setOpenSections] = useState({
@@ -439,12 +545,93 @@ const CompanyRegistration = () => {
   // Edit on another row without a full page reload), keep the form in sync.
   useEffect(() => {
     setForm(editingCompany ? mapCompanyToForm(editingCompany) : emptyForm);
+    setSelectedCountry(editingCompany?.countryId?.toString() || "");
+    setSelectedState(editingCompany?.stateId?.toString() || "");
+    setSelectedCity(editingCompany?.cityId?.toString() || "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingCompany]);
+
+  useEffect(() => {
+    if (!editingCompany) return;
+
+    const loadLocationData = async () => {
+      try {
+        const stateRes = await getStateByCountry(editingCompany.countryId);
+        setStates(stateRes.data.data);
+
+        const cityRes = await getCityByState(editingCompany.stateId);
+        setCities(cityRes.data.data["City Details"] || []);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    loadLocationData();
   }, [editingCompany]);
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
+  const handleFieldChange = (name, rawValue) => {
+    let value = rawValue;
+
+    if (name === 'mobile' || name === 'altMobile') {
+      value = rawValue.replace(/\D/g, '').slice(0, 10);
+    } else if (name === 'pincode') {
+      value = rawValue.replace(/\D/g, '').slice(0, 6);
+    } else if (name === 'accountNumber') {
+      value = rawValue.replace(/\D/g, '').slice(0, 18);
+    } else if (name === 'panNumber') {
+      value = rawValue.toUpperCase().slice(0, 10);
+    } else if (name === 'ifsc') {
+      value = rawValue.toUpperCase().slice(0, 11);
+    } else if (name === 'gstNumber') {
+      value = rawValue.toUpperCase();
+    }
+
+    set(name, value);
+    setTouched((prev) => ({ ...prev, [name]: true }));
+
+    const nextForm = { ...form, [name]: value };
+    setErrors((prev) => ({
+      ...prev,
+      [name]: validateField(name, value, nextForm),
+      ...(name === 'bankName'
+        ? { ifsc: validateField('ifsc', nextForm.ifsc, nextForm) }
+        : {}),
+    }));
+  };
+
+  const handleFieldFocus = (name) => {
+    setTouched((prev) => ({ ...prev, [name]: true }));
+  };
+
+  const validateAll = () => {
+    const newErrors = {};
+    TEXT_VALIDATED_FIELDS.forEach((field) => {
+      newErrors[field] = validateField(field, form[field], form);
+    });
+
+    if (!selectedCountry) newErrors.country = 'Country is required';
+    if (!selectedState) newErrors.state = 'State is required';
+    if (!selectedCity) newErrors.city = 'City is required';
+
+    setErrors(newErrors);
+    setTouched((prev) => ({
+      ...prev,
+      ...TEXT_VALIDATED_FIELDS.reduce((acc, f) => ({ ...acc, [f]: true }), {}),
+      country: true,
+      state: true,
+      city: true,
+    }));
+
+    return Object.values(newErrors).every((msg) => !msg);
+  };
+
   const handleSubmit = async () => {
+    if (!validateAll()) {
+      notify.error("Please fix the highlighted errors before submitting");
+      return;
+    }
     try {
       const payload = {
         orgType: "SUB_COMPANY",
@@ -495,9 +682,8 @@ const CompanyRegistration = () => {
           formData.append("favicon", form.favicon);
         }
 
-       const res = await updateCompany(formData);
-
-        notify.success("Company Updated Successfully");
+        await updateCompany(formData);
+        notify.success("Company updated successfully");
       } else {
         const formData = new FormData();
 
@@ -510,15 +696,16 @@ const CompanyRegistration = () => {
         }
 
         await createCompany(payload, formData);
-
-        notify.success("Company Added Successfully");
+        notify.success("Company created successfully");
       }
 
       navigate("/companies");
     } catch (error) {
       console.log("Company save error:", error.response?.data || error.message);
+      notify.error(error.response?.data?.message || "Failed to save company");
     }
   };
+
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
       <div className="flex flex-col gap-1">
@@ -546,74 +733,84 @@ const CompanyRegistration = () => {
               <Label required>Company Name</Label>
               <input
                 value={form.companyName}
-                onChange={(e) => set('companyName', e.target.value)}
+                onChange={(e) => handleFieldChange('companyName', e.target.value)}
+                onFocus={() => handleFieldFocus('companyName')}
                 placeholder="e.g. Jaiswal Group"
                 className={inputCls}
               />
+              <FieldError message={touched.companyName && errors.companyName} />
             </div>
 
-          <div className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-1'}`}>
-            {isEditMode && (
-              <>
-                <div>
-                  <Label>Company Code</Label>
-                  <input
-                    value={form.companyCode}
-                    disabled
-                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                  />
-                </div>
-                <div>
-                  <Label>Short Code</Label>
-                  <input
-                    value={form.shortCode}
-                    disabled
-                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                  />
-                </div>
-              </>
-            )}
-            <div>
-              <Label>GST Number</Label>
-              <input
-                value={form.gstNumber}
-                onChange={(e) => set('gstNumber', e.target.value)}
-                placeholder="Enter GST Number"
-                className={inputCls}
-              />
+            <div className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              {isEditMode && (
+                <>
+                  <div>
+                    <Label>Company Code</Label>
+                    <input
+                      value={form.companyCode}
+                      disabled
+                      className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                    />
+                  </div>
+                  <div>
+                    <Label>Short Code</Label>
+                    <input
+                      value={form.shortCode}
+                      disabled
+                      className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                    />
+                  </div>
+                </>
+              )}
+              <div>
+                <Label>GST Number</Label>
+                <input
+                  value={form.gstNumber}
+                  onChange={(e) => handleFieldChange('gstNumber', e.target.value)}
+                  onFocus={() => handleFieldFocus('gstNumber')}
+                  placeholder="Enter GST Number"
+                  className={inputCls}
+                />
+                <FieldError message={touched.gstNumber && errors.gstNumber} />
+              </div>
             </div>
-          </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label required>PAN Number</Label>
                 <input
                   value={form.panNumber}
-                  onChange={(e) => set('panNumber', e.target.value.toUpperCase())}
+                  onChange={(e) => handleFieldChange('panNumber', e.target.value)}
+                  onFocus={() => handleFieldFocus('panNumber')}
                   placeholder="ABCDE1234F"
                   maxLength={10}
                   className={inputCls}
                 />
+                <FieldError message={touched.panNumber && errors.panNumber} />
               </div>
               <div>
                 <Label required>Mobile Number</Label>
                 <input
                   value={form.mobile}
-                  onChange={(e) => set('mobile', e.target.value)}
+                  onChange={(e) => handleFieldChange('mobile', e.target.value)}
+                  onFocus={() => handleFieldFocus('mobile')}
                   placeholder="+91 98675 34210"
                   maxLength={10}
                   className={inputCls}
                 />
+                <FieldError message={touched.mobile && errors.mobile} />
               </div>
               <div>
                 <Label>Alternate Mobile Number</Label>
                 <input
                   value={form.altMobile}
-                  onChange={(e) => set('altMobile', e.target.value)}
+                  onChange={(e) => handleFieldChange('altMobile', e.target.value)}
+                  onFocus={() => handleFieldFocus('altMobile')}
                   placeholder="Secondary Mobile"
                   maxLength={10}
                   className={inputCls}
                 />
+                <FieldError message={touched.altMobile && errors.altMobile} />
               </div>
             </div>
 
@@ -623,10 +820,12 @@ const CompanyRegistration = () => {
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => set('email', e.target.value)}
+                  onChange={(e) => handleFieldChange('email', e.target.value)}
+                  onFocus={() => handleFieldFocus('email')}
                   placeholder="company@example.com"
                   className={inputCls}
                 />
+                <FieldError message={touched.email && errors.email} />
               </div>
               <ImageUploadBox
                 label="Company Logo"
@@ -659,10 +858,12 @@ const CompanyRegistration = () => {
                 <Label required>Address Line 1</Label>
                 <input
                   value={form.addressLine1}
-                  onChange={(e) => set('addressLine1', e.target.value)}
+                  onChange={(e) => handleFieldChange('addressLine1', e.target.value)}
+                  onFocus={() => handleFieldFocus('addressLine1')}
                   placeholder="Plot No, Street, Landmark"
                   className={inputCls}
                 />
+                <FieldError message={touched.addressLine1 && errors.addressLine1} />
               </div>
               <div>
                 <Label>Address Line 2</Label>
@@ -678,85 +879,59 @@ const CompanyRegistration = () => {
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <Label required>Country</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedCountry}
-                    onChange={handleCountryChange}
-                    className='w-full outline-none'
-                  >
-                    <option value="">
-                      Select Country
-                    </option>
-
-                    {countries.map((country) => (
-                      <option
-                        key={country.id}
-                        value={country.id}
-                      >
-                        {country.name}
-                      </option>
-                    ))}
-
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="country"
+                  value={selectedCountry}
+                  onChange={handleCountryChange}
+                  options={countries.map((country) => ({
+                    value: country.id,
+                    label: country.name,
+                  }))}
+                  placeholder="Select Country"
+                />
+                <FieldError message={touched.country && errors.country} />
               </div>
               <div>
                 <Label required>State</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedState}
-                    onChange={handleStateChange}
-                    className='w-full outline-none'
-                  >
-                    <option value="">
-                      Select State
-                    </option>
-
-                    {states.map((state) => (
-                      <option
-                        key={state.id}
-                        value={state.id}
-                      >
-                        {state.name}
-                      </option>
-                    ))}
-
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="state"
+                  value={selectedState}
+                  onChange={handleStateChange}
+                  options={states.map((state) => ({
+                    value: state.id,
+                    label: state.name,
+                  }))}
+                  placeholder="Select State"
+                  disabled={!selectedCountry}
+                />
+                <FieldError message={touched.state && errors.state} />
               </div>
               <div>
                 <Label required>City</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className='w-full outline-none'
-                  >
-                    <option value="">
-                      Select City
-                    </option>
-
-                    {cities?.map((city) => (
-                      <option
-                        key={city.id}
-                        value={city.id}
-                      >
-                        {city.name}
-                      </option>
-                    ))}
-
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="city"
+                  value={selectedCity}
+                  onChange={handleCityChange}
+                  options={(cities || []).map((city) => ({
+                    value: city.id,
+                    label: city.name,
+                  }))}
+                  placeholder="Select City"
+                  disabled={!selectedState}
+                />
+                <FieldError message={touched.city && errors.city} />
               </div>
               <div>
                 <Label required>Pincode</Label>
                 <input
                   value={form.pincode}
-                  onChange={(e) => set('pincode', e.target.value)}
+                  onChange={(e) => handleFieldChange('pincode', e.target.value)}
+                  onFocus={() => handleFieldFocus('pincode')}
                   placeholder="380009"
                   maxLength={6}
                   className={inputCls}
                 />
+                <FieldError message={touched.pincode && errors.pincode} />
               </div>
             </div>
 
@@ -806,28 +981,34 @@ const CompanyRegistration = () => {
                 <Label required>Account Holder Name</Label>
                 <input
                   value={form.accountHolder}
-                  onChange={(e) => set('accountHolder', e.target.value)}
+                  onChange={(e) => handleFieldChange('accountHolder', e.target.value)}
+                  onFocus={() => handleFieldFocus('accountHolder')}
                   placeholder="As per bank records"
                   className={inputCls}
                 />
+                <FieldError message={touched.accountHolder && errors.accountHolder} />
               </div>
               <div>
                 <Label required>Account Number</Label>
                 <input
                   value={form.accountNumber}
-                  onChange={(e) => set('accountNumber', e.target.value)}
+                  onChange={(e) => handleFieldChange('accountNumber', e.target.value)}
+                  onFocus={() => handleFieldFocus('accountNumber')}
                   placeholder="Enter account number"
                   className={inputCls}
                 />
+                <FieldError message={touched.accountNumber && errors.accountNumber} />
               </div>
               <div>
                 <Label required>Bank Name</Label>
                 <input
                   value={form.bankName}
-                  onChange={(e) => set('bankName', e.target.value)}
+                  onChange={(e) => handleFieldChange('bankName', e.target.value)}
+                  onFocus={() => handleFieldFocus('bankName')}
                   placeholder="e.g. HDFC Bank"
                   className={inputCls}
                 />
+                <FieldError message={touched.bankName && errors.bankName} />
               </div>
             </div>
 
@@ -836,29 +1017,35 @@ const CompanyRegistration = () => {
                 <Label required>Branch Name</Label>
                 <input
                   value={form.branchName}
-                  onChange={(e) => set('branchName', e.target.value)}
+                  onChange={(e) => handleFieldChange('branchName', e.target.value)}
+                  onFocus={() => handleFieldFocus('branchName')}
                   placeholder="Branch location"
                   className={inputCls}
                 />
+                <FieldError message={touched.branchName && errors.branchName} />
               </div>
               <div>
                 <Label required>IFSC Code</Label>
                 <input
                   value={form.ifsc}
-                  onChange={(e) => set('ifsc', e.target.value.toUpperCase())}
+                  onChange={(e) => handleFieldChange('ifsc', e.target.value)}
+                  onFocus={() => handleFieldFocus('ifsc')}
                   placeholder="e.g. HDFC0001234"
                   maxLength={11}
                   className={inputCls}
                 />
+                <FieldError message={touched.ifsc && errors.ifsc} />
               </div>
               <div>
                 <Label>UPI ID</Label>
                 <input
                   value={form.upiId}
-                  onChange={(e) => set('upiId', e.target.value)}
+                  onChange={(e) => handleFieldChange('upiId', e.target.value)}
+                  onFocus={() => handleFieldFocus('upiId')}
                   placeholder="name@bank"
                   className={inputCls}
                 />
+                <FieldError message={touched.upiId && errors.upiId} />
               </div>
             </div>
           </div>
