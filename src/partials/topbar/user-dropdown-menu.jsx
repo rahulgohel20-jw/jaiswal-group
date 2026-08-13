@@ -247,6 +247,20 @@ export function UserDropdownMenu({ trigger }) {
           </Link>
         </DropdownMenuItem>
         {/* Footer */}
+        {/* <DropdownMenuItem
+          className="flex items-center gap-2"
+          onSelect={(event) => event.preventDefault()}
+        >
+          <Moon />
+          <div className="flex items-center gap-2 justify-between grow">
+            Dark Mode
+            <Switch
+              size="sm"
+              checked={theme === 'dark'}
+              onCheckedChange={handleThemeToggle}
+            />
+          </div>
+        </DropdownMenuItem> */}
         <div className="p-2 mt-1">
           <Button
             variant="outline"

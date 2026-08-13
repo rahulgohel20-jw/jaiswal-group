@@ -310,6 +310,7 @@ const AddRawMaterialCategoryModal = ({
                 placeholder="e.g. 10"
                 className="mt-1"
                 value={form.sequence}
+                onWheel={(e) => e.currentTarget.blur()}
                 onChange={(e) => set('sequence', e.target.value)}
               />
               {errors.sequence && (

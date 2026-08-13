@@ -244,7 +244,7 @@ export function AppRoutingSetup() {
           <Route path="/vendor-unit-mapping" element={<VendorUnitMapping />} />
 
           <Route path="/department" element={<Departmentlist />} />
-          {/* <Route path="/user-rights" element={<UserRights />} /> */}
+          <Route path="/user-rights" element={<UserRights />} />
 
           <Route path="/assets/all-assets" element={<AssetsManagement />} />
           <Route path="/assets/add-asset" element={<AddAsset />} />

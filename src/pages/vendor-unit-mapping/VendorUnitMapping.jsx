@@ -1,13 +1,5 @@
-import { ChevronRight, ChevronDown, Link2, Search, Trash2, X } from 'lucide-react'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Container } from "@/components/common/container";
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { getEmailFromToken } from '@/utils/auth';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { getEmailFromToken } from '@/utils/auth';
 import { OrgTypes } from '../../constants/orgTypes';
@@ -53,70 +45,97 @@ const SingleSelectDropdown = ({ label, placeholder, options, selected, onChange,
         onChange(option);
         setOpen(false);
         setQuery('');
+      }
     };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    return (
-        <div ref={wrapperRef} className="relative w-full">
-            <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">{label}</label>
+  const filteredOptions = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return options;
+    return options.filter((o) => (o.name ?? '').toLowerCase().includes(term));
+  }, [options, query]);
 
-            <div
-                onClick={() => setOpen((prev) => !prev)}
-                className="h-11 w-full border border-[#C3C6D1] rounded-lg px-3 flex items-center justify-between gap-2 cursor-pointer bg-white"
-            >
-                <span className={`text-sm truncate ${selected ? 'text-[#1B1B1F]' : 'text-gray-400'}`}>
-                    {selected ? selected.name : placeholder}
-                </span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                    {selected && (
-                        <X
-                            size={14}
-                            className="text-gray-400 hover:text-red-500"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onChange(null);
-                            }}
-                        />
-                    )}
-                    <ChevronDown size={16} className="text-gray-400" />
-                </div>
-            </div>
+  const handlePick = (option) => {
+    onChange(option);
+    setOpen(false);
+    setQuery('');
+  };
 
-            {open && (
-                <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
-                    <div className="relative border-b border-[#C3C6D1]">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            autoFocus
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search..."
-                            className="w-full pl-8 pr-3 py-2 text-sm outline-none"
-                        />
-                    </div>
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
+        {label}
+      </label>
 
-                    <div className="overflow-y-auto">
-                        {loading && <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>}
-
-                        {!loading && filteredOptions.length === 0 && (
-                            <p className="px-3 py-2 text-sm text-gray-400">No results found.</p>
-                        )}
-
-                        {!loading &&
-                            filteredOptions.map((option) => (
-                                <button
-                                    type="button"
-                                    key={option.id}
-                                    onClick={() => handlePick(option)}
-                                    className="w-full text-left px-3 py-2 text-sm hover:bg-[#F4F7FF]"
-                                >
-                                    {option.name}
-                                </button>
-                            ))}
-                    </div>
-                </div>
-            )}
+      <div
+        onClick={() => setOpen((prev) => !prev)}
+        className="h-11 w-full border border-[#C3C6D1] rounded-lg px-3 flex items-center justify-between gap-2 cursor-pointer bg-white"
+      >
+        <span
+          className={`text-sm truncate ${selected ? 'text-[#1B1B1F]' : 'text-gray-400'}`}
+        >
+          {selected ? selected.name : placeholder}
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {selected && (
+            <X
+              size={14}
+              className="text-gray-400 hover:text-red-500"
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(null);
+              }}
+            />
+          )}
+          <ChevronDown size={16} className="text-gray-400" />
         </div>
-    );
+      </div>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
+          <div className="relative border-b border-[#C3C6D1]">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full pl-8 pr-3 py-2 text-sm outline-none"
+            />
+          </div>
+
+          <div className="overflow-y-auto">
+            {loading && (
+              <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>
+            )}
+
+            {!loading && filteredOptions.length === 0 && (
+              <p className="px-3 py-2 text-sm text-gray-400">
+                No results found.
+              </p>
+            )}
+
+            {!loading &&
+              filteredOptions.map((option) => (
+                <button
+                  type="button"
+                  key={option.id}
+                  onClick={() => handlePick(option)}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-[#F4F7FF]"
+                >
+                  {option.name}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 const MultiSelectDropdown = ({ label, placeholder, options, selected, onChange, loading }) => {
@@ -154,85 +173,123 @@ const MultiSelectDropdown = ({ label, placeholder, options, selected, onChange, 
     const removeOption = (id) => {
         onChange(selected.filter((s) => s.id !== id));
     };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-    return (
-        <div ref={wrapperRef} className="relative w-full">
-            <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">{label}</label>
+  const filteredOptions = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return options;
+    return options.filter((o) => (o.name ?? '').toLowerCase().includes(term));
+  }, [options, query]);
 
-            <div
-                onClick={() => setOpen((prev) => !prev)}
-                className="min-h-11 w-full border border-[#C3C6D1] rounded-lg px-2.5 py-1.5 flex flex-wrap items-center gap-1.5 cursor-pointer bg-white"
-            >
-                {selected.length === 0 && (
-                    <span className="text-gray-400 text-sm px-1">{placeholder}</span>
-                )}
+  const isSelected = (id) => selected.some((s) => s.id === id);
 
-                {selected.map((item) => (
-                    <span
-                        key={item.id}
-                        className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-1 rounded-md"
-                    >
-                        {item.name}
-                        <X
-                            size={12}
-                            className="cursor-pointer hover:text-red-500"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                removeOption(item.id);
-                            }}
-                        />
-                    </span>
-                ))}
+  const toggleOption = (option) => {
+    if (isSelected(option.id)) {
+      onChange(selected.filter((s) => s.id !== option.id));
+    } else {
+      onChange([...selected, option]);
+    }
+  };
 
-                <ChevronDown size={16} className="ml-auto text-gray-400 shrink-0" />
-            </div>
+  const removeOption = (id) => {
+    onChange(selected.filter((s) => s.id !== id));
+  };
 
-            {open && (
-                <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
-                    <div className="relative border-b border-[#C3C6D1]">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                            autoFocus
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search..."
-                            className="w-full pl-8 pr-3 py-2 text-sm outline-none"
-                        />
-                    </div>
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
+        {label}
+      </label>
 
-                    <div className="overflow-y-auto">
-                        {loading && <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>}
+      <div
+        onClick={() => setOpen((prev) => !prev)}
+        className="min-h-11 w-full border border-[#C3C6D1] rounded-lg px-2.5 py-1.5 flex flex-wrap items-center gap-1.5 cursor-pointer bg-white"
+      >
+        {selected.length === 0 && (
+          <span className="text-gray-400 text-sm px-1">{placeholder}</span>
+        )}
 
-                        {!loading && filteredOptions.length === 0 && (
-                            <p className="px-3 py-2 text-sm text-gray-400">No results found.</p>
-                        )}
+        {selected.map((item) => (
+          <span
+            key={item.id}
+            className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-1 rounded-md"
+          >
+            {item.name}
+            <X
+              size={12}
+              className="cursor-pointer hover:text-red-500"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeOption(item.id);
+              }}
+            />
+          </span>
+        ))}
 
-                        {!loading &&
-                            filteredOptions.map((option) => (
-                                <label
-                                    key={option.id}
-                                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#F4F7FF] cursor-pointer"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={isSelected(option.id)}
-                                        onChange={() => toggleOption(option)}
-                                        className="accent-[#084E92]"
-                                    />
-                                    {option.name}
-                                </label>
-                            ))}
-                    </div>
-                </div>
+        <ChevronDown size={16} className="ml-auto text-gray-400 shrink-0" />
+      </div>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
+          <div className="relative border-b border-[#C3C6D1]">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search..."
+              className="w-full pl-8 pr-3 py-2 text-sm outline-none"
+            />
+          </div>
+
+          <div className="overflow-y-auto">
+            {loading && (
+              <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>
             )}
+
+            {!loading && filteredOptions.length === 0 && (
+              <p className="px-3 py-2 text-sm text-gray-400">
+                No results found.
+              </p>
+            )}
+
+            {!loading &&
+              filteredOptions.map((option) => (
+                <label
+                  key={option.id}
+                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#F4F7FF] cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected(option.id)}
+                    onChange={() => toggleOption(option)}
+                    className="accent-[#084E92]"
+                  />
+                  {option.name}
+                </label>
+              ))}
+          </div>
         </div>
-    );
+      )}
+    </div>
+  );
 };
 
 // Normalizes a raw outlet/org record from getOrganizationByType into { id, name }.
 const normalizeUnit = (o) => ({
-    id: o.id,
-    name: o.companyNameEnglish ?? o.name,
+  id: o.id,
+  name: o.companyNameEnglish ?? o.name,
+});
+
+// Normalizes a raw vendor record from getAllActiveVendors into { id, name }.
+const normalizeVendor = (v) => ({
+  id: v.id,
+  name: v.companyNameEnglish ?? v.vendorName ?? v.name,
 });
 
 // Normalizes a raw vendor record from getAllActiveVendors into { id, name, gstRegisteredName }.
@@ -672,16 +729,39 @@ const VendorUnitMapping = () => {
                     </div>
                 </div>
             </div>
+          </div>
 
-            <DeleteConfirmModal
-                isOpen={showDeleteConfirm}
-                onClose={closeDeleteConfirm}
-                onConfirm={confirmDelete}
-                itemLabel={deleteTarget?.name}
-                saving={deleteLoading}
-            />
-        </Container>
-    );
+          <div className="w-full mt-5 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+            <DataGrid
+              table={table}
+              recordCount={filteredMappings.length}
+              className="rounded-2xl"
+            >
+              <Card className="rounded-t-none border-t-0 rounded-2xl">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+                <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
+          </div>
+        </div>
+      </div>
+
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+        itemLabel={deleteTarget?.name}
+        saving={deleteLoading}
+      />
+    </Container>
+  );
 };
 
 export default VendorUnitMapping;

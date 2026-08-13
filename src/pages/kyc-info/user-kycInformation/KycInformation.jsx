@@ -167,7 +167,7 @@ const KycInformation = () => {
 
             </div>
             <div className="py-4 w-full border-t border-[#C3C6D1] my-20 flex justify-end gap-5 text-sm px-6">
-                <button className='py-2 px-6 border border-[#737781] text-[#43474F] rounded cursor-pointer '>Cancle</button>
+                <button className='py-2 px-6 border border-[#737781] text-[#43474F] rounded cursor-pointer '>Cancel</button>
                 <button className='py-2 px-6 flex gap-2 items-center bg-[#BA1A1A] text-white rounded cursor-pointer'><Ban size={15} /> Reject</button>
                 <button className='py-2 px-6 flex gap-2 items-center bg-[#084E92] text-white rounded cursor-pointer'><BadgeCheck size={15} /> Approve</button>
             </div>
