@@ -689,3 +689,28 @@ export const updateCity = (id, payload) => {
 export const deleteCityById = (id) => {
   return DELETE(`/city/deletebyid?id=${id}`);
 }
+// ---- Raw Material Category ↔ Brand Mapping APIs ----
+
+export const getAllRawMaterialCategoryBrands = () => {
+  return GET('/rawmaterialcategorybrand/getall');
+};
+
+export const getRawMaterialCategoryBrandById = (id) => {
+  return GET('/rawmaterialcategorybrand/getbyid', { id });
+};
+
+export const getRawMaterialCategoryBrandsByCategoryId = (categoryId) => {
+  return GET('/rawmaterialcategorybrand/getbycategoryid', { categoryId });
+};
+
+export const getRawMaterialCategoryBrandsByBrandId = (brandId) => {
+  return GET('/rawmaterialcategorybrand/getbybrandid', { brandId });
+};
+
+export const assignBrandsToCategories = (payload) => {
+  return POST('/rawmaterialcategorybrand/assign', payload);
+};
+
+export const deleteRawMaterialCategoryBrandById = (id) => {
+  return DELETE('/rawmaterialcategorybrand/delete', { id });
+};

@@ -1,12 +1,21 @@
-import { ChevronRight, CircleCheck, CircleX, ClipboardList, Download, Filter, MoreVertical, Package, RotateCcw, Search } from 'lucide-react'
-import React, { useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import React, { useMemo, useState } from 'react';
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import {
+  ChevronRight,
+  CircleCheck,
+  CircleX,
+  ClipboardList,
+  Download,
+  Filter,
+  MoreVertical,
+  Package,
+  RotateCcw,
+  Search,
+} from 'lucide-react';
 import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
 import {
@@ -17,62 +26,179 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Container } from '@/components/common/container';
 
 const requests = [
+  {
+    prCode: 'PR-2024-001',
+    poCode: 'TO BE GENERATED',
+    date: 'Oct 24, 2023',
+    company: 'Reliance Retail Ltd.',
+    outlet: 'Mumbai - Main Hub',
+    raisedBy: 'Animesh Sharma',
+    initials: 'AS',
+    status: 'Approved',
+    action: 'Generate PO',
+  },
+  {
+    prCode: 'PR-2024-002',
+    poCode: 'PO-2024-101',
+    date: 'Oct 22, 2023',
+    company: 'Tata Consumer Products',
+    outlet: 'Delhi North Outlet',
+    raisedBy: 'Priya Singh',
+    initials: 'PS',
+    status: 'Approved',
+    action: 'Edit',
+  },
+  {
+    prCode: 'PR-2024-003',
+    poCode: 'TO BE GENERATED',
+    date: 'Oct 21, 2023',
+    company: 'Britannia Industries',
+    outlet: 'Bangalore Central',
+    raisedBy: 'Ravi Varma',
+    initials: 'RV',
+    status: 'Pending',
+    action: 'Generate PO',
+  },
+  {
+    prCode: 'PR-2024-004',
+    poCode: 'TO BE GENERATED',
+    date: 'Oct 20, 2023',
+    company: 'Amul India',
+    outlet: 'Ahmedabad Plant',
+    raisedBy: 'Mehul Desai',
+    initials: 'MD',
+    status: 'Approved',
+    action: 'Generate PO',
+  },
+  {
+    prCode: 'PR-2024-005',
+    poCode: 'PO-2024-102',
+    date: 'Oct 19, 2023',
+    company: 'Nestle Waters',
+    outlet: 'Pune South Hub',
+    raisedBy: 'Sameer Khan',
+    initials: 'SK',
+    status: 'Approved',
+    action: 'Edit',
+  },
+];
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-[180px]',
+  className = 'text-gray-600',
+}) => (
+  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+    {value}
+  </span>
+);
+const StatusBadge = ({ status }) => {
+  const styles = {
+    Approved: 'bg-green-100 text-green-700',
+    Pending: 'bg-yellow-100 text-yellow-700',
+    Rejected: 'bg-red-100 text-red-700',
+  };
+
+  return (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[status]}`}
+    >
+      {status.toUpperCase()}
+    </span>
+  );
+};
+const PurchaseOrderRequest = () => {
+  const [prRequest, setPrRequest] = useState(requests);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [rowSelection, setRowSelection] = useState({});
+  const [search, setSearch] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('All Companies');
+  const [outletFilter, setOutletFilter] = useState('All Outlets');
+  const [statusFilter, setStatusFilter] = useState('All Status');
+
+  const columns = [
     {
-        prCode: "PR-2024-001",
-        poCode: "TO BE GENERATED",
-        date: "Oct 24, 2023",
-        company: "Reliance Retail Ltd.",
-        outlet: "Mumbai - Main Hub",
-        raisedBy: "Animesh Sharma",
-        initials: "AS",
-        status: "Approved",
-        action: "Generate PO",
+      accessorKey: 'prCode',
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="PR CODE"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      size: 140,
     },
     {
-        prCode: "PR-2024-002",
-        poCode: "PO-2024-101",
-        date: "Oct 22, 2023",
-        company: "Tata Consumer Products",
-        outlet: "Delhi North Outlet",
-        raisedBy: "Priya Singh",
-        initials: "PS",
-        status: "Approved",
-        action: "Edit",
+      accessorKey: 'poCode',
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="PO CODE"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      cell: ({ row }) =>
+        row.original.poCode === 'TO BE GENERATED' ? (
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-xs">
+            TO BE GENERATED
+          </span>
+        ) : (
+          row.original.poCode
+        ),
+      size: 170,
     },
     {
-        prCode: "PR-2024-003",
-        poCode: "TO BE GENERATED",
-        date: "Oct 21, 2023",
-        company: "Britannia Industries",
-        outlet: "Bangalore Central",
-        raisedBy: "Ravi Varma",
-        initials: "RV",
-        status: "Pending",
-        action: "Generate PO",
+      accessorKey: 'date',
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="DATE"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      size: 120,
     },
     {
-        prCode: "PR-2024-004",
-        poCode: "TO BE GENERATED",
-        date: "Oct 20, 2023",
-        company: "Amul India",
-        outlet: "Ahmedabad Plant",
-        raisedBy: "Mehul Desai",
-        initials: "MD",
-        status: "Approved",
-        action: "Generate PO",
+      accessorKey: 'company',
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="COMPANY NAME"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      cell: ({ row }) => (
+        <TruncatedCell
+          value={row.original.company}
+          widthClass="max-w-[190px]"
+        />
+      ),
     },
     {
-        prCode: "PR-2024-005",
-        poCode: "PO-2024-102",
-        date: "Oct 19, 2023",
-        company: "Nestle Waters",
-        outlet: "Pune South Hub",
-        raisedBy: "Sameer Khan",
-        initials: "SK",
-        status: "Approved",
-        action: "Edit",
+      accessorKey: 'outlet',
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="OUTLET NAME"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      cell: ({ row }) => (
+        <TruncatedCell
+          value={row.original.outlet}
+          widthClass="max-w-[190px] py-3"
+        />
+      ),
     },
 ];
 const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
@@ -238,44 +364,101 @@ const PurchaseOrderRequest = () => {
         },
     ];
 
-    const filteredRequests = useMemo(() => {
-        const keyword = search.toLowerCase().trim();
+  const filteredRequests = useMemo(() => {
+    const keyword = search.toLowerCase().trim();
 
-        return prRequest.filter((item) => {
-            const matchesSearch =
-                item.prCode.toLowerCase().includes(keyword) ||
-                item.company.toLowerCase().includes(keyword) ||
-                item.raisedBy.toLowerCase().includes(keyword);
+    return prRequest.filter((item) => {
+      const matchesSearch =
+        item.prCode.toLowerCase().includes(keyword) ||
+        item.company.toLowerCase().includes(keyword) ||
+        item.raisedBy.toLowerCase().includes(keyword);
 
-            const matchesCompany =
-                companyFilter === "All Companies" || item.company === companyFilter;
+      const matchesCompany =
+        companyFilter === 'All Companies' || item.company === companyFilter;
 
-            const matchesOutlet =
-                outletFilter === "All Outlets" || item.outlet === outletFilter;
+      const matchesOutlet =
+        outletFilter === 'All Outlets' || item.outlet === outletFilter;
 
-            const matchesStatus =
-                statusFilter === "All Status" || item.status === statusFilter;
+      const matchesStatus =
+        statusFilter === 'All Status' || item.status === statusFilter;
 
-            return (
-                matchesSearch &&
-                matchesCompany &&
-                matchesOutlet &&
-                matchesStatus
-            );
-        });
-    }, [prRequest, search, companyFilter, outletFilter, statusFilter]);
-    const table = useReactTable({
-        data: filteredRequests,
-        columns,
-        state: { pagination, rowSelection },
-        onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
-        getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+      return matchesSearch && matchesCompany && matchesOutlet && matchesStatus;
     });
+  }, [prRequest, search, companyFilter, outletFilter, statusFilter]);
+  const table = useReactTable({
+    data: filteredRequests,
+    columns,
+    state: { pagination, rowSelection },
+    onPaginationChange: setPagination,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
 
+  const STATS = [
+    {
+      title: 'Total PRs',
+      value: '1,240',
+      icon: (
+        <ClipboardList
+          size={22}
+          className="text-blue-600 p-1 bg-blue-100 rounded"
+        />
+      ),
+    },
+    {
+      title: 'Pending POs',
+      value: '12',
+      icon: (
+        <Package
+          size={22}
+          className="text-orange-500 p-1 bg-orange-100 rounded"
+        />
+      ),
+    },
+    {
+      title: 'PO Generated',
+      value: '850',
+      icon: (
+        <CircleCheck
+          size={22}
+          className="text-green-600 p-1 bg-green-100 rounded"
+        />
+      ),
+    },
+    {
+      title: 'Rejected',
+      value: '04',
+      icon: (
+        <CircleX size={22} className="text-red-500 p-1 bg-red-100 rounded" />
+      ),
+    },
+  ];
+  return (
+    <Container>
+      <div className="p-4 md:p-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Purchase</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">
+            Purchase Order Requests
+          </span>
+        </div>
 
+        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-[#0F172A]">
+              Purchase Order Requests
+            </h1>
+            <p className="text-[#737781] mt-1 md:w-[90%]">
+              Review approved purchase requisitions and generate purchase orders
+              for procurement workflows.
+            </p>
+          </div>
 
     const STATS = [
         {
@@ -515,4 +698,4 @@ const PurchaseOrderRequest = () => {
     )
 }
 
-export default PurchaseOrderRequest
+export default PurchaseOrderRequest;

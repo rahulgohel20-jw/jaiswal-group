@@ -1,46 +1,50 @@
-import { useState, useMemo, useRef, useEffect } from "react";
-import {
-  Eye,
-  SquarePen,
-  Plus,
-  Trash2,
-  Search,
-  X,
-  AlertTriangle,
-  SlidersHorizontal,
-  Download,
-  ChevronDown,
-  Check,
-  FileSpreadsheet,
-  FileText,
-} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { notify } from '@/utils/toast';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
-} from "@tanstack/react-table";
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Container } from "@/components/common/container";
-import { Link, useNavigate } from "react-router";
-import { deleteCompany, getRegisteredCompany, getOrganizationByType } from "../../services/apiServices";
-import { notify } from "@/utils/toast";
-import { OrgTypes } from "../../constants/orgTypes";
+} from '@tanstack/react-table';
+import {
+  AlertTriangle,
+  Check,
+  ChevronDown,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  Plus,
+  Search,
+  SlidersHorizontal,
+  SquarePen,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Container } from '@/components/common/container';
+import { OrgTypes } from '../../constants/orgTypes';
+import {
+  deleteCompany,
+  getOrganizationByType,
+  getRegisteredCompany,
+} from '../../services/apiServices';
 
 const STATUS_STYLES = {
-  active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  pending: "bg-amber-50 text-amber-700 ring-amber-200",
-  maintenance: "bg-orange-50 text-orange-700 ring-orange-200",
+  active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  pending: 'bg-amber-50 text-amber-700 ring-amber-200',
+  maintenance: 'bg-orange-50 text-orange-700 ring-orange-200',
 };
 
 const STATUS_LABELS = {
-  active: "Active",
-  pending: "Pending",
-  maintenance: "Maintenance",
+  active: 'Active',
+  pending: 'Pending',
+  maintenance: 'Maintenance',
 };
 
 const StatusBadge = ({ status }) => (
@@ -48,12 +52,13 @@ const StatusBadge = ({ status }) => (
     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}
   >
     <span
-      className={`w-1.5 h-1.5 rounded-full ${status === "active"
-        ? "bg-emerald-500"
-        : status === "pending"
-          ? "bg-amber-500"
-          : "bg-orange-500"
-        }`}
+      className={`w-1.5 h-1.5 rounded-full ${
+        status === 'active'
+          ? 'bg-emerald-500'
+          : status === 'pending'
+            ? 'bg-amber-500'
+            : 'bg-orange-500'
+      }`}
     />
     {STATUS_LABELS[status]}
   </span>
@@ -61,7 +66,10 @@ const StatusBadge = ({ status }) => (
 
 const DeleteConfirmModal = ({ Unit, onCancel, onConfirm }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+    <div
+      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      onClick={onCancel}
+    />
     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
       <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
         <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
@@ -69,9 +77,9 @@ const DeleteConfirmModal = ({ Unit, onCancel, onConfirm }) => (
         </div>
         <h2 className="text-base font-bold text-gray-900">Delete Unit?</h2>
         <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{" "}
-          <span className="font-semibold text-gray-700">{Unit.name}</span> from your
-          Unit list. This action cannot be undone.
+          This will permanently remove{' '}
+          <span className="font-semibold text-gray-700">{Unit.name}</span> from
+          your Unit list. This action cannot be undone.
         </p>
       </div>
       <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
@@ -95,7 +103,7 @@ const DeleteConfirmModal = ({ Unit, onCancel, onConfirm }) => (
 );
 
 // Generic dropdown used for the filters and export menus
-const Dropdown = ({ label, icon: Icon, children, widthClass = "w-48" }) => {
+const Dropdown = ({ label, icon: Icon, children, widthClass = 'w-48' }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -103,8 +111,8 @@ const Dropdown = ({ label, icon: Icon, children, widthClass = "w-48" }) => {
     const handleClick = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   return (
@@ -116,13 +124,17 @@ const Dropdown = ({ label, icon: Icon, children, widthClass = "w-48" }) => {
       >
         <Icon className="w-4 h-4 text-gray-400" />
         {label}
-        <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
       </button>
       {open && (
         <div
           className={`absolute right-0 mt-2 ${widthClass} bg-white rounded-xl border border-gray-100 shadow-lg z-20 py-1.5 overflow-hidden`}
         >
-          {typeof children === "function" ? children(() => setOpen(false)) : children}
+          {typeof children === 'function'
+            ? children(() => setOpen(false))
+            : children}
         </div>
       )}
     </div>
@@ -135,17 +147,18 @@ const DropdownItem = ({ label, active, onClick }) => (
     onClick={onClick}
     className="w-full flex items-center justify-between px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition cursor-pointer border-0 bg-transparent text-left"
   >
-    <span className={active ? "font-semibold text-gray-900" : ""}>{label}</span>
+    <span className={active ? 'font-semibold text-gray-900' : ''}>{label}</span>
     {active && <Check className="w-3.5 h-3.5 text-blue-600" />}
   </button>
 );
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
-const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
-  <span
-    title={value}
-    className={`block truncate ${widthClass} ${className}`}
-  >
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-[180px]',
+  className = 'text-gray-600',
+}) => (
+  <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
   </span>
 );
@@ -155,21 +168,21 @@ const UnitListing = () => {
   const [Units, setUnits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [deletingUnit, setDeletingUnit] = useState(null);
 
   const normalizeUnit = (item) => ({
     id: item.id,
-    name: item.companyNameEnglish || "",
-    code: item.companyCode || "",
-    location: item.cityName || "",
-    email: item.emailid || "",
-    mobile: item.mobilenumber || "",
-    address: item.addressEnglish || "",
-    parentName: item.parentName || "",
-    status: item.isActive ? "active" : "inactive",
+    name: item.companyNameEnglish || '',
+    code: item.companyCode || '',
+    location: item.cityName || '',
+    email: item.emailid || '',
+    mobile: item.mobilenumber || '',
+    address: item.addressEnglish || '',
+    parentName: item.parentName || '',
+    status: item.isActive ? 'active' : 'inactive',
     originalData: item,
   });
 
@@ -180,18 +193,14 @@ const UnitListing = () => {
     try {
       const res = await getOrganizationByType(OrgTypes.OUTLET);
 
-      const list =
-        res?.data?.data ||
-        res?.data?.content ||
-        res?.data ||
-        [];
+      const list = res?.data?.data || res?.data?.content || res?.data || [];
 
       const outlets = Array.isArray(list) ? list : [];
 
       setUnits(outlets.map(normalizeUnit));
     } catch (err) {
       console.error(err);
-      setError("Failed to load units.");
+      setError('Failed to load units.');
     } finally {
       setLoading(false);
     }
@@ -207,18 +216,18 @@ const UnitListing = () => {
         const searchText = search.toLowerCase();
 
         const matchesSearch =
-          (o.name || "").toLowerCase().includes(searchText) ||
-          (o.code || "").toLowerCase().includes(searchText) ||
-          (o.location || "").toLowerCase().includes(searchText) ||
-          (o.email || "").toLowerCase().includes(searchText) ||
-          (o.mobile || "").toLowerCase().includes(searchText);
+          (o.name || '').toLowerCase().includes(searchText) ||
+          (o.code || '').toLowerCase().includes(searchText) ||
+          (o.location || '').toLowerCase().includes(searchText) ||
+          (o.email || '').toLowerCase().includes(searchText) ||
+          (o.mobile || '').toLowerCase().includes(searchText);
 
         const matchesStatus =
-          statusFilter === "all" || o.status === statusFilter;
+          statusFilter === 'all' || o.status === statusFilter;
 
         return matchesSearch && matchesStatus;
       }),
-    [Units, search, statusFilter]
+    [Units, search, statusFilter],
   );
 
   // Sends the user to the same form used for creating a Unit, but with the
@@ -226,7 +235,7 @@ const UnitListing = () => {
   // (title, copy, and the Save button all switch to "Update") whenever
   // state.unit is present.
   const handleEdit = (unit) => {
-    navigate("/units/update-unit", {
+    navigate('/units/update-unit', {
       state: {
         unit: unit.originalData,
       },
@@ -237,25 +246,29 @@ const UnitListing = () => {
   const confirmDelete = async () => {
     try {
       await deleteCompany(deletingUnit.id);
-      notify.success("Unit Deleted successfully");
+      notify.success('Unit Deleted successfully');
       setDeletingUnit(null);
       fetchUnits();
     } catch (error) {
       console.error(error);
-      alert("Failed to delete unit");
+      alert('Failed to delete unit');
     }
   };
 
   const handleExport = (format) => {
-    alert(`Exporting ${filteredUnits.length} Unit(s) as ${format.toUpperCase()}`);
+    alert(
+      `Exporting ${filteredUnits.length} Unit(s) as ${format.toUpperCase()}`,
+    );
   };
 
   const columns = useMemo(
     () => [
       {
-        id: "name",
+        id: 'name',
         accessorFn: (row) => row.name,
-        header: ({ column }) => <DataGridColumnHeader title="Unit Name" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Unit Name" column={column} />
+        ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
@@ -266,48 +279,70 @@ const UnitListing = () => {
         size: 180,
       },
       {
-        id: "code",
+        id: 'code',
         accessorFn: (row) => row.code,
-        header: ({ column }) => <DataGridColumnHeader title="Unit Code" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600 whitespace-nowrap">{row.original.code}</span>,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Unit Code" column={column} />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-600 whitespace-nowrap">
+            {row.original.code}
+          </span>
+        ),
         size: 120,
       },
       {
-        id: "location",
+        id: 'location',
         accessorFn: (row) => row.location,
-        header: ({ column }) => <DataGridColumnHeader title="Location" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Location" column={column} />
+        ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.location} widthClass="max-w-[120px]" />
+          <TruncatedCell
+            value={row.original.location}
+            widthClass="max-w-[120px]"
+          />
         ),
         size: 130,
       },
       {
-        id: "email",
+        id: 'email',
         accessorFn: (row) => row.email,
-        header: ({ column }) => <DataGridColumnHeader title="Contact Email" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Contact Email" column={column} />
+        ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.email} widthClass="max-w-[190px]" />
+          <TruncatedCell
+            value={row.original.email}
+            widthClass="max-w-[190px]"
+          />
         ),
         size: 210,
       },
       {
-        id: "mobile",
+        id: 'mobile',
         accessorFn: (row) => row.mobile,
-        header: ({ column }) => <DataGridColumnHeader title="Mobile Number" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Mobile Number" column={column} />
+        ),
         cell: ({ row }) => (
-          <span className="text-gray-600 whitespace-nowrap">{row.original.mobile}</span>
+          <span className="text-gray-600 whitespace-nowrap">
+            {row.original.mobile}
+          </span>
         ),
         size: 160,
       },
       {
-        id: "status",
+        id: 'status',
         accessorFn: (row) => row.status,
-        header: ({ column }) => <DataGridColumnHeader title="Status" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Status" column={column} />
+        ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
         size: 130,
       },
       {
-        id: "actions",
+        id: 'actions',
         header: () => (
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Actions
@@ -318,7 +353,7 @@ const UnitListing = () => {
             <button
               type="button"
               onClick={() =>
-                navigate("/units/view-unit", {
+                navigate('/units/view-unit', {
                   state: { unit: row.original },
                 })
               }
@@ -330,14 +365,16 @@ const UnitListing = () => {
             <button
               type="button"
               onClick={() => handleEdit(row.original)}
-              className="text-gray-500 hover:text-blue-600 cursor-pointer" title="Update Unit"
+              className="text-gray-500 hover:text-blue-600 cursor-pointer"
+              title="Update Unit"
             >
               <SquarePen size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleDelete(row.original)}
-              className="text-red-300 hover:text-red-600 cursor-pointer" title="Delete Unit"
+              className="text-red-300 hover:text-red-600 cursor-pointer"
+              title="Delete Unit"
             >
               <Trash2 size={18} />
             </button>
@@ -357,22 +394,20 @@ const UnitListing = () => {
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    columnResizeMode: "onChange",
+    columnResizeMode: 'onChange',
   });
 
   const STATUS_OPTIONS = [
-    { key: "all", label: "All status" },
-    { key: "active", label: "Active" },
-    { key: "pending", label: "Pending" },
-    { key: "maintenance", label: "Maintenance" },
+    { key: 'all', label: 'All status' },
+    { key: 'active', label: 'Active' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'maintenance', label: 'Maintenance' },
   ];
 
   if (loading) {
     return (
       <Container>
-        <div className="text-center py-10">
-          Loading outlets...
-        </div>
+        <div className="text-center py-10">Loading outlets...</div>
       </Container>
     );
   }
@@ -380,11 +415,9 @@ const UnitListing = () => {
   if (error) {
     return (
       <Container>
-        <div className="text-red-500 text-center py-10">
-          {error}
-        </div>
+        <div className="text-red-500 text-center py-10">{error}</div>
       </Container>
-    )
+    );
   }
 
   return (
@@ -392,20 +425,19 @@ const UnitListing = () => {
       <div className="p-4 md:p-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 leading-none">
-                Registered Units
-              </h1>
-              <p className="text-md text-gray-400 mt-2.5">
-                Manage and monitor all Units and restaurants registered within the Jaiswal Group ecosystem through our <br />
-                centralized administration panel.
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 leading-none">
+              Registered Units
+            </h1>
+            <p className="text-sm text-gray-400 mt-2.5 max-w-2xl">
+              Manage and monitor all Units and restaurants registered within the
+              Jaiswal Group ecosystem through our centralized administration
+              panel.
+            </p>
           </div>
           <Link
             to="/units/add-unit"
-            className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition"
+            className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" />
             Add New Unit
@@ -452,7 +484,7 @@ const UnitListing = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        handleExport("csv");
+                        handleExport('csv');
                         close();
                       }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition cursor-pointer border-0 bg-transparent text-left"
@@ -463,7 +495,7 @@ const UnitListing = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        handleExport("pdf");
+                        handleExport('pdf');
                         close();
                       }}
                       className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition cursor-pointer border-0 bg-transparent text-left"

@@ -1,44 +1,48 @@
-import { useState, useMemo, useEffect } from "react";
-import {
-  Building2,
-  Plus,
-  Eye,
-  SquarePen,
-  Trash2,
-  Search,
-  X,
-  AlertTriangle,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from 'react';
+import { OrgTypes } from '@/constants/orgTypes';
+import { notify } from '@/utils/toast';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
-} from "@tanstack/react-table";
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Container } from "@/components/common/container";
-import { Link, useNavigate } from "react-router";
-import { getCompanyById, getRegisteredCompany, deleteCompany, getOrganizationByType } from "../../services/apiServices";
-import { notify } from "@/utils/toast";
-import { OrgTypes } from "@/constants/orgTypes";
-
+} from '@tanstack/react-table';
+import {
+  AlertTriangle,
+  Building2,
+  Eye,
+  Plus,
+  Search,
+  SquarePen,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Container } from '@/components/common/container';
+import {
+  deleteCompany,
+  getCompanyById,
+  getOrganizationByType,
+  getRegisteredCompany,
+} from '../../services/apiServices';
 
 const STATUS_STYLES = {
-  active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  pending: "bg-amber-50 text-amber-700 ring-amber-200",
-  onboarding: "bg-blue-50 text-blue-700 ring-blue-200",
-  inactive: "bg-gray-100 text-gray-500 ring-gray-200",
+  active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  pending: 'bg-amber-50 text-amber-700 ring-amber-200',
+  onboarding: 'bg-blue-50 text-blue-700 ring-blue-200',
+  inactive: 'bg-gray-100 text-gray-500 ring-gray-200',
 };
 
 const STATUS_LABELS = {
-  active: "Active",
-  pending: "Pending",
-  onboarding: "Onboarding",
-  inactive: "Inactive",
+  active: 'Active',
+  pending: 'Pending',
+  onboarding: 'Onboarding',
+  inactive: 'Inactive',
 };
 
 const StatusBadge = ({ status }) => (
@@ -46,14 +50,15 @@ const StatusBadge = ({ status }) => (
     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}
   >
     <span
-      className={`w-1.5 h-1.5 rounded-full ${status === "active"
-        ? "bg-emerald-500"
-        : status === "pending"
-          ? "bg-amber-500"
-          : status === "onboarding"
-            ? "bg-blue-500"
-            : "bg-gray-400"
-        }`}
+      className={`w-1.5 h-1.5 rounded-full ${
+        status === 'active'
+          ? 'bg-emerald-500'
+          : status === 'pending'
+            ? 'bg-amber-500'
+            : status === 'onboarding'
+              ? 'bg-blue-500'
+              : 'bg-gray-400'
+      }`}
     />
     {STATUS_LABELS[status]}
   </span>
@@ -61,7 +66,10 @@ const StatusBadge = ({ status }) => (
 
 const DeleteConfirmModal = ({ company, onCancel, onConfirm }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+    <div
+      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      onClick={onCancel}
+    />
     <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
       <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
         <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
@@ -69,9 +77,9 @@ const DeleteConfirmModal = ({ company, onCancel, onConfirm }) => (
         </div>
         <h2 className="text-base font-bold text-gray-900">Delete company?</h2>
         <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{" "}
-          <span className="font-semibold text-gray-700">{company.name}</span> from your
-          company list. This action cannot be undone.
+          This will permanently remove{' '}
+          <span className="font-semibold text-gray-700">{company.name}</span>{' '}
+          from your company list. This action cannot be undone.
         </p>
       </div>
       <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
@@ -97,8 +105,8 @@ const DeleteConfirmModal = ({ company, onCancel, onConfirm }) => (
 const CompanyRegistration = () => {
   const navigate = useNavigate();
   const [companies, setCompanies] = useState([]);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [deletingCompany, setDeletingCompany] = useState(null);
   const [error, setError] = useState(null);
@@ -106,12 +114,12 @@ const CompanyRegistration = () => {
 
   const normalizeCompany = (item) => ({
     id: item.id,
-    name: item.companyNameEnglish || "",
-    code: item.companyCode || "",
-    location: item.cityName || "",
-    mobile: item.mobilenumber || "",
-    gstNumber: item.gstNumber || "",
-    status: item.isActive ? "active" : "inactive",
+    name: item.companyNameEnglish || '',
+    code: item.companyCode || '',
+    location: item.cityName || '',
+    mobile: item.mobilenumber || '',
+    gstNumber: item.gstNumber || '',
+    status: item.isActive ? 'active' : 'inactive',
   });
 
   const fetchCompanies = async () => {
@@ -121,18 +129,14 @@ const CompanyRegistration = () => {
     try {
       const res = await getOrganizationByType(OrgTypes.SUB_COMPANY);
 
-      const list =
-        res?.data?.data ||
-        res?.data?.content ||
-        res?.data ||
-        [];
+      const list = res?.data?.data || res?.data?.content || res?.data || [];
 
       const companyList = Array.isArray(list) ? list : [];
 
       setCompanies(companyList.map(normalizeCompany));
     } catch (err) {
       console.error(err);
-      setError("Failed to load companies.");
+      setError('Failed to load companies.');
     } finally {
       setLoading(false);
     }
@@ -143,28 +147,28 @@ const CompanyRegistration = () => {
   }, []);
 
   const handleViewClick = async (company) => {
-  try {
-    const res = await getCompanyById(company.id);
-    navigate("/companies/company-details", {
-      state: {
-        company: res.data.data,
-      },
-    });
-
-  } catch (error) {
-    console.error(error);
-  }
-};
+    try {
+      const res = await getCompanyById(company.id);
+      navigate('/companies/company-details', {
+        state: {
+          company: res.data.data,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const filteredCompanies = useMemo(
     () =>
       companies.filter((c) => {
         const matchesSearch =
-          (c.name || "").toLowerCase().includes(search) ||
-          (c.code || "").toLowerCase().includes(search) ||
-          (c.location || "").toLowerCase().includes(search) ||
-          (c.mobile || "").toLowerCase().includes(search);
-        const matchesStatus = statusFilter === "all" || c.status === statusFilter;
+          (c.name || '').toLowerCase().includes(search) ||
+          (c.code || '').toLowerCase().includes(search) ||
+          (c.location || '').toLowerCase().includes(search) ||
+          (c.mobile || '').toLowerCase().includes(search);
+        const matchesStatus =
+          statusFilter === 'all' || c.status === statusFilter;
         return matchesSearch && matchesStatus;
       }),
     [companies, search, statusFilter],
@@ -176,7 +180,7 @@ const CompanyRegistration = () => {
   const confirmDelete = async () => {
     try {
       await deleteCompany(deletingCompany.id);
-      notify.success("Company Deleted successfully");
+      notify.success('Company Deleted successfully');
 
       await fetchCompanies();
 
@@ -189,7 +193,7 @@ const CompanyRegistration = () => {
   const handleEdit = async (company) => {
     try {
       const res = await getCompanyById(company.id);
-      navigate("/companies/update-company", {
+      navigate('/companies/update-company', {
         state: {
           company: res.data.data,
         },
@@ -202,36 +206,54 @@ const CompanyRegistration = () => {
   const columns = useMemo(
     () => [
       {
-        id: "name",
+        id: 'name',
         accessorFn: (row) => row.name,
-        header: ({ column }) => <DataGridColumnHeader title="Company Name" column={column} />,
-        cell: ({ row }) => (
-          <span className="font-semibold text-gray-800">{row.original.name}</span>
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Company Name" column={column} />
         ),
-        size:220,
+        cell: ({ row }) => (
+          <span className="font-semibold text-gray-800">
+            {row.original.name}
+          </span>
+        ),
+        size: 220,
       },
       {
-        id: "code",
+        id: 'code',
         accessorFn: (row) => row.code,
-        header: ({ column }) => <DataGridColumnHeader title="Company Code" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.code}</span>,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Company Code" column={column} />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-600">{row.original.code}</span>
+        ),
       },
       {
-        id: "location",
+        id: 'location',
         accessorFn: (row) => row.location,
-        header: ({ column }) => <DataGridColumnHeader title="Location" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.location}</span>,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Location" column={column} />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-600">{row.original.location}</span>
+        ),
       },
       {
-        id: "mobile",
+        id: 'mobile',
         accessorFn: (row) => row.mobile,
-        header: ({ column }) => <DataGridColumnHeader title="Mobile Number" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.mobile}</span>,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Mobile Number" column={column} />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-600">{row.original.mobile}</span>
+        ),
       },
       {
-        id: "gstNumber",
+        id: 'gstNumber',
         accessorFn: (row) => row.gstNumber,
-        header: ({ column }) => <DataGridColumnHeader title="GST Number" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="GST Number" column={column} />
+        ),
         cell: ({ row }) =>
           row.original.gstNumber ? (
             <span className="text-gray-700">{row.original.gstNumber}</span>
@@ -240,13 +262,15 @@ const CompanyRegistration = () => {
           ),
       },
       {
-        id: "status",
+        id: 'status',
         accessorFn: (row) => row.status,
-        header: ({ column }) => <DataGridColumnHeader title="Status" column={column} />,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Status" column={column} />
+        ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
       {
-        id: "actions",
+        id: 'actions',
         header: () => (
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
             Actions
@@ -257,23 +281,23 @@ const CompanyRegistration = () => {
             <button
               type="button"
               onClick={() => handleViewClick(row.original)}
-             className="text-gray-500 hover:text-green-600 cursor-pointer"
+              className="text-gray-500 hover:text-green-600 cursor-pointer"
               title="View company"
             >
-              <Eye  size={18} />
+              <Eye size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleEdit(row.original)}
-               className="text-gray-500 hover:text-blue-600 cursor-pointer"
+              className="text-gray-500 hover:text-blue-600 cursor-pointer"
               title="Update company"
             >
-              <SquarePen  size={18}/>
+              <SquarePen size={18} />
             </button>
             <button
               type="button"
               onClick={() => handleDelete(row.original)}
-             className="text-red-300 hover:text-red-600 cursor-pointer"
+              className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete company"
             >
               <Trash2 size={18} />
@@ -296,13 +320,12 @@ const CompanyRegistration = () => {
   });
 
   const STATUS_TABS = [
-    { key: "all", label: "All" },
-    { key: "active", label: "Active" },
-    { key: "pending", label: "Pending" },
-    { key: "onboarding", label: "Onboarding" },
-    { key: "inactive", label: "Inactive" },
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'pending', label: 'Pending' },
+    { key: 'onboarding', label: 'Onboarding' },
+    { key: 'inactive', label: 'Inactive' },
   ];
-
 
   if (loading) {
     return (
@@ -317,9 +340,7 @@ const CompanyRegistration = () => {
   if (error) {
     return (
       <Container>
-        <div className="text-red-500 text-center py-10">
-          {error}
-        </div>
+        <div className="text-red-500 text-center py-10">{error}</div>
       </Container>
     );
   }
@@ -328,20 +349,19 @@ const CompanyRegistration = () => {
       <div className="p-4 md:p-6">
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 leading-none">
-                Registered Companies
-              </h1>
-              <p className="text-md text-gray-400 mt-2.5">
-                Manage and monitor all corporate entities registered within the Jaiswal Group ecosystem through our  <br />
-                centralized administration panel.
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 leading-none">
+              Registered Companies
+            </h1>
+            <p className="text-sm text-gray-400 mt-2.5 max-w-2xl">
+              Manage and monitor all corporate entities registered within the
+              Jaiswal Group ecosystem through our centralized administration
+              panel.
+            </p>
           </div>
           <Link
             to="/companies/registration"
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" />
             Add new company
@@ -369,10 +389,11 @@ const CompanyRegistration = () => {
                   key={tab.key}
                   type="button"
                   onClick={() => setStatusFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border-0 ${statusFilter === tab.key
-                    ? "bg-white text-gray-800 shadow-sm"
-                    : "bg-transparent text-gray-400 hover:text-gray-600"
-                    }`}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border-0 ${
+                    statusFilter === tab.key
+                      ? 'bg-white text-gray-800 shadow-sm'
+                      : 'bg-transparent text-gray-400 hover:text-gray-600'
+                  }`}
                 >
                   {tab.label}
                 </button>

@@ -121,6 +121,7 @@ import CompanyRegistration from '../pages/company-registration/CompanyRegistrati
 import CompanyViewDetails from '../pages/company-registration/CompanyViewDetails';
 import Dashboard from '../pages/dashboards/Dashboard';
 import Departmentlist from '../pages/department/Departmentlist';
+import UserRights from '../pages/department/UserRights';
 import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
 import KycInformation from '../pages/kyc-info/user-kycInformation/KycInformation';
 import VendorKycInfo from '../pages/kyc-info/vendor-kycInformation/VendorKycInfo';
@@ -142,10 +143,11 @@ import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseR
 import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
 import AddPurchaseReturn from '../pages/purchase-return-list/AddPurchaseReturn';
 import PurchaseReturnList from '../pages/purchase-return-list/PurchaseReturnListing';
+import RowCategoryBrandMapping from '../pages/raw-material/category-brand-mapping/RowCategoryBrandMapping';
+import RowMaterialBrandMaster from '../pages/raw-material/raw-material-brand-master/RowMaterialBrandMaster';
 import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
 import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawMaterialTypeListing';
 import RowMaterialUnit from '../pages/raw-material/raw-material-unit-master/RowMaterialUnit';
-import RowMaterialBrandMaster from '../pages/raw-material/raw-material-brand-master/RowMaterialBrandMaster';
 import RowMaterialCategories from '../pages/raw-material/row-material-categories/RowMaterialCategories';
 import Setting from '../pages/settings/Settings';
 import AddPurchase from '../pages/stock-purchase/AddPurchase';

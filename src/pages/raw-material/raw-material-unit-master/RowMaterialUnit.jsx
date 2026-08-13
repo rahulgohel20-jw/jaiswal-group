@@ -1,17 +1,4 @@
-import { AlertTriangle, ChevronRight, CircleCheck, CircleX, Plus, Ruler, Search, SquarePen, Trash2, Upload } from 'lucide-react'
-import React, { useEffect, useMemo, useState } from 'react'
-import { Container } from "@/components/common/container";
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import AddRawMaterialUnit from './AddRawMaterialUnit';
-import { deleteUnitMasterById, getAllRawMaterialUnits, getRawMaterialUnitById, updateUnitStatusById } from '../../../services/apiServices';
-import { notify } from "@/utils/toast";
-import StatusConfirmModal from "@/utils/StatusConfirmModal";
+import React, { useEffect, useMemo, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
     Select,
@@ -23,14 +10,14 @@ import {
 
 
 const RowMaterialUnit = () => {
-  const [units, setUnit] = useState([])
+  const [units, setUnit] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
   const [rowSelection, setRowSelection] = useState({});
-  const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All Status");
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All Status');
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -45,10 +32,7 @@ const RowMaterialUnit = () => {
     try {
       setStatusLoading(true);
 
-      await updateUnitStatusById(
-        statusTarget.id,
-        statusTarget.nextActive
-      );
+      await updateUnitStatusById(statusTarget.id, statusTarget.nextActive);
 
       setShowStatusConfirm(false);
       setStatusTarget(null);
@@ -56,7 +40,7 @@ const RowMaterialUnit = () => {
       fetchUnits();
     } catch (err) {
       console.error(err);
-      notify.error("Failed to update status");
+      notify.error('Failed to update status');
     } finally {
       setStatusLoading(false);
     }
@@ -64,24 +48,24 @@ const RowMaterialUnit = () => {
   const fetchUnits = async () => {
     try {
       setLoading(true);
+      setError(null);
       const res = await getAllRawMaterialUnits();
       const data = (res?.data?.data?.["Unit Details"] || []).map((item) => ({
         ...item,
         name: item.nameEnglish,
         symbol: item.symbolEnglish,
-        status: item.isActive ? "Active" : "Inactive",
+        status: item.isActive ? 'Active' : 'Inactive',
       }));
 
       setUnit(data);
       setError(null)
     } catch (err) {
       console.error(err);
-      setError("Failed to load units");
+      setError('Failed to load units');
     } finally {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchUnits();
   }, []);
@@ -91,31 +75,29 @@ const RowMaterialUnit = () => {
     setIsUnitModalOpen(true);
   };
 
-const handleEditClick = async (unit) => {
+  const handleEditClick = async (unit) => {
     try {
-        setLoading(true);
+      setLoading(true);
 
-        const res = await getRawMaterialUnitById(unit.id);
+      const res = await getRawMaterialUnitById(unit.id);
 
-        const data =
-            res?.data?.data?.["Unit Details"]?.[0];
+      const data = res?.data?.data?.['Unit Details']?.[0];
 
-        if (!data) {
-            notify.error("Unit details not found");
-            return;
-        }
+      if (!data) {
+        notify.error('Unit details not found');
+        return;
+      }
 
-        console.log("EDIT UNIT DATA:", data);
+      console.log('EDIT UNIT DATA:', data);
 
-        setEditingUnit(data);
-        setIsUnitModalOpen(true);
-
+      setEditingUnit(data);
+      setIsUnitModalOpen(true);
     } catch (err) {
-        console.error("Failed to fetch unit details:", err);
+      console.error('Failed to fetch unit details:', err);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
   const handleModalClose = () => {
     setIsUnitModalOpen(false);
     setEditingUnit(null);
@@ -154,7 +136,6 @@ const handleEditClick = async (unit) => {
       await fetchUnits();
     } catch (err) {
       console.error(err);
-
     } finally {
       setDeleteLoading(false);
     }
@@ -166,28 +147,39 @@ const handleEditClick = async (unit) => {
   // const activeCount = units.filter((u) => u.status === 'Active').length;
   // const inactiveCount = units.length - activeCount;
 
-
   const STATS = [
     {
-      title: "Total Units",
+      title: 'Total Units',
       value: `${units.length}`,
-      badge: "OVERVIEW",
-      icon: <Ruler size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
-      color: "text-[#1B1B1F]",
+      badge: 'OVERVIEW',
+      icon: (
+        <Ruler size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />
+      ),
+      color: 'text-[#1B1B1F]',
     },
     {
-      title: "Active Units",
+      title: 'Active Units',
       value: `${units.filter((u) => u.status === 'Active').length}`,
-      badge: "ACTIVE",
-      icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
-      color: "text-[#15803D]",
+      badge: 'ACTIVE',
+      icon: (
+        <CircleCheck
+          size={22}
+          className="text-[#15803D] p-1 bg-[#DCFCE7] rounded"
+        />
+      ),
+      color: 'text-[#15803D]',
     },
     {
-      title: "Inactive Units",
+      title: 'Inactive Units',
       value: `${units.filter((u) => u.status === 'Inactive').length}`,
-      badge: "INACTIVE",
-      icon: <CircleX size={22} className="text-[#B45309] p-1 bg-[#FEF3C7] rounded" />,
-      color: "text-[#B45309]",
+      badge: 'INACTIVE',
+      icon: (
+        <CircleX
+          size={22}
+          className="text-[#B45309] p-1 bg-[#FEF3C7] rounded"
+        />
+      ),
+      color: 'text-[#B45309]',
     },
   ];
 
@@ -201,8 +193,7 @@ const handleEditClick = async (unit) => {
         u.symbol.toLowerCase().includes(term);
 
       const matchesStatus =
-        statusFilter === "All Status" ||
-        u.status === statusFilter;
+        statusFilter === 'All Status' || u.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
@@ -217,7 +208,7 @@ const handleEditClick = async (unit) => {
 
   const columns = [
     {
-      id: "select",
+      id: 'select',
       header: ({ table }) => (
         <input
           type="checkbox"
@@ -238,7 +229,7 @@ const handleEditClick = async (unit) => {
       size: 50,
     },
     {
-      id: "sno",
+      id: 'sno',
       header: ({ column }) => (
         <DataGridColumnHeader
           title="S.No"
@@ -251,7 +242,7 @@ const handleEditClick = async (unit) => {
       size: 80,
     },
     {
-      accessorKey: "name",
+      accessorKey: 'name',
       header: ({ column }) => (
         <DataGridColumnHeader
           title="Name"
@@ -259,10 +250,14 @@ const handleEditClick = async (unit) => {
           className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
-      cell: ({ row }) => <p className="font-semibold text-gray-800 py-2 capitalize">{row.original.name}</p>,
+      cell: ({ row }) => (
+        <p className="font-semibold text-gray-800 py-2 capitalize">
+          {row.original.name}
+        </p>
+      ),
     },
     {
-      accessorKey: "symbol",
+      accessorKey: 'symbol',
       header: ({ column }) => (
         <DataGridColumnHeader
           title="Symbol"
@@ -270,10 +265,14 @@ const handleEditClick = async (unit) => {
           className="text-[#43474F] font-semibold uppercase text-sm"
         />
       ),
-      cell: ({ row }) => <p className="font-semibold text-gray-600 py-2 capitalize">{row.original.symbol}</p>,
+      cell: ({ row }) => (
+        <p className="font-semibold text-gray-600 py-2 capitalize">
+          {row.original.symbol}
+        </p>
+      ),
     },
     {
-      id: "status",
+      id: 'status',
 
       accessorFn: (row) => row.status,
 
@@ -286,9 +285,7 @@ const handleEditClick = async (unit) => {
       ),
 
       cell: ({ row }) => (
-
         <label className="relative inline-flex cursor-pointer">
-
           <input
             type="checkbox"
             checked={row.original.status === "Active"}
@@ -297,9 +294,9 @@ const handleEditClick = async (unit) => {
               setStatusTarget({
                 id: row.original.id,
                 itemLabel: row.original.name,
-                nextActive: row.original.status !== "Active",
+                nextActive: row.original.status !== 'Active',
                 nextStatusLabel:
-                  row.original.status === "Active" ? "Inactive" : "Active",
+                  row.original.status === 'Active' ? 'Inactive' : 'Active',
               });
               setShowStatusConfirm(true);
             }}
@@ -323,16 +320,14 @@ const handleEditClick = async (unit) => {
                                 peer-checked:after:translate-x-full
                                 "
           />
-
         </label>
-
       ),
 
       size: 120,
     },
     {
-      id: "actions",
-     header: ({ column }) => (
+      id: 'actions',
+      header: ({ column }) => (
         <DataGridColumnHeader
           title="Actions"
           column={column}
@@ -372,26 +367,34 @@ const handleEditClick = async (unit) => {
 
   return (
     <Container>
-      <div className='p-4 md:p-6'>
+      <div className="p-4 md:p-6">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
           <span>Dashboard</span>
           <ChevronRight size={12} />
           <span>Master Data</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Raw Material Unit Master</span>
+          <span className="text-[#084E92] font-medium">
+            Raw Material Unit Master
+          </span>
         </div>
 
         <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] text-start">Measure of unit Master</h1>
+            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+              Measure of unit Master
+            </h1>
             <p className="text-sm text-gray-400 mt-1 max-w-xl">
-              Manage all measurement units used throughout the Asset Management module.
+              Manage all measurement units used throughout the Asset Management
+              module.
             </p>
           </div>
 
           <div className="flex gap-3 self-end">
-            <button type="button" className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white">
+            <button
+              type="button"
+              className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white"
+            >
               <Upload size={16} />
               Export
             </button>
@@ -409,12 +412,17 @@ const handleEditClick = async (unit) => {
         {/* Stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
           {STATS.map((item) => (
-            <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
+            <div
+              key={item.title}
+              className="border border-[#C3C6D1] rounded-2xl p-4"
+            >
               <div className="flex justify-between items-center pb-2">
                 <p>{item.icon}</p>
               </div>
               <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-              <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
+              <h2 className={`text-xl font-bold ${item.color}`}>
+                {item.value}
+              </h2>
               {item.badge && <p className="text-xs mt-1">{item.badge}</p>}
             </div>
           ))}
@@ -422,7 +430,6 @@ const handleEditClick = async (unit) => {
 
         <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-
             <div className="relative border border-[#C3C6D1] rounded-lg">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -433,7 +440,9 @@ const handleEditClick = async (unit) => {
                 placeholder="Search Unit Name or Symbol..."
                 className="w-full pl-10 py-2 outline-none rounded-lg"
                 value={searchText}
-                onChange={(e) => { setSearchText(e.target.value); }}
+                onChange={(e) => {
+                  setSearchText(e.target.value);
+                }}
               />
             </div>
 
@@ -472,9 +481,15 @@ const handleEditClick = async (unit) => {
         {/* Table */}
         <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
           {loading ? (
-            <div className="p-10 text-center text-sm text-gray-500">Loading units...</div>
+            <div className="p-10 text-center text-sm text-gray-500">
+              Loading units...
+            </div>
           ) : (
-            <DataGrid table={table} recordCount={filteredUnits.length} className="rounded-2xl">
+            <DataGrid
+              table={table}
+              recordCount={filteredUnits.length}
+              className="rounded-2xl"
+            >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
                 <CardTable>
                   <ScrollArea>
@@ -489,7 +504,6 @@ const handleEditClick = async (unit) => {
             </DataGrid>
           )}
         </div>
-
 
         <AddRawMaterialUnit
           isOpen={isUnitModalOpen}
@@ -514,7 +528,7 @@ const handleEditClick = async (unit) => {
         saving={deleteLoading}
       />
     </Container>
-  )
-}
+  );
+};
 
-export default RowMaterialUnit
+export default RowMaterialUnit;

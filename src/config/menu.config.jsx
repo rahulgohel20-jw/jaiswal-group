@@ -459,8 +459,9 @@ export const MENU_SIDEBAR = [
   {
     title: 'Department',
     icon: Group,
-    children: [{ title: 'Departments', path: '/department' },
-    { title: 'User Rights', path: '/user-rights' }
+    children: [
+      { title: 'Departments', path: '/department' },
+      { title: 'User Rights', path: '/user-rights' },
     ],
   },
   {
@@ -488,7 +489,10 @@ export const MENU_SIDEBAR = [
       { title: 'Raw Material Items', path: '/material/items' },
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
-      { title: 'Category Brand Mapping', path: '/material/category-brand-mapping' },
+      {
+        title: 'Category Brand Mapping',
+        path: '/material/category-brand-mapping',
+      },
     ],
   },
   {
@@ -583,7 +587,10 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Raw Material Items', path: '/material/items' },
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
-      { title: 'Category Brand Mapping', path: '/material/category-brand-mapping' },
+      {
+        title: 'Category Brand Mapping',
+        path: '/material/category-brand-mapping',
+      },
     ],
   },
   {

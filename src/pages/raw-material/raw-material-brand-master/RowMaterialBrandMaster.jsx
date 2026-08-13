@@ -1,16 +1,35 @@
-
-import { ChevronRight, CircleCheck, LayoutGrid, Plus, Search, Shapes, SquarePen, Trash2 } from 'lucide-react'
-import React, { useEffect, useMemo, useState } from 'react'
-import { Container } from "@/components/common/container";
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { DataGrid } from "@/components/ui/data-grid";
-import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
-import { DataGridPagination } from "@/components/ui/data-grid-pagination";
-import { DataGridTable } from "@/components/ui/data-grid-table";
-import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import StatusConfirmModal from '@/utils/StatusConfirmModal';
+import React, { useEffect, useMemo, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import StatusConfirmModal from '@/utils/StatusConfirmModal';
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import {
+  ChevronRight,
+  CircleCheck,
+  LayoutGrid,
+  Plus,
+  Search,
+  Shapes,
+  SquarePen,
+  Trash2,
+} from 'lucide-react';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Container } from '@/components/common/container';
+import {
+  deleteRawMaterialBrandById,
+  getAllActiveRawMaterialBrand,
+  getAllRawMaterialBrand,
+  getRawMaterialBrandById,
+  updateRawMaterialBrand,
+} from '../../../services/apiServices';
 import AddRawMaterialBrand from './AddRawMaterialBrand';
 import {
     Select,
@@ -452,17 +471,167 @@ const RowMaterialBrandMaster = () => {
                 onSaved={handleBrandSaved}
                 initialData={editingBrand}
             />
+          </button>
 
-            <DeleteConfirmModal
-                isOpen={showDeleteConfirm}
-                onClose={closeDeleteConfirm}
-                onConfirm={confirmDelete}
-                itemLabel={deleteTarget?.name}
-                saving={deleteLoading}
+          <button type="button" onClick={() => openDeleteConfirm(row.original)}>
+            <Trash2
+              size={18}
+              className="text-red-300 hover:text-red-600 cursor-pointer"
             />
+          </button>
+        </div>
+      ),
+      enableSorting: false,
+      size: 100,
+    },
+  ];
 
-        </Container>
-    )
-}
+  const table = useReactTable({
+    data: filteredBrands,
+    columns,
+    state: { pagination, rowSelection },
+    onPaginationChange: setPagination,
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
 
-export default RowMaterialBrandMaster
+  return (
+    <Container>
+      <div className="p-4 md:p-6">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Master Data</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">
+            Raw Material Brand Master
+          </span>
+        </div>
+
+        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+              Raw Material Brand Master
+            </h1>
+            <p className="text-sm text-gray-400 mt-1 max-w-xl">
+              Manage and track raw material brands used across the organization.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddClick}
+            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+          >
+            <Plus size={16} />
+            Create Brand
+          </button>
+        </div>
+
+        {/* Stat cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
+          {STATS.map((item) => (
+            <div
+              key={item.title}
+              className="border border-[#C3C6D1] rounded-2xl p-4 bg-white"
+            >
+              <div className="flex justify-between items-center pb-2">
+                <p>{item.icon}</p>
+              </div>
+              <h1 className="text-sm tracking-wide text-[#43474F]">
+                {item.title}
+              </h1>
+              <h2 className={`text-xl font-bold mt-1 ${item.color}`}>
+                {item.value}
+              </h2>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative border border-[#C3C6D1] rounded-lg">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={18}
+              />
+
+              <input
+                placeholder="Search brands..."
+                className="w-full pl-10 py-2 outline-none rounded-lg"
+                value={searchText}
+                onChange={(e) => {
+                  setSearchText(e.target.value);
+                }}
+              />
+            </div>
+
+            <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
+              <select
+                className="outline-none w-full bg-transparent"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                }}
+              >
+                <option value="All Status">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </p>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+          <DataGrid
+            table={table}
+            recordCount={filteredBrands.length}
+            className="rounded-2xl"
+          >
+            <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <CardTable>
+                <ScrollArea>
+                  <DataGridTable />
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </CardTable>
+              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                <DataGridPagination />
+              </CardFooter>
+            </Card>
+          </DataGrid>
+        </div>
+      </div>
+
+      <StatusConfirmModal
+        isOpen={showStatusConfirm}
+        onClose={closeStatusConfirm}
+        onConfirm={confirmStatusChange}
+        targetName={statusTarget?.name}
+        nextStatusLabel={statusTarget?.nextActive ? 'Active' : 'Inactive'}
+        saving={statusSaving}
+      />
+
+      <AddRawMaterialBrand
+        isOpen={showBrandModal}
+        onClose={closeBrandModal}
+        onSaved={handleBrandSaved}
+        initialData={editingBrand}
+      />
+
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+        itemLabel={deleteTarget?.name}
+        saving={deleteLoading}
+      />
+    </Container>
+  );
+};
+
+export default RowMaterialBrandMaster;

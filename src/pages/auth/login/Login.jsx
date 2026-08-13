@@ -1,8 +1,16 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, AlertTriangle, Building2, Info } from 'lucide-react';
-import { loginUser } from '@/services/apiServices';
 import { useAuth } from '@/auth/context/auth-context';
+import {
+  AlertTriangle,
+  Building2,
+  Eye,
+  EyeOff,
+  Info,
+  Lock,
+  Mail,
+} from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { loginUser } from '@/services/apiServices';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -33,22 +41,22 @@ export default function LoginPage() {
     return e;
   };
 
- const finishLogin = (res) => {
-  const payload = res?.data?.data ?? res?.data;
-  if (!payload?.token) return;
+  const finishLogin = (res) => {
+    const payload = res?.data?.data ?? res?.data;
+    if (!payload?.token) return;
 
-   if (payload.token) {
-    console.log('Storing auth token in localStorage:', payload.token);
-        localStorage.setItem('authToken', payload.token);
+    if (payload.token) {
+      console.log('Storing auth token in localStorage:', payload.token);
+      localStorage.setItem('authToken', payload.token);
     }
 
-  saveAuth(payload);
-  const user = payload?.user || payload?.data || payload;
-  setUser(user);
+    saveAuth(payload);
+    const user = payload?.user || payload?.data || payload;
+    setUser(user);
 
-  const next = searchParams.get('next');
-  navigate(next || '/dashboard', { replace: true });
-};
+    const next = searchParams.get('next');
+    navigate(next || '/dashboard', { replace: true });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -87,8 +95,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col lg:flex-row" style={{ fontFamily: "'Inter', sans-serif" }}>
-
+    <div
+      className="min-h-screen w-full flex flex-col lg:flex-row"
+      style={{ fontFamily: "'Inter', sans-serif" }}
+    >
       {/* Left section — white background */}
       <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-[420px] flex flex-col items-center justify-center">
@@ -103,8 +113,8 @@ export default function LoginPage() {
             Everywhere.
           </h1>
           <p className="text-[#8B93A1] text-[13px] text-center mt-3 max-w-[320px] leading-relaxed">
-            An industrial-grade solution designed for precision and scale in modern
-            enterprise workflows.
+            An industrial-grade solution designed for precision and scale in
+            modern enterprise workflows.
           </p>
         </div>
       </div>
@@ -112,8 +122,9 @@ export default function LoginPage() {
       {/* Right section — #F8F9FF background */}
       <div className="w-full lg:w-1/2 bg-[#F8F9FF] flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-[380px] bg-white rounded-2xl border border-[#EAECEF] shadow-[0_8px_30px_rgba(15,42,74,0.06)] p-8">
-
-          <h2 className="text-[20px] font-bold text-[#0F2A4A] mb-1.5">Welcome Back</h2>
+          <h2 className="text-[20px] font-bold text-[#0F2A4A] mb-1.5">
+            Welcome Back
+          </h2>
           <p className="text-[#8B93A1] text-[12.5px] leading-relaxed mb-6">
             Enter your credentials to access the super admin panel.
           </p>
@@ -122,7 +133,8 @@ export default function LoginPage() {
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12px] text-blue-800">
               <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               <span>
-                Multiple accounts found for <strong>{email}</strong>. Please select an organization below to continue.
+                Multiple accounts found for <strong>{email}</strong>. Please
+                select an organization below to continue.
               </span>
             </div>
           )}
@@ -136,8 +148,12 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
-              <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">Email ID</label>
-              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.email ? 'border-red-400' : 'border-[#E1E4E9]'} ${requiresOrgSelection ? 'bg-[#F7F8FA]' : ''}`}>
+              <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
+                Email ID
+              </label>
+              <div
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.email ? 'border-red-400' : 'border-[#E1E4E9]'} ${requiresOrgSelection ? 'bg-[#F7F8FA]' : ''}`}
+              >
                 <Mail className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
                 <input
                   type="email"
@@ -145,18 +161,25 @@ export default function LoginPage() {
                   disabled={requiresOrgSelection}
                   onChange={(e) => {
                     setEmail(e.target.value);
-                    if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                    if (errors.email)
+                      setErrors((prev) => ({ ...prev, email: undefined }));
                   }}
                   placeholder="admin@jaiswal-erp.com"
                   className={`flex-1 outline-none text-[13px] bg-transparent ${requiresOrgSelection ? 'text-[#54607A] cursor-not-allowed' : 'text-[#0F2A4A] placeholder:text-[#B3B9C4]'}`}
                 />
               </div>
-              {errors.email && <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>}
+              {errors.email && (
+                <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">Password</label>
-              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.password ? 'border-red-400' : 'border-[#E1E4E9]'} ${requiresOrgSelection ? 'bg-[#F7F8FA]' : ''}`}>
+              <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
+                Password
+              </label>
+              <div
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.password ? 'border-red-400' : 'border-[#E1E4E9]'} ${requiresOrgSelection ? 'bg-[#F7F8FA]' : ''}`}
+              >
                 <Lock className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -164,7 +187,8 @@ export default function LoginPage() {
                   disabled={requiresOrgSelection}
                   onChange={(e) => {
                     setPassword(e.target.value);
-                    if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                    if (errors.password)
+                      setErrors((prev) => ({ ...prev, password: undefined }));
                   }}
                   placeholder="••••••••"
                   className={`flex-1 outline-none text-[13px] bg-transparent ${requiresOrgSelection ? 'text-[#54607A] cursor-not-allowed' : 'text-[#0F2A4A] placeholder:text-[#B3B9C4]'}`}
@@ -175,22 +199,38 @@ export default function LoginPage() {
                   className="text-[#9AA3B2] hover:text-[#54607A] shrink-0"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff className="h-[15px] w-[15px]" /> : <Eye className="h-[15px] w-[15px]" />}
+                  {showPassword ? (
+                    <EyeOff className="h-[15px] w-[15px]" />
+                  ) : (
+                    <Eye className="h-[15px] w-[15px]" />
+                  )}
                 </button>
               </div>
-              {errors.password && <p className="text-[11px] text-red-500 mt-1">{errors.password}</p>}
+              {errors.password && (
+                <p className="text-[11px] text-red-500 mt-1">
+                  {errors.password}
+                </p>
+              )}
             </div>
 
             {requiresOrgSelection && (
               <div>
-                <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">Organization</label>
-                <div className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.organizationId ? 'border-red-400' : 'border-[#E1E4E9]'}`}>
+                <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
+                  Organization
+                </label>
+                <div
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.organizationId ? 'border-red-400' : 'border-[#E1E4E9]'}`}
+                >
                   <Building2 className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
                   <select
                     value={organizationId}
                     onChange={(e) => {
                       setOrganizationId(e.target.value);
-                      if (errors.organizationId) setErrors((prev) => ({ ...prev, organizationId: undefined }));
+                      if (errors.organizationId)
+                        setErrors((prev) => ({
+                          ...prev,
+                          organizationId: undefined,
+                        }));
                     }}
                     className="flex-1 outline-none text-[13px] text-[#0F2A4A] bg-transparent cursor-pointer"
                   >
@@ -198,19 +238,29 @@ export default function LoginPage() {
                       Choose an organization
                     </option>
                     {organizations.map((org) => (
-                      <option key={org.organizationId} value={org.organizationId}>
+                      <option
+                        key={org.organizationId}
+                        value={org.organizationId}
+                      >
                         {org.companyName?.trim()} ({org.companyCode})
                       </option>
                     ))}
                   </select>
                 </div>
-                {errors.organizationId && <p className="text-[11px] text-red-500 mt-1">{errors.organizationId}</p>}
+                {errors.organizationId && (
+                  <p className="text-[11px] text-red-500 mt-1">
+                    {errors.organizationId}
+                  </p>
+                )}
               </div>
             )}
 
             {!requiresOrgSelection && (
               <div className="flex items-center justify-end pt-1">
-                <Link to="/auth/forgot-password" className="text-[12px] text-[#1D4E89] font-medium hover:underline">
+                <Link
+                  to="/auth/forgot-password"
+                  className="text-[12px] text-[#1D4E89] font-medium hover:underline"
+                >
                   Forgot Password?
                 </Link>
               </div>
@@ -221,7 +271,11 @@ export default function LoginPage() {
               disabled={submitting}
               className="w-full bg-[#0F2A4A] hover:bg-[#123256] cursor-pointer text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
             >
-              {submitting ? 'Logging in...' : requiresOrgSelection ? 'Continue' : 'Login'}
+              {submitting
+                ? 'Logging in...'
+                : requiresOrgSelection
+                  ? 'Continue'
+                  : 'Login'}
             </button>
           </form>
 

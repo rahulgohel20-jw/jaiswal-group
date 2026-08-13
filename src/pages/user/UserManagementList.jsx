@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { getUserIdFromToken } from '@/utils/auth';
 import { notify } from '@/utils/toast';
 import {
   getCoreRowModel,
@@ -29,7 +30,6 @@ import {
   getAllEmployees,
   getAllRoleMasterByUserId,
 } from '@/services/apiServices';
-import { getUserIdFromToken } from '@/utils/auth';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -274,18 +274,24 @@ const UserManagementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="flex gap-3 items-center w-full">
-            <div className="flex flex-col gap-1">
-              <span className="font-semibold text-gray-800">
+          <div className="flex gap-3 items-center w-full min-w-0">
+            <div className="flex flex-col gap-1 min-w-0">
+              <span
+                className="font-semibold text-gray-800 truncate block"
+                title={row.original.name}
+              >
                 {row.original.name}
               </span>
-              <span className="font-medium text-xs text-[#737781] ">
+              <span
+                className="font-medium text-xs text-[#737781] truncate block"
+                title={row.original.createdAt}
+              >
                 {row.original.createdAt}
               </span>
             </div>
           </div>
         ),
-        size: 140,
+        size: 160,
       },
       {
         id: 'code',
@@ -298,7 +304,7 @@ const UserManagementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-600">{row.original.code}</span>
+          <TruncatedCell value={row.original.code} widthClass="max-w-[130px]" />
         ),
         size: 150,
       },
@@ -318,7 +324,7 @@ const UserManagementList = () => {
             widthClass="max-w-[190px]"
           />
         ),
-        size: 140,
+        size: 200,
       },
       {
         id: 'company',
@@ -333,10 +339,10 @@ const UserManagementList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.company}
-            widthClass="max-w-[190px]"
+            widthClass="max-w-[170px]"
           />
         ),
-        size: 140,
+        size: 180,
       },
       {
         id: 'department',
@@ -349,9 +355,12 @@ const UserManagementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-600">{row.original.department}</span>
+          <TruncatedCell
+            value={row.original.department}
+            widthClass="max-w-[140px]"
+          />
         ),
-        size: 120,
+        size: 150,
       },
       {
         id: 'kycStatus',
@@ -367,14 +376,14 @@ const UserManagementList = () => {
           const meta = kycMeta(row.original.kycStatus);
           return (
             <div
-              className={`flex gap-1 items-center ${meta.color} font-semibold`}
+              className={`flex gap-1 items-center whitespace-nowrap ${meta.color} font-semibold`}
             >
               <span>{meta.icon}</span>
               <span>{row.original.kycStatus}</span>
             </div>
           );
         },
-        size: 120,
+        size: 130,
       },
       {
         id: 'KycView',
@@ -387,13 +396,13 @@ const UserManagementList = () => {
           return (
             <Link
               to="/user/kyc-information"
-              className={`${meta.KycView === 'Re-verify' ? 'text-[#BA1A1A]' : 'text-[#084E92]'} font-bold`}
+              className={`whitespace-nowrap ${meta.KycView === 'Re-verify' ? 'text-[#BA1A1A]' : 'text-[#084E92]'} font-bold`}
             >
               {meta.KycView}
             </Link>
           );
         },
-        size: 120,
+        size: 130,
       },
       {
         id: 'action',
@@ -572,6 +581,12 @@ const UserManagementList = () => {
               table={table}
               recordCount={filteredUser.length}
               className="rounded-2xl"
+              tableLayout={{
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
             >
               {/* Table Card */}
               <Card className="rounded-t-none border-t-0 rounded-2xl">

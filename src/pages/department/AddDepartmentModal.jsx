@@ -1,12 +1,18 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Building2, Info, Save, X } from 'lucide-react';
+import { Building2, Info, Loader2, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
-const AddDepartmentModal = ({ isOpen, onClose, onSave, initialData }) => {
+const AddDepartmentModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  initialData,
+  saving = false,
+}) => {
   const isEditMode = Boolean(initialData);
 
   const [form, setForm] = useState({
@@ -55,17 +61,17 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave, initialData }) => {
     };
 
     onSave?.(payload, { addAnother: false });
-    resetForm();
   };
 
   const handleClose = () => {
+    if (saving) return;
     resetForm();
     setErrors({});
     onClose?.();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="flex items-start justify-between gap-3 p-4 border-b flex-shrink-0">
@@ -86,7 +92,8 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave, initialData }) => {
           </div>
           <button
             onClick={handleClose}
-            className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
+            disabled={saving}
+            className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0 disabled:opacity-60"
             aria-label="Close"
           >
             <X className="h-5 w-5 cursor-pointer" />
@@ -104,6 +111,7 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave, initialData }) => {
               className="mt-1.5"
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
+              disabled={saving}
             />
             {errors.name && (
               <p className="text-xs text-red-500 mt-1">{errors.name}</p>
@@ -120,6 +128,7 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave, initialData }) => {
               rows={3}
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
+              disabled={saving}
             />
           </div>
 
@@ -133,16 +142,24 @@ const AddDepartmentModal = ({ isOpen, onClose, onSave, initialData }) => {
 
         {/* Footer */}
         <div className="flex items-center justify-between gap-2 p-4 border-t bg-gray-50 flex-shrink-0">
-          <Button variant="outline" onClick={handleClose}>
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
             Cancel
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!form.name.trim()}
+            disabled={!form.name.trim() || saving}
             className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
           >
-            <Save className="h-4 w-4" />
-            {isEditMode ? 'Update Department' : 'Save Department'}
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {saving
+              ? 'Saving...'
+              : isEditMode
+                ? 'Update Department'
+                : 'Save Department'}
           </Button>
         </div>
       </div>

@@ -2,12 +2,14 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { notify } from '@/utils/toast';
-import { Loader2, Save, ShieldCheck, X } from 'lucide-react';
+import { Loader2, Plus, Save, ShieldCheck, X } from 'lucide-react';
 import {
+  addRoleMaster,
   addUserRights,
   getPages,
   getUserRightsByRole,
 } from '@/services/apiServices';
+import AddDepartmentModal from './AddDepartmentModal';
 
 const ACTIONS = [
   { key: 'add', label: 'Add' },
@@ -53,13 +55,24 @@ const normalizeExistingRights = (res) => {
 };
 
 const emptyRow = { add: false, edit: false, view: false, delete: false };
+const fullRow = { add: true, edit: true, view: true, delete: true };
 
-const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
+const PermissionsModal = ({
+  isOpen,
+  onClose,
+  role,
+  mode,
+  onDepartmentAdded,
+}) => {
   const [pagesByModule, setPagesByModule] = useState({});
   const [checks, setChecks] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // --- Add Department state ---
+  const [showAddDept, setShowAddDept] = useState(false);
+  const [addingDept, setAddingDept] = useState(false);
 
   const isReportMode = mode === 'reportRights';
 
@@ -92,6 +105,13 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
     load();
   }, [load]);
 
+  // Reset the add-department form whenever the modal closes/reopens
+  useEffect(() => {
+    if (!isOpen) {
+      setShowAddDept(false);
+    }
+  }, [isOpen]);
+
   const allPageIds = useMemo(
     () =>
       Object.values(pagesByModule)
@@ -112,6 +132,7 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
     }));
   };
 
+  // ---- Column-wise (existing) ----
   const isColumnFullyChecked = (actionKey) =>
     allPageIds.length > 0 && allPageIds.every((id) => checks[id]?.[actionKey]);
 
@@ -121,6 +142,33 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
       const next = { ...prev };
       allPageIds.forEach((id) => {
         next[id] = { ...(next[id] ?? emptyRow), [actionKey]: shouldCheck };
+      });
+      return next;
+    });
+  };
+
+  // ---- Row-wise "All" (new) ----
+  const isRowFullyChecked = (pageId) =>
+    ACTIONS.every((a) => Boolean(checks[pageId]?.[a.key]));
+
+  const toggleRow = (pageId) => {
+    const shouldCheck = !isRowFullyChecked(pageId);
+    setChecks((prev) => ({
+      ...prev,
+      [pageId]: shouldCheck ? { ...fullRow } : { ...emptyRow },
+    }));
+  };
+
+  // ---- Master "select everything" (new, bonus) ----
+  const isEverythingChecked =
+    allPageIds.length > 0 && allPageIds.every((id) => isRowFullyChecked(id));
+
+  const toggleEverything = () => {
+    const shouldCheck = !isEverythingChecked;
+    setChecks((prev) => {
+      const next = { ...prev };
+      allPageIds.forEach((id) => {
+        next[id] = shouldCheck ? { ...fullRow } : { ...emptyRow };
       });
       return next;
     });
@@ -171,6 +219,29 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
     }
   };
 
+  // payload comes from AddDepartmentModal as { name, description }
+  const handleAddDepartment = async (payload) => {
+    setAddingDept(true);
+    try {
+      // ADJUST: addRoleMaster(...) payload shape assumed to be { name, description }
+      // per AddDepartmentModal — point this at whatever your real "create
+      // department" endpoint/service actually expects.
+      const res = await addRoleMaster(payload);
+      notify?.success?.('Department added successfully');
+      setShowAddDept(false);
+      onDepartmentAdded?.(res?.data?.data ?? payload);
+    } catch (err) {
+      console.error(err);
+      const msg =
+        err?.response?.data?.msg ||
+        err?.response?.data?.message ||
+        'Failed to add department.';
+      notify?.error?.(msg);
+    } finally {
+      setAddingDept(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl mx-4 flex flex-col max-h-[90vh]">
@@ -190,13 +261,25 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5 cursor-pointer" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {!isReportMode && (
+              <button
+                onClick={() => setShowAddDept(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#084E92] text-[#084E92] text-xs font-medium hover:bg-blue-50 cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add Department
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 hover:bg-gray-100 rounded transition-colors"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5 cursor-pointer" />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto flex-1">
@@ -222,6 +305,18 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
                   <th className="text-left px-4 py-3 font-semibold">
                     Permission
                   </th>
+                  <th className="text-center px-4 py-3 font-semibold">
+                    <div className="flex flex-col items-center gap-1">
+                      <span>All</span>
+                      <input
+                        type="checkbox"
+                        checked={isEverythingChecked}
+                        onChange={toggleEverything}
+                        className="rounded"
+                        title="Toggle Add/Edit/View/Delete for every page"
+                      />
+                    </div>
+                  </th>
                   {ACTIONS.map((a) => (
                     <th
                       key={a.key}
@@ -246,7 +341,7 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
                   <React.Fragment key={moduleName}>
                     <tr className="bg-[#F7F8FA]">
                       <td
-                        colSpan={ACTIONS.length + 1}
+                        colSpan={ACTIONS.length + 2}
                         className="px-4 py-2 font-semibold text-[#43474F]"
                       >
                         {moduleName}
@@ -259,6 +354,15 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
                       >
                         <td className="px-4 py-2.5 pl-8 text-gray-700">
                           {page.name}
+                        </td>
+                        <td className="text-center px-4 py-2.5">
+                          <input
+                            type="checkbox"
+                            checked={isRowFullyChecked(page.id)}
+                            onChange={() => toggleRow(page.id)}
+                            className="rounded"
+                            title="Toggle Add/Edit/View/Delete for this row"
+                          />
                         </td>
                         {ACTIONS.map((a) => (
                           <td key={a.key} className="text-center px-4 py-2.5">
@@ -296,6 +400,13 @@ const PermissionsModal = ({ isOpen, onClose, role, mode }) => {
           </button>
         </div>
       </div>
+
+      <AddDepartmentModal
+        isOpen={showAddDept}
+        onClose={() => setShowAddDept(false)}
+        onSave={handleAddDepartment}
+        saving={addingDept}
+      />
     </div>
   );
 };
