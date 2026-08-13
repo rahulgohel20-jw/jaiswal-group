@@ -1,21 +1,36 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { getUserIdFromToken } from '@/utils/auth';
 import {
+  Briefcase,
+  Building2,
+  Check,
   ChevronDown,
+  ClipboardList,
+  Landmark,
   Map,
   MapPin,
+  Plus,
+  RefreshCw,
   User,
   X,
-  Check,
-  Briefcase,
-  Landmark,
-  Truck,
-  FileText,
-  RefreshCw,
-  UploadCloud,
-  Plus,
-  ClipboardList,
 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router';
+import {
+  getAllCountries,
+  getAllRoleMasterByUserId,
+  getCitiesByState,
+  getOrganizationByType,
+  getStatesByCountry,
+  saveVendor,
+  updateVendor,
+} from '@/services/apiServices';
+import {
+  buildVendorPayload,
+  DEFAULT_FORM,
+  extractList,
+  makeBank,
+  mapVendorToForm,
+} from './vendorHelper';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -34,13 +49,48 @@ const Label = ({ children, required }) => (
 
 const Select = ({ value, onChange, options, placeholder, disabled }) => (
   <div className="relative">
-    <select value={value} onChange={onChange} className={selectCls} disabled={disabled}>
+    <select
+      value={value}
+      onChange={onChange}
+      className={selectCls}
+      disabled={disabled}
+    >
       <option value="" disabled>
         {placeholder}
       </option>
       {options.map((o) => (
         <option key={o} value={o}>
           {o}
+        </option>
+      ))}
+    </select>
+    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+  </div>
+);
+
+// {id, name} option select — used for Country / State / City / Role
+const IdSelect = ({
+  value,
+  onChange,
+  placeholder,
+  options,
+  disabled,
+  loading,
+  optional = false,
+}) => (
+  <div className="relative">
+    <select
+      value={value}
+      onChange={onChange}
+      disabled={disabled || loading}
+      className={`${selectCls} ${value === '' ? 'text-gray-400' : 'text-gray-800'}`}
+    >
+      <option value="" disabled={!optional}>
+        {loading ? 'Loading...' : placeholder}
+      </option>
+      {options.map((opt) => (
+        <option key={opt.id} value={opt.id} className="text-gray-800">
+          {opt.name}
         </option>
       ))}
     </select>
@@ -66,7 +116,9 @@ const Toggle = ({ checked, onChange }) => (
 );
 
 const SectionCard = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>
+  <div
+    className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}
+  >
     {children}
   </div>
 );
@@ -101,208 +153,9 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
 const SubHeading = ({ icon: Icon, title }) => (
   <div className="flex items-center gap-2">
     <Icon className="w-3.5 h-3.5 text-blue-500" />
-    <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">{title}</h3>
-  </div>
-);
-
-// Multi-file drag & drop uploader for supporting documents (GST cert, PAN, etc).
-const DocumentUpload = ({ files, onAdd, onRemove }) => {
-  const [dragActive, setDragActive] = useState(false);
-  const inputRef = useRef(null);
-
-  return (
-    <div>
-      <div
-        onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragActive(true);
-        }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragActive(false);
-          onAdd(e.dataTransfer.files);
-        }}
-        className={`w-full rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 py-8 cursor-pointer transition ${
-          dragActive ? 'border-blue-400 bg-blue-50/60' : 'border-gray-300 bg-[#F7F9FF] hover:border-gray-400'
-        }`}
-      >
-        <div className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-blue-400">
-          <UploadCloud className="w-4 h-4" />
-        </div>
-        <p className="text-sm text-gray-600 font-medium">Click to upload or drag and drop</p>
-        <p className="text-xs text-gray-400">Supported: PDF, DOCX, JPG, PNG (Max 10MB per file)</p>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept=".pdf,.doc,.docx,image/jpeg,image/png"
-          className="hidden"
-          onChange={(e) => onAdd(e.target.files)}
-        />
-      </div>
-
-      {files.length > 0 && (
-        <ul className="mt-3 space-y-2">
-          {files.map((f, i) => (
-            <li
-              key={`${f.name}-${i}`}
-              className="flex items-center justify-between text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"
-            >
-              <span className="text-gray-700 truncate">{f.name}</span>
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                className="text-gray-400 hover:text-red-500 cursor-pointer bg-transparent border-0 shrink-0"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
-
-// Shared card used for both Billing and Shipping addresses.
-const AddressCard = ({ title, icon: Icon, values, onChange, action, disabled }) => (
-  <div className="border border-gray-200 rounded-xl p-5 space-y-4">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <Icon className="w-4 h-4 text-[#084E92]" />
-        <h3 className="text-sm font-bold text-gray-800">{title}</h3>
-      </div>
-      {action}
-    </div>
-
-    <div>
-      <Label>Attention</Label>
-      <input
-        value={values.attention}
-        onChange={(e) => onChange('attention', e.target.value)}
-        placeholder="Contact person name"
-        className={inputCls}
-        disabled={disabled}
-      />
-    </div>
-
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>Country</Label>
-        <input
-          value={values.country}
-          onChange={(e) => onChange('country', e.target.value)}
-          placeholder="Country"
-          className={inputCls}
-          disabled={disabled}
-        />
-      </div>
-      <div>
-        <Label>State</Label>
-        <input
-          value={values.state}
-          onChange={(e) => onChange('state', e.target.value)}
-          placeholder="State"
-          className={inputCls}
-          disabled={disabled}
-        />
-      </div>
-    </div>
-
-    <div>
-      <Label>Address Line 1</Label>
-      <input
-        value={values.addressLine1}
-        onChange={(e) => onChange('addressLine1', e.target.value)}
-        placeholder="Building, Street Name"
-        className={inputCls}
-        disabled={disabled}
-      />
-    </div>
-    <div>
-      <Label>Address Line 2</Label>
-      <input
-        value={values.addressLine2}
-        onChange={(e) => onChange('addressLine2', e.target.value)}
-        placeholder="Locality, Landmark"
-        className={inputCls}
-        disabled={disabled}
-      />
-    </div>
-
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>City</Label>
-        <input
-          value={values.city}
-          onChange={(e) => onChange('city', e.target.value)}
-          placeholder="City"
-          className={inputCls}
-          disabled={disabled}
-        />
-      </div>
-      <div>
-        <Label>Pincode</Label>
-        <input
-          value={values.pincode}
-          onChange={(e) => onChange('pincode', e.target.value)}
-          placeholder="6 Digits"
-          maxLength={6}
-          className={inputCls}
-          disabled={disabled}
-        />
-      </div>
-    </div>
-
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>Latitude</Label>
-        <input
-          value={values.latitude}
-          onChange={(e) => onChange('latitude', e.target.value)}
-          placeholder="19.0760"
-          className={inputCls}
-          disabled={disabled}
-        />
-      </div>
-      <div>
-        <Label>Longitude</Label>
-        <input
-          value={values.longitude}
-          onChange={(e) => onChange('longitude', e.target.value)}
-          placeholder="72.8777"
-          className={inputCls}
-          disabled={disabled}
-        />
-      </div>
-    </div>
-
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>Phone Number</Label>
-        <input
-          value={values.phone}
-          onChange={(e) => onChange('phone', e.target.value)}
-          placeholder="+91 00000 00000"
-          maxLength={10}
-          className={inputCls}
-          disabled={disabled}
-        />
-      </div>
-      <div>
-        <Label>Alternate Phone Number</Label>
-        <input
-          value={values.altPhone}
-          onChange={(e) => onChange('altPhone', e.target.value)}
-          placeholder="+91 00000 00000"
-          maxLength={10}
-          className={inputCls}
-          disabled={disabled}
-        />
-      </div>
-    </div>
+    <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500">
+      {title}
+    </h3>
   </div>
 );
 
@@ -316,7 +169,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
     lat: initialLat ? parseFloat(initialLat) : 23.0225,
     lng: initialLng ? parseFloat(initialLng) : 72.5714,
   });
-  const [loaded, setLoaded] = useState(!!(typeof window !== 'undefined' && window.L));
+  const [loaded, setLoaded] = useState(
+    !!(typeof window !== 'undefined' && window.L),
+  );
 
   useEffect(() => {
     if (window.L) {
@@ -335,7 +190,10 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 
     const existingScript = document.querySelector('script[data-leaflet]');
     if (existingScript) {
-      existingScript.addEventListener('load', () => !cancelled && setLoaded(true));
+      existingScript.addEventListener(
+        'load',
+        () => !cancelled && setLoaded(true),
+      );
     } else {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
@@ -360,7 +218,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
       maxZoom: 19,
     }).addTo(map);
 
-    const marker = L.marker([coords.lat, coords.lng], { draggable: true }).addTo(map);
+    const marker = L.marker([coords.lat, coords.lng], {
+      draggable: true,
+    }).addTo(map);
 
     const updateFromLatLng = (latlng) => {
       setCoords({ lat: latlng.lat, lng: latlng.lng });
@@ -382,11 +242,16 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Pick Location on Map</h2>
+            <h2 className="text-base font-bold text-gray-900">
+              Pick Location on Map
+            </h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Click on the map or drag the pin to set coordinates.
             </p>
@@ -406,16 +271,25 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
               Loading map...
             </div>
           )}
-          <div ref={mapRef} className={loaded ? 'h-80 w-full' : 'h-0 w-full overflow-hidden'} />
+          <div
+            ref={mapRef}
+            className={loaded ? 'h-80 w-full' : 'h-0 w-full overflow-hidden'}
+          />
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 gap-4 flex-wrap">
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <span>
-              Lat: <span className="font-semibold text-gray-800">{coords.lat.toFixed(6)}</span>
+              Lat:{' '}
+              <span className="font-semibold text-gray-800">
+                {coords.lat.toFixed(6)}
+              </span>
             </span>
             <span>
-              Lng: <span className="font-semibold text-gray-800">{coords.lng.toFixed(6)}</span>
+              Lng:{' '}
+              <span className="font-semibold text-gray-800">
+                {coords.lng.toFixed(6)}
+              </span>
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -441,125 +315,145 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
-const UNITS_BY_COMPANY = {
-  'Jaiswal Foods Ltd': ['Main Kitchen', 'Cold Storage', 'Central Bakery'],
-  'Jaiswal Hospitality': ['PDPU', 'LDRP'],
-  'Jaiswal Group': ['Main Pastry Unit', 'Corporate Warehouse', 'Head Office'],
-};
-const COMPANIES = Object.keys(UNITS_BY_COMPANY);
+// Small checkbox used for "Same as Billing Address".
+const Checkbox = ({ checked, onChange, label }) => (
+  <label className="flex items-center gap-1.5 text-xs font-medium text-gray-600 cursor-pointer select-none">
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={(e) => onChange(e.target.checked)}
+      className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
+    />
+    {label}
+  </label>
+);
 
-const DEFAULT_ADDRESS = {
-  attention: '',
-  country: 'India',
-  state: 'Maharashtra',
-  addressLine1: '',
-  addressLine2: '',
-  city: '',
-  pincode: '',
-  latitude: '',
-  longitude: '',
-  phone: '',
-  altPhone: '',
-};
+// Reusable address field block — used for Common, Billing, and Shipping cards.
+// Compact 2-column layout so two of these can sit side by side.
+const AddressFields = ({
+  address,
+  onFieldChange,
+  onCountryChange,
+  onStateChange,
+  onCityChange,
+  countries,
+  loadingCountries,
+  states,
+  loadingStates,
+  cities,
+  loadingCities,
+  disabled = false,
+}) => (
+  <div className="space-y-4">
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <Label required>Country</Label>
+        <IdSelect
+          value={address.countryId}
+          onChange={onCountryChange}
+          placeholder="Select Country"
+          options={countries}
+          loading={loadingCountries}
+          disabled={disabled}
+        />
+      </div>
+      <div>
+        <Label required>State</Label>
+        <IdSelect
+          value={address.stateId}
+          onChange={onStateChange}
+          placeholder={
+            address.countryId ? 'Select State' : 'Select country first'
+          }
+          options={states}
+          loading={loadingStates}
+          disabled={disabled || !address.countryId}
+        />
+      </div>
+    </div>
 
-const makeBank = () => ({
-  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-  accountHolderName: '',
-  bankName: '',
-  accountNumber: '',
-  reAccountNumber: '',
-  ifsc: '',
-});
+    <div>
+      <Label required>Address Line 1</Label>
+      <input
+        value={address.addressLine1}
+        onChange={(e) => onFieldChange('addressLine1', e.target.value)}
+        placeholder="Building, Street Name"
+        className={inputCls}
+        disabled={disabled}
+      />
+    </div>
 
-const DEFAULT_FORM = {
-  // Personal information
-  title: 'Mr.',
-  firstName: '',
-  middleName: '',
-  lastName: '',
-  vendorCode: 'VEND-2023-001',
-  displayName: '',
-  tradeName: '', // vendor's own business/company name shown in Personal Info
-  email: '',
-  company: '', // internal Jaiswal entity
-  unit: '',
-  password: '',
-  mobile: '',
-  altMobile: '',
+    <div>
+      <Label>Address Line 2</Label>
+      <input
+        value={address.addressLine2}
+        onChange={(e) => onFieldChange('addressLine2', e.target.value)}
+        placeholder="Locality, Landmark"
+        className={inputCls}
+        disabled={disabled}
+      />
+    </div>
 
-  // Business details
-  gstin: '',
-  gstCompanyName: '', // registered company name, from GST lookup
-  registeredName: '',
-  msmeRegistered: false,
-  msmeType: '',
-  msmeNumber: '',
-  currency: 'INR - Indian Rupee',
-  accountsPayable: 'Trade Creditors',
-  openingBalance: '',
-  paymentTerms: 'Due on Receipt',
-  tdsApplicability: 'No TDS',
-  documents: [],
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <Label required>City</Label>
+        <IdSelect
+          value={address.cityId}
+          onChange={onCityChange}
+          placeholder={address.stateId ? 'Select City' : 'Select state first'}
+          options={cities}
+          loading={loadingCities}
+          disabled={disabled || !address.stateId}
+        />
+      </div>
+      <div>
+        <Label required>Pincode</Label>
+        <input
+          value={address.pincode}
+          onChange={(e) =>
+            onFieldChange('pincode', e.target.value.replace(/\D/g, ''))
+          }
+          placeholder="6 Digits"
+          maxLength={6}
+          className={inputCls}
+          disabled={disabled}
+        />
+      </div>
+    </div>
 
-  // Address
-  sameAsBilling: false,
-  billing: { ...DEFAULT_ADDRESS },
-  shipping: { ...DEFAULT_ADDRESS },
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <Label>Latitude</Label>
+        <input
+          value={address.latitude}
+          onChange={(e) => onFieldChange('latitude', e.target.value)}
+          placeholder="23.0225"
+          className={inputCls}
+          disabled={disabled}
+        />
+      </div>
+      <div>
+        <Label>Longitude</Label>
+        <input
+          value={address.longitude}
+          onChange={(e) => onFieldChange('longitude', e.target.value)}
+          placeholder="72.5714"
+          className={inputCls}
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  </div>
+);
 
-  // Bank details
-  banks: [makeBank()],
-
-  // Remarks
-  remarks: '',
-};
-
-// Splits the listing's single "name" field into first/middle/last as a
-// best-effort guess, since the form collects those separately.
-const splitName = (fullName = '') => {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { firstName: '', middleName: '', lastName: '' };
-  if (parts.length === 1) return { firstName: parts[0], middleName: '', lastName: '' };
-  if (parts.length === 2) return { firstName: parts[0], middleName: '', lastName: parts[1] };
-  return {
-    firstName: parts[0],
-    middleName: parts.slice(1, -1).join(' '),
-    lastName: parts[parts.length - 1],
-  };
-};
-
-// Maps a row from the vendor listing table onto the shape this form uses.
-// The listing's mock data doesn't carry every field this form has (bank
-// details, GST, MSME, documents, etc.) so anything missing just falls back
-// to the defaults.
-const mapVendorToForm = (vendor) => ({
-  ...DEFAULT_FORM,
-  ...splitName(vendor.name),
-  vendorCode: vendor.code ?? DEFAULT_FORM.vendorCode,
-  displayName: vendor.name ?? '',
-  tradeName: vendor.company ?? '',
-  email: vendor.email ?? '',
-  company: vendor.company ?? '',
-  unit: vendor.unit ?? '',
-  mobile: vendor.mobile ?? '',
-  altMobile: vendor.altMobile ?? '',
-  gstin: vendor.gstin ?? '',
-  billing: {
-    ...DEFAULT_ADDRESS,
-    addressLine1: vendor.addressLine1 ?? '',
-    addressLine2: vendor.addressLine2 ?? '',
-    country: vendor.country ?? 'India',
-    state: vendor.state ?? 'Maharashtra',
-    city: vendor.city ?? '',
-    pincode: vendor.pincode ?? '',
-    latitude: vendor.latitude ?? '',
-    longitude: vendor.longitude ?? '',
-  },
-  shipping: { ...DEFAULT_ADDRESS },
-  banks: [makeBank()],
-});
+// Organizations are scoped to type "GROUP" (e.g. JAISWAL GROUP entities).
+// Vendors always belong to this single organization, so we fetch it and
+// assign the id directly instead of showing a picker.
+const ORGANIZATION_TYPE = 'GROUP';
 
 const SECTIONS = {
   PERSONAL: 'personal',
+  COMMON: 'common',
   BUSINESS: 'business',
   ADDRESS: 'address',
   BANK: 'bank',
@@ -570,96 +464,440 @@ const VendorRegistration = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // If we arrived here via the edit action, the vendor row is passed in
-  // location.state. Its presence is what puts the page into edit mode.
   const editingVendor = location.state?.vendor ?? null;
   const isEditMode = !!editingVendor;
 
-  // True accordion: at most one section open at a time, and clicking the
-  // currently open section closes it (so "all closed" is a valid state).
-  const [openSection, setOpenSection] = useState(SECTIONS.PERSONAL);
-  const toggleSection = (key) => setOpenSection((prev) => (prev === key ? null : key));
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
-  const [showMapPicker, setShowMapPicker] = useState(false);
-  const [gstFetched, setGstFetched] = useState(!!editingVendor?.gstin);
-  const [fetchingGst, setFetchingGst] = useState(false);
+  const [openSection, setOpenSection] = useState(SECTIONS.PERSONAL);
+  const toggleSection = (key) =>
+    setOpenSection((prev) => (prev === key ? null : key));
+
+  // Which address the map picker modal is currently editing.
+  const [mapPickerTarget, setMapPickerTarget] = useState(null); // 'commonAddress' | 'billingAddress' | 'shippingAddress' | null
 
   const [form, setForm] = useState(() =>
     editingVendor ? mapVendorToForm(editingVendor) : DEFAULT_FORM,
   );
 
-  // If the user navigates here again with a different vendor (e.g. clicking
-  // edit on another row without leaving the app), refresh the form.
+  // Once the user manually edits Company Name, stop auto-syncing it from
+  // Vendor Name.
+  const [tradeNameTouched, setTradeNameTouched] = useState(!!editingVendor);
+
   useEffect(() => {
     setForm(editingVendor ? mapVendorToForm(editingVendor) : DEFAULT_FORM);
-    setGstFetched(!!editingVendor?.gstin);
+    setTradeNameTouched(!!editingVendor);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingVendor?.id]);
 
   const setField = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-  const setBillingField = (key, val) => setForm((f) => ({ ...f, billing: { ...f.billing, [key]: val } }));
-  const setShippingField = (key, val) => setForm((f) => ({ ...f, shipping: { ...f.shipping, [key]: val } }));
-  const toggleSameAsBilling = () => setForm((f) => ({ ...f, sameAsBilling: !f.sameAsBilling }));
 
-  const addBank = () => setForm((f) => ({ ...f, banks: [...f.banks, makeBank()] }));
-  const removeBank = (id) => setForm((f) => ({ ...f, banks: f.banks.filter((b) => b.id !== id) }));
+  const setAddressField = (addressKey, key, val) =>
+    setForm((f) => ({
+      ...f,
+      [addressKey]: { ...f[addressKey], [key]: val },
+    }));
+
+  const handleVendorNameChange = (val) => {
+    setForm((f) => ({
+      ...f,
+      vendorName: val,
+      tradeName: tradeNameTouched ? f.tradeName : val,
+    }));
+  };
+
+  const handleTradeNameChange = (val) => {
+    setTradeNameTouched(true);
+    setField('tradeName', val);
+  };
+
+  const addBank = () =>
+    setForm((f) => ({ ...f, banks: [...f.banks, makeBank()] }));
+  const removeBank = (id) =>
+    setForm((f) => ({ ...f, banks: f.banks.filter((b) => b.id !== id) }));
   const setBankField = (id, key, val) =>
     setForm((f) => ({
       ...f,
       banks: f.banks.map((b) => (b.id === id ? { ...b, [key]: val } : b)),
     }));
 
-  const handleAddDocuments = (fileList) => {
-    const list = Array.from(fileList || []);
-    if (list.length === 0) return;
-    setForm((f) => ({ ...f, documents: [...f.documents, ...list] }));
-  };
-  const removeDocument = (idx) =>
-    setForm((f) => ({ ...f, documents: f.documents.filter((_, i) => i !== idx) }));
+  // --- Organization (fetched by type = GROUP, assigned directly — no UI) ---
+  const [loadingOrganizations, setLoadingOrganizations] = useState(false);
 
-  // Changing company invalidates whatever unit was picked before, since
-  // units are scoped to a company.
-  const setCompany = (val) => setForm((f) => ({ ...f, company: val, unit: '' }));
-  const unitOptions = UNITS_BY_COMPANY[form.company] || [];
+  useEffect(() => {
+    let cancelled = false;
+    const fetchOrganizations = async () => {
+      setLoadingOrganizations(true);
+      try {
+        const res = await getOrganizationByType(ORGANIZATION_TYPE);
+        const list = extractList(res);
+        if (!cancelled && list.length > 0) {
+          setForm((f) =>
+            f.organizationId ? f : { ...f, organizationId: list[0].id },
+          );
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoadingOrganizations(false);
+      }
+    };
+    fetchOrganizations();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const fullName = [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' ');
-  const displayNameOptions = [fullName, form.tradeName ? `${fullName} (${form.tradeName})` : null].filter(
-    Boolean,
-  );
+  // --- Role (fetched for the logged-in user) ---
+  const [roles, setRoles] = useState([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
 
-  const handleFetchGst = () => {
-    if (!form.gstin || fetchingGst) return;
-    setFetchingGst(true);
-    // TODO: replace with a real GST lookup API call.
-    setTimeout(() => {
-      setForm((f) => ({
-        ...f,
-        gstCompanyName: f.gstCompanyName || f.tradeName || '',
-      }));
-      setGstFetched(true);
-      setFetchingGst(false);
-    }, 700);
-  };
+  useEffect(() => {
+    let cancelled = false;
+    const fetchRoles = async () => {
+      setLoadingRoles(true);
+      try {
+        const userId = getUserIdFromToken();
+        if (!userId) {
+          if (!cancelled) setRoles([]);
+          return;
+        }
+        const res = await getAllRoleMasterByUserId(userId);
+        if (!cancelled) setRoles(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setRoles([]);
+      } finally {
+        if (!cancelled) setLoadingRoles(false);
+      }
+    };
+    fetchRoles();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-  const handleSubmit = () => {
-    if (isEditMode) {
-      // TODO: wire up to the update API call.
-      alert(`Updated ${fullName || 'vendor'}`);
-    } else {
-      // TODO: wire up to the create API call.
-      alert(`Saved ${fullName || 'vendor'}`);
+  // --- Countries (shared by all address sections) ---
+  const [countries, setCountries] = useState([]);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchCountries = async () => {
+      setLoadingCountries(true);
+      try {
+        const res = await getAllCountries();
+        if (!cancelled) setCountries(extractList(res));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoadingCountries(false);
+      }
+    };
+    fetchCountries();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // --- Common address: State / City lookups ---
+  const [commonStates, setCommonStates] = useState([]);
+  const [commonCities, setCommonCities] = useState([]);
+  const [loadingCommonStates, setLoadingCommonStates] = useState(false);
+  const [loadingCommonCities, setLoadingCommonCities] = useState(false);
+
+  useEffect(() => {
+    if (!form.commonAddress.countryId) {
+      setCommonStates([]);
+      return;
     }
-    navigate('/vendors');
+    let cancelled = false;
+    const fetchStates = async () => {
+      setLoadingCommonStates(true);
+      try {
+        const res = await getStatesByCountry(form.commonAddress.countryId);
+        if (!cancelled) setCommonStates(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setCommonStates([]);
+      } finally {
+        if (!cancelled) setLoadingCommonStates(false);
+      }
+    };
+    fetchStates();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.commonAddress.countryId]);
+
+  useEffect(() => {
+    if (!form.commonAddress.stateId) {
+      setCommonCities([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchCities = async () => {
+      setLoadingCommonCities(true);
+      try {
+        const res = await getCitiesByState(form.commonAddress.stateId);
+        if (!cancelled) setCommonCities(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setCommonCities([]);
+      } finally {
+        if (!cancelled) setLoadingCommonCities(false);
+      }
+    };
+    fetchCities();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.commonAddress.stateId]);
+
+  // --- Billing address: State / City lookups ---
+  const [billingStates, setBillingStates] = useState([]);
+  const [billingCities, setBillingCities] = useState([]);
+  const [loadingBillingStates, setLoadingBillingStates] = useState(false);
+  const [loadingBillingCities, setLoadingBillingCities] = useState(false);
+
+  useEffect(() => {
+    if (!form.billingAddress.countryId) {
+      setBillingStates([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchStates = async () => {
+      setLoadingBillingStates(true);
+      try {
+        const res = await getStatesByCountry(form.billingAddress.countryId);
+        if (!cancelled) setBillingStates(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setBillingStates([]);
+      } finally {
+        if (!cancelled) setLoadingBillingStates(false);
+      }
+    };
+    fetchStates();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.billingAddress.countryId]);
+
+  useEffect(() => {
+    if (!form.billingAddress.stateId) {
+      setBillingCities([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchCities = async () => {
+      setLoadingBillingCities(true);
+      try {
+        const res = await getCitiesByState(form.billingAddress.stateId);
+        if (!cancelled) setBillingCities(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setBillingCities([]);
+      } finally {
+        if (!cancelled) setLoadingBillingCities(false);
+      }
+    };
+    fetchCities();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.billingAddress.stateId]);
+
+  const [shippingStates, setShippingStates] = useState([]);
+  const [shippingCities, setShippingCities] = useState([]);
+  const [loadingShippingStates, setLoadingShippingStates] = useState(false);
+  const [loadingShippingCities, setLoadingShippingCities] = useState(false);
+
+  useEffect(() => {
+    if (form.shippingSameAsBilling || !form.shippingAddress.countryId) {
+      setShippingStates([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchStates = async () => {
+      setLoadingShippingStates(true);
+      try {
+        const res = await getStatesByCountry(form.shippingAddress.countryId);
+        if (!cancelled) setShippingStates(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setShippingStates([]);
+      } finally {
+        if (!cancelled) setLoadingShippingStates(false);
+      }
+    };
+    fetchStates();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.shippingAddress.countryId, form.shippingSameAsBilling]);
+
+  useEffect(() => {
+    if (form.shippingSameAsBilling || !form.shippingAddress.stateId) {
+      setShippingCities([]);
+      return;
+    }
+    let cancelled = false;
+    const fetchCities = async () => {
+      setLoadingShippingCities(true);
+      try {
+        const res = await getCitiesByState(form.shippingAddress.stateId);
+        if (!cancelled) setShippingCities(extractList(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setShippingCities([]);
+      } finally {
+        if (!cancelled) setLoadingShippingCities(false);
+      }
+    };
+    fetchCities();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.shippingAddress.stateId, form.shippingSameAsBilling]);
+
+  // --- Common address handlers ---
+  const handleCommonFieldChange = (key, val) =>
+    setAddressField('commonAddress', key, val);
+
+  const handleCommonCountryChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({
+      ...f,
+      commonAddress: {
+        ...f.commonAddress,
+        countryId: value,
+        stateId: '',
+        cityId: '',
+      },
+    }));
+    setCommonStates([]);
+    setCommonCities([]);
   };
 
-  const handleSaveAndAddAnother = () => {
-    alert(`Saved ${fullName || 'vendor'}`);
-    setForm(DEFAULT_FORM);
-    setGstFetched(false);
-    setOpenSection(SECTIONS.PERSONAL);
+  const handleCommonStateChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({
+      ...f,
+      commonAddress: { ...f.commonAddress, stateId: value, cityId: '' },
+    }));
+    setCommonCities([]);
   };
 
-  const shippingValues = form.sameAsBilling ? form.billing : form.shipping;
+  const handleCommonCityChange = (e) =>
+    setAddressField('commonAddress', 'cityId', e.target.value);
+
+  // --- Billing address handlers ---
+  const handleBillingFieldChange = (key, val) =>
+    setAddressField('billingAddress', key, val);
+
+  const handleBillingCountryChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({
+      ...f,
+      billingAddress: {
+        ...f.billingAddress,
+        countryId: value,
+        stateId: '',
+        cityId: '',
+      },
+    }));
+    setBillingStates([]);
+    setBillingCities([]);
+  };
+
+  const handleBillingStateChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({
+      ...f,
+      billingAddress: { ...f.billingAddress, stateId: value, cityId: '' },
+    }));
+    setBillingCities([]);
+  };
+
+  const handleBillingCityChange = (e) =>
+    setAddressField('billingAddress', 'cityId', e.target.value);
+
+  // --- Shipping address handlers ---
+  const handleShippingFieldChange = (key, val) =>
+    setAddressField('shippingAddress', key, val);
+
+  const handleShippingCountryChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({
+      ...f,
+      shippingAddress: {
+        ...f.shippingAddress,
+        countryId: value,
+        stateId: '',
+        cityId: '',
+      },
+    }));
+    setShippingStates([]);
+    setShippingCities([]);
+  };
+
+  const handleShippingStateChange = (e) => {
+    const value = e.target.value;
+    setForm((f) => ({
+      ...f,
+      shippingAddress: { ...f.shippingAddress, stateId: value, cityId: '' },
+    }));
+    setShippingCities([]);
+  };
+
+  const handleShippingCityChange = (e) =>
+    setAddressField('shippingAddress', 'cityId', e.target.value);
+
+  const handleRoleChange = (e) => setField('roleId', e.target.value);
+
+  const handleSubmit = async () => {
+    const payload = buildVendorPayload(form, { isEditMode, editingVendor });
+    setSubmitError('');
+    setSubmitting(true);
+    try {
+      if (isEditMode) {
+        await updateVendor(payload);
+      } else {
+        await saveVendor(payload);
+      }
+      navigate('/vendors');
+    } catch (err) {
+      console.error(err);
+      setSubmitError(
+        err?.response?.data?.message ||
+          `Failed to ${isEditMode ? 'update' : 'save'} vendor. Please try again.`,
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSaveAndAddAnother = async () => {
+    const payload = buildVendorPayload(form, { isEditMode, editingVendor });
+    setSubmitError('');
+    setSubmitting(true);
+    try {
+      await saveVendor(payload);
+      setForm((f) => ({ ...DEFAULT_FORM, organizationId: f.organizationId }));
+      setTradeNameTouched(false);
+      setOpenSection(SECTIONS.PERSONAL);
+    } catch (err) {
+      console.error(err);
+      setSubmitError(
+        err?.response?.data?.message ||
+          'Failed to save vendor. Please try again.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
@@ -685,75 +923,57 @@ const VendorRegistration = () => {
 
         {openSection === SECTIONS.PERSONAL && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label required>First Name</Label>
-                <div className="flex border border-gray-200 rounded-lg overflow-hidden bg-white focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-300 transition">
-                  <select
-                    value={form.title}
-                    onChange={(e) => setField('title', e.target.value)}
-                    className="px-2.5 text-sm bg-gray-50 border-r border-gray-200 outline-none cursor-pointer"
-                  >
-                    <option>Mr.</option>
-                    <option>Mrs.</option>
-                    <option>Ms.</option>
-                  </select>
-                  <input
-                    value={form.firstName}
-                    onChange={(e) => setField('firstName', e.target.value)}
-                    placeholder="Enter First Name"
-                    className="flex-1 min-w-0 px-3.5 py-2.5 text-sm outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label>Middle Name</Label>
+                <Label required>Vendor Name</Label>
                 <input
-                  value={form.middleName}
-                  onChange={(e) => setField('middleName', e.target.value)}
-                  placeholder="Enter Middle Name"
+                  value={form.vendorName}
+                  onChange={(e) => handleVendorNameChange(e.target.value)}
+                  placeholder="Enter Vendor Name"
                   className={inputCls}
                 />
               </div>
-
               <div>
-                <Label required>Last Name</Label>
+                <Label required>Username</Label>
                 <input
-                  value={form.lastName}
-                  onChange={(e) => setField('lastName', e.target.value)}
-                  placeholder="Enter Last Name"
+                  value={form.username}
+                  onChange={(e) => setField('username', e.target.value)}
+                  placeholder="Login username"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <Label>Contact Person Name</Label>
+                <input
+                  value={form.contactPersonName}
+                  onChange={(e) =>
+                    setField('contactPersonName', e.target.value)
+                  }
+                  placeholder="Enter contact person name"
                   className={inputCls}
                 />
               </div>
             </div>
 
-        <div className={`grid ${isEditMode ? "grid-cols-3" : "grid-cols-2"} gap-4`}>
-             { isEditMode &&  <div>
-                <Label>Vendor Code (Auto Generated)</Label>
-                <input
-                  value={form.vendorCode}
-                  disabled
-                  className={inputCls}
-                />
-              </div>
-              }
-
-              <div>
-                <Label>Display Name</Label>
-                <Select
-                  value={form.displayName}
-                  onChange={(e) => setField('displayName', e.target.value)}
-                  placeholder="Select display name"
-                  options={displayNameOptions}
-                />
-              </div>
+            <div
+              className={`grid ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}
+            >
+              {isEditMode && (
+                <div>
+                  <Label>Vendor Code (Auto Generated)</Label>
+                  <input
+                    value={form.vendorCode}
+                    disabled
+                    className={inputCls}
+                  />
+                </div>
+              )}
 
               <div>
                 <Label>Company Name</Label>
                 <input
                   value={form.tradeName}
-                  onChange={(e) => setField('tradeName', e.target.value)}
+                  onChange={(e) => handleTradeNameChange(e.target.value)}
                   placeholder="Vendor's business name"
                   className={inputCls}
                 />
@@ -793,24 +1013,15 @@ const VendorRegistration = () => {
               </div>
             </div>
 
-            {/* Company & Unit — placed directly below the Email row */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label required>Company</Label>
-                <Select
-                  value={form.company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  placeholder="Select company"
-                  options={COMPANIES}
-                />
-              </div>
-              <div>
-                <Label required>Unit</Label>
-                <Select
-                  value={form.unit}
-                  onChange={(e) => setField('unit', e.target.value)}
-                  placeholder={form.company ? 'Select unit' : 'Select a company first'}
-                  options={unitOptions}
+                <Label required>Role</Label>
+                <IdSelect
+                  value={form.roleId}
+                  onChange={handleRoleChange}
+                  placeholder="Select Role"
+                  options={roles}
+                  loading={loadingRoles}
                 />
               </div>
             </div>
@@ -833,6 +1044,46 @@ const VendorRegistration = () => {
         )}
       </SectionCard>
 
+      {/* Common Address */}
+      <SectionCard className="mt-4">
+        <SectionHeader
+          icon={Building2}
+          title="Common Address"
+          subtitle="A general address on record for this vendor"
+          open={openSection === SECTIONS.COMMON}
+          onToggle={() => toggleSection(SECTIONS.COMMON)}
+        />
+
+        {openSection === SECTIONS.COMMON && (
+          <div className="px-6 py-6 space-y-4">
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setMapPickerTarget('commonAddress')}
+                className="flex items-center gap-1 text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
+              >
+                <Map size={13} />
+                <span className="text-xs font-semibold">Pick from Map</span>
+              </button>
+            </div>
+
+            <AddressFields
+              address={form.commonAddress}
+              onFieldChange={handleCommonFieldChange}
+              onCountryChange={handleCommonCountryChange}
+              onStateChange={handleCommonStateChange}
+              onCityChange={handleCommonCityChange}
+              countries={countries}
+              loadingCountries={loadingCountries}
+              states={commonStates}
+              loadingStates={loadingCommonStates}
+              cities={commonCities}
+              loadingCities={loadingCommonCities}
+            />
+          </div>
+        )}
+      </SectionCard>
+
       {/* Business Details */}
       <SectionCard className="mt-4">
         <SectionHeader
@@ -845,55 +1096,48 @@ const VendorRegistration = () => {
         {openSection === SECTIONS.BUSINESS && (
           <div className="px-6 py-6 space-y-6">
             <div className="space-y-4">
-              <SubHeading icon={FileText} title="GST Information" />
+              <SubHeading icon={RefreshCw} title="GST Information" />
 
-              <div className="flex gap-3 items-end">
-                <div className="flex-1">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
                   <Label required>GSTIN / UIN</Label>
                   <input
                     value={form.gstin}
-                    onChange={(e) => setField('gstin', e.target.value.toUpperCase())}
+                    onChange={(e) =>
+                      setField('gstin', e.target.value.toUpperCase())
+                    }
                     placeholder="22AAAAA0000A1Z5"
                     className={inputCls}
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleFetchGst}
-                  disabled={!form.gstin || fetchingGst}
-                  className="h-10.5 px-4 rounded-lg border border-[#084E92] text-[#084E92] text-sm font-semibold flex items-center gap-1.5 shrink-0 bg-white hover:bg-blue-50 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${fetchingGst ? 'animate-spin' : ''}`} />
-                  {fetchingGst ? 'Fetching...' : 'Fetch Details'}
-                </button>
+                <div>
+                  <Label required>Company Name (as per GST)</Label>
+                  <input
+                    value={form.gstCompanyName}
+                    onChange={(e) => setField('gstCompanyName', e.target.value)}
+                    placeholder="Company Name"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <Label>Registered Name</Label>
+                  <input
+                    value={form.registeredName}
+                    onChange={(e) => setField('registeredName', e.target.value)}
+                    placeholder="Registration Name"
+                    className={inputCls}
+                  />
+                </div>
               </div>
 
-              {gstFetched && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label required>Company Name</Label>
-                    <input
-                      value={form.gstCompanyName}
-                      onChange={(e) => setField('gstCompanyName', e.target.value)}
-                      placeholder="Company Name"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <Label>Registered Name</Label>
-                    <input
-                      value={form.registeredName}
-                      onChange={(e) => setField('registeredName', e.target.value)}
-                      placeholder="Registration Name"
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
-              )}
-
               <div className="flex items-center max-w-1/3 justify-between border border-gray-200 rounded-lg px-4 py-3">
-                <span className="text-sm font-medium text-gray-700">This vendor is MSME Registered</span>
-                <Toggle checked={form.msmeRegistered} onChange={(v) => setField('msmeRegistered', v)} />
+                <span className="text-sm font-medium text-gray-700">
+                  This vendor is MSME Registered
+                </span>
+                <Toggle
+                  checked={form.msmeRegistered}
+                  onChange={(v) => setField('msmeRegistered', v)}
+                />
               </div>
 
               {form.msmeRegistered && (
@@ -928,16 +1172,18 @@ const VendorRegistration = () => {
                     value={form.currency}
                     onChange={(e) => setField('currency', e.target.value)}
                     placeholder="Select currency"
-                    options={['INR - Indian Rupee', 'USD - US Dollar', 'EUR - Euro']}
+                    options={['INR - Indian Rupee']}
                   />
                 </div>
                 <div>
                   <Label>Accounts Payable</Label>
                   <Select
                     value={form.accountsPayable}
-                    onChange={(e) => setField('accountsPayable', e.target.value)}
+                    onChange={(e) =>
+                      setField('accountsPayable', e.target.value)
+                    }
                     placeholder="Select account"
-                    options={['Trade Creditors', 'Sundry Creditors', 'Accrued Expenses']}
+                    options={['Trade Creditors']}
                   />
                 </div>
                 <div>
@@ -958,74 +1204,138 @@ const VendorRegistration = () => {
                     value={form.paymentTerms}
                     onChange={(e) => setField('paymentTerms', e.target.value)}
                     placeholder="Select terms"
-                    options={['Due on Receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60']}
+                    options={[
+                      'Due on Receipt',
+                      'Net 15',
+                      'Net 30',
+                      'Net 45',
+                      'Net 60',
+                    ]}
                   />
                 </div>
                 <div>
                   <Label>TDS Applicability</Label>
                   <Select
                     value={form.tdsApplicability}
-                    onChange={(e) => setField('tdsApplicability', e.target.value)}
+                    onChange={(e) =>
+                      setField('tdsApplicability', e.target.value)
+                    }
                     placeholder="Select TDS"
-                    options={['No TDS', '194C - Contractor', '194J - Professional Fees', '194I - Rent']}
+                    options={[
+                      'No TDS',
+                      '194C - Contractor',
+                      '194J - Professional Fees',
+                      '194I - Rent',
+                    ]}
                   />
                 </div>
               </div>
-            </div>
-
-            <div className="border-t border-gray-100 pt-6">
-              <Label>Upload Documents</Label>
-              <DocumentUpload files={form.documents} onAdd={handleAddDocuments} onRemove={removeDocument} />
             </div>
           </div>
         )}
       </SectionCard>
 
-      {/* Address */}
+      {/* Address Details — Billing & Shipping side by side */}
       <SectionCard className="mt-4">
         <SectionHeader
           icon={MapPin}
-          title="Address"
+          title="Address Details"
+          subtitle="Billing and shipping addresses for this vendor"
           open={openSection === SECTIONS.ADDRESS}
           onToggle={() => toggleSection(SECTIONS.ADDRESS)}
         />
 
         {openSection === SECTIONS.ADDRESS && (
-          <div className="px-6 py-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <AddressCard
-              title="Billing Address"
-              icon={MapPin}
-              values={form.billing}
-              onChange={setBillingField}
-              action={
+          <div className="px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Billing Address card */}
+            <div className="border border-gray-200 rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gray-800">
+                  <h3 className="text-sm font-bold">Billing Address</h3>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setShowMapPicker(true)}
-                  className="flex items-center gap-1 text-xs font-semibold text-[#084E92] cursor-pointer bg-transparent border-0"
+                  onClick={() => setMapPickerTarget('billingAddress')}
+                  className="flex items-center gap-1 text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
                 >
-                  <Map className="w-3.5 h-3.5" />
-                  Pick From Map
+                  <Map size={13} />
+                  <span className="text-xs font-semibold">Pick from Map</span>
                 </button>
-              }
-            />
-            <AddressCard
-              title="Shipping Address"
-              icon={Truck}
-              values={shippingValues}
-              onChange={setShippingField}
-              disabled={form.sameAsBilling}
-              action={
-                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={form.sameAsBilling}
-                    onChange={toggleSameAsBilling}
-                    className="w-3.5 h-3.5 cursor-pointer"
+              </div>
+
+              <AddressFields
+                address={form.billingAddress}
+                onFieldChange={handleBillingFieldChange}
+                onCountryChange={handleBillingCountryChange}
+                onStateChange={handleBillingStateChange}
+                onCityChange={handleBillingCityChange}
+                countries={countries}
+                loadingCountries={loadingCountries}
+                states={billingStates}
+                loadingStates={loadingBillingStates}
+                cities={billingCities}
+                loadingCities={loadingBillingCities}
+              />
+            </div>
+
+            {/* Shipping Address card */}
+            <div className="border border-gray-200 rounded-xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-gray-800">
+                  <h3 className="text-sm font-bold">Shipping Address</h3>
+                </div>
+                <div className="flex items-center gap-3">
+                  {!form.shippingSameAsBilling && (
+                    <button
+                      type="button"
+                      onClick={() => setMapPickerTarget('shippingAddress')}
+                      className="flex items-center gap-1 text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
+                    >
+                      <Map size={13} />
+                      <span className="text-xs font-semibold">
+                        Pick from Map
+                      </span>
+                    </button>
+                  )}
+                  <Checkbox
+                    checked={form.shippingSameAsBilling}
+                    onChange={(v) => setField('shippingSameAsBilling', v)}
+                    label="Same as Billing Address"
                   />
-                  Same as Billing Address
-                </label>
-              }
-            />
+                </div>
+              </div>
+
+              <AddressFields
+                address={
+                  form.shippingSameAsBilling
+                    ? form.billingAddress
+                    : form.shippingAddress
+                }
+                onFieldChange={handleShippingFieldChange}
+                onCountryChange={handleShippingCountryChange}
+                onStateChange={handleShippingStateChange}
+                onCityChange={handleShippingCityChange}
+                countries={countries}
+                loadingCountries={loadingCountries}
+                states={
+                  form.shippingSameAsBilling ? billingStates : shippingStates
+                }
+                loadingStates={
+                  form.shippingSameAsBilling
+                    ? loadingBillingStates
+                    : loadingShippingStates
+                }
+                cities={
+                  form.shippingSameAsBilling ? billingCities : shippingCities
+                }
+                loadingCities={
+                  form.shippingSameAsBilling
+                    ? loadingBillingCities
+                    : loadingShippingCities
+                }
+                disabled={form.shippingSameAsBilling}
+              />
+            </div>
           </div>
         )}
       </SectionCard>
@@ -1042,7 +1352,10 @@ const VendorRegistration = () => {
         {openSection === SECTIONS.BANK && (
           <div className="px-6 py-6 space-y-4">
             {form.banks.map((bank) => (
-              <div key={bank.id} className="border border-gray-200 rounded-xl p-5 space-y-4 relative">
+              <div
+                key={bank.id}
+                className="border border-gray-200 rounded-xl p-5 space-y-4 relative"
+              >
                 {form.banks.length > 1 && (
                   <button
                     type="button"
@@ -1057,7 +1370,13 @@ const VendorRegistration = () => {
                     <Label required>Account Holder Name</Label>
                     <input
                       value={bank.accountHolderName}
-                      onChange={(e) => setBankField(bank.id, 'accountHolderName', e.target.value)}
+                      onChange={(e) =>
+                        setBankField(
+                          bank.id,
+                          'accountHolderName',
+                          e.target.value,
+                        )
+                      }
                       placeholder="As per bank records"
                       className={inputCls}
                     />
@@ -1066,7 +1385,9 @@ const VendorRegistration = () => {
                     <Label required>Bank Name</Label>
                     <input
                       value={bank.bankName}
-                      onChange={(e) => setBankField(bank.id, 'bankName', e.target.value)}
+                      onChange={(e) =>
+                        setBankField(bank.id, 'bankName', e.target.value)
+                      }
                       placeholder="e.g. HDFC Bank, ICICI Bank"
                       className={inputCls}
                     />
@@ -1077,7 +1398,9 @@ const VendorRegistration = () => {
                     <Label required>Account Number</Label>
                     <input
                       value={bank.accountNumber}
-                      onChange={(e) => setBankField(bank.id, 'accountNumber', e.target.value)}
+                      onChange={(e) =>
+                        setBankField(bank.id, 'accountNumber', e.target.value)
+                      }
                       placeholder="0000 0000 0000"
                       className={inputCls}
                     />
@@ -1086,7 +1409,9 @@ const VendorRegistration = () => {
                     <Label required>Re-enter Account Number</Label>
                     <input
                       value={bank.reAccountNumber}
-                      onChange={(e) => setBankField(bank.id, 'reAccountNumber', e.target.value)}
+                      onChange={(e) =>
+                        setBankField(bank.id, 'reAccountNumber', e.target.value)
+                      }
                       placeholder="0000 0000 0000"
                       className={inputCls}
                     />
@@ -1096,7 +1421,13 @@ const VendorRegistration = () => {
                   <Label required>IFSC Code</Label>
                   <input
                     value={bank.ifsc}
-                    onChange={(e) => setBankField(bank.id, 'ifsc', e.target.value.toUpperCase())}
+                    onChange={(e) =>
+                      setBankField(
+                        bank.id,
+                        'ifsc',
+                        e.target.value.toUpperCase(),
+                      )
+                    }
                     placeholder="HDFC0000123"
                     className={`${inputCls} md:max-w-xs`}
                   />
@@ -1140,31 +1471,36 @@ const VendorRegistration = () => {
 
       {/* Footer actions */}
       <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
+        {submitError && (
+          <p className="text-sm text-red-600 mr-auto">{submitError}</p>
+        )}
         <button
           type="button"
           onClick={() => navigate('/vendors')}
-          className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+          disabled={submitting}
+          className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={handleSubmit}
-          className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition"
+          disabled={submitting}
+          className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isEditMode ? 'Update' : 'Save'}
+          {submitting ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
         </button>
       </div>
 
-      {showMapPicker && (
+      {mapPickerTarget && (
         <MapPickerModal
-          initialLat={form.billing.latitude}
-          initialLng={form.billing.longitude}
-          onClose={() => setShowMapPicker(false)}
+          initialLat={form[mapPickerTarget].latitude}
+          initialLng={form[mapPickerTarget].longitude}
+          onClose={() => setMapPickerTarget(null)}
           onConfirm={({ lat, lng }) => {
-            setBillingField('latitude', lat.toFixed(6));
-            setBillingField('longitude', lng.toFixed(6));
-            setShowMapPicker(false);
+            setAddressField(mapPickerTarget, 'latitude', lat.toFixed(6));
+            setAddressField(mapPickerTarget, 'longitude', lng.toFixed(6));
+            setMapPickerTarget(null);
           }}
         />
       )}
