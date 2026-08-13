@@ -523,7 +523,7 @@ const CompanyRegistration = () => {
       } else {
         const formData = new FormData();
 
-        Object.entries(payload).forEach(([key, value]) => {
+      Object.entries(payload).forEach(([key, value]) => {
           formData.append(key, value ?? '');
         });
 

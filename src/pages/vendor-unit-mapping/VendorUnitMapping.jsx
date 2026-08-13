@@ -1,59 +1,48 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getEmailFromToken } from '@/utils/auth';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
-import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
-import {
-  ChevronDown,
-  ChevronRight,
-  Link2,
-  Search,
-  Trash2,
-  X,
-} from 'lucide-react';
-import { Card, CardFooter, CardTable } from '@/components/ui/card';
-import { DataGrid } from '@/components/ui/data-grid';
-import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
-import { DataGridPagination } from '@/components/ui/data-grid-pagination';
-import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Container } from '@/components/common/container';
-// TODO: point this at wherever OrgTypes actually lives in your codebase.
+import { getEmailFromToken } from '@/utils/auth';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
-  assignVendorOutletMapping,
-  deleteVendorOutletMapping,
-  deleteVendorOutletMappingByVendor,
-  getAllActiveVendors,
-  getAllVendorOutletMappings,
-  getOrganizationByType,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    getAllActiveVendors,
+    getOrganizationByType,
+    assignVendorOutletMapping,
+    deleteVendorOutletMapping,
+    deleteVendorOutletMappingByVendor,
+    getAllVendorOutletMappings,
 } from '../../services/apiServices';
 
-const SingleSelectDropdown = ({
-  label,
-  placeholder,
-  options,
-  selected,
-  onChange,
-  loading,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const wrapperRef = useRef(null);
+const SingleSelectDropdown = ({ label, placeholder, options, selected, onChange, loading }) => {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const wrapperRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setOpen(false);
+                setQuery('');
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = useMemo(() => {
+        const term = query.trim().toLowerCase();
+        if (!term) return options;
+        return options.filter((o) => (o.name ?? '').toLowerCase().includes(term));
+    }, [options, query]);
+
+    const handlePick = (option) => {
+        onChange(option);
         setOpen(false);
         setQuery('');
       }
@@ -149,24 +138,40 @@ const SingleSelectDropdown = ({
   );
 };
 
-const MultiSelectDropdown = ({
-  label,
-  placeholder,
-  options,
-  selected,
-  onChange,
-  loading,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const wrapperRef = useRef(null);
+const MultiSelectDropdown = ({ label, placeholder, options, selected, onChange, loading }) => {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const wrapperRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
-        setQuery('');
-      }
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setOpen(false);
+                setQuery('');
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredOptions = useMemo(() => {
+        const term = query.trim().toLowerCase();
+        if (!term) return options;
+        return options.filter((o) => (o.name ?? '').toLowerCase().includes(term));
+    }, [options, query]);
+
+    const isSelected = (id) => selected.some((s) => s.id === id);
+
+    const toggleOption = (option) => {
+        if (isSelected(option.id)) {
+            onChange(selected.filter((s) => s.id !== option.id));
+        } else {
+            onChange([...selected, option]);
+        }
+    };
+
+    const removeOption = (id) => {
+        onChange(selected.filter((s) => s.id !== id));
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -287,461 +292,442 @@ const normalizeVendor = (v) => ({
   name: v.companyNameEnglish ?? v.vendorName ?? v.name,
 });
 
+// Normalizes a raw vendor record from getAllActiveVendors into { id, name, gstRegisteredName }.
+const normalizeVendor = (v) => ({
+    id: v.id,
+    name: v.companyName ?? v.fullName ?? v.companyNameEnglish ?? v.vendorName ?? v.name,
+    gstRegisteredName: v.gstRegisteredName ?? null,
+});
+
 // Groups flat rows from GET /vendor-outlet-mapping/get-all into
-// { id, vendor: {id,name}, units: [{id,name}] } rows the table expects.
-// NOTE: the exact response shape wasn't confirmed against swagger yet -
-// this tries a few common shapes. Adjust the `outletIds` extraction below
-// once you've inspected a real response in devtools.
+// { id, vendor: {id, name, gstRegisteredName}, units: [{id, name}] } rows the table expects.
 const groupMappings = (rawRows, vendorsById, unitsById) => {
-  const byVendor = new Map();
+    const byVendor = new Map();
 
-  for (const row of rawRows) {
-    const vendorId = row.vendorId ?? row.vendor?.id;
-    if (vendorId == null) continue;
+    for (const row of rawRows) {
+        const vendorId = row.vendorId ?? row.vendor?.id;
+        if (vendorId == null) continue;
 
-    const outletIds =
-      row.outletIds ??
-      row.outlets?.map((o) => o.id ?? o.outletId) ??
-      (row.outletId != null ? [row.outletId] : []);
+        if (!byVendor.has(vendorId)) {
+            const resolvedVendor = vendorsById.get(vendorId);
+            byVendor.set(vendorId, {
+                id: vendorId,
+                vendor: resolvedVendor ?? {
+                    id: vendorId,
+                    name: row.vendorCompanyName ?? row.vendorName ?? `Vendor ${vendorId}`,
+                    gstRegisteredName: null,
+                },
+                units: [],
+            });
+        }
 
-    if (!byVendor.has(vendorId)) {
-      byVendor.set(vendorId, {
-        id: vendorId,
-        vendor: vendorsById.get(vendorId) ?? {
-          id: vendorId,
-          name: row.vendorName ?? `Vendor ${vendorId}`,
-        },
-        units: [],
-      });
+        const entry = byVendor.get(vendorId);
+
+        // API returns one row per outlet, keyed by organizationId/organizationName
+        const outletId = row.organizationId;
+        const outletName = row.organizationName;
+
+        if (outletId != null && !entry.units.some((u) => u.id === outletId)) {
+            entry.units.push(
+                unitsById.get(outletId) ?? { id: outletId, name: outletName ?? `Outlet ${outletId}` },
+            );
+        }
     }
 
-    const entry = byVendor.get(vendorId);
-    for (const oid of outletIds) {
-      if (entry.units.some((u) => u.id === oid)) continue;
-      entry.units.push(
-        unitsById.get(oid) ?? { id: oid, name: `Outlet ${oid}` },
-      );
-    }
-  }
-
-  return Array.from(byVendor.values());
+    return Array.from(byVendor.values());
 };
 
 const VendorUnitMapping = () => {
-  const [vendors, setVendors] = useState([]);
-  const [vendorsLoading, setVendorsLoading] = useState(false);
+    const [vendors, setVendors] = useState([]);
+    const [vendorsLoading, setVendorsLoading] = useState(false);
 
-  const [units, setUnits] = useState([]);
-  const [unitsLoading, setUnitsLoading] = useState(false);
-  const [unitsError, setUnitsError] = useState(null);
+    const [units, setUnits] = useState([]);
+    const [unitsLoading, setUnitsLoading] = useState(false);
+    const [unitsError, setUnitsError] = useState(null);
 
-  const [selectedVendor, setSelectedVendor] = useState(null);
-  const [selectedUnits, setSelectedUnits] = useState([]);
-  const [saving, setSaving] = useState(false);
+    const [selectedVendor, setSelectedVendor] = useState(null);
+    const [selectedUnits, setSelectedUnits] = useState([]);
+    const [saving, setSaving] = useState(false);
 
-  const [mappings, setMappings] = useState([]);
-  const [mappingsLoading, setMappingsLoading] = useState(false);
-  const [mappingsError, setMappingsError] = useState(null);
+    const [mappings, setMappings] = useState([]);
+    const [mappingsLoading, setMappingsLoading] = useState(false);
+    const [mappingsError, setMappingsError] = useState(null);
 
-  const [searchText, setSearchText] = useState('');
-  const [vendorFilter, setVendorFilter] = useState('');
-  const [unitFilter, setUnitFilter] = useState('');
+    const [searchText, setSearchText] = useState('');
+    const [vendorFilter, setVendorFilter] = useState('');
+    const [unitFilter, setUnitFilter] = useState('');
 
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Vendors from the real API.
-  useEffect(() => {
-    const fetchVendors = async () => {
-      setVendorsLoading(true);
-      try {
-        const res = await getAllActiveVendors();
-        const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
-        const list = Array.isArray(raw) ? raw : Object.values(raw);
-        setVendors(list.map(normalizeVendor));
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setVendorsLoading(false);
-      }
+    // Vendors from the real API.
+    useEffect(() => {
+        const fetchVendors = async () => {
+            setVendorsLoading(true);
+            try {
+                const res = await getAllActiveVendors();
+                const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+                const list = Array.isArray(raw) ? raw : Object.values(raw);
+                setVendors(list.map(normalizeVendor));
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setVendorsLoading(false);
+            }
+        };
+        fetchVendors();
+    }, []);
+
+    // Units (outlets) from the real API.
+    useEffect(() => {
+        const fetchUnits = async () => {
+            setUnitsLoading(true);
+            setUnitsError(null);
+
+            try {
+                const res = await getOrganizationByType(OrgTypes.OUTLET);
+                const rawUnits = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+                const list = Array.isArray(rawUnits) ? rawUnits : Object.values(rawUnits);
+                setUnits(list.map(normalizeUnit));
+            } catch (err) {
+                console.error(err);
+                setUnitsError('Failed to load units.');
+            } finally {
+                setUnitsLoading(false);
+            }
+        };
+
+        fetchUnits();
+    }, []);
+
+    // Existing vendor-outlet mappings. Re-fetched after vendors/units load and after every save/delete.
+    const fetchMappings = async () => {
+        setMappingsLoading(true);
+        setMappingsError(null);
+        try {
+            const res = await getAllVendorOutletMappings();
+            const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+            const list = Array.isArray(raw) ? raw : Object.values(raw);
+
+            const vendorsById = new Map(vendors.map((v) => [v.id, v]));
+            const unitsById = new Map(units.map((u) => [u.id, u]));
+
+            setMappings(groupMappings(list, vendorsById, unitsById));
+        } catch (err) {
+            console.error(err);
+            setMappingsError('Failed to load mappings.');
+        } finally {
+            setMappingsLoading(false);
+        }
     };
-    fetchVendors();
-  }, []);
 
-  // Units (outlets) from the real API.
-  useEffect(() => {
-    const fetchUnits = async () => {
-      setUnitsLoading(true);
-      setUnitsError(null);
+    useEffect(() => {
+        if (vendors.length === 0 && units.length === 0) return;
+        fetchMappings();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vendors, units]);
 
-      try {
-        const res = await getOrganizationByType(OrgTypes.OUTLET);
+    const filteredMappings = useMemo(() => {
+        const term = searchText.trim().toLowerCase();
 
-        const rawUnits =
-          res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+        return mappings.filter((m) => {
+            const vendorName = m.vendor?.name?.toLowerCase() ?? '';
+            const unitNames = (m.units || []).map((u) => u.name.toLowerCase()).join(', ');
 
-        const list = Array.isArray(rawUnits)
-          ? rawUnits
-          : Object.values(rawUnits);
-        setUnits(list.map(normalizeUnit));
-      } catch (err) {
-        console.error(err);
-        setUnitsError('Failed to load units.');
-      } finally {
-        setUnitsLoading(false);
-      }
+            const matchesSearch = !term || vendorName.includes(term) || unitNames.includes(term);
+            const matchesVendor = !vendorFilter || String(m.vendor?.id) === String(vendorFilter);
+            const matchesUnit = !unitFilter || (m.units || []).some((u) => String(u.id) === String(unitFilter));
+
+            return matchesSearch && matchesVendor && matchesUnit;
+        });
+    }, [mappings, searchText, vendorFilter, unitFilter]);
+
+    useEffect(() => {
+        setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+    }, [searchText, vendorFilter, unitFilter]);
+
+    const handleSaveMapping = async () => {
+        if (!selectedVendor || selectedUnits.length === 0) return;
+
+        setSaving(true);
+        try {
+            await assignVendorOutletMapping({
+                outletIds: selectedUnits.map((u) => u.id),
+                username: getEmailFromToken(),
+                vendorId: selectedVendor.id,
+            });
+
+            await fetchMappings();
+            setSelectedVendor(null);
+            setSelectedUnits([]);
+        } catch (err) {
+            console.error(err);
+            setMappingsError('Failed to save mapping.');
+        } finally {
+            setSaving(false);
+        }
     };
 
-    fetchUnits();
-  }, []);
+    // Row delete = drop the whole vendor mapping (all outlets for that vendor).
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({
+            type: 'row',
+            vendorId: row.vendor.id,
+            name: `${row.vendor?.name} - ${(row.units || []).map((u) => u.name).join(', ')}`,
+        });
+        setShowDeleteConfirm(true);
+    };
 
-  // Existing vendor-outlet mappings. Re-run any time vendors/units change
-  // (so names resolve) and after every save/delete.
-  const fetchMappings = async () => {
-    setMappingsLoading(true);
-    setMappingsError(null);
-    try {
-      const res = await getAllVendorOutletMappings();
-      const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
-      const list = Array.isArray(raw) ? raw : Object.values(raw);
+    // Single unit chip delete = drop one vendor+outlet pair.
+    const openRemoveUnitConfirm = (vendorId, unit) => {
+        setDeleteTarget({
+            type: 'unit',
+            vendorId,
+            unitId: unit.id,
+            name: unit.name,
+        });
+        setShowDeleteConfirm(true);
+    };
 
-      const vendorsById = new Map(vendors.map((v) => [v.id, v]));
-      const unitsById = new Map(units.map((u) => [u.id, u]));
+    const closeDeleteConfirm = () => {
+        if (deleteLoading) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };
 
-      setMappings(groupMappings(list, vendorsById, unitsById));
-    } catch (err) {
-      console.error(err);
-      setMappingsError('Failed to load mappings.');
-    } finally {
-      setMappingsLoading(false);
-    }
-  };
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
 
-  useEffect(() => {
-    if (vendors.length === 0 && units.length === 0) return;
-    fetchMappings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendors, units]);
+        setDeleteLoading(true);
+        try {
+            if (deleteTarget.type === 'unit') {
+                await deleteVendorOutletMapping(deleteTarget.vendorId, deleteTarget.unitId);
+            } else {
+                await deleteVendorOutletMappingByVendor(deleteTarget.vendorId);
+            }
+            await fetchMappings();
+        } catch (err) {
+            console.error(err);
+            setMappingsError('Failed to delete mapping.');
+        } finally {
+            setShowDeleteConfirm(false);
+            setDeleteTarget(null);
+            setDeleteLoading(false);
+        }
+    };
 
-  const filteredMappings = useMemo(() => {
-    const term = searchText.trim().toLowerCase();
-
-    return mappings.filter((m) => {
-      const vendorName = m.vendor?.name?.toLowerCase() ?? '';
-      const unitNames = (m.units || [])
-        .map((u) => u.name.toLowerCase())
-        .join(', ');
-
-      const matchesSearch =
-        !term || vendorName.includes(term) || unitNames.includes(term);
-      const matchesVendor =
-        !vendorFilter || String(m.vendor?.id) === String(vendorFilter);
-      const matchesUnit =
-        !unitFilter ||
-        (m.units || []).some((u) => String(u.id) === String(unitFilter));
-
-      return matchesSearch && matchesVendor && matchesUnit;
-    });
-  }, [mappings, searchText, vendorFilter, unitFilter]);
-
-  useEffect(() => {
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [searchText, vendorFilter, unitFilter]);
-
-  const handleSaveMapping = async () => {
-    if (!selectedVendor || selectedUnits.length === 0) return;
-
-    setSaving(true);
-    try {
-      await assignVendorOutletMapping({
-        outletIds: selectedUnits.map((u) => u.id),
-        username: getEmailFromToken(),
-        vendorId: selectedVendor.id,
-      });
-
-      await fetchMappings();
-      setSelectedVendor(null);
-      setSelectedUnits([]);
-    } catch (err) {
-      console.error(err);
-      setMappingsError('Failed to save mapping.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Row delete = drop the whole vendor mapping (all outlets for that vendor).
-  const openDeleteConfirm = (row) => {
-    setDeleteTarget({
-      type: 'row',
-      vendorId: row.vendor.id,
-      name: `${row.vendor?.name} - ${(row.units || []).map((u) => u.name).join(', ')}`,
-    });
-    setShowDeleteConfirm(true);
-  };
-
-  // Single unit chip delete = drop one vendor+outlet pair.
-  const openRemoveUnitConfirm = (vendorId, unit) => {
-    setDeleteTarget({
-      type: 'unit',
-      vendorId,
-      unitId: unit.id,
-      name: unit.name,
-    });
-    setShowDeleteConfirm(true);
-  };
-
-  const closeDeleteConfirm = () => {
-    if (deleteLoading) return;
-    setShowDeleteConfirm(false);
-    setDeleteTarget(null);
-  };
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-
-    setDeleteLoading(true);
-    try {
-      if (deleteTarget.type === 'unit') {
-        await deleteVendorOutletMapping(
-          deleteTarget.vendorId,
-          deleteTarget.unitId,
-        );
-      } else {
-        await deleteVendorOutletMappingByVendor(deleteTarget.vendorId);
-      }
-      await fetchMappings();
-    } catch (err) {
-      console.error(err);
-      setMappingsError('Failed to delete mapping.');
-    } finally {
-      setShowDeleteConfirm(false);
-      setDeleteTarget(null);
-      setDeleteLoading(false);
-    }
-  };
-
-  const columns = [
-    {
-      id: 'sno',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="SR. NO"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) =>
-        pagination.pageIndex * pagination.pageSize + row.index + 1,
-      enableSorting: false,
-      size: 80,
-    },
-    {
-      id: 'vendor',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="VENDOR NAME"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <span className="font-medium text-[#1B1B1F]">
-          {row.original.vendor?.name}
-        </span>
-      ),
-    },
-    {
-      id: 'units',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="UNIT NAME"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1.5">
-          {(row.original.units || []).map((u) => (
-            <span
-              key={u.id}
-              className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full"
-            >
-              {u.name}
-              <X
-                size={12}
-                className="cursor-pointer hover:text-red-500"
-                onClick={() => openRemoveUnitConfirm(row.original.vendor.id, u)}
-              />
-            </span>
-          ))}
-        </div>
-      ),
-      enableSorting: false,
-    },
-    {
-      id: 'actions',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="ACTION"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <Trash2
-          size={18}
-          className="text-red-300 cursor-pointer hover:text-red-700"
-          onClick={() => openDeleteConfirm(row.original)}
-        />
-      ),
-      enableSorting: false,
-      size: 100,
-    },
-  ];
-
-  const table = useReactTable({
-    data: filteredMappings,
-    columns,
-    state: { pagination },
-    onPaginationChange: setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-  });
-
-  return (
-    <Container>
-      <div className="p-4 md:p-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Masters</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Vendor & Unit Mapping
-          </span>
-        </div>
-
-        <div>
-          <h1 className="text-2xl font-bold text-[#0F172A] text-start">
-            Vendor & Unit Mapping
-          </h1>
-          <p className="text-sm text-gray-400 mt-1 max-w-xl">
-            Map vendors to one or multiple units for procurement and purchase
-            management.
-          </p>
-        </div>
-
-        {/* Vendor Mapping Details */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-          <h2 className="text-base font-semibold text-[#1B1B1F] pb-4 mb-4 border-b-2 border-[#F8FAFC]">
-            Vendor Mapping Details
-          </h2>
-
-          {unitsError && (
-            <p className="text-sm text-red-500 mb-3">{unitsError}</p>
-          )}
-          {mappingsError && (
-            <p className="text-sm text-red-500 mb-3">{mappingsError}</p>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
-            <SingleSelectDropdown
-              label="Vendor Name"
-              placeholder="Select a vendor"
-              options={vendors}
-              selected={selectedVendor}
-              onChange={setSelectedVendor}
-              loading={vendorsLoading}
-            />
-
-            <MultiSelectDropdown
-              label="Unit selection"
-              placeholder="Select a Unit"
-              options={units}
-              selected={selectedUnits}
-              onChange={setSelectedUnits}
-              loading={unitsLoading}
-            />
-
-            <button
-              type="button"
-              onClick={handleSaveMapping}
-              disabled={saving || !selectedVendor || selectedUnits.length === 0}
-              className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              <Link2 size={16} />
-              {saving ? 'Saving...' : 'Save Mapping'}
-            </button>
-          </div>
-        </div>
-
-        {/* Mapping Records */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-base font-semibold text-[#1B1B1F]">
-              Mapping Records
-            </h2>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative border border-[#C3C6D1] rounded-lg">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={16}
+    const columns = [
+        {
+            id: 'sno',
+            header: ({ column }) => (
+                <DataGridColumnHeader title="SR. NO" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => pagination.pageIndex * pagination.pageSize + row.index + 1,
+            enableSorting: false,
+            size: 80,
+        },
+        {
+            id: 'vendor',
+            header: ({ column }) => (
+                <DataGridColumnHeader title="VENDOR NAME" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => (
+                <span className="font-medium text-[#1B1B1F]">
+                    {row.original.vendor?.name}
+                </span>
+            ),
+        },
+        {
+            id: 'gstRegisteredName',
+            header: ({ column }) => (
+                <DataGridColumnHeader title="REGISTERED COMPANY NAME" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => (
+                <span className="font-medium text-[#1B1B1F]">
+                    {row.original.vendor?.gstRegisteredName ?? '—'}
+                </span>
+            ),
+        },
+        {
+            id: 'units',
+            header: ({ column }) => (
+                <DataGridColumnHeader title="UNIT NAME" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => (
+                <div className="flex flex-wrap gap-1.5">
+                    {(row.original.units || []).map((u) => (
+                        <span
+                            key={u.id}
+                            className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full"
+                        >
+                            {u.name}
+                            <X
+                                size={12}
+                                className="cursor-pointer hover:text-red-500"
+                                onClick={() => openRemoveUnitConfirm(row.original.vendor.id, u)}
+                            />
+                        </span>
+                    ))}
+                </div>
+            ),
+            enableSorting: false,
+        },
+        {
+            id: 'actions',
+            header: ({ column }) => (
+                <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => (
+                <Trash2
+                    size={18}
+                    className="text-red-300 cursor-pointer hover:text-red-700"
+                    onClick={() => openDeleteConfirm(row.original)}
                 />
-                <input
-                  placeholder="Search records..."
-                  className="w-full sm:w-56 pl-9 pr-3 py-2 text-sm outline-none rounded-lg"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                />
-              </div>
+            ),
+            enableSorting: false,
+            size: 100,
+        },
+    ];
 
-              <Select
-                value={vendorFilter || 'all'}
-                onValueChange={(value) =>
-                  setVendorFilter(value === 'all' ? '' : value)
-                }
-              >
-                <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue placeholder="Filter by Vendor" />
-                </SelectTrigger>
+    const table = useReactTable({
+        data: filteredMappings,
+        columns,
+        state: { pagination },
+        onPaginationChange: setPagination,
+        getCoreRowModel: getCoreRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
+    });
 
-                <SelectContent>
-                  <SelectItem value="all">All Vendors</SelectItem>
+    return (
+        <Container>
+            <div className="p-4 md:p-6">
+                {/* Breadcrumb */}
+                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                    <span>Dashboard</span>
+                    <ChevronRight size={12} />
+                    <span>Masters</span>
+                    <ChevronRight size={12} />
+                    <span className="text-[#084E92] font-medium">Vendor & Unit Mapping</span>
+                </div>
 
-                  {vendors.map((v) => (
-                    <SelectItem key={v.id} value={String(v.id)}>
-                      {v.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <div>
+                    <h1 className="text-2xl font-bold text-[#0F172A] text-start">Vendor & Unit Mapping</h1>
+                    <p className="text-sm text-gray-400 mt-1 max-w-xl">
+                        Map vendors to one or multiple units for procurement and purchase management.
+                    </p>
+                </div>
 
-              <Select
-                value={unitFilter || 'all'}
-                onValueChange={(value) =>
-                  setUnitFilter(value === 'all' ? '' : value)
-                }
-              >
-                <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue placeholder="Filter by Unit" />
-                </SelectTrigger>
+                {/* Vendor Mapping Details */}
+                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
+                    <h2 className="text-base font-semibold text-[#1B1B1F] pb-4 mb-4 border-b-2 border-[#F8FAFC]">
+                        Vendor Mapping Details
+                    </h2>
 
-                <SelectContent>
-                  <SelectItem value="all">All Units</SelectItem>
+                    {unitsError && <p className="text-sm text-red-500 mb-3">{unitsError}</p>}
+                    {mappingsError && <p className="text-sm text-red-500 mb-3">{mappingsError}</p>}
 
-                  {units.map((u) => (
-                    <SelectItem key={u.id} value={String(u.id)}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+                        <SingleSelectDropdown
+                            label="Vendor Name"
+                            placeholder="Select a vendor"
+                            options={vendors}
+                            selected={selectedVendor}
+                            onChange={setSelectedVendor}
+                            loading={vendorsLoading}
+                        />
+
+                        <MultiSelectDropdown
+                            label="Unit selection"
+                            placeholder="Select a Unit"
+                            options={units}
+                            selected={selectedUnits}
+                            onChange={setSelectedUnits}
+                            loading={unitsLoading}
+                        />
+
+                        <button
+                            type="button"
+                            onClick={handleSaveMapping}
+                            disabled={saving || !selectedVendor || selectedUnits.length === 0}
+                            className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                        >
+                            <Link2 size={16} />
+                            {saving ? 'Saving...' : 'Save Mapping'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Mapping Records */}
+                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <h2 className="text-base font-semibold text-[#1B1B1F]">Mapping Records</h2>
+
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="relative border border-[#C3C6D1] rounded-lg">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                                <input
+                                    placeholder="Search records..."
+                                    className="w-full sm:w-56 pl-9 pr-3 py-2 text-sm outline-none rounded-lg"
+                                    value={searchText}
+                                    onChange={(e) => setSearchText(e.target.value)}
+                                />
+                            </div>
+
+                            <Select
+                                value={vendorFilter || "all"}
+                                onValueChange={(value) => setVendorFilter(value === "all" ? "" : value)}
+                            >
+                                <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-lg">
+                                    <SelectValue placeholder="Filter by Vendor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Vendors</SelectItem>
+                                    {vendors.map((v) => (
+                                        <SelectItem key={v.id} value={String(v.id)}>
+                                            {v.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={unitFilter || "all"}
+                                onValueChange={(value) => setUnitFilter(value === "all" ? "" : value)}
+                            >
+                                <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-lg">
+                                    <SelectValue placeholder="Filter by Unit" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Units</SelectItem>
+                                    {units.map((u) => (
+                                        <SelectItem key={u.id} value={String(u.id)}>
+                                            {u.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="w-full mt-5 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                        <DataGrid table={table} recordCount={filteredMappings.length} className="rounded-2xl">
+                            <Card className="rounded-t-none border-t-0 rounded-2xl">
+                                <CardTable>
+                                    <ScrollArea>
+                                        <DataGridTable />
+                                        <ScrollBar orientation="horizontal" />
+                                    </ScrollArea>
+                                </CardTable>
+                                <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                                    <DataGridPagination />
+                                </CardFooter>
+                            </Card>
+                        </DataGrid>
+                    </div>
+                </div>
             </div>
           </div>
 

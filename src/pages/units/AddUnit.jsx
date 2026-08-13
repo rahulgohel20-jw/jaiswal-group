@@ -520,75 +520,46 @@ const AddUnit = () => {
   //     console.log(error.response?.data || error.message)
   //   }
   // }
-  const handleSubmit = async () => {
-    try {
-      const payload = {
-        orgType: 'OUTLET',
-        parentId: form.company ? Number(form.company) : null,
-        username: 1,
-        isverified: true,
-
-        companyNameEnglish: form.UnitName,
-        shortCode: form.shortCode,
-
-        emailid: form.email,
-        mobilenumber: form.mobile,
-        alternatemobilenumber: form.altMobile,
-
-        addressEnglish: form.addressLine1,
-        addressline2: form.addressLine2,
-
-        countryId: selectedCountry ? Number(selectedCountry) : null,
-        stateId: selectedState ? Number(selectedState) : null,
-        cityId: selectedCity ? Number(selectedCity) : null,
-
-        pincode: form.pincode,
-        latitude: form.latitude,
-        longitude: form.longitude,
-
-        capacity: form.capacity,
-      };
-
-      if (isEditMode) {
-        // updateCompany(data) -> PUT body is `data` (multipart/form-data).
-        // All fields, including id, must be inside this single FormData.
-        const formData = new FormData();
-        formData.append('id', editingUnit.id);
-
-        Object.entries(payload).forEach(([key, value]) => {
-          formData.append(key, value ?? '');
-        });
-
-        if (form.logo instanceof File) {
-          formData.append('logo', form.logo);
-        }
-        if (form.favicon instanceof File) {
-          formData.append('favicon', form.favicon);
-        }
-
-        await updateCompany(formData);
-        notify.success('Unit updated successfully');
-      } else {
-        // createCompany(params, formData) -> `params` becomes the query
-        // string, `formData` is the POST body — used only for files.
+    const handleSubmit = async () => {
+      try {
         const formData = new FormData();
 
-        if (form.logo instanceof File) {
-          formData.append('logo', form.logo);
-        }
-        if (form.favicon instanceof File) {
-          formData.append('favicon', form.favicon);
+        formData.append('orgType', 'OUTLET');
+        formData.append('parentId', form.company ? Number(form.company) : '');
+        formData.append('username', 1);
+        formData.append('isverified', true);
+        formData.append('companyNameEnglish', form.UnitName);
+        formData.append('shortCode', form.shortCode);
+        formData.append('emailid', form.email);
+        formData.append('mobilenumber', form.mobile);
+        formData.append('alternatemobilenumber', form.altMobile);
+        formData.append('addressEnglish', form.addressLine1);
+        formData.append('addressline2', form.addressLine2);
+        formData.append('countryId', selectedCountry ? Number(selectedCountry) : '');
+        formData.append('stateId', selectedState ? Number(selectedState) : '');
+        formData.append('cityId', selectedCity ? Number(selectedCity) : '');
+        formData.append('pincode', form.pincode);
+        formData.append('latitude', form.latitude);
+        formData.append('longitude', form.longitude);
+        formData.append('capacity', form.capacity);
+
+        if (form.logo instanceof File) formData.append('logo', form.logo);
+        if (form.favicon instanceof File) formData.append('favicon', form.favicon);
+
+        if (isEditMode) {
+          formData.append('id', editingUnit.id);
+          await updateCompany(formData);
+          notify.success('Unit updated successfully');
+        } else {
+          await createCompany(formData);  // single FormData arg, same as sub-company
+          notify.success('Unit Created successfully');
         }
 
-        await createCompany(payload, formData);
-        notify.success('Unit Created successfully');
+        navigate('/Units');
+      } catch (error) {
+        console.log(error.response?.data || error.message);
       }
-
-      navigate('/Units');
-    } catch (error) {
-      console.log(error.response?.data || error.message);
-    }
-  };
+    };
 
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">

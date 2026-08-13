@@ -228,6 +228,7 @@ export const createCompany = (formData) => {
   return POST('/organization/save',formData)
 };
 
+
 export const updateCompany = (data) =>
   axiosInstance.put('/organization/update', data, {
     headers: {
@@ -472,7 +473,7 @@ export const updateRawMaterialCategoryTypeStatus = (id, active) => {
 };
 
 export const getAllRawMaterialCategory = (categoryTypeId = 0) => {
-  return GET(`/rawmaterialcategory/getall`, { categoryTypeId });
+  return GET(`/rawmaterialcategory/getall`, { categoryTypeId  });
 };
 
 export const getRawMaterialCategoryById = (id) => {
