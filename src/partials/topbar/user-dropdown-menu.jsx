@@ -37,8 +37,8 @@ import { Switch } from '@/components/ui/switch';
 import { logout } from '../../auth/Logout';
 
 export function UserDropdownMenu({ trigger }) {
-const navigate = useNavigate();
-  const {user} = useAuth();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { currenLanguage, changeLanguage } = useLanguage();
   const { theme, setTheme } = useTheme();
 
@@ -241,29 +241,12 @@ const navigate = useNavigate();
 
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link
-            to="/change-password"
-            className="flex items-center gap-2"
-          >
+          <Link to="/change-password" className="flex items-center gap-2">
             <KeyRound />
             Change Password
           </Link>
         </DropdownMenuItem>
         {/* Footer */}
-        <DropdownMenuItem
-          className="flex items-center gap-2"
-          onSelect={(event) => event.preventDefault()}
-        >
-          <Moon />
-          <div className="flex items-center gap-2 justify-between grow">
-            Dark Mode
-            <Switch
-              size="sm"
-              checked={theme === 'dark'}
-              onCheckedChange={handleThemeToggle}
-            />
-          </div>
-        </DropdownMenuItem>
         <div className="p-2 mt-1">
           <Button
             variant="outline"

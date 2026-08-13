@@ -1,13 +1,44 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { notify } from '@/utils/toast';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from '@tanstack/react-table';
+import {
+  ChevronRight,
+  CircleCheck,
+  CircleX,
+  Plus,
+  Ruler,
+  Search,
+  SquarePen,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Container } from '@/components/common/container';
+import {
+  deleteUnitMasterById,
+  getAllRawMaterialUnits,
+  getRawMaterialUnitById,
+  updateUnitStatusById,
+} from '../../../services/apiServices';
+import StatusConfirmModal from '../../../utils/StatusConfirmModal';
+import AddRawMaterialUnit from './AddRawMaterialUnit';
 
 const RowMaterialUnit = () => {
   const [units, setUnit] = useState([]);
@@ -50,7 +81,7 @@ const RowMaterialUnit = () => {
       setLoading(true);
       setError(null);
       const res = await getAllRawMaterialUnits();
-      const data = (res?.data?.data?.["Unit Details"] || []).map((item) => ({
+      const data = (res?.data?.data?.['Unit Details'] || []).map((item) => ({
         ...item,
         name: item.nameEnglish,
         symbol: item.symbolEnglish,
@@ -58,7 +89,7 @@ const RowMaterialUnit = () => {
       }));
 
       setUnit(data);
-      setError(null)
+      setError(null);
     } catch (err) {
       console.error(err);
       setError('Failed to load units');
@@ -288,7 +319,7 @@ const RowMaterialUnit = () => {
         <label className="relative inline-flex cursor-pointer">
           <input
             type="checkbox"
-            checked={row.original.status === "Active"}
+            checked={row.original.status === 'Active'}
             className="sr-only peer uppercase text-sm"
             onChange={() => {
               setStatusTarget({
@@ -455,20 +486,13 @@ const RowMaterialUnit = () => {
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="All Status">
-                  All Status
-                </SelectItem>
+                <SelectItem value="All Status">All Status</SelectItem>
 
-                <SelectItem value="Active">
-                  Active
-                </SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
 
-                <SelectItem value="Inactive">
-                  Inactive
-                </SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
-
           </div>
         </div>
 
