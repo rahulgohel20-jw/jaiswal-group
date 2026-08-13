@@ -501,6 +501,10 @@ const CompanyRegistration = () => {
       } else {
         const formData = new FormData();
 
+      Object.entries(payload).forEach(([key, value]) => {
+          formData.append(key, value ?? '');
+        });
+
         if (form.logo instanceof File) {
           formData.append("logo", form.logo);
         }
