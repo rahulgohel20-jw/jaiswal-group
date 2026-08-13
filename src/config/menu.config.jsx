@@ -509,14 +509,14 @@ export const MENU_SIDEBAR = [
       { title: 'Menu Items', path: '/menu-item/menu-items' },
     ],
   },
-  {
-    title: 'Manage Stock',
-    icon: FolderClosed,
-    children: [
-      { title: 'Available Stock', path: '/stocks/available-stocks' },
-      { title: 'Closing Stock', path: '/stocks/closing-stock' },
-    ],
-  },
+  // {
+  //   title: 'Manage Stock',
+  //   icon: FolderClosed,
+  //   children: [
+  //     { title: 'Available Stock', path: '/stocks/available-stocks' },
+  //     { title: 'Closing Stock', path: '/stocks/closing-stock' },
+  //   ],
+  // },
   {
     title: 'Asset Management',
     icon: LayoutGrid,
