@@ -174,6 +174,7 @@ import VendorUnitMapping from '../pages/vendor-unit-mapping/VendorUnitMapping';
 import AddVendor from '../pages/vendors/AddVendor';
 import VendorListing from '../pages/vendors/VendorListing';
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
+import RawMaterialSubCategory from '../pages/raw-material/raw-material-subcategory/RawMaterialSubCategory';
 
 export function AppRoutingSetup() {
   return (
@@ -281,6 +282,7 @@ export function AppRoutingSetup() {
             path="/material/categories"
             element={<RowMaterialCategories />}
           />
+          <Route path='/material/sub-categories' element={<RawMaterialSubCategory/>} />
           <Route path="/material/items" element={<RowMaterialItemMaster />} />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
           <Route

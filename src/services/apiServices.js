@@ -775,3 +775,18 @@ export const getAllVendorOutletMappings = () => {
 export const getVendorOutletMappingByVendorId = (vendorId) => {
   return GET(`/vendor-outlet-mapping/get-by-vendor/${vendorId}`);
 };
+
+//Row Material Sub Category API
+export const saveOrUpdateRawMaterialSubCategory = (payload) => {
+    return  POST('/raw-material-sub-category', payload);
+};
+
+export const getAllRowMaterialSubCategory = () => {
+  return GET('/raw-material-sub-category')
+}
+export const getRawMaterialSubCategoryById = (id) => {
+    return GET(`/raw-material-sub-category/${id}`);
+};
+export const deleteRawMaterialSubCategoryById = (id) => {
+  return DELETE(`/raw-material-sub-category/${id}`)
+}
