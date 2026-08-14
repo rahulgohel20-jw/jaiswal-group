@@ -281,13 +281,14 @@ const normalizeUnit = (o) => ({
 });
 
 // Normalizes a raw vendor record from getAllActiveVendors into { id, name, gstRegisteredName }.
-const normalizeVendor = (v) => ({
+const normalizeVendor = (
+  v) => ({
   id: v.id,
   name:
-    v.companyName ??
-    v.fullName ??
-    v.companyNameEnglish ??
-    v.vendorName ??
+    v.companyName ||
+    v.fullName ||
+    v.companyNameEnglish ||
+    v.vendorName ||
     v.name,
   gstRegisteredName: v.gstRegisteredName ?? null,
 });
@@ -298,16 +299,16 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
   const byVendor = new Map();
 
   for (const row of rawRows) {
-    const vendorId = row.vendorId ?? row.vendor?.id;
+    const vendorId = row.vendorId || row.vendor?.id;
     if (vendorId == null) continue;
 
     if (!byVendor.has(vendorId)) {
       const resolvedVendor = vendorsById.get(vendorId);
       byVendor.set(vendorId, {
         id: vendorId,
-        vendor: resolvedVendor ?? {
+        vendor: resolvedVendor || {
           id: vendorId,
-          name: row.vendorCompanyName ?? row.vendorName ?? `Vendor ${vendorId}`,
+          name: row.vendorCompanyName || row.vendorName || `Vendor ${vendorId}`,
           gstRegisteredName: null,
         },
         units: [],
@@ -324,7 +325,7 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
       entry.units.push(
         unitsById.get(outletId) ?? {
           id: outletId,
-          name: outletName ?? `Outlet ${outletId}`,
+          name: outletName || `Outlet ${outletId}`,
         },
       );
     }

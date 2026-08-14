@@ -36,42 +36,6 @@ export const validatePincode = (value) => {
   return '';
 };
 
-
-export const IFSC_BANK_PREFIXES = {
-  HDFC: 'hdfc',
-  ICIC: 'icici',
-  SBIN: 'state bank',
-  UTIB: 'axis',
-  PUNB: 'punjab national',
-  KKBK: 'kotak',
-  IDIB: 'indian bank',
-  BARB: 'bank of baroda',
-  CNRB: 'canara',
-  UBIN: 'union bank',
-  IOBA: 'indian overseas',
-  YESB: 'yes bank',
-  INDB: 'indusind',
-  AXIS: 'axis',
-};
-
-const getIfscPrefix = (ifsc) => ifsc?.trim().toUpperCase().slice(0, 4) ?? '';
-
-export const checkIfscBankPrefix = (ifsc, bankName) => {
-  const prefix = getIfscPrefix(ifsc);
-  const expected = IFSC_BANK_PREFIXES[prefix];
-
-  if (!expected) {
-    return { matched: false, expected: null, known: false };
-  }
-  if (!bankName?.trim()) {
-    return { matched: false, expected, known: true };
-  }
-
-  const entered = bankName.trim().toLowerCase();
-  const matched = entered.includes(expected) || expected.includes(entered);
-  return { matched, expected, known: true };
-};
-
 // ---------- Bank Detail Validators ----------
 export const validateIFSC = (value) => {
   if (!value?.trim()) return 'IFSC code is required';
@@ -80,23 +44,61 @@ export const validateIFSC = (value) => {
   return '';
 };
 
-// Validates IFSC format, then (if the prefix is a known bank) checks that
-// the bank name matches. Unknown prefixes are treated as valid — we simply
-// can't verify them offline, so we don't block the user.
 export const validateIFSCBankMatch = (ifsc, bankName) => {
-  const formatErr = validateIFSC(ifsc);
-  if (formatErr) return formatErr;
+  if (!ifsc?.trim() || !bankName?.trim()) return '';
+  const cleanIfsc = ifsc.trim().toUpperCase();
+  const cleanBank = bankName.trim().toUpperCase();
 
-  if (!bankName?.trim()) return ''; // nothing to compare yet
+  if (!PATTERNS.IFSC.test(cleanIfsc)) return '';
 
-  const { matched, expected, known } = checkIfscBankPrefix(ifsc, bankName);
-  if (!known) return ''; // unrecognized bank code — can't verify, don't block
+  const bankCode = cleanIfsc.substring(0, 4);
 
-  if (!matched) {
-    return `This IFSC looks like it belongs to a "${expected}" bank, not "${bankName}"`;
+  const codeToKeywords = {
+    SBIN: ['STATE BANK', 'SBI'],
+    HDFC: ['HDFC'],
+    ICIC: ['ICICI'],
+    UTIB: ['AXIS'],
+    BARB: ['BARODA'],
+    PUNB: ['PUNJAB NATIONAL', 'PNB'],
+    KKBK: ['KOTAK'],
+    YESB: ['YES BANK', 'YESB'],
+    IBKL: ['IDBI'],
+    CNRB: ['CANARA'],
+    IOBA: ['INDIAN OVERSEAS'],
+    IDIB: ['INDIAN BANK'],
+    UBIN: ['UNION BANK'],
+    MAHB: ['MAHARASHTRA'],
+    PSIB: ['PUNJAB & SIND', 'PUNJAB AND SIND'],
+    UCBA: ['UCO'],
+    DBSS: ['DBS', 'DEVELOPMENT BANK OF SINGAPORE'],
+    HSBC: ['HSBC'],
+    SCBL: ['STANDARD CHARTERED'],
+    CITI: ['CITI'],
+    JAKA: ['JAMMU', 'KASHMIR'],
+    TMBL: ['TAMILNAD'],
+    KVBL: ['KARUR VYSYA'],
+    FEDR: ['FEDERAL'],
+    DLXB: ['DHANLAXMI'],
+    SIBL: ['SOUTH INDIAN'],
+    INDB: ['INDUSIND'],
+    KBLA: ['KARNATAKA'],
+    BAND: ['BANDHAN'],
+    IDFB: ['IDFC'],
+    ESFB: ['EQUITAS'],
+    AUBL: ['AU SMALL'],
+    UJVN: ['UJJIVAN'],
+  };
+
+  const keywords = codeToKeywords[bankCode];
+  if (keywords) {
+    const isMatch = keywords.some(keyword => cleanBank.includes(keyword));
+    if (!isMatch) {
+      return `IFSC code belongs to ${keywords[0]}, but bank name is ${bankName}`;
+    }
   }
   return '';
 };
+
 
 export const validateAccountNumber = (value) => {
   if (!value?.trim()) return 'Account number is required';
