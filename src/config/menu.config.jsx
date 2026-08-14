@@ -462,14 +462,6 @@ export const MENU_SIDEBAR = [
     path: '/vendor-unit-mapping',
   },
   {
-    title: 'Department',
-    icon: Group,
-    children: [
-      { title: 'Departments', path: '/department' },
-      { title: 'User Rights', path: '/user-rights' },
-    ],
-  },
-  {
     title: 'Purchase',
     icon: Fence,
     children: [

@@ -545,18 +545,10 @@ export const getAllRawMaterialItems = (rawMateriaCatlId, unitid, isActive = "", 
   );
 };
 export const addRawMaterialItem = (formData) => {
-  return POST("/rawmaterial/add", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  return POST("/rawmaterial/add", formData);
 };
 export const updateRawMaterialItem = (formData) => {
-  return PUT("/rawmaterial/update", formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  return PUT("/rawmaterial/update", formData);
 };
 export const updateRawMaterialItemStatusById = (id, isActive) => {
   return PUT(
