@@ -1,17 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { notify } from '@/utils/toast';
 import {
   Briefcase,
-  ChevronDown,
   Check,
+  ChevronDown,
   ImageUp,
   Info,
   Map,
   MapPin,
   X,
 } from 'lucide-react';
-import { createCompany, getAllCountry, getCityByState, getRegisteredCompany, getStateByCountry, updateCompany } from '../../services/apiServices';
-import { notify } from "@/utils/toast";
+import { useLocation, useNavigate } from 'react-router';
+import {
+  createCompany,
+  getAllCountry,
+  getCityByState,
+  getRegisteredCompany,
+  getStateByCountry,
+  updateCompany,
+} from '../../services/apiServices';
 
 const COMPANIES = [
   'Jaiswal Group',
@@ -73,7 +80,6 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
     </button>
   </div>
 );
-
 
 const ImageUploadBox = ({ label, hint, value, onChange }) => {
   const fileRef = useRef(null);
@@ -164,7 +170,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
     lat: initialLat ? parseFloat(initialLat) : 23.0225,
     lng: initialLng ? parseFloat(initialLng) : 72.5714,
   });
-  const [loaded, setLoaded] = useState(!!(typeof window !== 'undefined' && window.L));
+  const [loaded, setLoaded] = useState(
+    !!(typeof window !== 'undefined' && window.L),
+  );
 
   useEffect(() => {
     if (window.L) {
@@ -183,7 +191,10 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 
     const existingScript = document.querySelector('script[data-leaflet]');
     if (existingScript) {
-      existingScript.addEventListener('load', () => !cancelled && setLoaded(true));
+      existingScript.addEventListener(
+        'load',
+        () => !cancelled && setLoaded(true),
+      );
     } else {
       const script = document.createElement('script');
       script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
@@ -208,7 +219,9 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
       maxZoom: 19,
     }).addTo(map);
 
-    const marker = L.marker([coords.lat, coords.lng], { draggable: true }).addTo(map);
+    const marker = L.marker([coords.lat, coords.lng], {
+      draggable: true,
+    }).addTo(map);
 
     const updateFromLatLng = (latlng) => {
       setCoords({ lat: latlng.lat, lng: latlng.lng });
@@ -230,11 +243,16 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Pick Location on Map</h2>
+            <h2 className="text-base font-bold text-gray-900">
+              Pick Location on Map
+            </h2>
             <p className="text-xs text-gray-400 mt-0.5">
               Click on the map or drag the pin to set coordinates.
             </p>
@@ -254,16 +272,25 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
               Loading map...
             </div>
           )}
-          <div ref={mapRef} className={loaded ? 'h-80 w-full' : 'h-0 w-full overflow-hidden'} />
+          <div
+            ref={mapRef}
+            className={loaded ? 'h-80 w-full' : 'h-0 w-full overflow-hidden'}
+          />
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 gap-4 flex-wrap">
           <div className="flex items-center gap-4 text-xs text-gray-500">
             <span>
-              Lat: <span className="font-semibold text-gray-800">{coords.lat.toFixed(6)}</span>
+              Lat:{' '}
+              <span className="font-semibold text-gray-800">
+                {coords.lat.toFixed(6)}
+              </span>
             </span>
             <span>
-              Lng: <span className="font-semibold text-gray-800">{coords.lng.toFixed(6)}</span>
+              Lng:{' '}
+              <span className="font-semibold text-gray-800">
+                {coords.lng.toFixed(6)}
+              </span>
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -294,20 +321,20 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 // address lines, manager, etc.) so anything missing just falls back to blank.
 
 const mapUnitToForm = (unit) => ({
-  UnitName: unit.companyNameEnglish || "",
-  UnitCode: unit.companyCode || "",
-  shortCode: unit.shortCode || "",
-  email: unit.emailid || "",
-  mobile: unit.mobilenumber || "",
-  altMobile: unit.alternatemobilenumber || "",
-  capacity: unit.capacity || "",
+  UnitName: unit.companyNameEnglish || '',
+  UnitCode: unit.companyCode || '',
+  shortCode: unit.shortCode || '',
+  email: unit.emailid || '',
+  mobile: unit.mobilenumber || '',
+  altMobile: unit.alternatemobilenumber || '',
+  capacity: unit.capacity || '',
 
-  company: unit.parentId || "",
-  addressLine1: unit.addressEnglish || "",
-  addressLine2: unit.addressline2 || "",
-  pincode: unit.pincode || "",
-  latitude: unit.latitude || "",
-  longitude: unit.longitude || "",
+  company: unit.parentId || '',
+  addressLine1: unit.addressEnglish || '',
+  addressLine2: unit.addressline2 || '',
+  pincode: unit.pincode || '',
+  latitude: unit.latitude || '',
+  longitude: unit.longitude || '',
 });
 
 const DEFAULT_FORM = {
@@ -339,10 +366,10 @@ const AddUnit = () => {
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
 
-  const [selectedCountry, setSelectedCountry] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedCity, setSelectedCity] = useState("");
-  const [companies, setCompanies] = useState([])
+  const [selectedCountry, setSelectedCountry] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [companies, setCompanies] = useState([]);
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -350,11 +377,10 @@ const AddUnit = () => {
         const res = await getRegisteredCompany();
         const list = res?.data?.data || [];
         const subCompanies = list.filter(
-          (item) => item.orgType === "SUB_COMPANY"
+          (item) => item.orgType === 'SUB_COMPANY',
         );
 
         setCompanies(subCompanies);
-
       } catch (error) {
         console.log(error);
       }
@@ -376,41 +402,35 @@ const AddUnit = () => {
   }, []);
 
   const handleCountryChange = async (e) => {
-
     const countryId = e.target.value;
 
     setSelectedCountry(countryId);
     setStates([]);
     setCities([]);
-    setSelectedState("");
-    setSelectedCity("");
+    setSelectedState('');
+    setSelectedCity('');
 
     try {
       const res = await getStateByCountry(countryId);
       setStates(res.data.data);
-
     } catch (error) {
       console.log(error);
     }
-
-  }
+  };
   const handleStateChange = async (e) => {
-
     const stateId = e.target.value;
 
     setSelectedState(stateId);
     setCities([]);
-    setSelectedCity("");
+    setSelectedCity('');
 
     try {
-
       const res = await getCityByState(stateId);
-      setCities(res.data.data["City Details"]);
+      setCities(res.data.data['City Details']);
     } catch (error) {
       console.log(error);
     }
-
-  }
+  };
   // If we arrived here via the edit action, the Unit row is passed in
   // location.state. Its presence is what puts the page into edit mode.
   const editingUnit = location.state?.unit ?? null;
@@ -421,17 +441,17 @@ const AddUnit = () => {
       if (!editingUnit) return;
 
       try {
-        setSelectedCountry(editingUnit.countryId?.toString() || "");
+        setSelectedCountry(editingUnit.countryId?.toString() || '');
 
         const stateRes = await getStateByCountry(editingUnit.countryId);
         setStates(stateRes.data.data || []);
 
-        setSelectedState(editingUnit.stateId?.toString() || "");
+        setSelectedState(editingUnit.stateId?.toString() || '');
 
         const cityRes = await getCityByState(editingUnit.stateId);
-        setCities(cityRes.data.data["City Details"] || []);
+        setCities(cityRes.data.data['City Details'] || []);
 
-        setSelectedCity(editingUnit.cityId?.toString() || "");
+        setSelectedCity(editingUnit.cityId?.toString() || '');
       } catch (error) {
         console.log(error);
       }
@@ -500,75 +520,46 @@ const AddUnit = () => {
   //     console.log(error.response?.data || error.message)
   //   }
   // }
-const handleSubmit = async () => {
-  try {
-    const payload = {
-      orgType: "OUTLET",
-      parentId: form.company ? Number(form.company) : null,
-      username: 1,
-      isverified: true,
+    const handleSubmit = async () => {
+      try {
+        const formData = new FormData();
 
-      companyNameEnglish: form.UnitName,
-      shortCode: form.shortCode,
+        formData.append('orgType', 'OUTLET');
+        formData.append('parentId', form.company ? Number(form.company) : '');
+        formData.append('username', 1);
+        formData.append('isverified', true);
+        formData.append('companyNameEnglish', form.UnitName);
+        formData.append('shortCode', form.shortCode);
+        formData.append('emailid', form.email);
+        formData.append('mobilenumber', form.mobile);
+        formData.append('alternatemobilenumber', form.altMobile);
+        formData.append('addressEnglish', form.addressLine1);
+        formData.append('addressline2', form.addressLine2);
+        formData.append('countryId', selectedCountry ? Number(selectedCountry) : '');
+        formData.append('stateId', selectedState ? Number(selectedState) : '');
+        formData.append('cityId', selectedCity ? Number(selectedCity) : '');
+        formData.append('pincode', form.pincode);
+        formData.append('latitude', form.latitude);
+        formData.append('longitude', form.longitude);
+        formData.append('capacity', form.capacity);
 
-      emailid: form.email,
-      mobilenumber: form.mobile,
-      alternatemobilenumber: form.altMobile,
+        if (form.logo instanceof File) formData.append('logo', form.logo);
+        if (form.favicon instanceof File) formData.append('favicon', form.favicon);
 
-      addressEnglish: form.addressLine1,
-      addressline2: form.addressLine2,
+        if (isEditMode) {
+          formData.append('id', editingUnit.id);
+          await updateCompany(formData);
+          notify.success('Unit updated successfully');
+        } else {
+          await createCompany(formData);  // single FormData arg, same as sub-company
+          notify.success('Unit Created successfully');
+        }
 
-      countryId: selectedCountry ? Number(selectedCountry) : null,
-      stateId: selectedState ? Number(selectedState) : null,
-      cityId: selectedCity ? Number(selectedCity) : null,
-
-      pincode: form.pincode,
-      latitude: form.latitude,
-      longitude: form.longitude,
-
-      capacity: form.capacity,
+        navigate('/Units');
+      } catch (error) {
+        console.log(error.response?.data || error.message);
+      }
     };
-
-    if (isEditMode) {
-      // updateCompany(data) -> PUT body is `data` (multipart/form-data).
-      // All fields, including id, must be inside this single FormData.
-      const formData = new FormData();
-      formData.append("id", editingUnit.id);
-
-      Object.entries(payload).forEach(([key, value]) => {
-        formData.append(key, value ?? "");
-      });
-
-      if (form.logo instanceof File) {
-        formData.append("logo", form.logo);
-      }
-      if (form.favicon instanceof File) {
-        formData.append("favicon", form.favicon);
-      }
-
-      await updateCompany(formData);
-      notify.success("Unit updated successfully");
-    } else {
-      // createCompany(params, formData) -> `params` becomes the query
-      // string, `formData` is the POST body — used only for files.
-      const formData = new FormData();
-
-      if (form.logo instanceof File) {
-        formData.append("logo", form.logo);
-      }
-      if (form.favicon instanceof File) {
-        formData.append("favicon", form.favicon);
-      }
-
-      await createCompany(payload, formData);
-      notify.success("Unit Created successfully");
-    }
-
-    navigate("/Units");
-  } catch (error) {
-    console.log(error.response?.data || error.message);
-  }
-};
 
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
@@ -594,96 +585,98 @@ const handleSubmit = async () => {
 
         {openSections.Unit && (
           <div className="px-6 py-6 space-y-5">
-  <div className={`grid gap-4 ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'}`}>
-    <div>
-      <Label required>Unit Name</Label>
-      <input
-        value={form.UnitName}
-        onChange={(e) => set('UnitName', e.target.value)}
-        placeholder="e.g. Jaiswal Group - Maninagar"
-        className={inputCls}
-      />
-    </div>
-    {isEditMode && (
-      <div>
-        <Label>Unit Code (Auto Generated)</Label>
-        <input
-          value={form.UnitCode}
-          disabled
-          className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-        />
-      </div>
-    )}
-  </div>
+            <div
+              className={`grid gap-4 ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'}`}
+            >
+              <div>
+                <Label required>Unit Name</Label>
+                <input
+                  value={form.UnitName}
+                  onChange={(e) => set('UnitName', e.target.value)}
+                  placeholder="e.g. Jaiswal Group - Maninagar"
+                  className={inputCls}
+                />
+              </div>
+              {isEditMode && (
+                <div>
+                  <Label>Unit Code (Auto Generated)</Label>
+                  <input
+                    value={form.UnitCode}
+                    disabled
+                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                  />
+                </div>
+              )}
+            </div>
 
-  <div className="grid grid-cols-2 gap-4">
-    <ImageUploadBox
-      label="Unit Logo"
-      hint="PNG, JPG upto 2MB"
-      value={form.logo}
-      onChange={(v) => set('logo', v)}
-    />
-    <ImageUploadBox
-      label="Favicon"
-      hint="32×32 or 64×64px"
-      value={form.favicon}
-      onChange={(v) => set('favicon', v)}
-    />
-  </div>
+            <div className="grid grid-cols-2 gap-4">
+              <ImageUploadBox
+                label="Unit Logo"
+                hint="PNG, JPG upto 2MB"
+                value={form.logo}
+                onChange={(v) => set('logo', v)}
+              />
+              <ImageUploadBox
+                label="Favicon"
+                hint="32×32 or 64×64px"
+                value={form.favicon}
+                onChange={(v) => set('favicon', v)}
+              />
+            </div>
 
-  <div className="grid grid-cols-2 gap-4">
-    {isEditMode && (
-      <div>
-        <Label>Short Code</Label>
-        <input
-          value={form.shortCode}
-          disabled
-          className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-        />
-      </div>
-    )}
-    <div>
-      <Label required>Email</Label>
-      <input
-        type="email"
-        value={form.email}
-        onChange={(e) => set('email', e.target.value)}
-        placeholder="Unit@example.com"
-        className={inputCls}
-      />
-    </div>
-    <div>
-      <Label required>Mobile Number</Label>
-      <input
-        value={form.mobile}
-        onChange={(e) => set('mobile', e.target.value)}
-        placeholder="+91 98675 34210"
-        maxLength={10}
-        className={inputCls}
-      />
-    </div>
-    <div>
-      <Label>Alternate Mobile Number</Label>
-      <input
-        value={form.altMobile}
-        onChange={(e) => set('altMobile', e.target.value)}
-        placeholder="Secondary Mobile"
-        maxLength={10}
-        className={inputCls}
-      />
-    </div>
-    <div>
-      <Label required>Capacity ( Meals Per Day )</Label>
-      <input
-        type="number"
-        value={form.capacity}
-        onChange={(e) => set('capacity', e.target.value)}
-        placeholder="e.g. 200"
-        className={inputCls}
-      />
-    </div>
-  </div>
-</div>
+            <div className="grid grid-cols-2 gap-4">
+              {isEditMode && (
+                <div>
+                  <Label>Short Code</Label>
+                  <input
+                    value={form.shortCode}
+                    disabled
+                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                  />
+                </div>
+              )}
+              <div>
+                <Label required>Email</Label>
+                <input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => set('email', e.target.value)}
+                  placeholder="Unit@example.com"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <Label required>Mobile Number</Label>
+                <input
+                  value={form.mobile}
+                  onChange={(e) => set('mobile', e.target.value)}
+                  placeholder="+91 98675 34210"
+                  maxLength={10}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <Label>Alternate Mobile Number</Label>
+                <input
+                  value={form.altMobile}
+                  onChange={(e) => set('altMobile', e.target.value)}
+                  placeholder="Secondary Mobile"
+                  maxLength={10}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <Label required>Capacity ( Meals Per Day )</Label>
+                <input
+                  type="number"
+                  value={form.capacity}
+                  onChange={(e) => set('capacity', e.target.value)}
+                  placeholder="e.g. 200"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+          </div>
         )}
       </SectionCard>
 
@@ -703,16 +696,13 @@ const handleSubmit = async () => {
               <p className={inputCls}>
                 <select
                   value={form.company}
-                  onChange={(e) => set("company", e.target.value)}
-                  className='w-full outline-none'
+                  onChange={(e) => set('company', e.target.value)}
+                  className="w-full outline-none"
                 >
                   <option value="">Select Company</option>
 
                   {companies.map((company) => (
-                    <option
-                      key={company.id}
-                      value={company.id}
-                    >
+                    <option key={company.id} value={company.id}>
                       {company.companyNameEnglish}
                     </option>
                   ))}
@@ -761,21 +751,15 @@ const handleSubmit = async () => {
                   <select
                     value={selectedCountry}
                     onChange={handleCountryChange}
-                    className='w-full outline-none'
+                    className="w-full outline-none"
                   >
-                    <option value="">
-                      Select Country
-                    </option>
+                    <option value="">Select Country</option>
 
                     {countries.map((country) => (
-                      <option
-                        key={country.id}
-                        value={country.id}
-                      >
+                      <option key={country.id} value={country.id}>
                         {country.name}
                       </option>
                     ))}
-
                   </select>
                 </p>
               </div>
@@ -785,21 +769,15 @@ const handleSubmit = async () => {
                   <select
                     value={selectedState}
                     onChange={handleStateChange}
-                    className='w-full outline-none'
+                    className="w-full outline-none"
                   >
-                    <option value="">
-                      Select State
-                    </option>
+                    <option value="">Select State</option>
 
                     {states.map((state) => (
-                      <option
-                        key={state.id}
-                        value={state.id}
-                      >
+                      <option key={state.id} value={state.id}>
                         {state.name}
                       </option>
                     ))}
-
                   </select>
                 </p>
               </div>
@@ -809,21 +787,15 @@ const handleSubmit = async () => {
                   <select
                     value={selectedCity}
                     onChange={(e) => setSelectedCity(e.target.value)}
-                    className='w-full outline-none'
+                    className="w-full outline-none"
                   >
-                    <option value="">
-                      Select City
-                    </option>
+                    <option value="">Select City</option>
 
                     {cities?.map((city) => (
-                      <option
-                        key={city.id}
-                        value={city.id}
-                      >
+                      <option key={city.id} value={city.id}>
                         {city.name}
                       </option>
                     ))}
-
                   </select>
                 </p>
               </div>
