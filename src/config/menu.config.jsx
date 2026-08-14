@@ -483,6 +483,7 @@ export const MENU_SIDEBAR = [
     children: [
       { title: 'Types', path: '/material/types' },
       { title: 'Categories', path: '/material/categories' },
+      { title: 'Sub Categories', path: '/material/sub-categories' },
       { title: 'Raw Material Items', path: '/material/items' },
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
