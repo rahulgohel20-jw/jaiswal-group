@@ -31,14 +31,29 @@ import {
   makeBank,
   mapVendorToForm,
 } from './vendorHelper';
+import {
+  validateRequired,
+  validateEmail,
+  validateMobile,
+  validatePincode,
+  validateGSTIN,
+  validateMSMEType,
+  validateMSMENumber,
+  validateAccountHolderName,
+  validateBankName,
+  validateAccountNumber,
+  validateReAccountNumber,
+  validateIFSC,
+  validateIFSCBankMatch,
+} from '@/utils/validations';
+import SearchableSelect from '../../utils/SearchableSelect';
+import { getCityByState, getStateByCountry } from '../../services/apiServices';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
   'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed';
 
-const selectCls =
-  'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed';
+const errorInputCls = 'border-red-300 focus:border-red-400 focus:ring-red-200';
 
 const Label = ({ children, required }) => (
   <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -47,56 +62,9 @@ const Label = ({ children, required }) => (
   </label>
 );
 
-const Select = ({ value, onChange, options, placeholder, disabled }) => (
-  <div className="relative">
-    <select
-      value={value}
-      onChange={onChange}
-      className={selectCls}
-      disabled={disabled}
-    >
-      <option value="" disabled>
-        {placeholder}
-      </option>
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {o}
-        </option>
-      ))}
-    </select>
-    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-  </div>
-);
-
-// {id, name} option select — used for Country / State / City / Role
-const IdSelect = ({
-  value,
-  onChange,
-  placeholder,
-  options,
-  disabled,
-  loading,
-  optional = false,
-}) => (
-  <div className="relative">
-    <select
-      value={value}
-      onChange={onChange}
-      disabled={disabled || loading}
-      className={`${selectCls} ${value === '' ? 'text-gray-400' : 'text-gray-800'}`}
-    >
-      <option value="" disabled={!optional}>
-        {loading ? 'Loading...' : placeholder}
-      </option>
-      {options.map((opt) => (
-        <option key={opt.id} value={opt.id} className="text-gray-800">
-          {opt.name}
-        </option>
-      ))}
-    </select>
-    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-  </div>
-);
+// Red error message rendered directly under an input. Renders nothing when empty.
+const ErrorText = ({ error }) =>
+  error ? <p className="text-xs text-red-500 mt-1">{error}</p> : null;
 
 const Toggle = ({ checked, onChange }) => (
   <button
@@ -108,9 +76,8 @@ const Toggle = ({ checked, onChange }) => (
     style={{ backgroundColor: checked ? '#084E92' : '#D1D5DB' }}
   >
     <span
-      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-        checked ? 'translate-x-4' : 'translate-x-0'
-      }`}
+      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-4' : 'translate-x-0'
+        }`}
     />
   </button>
 );
@@ -123,7 +90,7 @@ const SectionCard = ({ children, className = '' }) => (
   </div>
 );
 
-const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
+const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle, hasError }) => (
   <div
     className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 cursor-pointer select-none"
     onClick={onToggle}
@@ -132,7 +99,14 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
       <Icon className="w-4 h-4" />
     </div>
     <div className="flex-1">
-      <h2 className="text-sm font-bold text-gray-800 leading-none">{title}</h2>
+      <h2 className="text-sm font-bold text-gray-800 leading-none flex items-center gap-2">
+        {title}
+        {hasError && (
+          <span className="text-[10px] font-semibold text-red-500 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+            Fix errors
+          </span>
+        )}
+      </h2>
       {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
     </div>
     <button
@@ -343,32 +317,38 @@ const AddressFields = ({
   cities,
   loadingCities,
   disabled = false,
+  errors = {},
 }) => (
   <div className="space-y-4">
     <div className="grid grid-cols-2 gap-4">
       <div>
         <Label required>Country</Label>
-        <IdSelect
+        <SearchableSelect
+          name="country"
           value={address.countryId}
           onChange={onCountryChange}
+          options={countries.map((country) => ({
+            value: country.id,
+            label: country.name,
+          }))}
           placeholder="Select Country"
-          options={countries}
-          loading={loadingCountries}
-          disabled={disabled}
         />
+        <ErrorText error={errors.countryId} />
       </div>
       <div>
         <Label required>State</Label>
-        <IdSelect
+        <SearchableSelect
+          name="state"
           value={address.stateId}
           onChange={onStateChange}
-          placeholder={
-            address.countryId ? 'Select State' : 'Select country first'
-          }
-          options={states}
-          loading={loadingStates}
-          disabled={disabled || !address.countryId}
+          options={states.map((state) => ({
+            value: state.id,
+            label: state.name,
+          }))}
+          placeholder="Select State"
+          disabled={!address.countryId}
         />
+        <ErrorText error={errors.stateId} />
       </div>
     </div>
 
@@ -378,9 +358,10 @@ const AddressFields = ({
         value={address.addressLine1}
         onChange={(e) => onFieldChange('addressLine1', e.target.value)}
         placeholder="Building, Street Name"
-        className={inputCls}
+        className={`${inputCls} ${errors.addressLine1 ? errorInputCls : ''}`}
         disabled={disabled}
       />
+      <ErrorText error={errors.addressLine1} />
     </div>
 
     <div>
@@ -397,14 +378,18 @@ const AddressFields = ({
     <div className="grid grid-cols-2 gap-4">
       <div>
         <Label required>City</Label>
-        <IdSelect
+        <SearchableSelect
+          name="city"
           value={address.cityId}
           onChange={onCityChange}
-          placeholder={address.stateId ? 'Select City' : 'Select state first'}
-          options={cities}
-          loading={loadingCities}
-          disabled={disabled || !address.stateId}
+          options={cities.map((city) => ({
+            value: city.id,
+            label: city.name,
+          }))}
+          placeholder="Select City"
+          disabled={!address.stateId}
         />
+        <ErrorText error={errors.cityId} />
       </div>
       <div>
         <Label required>Pincode</Label>
@@ -415,9 +400,10 @@ const AddressFields = ({
           }
           placeholder="6 Digits"
           maxLength={6}
-          className={inputCls}
+          className={`${inputCls} ${errors.pincode ? errorInputCls : ''}`}
           disabled={disabled}
         />
+        <ErrorText error={errors.pincode} />
       </div>
     </div>
 
@@ -460,6 +446,49 @@ const SECTIONS = {
   REMARKS: 'remarks',
 };
 
+const validateAddressFields = (address) => {
+  const e = {};
+  const countryErr = validateRequired(address.countryId, 'Country');
+  const stateErr = validateRequired(address.stateId, 'State');
+  const line1Err = validateRequired(address.addressLine1, 'Address Line 1');
+  const cityErr = validateRequired(address.cityId, 'City');
+  const pincodeErr = validatePincode(address.pincode);
+  if (countryErr) e.countryId = countryErr;
+  if (stateErr) e.stateId = stateErr;
+  if (line1Err) e.addressLine1 = line1Err;
+  if (cityErr) e.cityId = cityErr;
+  if (pincodeErr) e.pincode = pincodeErr;
+  return e;
+};
+
+// Per-field validation used for live (as-you-type / as-you-select) checks on
+// a single address field, mirroring validateAddressFields above.
+const validateAddressFieldValue = (field, value) => {
+  switch (field) {
+    case 'countryId':
+      return validateRequired(value, 'Country');
+    case 'stateId':
+      return validateRequired(value, 'State');
+    case 'addressLine1':
+      return validateRequired(value, 'Address Line 1');
+    case 'cityId':
+      return validateRequired(value, 'City');
+    case 'pincode':
+      return validatePincode(value);
+    default:
+      return '';
+  }
+};
+
+const sectionForKey = (key) => {
+  if (key.startsWith('commonAddress.')) return SECTIONS.COMMON;
+  if (key.startsWith('billingAddress.') || key.startsWith('shippingAddress.'))
+    return SECTIONS.ADDRESS;
+  if (['gstin', 'gstCompanyName', 'msmeType', 'msmeNumber'].includes(key))
+    return SECTIONS.BUSINESS;
+  return SECTIONS.PERSONAL;
+};
+
 const VendorRegistration = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -469,6 +498,12 @@ const VendorRegistration = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  // Top-level + nested field errors. Nested address errors use
+  // "commonAddress.pincode" style keys.
+  const [errors, setErrors] = useState({});
+  // Bank-row errors keyed by bank.id: { [bankId]: { field: message } }
+  const [bankErrors, setBankErrors] = useState({});
 
   const [openSection, setOpenSection] = useState(SECTIONS.PERSONAL);
   const toggleSection = (key) =>
@@ -488,6 +523,8 @@ const VendorRegistration = () => {
   useEffect(() => {
     setForm(editingVendor ? mapVendorToForm(editingVendor) : DEFAULT_FORM);
     setTradeNameTouched(!!editingVendor);
+    setErrors({});
+    setBankErrors({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingVendor?.id]);
 
@@ -499,12 +536,43 @@ const VendorRegistration = () => {
       [addressKey]: { ...f[addressKey], [key]: val },
     }));
 
+  // Sets or clears a single top-level error. Pass an empty/falsy `err` to
+  // clear. Used for live validation as the user types or selects.
+  const setErrorFor = (key, err) =>
+    setErrors((prev) => {
+      if (!err) {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: err };
+    });
+
+  // Sets or clears a single nested address error, e.g. "commonAddress.pincode".
+  const setAddressErrorFor = (addressKey, field, err) =>
+    setErrorFor(`${addressKey}.${field}`, err);
+
+  // Sets or clears a single bank-row error.
+  const setBankErrorFor = (bankId, field, err) =>
+    setBankErrors((prev) => {
+      if (!err) {
+        if (!prev[bankId]?.[field]) return prev;
+        const next = { ...prev, [bankId]: { ...prev[bankId] } };
+        delete next[bankId][field];
+        if (Object.keys(next[bankId]).length === 0) delete next[bankId];
+        return next;
+      }
+      return { ...prev, [bankId]: { ...prev[bankId], [field]: err } };
+    });
+
   const handleVendorNameChange = (val) => {
     setForm((f) => ({
       ...f,
       vendorName: val,
       tradeName: tradeNameTouched ? f.tradeName : val,
     }));
+    setErrorFor('vendorName', validateRequired(val, 'Vendor Name'));
   };
 
   const handleTradeNameChange = (val) => {
@@ -514,13 +582,26 @@ const VendorRegistration = () => {
 
   const addBank = () =>
     setForm((f) => ({ ...f, banks: [...f.banks, makeBank()] }));
-  const removeBank = (id) =>
+  const removeBank = (id) => {
     setForm((f) => ({ ...f, banks: f.banks.filter((b) => b.id !== id) }));
+    setBankErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
   const setBankField = (id, key, val) =>
     setForm((f) => ({
       ...f,
       banks: f.banks.map((b) => (b.id === id ? { ...b, [key]: val } : b)),
     }));
+
+  // Runs the offline IFSC ↔ bank name prefix check and sets/clears the
+  // "ifsc" error for that bank row. Synchronous — no network call.
+  const checkIfscBankMatch = (bankId, ifsc, bankName) => {
+    const err = validateIFSCBankMatch(ifsc, bankName);
+    setBankErrorFor(bankId, 'ifsc', err);
+  };
 
   // --- Organization (fetched by type = GROUP, assigned directly — no UI) ---
   const [loadingOrganizations, setLoadingOrganizations] = useState(false);
@@ -763,42 +844,88 @@ const VendorRegistration = () => {
   }, [form.shippingAddress.stateId, form.shippingSameAsBilling]);
 
   // --- Common address handlers ---
-  const handleCommonFieldChange = (key, val) =>
+  const handleCommonFieldChange = (key, val) => {
     setAddressField('commonAddress', key, val);
+    setAddressErrorFor('commonAddress', key, validateAddressFieldValue(key, val));
+  };
 
-  const handleCommonCountryChange = (e) => {
-    const value = e.target.value;
-    setForm((f) => ({
-      ...f,
+  // --- Common address country/state/city handlers ---
+
+  const handleCommonCountryChange = async (e) => {
+    const countryId = e.target.value;
+
+    console.log("Selected country:", countryId);
+
+    setForm((prev) => ({
+      ...prev,
       commonAddress: {
-        ...f.commonAddress,
-        countryId: value,
-        stateId: '',
-        cityId: '',
+        ...prev.commonAddress,
+        countryId: countryId,
+        stateId: "",
+        cityId: "",
       },
     }));
+
     setCommonStates([]);
     setCommonCities([]);
+
+    try {
+      const res = await getStateByCountry(countryId);
+
+      console.log("States response:", res.data);
+
+      setCommonStates(res?.data?.data || []);
+    } catch (error) {
+      console.error("State API error:", error.response?.data || error);
+    }
   };
 
-  const handleCommonStateChange = (e) => {
-    const value = e.target.value;
-    setForm((f) => ({
-      ...f,
-      commonAddress: { ...f.commonAddress, stateId: value, cityId: '' },
+  const handleCommonStateChange = async (e) => {
+    const stateId = e.target.value;
+
+    console.log("Selected state:", stateId);
+
+    setForm((prev) => ({
+      ...prev,
+      commonAddress: {
+        ...prev.commonAddress,
+        stateId: stateId,
+        cityId: "",
+      },
     }));
+
     setCommonCities([]);
+
+    try {
+      const res = await getCityByState(stateId);
+
+      console.log("Cities response:", res.data);
+
+      setCommonCities(
+        res?.data?.data?.["City Details"] || []
+      );
+    } catch (error) {
+      console.error("City API error:", error.response?.data || error);
+    }
+  };
+  const handleCommonCityChange = (e) => {
+    const cityId = e.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      commonAddress: {
+        ...prev.commonAddress,
+        cityId: cityId,
+      },
+    }));
+  };
+  // --- Billing address handlers ---
+  const handleBillingFieldChange = (key, val) => {
+    setAddressField('billingAddress', key, val);
+    setAddressErrorFor('billingAddress', key, validateAddressFieldValue(key, val));
   };
 
-  const handleCommonCityChange = (e) =>
-    setAddressField('commonAddress', 'cityId', e.target.value);
-
-  // --- Billing address handlers ---
-  const handleBillingFieldChange = (key, val) =>
-    setAddressField('billingAddress', key, val);
-
-  const handleBillingCountryChange = (e) => {
-    const value = e.target.value;
+  const handleBillingCountryChange = (value) => {
     setForm((f) => ({
       ...f,
       billingAddress: {
@@ -810,26 +937,30 @@ const VendorRegistration = () => {
     }));
     setBillingStates([]);
     setBillingCities([]);
+    setAddressErrorFor('billingAddress', 'countryId', validateRequired(value, 'Country'));
   };
 
-  const handleBillingStateChange = (e) => {
-    const value = e.target.value;
+  const handleBillingStateChange = (value) => {
     setForm((f) => ({
       ...f,
       billingAddress: { ...f.billingAddress, stateId: value, cityId: '' },
     }));
     setBillingCities([]);
+    setAddressErrorFor('billingAddress', 'stateId', validateRequired(value, 'State'));
   };
 
-  const handleBillingCityChange = (e) =>
-    setAddressField('billingAddress', 'cityId', e.target.value);
+  const handleBillingCityChange = (value) => {
+    setAddressField('billingAddress', 'cityId', value);
+    setAddressErrorFor('billingAddress', 'cityId', validateRequired(value, 'City'));
+  };
 
   // --- Shipping address handlers ---
-  const handleShippingFieldChange = (key, val) =>
+  const handleShippingFieldChange = (key, val) => {
     setAddressField('shippingAddress', key, val);
+    setAddressErrorFor('shippingAddress', key, validateAddressFieldValue(key, val));
+  };
 
-  const handleShippingCountryChange = (e) => {
-    const value = e.target.value;
+  const handleShippingCountryChange = (value) => {
     setForm((f) => ({
       ...f,
       shippingAddress: {
@@ -841,25 +972,142 @@ const VendorRegistration = () => {
     }));
     setShippingStates([]);
     setShippingCities([]);
+    setAddressErrorFor('shippingAddress', 'countryId', validateRequired(value, 'Country'));
   };
 
-  const handleShippingStateChange = (e) => {
-    const value = e.target.value;
+  const handleShippingStateChange = (value) => {
     setForm((f) => ({
       ...f,
       shippingAddress: { ...f.shippingAddress, stateId: value, cityId: '' },
     }));
     setShippingCities([]);
+    setAddressErrorFor('shippingAddress', 'stateId', validateRequired(value, 'State'));
   };
 
-  const handleShippingCityChange = (e) =>
-    setAddressField('shippingAddress', 'cityId', e.target.value);
+  const handleShippingCityChange = (value) => {
+    setAddressField('shippingAddress', 'cityId', value);
+    setAddressErrorFor('shippingAddress', 'cityId', validateRequired(value, 'City'));
+  };
 
-  const handleRoleChange = (e) => setField('roleId', e.target.value);
+  const handleRoleChange = (value) => {
+    setField('roleId', value);
+    setErrorFor('roleId', validateRequired(value, 'Role'));
+  };
+
+
+  const runValidation = () => {
+    const formErrors = {};
+
+    const vendorNameErr = validateRequired(form.vendorName, 'Vendor Name');
+    if (vendorNameErr) formErrors.vendorName = vendorNameErr;
+
+    const usernameErr = validateRequired(form.username, 'Username');
+    if (usernameErr) formErrors.username = usernameErr;
+
+    const emailErr = validateEmail(form.email);
+    if (emailErr) formErrors.email = emailErr;
+
+    const mobileErr = validateMobile(form.mobile);
+    if (mobileErr) formErrors.mobile = mobileErr;
+
+    const roleErr = validateRequired(form.roleId, 'Role');
+    if (roleErr) formErrors.roleId = roleErr;
+
+    if (isEditMode) {
+      const passwordErr = validateRequired(form.password, 'Password');
+      if (passwordErr) formErrors.password = passwordErr;
+    }
+
+    const commonAddrErrors = validateAddressFields(form.commonAddress);
+    Object.entries(commonAddrErrors).forEach(([k, v]) => {
+      formErrors[`commonAddress.${k}`] = v;
+    });
+
+    const gstinErr = validateGSTIN(form.gstin);
+    if (gstinErr) formErrors.gstin = gstinErr;
+
+    const gstCompanyNameErr = validateRequired(
+      form.gstCompanyName,
+      'Company Name (as per GST)',
+    );
+    if (gstCompanyNameErr) formErrors.gstCompanyName = gstCompanyNameErr;
+
+    if (form.msmeRegistered) {
+      const msmeTypeErr = validateMSMEType(form.msmeType, true);
+      if (msmeTypeErr) formErrors.msmeType = msmeTypeErr;
+
+      const msmeNumberErr = validateMSMENumber(form.msmeNumber, true);
+      if (msmeNumberErr) formErrors.msmeNumber = msmeNumberErr;
+    }
+
+    const billingErrors = validateAddressFields(form.billingAddress);
+    Object.entries(billingErrors).forEach(([k, v]) => {
+      formErrors[`billingAddress.${k}`] = v;
+    });
+
+    if (!form.shippingSameAsBilling) {
+      const shippingErrors = validateAddressFields(form.shippingAddress);
+      Object.entries(shippingErrors).forEach(([k, v]) => {
+        formErrors[`shippingAddress.${k}`] = v;
+      });
+    }
+
+    const bankErrs = {};
+    form.banks.forEach((bank) => {
+      const be = {};
+      const nameErr = validateAccountHolderName(bank.accountHolderName);
+      const bankNameErr = validateBankName(bank.bankName);
+      const acctErr = validateAccountNumber(bank.accountNumber);
+      const reAcctErr = validateReAccountNumber(
+        bank.reAccountNumber,
+        bank.accountNumber,
+      );
+      const ifscFormatErr = validateIFSC(bank.ifsc);
+
+      if (nameErr) be.accountHolderName = nameErr;
+      if (bankNameErr) be.bankName = bankNameErr;
+      if (acctErr) be.accountNumber = acctErr;
+      if (reAcctErr) be.reAccountNumber = reAcctErr;
+
+      if (ifscFormatErr) {
+        be.ifsc = ifscFormatErr;
+      } else if (!bankNameErr) {
+        const matchErr = validateIFSCBankMatch(bank.ifsc, bank.bankName);
+        if (matchErr) be.ifsc = matchErr;
+      }
+
+      if (Object.keys(be).length > 0) {
+        bankErrs[bank.id] = be;
+      }
+    });
+
+    return { formErrors, bankErrs };
+  };
+
+  const applyValidationResult = (formErrors, bankErrs) => {
+    setErrors(formErrors);
+    setBankErrors(bankErrs);
+    const hasErrors =
+      Object.keys(formErrors).length > 0 || Object.keys(bankErrs).length > 0;
+
+    if (hasErrors) {
+      setSubmitError('Please fix the highlighted errors before saving.');
+      if (Object.keys(bankErrs).length > 0) {
+        setOpenSection(SECTIONS.BANK);
+      } else {
+        const firstKey = Object.keys(formErrors)[0];
+        setOpenSection(sectionForKey(firstKey));
+      }
+    }
+    return hasErrors;
+  };
 
   const handleSubmit = async () => {
-    const payload = buildVendorPayload(form, { isEditMode, editingVendor });
     setSubmitError('');
+    const { formErrors, bankErrs } = runValidation();
+    if (applyValidationResult(formErrors, bankErrs)) return;
+
+    const payload = buildVendorPayload(form, { isEditMode, editingVendor });
     setSubmitting(true);
     try {
       if (isEditMode) {
@@ -872,7 +1120,7 @@ const VendorRegistration = () => {
       console.error(err);
       setSubmitError(
         err?.response?.data?.message ||
-          `Failed to ${isEditMode ? 'update' : 'save'} vendor. Please try again.`,
+        `Failed to ${isEditMode ? 'update' : 'save'} vendor. Please try again.`,
       );
     } finally {
       setSubmitting(false);
@@ -880,24 +1128,48 @@ const VendorRegistration = () => {
   };
 
   const handleSaveAndAddAnother = async () => {
-    const payload = buildVendorPayload(form, { isEditMode, editingVendor });
     setSubmitError('');
+    const { formErrors, bankErrs } = runValidation();
+    if (applyValidationResult(formErrors, bankErrs)) return;
+
+    const payload = buildVendorPayload(form, { isEditMode, editingVendor });
     setSubmitting(true);
     try {
       await saveVendor(payload);
       setForm((f) => ({ ...DEFAULT_FORM, organizationId: f.organizationId }));
       setTradeNameTouched(false);
+      setErrors({});
+      setBankErrors({});
       setOpenSection(SECTIONS.PERSONAL);
     } catch (err) {
       console.error(err);
       setSubmitError(
         err?.response?.data?.message ||
-          'Failed to save vendor. Please try again.',
+        'Failed to save vendor. Please try again.',
       );
     } finally {
       setSubmitting(false);
     }
   };
+
+  const personalSectionHasError = [
+    'vendorName',
+    'username',
+    'email',
+    'mobile',
+    'roleId',
+    'password',
+  ].some((k) => errors[k]);
+  const commonSectionHasError = Object.keys(errors).some((k) =>
+    k.startsWith('commonAddress.'),
+  );
+  const businessSectionHasError = ['gstin', 'gstCompanyName', 'msmeType', 'msmeNumber'].some(
+    (k) => errors[k],
+  );
+  const addressSectionHasError = Object.keys(errors).some(
+    (k) => k.startsWith('billingAddress.') || k.startsWith('shippingAddress.'),
+  );
+  const bankSectionHasError = Object.keys(bankErrors).length > 0;
 
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
@@ -919,6 +1191,7 @@ const VendorRegistration = () => {
           title="Personal Information"
           open={openSection === SECTIONS.PERSONAL}
           onToggle={() => toggleSection(SECTIONS.PERSONAL)}
+          hasError={personalSectionHasError}
         />
 
         {openSection === SECTIONS.PERSONAL && (
@@ -930,17 +1203,23 @@ const VendorRegistration = () => {
                   value={form.vendorName}
                   onChange={(e) => handleVendorNameChange(e.target.value)}
                   placeholder="Enter Vendor Name"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.vendorName ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.vendorName} />
               </div>
               <div>
                 <Label required>Username</Label>
                 <input
                   value={form.username}
-                  onChange={(e) => setField('username', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setField('username', val);
+                    setErrorFor('username', validateRequired(val, 'Username'));
+                  }}
                   placeholder="Login username"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.username ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.username} />
               </div>
               <div>
                 <Label>Contact Person Name</Label>
@@ -986,26 +1265,38 @@ const VendorRegistration = () => {
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => setField('email', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setField('email', val);
+                    setErrorFor('email', validateEmail(val));
+                  }}
                   placeholder="example@jaiswalgroup.com"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.email ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.email} />
               </div>
               <div>
                 <Label required>Mobile Number</Label>
                 <input
                   value={form.mobile}
-                  onChange={(e) => setField('mobile', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setField('mobile', val);
+                    setErrorFor('mobile', validateMobile(val));
+                  }}
                   placeholder="+91 00000 00000"
                   maxLength={10}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.mobile ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.mobile} />
               </div>
               <div>
                 <Label>Alternate Mobile Number</Label>
                 <input
                   value={form.altMobile}
-                  onChange={(e) => setField('altMobile', e.target.value)}
+                  onChange={(e) =>
+                    setField('altMobile', e.target.value.replace(/\D/g, ''))
+                  }
                   placeholder="+91 00000 00000"
                   maxLength={10}
                   className={inputCls}
@@ -1016,13 +1307,19 @@ const VendorRegistration = () => {
             <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label required>Role</Label>
-                <IdSelect
+                <SearchableSelect
+                  name="role"
                   value={form.roleId}
                   onChange={handleRoleChange}
-                  placeholder="Select Role"
-                  options={roles}
-                  loading={loadingRoles}
+                  options={roles.map((role) => ({
+                    value: role.id,
+                    label: role.name,
+                  }))}
+                  placeholder={loadingRoles ? 'Loading...' : 'Select Role'}
+                  disabled={loadingRoles}
+                  error={!!errors.roleId}
                 />
+                <ErrorText error={errors.roleId} />
               </div>
             </div>
 
@@ -1033,10 +1330,15 @@ const VendorRegistration = () => {
                   <input
                     type="password"
                     value={form.password}
-                    onChange={(e) => setField('password', e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setField('password', val);
+                      setErrorFor('password', validateRequired(val, 'Password'));
+                    }}
                     placeholder="••••••••"
-                    className={inputCls}
+                    className={`${inputCls} ${errors.password ? errorInputCls : ''}`}
                   />
+                  <ErrorText error={errors.password} />
                 </div>
               </div>
             )}
@@ -1052,6 +1354,7 @@ const VendorRegistration = () => {
           subtitle="A general address on record for this vendor"
           open={openSection === SECTIONS.COMMON}
           onToggle={() => toggleSection(SECTIONS.COMMON)}
+          hasError={commonSectionHasError}
         />
 
         {openSection === SECTIONS.COMMON && (
@@ -1079,6 +1382,13 @@ const VendorRegistration = () => {
               loadingStates={loadingCommonStates}
               cities={commonCities}
               loadingCities={loadingCommonCities}
+              errors={{
+                countryId: errors['commonAddress.countryId'],
+                stateId: errors['commonAddress.stateId'],
+                addressLine1: errors['commonAddress.addressLine1'],
+                cityId: errors['commonAddress.cityId'],
+                pincode: errors['commonAddress.pincode'],
+              }}
             />
           </div>
         )}
@@ -1091,6 +1401,7 @@ const VendorRegistration = () => {
           title="Business Details"
           open={openSection === SECTIONS.BUSINESS}
           onToggle={() => toggleSection(SECTIONS.BUSINESS)}
+          hasError={businessSectionHasError}
         />
 
         {openSection === SECTIONS.BUSINESS && (
@@ -1103,21 +1414,32 @@ const VendorRegistration = () => {
                   <Label required>GSTIN / UIN</Label>
                   <input
                     value={form.gstin}
-                    onChange={(e) =>
-                      setField('gstin', e.target.value.toUpperCase())
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setField('gstin', val);
+                      setErrorFor('gstin', validateGSTIN(val));
+                    }}
                     placeholder="22AAAAA0000A1Z5"
-                    className={inputCls}
+                    className={`${inputCls} ${errors.gstin ? errorInputCls : ''}`}
                   />
+                  <ErrorText error={errors.gstin} />
                 </div>
                 <div>
                   <Label required>Company Name (as per GST)</Label>
                   <input
                     value={form.gstCompanyName}
-                    onChange={(e) => setField('gstCompanyName', e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setField('gstCompanyName', val);
+                      setErrorFor(
+                        'gstCompanyName',
+                        validateRequired(val, 'Company Name (as per GST)'),
+                      );
+                    }}
                     placeholder="Company Name"
-                    className={inputCls}
+                    className={`${inputCls} ${errors.gstCompanyName ? errorInputCls : ''}`}
                   />
+                  <ErrorText error={errors.gstCompanyName} />
                 </div>
                 <div>
                   <Label>Registered Name</Label>
@@ -1136,7 +1458,13 @@ const VendorRegistration = () => {
                 </span>
                 <Toggle
                   checked={form.msmeRegistered}
-                  onChange={(v) => setField('msmeRegistered', v)}
+                  onChange={(v) => {
+                    setField('msmeRegistered', v);
+                    if (!v) {
+                      setErrorFor('msmeType', '');
+                      setErrorFor('msmeNumber', '');
+                    }
+                  }}
                 />
               </div>
 
@@ -1144,21 +1472,35 @@ const VendorRegistration = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label required>MSME/Udyam Registration Type</Label>
-                    <Select
+                    <SearchableSelect
+                      name="msmeType"
                       value={form.msmeType}
-                      onChange={(e) => setField('msmeType', e.target.value)}
+                      onChange={(value) => {
+                        setField('msmeType', value);
+                        setErrorFor('msmeType', validateMSMEType(value, true));
+                      }}
+                      options={['Micro', 'Small', 'Medium'].map((v) => ({
+                        value: v,
+                        label: v,
+                      }))}
                       placeholder="Select the Registration type"
-                      options={['Micro', 'Small', 'Medium']}
+                      error={!!errors.msmeType}
                     />
+                    <ErrorText error={errors.msmeType} />
                   </div>
                   <div>
-                    <Label>MSME/Udyam Registration Number</Label>
+                    <Label required>MSME/Udyam Registration Number</Label>
                     <input
                       value={form.msmeNumber}
-                      onChange={(e) => setField('msmeNumber', e.target.value)}
-                      placeholder="Enter the registration number"
-                      className={inputCls}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setField('msmeNumber', val);
+                        setErrorFor('msmeNumber', validateMSMENumber(val, true));
+                      }}
+                      placeholder="UDYAM-GJ-01-1234567"
+                      className={`${inputCls} ${errors.msmeNumber ? errorInputCls : ''}`}
                     />
+                    <ErrorText error={errors.msmeNumber} />
                   </div>
                 </div>
               )}
@@ -1168,22 +1510,28 @@ const VendorRegistration = () => {
               <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label>Currency</Label>
-                  <Select
+                  <SearchableSelect
+                    name="currency"
                     value={form.currency}
-                    onChange={(e) => setField('currency', e.target.value)}
+                    onChange={(value) => setField('currency', value)}
+                    options={['INR - Indian Rupee'].map((v) => ({
+                      value: v,
+                      label: v,
+                    }))}
                     placeholder="Select currency"
-                    options={['INR - Indian Rupee']}
                   />
                 </div>
                 <div>
                   <Label>Accounts Payable</Label>
-                  <Select
+                  <SearchableSelect
+                    name="accountsPayable"
                     value={form.accountsPayable}
-                    onChange={(e) =>
-                      setField('accountsPayable', e.target.value)
-                    }
+                    onChange={(value) => setField('accountsPayable', value)}
+                    options={['Trade Creditors'].map((v) => ({
+                      value: v,
+                      label: v,
+                    }))}
                     placeholder="Select account"
-                    options={['Trade Creditors']}
                   />
                 </div>
                 <div>
@@ -1200,33 +1548,33 @@ const VendorRegistration = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Payment Terms</Label>
-                  <Select
+                  <SearchableSelect
+                    name="paymentTerms"
                     value={form.paymentTerms}
-                    onChange={(e) => setField('paymentTerms', e.target.value)}
-                    placeholder="Select terms"
+                    onChange={(value) => setField('paymentTerms', value)}
                     options={[
                       'Due on Receipt',
                       'Net 15',
                       'Net 30',
                       'Net 45',
                       'Net 60',
-                    ]}
+                    ].map((v) => ({ value: v, label: v }))}
+                    placeholder="Select terms"
                   />
                 </div>
                 <div>
                   <Label>TDS Applicability</Label>
-                  <Select
+                  <SearchableSelect
+                    name="tdsApplicability"
                     value={form.tdsApplicability}
-                    onChange={(e) =>
-                      setField('tdsApplicability', e.target.value)
-                    }
-                    placeholder="Select TDS"
+                    onChange={(value) => setField('tdsApplicability', value)}
                     options={[
                       'No TDS',
                       '194C - Contractor',
                       '194J - Professional Fees',
                       '194I - Rent',
-                    ]}
+                    ].map((v) => ({ value: v, label: v }))}
+                    placeholder="Select TDS"
                   />
                 </div>
               </div>
@@ -1243,6 +1591,7 @@ const VendorRegistration = () => {
           subtitle="Billing and shipping addresses for this vendor"
           open={openSection === SECTIONS.ADDRESS}
           onToggle={() => toggleSection(SECTIONS.ADDRESS)}
+          hasError={addressSectionHasError}
         />
 
         {openSection === SECTIONS.ADDRESS && (
@@ -1264,17 +1613,24 @@ const VendorRegistration = () => {
               </div>
 
               <AddressFields
-                address={form.billingAddress}
-                onFieldChange={handleBillingFieldChange}
-                onCountryChange={handleBillingCountryChange}
-                onStateChange={handleBillingStateChange}
-                onCityChange={handleBillingCityChange}
+                address={form.commonAddress}
+                onFieldChange={handleCommonFieldChange}
+                onCountryChange={handleCommonCountryChange}
+                onStateChange={handleCommonStateChange}
+                onCityChange={handleCommonCityChange}
                 countries={countries}
                 loadingCountries={loadingCountries}
-                states={billingStates}
-                loadingStates={loadingBillingStates}
-                cities={billingCities}
-                loadingCities={loadingBillingCities}
+                states={commonStates}
+                loadingStates={loadingCommonStates}
+                cities={commonCities}
+                loadingCities={loadingCommonCities}
+                errors={{
+                  countryId: errors['commonAddress.countryId'],
+                  stateId: errors['commonAddress.stateId'],
+                  addressLine1: errors['commonAddress.addressLine1'],
+                  cityId: errors['commonAddress.cityId'],
+                  pincode: errors['commonAddress.pincode'],
+                }}
               />
             </div>
 
@@ -1311,10 +1667,10 @@ const VendorRegistration = () => {
                     ? form.billingAddress
                     : form.shippingAddress
                 }
-                onFieldChange={handleShippingFieldChange}
-                onCountryChange={handleShippingCountryChange}
-                onStateChange={handleShippingStateChange}
-                onCityChange={handleShippingCityChange}
+                onFieldChange={handleCommonFieldChange}
+                onCountryChange={handleCommonCountryChange}
+                onStateChange={handleCommonStateChange}
+                onCityChange={handleCommonCityChange}
                 countries={countries}
                 loadingCountries={loadingCountries}
                 states={
@@ -1334,6 +1690,17 @@ const VendorRegistration = () => {
                     : loadingShippingCities
                 }
                 disabled={form.shippingSameAsBilling}
+                errors={
+                  form.shippingSameAsBilling
+                    ? {}
+                    : {
+                      countryId: errors['shippingAddress.countryId'],
+                      stateId: errors['shippingAddress.stateId'],
+                      addressLine1: errors['shippingAddress.addressLine1'],
+                      cityId: errors['shippingAddress.cityId'],
+                      pincode: errors['shippingAddress.pincode'],
+                    }
+                }
               />
             </div>
           </div>
@@ -1347,93 +1714,135 @@ const VendorRegistration = () => {
           title="Bank Details"
           open={openSection === SECTIONS.BANK}
           onToggle={() => toggleSection(SECTIONS.BANK)}
+          hasError={bankSectionHasError}
         />
 
         {openSection === SECTIONS.BANK && (
           <div className="px-6 py-6 space-y-4">
-            {form.banks.map((bank) => (
-              <div
-                key={bank.id}
-                className="border border-gray-200 rounded-xl p-5 space-y-4 relative"
-              >
-                {form.banks.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeBank(bank.id)}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-red-500 cursor-pointer bg-transparent border-0"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label required>Account Holder Name</Label>
-                    <input
-                      value={bank.accountHolderName}
-                      onChange={(e) =>
-                        setBankField(
-                          bank.id,
-                          'accountHolderName',
-                          e.target.value,
-                        )
-                      }
-                      placeholder="As per bank records"
-                      className={inputCls}
-                    />
+            {form.banks.map((bank) => {
+              const be = bankErrors[bank.id] || {};
+              return (
+                <div
+                  key={bank.id}
+                  className="border border-gray-200 rounded-xl p-5 space-y-4 relative"
+                >
+                  {form.banks.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeBank(bank.id)}
+                      className="absolute top-4 right-4 text-gray-400 hover:text-red-500 cursor-pointer bg-transparent border-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label required>Account Holder Name</Label>
+                      <input
+                        value={bank.accountHolderName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBankField(bank.id, 'accountHolderName', val);
+                          setBankErrorFor(
+                            bank.id,
+                            'accountHolderName',
+                            validateAccountHolderName(val),
+                          );
+                        }}
+                        placeholder="As per bank records"
+                        className={`${inputCls} ${be.accountHolderName ? errorInputCls : ''
+                          }`}
+                      />
+                      <ErrorText error={be.accountHolderName} />
+                    </div>
+                    <div>
+                      <Label required>Bank Name</Label>
+                      <input
+                        value={bank.bankName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setBankField(bank.id, 'bankName', val);
+                          setBankErrorFor(bank.id, 'bankName', validateBankName(val));
+                        }}
+                        onBlur={(e) => {
+                          if (bank.ifsc) {
+                            checkIfscBankMatch(bank.id, bank.ifsc, e.target.value);
+                          }
+                        }}
+                        placeholder="e.g. HDFC Bank, ICICI Bank"
+                        className={`${inputCls} ${be.bankName ? errorInputCls : ''}`}
+                      />
+                      <ErrorText error={be.bankName} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label required>Account Number</Label>
+                      <input
+                        value={bank.accountNumber}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setBankField(bank.id, 'accountNumber', val);
+                          setBankErrorFor(
+                            bank.id,
+                            'accountNumber',
+                            validateAccountNumber(val),
+                          );
+                          if (bank.reAccountNumber) {
+                            setBankErrorFor(
+                              bank.id,
+                              'reAccountNumber',
+                              validateReAccountNumber(bank.reAccountNumber, val),
+                            );
+                          }
+                        }}
+                        placeholder="0000 0000 0000"
+                        className={`${inputCls} ${be.accountNumber ? errorInputCls : ''
+                          }`}
+                      />
+                      <ErrorText error={be.accountNumber} />
+                    </div>
+                    <div>
+                      <Label required>Re-enter Account Number</Label>
+                      <input
+                        value={bank.reAccountNumber}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setBankField(bank.id, 'reAccountNumber', val);
+                          setBankErrorFor(
+                            bank.id,
+                            'reAccountNumber',
+                            validateReAccountNumber(val, bank.accountNumber),
+                          );
+                        }}
+                        placeholder="0000 0000 0000"
+                        className={`${inputCls} ${be.reAccountNumber ? errorInputCls : ''
+                          }`}
+                      />
+                      <ErrorText error={be.reAccountNumber} />
+                    </div>
                   </div>
                   <div>
-                    <Label required>Bank Name</Label>
+                    <Label required>IFSC Code</Label>
                     <input
-                      value={bank.bankName}
-                      onChange={(e) =>
-                        setBankField(bank.id, 'bankName', e.target.value)
+                      value={bank.ifsc}
+                      onChange={(e) => {
+                        const val = e.target.value.toUpperCase();
+                        setBankField(bank.id, 'ifsc', val);
+                        setBankErrorFor(bank.id, 'ifsc', validateIFSC(val));
+                      }}
+                      onBlur={(e) =>
+                        checkIfscBankMatch(bank.id, e.target.value, bank.bankName)
                       }
-                      placeholder="e.g. HDFC Bank, ICICI Bank"
-                      className={inputCls}
+                      placeholder="HDFC0000123"
+                      className={`${inputCls} md:max-w-xs ${be.ifsc ? errorInputCls : ''
+                        }`}
                     />
+                    <ErrorText error={be.ifsc} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label required>Account Number</Label>
-                    <input
-                      value={bank.accountNumber}
-                      onChange={(e) =>
-                        setBankField(bank.id, 'accountNumber', e.target.value)
-                      }
-                      placeholder="0000 0000 0000"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <Label required>Re-enter Account Number</Label>
-                    <input
-                      value={bank.reAccountNumber}
-                      onChange={(e) =>
-                        setBankField(bank.id, 'reAccountNumber', e.target.value)
-                      }
-                      placeholder="0000 0000 0000"
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label required>IFSC Code</Label>
-                  <input
-                    value={bank.ifsc}
-                    onChange={(e) =>
-                      setBankField(
-                        bank.id,
-                        'ifsc',
-                        e.target.value.toUpperCase(),
-                      )
-                    }
-                    placeholder="HDFC0000123"
-                    className={`${inputCls} md:max-w-xs`}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             <button
               type="button"
