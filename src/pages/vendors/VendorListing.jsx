@@ -112,7 +112,7 @@ const VendorList = () => {
   }, [search]);
 
   const handleEdit = (vendor) => {
-    navigate('/vendors/update-vendor', { state: { vendor } });
+    navigate('/vendors/update-vendor', { state: { vendorId: vendor.id } });
   };
 
   const openDeleteConfirm = (item) => {
@@ -229,7 +229,7 @@ const VendorList = () => {
               type="button"
               onClick={() =>
                 navigate('/vendors/view-vendor', {
-                  state: { vendor: row.original },
+                  state: { vendorId: row.original.id },
                 })
               }
               className="text-gray-500 hover:text-green-600 cursor-pointer"
