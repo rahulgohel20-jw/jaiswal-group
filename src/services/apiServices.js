@@ -782,3 +782,6 @@ export const getRawMaterialSubCategoryById = (id) => {
 export const deleteRawMaterialSubCategoryById = (id) => {
   return DELETE(`/raw-material-sub-category/${id}`)
 }
+export const getAllSubCategoryByCategoryId = (id) => {
+  return GET(`/raw-material-sub-category/category/${id}`)
+}
