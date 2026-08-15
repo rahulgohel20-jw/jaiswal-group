@@ -782,3 +782,36 @@ export const getRawMaterialSubCategoryById = (id) => {
 export const deleteRawMaterialSubCategoryById = (id) => {
   return DELETE(`/raw-material-sub-category/${id}`)
 }
+
+// ---- Assign Asset APIs ----
+// payload shape for create/update: { active, assetId, assignToId, companiesId, quantity }
+// assignToId = employee id when assigning to an individual, 0/null when assigning to a company/outlet.
+// companiesId = the organization (company/outlet) id the asset is being deployed to either way.
+
+export const createAssignAsset = (payload) => {
+  return POST('/assign-assets/create', payload);
+};
+
+export const getAssignAssetById = (id) => {
+  return GET('/assign-assets/get', { id });
+};
+
+export const getAllAssignAssets = () => {
+  return GET('/assign-assets/getall');
+};
+
+export const getAllActiveAssignAssets = () => {
+  return GET('/assign-assets/getallactive');
+};
+
+export const getAllActiveAssignAssetsPaginated = (params) => {
+  return GET('/assign-assets/getallactive/page', params);
+};
+
+export const updateAssignAsset = (payload) => {
+  return PUT('/assign-assets/update', payload, { id: payload.id });
+};
+
+export const deleteAssignAsset = (id) => {
+  return DELETE('/assign-assets/delete', { id });
+};
