@@ -1,18 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Building2,
   CalendarDays,
   ChevronDown,
   FileText,
   MapPin,
   PackageCheck,
   Save,
+  Search,
+  Store,
+  Users,
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import { useNavigate, useParams } from 'react-router';
 import {
   createAssignAsset,
   getActiveCompany,
   getAllActiveEmployees,
   getAllAssets,
+  getAssignAssetById,
+  updateAssignAsset,
 } from '@/services/apiServices.js';
 import {
   Popover,
@@ -22,16 +29,11 @@ import {
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
+  'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed';
 
-const selectCls =
-  'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed';
-
-// Safely pulls the array out of a response, regardless of whether
-// getActiveCompany/getAllActiveEmployees/getAllAssets resolve to the raw axios
-// response, an already-unwrapped `{ msg, data, success }` body, or
-// a bare array. Confirmed shape from the API: { msg, data: [...], success }.
+// Safely pulls the array out of a response, regardless of whether the
+// service resolves to the raw axios response, an already-unwrapped
+// `{ msg, data, success }` body, or a bare array.
 const extractArray = (res) => {
   if (Array.isArray(res)) return res;
   if (Array.isArray(res?.data)) return res.data;
@@ -39,8 +41,22 @@ const extractArray = (res) => {
   return [];
 };
 
-// Today's date in yyyy-mm-dd, for the native <input type="date"> default value.
-const getTodayIso = () => new Date().toISOString().split('T')[0];
+// Matches the confirmed getAllAssets response shape:
+// { id, assetCode, itemName, categoryName, brandName, modelNumber,
+//   totalQuantity, availableQuantity, assetImagePaths, ... }
+const extractAssetFields = (asset) => ({
+  id: asset.id,
+  code: asset.assetCode ?? String(asset.id),
+  name: asset.itemName ?? 'Unnamed Asset',
+  category: asset.categoryName ?? '—',
+  brand: asset.brandName ?? '—',
+  model: asset.modelNumber ?? '—',
+  totalQuantity: Number(asset.totalQuantity) || 0,
+  availableQuantity: Number(asset.availableQuantity) || 0,
+  imageUrl: Array.isArray(asset.assetImagePaths)
+    ? asset.assetImagePaths[0]
+    : null,
+});
 
 const Label = ({ children, required }) => (
   <label className="flex items-center gap-1 text-xs font-medium text-gray-500 mb-1.5">
@@ -56,7 +72,7 @@ const Select = ({
   placeholder = 'Select...',
   name,
   disabled = false,
-  loading = false,
+  icon: Icon = ChevronDown,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -77,7 +93,6 @@ const Select = ({
 
   const filteredOptions = options.filter((option) => {
     const label = String(option.label ?? option);
-
     return label.toLowerCase().includes(search.trim().toLowerCase());
   });
 
@@ -102,7 +117,6 @@ const Select = ({
     setSearch(inputValue);
     setOpen(true);
 
-    // Search start karte hi old selected value clear
     if (String(inputValue) !== String(selectedLabel)) {
       onChange({
         target: {
@@ -115,14 +129,11 @@ const Select = ({
 
   return (
     <Popover
-      open={open && !disabled}
+      open={disabled ? false : open}
       onOpenChange={(nextOpen) => {
         if (disabled) return;
         setOpen(nextOpen);
-
-        if (nextOpen) {
-          setSearch(selectedLabel);
-        }
+        if (nextOpen) setSearch(selectedLabel);
       }}
       modal={false}
     >
@@ -130,23 +141,18 @@ const Select = ({
         <div className="relative w-full">
           <input
             name={name}
-            value={loading ? 'Loading...' : search}
+            value={search}
             placeholder={placeholder}
-            disabled={disabled || loading}
+            disabled={disabled}
             onClick={() => {
-              if (disabled || loading) return;
+              if (disabled) return;
               setOpen(true);
               setSearch(selectedLabel);
             }}
             onChange={handleInputChange}
-            className={`${inputCls} pr-10 cursor-text ${
-              disabled || loading
-                ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                : ''
-            }`}
+            className={`${inputCls} pr-10 cursor-text`}
           />
-
-          <ChevronDown
+          <Icon
             size={16}
             className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
           />
@@ -164,9 +170,7 @@ const Select = ({
           {filteredOptions.length > 0 ? (
             filteredOptions.map((option) => {
               const optionValue = option.value ?? option;
-
               const optionLabel = option.label ?? option;
-
               const isSelected = String(value) === String(optionValue);
 
               return (
@@ -211,29 +215,28 @@ const SubHeading = ({ icon: Icon, title }) => (
   </div>
 );
 
-const ASSIGNMENT_TYPE_OPTIONS = [
+// ---- Assignment Type: two options ----
+const ASSIGN_TYPE_OPTIONS = [
   { value: 'individual', label: 'Individual' },
-  { value: 'company/outlet', label: 'Company / Outlet' },
+  { value: 'company_outlet', label: 'Company / Outlet' },
 ];
 
 const AddAssignAsset = () => {
   const [form, setForm] = useState({
-    assetId: '',
+    assetId: '', // id of the selected asset from the searchable dropdown
+    assignType: 'individual', // 'individual' | 'company_outlet'
     assignedTo: '',
     company: '',
     unit: '',
-    quantity: '1',
-    assignmentDate: getTodayIso(),
+    floorLevel: '',
+    quantity: '', // string while editing; sanitized on change
+    assignmentDate: '',
     remarks: '',
   });
 
-  // 'individual' assigns the asset to an employee (assignToId); 'company'
-  // assigns it to the selected company/outlet only (assignToId omitted).
-  const [assignmentType, setAssignmentType] = useState('individual');
-
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  // ---- Dynamic data: assets, organizations (companies + outlets), employees ----
+  // ---- Dynamic data: assets, organizations, employees ----
   const [assets, setAssets] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -243,76 +246,83 @@ const AddAssignAsset = () => {
   const [fetchError, setFetchError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEditMode = Boolean(id);
+  const [loadingRecord, setLoadingRecord] = useState(isEditMode);
 
   useEffect(() => {
+    if (!id) return;
     let cancelled = false;
 
-    const loadAssets = async () => {
+    const loadRecord = async () => {
       try {
-        setLoadingAssets(true);
-        const res = await getAllAssets();
-        if (!cancelled) setAssets(extractArray(res));
+        setLoadingRecord(true);
+        const res = await getAssignAssetById(id);
+        const record = res?.data?.data ?? res?.data ?? res;
+        if (!cancelled && record) {
+          setForm((f) => ({
+            ...f,
+            assetId: record.assetId ? String(record.assetId) : '',
+            assignType: record.assignToId ? 'individual' : 'company_outlet',
+            assignedTo: record.assignToId ? String(record.assignToId) : '',
+            quantity: record.quantity != null ? String(record.quantity) : '',
+            // Held until `organizations` has loaded; resolved into
+            // company/unit by the effect below, then cleared.
+            _pendingCompaniesId: record.companiesId ?? null,
+          }));
+        }
       } catch (err) {
-        if (!cancelled)
-          setFetchError((prev) => prev || 'Failed to load assets.');
         console.error(err);
+        setFetchError((prev) => prev || 'Failed to load assignment record.');
       } finally {
-        if (!cancelled) setLoadingAssets(false);
+        if (!cancelled) setLoadingRecord(false);
       }
     };
 
-    const loadOrganizations = async () => {
-      try {
-        setLoadingOrgs(true);
-        const res = await getActiveCompany();
-        if (!cancelled) setOrganizations(extractArray(res));
-      } catch (err) {
-        if (!cancelled)
-          setFetchError((prev) => prev || 'Failed to load companies.');
-        console.error(err);
-      } finally {
-        if (!cancelled) setLoadingOrgs(false);
-      }
-    };
-
-    const loadEmployees = async () => {
-      try {
-        setLoadingEmployees(true);
-        const res = await getAllActiveEmployees();
-        if (!cancelled) setEmployees(extractArray(res));
-      } catch (err) {
-        if (!cancelled)
-          setFetchError((prev) => prev || 'Failed to load employees.');
-        console.error(err);
-      } finally {
-        if (!cancelled) setLoadingEmployees(false);
-      }
-    };
-
-    loadAssets();
-    loadOrganizations();
-    loadEmployees();
-
+    loadRecord();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [id]);
 
-  // Asset dropdown options — searchable by code and name (Select filters on `label`).
-  // `itemName` is the API field for the asset's display name.
+  // Resolves the record's companiesId into company + unit once the
+  // organizations list is available, since we need parentId to know
+  // whether it was an outlet-level or company-level assignment.
+  useEffect(() => {
+    if (!form._pendingCompaniesId || organizations.length === 0) return;
+    const org = organizations.find(
+      (o) => o.id === Number(form._pendingCompaniesId),
+    );
+    if (!org) return;
+
+    setForm((f) => ({
+      ...f,
+      company: org.orgType === 'OUTLET' ? String(org.parentId) : String(org.id),
+      unit: org.orgType === 'OUTLET' ? String(org.id) : '',
+      _pendingCompaniesId: null,
+    }));
+  }, [organizations, form._pendingCompaniesId]);
+
   const assetOptions = useMemo(
     () =>
       (assets ?? []).map((a) => {
-        const code = a.assetCode ?? a.code ?? `AST-${a.id}`;
-        const name = a.itemName ?? 'Unnamed Asset';
-        return { value: a.id, label: `${code} — ${name}` };
+        const { id, code, name } = extractAssetFields(a);
+        return { value: id, label: `${code} — ${name}` };
       }),
     [assets],
   );
 
-  const selectedAsset = (assets ?? []).find(
-    (a) => a.id === Number(form.assetId),
-  );
+  const selectedAsset = useMemo(() => {
+    if (!form.assetId) return null;
+    const raw = (assets ?? []).find(
+      (a) => String(a.id) === String(form.assetId),
+    );
+    return raw ? extractAssetFields(raw) : null;
+  }, [assets, form.assetId]);
+
+  const isIndividual = form.assignType === 'individual';
 
   // "Company" = SUB_COMPANY orgs.
   const companyOptions = useMemo(
@@ -323,7 +333,7 @@ const AddAssignAsset = () => {
     [organizations],
   );
 
-  // "Unit" = OUTLET orgs whose parentId matches the selected company.
+  // "Unit/Outlet" = OUTLET orgs whose parentId matches the selected company.
   const unitOptions = useMemo(() => {
     if (!form.company) return [];
     return (organizations ?? [])
@@ -333,114 +343,154 @@ const AddAssignAsset = () => {
       .map((o) => ({ value: o.id, label: o.companyNameEnglish }));
   }, [organizations, form.company]);
 
-  // Employees are scoped to whichever org level is currently selected:
-  // prefer the unit (most specific), fall back to the company, and if
-  // neither is picked yet, show everyone so the field isn't empty.
-  // Each option is labelled with the employee's name, code, and department.
+  const selectedUnit = (organizations ?? []).find(
+    (o) => o.id === Number(form.unit),
+  );
+
+  // Employees are scoped by assignType:
+  // - individual      -> everyone, no org filter
+  // - company_outlet  -> filtered to the unit if picked, else the company
   const employeeOptions = useMemo(() => {
+    if (isIndividual) {
+      return (employees ?? []).map((e) => ({
+        value: e.id,
+        label: e.designation ? `${e.fullName} — ${e.designation}` : e.fullName,
+      }));
+    }
+
     const scopeOrgId = form.unit
       ? Number(form.unit)
       : form.company
         ? Number(form.company)
         : null;
-    const pool = scopeOrgId
-      ? (employees ?? []).filter((e) => e.organizationId === scopeOrgId)
-      : (employees ?? []);
 
-    return pool.map((e) => {
-      const code = e.employeeCode ?? e.code ?? '';
-      const department =
-        e.departmentName ?? e.department?.name ?? e.department ?? '';
+    if (!scopeOrgId) return [];
 
-      let label = e.fullName;
-      if (code) label += ` — ${code}`;
-      if (department) label += ` (${department})`;
+    return (employees ?? [])
+      .filter((e) => e.organizationId === scopeOrgId)
+      .map((e) => ({
+        value: e.id,
+        label: e.designation ? `${e.fullName} — ${e.designation}` : e.fullName,
+      }));
+  }, [employees, isIndividual, form.company, form.unit]);
 
-      return { value: e.id, label };
-    });
-  }, [employees, form.unit, form.company]);
+  const handleAssetChange = (e) => {
+    // Changing the asset invalidates whatever quantity was typed for the
+    // previous asset's stock, so clear it rather than carry over a value
+    // that may now be negative-relative or over the new asset's available stock.
+    setForm((f) => ({ ...f, assetId: e.target.value, quantity: '' }));
+  };
+
+  // Switching assignType resets the fields that no longer apply.
+  const handleAssignTypeChange = (e) => {
+    const newType = e.target.value;
+    setForm((f) => ({
+      ...f,
+      assignType: newType,
+      company: newType === 'individual' ? '' : f.company,
+      unit: newType === 'individual' ? '' : f.unit,
+      assignedTo: '',
+    }));
+  };
 
   const handleCompanyChange = (e) => {
     const newCompanyId = e.target.value;
-    // Reset unit and assignedTo since they may no longer be valid for the new company.
     setForm((f) => ({ ...f, company: newCompanyId, unit: '', assignedTo: '' }));
   };
 
   const handleUnitChange = (e) => {
     const newUnitId = e.target.value;
-    // Reset assignedTo since the employee pool changes with the unit.
     setForm((f) => ({ ...f, unit: newUnitId, assignedTo: '' }));
   };
 
-  // Switching to a company/outlet assignment clears any employee already picked.
-  useEffect(() => {
-    if (assignmentType === 'company' && form.assignedTo) {
-      setForm((f) => ({ ...f, assignedTo: '' }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignmentType]);
+  const availableStock = selectedAsset?.availableQuantity ?? 0;
+  const totalStock = selectedAsset?.totalQuantity ?? 0;
 
-  const availableStock =
-    selectedAsset?.availableQuantity ?? selectedAsset?.availableStock ?? 0;
-  const totalStock =
-    selectedAsset?.totalQuantity ?? selectedAsset?.totalStock ?? 0;
+  // Sanitizes quantity input as the user types:
+  // - strips anything non-numeric
+  // - blocks negative values (clamps to 0)
+  // - blocks values above the selected asset's availableQuantity (clamps to it)
+  const handleQuantityChange = (e) => {
+    const raw = e.target.value;
+
+    if (raw === '') {
+      set('quantity', '');
+      return;
+    }
+
+    // Reject minus signs, decimals, etc. — whole numbers only.
+    if (!/^\d+$/.test(raw)) return;
+
+    let num = Number(raw);
+    if (num < 0) num = 0;
+    if (num > availableStock) num = availableStock;
+
+    set('quantity', String(num));
+  };
+
   const qtyNum = Number(form.quantity) || 0;
   const remaining = Math.max(availableStock - qtyNum, 0);
 
-  const assetCode =
-    selectedAsset?.assetCode ??
-    selectedAsset?.code ??
-    (form.assetId ? `AST-${form.assetId}` : 'AST-00000');
+  // Payload for createAssignAsset: { active, assetId, assignToId, companiesId, quantity }
+  const buildPayload = () => {
+    const companiesId = isIndividual
+      ? null
+      : form.unit
+        ? Number(form.unit)
+        : form.company
+          ? Number(form.company)
+          : null;
 
-  const resetForm = () => {
-    setForm({
-      assetId: '',
-      assignedTo: '',
-      company: '',
-      unit: '',
-      quantity: '1',
-      assignmentDate: getTodayIso(),
-      remarks: '',
-    });
-    setAssignmentType('individual');
+    return {
+      active: true,
+      assetId: form.assetId ? Number(form.assetId) : null,
+      assignToId: form.assignedTo ? Number(form.assignedTo) : null,
+      companiesId,
+      quantity: qtyNum,
+    };
   };
 
-  const handleSaveAssignment = async () => {
+  const handleSave = async () => {
     setSaveError('');
+    setSaveSuccess(false);
 
     if (!form.assetId) {
       setSaveError('Please select an asset.');
       return;
     }
-
-    const companiesId = Number(form.unit || form.company) || 0;
-    if (!companiesId) {
-      setSaveError('Please select a company / unit.');
+    if (!isIndividual && !(form.unit || form.company)) {
+      setSaveError('Please select a company (and optionally an outlet).');
+      return;
+    }
+    if (isIndividual && !form.assignedTo) {
+      setSaveError('Please select an employee to assign to.');
+      return;
+    }
+    if (qtyNum <= 0) {
+      setSaveError('Quantity must be at least 1.');
+      return;
+    }
+    if (qtyNum > availableStock) {
+      setSaveError(
+        `Quantity cannot exceed the available stock (${availableStock}).`,
+      );
       return;
     }
 
-    if (assignmentType === 'individual' && !form.assignedTo) {
-      setSaveError('Please select who this asset is assigned to.');
-      return;
-    }
-
-    const payload = {
-      active: true,
-      assetId: Number(form.assetId),
-      assignToId: assignmentType === 'individual' ? Number(form.assignedTo) : 0,
-      companiesId,
-      quantity: qtyNum,
-      assignmentDate: form.assignmentDate,
-      remarks: form.remarks,
-    };
+    const payload = buildPayload();
 
     try {
       setSaving(true);
-      await createAssignAsset(payload);
-      resetForm();
+      if (isEditMode) {
+        await updateAssignAsset({ id: Number(id), ...payload });
+      } else {
+        await createAssignAsset(payload);
+      }
+      setSaveSuccess(true);
+      setTimeout(() => navigate('/assets/assign-assets'), 600);
     } catch (err) {
       console.error(err);
-      setSaveError('Failed to save assignment.');
+      setSaveError(err?.response?.data?.msg || 'Failed to save assignment.');
     } finally {
       setSaving(false);
     }
@@ -450,7 +500,9 @@ const AddAssignAsset = () => {
     <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">
       <div className="flex items-center gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Assign Asset</h1>
+          <h1 className="text-2xl font-bold">
+            {isEditMode ? 'Edit Assignment' : 'Assign Asset'}
+          </h1>
           <p className="text-[#43474F] mt-1">
             Configure deployment parameters for enterprise inventory.
           </p>
@@ -462,141 +514,201 @@ const AddAssignAsset = () => {
           {fetchError}
         </div>
       )}
-
       {saveError && (
         <div className="mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-2">
           {saveError}
         </div>
       )}
+      {saveSuccess && (
+        <div className="mt-4 text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-4 py-2">
+          Assignment saved successfully.
+        </div>
+      )}
 
       <SectionCard className="mt-6">
         <div className="px-6 py-6 space-y-6">
-          {/* Asset search + summary */}
-          <div className="space-y-4">
-            <div>
-              <Label required>Asset</Label>
-              <Select
-                value={form.assetId}
-                onChange={(e) => set('assetId', e.target.value)}
-                placeholder="Search by asset code or name"
-                options={assetOptions}
-                loading={loadingAssets}
-              />
-            </div>
-
-            <div className="bg-blue-50/60 border border-blue-100 rounded-xl px-5 py-5 space-y-4">
-              {selectedAsset ? (
-                <>
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="min-w-0">
-                      <p className="text-xs text-gray-400 mt-2">{assetCode}</p>
-                      <p className="text-base font-bold text-gray-900">
-                        {selectedAsset.itemName ?? 'Unnamed Asset'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-14 h-14 rounded-md border border-gray-200 bg-white flex items-center justify-center p-1.5">
-                        <QRCode
-                          value={assetCode}
-                          size={256}
-                          style={{ height: 'auto', width: '100%' }}
-                          viewBox="0 0 256 256"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-blue-100">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                        Category
-                      </p>
-                      <p className="text-sm font-semibold text-gray-700 mt-0.5">
-                        {selectedAsset.categoryName ??
-                          selectedAsset.category ??
-                          '—'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                        Brand
-                      </p>
-                      <p className="text-sm font-semibold text-gray-700 mt-0.5"></p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                        Model
-                      </p>
-                      <p className="text-sm font-semibold text-gray-700 mt-0.5">
-                        {selectedAsset.model ?? '—'}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  {loadingAssets
-                    ? 'Loading assets…'
-                    : 'Search and select an asset above to see its details.'}
-                </p>
-              )}
-            </div>
+          {/* Asset picker — always visible, at the top */}
+          <div>
+            <Label required>Search Asset</Label>
+            <Select
+              value={form.assetId}
+              onChange={handleAssetChange}
+              placeholder={
+                loadingAssets
+                  ? 'Loading assets...'
+                  : 'Search by asset ID or name...'
+              }
+              options={assetOptions}
+              icon={Search}
+              disabled={loadingAssets}
+            />
           </div>
+
+          {/* Asset summary — only appears once an item is picked above */}
+          {selectedAsset && (
+            <div className="bg-blue-50/60 border border-blue-100 rounded-xl px-5 py-5 space-y-4">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3 min-w-0">
+                  {selectedAsset.imageUrl && (
+                    <img
+                      src={selectedAsset.imageUrl}
+                      alt={selectedAsset.name}
+                      className="w-14 h-14 rounded-md border border-gray-200 object-cover shrink-0"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-400">
+                      {selectedAsset.code}
+                    </p>
+                    <p className="text-base font-bold text-gray-900 truncate">
+                      {selectedAsset.name}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="w-14 h-14 rounded-md border border-gray-200 bg-white flex items-center justify-center p-1.5">
+                    <QRCode
+                      value={selectedAsset.code}
+                      size={256}
+                      style={{ height: 'auto', width: '100%' }}
+                      viewBox="0 0 256 256"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-4 border-t border-blue-100">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Category
+                  </p>
+                  <p className="text-sm font-semibold text-gray-700 mt-0.5">
+                    {selectedAsset.category}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Brand
+                  </p>
+                  <p className="text-sm font-semibold text-gray-700 mt-0.5">
+                    {selectedAsset.brand}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Model
+                  </p>
+                  <p className="text-sm font-semibold text-gray-700 mt-0.5">
+                    {selectedAsset.model}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Total Stock
+                  </p>
+                  <p className="text-sm font-semibold text-gray-700 mt-0.5">
+                    {selectedAsset.totalQuantity}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    Available
+                  </p>
+                  <p className="text-sm font-bold text-[#084E92] mt-0.5">
+                    {selectedAsset.availableQuantity}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="border-t border-gray-100 pt-6 space-y-4">
             <SubHeading icon={MapPin} title="Deployment Destination" />
 
+            <div>
+              <Label required>Assign To Type</Label>
+              <div className="sm:w-1/2">
+                <Select
+                  value={form.assignType}
+                  onChange={handleAssignTypeChange}
+                  placeholder="Select assignment type"
+                  options={ASSIGN_TYPE_OPTIONS}
+                />
+              </div>
+            </div>
+
             <div
-              className={`grid grid-cols-2 gap-4 w-full ${
-                assignmentType === 'individual'
-                  ? 'sm:grid-cols-4'
-                  : 'sm:grid-cols-3'
+              className={`grid grid-cols-1 gap-4 w-full ${
+                isIndividual ? 'sm:grid-cols-1' : 'sm:grid-cols-3'
               }`}
             >
-              <div className="w-full">
-                <Label required>Assign To</Label>
-                <Select
-                  value={assignmentType}
-                  onChange={(e) => setAssignmentType(e.target.value)}
-                  placeholder="Select assignment type"
-                  options={ASSIGNMENT_TYPE_OPTIONS}
-                />
-              </div>
-              <div className="w-full">
-                <Label>Company</Label>
-                <Select
-                  value={form.company}
-                  onChange={handleCompanyChange}
-                  placeholder="Select company"
-                  options={companyOptions}
-                  loading={loadingOrgs}
-                />
-              </div>
-              <div className="w-full">
-                <Label>Unit / Outlet</Label>
-                <Select
-                  value={form.unit}
-                  onChange={handleUnitChange}
-                  placeholder={
-                    form.company ? 'Select unit' : 'Select company first'
-                  }
-                  options={unitOptions}
-                  disabled={!form.company}
-                />
-              </div>
-              {assignmentType === 'individual' && (
+              {!isIndividual && (
                 <div className="w-full">
-                  <Label required>Assigned To</Label>
+                  <Label required>Company</Label>
                   <Select
-                    value={form.assignedTo}
-                    onChange={(e) => set('assignedTo', e.target.value)}
-                    placeholder="Select employee"
-                    options={employeeOptions}
-                    loading={loadingEmployees}
+                    value={form.company}
+                    onChange={handleCompanyChange}
+                    placeholder="Select company"
+                    options={companyOptions}
                   />
                 </div>
               )}
+
+              {!isIndividual && (
+                <div className="w-full">
+                  <Label>Outlet (optional)</Label>
+                  <Select
+                    value={form.unit}
+                    onChange={handleUnitChange}
+                    placeholder={
+                      form.company ? 'Select outlet' : 'Select company first'
+                    }
+                    options={unitOptions}
+                    disabled={!form.company}
+                  />
+                </div>
+              )}
+
+              <div className="w-full">
+                <Label required={isIndividual}>Assigned To</Label>
+                <Select
+                  value={form.assignedTo}
+                  onChange={(e) => set('assignedTo', e.target.value)}
+                  placeholder="Select employee"
+                  options={employeeOptions}
+                  disabled={!isIndividual && !form.company}
+                />
+              </div>
             </div>
+
+            {!isIndividual && form.unit && (
+              <div className="bg-blue-50/60 border border-blue-100 rounded-xl px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    City
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                    {selectedUnit?.cityName ?? '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                    State
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                    {selectedUnit?.stateName ?? '—'}
+                  </p>
+                </div>
+                <div>
+                  <Label>Floor / Level</Label>
+                  <input
+                    value={form.floorLevel}
+                    onChange={(e) => set('floorLevel', e.target.value)}
+                    className={`${inputCls} bg-white`}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="border-t border-gray-100 pt-6">
@@ -611,7 +723,7 @@ const AddAssignAsset = () => {
                       Available
                     </p>
                     <p className="text-sm font-bold text-[#084E92]">
-                      {availableStock}
+                      {selectedAsset ? availableStock : '—'}
                     </p>
                   </div>
                   <div>
@@ -619,25 +731,34 @@ const AddAssignAsset = () => {
                       Total Stock
                     </p>
                     <p className="text-sm font-bold text-gray-700">
-                      {totalStock}
+                      {selectedAsset ? totalStock : '—'}
                     </p>
                   </div>
                 </div>
               </div>
 
               <input
-                type="number"
+                type="text"
+                inputMode="numeric"
                 min={0}
-                max={availableStock || undefined}
+                max={availableStock}
                 value={form.quantity}
-                onChange={(e) => set('quantity', e.target.value)}
+                onChange={handleQuantityChange}
+                disabled={!selectedAsset || availableStock === 0}
+                placeholder={
+                  !selectedAsset
+                    ? 'Select an asset first'
+                    : availableStock === 0
+                      ? 'No stock available'
+                      : `1 – ${availableStock}`
+                }
                 className={`${inputCls} bg-white sm:w-56`}
               />
 
               <div className="flex justify-end">
                 <span className="flex items-center gap-1 text-xs font-semibold text-green-700">
                   <PackageCheck className="w-3.5 h-3.5" />
-                  Remaining: {remaining}
+                  Remaining: {selectedAsset ? remaining : '—'}
                 </span>
               </div>
             </div>
@@ -648,7 +769,7 @@ const AddAssignAsset = () => {
 
             <div>
               <Label>Assignment Date</Label>
-              <div className="relative sm:w-56">
+              <div className="relative sm:w-1/2">
                 <input
                   type="date"
                   value={form.assignmentDate}
@@ -677,9 +798,9 @@ const AddAssignAsset = () => {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={handleSaveAssignment}
+            onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 hover:bg-[#073e77] transition cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 hover:bg-[#073e77] transition cursor-pointer whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" />
             {saving ? 'Saving...' : 'Save Assignment'}
