@@ -228,7 +228,6 @@ const AddAssignAsset = () => {
     assignedTo: '',
     company: '',
     unit: '',
-    floorLevel: '',
     quantity: '', // string while editing; sanitized on change
     assignmentDate: '',
     remarks: '',
@@ -314,6 +313,60 @@ const AddAssignAsset = () => {
     [assets],
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAssets = async () => {
+      try {
+        setLoadingAssets(true);
+        const res = await getAllAssets();
+        if (!cancelled) setAssets(extractArray(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled)
+          setFetchError((prev) => prev || 'Failed to load assets.');
+      } finally {
+        if (!cancelled) setLoadingAssets(false);
+      }
+    };
+
+    const loadOrganizations = async () => {
+      try {
+        setLoadingOrgs(true);
+        const res = await getActiveCompany();
+        if (!cancelled) setOrganizations(extractArray(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled)
+          setFetchError((prev) => prev || 'Failed to load companies/outlets.');
+      } finally {
+        if (!cancelled) setLoadingOrgs(false);
+      }
+    };
+
+    const loadEmployees = async () => {
+      try {
+        setLoadingEmployees(true);
+        const res = await getAllActiveEmployees();
+        if (!cancelled) setEmployees(extractArray(res));
+      } catch (err) {
+        console.error(err);
+        if (!cancelled)
+          setFetchError((prev) => prev || 'Failed to load employees.');
+      } finally {
+        if (!cancelled) setLoadingEmployees(false);
+      }
+    };
+
+    loadAssets();
+    loadOrganizations();
+    loadEmployees();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const selectedAsset = useMemo(() => {
     if (!form.assetId) return null;
     const raw = (assets ?? []).find(
@@ -342,10 +395,6 @@ const AddAssignAsset = () => {
       )
       .map((o) => ({ value: o.id, label: o.companyNameEnglish }));
   }, [organizations, form.company]);
-
-  const selectedUnit = (organizations ?? []).find(
-    (o) => o.id === Number(form.unit),
-  );
 
   // Employees are scoped by assignType:
   // - individual      -> everyone, no org filter
@@ -680,35 +729,6 @@ const AddAssignAsset = () => {
                 />
               </div>
             </div>
-
-            {!isIndividual && form.unit && (
-              <div className="bg-blue-50/60 border border-blue-100 rounded-xl px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    City
-                  </p>
-                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
-                    {selectedUnit?.cityName ?? '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    State
-                  </p>
-                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
-                    {selectedUnit?.stateName ?? '—'}
-                  </p>
-                </div>
-                <div>
-                  <Label>Floor / Level</Label>
-                  <input
-                    value={form.floorLevel}
-                    onChange={(e) => set('floorLevel', e.target.value)}
-                    className={`${inputCls} bg-white`}
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="border-t border-gray-100 pt-6">
