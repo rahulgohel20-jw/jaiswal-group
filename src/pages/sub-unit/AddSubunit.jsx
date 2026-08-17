@@ -20,6 +20,13 @@ import {
 import { OrgTypes } from "@/constants/orgTypes";
 import { notify } from "@/utils/toast";
 import { useAuth } from '@/auth/context/auth-context';
+import {
+  validateRequired,
+  validateEmail,
+  validateMobile,
+  validatePincode,
+} from '@/utils/validations';
+import SearchableSelect from "../../utils/SearchableSelect";
 
 const inputCls =
   "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
@@ -31,6 +38,8 @@ const Label = ({ children, required }) => (
     {required && <span className="text-red-500 ml-0.5">*</span>}
   </label>
 );
+const ErrorText = ({ error }) =>
+  error ? <p className="text-xs text-red-500 mt-1">{error}</p> : null;
 
 const SectionCard = ({ children, className = "" }) => (
   <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>
@@ -296,6 +305,8 @@ const AddSubUnit = () => {
     setForm((f) => ({ ...f, [key]: val }));
     setErrors((er) => ({ ...er, [key]: undefined }));
   };
+  const setErrorFor = (key, err) =>
+    setErrors((prev) => ({ ...prev, [key]: err || undefined }));
 
   useEffect(() => {
     getOrganizationByType(OrgTypes.OUTLET)
@@ -341,6 +352,9 @@ const AddSubUnit = () => {
     setCities([]);
     setSelectedState("");
     setSelectedCity("");
+    setErrorFor("country", validateRequired(countryId, "Country"));
+    setErrorFor("state", "");
+    setErrorFor("city", "");
 
     try {
       const res = await getStateByCountry(countryId);
@@ -356,6 +370,8 @@ const AddSubUnit = () => {
     setSelectedState(stateId);
     setCities([]);
     setSelectedCity("");
+    setErrorFor("state", validateRequired(stateId, "State"));
+    setErrorFor("city", "");
 
     try {
       const res = await getCityByState(stateId);
@@ -364,6 +380,7 @@ const AddSubUnit = () => {
       console.log("City error", err);
     }
   };
+
 
   // Auto-fill address/location from the selected outlet. Only runs once per
   // outlet selection, and only if the user hasn't started editing location
@@ -378,10 +395,26 @@ const AddSubUnit = () => {
       latitude: f.latitude || selectedOutlet.latitude || "",
       longitude: f.longitude || selectedOutlet.longitude || "",
     }));
+    
+    if (!form.addressLine1 && selectedOutlet.addressEnglish) {
+      setErrorFor("addressLine1", "");
+    }
+    if (!form.pincode && selectedOutlet.pincode) {
+      setErrorFor("pincode", validatePincode(selectedOutlet.pincode));
+    }
 
-    if (selectedOutlet.countryId) setSelectedCountry(String(selectedOutlet.countryId));
-    if (selectedOutlet.stateId) setSelectedState(String(selectedOutlet.stateId));
-    if (selectedOutlet.cityId) setSelectedCity(String(selectedOutlet.cityId));
+   if (selectedOutlet.countryId) {
+      setSelectedCountry(String(selectedOutlet.countryId));
+      setErrorFor("country", "");
+    }
+    if (selectedOutlet.stateId) {
+      setSelectedState(String(selectedOutlet.stateId));
+      setErrorFor("state", "");
+    }
+    if (selectedOutlet.cityId) {
+      setSelectedCity(String(selectedOutlet.cityId));
+      setErrorFor("city", "");
+    }
 
     (async () => {
       try {
@@ -403,19 +436,38 @@ const AddSubUnit = () => {
   const handleOutletChange = (e) => {
     setLocationTouched(false);
     set("outletId", e.target.value);
+    setErrorFor("outletId", validateRequired(e.target.value, "Outlet"));
   };
 
   const requiredFields = ["outletId", "subOutletName", "email", "addressLine1", "pincode"];
 
-  function validate() {
+ function validate() {
     const next = {};
-    requiredFields.forEach((k) => {
-      if (!String(form[k] || "").trim()) next[k] = "Required";
-    });
+
+    const outletErr = validateRequired(form.outletId, "Outlet");
+    if (outletErr) next.outletId = outletErr;
+
+    const nameErr = validateRequired(form.subOutletName, "Sub Outlet Name");
+    if (nameErr) next.subOutletName = nameErr;
+
+    const addressErr = validateRequired(form.addressLine1, "Address Line 1");
+    if (addressErr) next.addressLine1 = addressErr;
+
+    const pincodeErr = validatePincode(form.pincode);
+    if (pincodeErr) next.pincode = pincodeErr;
+
+    const emailErr = validateEmail(form.email);
+    if (emailErr) next.email = emailErr;
+
+    if (form.contactNumber) {
+      const contactErr = validateMobile(form.contactNumber);
+      if (contactErr) next.contactNumber = contactErr;
+    }
+
     if (!selectedCountry) next.country = "Required";
     if (!selectedState) next.state = "Required";
     if (!selectedCity) next.city = "Required";
-    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email)) next.email = "Enter a valid email";
+
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -485,22 +537,16 @@ const AddSubUnit = () => {
             <div className={`grid gap-4 ${isEditMode ? "grid-cols-2" : "grid-cols-1"}`}>
               <div>
                 <Label required>Outlet</Label>
-                <p className={inputCls}>
-                  <select
-                    value={form.outletId}
-                    onChange={handleOutletChange}
-                    disabled={loadingOutlets}
-                    className="w-full outline-none"
-                  >
-                    <option value="">{loadingOutlets ? "Loading outlets..." : "Select Outlet"}</option>
-                    {outlets.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {getOrgLabel(o)}
-                      </option>
-                    ))}
-                  </select>
-                </p>
-                {errors.outletId && <p className="text-xs text-red-500 mt-1">{errors.outletId}</p>}
+                <SearchableSelect
+                  name="outletId"
+                  value={form.outletId}
+                  onChange={(e) => handleOutletChange({ target: { value: e.target.value } })}
+                  options={outlets.map((o) => ({ value: o.id, label: getOrgLabel(o) }))}
+                  placeholder={loadingOutlets ? "Loading outlets..." : "Select Outlet"}
+                  disabled={loadingOutlets}
+                  hasError={!!errors.outletId}
+                />
+                <ErrorText error={errors.outletId} />
                 {selectedOutlet && (
                   <p className="text-xs text-gray-400 mt-1.5">
                     {selectedOutlet.companyCode} · {selectedOutlet.cityName}, {selectedOutlet.stateName}
@@ -536,11 +582,15 @@ const AddSubUnit = () => {
               <Label required>Sub Outlet Name</Label>
               <input
                 value={form.subOutletName}
-                onChange={(e) => set("subOutletName", e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  set("subOutletName", val);
+                  setErrorFor("subOutletName", validateRequired(val, "Sub Outlet Name"));
+                }}
                 placeholder="e.g. Maninagar - Billing Counter"
-                className={inputCls}
+                className={`${inputCls} ${errors.subOutletName ? "border-red-400" : ""}`}
               />
-              {errors.subOutletName && <p className="text-xs text-red-500 mt-1">{errors.subOutletName}</p>}
+               <ErrorText error={errors.subOutletName} />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -557,10 +607,14 @@ const AddSubUnit = () => {
                 <Label>Contact Number</Label>
                 <input
                   value={form.contactNumber}
-                  onChange={(e) => set("contactNumber", e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    set("contactNumber", val);
+                    setErrorFor("contactNumber", val ? validateMobile(val) : "");
+                  }}
                   placeholder="9876543210"
                   maxLength={10}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.contactNumber ? "border-red-400" : ""}`}
                 />
               </div>
               <div>
@@ -568,11 +622,15 @@ const AddSubUnit = () => {
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => set("email", e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set("email", val);
+                    setErrorFor("email", validateEmail(val));
+                  }}
                   placeholder="subunit@example.com"
-                  className={inputCls}
+                   className={`${inputCls} ${errors.email ? "border-red-400" : ""}`}
                 />
-                {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+                <ErrorText error={errors.email} />
               </div>
             </div>
           </div>
@@ -600,11 +658,15 @@ const AddSubUnit = () => {
                 <Label required>Address Line 1</Label>
                 <input
                   value={form.addressLine1}
-                  onChange={(e) => set("addressLine1", e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set("addressLine1", val);
+                    setErrorFor("addressLine1", validateRequired(val, "Address Line 1"));
+                  }}
                   placeholder="Plot No, Street, Landmark"
-                  className={inputCls}
+                   className={`${inputCls} ${errors.addressLine1 ? "border-red-400" : ""}`}
                 />
-                {errors.addressLine1 && <p className="text-xs text-red-500 mt-1">{errors.addressLine1}</p>}
+               <ErrorText error={errors.addressLine1} />
               </div>
               <div>
                 <Label>Address Line 2</Label>
@@ -620,63 +682,60 @@ const AddSubUnit = () => {
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <Label required>Country</Label>
-                <p className={inputCls}>
-                  <select value={selectedCountry} onChange={handleCountryChange} className="w-full outline-none">
-                    <option value="">Select Country</option>
-                    {countries.map((country) => (
-                      <option key={country.id} value={country.id}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
-                {errors.country && <p className="text-xs text-red-500 mt-1">{errors.country}</p>}
+                <SearchableSelect
+                  name="country"
+                  value={selectedCountry}
+                  onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                  options={countries.map((country) => ({ value: country.id, label: country.name }))}
+                  placeholder="Select Country"
+                  hasError={!!errors.country}
+                />
+                <ErrorText error={errors.country} />
               </div>
               <div>
                 <Label required>State</Label>
-                <p className={inputCls}>
-                  <select value={selectedState} onChange={handleStateChange} className="w-full outline-none">
-                    <option value="">Select State</option>
-                    {states.map((state) => (
-                      <option key={state.id} value={state.id}>
-                        {state.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
-                {errors.state && <p className="text-xs text-red-500 mt-1">{errors.state}</p>}
+                <SearchableSelect
+                  name="state"
+                  value={selectedState}
+                  onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
+                  options={states.map((state) => ({ value: state.id, label: state.name }))}
+                  placeholder={selectedCountry ? "Select State" : "Select country first"}
+                  disabled={!selectedCountry}
+                  hasError={!!errors.state}
+                />
+                <ErrorText error={errors.state} />
               </div>
               <div>
                 <Label required>City</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => {
-                      setLocationTouched(true);
-                      setSelectedCity(e.target.value);
-                    }}
-                    className="w-full outline-none"
-                  >
-                    <option value="">Select City</option>
-                    {cities?.map((city) => (
-                      <option key={city.id} value={city.id}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
-                {errors.city && <p className="text-xs text-red-500 mt-1">{errors.city}</p>}
+                <SearchableSelect
+                  name="city"
+                  value={selectedCity}
+                  onChange={(e) => {
+                    setLocationTouched(true);
+                    setSelectedCity(e.target.value);
+                    setErrorFor("city", validateRequired(e.target.value, "City"));
+                  }}
+                  options={cities?.map((city) => ({ value: city.id, label: city.name })) || []}
+                  placeholder={selectedState ? "Select City" : "Select state first"}
+                  disabled={!selectedState}
+                  hasError={!!errors.city}
+                />
+                <ErrorText error={errors.city} />
               </div>
               <div>
                 <Label required>Pincode</Label>
                 <input
                   value={form.pincode}
-                  onChange={(e) => set("pincode", e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    set("pincode", val);
+                    setErrorFor("pincode", validatePincode(val));
+                  }}
                   placeholder="380009"
                   maxLength={6}
-                  className={inputCls}
+                   className={`${inputCls} ${errors.pincode ? "border-red-400" : ""}`}
                 />
-                {errors.pincode && <p className="text-xs text-red-500 mt-1">{errors.pincode}</p>}
+                 <ErrorText error={errors.pincode} />
               </div>
             </div>
 

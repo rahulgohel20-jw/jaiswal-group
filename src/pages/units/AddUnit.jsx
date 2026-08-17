@@ -19,21 +19,14 @@ import {
   getStateByCountry,
   updateCompany,
 } from '../../services/apiServices';
+import {
+  validateRequired,
+  validateEmail,
+  validateMobile,
+  validatePincode,
+} from '@/utils/validations';
+import SearchableSelect from '../../utils/SearchableSelect';
 
-const COMPANIES = [
-  'Jaiswal Group',
-  'Jaiswal Retail Pvt Ltd',
-  'Jaiswal Enterprises',
-  'Jaiswal Foods & Beverages',
-];
-
-const SERVICE_TYPES = [
-  'Retail Store',
-  'Wholesale Depot',
-  'Franchise Unit',
-  'Service Center',
-  'Warehouse',
-];
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -45,6 +38,8 @@ const Label = ({ children, required }) => (
     {required && <span className="text-red-500 ml-0.5">*</span>}
   </label>
 );
+const ErrorText = ({ error }) =>
+  error ? <p className="text-xs text-red-500 mt-1">{error}</p> : null;
 
 const SectionCard = ({ children, className = '' }) => (
   <div
@@ -409,6 +404,9 @@ const AddUnit = () => {
     setCities([]);
     setSelectedState('');
     setSelectedCity('');
+    setErrorFor('country', validateRequired(countryId, 'Country'));
+    setErrorFor('state', '');
+    setErrorFor('city', '');
 
     try {
       const res = await getStateByCountry(countryId);
@@ -423,6 +421,8 @@ const AddUnit = () => {
     setSelectedState(stateId);
     setCities([]);
     setSelectedCity('');
+    setErrorFor('state', validateRequired(stateId, 'State'));
+    setErrorFor('city', '');
 
     try {
       const res = await getCityByState(stateId);
@@ -482,6 +482,20 @@ const AddUnit = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingUnit?.id]);
 
+  const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
+
+  const setErrorFor = (key, err) =>
+    setErrors((prev) => {
+      if (!err) {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: err };
+    });
+
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   // const handleSubmit = async () => {
@@ -520,46 +534,95 @@ const AddUnit = () => {
   //     console.log(error.response?.data || error.message)
   //   }
   // }
-    const handleSubmit = async () => {
-      try {
-        const formData = new FormData();
+  const runValidation = () => {
+    const formErrors = {};
 
-        formData.append('orgType', 'OUTLET');
-        formData.append('parentId', form.company ? Number(form.company) : '');
-        formData.append('username', 1);
-        formData.append('isverified', true);
-        formData.append('companyNameEnglish', form.UnitName);
-        formData.append('shortCode', form.shortCode);
-        formData.append('emailid', form.email);
-        formData.append('mobilenumber', form.mobile);
-        formData.append('alternatemobilenumber', form.altMobile);
-        formData.append('addressEnglish', form.addressLine1);
-        formData.append('addressline2', form.addressLine2);
-        formData.append('countryId', selectedCountry ? Number(selectedCountry) : '');
-        formData.append('stateId', selectedState ? Number(selectedState) : '');
-        formData.append('cityId', selectedCity ? Number(selectedCity) : '');
-        formData.append('pincode', form.pincode);
-        formData.append('latitude', form.latitude);
-        formData.append('longitude', form.longitude);
-        formData.append('capacity', form.capacity);
+    const unitNameErr = validateRequired(form.UnitName, 'Unit Name');
+    if (unitNameErr) formErrors.UnitName = unitNameErr;
 
-        if (form.logo instanceof File) formData.append('logo', form.logo);
-        if (form.favicon instanceof File) formData.append('favicon', form.favicon);
+    const emailErr = validateEmail(form.email);
+    if (emailErr) formErrors.email = emailErr;
 
-        if (isEditMode) {
-          formData.append('id', editingUnit.id);
-          await updateCompany(formData);
-          notify.success('Unit updated successfully');
-        } else {
-          await createCompany(formData);  // single FormData arg, same as sub-company
-          notify.success('Unit Created successfully');
-        }
+    const mobileErr = validateMobile(form.mobile);
+    if (mobileErr) formErrors.mobile = mobileErr;
 
-        navigate('/Units');
-      } catch (error) {
-        console.log(error.response?.data || error.message);
+    if (form.altMobile) {
+      const altMobileErr = validateMobile(form.altMobile);
+      if (altMobileErr) formErrors.altMobile = altMobileErr;
+    }
+
+    const capacityErr = validateRequired(form.capacity, 'Capacity');
+    if (capacityErr) formErrors.capacity = capacityErr;
+
+    const companyErr = validateRequired(form.company, 'Company');
+    if (companyErr) formErrors.company = companyErr;
+
+    const addressLine1Err = validateRequired(form.addressLine1, 'Address Line 1');
+    if (addressLine1Err) formErrors.addressLine1 = addressLine1Err;
+
+    const countryErr = validateRequired(selectedCountry, 'Country');
+    if (countryErr) formErrors.country = countryErr;
+
+    const stateErr = validateRequired(selectedState, 'State');
+    if (stateErr) formErrors.state = stateErr;
+
+    const cityErr = validateRequired(selectedCity, 'City');
+    if (cityErr) formErrors.city = cityErr;
+
+    const pincodeErr = validatePincode(form.pincode);
+    if (pincodeErr) formErrors.pincode = pincodeErr;
+
+    return formErrors;
+  };
+
+  const handleSubmit = async () => {
+    const formErrors = runValidation();
+    if (Object.keys(formErrors).length > 0) {
+      setErrors(formErrors);
+      setSubmitError('Please fix the highlighted errors before saving.');
+      return;
+    }
+    setSubmitError('');
+
+    try {
+      const formData = new FormData();
+
+      formData.append('orgType', 'OUTLET');
+      formData.append('parentId', form.company ? Number(form.company) : '');
+      formData.append('username', 1);
+      formData.append('isverified', true);
+      formData.append('companyNameEnglish', form.UnitName);
+      formData.append('shortCode', form.shortCode);
+      formData.append('emailid', form.email);
+      formData.append('mobilenumber', form.mobile);
+      formData.append('alternatemobilenumber', form.altMobile);
+      formData.append('addressEnglish', form.addressLine1);
+      formData.append('addressline2', form.addressLine2);
+      formData.append('countryId', selectedCountry ? Number(selectedCountry) : '');
+      formData.append('stateId', selectedState ? Number(selectedState) : '');
+      formData.append('cityId', selectedCity ? Number(selectedCity) : '');
+      formData.append('pincode', form.pincode);
+      formData.append('latitude', form.latitude);
+      formData.append('longitude', form.longitude);
+      formData.append('capacity', form.capacity);
+
+      if (form.logo instanceof File) formData.append('logo', form.logo);
+      if (form.favicon instanceof File) formData.append('favicon', form.favicon);
+
+      if (isEditMode) {
+        formData.append('id', editingUnit.id);
+        await updateCompany(formData);
+        notify.success('Unit updated successfully');
+      } else {
+        await createCompany(formData);  // single FormData arg, same as sub-company
+        notify.success('Unit Created successfully');
       }
-    };
+
+      navigate('/Units');
+    } catch (error) {
+      console.log(error.response?.data || error.message);
+    }
+  };
 
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
@@ -592,10 +655,15 @@ const AddUnit = () => {
                 <Label required>Unit Name</Label>
                 <input
                   value={form.UnitName}
-                  onChange={(e) => set('UnitName', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('UnitName', val);
+                    setErrorFor('UnitName', validateRequired(val, 'Unit Name'));
+                  }}
                   placeholder="e.g. Jaiswal Group - Maninagar"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.UnitName ? 'border-red-400' : ''}`}
                 />
+                <ErrorText error={errors.UnitName} />
               </div>
               {isEditMode && (
                 <div>
@@ -640,40 +708,60 @@ const AddUnit = () => {
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => set('email', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('email', val);
+                    setErrorFor('email', validateEmail(val));
+                  }}
                   placeholder="Unit@example.com"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.email ? 'border-red-400' : ''}`}
                 />
+                <ErrorText error={errors.email} />
               </div>
               <div>
                 <Label required>Mobile Number</Label>
                 <input
                   value={form.mobile}
-                  onChange={(e) => set('mobile', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    set('mobile', val);
+                    setErrorFor('mobile', validateMobile(val));
+                  }}
                   placeholder="+91 98675 34210"
                   maxLength={10}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.mobile ? 'border-red-400' : ''}`}
                 />
+                <ErrorText error={errors.mobile} />
               </div>
               <div>
                 <Label>Alternate Mobile Number</Label>
                 <input
                   value={form.altMobile}
-                  onChange={(e) => set('altMobile', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    set('altMobile', val);
+                    setErrorFor('altMobile', val ? validateMobile(val) : '');
+                  }}
                   placeholder="Secondary Mobile"
                   maxLength={10}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.altMobile ? 'border-red-400' : ''}`}
                 />
+                <ErrorText error={errors.altMobile} />
               </div>
               <div>
                 <Label required>Capacity ( Meals Per Day )</Label>
                 <input
                   type="number"
                   value={form.capacity}
-                  onChange={(e) => set('capacity', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('capacity', val);
+                    setErrorFor('capacity', validateRequired(val, 'Capacity'));
+                  }}
                   placeholder="e.g. 200"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.capacity ? 'border-red-400' : ''}`}
                 />
+                <ErrorText error={errors.capacity} />
               </div>
             </div>
           </div>
@@ -691,23 +779,24 @@ const AddUnit = () => {
 
         {openSections.business && (
           <div className="grid grid-cols-2 gap-4 px-6 py-6">
-            <div>
+           <div>
               <Label required>Company</Label>
-              <p className={inputCls}>
-                <select
-                  value={form.company}
-                  onChange={(e) => set('company', e.target.value)}
-                  className="w-full outline-none"
-                >
-                  <option value="">Select Company</option>
-
-                  {companies.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.companyNameEnglish}
-                    </option>
-                  ))}
-                </select>
-              </p>
+              <SearchableSelect
+                name="company"
+                value={form.company}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  set('company', val);
+                  setErrorFor('company', validateRequired(val, 'Company'));
+                }}
+                options={companies.map((company) => ({
+                  value: company.id,
+                  label: company.companyNameEnglish,
+                }))}
+                placeholder="Select Company"
+                hasError={!!errors.company}
+              />
+              <ErrorText error={errors.company} />
             </div>
           </div>
         )}
@@ -724,14 +813,19 @@ const AddUnit = () => {
         {openSections.address && (
           <div className="px-6 py-6 space-y-5">
             <div className="grid grid-cols-2 gap-4">
-              <div>
+             <div>
                 <Label required>Address Line 1</Label>
                 <input
                   value={form.addressLine1}
-                  onChange={(e) => set('addressLine1', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('addressLine1', val);
+                    setErrorFor('addressLine1', validateRequired(val, 'Address Line 1'));
+                  }}
                   placeholder="Plot No, Street, Landmark"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.addressLine1 ? 'border-red-400' : ''}`}
                 />
+                <ErrorText error={errors.addressLine1} />
               </div>
               <div>
                 <Label>Address Line 2</Label>
@@ -745,69 +839,61 @@ const AddUnit = () => {
             </div>
 
             <div className="grid grid-cols-4 gap-4">
-              <div>
+             <div>
                 <Label required>Country</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedCountry}
-                    onChange={handleCountryChange}
-                    className="w-full outline-none"
-                  >
-                    <option value="">Select Country</option>
-
-                    {countries.map((country) => (
-                      <option key={country.id} value={country.id}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="country"
+                  value={selectedCountry}
+                  onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                  options={countries.map((country) => ({ value: country.id, label: country.name }))}
+                  placeholder="Select Country"
+                  hasError={!!errors.country}
+                />
+                <ErrorText error={errors.country} />
               </div>
               <div>
                 <Label required>State</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedState}
-                    onChange={handleStateChange}
-                    className="w-full outline-none"
-                  >
-                    <option value="">Select State</option>
-
-                    {states.map((state) => (
-                      <option key={state.id} value={state.id}>
-                        {state.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="state"
+                  value={selectedState}
+                  onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
+                  options={states.map((state) => ({ value: state.id, label: state.name }))}
+                  placeholder={selectedCountry ? 'Select State' : 'Select country first'}
+                  disabled={!selectedCountry}
+                  hasError={!!errors.state}
+                />
+                <ErrorText error={errors.state} />
               </div>
               <div>
                 <Label required>City</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full outline-none"
-                  >
-                    <option value="">Select City</option>
-
-                    {cities?.map((city) => (
-                      <option key={city.id} value={city.id}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="city"
+                  value={selectedCity}
+                  onChange={(e) => {
+                    setSelectedCity(e.target.value);
+                    setErrorFor('city', validateRequired(e.target.value, 'City'));
+                  }}
+                  options={cities?.map((city) => ({ value: city.id, label: city.name })) || []}
+                  placeholder={selectedState ? 'Select City' : 'Select state first'}
+                  disabled={!selectedState}
+                  hasError={!!errors.city}
+                />
+                <ErrorText error={errors.city} />
               </div>
               <div>
                 <Label required>Pincode</Label>
                 <input
                   value={form.pincode}
-                  onChange={(e) => set('pincode', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    set('pincode', val);
+                    setErrorFor('pincode', validatePincode(val));
+                  }}
                   placeholder="380009"
                   maxLength={6}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.pincode ? 'border-red-400' : ''}`}
                 />
+                <ErrorText error={errors.pincode} />
               </div>
             </div>
 
@@ -845,6 +931,10 @@ const AddUnit = () => {
 
       {/* Footer actions */}
       <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
+        {submitError && (
+          <p className="text-sm text-red-600 mr-auto">{submitError}</p>
+        )}
+
         <button
           type="button"
           onClick={() => navigate('/Units')}

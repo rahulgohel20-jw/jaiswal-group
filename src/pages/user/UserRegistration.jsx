@@ -24,6 +24,7 @@ import {
   updateEmployee,
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '../../utils/auth';
+import SearchableSelect from '../../utils/SearchableSelect';
 import {
   buildEmployeePayload,
   DEFAULT_FORM,
@@ -68,42 +69,6 @@ const Select = ({ value, onChange, placeholder, options, hasError }) => (
       {options.map((opt) => (
         <option key={opt} value={opt} className="text-gray-800">
           {opt}
-        </option>
-      ))}
-    </select>
-    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-  </div>
-);
-
-// {id, name} option select — used for Country / State / City / Group / Sub Company / Unit / Department
-// Pass `optional` for fields that can be cleared back to "none" — this keeps
-// the placeholder option enabled so the user can re-select it to unset the
-// field, instead of being stuck once a value is chosen.
-const IdSelect = ({
-  value,
-  onChange,
-  placeholder,
-  options,
-  hasError,
-  disabled,
-  loading,
-  optional = false,
-}) => (
-  <div className="relative">
-    <select
-      value={value}
-      onChange={onChange}
-      disabled={disabled || loading}
-      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${
-        value === '' ? 'text-gray-400' : 'text-gray-800'
-      } ${disabled || loading ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''}`}
-    >
-      <option value="" disabled={!optional}>
-        {loading ? 'Loading...' : placeholder}
-      </option>
-      {options.map((opt) => (
-        <option key={opt.id} value={opt.id} className="text-gray-800">
-          {opt.name}
         </option>
       ))}
     </select>
@@ -922,7 +887,7 @@ const UserRegistration = () => {
                   )}
 
                   <div>
-                    <Label>Username</Label>
+                    <Label required>Username</Label>
                     <input
                       name="username"
                       value={form.username}
@@ -993,33 +958,34 @@ const UserRegistration = () => {
                 <div className={`grid grid-cols-3 gap-4`}>
                   <div>
                     <Label required>Group</Label>
-                    <IdSelect
+                    <SearchableSelect
                       name="groupId"
                       value={form.groupId}
-                      onChange={handleGroupChange}
-                      placeholder="Select Group"
-                      options={groups}
+                      onChange={(e) => handleGroupChange({ target: { value: e.target.value } })}
+                      placeholder={loadingGroups ? 'Loading...' : 'Select Group'}
+                      options={groups.map((g) => ({ value: g.id, label: g.name }))}
                       hasError={!!errors.groupId}
-                      loading={loadingGroups}
+                      disabled={loadingGroups}
                     />
                     <ErrorText message={errors.groupId} />
                   </div>
 
                   <div>
                     <Label>Sub Company</Label>
-                    <IdSelect
+                    <SearchableSelect
+                      name="companyId"
                       value={form.companyId}
-                      onChange={handleCompanyChange}
+                      onChange={(e) => handleCompanyChange({ target: { value: e.target.value } })}
                       placeholder={
-                        form.groupId
+                        loadingOrgs
+                          ? 'Loading...'
+                          : form.groupId
                           ? 'Select Sub Company (optional)'
                           : 'Select group first'
                       }
-                      options={subCompanies}
+                      options={subCompanies.map((c) => ({ value: c.id, label: c.name }))}
                       hasError={!!errors.companyId}
-                      disabled={!form.groupId}
-                      loading={loadingOrgs}
-                      optional
+                      disabled={!form.groupId || loadingOrgs}
                     />
                     <ErrorText message={errors.companyId} />
                     <p className="text-[11px] text-gray-400 mt-1">
@@ -1029,19 +995,20 @@ const UserRegistration = () => {
 
                   <div>
                     <Label>Unit</Label>
-                    <IdSelect
+                    <SearchableSelect
+                      name="outletId"
                       value={form.outletId}
-                      onChange={handleUnitChange}
+                      onChange={(e) => handleUnitChange({ target: { value: e.target.value } })}
                       placeholder={
-                        form.companyId
+                        loadingOrgs
+                          ? 'Loading...'
+                          : form.companyId
                           ? 'Select Unit (optional)'
                           : 'Select sub company first'
                       }
-                      options={outlets}
+                      options={outlets.map((u) => ({ value: u.id, label: u.name }))}
                       hasError={!!errors.outletId}
-                      disabled={!form.companyId}
-                      loading={loadingOrgs}
-                      optional
+                      disabled={!form.companyId || loadingOrgs}
                     />
                     <ErrorText message={errors.outletId} />
                     <p className="text-[11px] text-gray-400 mt-1">
@@ -1085,14 +1052,14 @@ const UserRegistration = () => {
 
                   <div>
                     <Label required>Department</Label>
-                    <IdSelect
+                    <SearchableSelect
+                      name="departmentId"
                       value={form.departmentId}
                       onChange={(e) => set('departmentId', e.target.value)}
-                      placeholder="Select Department"
-                      options={departments}
+                      placeholder={loadingDepartments ? 'Loading...' : 'Select Department'}
+                      options={departments.map((d) => ({ value: d.id, label: d.name }))}
                       hasError={!!errors.departmentId}
-                      disabled={false}
-                      loading={loadingDepartments}
+                      disabled={loadingDepartments}
                     />
                     <ErrorText message={errors.departmentId} />
                   </div>
@@ -1149,43 +1116,52 @@ const UserRegistration = () => {
                 <div className="grid grid-cols-4 gap-4">
                   <div>
                     <Label required>Country</Label>
-                    <IdSelect
+                    <SearchableSelect
+                      name="countryId"
                       value={form.countryId}
-                      onChange={handleCountryChange}
-                      placeholder="Select Country"
-                      options={countries}
+                      onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                      placeholder={loadingCountries ? 'Loading...' : 'Select Country'}
+                      options={countries.map((c) => ({ value: c.id, label: c.name }))}
                       hasError={!!errors.countryId}
-                      loading={loadingCountries}
+                      disabled={loadingCountries}
                     />
                     <ErrorText message={errors.countryId} />
                   </div>
                   <div>
                     <Label required>State</Label>
-                    <IdSelect
+                    <SearchableSelect
+                      name="stateId"
                       value={form.stateId}
-                      onChange={handleStateChange}
+                      onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
                       placeholder={
-                        form.countryId ? 'Select State' : 'Select country first'
+                        loadingStates
+                          ? 'Loading...'
+                          : form.countryId
+                          ? 'Select State'
+                          : 'Select country first'
                       }
-                      options={states}
+                      options={states.map((s) => ({ value: s.id, label: s.name }))}
                       hasError={!!errors.stateId}
-                      loading={loadingStates}
-                      disabled={!form.countryId}
+                      disabled={!form.countryId || loadingStates}
                     />
                     <ErrorText message={errors.stateId} />
                   </div>
                   <div>
                     <Label required>City</Label>
-                    <IdSelect
+                    <SearchableSelect
+                      name="cityId"
                       value={form.cityId}
-                      onChange={handleCityChange}
+                      onChange={(e) => handleCityChange({ target: { value: e.target.value } })}
                       placeholder={
-                        form.stateId ? 'Select City' : 'Select state first'
+                        loadingCities
+                          ? 'Loading...'
+                          : form.stateId
+                          ? 'Select City'
+                          : 'Select state first'
                       }
-                      options={cities}
+                      options={cities.map((c) => ({ value: c.id, label: c.name }))}
                       hasError={!!errors.cityId}
-                      loading={loadingCities}
-                      disabled={!form.stateId}
+                      disabled={!form.stateId || loadingCities}
                     />
                     <ErrorText message={errors.cityId} />
                   </div>

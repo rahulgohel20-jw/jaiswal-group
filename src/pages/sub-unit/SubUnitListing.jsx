@@ -28,6 +28,7 @@ import {
   deleteSubOutletById,
 } from "../../services/apiServices";
 import { notify } from "@/utils/toast";
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 const STATUS_STYLES = {
   active: "bg-emerald-50 text-emerald-700 ring-emerald-200",
@@ -44,48 +45,14 @@ const StatusBadge = ({ status }) => (
     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}
   >
     <span
-      className={`w-1.5 h-1.5 rounded-full ${
-        status === "active" ? "bg-emerald-500" : "bg-gray-400"
-      }`}
+      className={`w-1.5 h-1.5 rounded-full ${status === "active" ? "bg-emerald-500" : "bg-gray-400"
+        }`}
     />
     {STATUS_LABELS[status]}
   </span>
 );
 
-const DeleteConfirmModal = ({ subUnit, onCancel, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-      <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
-        <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
-          <AlertTriangle className="w-5 h-5" />
-        </div>
-        <h2 className="text-base font-bold text-gray-900">Delete sub unit?</h2>
-        <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{" "}
-          <span className="font-semibold text-gray-700">{subUnit.name}</span> from your
-          sub unit list. This action cannot be undone.
-        </p>
-      </div>
-      <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold border-0 cursor-pointer transition"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-);
+
 
 const SubUnitListing = () => {
   const navigate = useNavigate();
@@ -93,9 +60,12 @@ const SubUnitListing = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [deletingSubUnit, setDeletingSubUnit] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const normalizeSubUnit = (item) => ({
     id: item.id,
@@ -164,22 +134,33 @@ const SubUnitListing = () => {
     [subUnits, search, statusFilter],
   );
 
-  const handleDelete = (subUnit) => {
-    setDeletingSubUnit(subUnit);
+  const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, name: row.name });
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteLoading) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
   };
 
   const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteSubOutletById(deletingSubUnit.id);
-      notify.success("Sub unit deleted successfully");
-
+      setDeleteLoading(true);
+      await deleteSubOutletById(deleteTarget.id);
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
       await fetchSubUnits();
-
-      setDeletingSubUnit(null);
     } catch (err) {
       console.error(err);
+    } finally {
+      setDeleteLoading(false);
     }
   };
+
+
 
   const handleEdit = async (subUnit) => {
     try {
@@ -256,7 +237,7 @@ const SubUnitListing = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleDelete(row.original)}
+              onClick={() => openDeleteConfirm(row.original)}
               className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete sub unit"
             >
@@ -349,11 +330,10 @@ const SubUnitListing = () => {
                   key={tab.key}
                   type="button"
                   onClick={() => setStatusFilter(tab.key)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border-0 ${
-                    statusFilter === tab.key
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border-0 ${statusFilter === tab.key
                       ? "bg-white text-gray-800 shadow-sm"
                       : "bg-transparent text-gray-400 hover:text-gray-600"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -376,13 +356,13 @@ const SubUnitListing = () => {
         </DataGrid>
       </div>
 
-      {deletingSubUnit && (
-        <DeleteConfirmModal
-          subUnit={deletingSubUnit}
-          onCancel={() => setDeletingSubUnit(null)}
-          onConfirm={confirmDelete}
-        />
-      )}
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+        itemLabel={deleteTarget?.name}
+        saving={deleteLoading}
+      />
     </Container>
   );
 };

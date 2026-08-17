@@ -30,6 +30,7 @@ import {
   getOrganizationByType,
   getRegisteredCompany,
 } from '../../services/apiServices';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 const STATUS_STYLES = {
   active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -64,43 +65,6 @@ const StatusBadge = ({ status }) => (
   </span>
 );
 
-const DeleteConfirmModal = ({ company, onCancel, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div
-      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-      onClick={onCancel}
-    />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-      <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
-        <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
-          <AlertTriangle className="w-5 h-5" />
-        </div>
-        <h2 className="text-base font-bold text-gray-900">Delete company?</h2>
-        <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{' '}
-          <span className="font-semibold text-gray-700">{company.name}</span>{' '}
-          from your company list. This action cannot be undone.
-        </p>
-      </div>
-      <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold border-0 cursor-pointer transition"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
-);
 
 const CompanyRegistration = () => {
   const navigate = useNavigate();
@@ -111,6 +75,10 @@ const CompanyRegistration = () => {
   const [deletingCompany, setDeletingCompany] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const normalizeCompany = (item) => ({
     id: item.id,
@@ -173,20 +141,29 @@ const CompanyRegistration = () => {
       }),
     [companies, search, statusFilter],
   );
-
-  const handleDelete = (company) => {
-    setDeletingCompany(company);
+  const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, name: row.name });
+    setShowDeleteConfirm(true);
   };
+
+  const closeDeleteConfirm = () => {
+    if (deleteLoading) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
   const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteCompany(deletingCompany.id);
-      notify.success('Company Deleted successfully');
-
-      await fetchCompanies();
-
-      setDeletingCompany(null);
+      setDeleteLoading(true);
+      await deleteCompany(deleteTarget.id);
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
+      fetchCompanies();
     } catch (err) {
       console.error(err);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -296,7 +273,7 @@ const CompanyRegistration = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleDelete(row.original)}
+              onClick={() => openDeleteConfirm(row.original)}
               className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete company"
             >
@@ -416,13 +393,13 @@ const CompanyRegistration = () => {
         </DataGrid>
       </div>
 
-      {deletingCompany && (
-        <DeleteConfirmModal
-          company={deletingCompany}
-          onCancel={() => setDeletingCompany(null)}
+       <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={closeDeleteConfirm}
           onConfirm={confirmDelete}
+          itemLabel={deleteTarget?.name}
+          saving={deleteLoading}
         />
-      )}
     </Container>
   );
 };
