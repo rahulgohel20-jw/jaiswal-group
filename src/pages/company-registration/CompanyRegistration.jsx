@@ -19,10 +19,25 @@ import {
   getStateByCountry,
   updateCompany,
 } from '../../services/apiServices';
+import {
+  validateRequired,
+  validateEmail,
+  validateMobile,
+  validatePincode,
+  validateGSTIN,
+  validateAccountHolderName,
+  validateBankName,
+  validateAccountNumber,
+  validateIFSC,
+  validateIFSCBankMatch,
+  lookupIFSC,
+} from '@/utils/validations';
+import SearchableSelect from '../../utils/SearchableSelect';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
+  'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed';
+const errorInputCls = 'border-red-300 focus:border-red-400 focus:ring-red-200';
 
 const Label = ({ children, required }) => (
   <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -30,6 +45,10 @@ const Label = ({ children, required }) => (
     {required && <span className="text-red-500 ml-0.5">*</span>}
   </label>
 );
+
+// Red error message rendered directly under an input. Renders nothing when empty.
+const ErrorText = ({ error }) =>
+  error ? <p className="text-xs text-red-500 mt-1">{error}</p> : null;
 
 const SectionCard = ({ children, className = '' }) => (
   <div
@@ -39,7 +58,7 @@ const SectionCard = ({ children, className = '' }) => (
   </div>
 );
 
-const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
+const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle, hasError }) => (
   <div
     className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 cursor-pointer select-none"
     onClick={onToggle}
@@ -48,7 +67,14 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
       <Icon className="w-4 h-4" />
     </div>
     <div className="flex-1">
-      <h2 className="text-sm font-bold text-gray-800 leading-none">{title}</h2>
+      <h2 className="text-sm font-bold text-gray-800 leading-none flex items-center gap-2">
+        {title}
+        {hasError && (
+          <span className="text-[10px] font-semibold text-red-500 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+            Fix errors
+          </span>
+        )}
+      </h2>
       {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
     </div>
     <button
@@ -351,6 +377,42 @@ const mapCompanyToForm = (company) => ({
   logo: company.companyLogo,
   favicon: company.favicon,
 });
+
+// PAN isn't validated anywhere else in the app yet, so it lives here for now —
+// move this into `@/utils/validations` alongside the others if another form
+// ends up needing it too.
+const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+const validatePAN = (value) => {
+  if (!value || !value.trim()) return 'PAN Number is required';
+  if (!PAN_REGEX.test(value.trim())) return 'Enter a valid PAN (e.g. ABCDE1234F)';
+  return '';
+};
+
+// GST is optional on this form — only validate format once the user has
+// actually typed something.
+const validateGSTNumberOptional = (value) => {
+  if (!value || !value.trim()) return '';
+  return validateGSTIN(value);
+};
+
+// Alternate mobile is optional — only validate format once filled in.
+const validateAltMobileOptional = (value) => {
+  if (!value || !value.trim()) return '';
+  return validateMobile(value);
+};
+const UPI_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+const validateUPIOptional = (value) => {
+  if (!value || !value.trim()) return '';
+  if (!UPI_REGEX.test(value.trim())) return 'Enter a valid UPI ID (e.g. name@okhdfcbank)';
+  return '';
+};
+
+const SECTIONS = {
+  COMPANY: 'company',
+  ADDRESS: 'address',
+  BANK: 'bank',
+};
+
 const CompanyRegistration = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -361,6 +423,24 @@ const CompanyRegistration = () => {
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedState, setSelectedState] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
+
+  // Top-level field errors, keyed by form field name (or 'country' / 'state' /
+  // 'city' for the location selects).
+  const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState('');
+
+  // Sets or clears a single error. Pass an empty/falsy `err` to clear. Used
+  // for live validation as the user types or selects.
+  const setErrorFor = (key, err) =>
+    setErrors((prev) => {
+      if (!err) {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      return { ...prev, [key]: err };
+    });
 
   useEffect(() => {
     const fetchCountries = async () => {
@@ -377,12 +457,14 @@ const CompanyRegistration = () => {
 
   const handleCountryChange = async (e) => {
     const countryId = e.target.value;
-
     setSelectedCountry(countryId);
     setStates([]);
     setCities([]);
     setSelectedState('');
     setSelectedCity('');
+    setErrorFor('country', validateRequired(countryId, 'Country'));
+    setErrorFor('state', '');
+    setErrorFor('city', '');
 
     try {
       const res = await getStateByCountry(countryId);
@@ -397,6 +479,8 @@ const CompanyRegistration = () => {
     setSelectedState(stateId);
     setCities([]);
     setSelectedCity('');
+    setErrorFor('state', validateRequired(stateId, 'State'));
+    setErrorFor('city', '');
 
     try {
       const res = await getCityByState(stateId);
@@ -409,6 +493,13 @@ const CompanyRegistration = () => {
       console.log('City error', error);
     }
   };
+
+  const handleCityChange = (e) => {
+    const cityId = e.target.value;
+    setSelectedCity(cityId);
+    setErrorFor('city', validateRequired(cityId, 'City'));
+  };
+
   // Edit mode is detected purely from router state: the list page's edit
   // button navigates here with `{ state: { company } }`. No company in
   // state means this is a fresh "Register New Company" visit.
@@ -421,6 +512,8 @@ const CompanyRegistration = () => {
     setSelectedCountry(editingCompany.countryId?.toString() || '');
     setSelectedState(editingCompany.stateId?.toString() || '');
     setSelectedCity(editingCompany.cityId?.toString() || '');
+    setErrors({});
+    setSubmitError('');
   }, [editingCompany]);
 
   useEffect(() => {
@@ -467,7 +560,127 @@ const CompanyRegistration = () => {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
+  // Runs the offline IFSC ↔ bank name prefix check and sets/clears the
+  // "ifsc" error. Synchronous — no network call.
+  const [ifscLoading, setIfscLoading] = useState(false);
+
+  const handleIfscBlur = async (ifscValue) => {
+    const formatErr = validateIFSC(ifscValue);
+    setErrorFor('ifsc', formatErr);
+    if (formatErr) {
+      set('bankName', '');
+      set('branchName', '');
+      return;
+    }
+
+    setIfscLoading(true);
+    try {
+      const result = await lookupIFSC(ifscValue);
+      if (!result) {
+        setErrorFor('ifsc', 'This IFSC code was not found. Please check and re-enter.');
+        set('bankName', '');
+        set('branchName', '');
+        return;
+      }
+      setErrorFor('ifsc', '');
+      setErrorFor('bankName', '');
+      setErrorFor('branchName', '');
+      set('bankName', result.bank);
+      set('branchName', result.branch);
+    } finally {
+      setIfscLoading(false);
+    }
+  };
+
+  const runValidation = () => {
+    const formErrors = {};
+
+    const companyNameErr = validateRequired(form.companyName, 'Company Name');
+    if (companyNameErr) formErrors.companyName = companyNameErr;
+
+    const gstErr = validateGSTNumberOptional(form.gstNumber);
+    if (gstErr) formErrors.gstNumber = gstErr;
+
+    const panErr = validatePAN(form.panNumber);
+    if (panErr) formErrors.panNumber = panErr;
+
+    const mobileErr = validateMobile(form.mobile);
+    if (mobileErr) formErrors.mobile = mobileErr;
+
+    const altMobileErr = validateAltMobileOptional(form.altMobile);
+    if (altMobileErr) formErrors.altMobile = altMobileErr;
+
+    const emailErr = validateEmail(form.email);
+    if (emailErr) formErrors.email = emailErr;
+
+    const addressLine1Err = validateRequired(form.addressLine1, 'Address Line 1');
+    if (addressLine1Err) formErrors.addressLine1 = addressLine1Err;
+
+    const countryErr = validateRequired(selectedCountry, 'Country');
+    if (countryErr) formErrors.country = countryErr;
+
+    const stateErr = validateRequired(selectedState, 'State');
+    if (stateErr) formErrors.state = stateErr;
+
+    const cityErr = validateRequired(selectedCity, 'City');
+    if (cityErr) formErrors.city = cityErr;
+
+    const pincodeErr = validatePincode(form.pincode);
+    if (pincodeErr) formErrors.pincode = pincodeErr;
+
+    const accountHolderErr = validateAccountHolderName(form.accountHolder);
+    if (accountHolderErr) formErrors.accountHolder = accountHolderErr;
+
+    const accountNumberErr = validateAccountNumber(form.accountNumber);
+    if (accountNumberErr) formErrors.accountNumber = accountNumberErr;
+
+    const bankNameErr = validateBankName(form.bankName);
+    if (bankNameErr) formErrors.bankName = bankNameErr;
+
+    const branchNameErr = validateRequired(form.branchName, 'Branch Name');
+    if (branchNameErr) formErrors.branchName = branchNameErr;
+
+    const ifscFormatErr = validateIFSC(form.ifsc);
+    if (ifscFormatErr) formErrors.ifsc = ifscFormatErr;
+
+    const upiErr = validateUPIOptional(form.upiId);
+    if (upiErr) formErrors.upiId = upiErr;
+
+    return formErrors;
+  };
+
+  const sectionForKey = (key) => {
+    if (['addressLine1', 'country', 'state', 'city', 'pincode'].includes(key))
+      return SECTIONS.ADDRESS;
+    if (
+      ['accountHolder', 'accountNumber', 'bankName', 'branchName', 'ifsc'].includes(
+        key,
+      )
+    )
+      return SECTIONS.BANK;
+    return SECTIONS.COMPANY;
+  };
+
+  const applyValidationResult = (formErrors) => {
+    setErrors(formErrors);
+    const hasErrors = Object.keys(formErrors).length > 0;
+
+    if (hasErrors) {
+      setSubmitError('Please fix the highlighted errors before saving.');
+      const firstKey = Object.keys(formErrors)[0];
+      const section = sectionForKey(firstKey);
+      setOpenSections((prev) => ({ ...prev, [section]: true }));
+    } else {
+      setSubmitError('');
+    }
+
+    return hasErrors;
+  };
+
   const handleSubmit = async () => {
+    const formErrors = runValidation();
+    if (applyValidationResult(formErrors)) return;
+
     try {
       const payload = {
         orgType: 'SUB_COMPANY',
@@ -523,7 +736,7 @@ const CompanyRegistration = () => {
       } else {
         const formData = new FormData();
 
-      Object.entries(payload).forEach(([key, value]) => {
+        Object.entries(payload).forEach(([key, value]) => {
           formData.append(key, value ?? '');
         });
 
@@ -543,8 +756,37 @@ const CompanyRegistration = () => {
       navigate('/companies');
     } catch (error) {
       console.log('Company save error:', error.response?.data || error.message);
+      setSubmitError(
+        error?.response?.data?.message ||
+        `Failed to ${isEditMode ? 'update' : 'save'} company. Please try again.`,
+      );
     }
   };
+
+  const companySectionHasError = [
+    'companyName',
+    'gstNumber',
+    'panNumber',
+    'mobile',
+    'altMobile',
+    'email',
+  ].some((k) => errors[k]);
+  const addressSectionHasError = [
+    'addressLine1',
+    'country',
+    'state',
+    'city',
+    'pincode',
+  ].some((k) => errors[k]);
+  const bankSectionHasError = [
+    'accountHolder',
+    'accountNumber',
+    'bankName',
+    'branchName',
+    'ifsc',
+    'upiId',
+  ].some((k) => errors[k]);
+
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
       <div className="flex flex-col gap-1">
@@ -564,6 +806,7 @@ const CompanyRegistration = () => {
           title="Company Information"
           open={openSections.company}
           onToggle={() => toggleSection('company')}
+          hasError={companySectionHasError}
         />
 
         {openSections.company && (
@@ -572,10 +815,15 @@ const CompanyRegistration = () => {
               <Label required>Company Name</Label>
               <input
                 value={form.companyName}
-                onChange={(e) => set('companyName', e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  set('companyName', val);
+                  setErrorFor('companyName', validateRequired(val, 'Company Name'));
+                }}
                 placeholder="e.g. Jaiswal Group"
-                className={inputCls}
+                className={`${inputCls} ${errors.companyName ? errorInputCls : ''}`}
               />
+              <ErrorText error={errors.companyName} />
             </div>
 
             <div
@@ -605,10 +853,15 @@ const CompanyRegistration = () => {
                 <Label>GST Number</Label>
                 <input
                   value={form.gstNumber}
-                  onChange={(e) => set('gstNumber', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    set('gstNumber', val);
+                    setErrorFor('gstNumber', validateGSTNumberOptional(val));
+                  }}
                   placeholder="Enter GST Number"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.gstNumber ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.gstNumber} />
               </div>
             </div>
 
@@ -617,33 +870,46 @@ const CompanyRegistration = () => {
                 <Label required>PAN Number</Label>
                 <input
                   value={form.panNumber}
-                  onChange={(e) =>
-                    set('panNumber', e.target.value.toUpperCase())
-                  }
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    set('panNumber', val);
+                    setErrorFor('panNumber', validatePAN(val));
+                  }}
                   placeholder="ABCDE1234F"
                   maxLength={10}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.panNumber ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.panNumber} />
               </div>
               <div>
                 <Label required>Mobile Number</Label>
                 <input
                   value={form.mobile}
-                  onChange={(e) => set('mobile', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    set('mobile', val);
+                    setErrorFor('mobile', validateMobile(val));
+                  }}
                   placeholder="+91 98675 34210"
                   maxLength={10}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.mobile ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.mobile} />
               </div>
               <div>
                 <Label>Alternate Mobile Number</Label>
                 <input
                   value={form.altMobile}
-                  onChange={(e) => set('altMobile', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    set('altMobile', val);
+                    setErrorFor('altMobile', validateAltMobileOptional(val));
+                  }}
                   placeholder="Secondary Mobile"
                   maxLength={10}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.altMobile ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.altMobile} />
               </div>
             </div>
 
@@ -653,10 +919,15 @@ const CompanyRegistration = () => {
                 <input
                   type="email"
                   value={form.email}
-                  onChange={(e) => set('email', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('email', val);
+                    setErrorFor('email', validateEmail(val));
+                  }}
                   placeholder="company@example.com"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.email ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.email} />
               </div>
               <ImageUploadBox
                 label="Company Logo"
@@ -681,6 +952,7 @@ const CompanyRegistration = () => {
           title="Address Information"
           open={openSections.address}
           onToggle={() => toggleSection('address')}
+          hasError={addressSectionHasError}
         />
         {openSections.address && (
           <div className="px-6 py-6 space-y-5">
@@ -689,10 +961,18 @@ const CompanyRegistration = () => {
                 <Label required>Address Line 1</Label>
                 <input
                   value={form.addressLine1}
-                  onChange={(e) => set('addressLine1', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('addressLine1', val);
+                    setErrorFor(
+                      'addressLine1',
+                      validateRequired(val, 'Address Line 1'),
+                    );
+                  }}
                   placeholder="Plot No, Street, Landmark"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.addressLine1 ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.addressLine1} />
               </div>
               <div>
                 <Label>Address Line 2</Label>
@@ -708,67 +988,56 @@ const CompanyRegistration = () => {
             <div className="grid grid-cols-4 gap-4">
               <div>
                 <Label required>Country</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedCountry}
-                    onChange={handleCountryChange}
-                    className="w-full outline-none"
-                  >
-                    <option value="">Select Country</option>
-
-                    {countries.map((country) => (
-                      <option key={country.id} value={country.id}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="country"
+                  value={selectedCountry}
+                  onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                  options={countries.map((country) => ({ value: country.id, label: country.name }))}
+                  placeholder="Select Country"
+                  error={!!errors.country}
+                />
+                <ErrorText error={errors.country} />
               </div>
               <div>
                 <Label required>State</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedState}
-                    onChange={handleStateChange}
-                    className="w-full outline-none"
-                  >
-                    <option value="">Select State</option>
-
-                    {states.map((state) => (
-                      <option key={state.id} value={state.id}>
-                        {state.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="state"
+                  value={selectedState}
+                  onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
+                  options={states.map((state) => ({ value: state.id, label: state.name }))}
+                  placeholder={selectedCountry ? 'Select State' : 'Select country first'}
+                  disabled={!selectedCountry}
+                  error={!!errors.state}
+                />
+                <ErrorText error={errors.state} />
               </div>
               <div>
                 <Label required>City</Label>
-                <p className={inputCls}>
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full outline-none"
-                  >
-                    <option value="">Select City</option>
-
-                    {cities?.map((city) => (
-                      <option key={city.id} value={city.id}>
-                        {city.name}
-                      </option>
-                    ))}
-                  </select>
-                </p>
+                <SearchableSelect
+                  name="city"
+                  value={selectedCity}
+                  onChange={(e) => handleCityChange({ target: { value: e.target.value } })}
+                  options={cities?.map((city) => ({ value: city.id, label: city.name })) || []}
+                  placeholder={selectedState ? 'Select City' : 'Select state first'}
+                  disabled={!selectedState}
+                  error={!!errors.city}
+                />
+                <ErrorText error={errors.city} />
               </div>
               <div>
                 <Label required>Pincode</Label>
                 <input
                   value={form.pincode}
-                  onChange={(e) => set('pincode', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    set('pincode', val);
+                    setErrorFor('pincode', validatePincode(val));
+                  }}
                   placeholder="380009"
                   maxLength={6}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.pincode ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.pincode} />
               </div>
             </div>
 
@@ -810,6 +1079,7 @@ const CompanyRegistration = () => {
           title="Bank Details"
           open={openSections.bank}
           onToggle={() => toggleSection('bank')}
+          hasError={bankSectionHasError}
         />
         {openSections.bank && (
           <div className="px-6 py-6 space-y-5">
@@ -818,28 +1088,39 @@ const CompanyRegistration = () => {
                 <Label required>Account Holder Name</Label>
                 <input
                   value={form.accountHolder}
-                  onChange={(e) => set('accountHolder', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('accountHolder', val);
+                    setErrorFor('accountHolder', validateAccountHolderName(val));
+                  }}
                   placeholder="As per bank records"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.accountHolder ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.accountHolder} />
               </div>
               <div>
                 <Label required>Account Number</Label>
                 <input
                   value={form.accountNumber}
-                  onChange={(e) => set('accountNumber', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    set('accountNumber', val);
+                    setErrorFor('accountNumber', validateAccountNumber(val));
+                  }}
                   placeholder="Enter account number"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.accountNumber ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.accountNumber} />
               </div>
               <div>
                 <Label required>Bank Name</Label>
                 <input
                   value={form.bankName}
-                  onChange={(e) => set('bankName', e.target.value)}
-                  placeholder="e.g. HDFC Bank"
-                  className={inputCls}
+                  disabled
+                  placeholder={ifscLoading ? 'Looking up bank…' : 'Auto-filled from IFSC'}
+                  className={`${inputCls} ${errors.bankName ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.bankName} />
               </div>
             </div>
 
@@ -848,29 +1129,45 @@ const CompanyRegistration = () => {
                 <Label required>Branch Name</Label>
                 <input
                   value={form.branchName}
-                  onChange={(e) => set('branchName', e.target.value)}
-                  placeholder="Branch location"
-                  className={inputCls}
+                  disabled
+                  placeholder={ifscLoading ? 'Looking up branch…' : 'Auto-filled from IFSC'}
+                  className={`${inputCls} ${errors.branchName ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.branchName} />
               </div>
               <div>
                 <Label required>IFSC Code</Label>
                 <input
                   value={form.ifsc}
-                  onChange={(e) => set('ifsc', e.target.value.toUpperCase())}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    set('ifsc', val);
+                    setErrorFor('ifsc', validateIFSC(val));
+                  }}
+                  onBlur={(e) => handleIfscBlur(e.target.value)}
+                  disabled={ifscLoading}
                   placeholder="e.g. HDFC0001234"
                   maxLength={11}
-                  className={inputCls}
+                  className={`${inputCls} ${errors.ifsc ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.ifsc} />
+                {ifscLoading && (
+                  <p className="text-xs text-gray-400 mt-1">Verifying IFSC…</p>
+                )}
               </div>
               <div>
                 <Label>UPI ID</Label>
                 <input
                   value={form.upiId}
-                  onChange={(e) => set('upiId', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('upiId', val);
+                    setErrorFor('upiId', validateUPIOptional(val));
+                  }}
                   placeholder="name@bank"
-                  className={inputCls}
+                  className={`${inputCls} ${errors.upiId ? errorInputCls : ''}`}
                 />
+                <ErrorText error={errors.upiId} />
               </div>
             </div>
           </div>
@@ -879,6 +1176,9 @@ const CompanyRegistration = () => {
 
       {/* Footer actions */}
       <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
+        {submitError && (
+          <p className="text-sm text-red-600 mr-auto">{submitError}</p>
+        )}
         <button
           type="button"
           onClick={() => navigate(-1)}

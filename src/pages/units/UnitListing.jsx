@@ -34,6 +34,7 @@ import {
   getOrganizationByType,
   getRegisteredCompany,
 } from '../../services/apiServices';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 const STATUS_STYLES = {
   active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -62,44 +63,6 @@ const StatusBadge = ({ status }) => (
     />
     {STATUS_LABELS[status]}
   </span>
-);
-
-const DeleteConfirmModal = ({ Unit, onCancel, onConfirm }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center">
-    <div
-      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-      onClick={onCancel}
-    />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden">
-      <div className="px-6 pt-6 pb-2 flex flex-col items-center text-center">
-        <div className="w-11 h-11 rounded-full bg-red-50 flex items-center justify-center text-red-500 mb-3">
-          <AlertTriangle className="w-5 h-5" />
-        </div>
-        <h2 className="text-base font-bold text-gray-900">Delete Unit?</h2>
-        <p className="text-sm text-gray-500 mt-1.5">
-          This will permanently remove{' '}
-          <span className="font-semibold text-gray-700">{Unit.name}</span> from
-          your Unit list. This action cannot be undone.
-        </p>
-      </div>
-      <div className="flex items-center justify-end gap-3 px-6 py-5 mt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={onConfirm}
-          className="px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold border-0 cursor-pointer transition"
-        >
-          Delete
-        </button>
-      </div>
-    </div>
-  </div>
 );
 
 // Generic dropdown used for the filters and export menus
@@ -171,7 +134,10 @@ const UnitListing = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [deletingUnit, setDeletingUnit] = useState(null);
+  
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
   const normalizeUnit = (item) => ({
     id: item.id,
@@ -241,17 +207,29 @@ const UnitListing = () => {
       },
     });
   };
+const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, name: row.name });
+    setShowDeleteConfirm(true);
+  };
 
-  const handleDelete = (Unit) => setDeletingUnit(Unit);
+  const closeDeleteConfirm = () => {
+    if (deleteLoading) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
   const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteCompany(deletingUnit.id);
-      notify.success('Unit Deleted successfully');
-      setDeletingUnit(null);
-      fetchUnits();
-    } catch (error) {
-      console.error(error);
-      alert('Failed to delete unit');
+      setDeleteLoading(true);
+      await deleteCompany(deleteTarget.id);
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
+      await fetchUnits();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -372,7 +350,7 @@ const UnitListing = () => {
             </button>
             <button
               type="button"
-              onClick={() => handleDelete(row.original)}
+              onClick={() => openDeleteConfirm(row.original)}
               className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete Unit"
             >
@@ -524,13 +502,13 @@ const UnitListing = () => {
         </DataGrid>
       </div>
 
-      {deletingUnit && (
-        <DeleteConfirmModal
-          Unit={deletingUnit}
-          onCancel={() => setDeletingUnit(null)}
-          onConfirm={confirmDelete}
-        />
-      )}
+      <DeleteConfirmModal
+        isOpen={showDeleteConfirm}
+        onClose={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+        itemLabel={deleteTarget?.name}
+        saving={deleteLoading}
+      />
     </Container>
   );
 };

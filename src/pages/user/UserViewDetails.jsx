@@ -239,7 +239,7 @@ const UserViewDetails = () => {
 
                   <InfoCard
                     label="Username"
-                    value={employee.updatedBy}
+                    value={employee.createdBy}
                   />
 
                   <InfoCard
