@@ -243,12 +243,12 @@ const UserManagementList = () => {
     setDeleteSaving(true);
 
     try {
-      await deleteEmployeeById(deletingUser.id);
+      await deleteEmployeeById(deleteTarget.id);  
       closeDeleteConfirm();
-      fetchMenuItems();
+      fetchUsers();          
     } catch (err) {
       console.error(err);
-      notify.error('Failed to delete menu item');
+      notify.error('Failed to delete users');
     } finally {
       setDeleteSaving(false);
     }

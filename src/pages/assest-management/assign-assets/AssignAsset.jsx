@@ -60,6 +60,26 @@ const extractArray = (res) => {
   return [];
 };
 
+const ASSIGN_TYPE_META = {
+  individual: { label: 'Individual', className: 'bg-purple-100 text-purple-700' },
+  company_outlet: { label: 'Company/Outlet', className: 'bg-sky-100 text-sky-700' },
+};
+
+
+const AssignTypeBadge = ({ assignType }) => {
+  const meta = ASSIGN_TYPE_META[assignType] ?? {
+    label: '—',
+    className: 'bg-gray-100 text-gray-600',
+  };
+  return (
+    <span
+      className={`px-2 py-1 rounded-full text-xs font-medium ${meta.className} inline-flex items-center justify-center w-fit`}
+    >
+      {meta.label}
+    </span>
+  );
+};
+
 const StatusBadge = ({ status }) => {
   const styles = {
     Assigned: 'bg-green-100 text-green-700',
@@ -219,16 +239,7 @@ const AssignmentPreviewDrawer = ({
             <ArrowLeftRight className="w-4 h-4" />
             Transfer Asset
           </button>
-          <button
-            type="button"
-            onClick={() => onMarkReturned?.(assignment)}
-            disabled={actionSaving || assignment.status === 'Returned'}
-            className="flex-1 px-4 py-2.5 rounded-lg text-[#BA1A1A] border border-[#F3B4B4] text-sm font-semibold bg-white cursor-pointer hover:bg-red-50 transition disabled:opacity-60"
-          >
-            {assignment.status === 'Returned'
-              ? 'Already Returned'
-              : 'Mark as Returned'}
-          </button>
+      
         </div>
       </div>
     </div>
@@ -307,6 +318,7 @@ const AssignAssets = () => {
         assetImageUrl: Array.isArray(asset?.assetImagePaths)
           ? asset.assetImagePaths[0]
           : null,
+        assignType: record.assetType,
         assignedTo: employee?.fullName ?? org?.companyNameEnglish ?? '—',
         location: org?.companyNameEnglish ?? '—',
         city: org?.cityName ?? '—',
@@ -576,6 +588,19 @@ const AssignAssets = () => {
         </div>
       ),
       size: 160,
+    },
+    {
+      id: 'assignType',
+      accessorFn: (row) => row.assignType,
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="ASSIGN TYPE"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      cell: ({ row }) => <AssignTypeBadge assignType={row.original.assignType} />,
+      size: 130,
     },
     {
       id: 'assignedTo',
