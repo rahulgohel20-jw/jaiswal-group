@@ -782,6 +782,9 @@ export const getRawMaterialSubCategoryById = (id) => {
 export const deleteRawMaterialSubCategoryById = (id) => {
   return DELETE(`/raw-material-sub-category/${id}`)
 }
+export const getAllSubCategoryByCategoryId = (id) => {
+  return GET(`/raw-material-sub-category/category/${id}`)
+}
 
 // ---- Assign Asset APIs ----
 // payload shape for create/update: { active, assetId, assignToId, companiesId, quantity }
