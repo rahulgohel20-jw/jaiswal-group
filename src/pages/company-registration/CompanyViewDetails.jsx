@@ -155,11 +155,10 @@ const CompanyViewDetails = () => {
 
 
                 <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center">
-
                     <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-200 bg-white flex items-center justify-center shrink-0">
-                        {company.companyLogo ? (
+                        {company.images?.length > 0 ? (
                             <img
-                                src={company.companyLogo}
+                                src={company.images[company.images.length - 1]?.path}
                                 alt={company.companyNameEnglish}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
@@ -171,7 +170,6 @@ const CompanyViewDetails = () => {
                         )}
                     </div>
                 </div>
-
 
 
                 <div className="text-center sm:text-left">

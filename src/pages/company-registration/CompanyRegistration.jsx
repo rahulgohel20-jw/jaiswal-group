@@ -337,8 +337,15 @@ const emptyForm = {
 // Maps the (smaller) row shape used by the companies list table onto the
 // full form shape. Any field the list doesn't carry is left at its default
 // so the user can fill it in.
-const mapCompanyToForm = (company) => ({
-  ...emptyForm,
+const mapCompanyToForm = (company) => {
+  const latestImage =
+    Array.isArray(company.images) && company.images.length > 0
+      ? company.images[company.images.length - 1]
+      : null;
+
+      
+    return {
+       ...emptyForm,
 
   id: company.id,
 
@@ -374,9 +381,10 @@ const mapCompanyToForm = (company) => ({
   stateId: company.stateId,
   cityId: company.cityId,
 
-  logo: company.companyLogo,
+  logo: latestImage?.path || null,
   favicon: company.favicon,
-});
+    }
+}
 
 // PAN isn't validated anywhere else in the app yet, so it lives here for now —
 // move this into `@/utils/validations` alongside the others if another form
