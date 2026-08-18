@@ -315,7 +315,15 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
 // The listing's mock data doesn't carry every field this form has (logo,
 // address lines, manager, etc.) so anything missing just falls back to blank.
 
-const mapUnitToForm = (unit) => ({
+const mapUnitToForm = (unit) => {
+  const latestImage =
+    Array.isArray(unit.images) && unit.images.length > 0
+      ? unit.images[unit.images.length - 1]
+      : null;
+
+  return {
+    ...DEFAULT_FORM,
+
   UnitName: unit.companyNameEnglish || '',
   UnitCode: unit.companyCode || '',
   shortCode: unit.shortCode || '',
@@ -330,7 +338,10 @@ const mapUnitToForm = (unit) => ({
   pincode: unit.pincode || '',
   latitude: unit.latitude || '',
   longitude: unit.longitude || '',
-});
+  logo: latestImage?.path || null,
+  favicon: unit.favicon,
+  }
+};
 
 const DEFAULT_FORM = {
   UnitName: '',

@@ -476,13 +476,12 @@ const AddAsset = () => {
         if (asset.categoryId) {
           await fetchSubCategories(asset.categoryId);
         }
-
         const loadedForm = {
           ...initialFormState,
 
           existingImage:
-            asset.assetImagePaths?.length > 0
-              ? asset.assetImagePaths[0]
+            Array.isArray(asset.images) && asset.images.length > 0
+              ? asset.images[asset.images.length - 1].path
               : '',
 
           assetId: asset.assetCode || '',

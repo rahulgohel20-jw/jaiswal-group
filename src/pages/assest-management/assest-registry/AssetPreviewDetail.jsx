@@ -9,14 +9,11 @@ import {
   Wrench,
   TrendingDown,
 } from 'lucide-react';
-import { getAssetById, getAssetImagesById } from '@/services/apiServices';
+import { getAssetById } from '@/services/apiServices';
 
 // Same normalizer used elsewhere for {data:[...]}/{content:[...]}/[...] shapes
 const unwrapOne = (res) => res?.data?.data ?? res?.data ?? null;
-const unwrapList = (res) => {
-  const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
-  return Array.isArray(raw) ? raw : [];
-};
+
 
 // API dates come back as "dd/mm/yyyy" (e.g. "01/06/2027"), not ISO —
 // new Date() on that string directly gives an Invalid Date.
@@ -55,10 +52,7 @@ const formatCurrency = (val) =>
 // Backend serves images at /uploads/assets/... but currently returns the
 // path with the segments joined incorrectly (/uploadsassets/...). Patch
 // client-side until the API route is fixed.
-const fixImageUrl = (url) => {
-  if (typeof url !== 'string') return url;
-  return url.replace('/uploadsassets/', '/uploads/assets/');
-};
+
 
 const InfoCard = ({ label, value }) => (
   <div className="rounded-xl border border-gray-100 bg-gray-50 px-3.5 py-3">
@@ -76,51 +70,51 @@ const SpecRow = ({ label, value }) => (
 
 const AssetPreviewDetail = ({ asset, onClose }) => {
   const [details, setDetails] = useState(null);
-  const [images, setImages] = useState([]);
-  const [activeImage, setActiveImage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const id = asset?.id ?? asset?.assetId;
+
     if (!id) return;
 
     let cancelled = false;
+
     setLoading(true);
     setError(null);
-    setActiveImage(0);
 
-    Promise.allSettled([getAssetById(id), getAssetImagesById(id)]).then(([detailRes, imgRes]) => {
-      if (cancelled) return;
+    getAssetById(id)
+      .then((res) => {
+        if (cancelled) return;
 
-      if (detailRes.status === 'fulfilled') {
-        setDetails(unwrapOne(detailRes.value));
-      } else {
-        console.error('Failed to load asset details:', detailRes.reason);
+        const detail = unwrapOne(res);
+
+        setDetails(detail);
+        setLoading(false);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+
+        console.error('Failed to load asset details:', error);
         setError('Could not load asset details.');
-      }
-
-      if (imgRes.status === 'fulfilled') {
-        setImages(unwrapList(imgRes.value).map(fixImageUrl));
-      } else {
-        console.error('Failed to load asset images:', imgRes.reason);
-      }
-
-      setLoading(false);
-    });
+        setLoading(false);
+      });
 
     return () => {
       cancelled = true;
     };
   }, [asset]);
 
+
   // Fall back to the row data passed in (from the table) while the fetch is in flight
   const data = details ?? asset ?? {};
 
+  const latestImage =
+  Array.isArray(data.images) && data.images.length > 0
+    ? data.images[data.images.length - 1]
+    : null;
   // Prefer the dedicated images endpoint; fall back to assetImagePaths
   // embedded directly on the asset-detail response if that call comes back empty.
-  const galleryImages =
-    images.length > 0 ? images : (data.assetImagePaths ?? []).map(fixImageUrl);
 
   const warrantyState = data.warranty ?? getWarrantyState(data.warrantyEndDate ?? data.warrantyEnd);
   const assetCode = data.assetCode ?? data.assetId;
@@ -194,36 +188,18 @@ const AssetPreviewDetail = ({ asset, onClose }) => {
 
             {/* Full-width image gallery */}
             <div>
-              {galleryImages.length > 0 ? (
-                <>
-                  <div className="w-full aspect-video rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
-                    <img
-                      src={galleryImages[activeImage]?.url ?? galleryImages[activeImage]}
-                      alt={data.itemName}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  {galleryImages.length > 1 && (
-                    <div className="flex gap-2 mt-2 overflow-x-auto">
-                      {galleryImages.map((img, i) => (
-                        <button
-                          key={img.id ?? img.url ?? img ?? i}
-                          type="button"
-                          onClick={() => setActiveImage(i)}
-                          className={`w-14 h-14 rounded-lg overflow-hidden border shrink-0 cursor-pointer ${
-                            i === activeImage ? 'border-[#084E92]' : 'border-gray-200'
-                          }`}
-                        >
-                          <img src={img.url ?? img} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
+              {latestImage?.path ? (
+                <div className="w-full aspect-video rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
+                  <img
+                    src={latestImage.path}
+                    alt={data.itemName ?? 'Asset'}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
               ) : (
                 <div className="w-full aspect-video rounded-xl bg-gray-50 border border-dashed border-gray-200 flex flex-col items-center justify-center gap-1.5 text-gray-400">
                   <ImageOff className="w-5 h-5" />
-                  <span className="text-xs">No images uploaded</span>
+                  <span className="text-xs">No image uploaded</span>
                 </div>
               )}
             </div>
@@ -305,9 +281,8 @@ const AssetPreviewDetail = ({ asset, onClose }) => {
                   {data.activities.map((a, i) => (
                     <div key={i} className="relative">
                       <span
-                        className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ${
-                          a.active ? 'bg-[#084E92]' : 'bg-gray-300'
-                        }`}
+                        className={`absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ${a.active ? 'bg-[#084E92]' : 'bg-gray-300'
+                          }`}
                       />
                       <p className="text-sm font-medium text-gray-800">{a.title}</p>
                       <p className="text-xs text-gray-400">{a.subtitle}</p>

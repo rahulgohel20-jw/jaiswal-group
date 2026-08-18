@@ -115,9 +115,9 @@ const UnitViewDetails = () => {
 
         <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center overflow-hidden border border-gray-200">
 
-          {unit.originalData?.companyLogo && (
+          {unit.originalData?.images?.length > 0 && (
             <img
-              src={unit.originalData.companyLogo}
+              src={unit.originalData.images[unit.originalData.images.length - 1]?.path}
               alt={unit.name}
               className="w-full h-full object-cover"
             />
