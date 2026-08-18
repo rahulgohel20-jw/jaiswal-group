@@ -441,11 +441,11 @@ export const MENU_SIDEBAR = [
     icon: Group,
     children: [{ title: 'Departments', path: '/department' }],
   },
-  {
-    title: 'User/Vendor Selection',
-    icon: UserPlus,
-    path: '/user-vendor-selection',
-  },
+  // {
+  //   title: 'User/Vendor Selection',
+  //   icon: UserPlus,
+  //   path: '/user-vendor-selection',
+  // },
   {
     title: 'Users',
     icon: Users,
@@ -454,12 +454,10 @@ export const MENU_SIDEBAR = [
   {
     title: 'Vendors',
     icon: UserCog,
-    path: '/vendors',
-  },
-  {
-    title: 'Vendor Unit Mapping',
-    icon: Workflow,
-    path: '/vendor-unit-mapping',
+    children: [
+      { title: 'Vendors', path: '/vendors' },
+      {title: 'Vendor Unit Mapping', path: '/vendor-unit-mapping'}
+    ],
   },
   {
     title: 'Purchase',

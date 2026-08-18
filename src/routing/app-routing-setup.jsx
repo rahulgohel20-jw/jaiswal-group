@@ -253,6 +253,11 @@ export function AppRoutingSetup() {
 
           <Route path="/assigned-assets" element={<AssignAssets />} />
           <Route path="/assets/assign-asset" element={<AddAssignAsset />} />
+          
+          <Route
+            path="/assets/assign-asset/edit/:id"
+            element={<AddAssignAsset />}
+          />
 
           <Route path="/assets/categories" element={<AssetCategory />} />
           <Route path="/assets/sub-categories" element={<AssetSubCategory />} />
