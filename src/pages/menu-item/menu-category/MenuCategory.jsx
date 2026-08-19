@@ -97,15 +97,21 @@ const MenuCategory = () => {
 
       // Normalize field names: API uses nameEnglish / isActive / imagePath,
       // table/columns use name / status / image.
-      const list = rawList.map((item) => ({
-        id: item.id,
-        name: item.nameEnglish ?? item.name ?? '',
-        price: item.price,
-        sequence: item.sequence,
-        status: item.isActive ?? item.status ?? false,
-        image: item.imagePath || item.image || '',
-        raw: item, // keep the original record around (e.g. Hindi/Gujarati names)
-      }));
+      const list = rawList.map((item) => {
+        const latestImage = Array.isArray(item.images)
+          ? [...item.images].sort((a, b) => Number(b.id) - Number(a.id))[0]
+          : null;
+
+        return {
+          id: item.id,
+          name: item.nameEnglish ?? item.name ?? '',
+          price: item.price,
+          sequence: item.sequence,
+          status: item.isActive ?? item.status ?? false,
+          image: latestImage?.path || '',
+          raw: item,
+        };
+      });
 
       setCategories(list);
 

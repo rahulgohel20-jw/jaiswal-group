@@ -90,7 +90,9 @@ const MenuItemsListing = ({ onAddNew }) => {
 
       const list = rawList.map((item) => ({
         id: item.id,
-        image: item.imagePath,
+        image: item.files
+          ?.filter((file) => file?.moduleName === 'MENUITEM' && file?.path)
+          ?.at(-1)?.path || '',
         name: item.nameEnglish,
         category: item.menuCategory?.nameEnglish,
         subCategory: item.menuSubCategory?.nameEnglish,
