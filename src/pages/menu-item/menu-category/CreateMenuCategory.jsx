@@ -30,6 +30,15 @@ const getUserIdFromToken = () => {
   }
 };
 
+const getLatestImage = (images) => {
+  if (!Array.isArray(images) || images.length === 0) {
+    return "";
+  }
+
+  return [...images]
+    .sort((a, b) => Number(b.id) - Number(a.id))[0]?.path || "";
+};
+
 const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
   const [formData, setFormData] = useState({
     name: "",
@@ -51,7 +60,8 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
         slogan: editData.menuSlogan || "",
         image: null, // existing image shown via editData.image, not re-uploaded unless changed
       });
-      setImagePreview(editData.imagePath || "");
+      const latestImage = getLatestImage(editData.images);
+      setImagePreview(latestImage);
     } else {
       setFormData({ name: "", price: "", sequence: "", slogan: "", image: null });
       setImagePreview("");
@@ -83,14 +93,14 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
       return;
     }
 
-     if (formData.price === "" || Number(formData.price) <= 0) {
-        setError("Price must be Positive");
-        return;
+    if (formData.price === "" || Number(formData.price) <= 0) {
+      setError("Price must be Positive");
+      return;
     }
 
     if (formData.sequence === "" || Number(formData.sequence) <= 0) {
-        setError("Sequence must be Positive");
-        return;
+      setError("Sequence must be Positive");
+      return;
     }
 
     const userId = getUserIdFromToken();
@@ -113,8 +123,8 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
     if (formData.slogan && formData.slogan.trim() !== "") {
       payload.append("menuSlogan", formData.slogan.trim());
     }
-    if (formData.image) {
-      payload.append("image", formData.image);
+    if (formData.image instanceof File) {
+      payload.append("file", formData.image);
     }
 
     setSubmitting(true);
