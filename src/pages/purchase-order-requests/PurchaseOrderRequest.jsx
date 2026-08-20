@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -28,64 +28,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
-
-const requests = [
-  {
-    prCode: 'PR-2024-001',
-    poCode: 'TO BE GENERATED',
-    date: 'Oct 24, 2023',
-    company: 'Reliance Retail Ltd.',
-    outlet: 'Mumbai - Main Hub',
-    raisedBy: 'Animesh Sharma',
-    initials: 'AS',
-    status: 'Approved',
-    action: 'Generate PO',
-  },
-  {
-    prCode: 'PR-2024-002',
-    poCode: 'PO-2024-101',
-    date: 'Oct 22, 2023',
-    company: 'Tata Consumer Products',
-    outlet: 'Delhi North Outlet',
-    raisedBy: 'Priya Singh',
-    initials: 'PS',
-    status: 'Approved',
-    action: 'Edit',
-  },
-  {
-    prCode: 'PR-2024-003',
-    poCode: 'TO BE GENERATED',
-    date: 'Oct 21, 2023',
-    company: 'Britannia Industries',
-    outlet: 'Bangalore Central',
-    raisedBy: 'Ravi Varma',
-    initials: 'RV',
-    status: 'Pending',
-    action: 'Generate PO',
-  },
-  {
-    prCode: 'PR-2024-004',
-    poCode: 'TO BE GENERATED',
-    date: 'Oct 20, 2023',
-    company: 'Amul India',
-    outlet: 'Ahmedabad Plant',
-    raisedBy: 'Mehul Desai',
-    initials: 'MD',
-    status: 'Approved',
-    action: 'Generate PO',
-  },
-  {
-    prCode: 'PR-2024-005',
-    poCode: 'PO-2024-102',
-    date: 'Oct 19, 2023',
-    company: 'Nestle Waters',
-    outlet: 'Pune South Hub',
-    raisedBy: 'Sameer Khan',
-    initials: 'SK',
-    status: 'Approved',
-    action: 'Edit',
-  },
-];
+import SearchableSelect from '@/utils/searchableSelect';
+import { useOrgScope } from '@/hooks/useOrgScope';
+import { usePurchaseOrders } from './utils/usePurchaseOrders';
+import { OrgTypes } from '@/constants/orgTypes';
+import { PO_STATUS, PO_STATUS_LIST } from './utils/poStatus';
+import { getUserIdFromToken } from '../../utils/auth';
 
 const TruncatedCell = ({
   value,
@@ -102,54 +50,118 @@ const StatusBadge = ({ status }) => {
     Approved: 'bg-green-100 text-green-700',
     Pending: 'bg-yellow-100 text-yellow-700',
     Rejected: 'bg-red-100 text-red-700',
+    Cancelled: 'bg-gray-100 text-gray-600',
   };
 
   return (
     <span
-      className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[status]}`}
+      className={`px-3 py-1 rounded-full text-xs font-semibold ${
+        styles[status] || 'bg-gray-100 text-gray-600'
+      }`}
     >
-      {status.toUpperCase()}
+      {(status || '').toUpperCase()}
     </span>
   );
 };
 
+// Only rendered for GROUP / SUB_COMPANY — same dropdown used on the PR list page.
+function UnitDropdown({ units, selectedUnitId, onChange }) {
+  const options = units.map((u) => ({ value: u.id, label: u.name }));
+  return (
+    <div className="w-56 shrink-0">
+      <SearchableSelect
+        name="unit"
+        value={selectedUnitId ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        options={options}
+        placeholder={units.length === 0 ? 'No outlets available' : 'Select outlet...'}
+        disabled={units.length === 0}
+      />
+    </div>
+  );
+}
+
 const PurchaseOrderRequest = () => {
-  const [prRequest, setPrRequest] = useState(requests);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const {
+    loading: scopeLoading,
+    error: scopeError,
+    orgType,
+    units,
+    selectedUnitId,
+    setSelectedUnitId,
+    retry: retryScope,
+  } = useOrgScope();
+
+  const {
+    list: poList,
+    loading: poLoading,
+    error: poError,
+    fetchByOutlet,
+    reject,
+  } = usePurchaseOrders();
+
+  const showUnitDropdown = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
+
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
   const [search, setSearch] = useState('');
   const [companyFilter, setCompanyFilter] = useState('All Companies');
   const [outletFilter, setOutletFilter] = useState('All Outlets');
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [rejectingId, setRejectingId] = useState(null);
+
+  const loadData = () => {
+    if (selectedUnitId) fetchByOutlet(selectedUnitId);
+  };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUnitId]);
+
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [search, companyFilter, outletFilter, statusFilter, selectedUnitId]);
+
+  const handleReject = async (row) => {
+    setRejectingId(row.id);
+    try {
+      await reject(row.id, { actionBy: getUserIdFromToken() });
+      loadData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRejectingId(null);
+    }
+  };
+
+  // Filter dropdown options are derived from whatever's actually in the
+  // fetched list, rather than the hardcoded mock values.
+  const companyOptions = useMemo(
+    () => Array.from(new Set(poList.map((p) => p.company).filter(Boolean))),
+    [poList],
+  );
+  const outletOptions = useMemo(
+    () => Array.from(new Set(poList.map((p) => p.outlet).filter(Boolean))),
+    [poList],
+  );
 
   const columns = [
     {
       accessorKey: 'prCode',
       header: ({ column }) => (
-        <DataGridColumnHeader
-          title="PR CODE"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
+        <DataGridColumnHeader title="PR CODE" column={column} className="text-[#43474F] font-semibold" />
       ),
       size: 140,
     },
     {
       accessorKey: 'poCode',
       header: ({ column }) => (
-        <DataGridColumnHeader
-          title="PO CODE"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
+        <DataGridColumnHeader title="PO CODE" column={column} className="text-[#43474F] font-semibold" />
       ),
       cell: ({ row }) =>
         row.original.poCode === 'TO BE GENERATED' ? (
-          <span className="px-3 py-1 rounded-full bg-gray-100 text-xs">
-            TO BE GENERATED
-          </span>
+          <span className="px-3 py-1 rounded-full bg-gray-100 text-xs">TO BE GENERATED</span>
         ) : (
           row.original.poCode
         ),
@@ -158,59 +170,33 @@ const PurchaseOrderRequest = () => {
     {
       accessorKey: 'date',
       header: ({ column }) => (
-        <DataGridColumnHeader
-          title="DATE"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
+        <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-semibold" />
       ),
       size: 120,
     },
     {
       accessorKey: 'company',
       header: ({ column }) => (
-        <DataGridColumnHeader
-          title="COMPANY NAME"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
+        <DataGridColumnHeader title="COMPANY NAME" column={column} className="text-[#43474F] font-semibold" />
       ),
-      cell: ({ row }) => (
-        <TruncatedCell
-          value={row.original.company}
-          widthClass="max-w-[190px]"
-        />
-      ),
+      cell: ({ row }) => <TruncatedCell value={row.original.company} widthClass="max-w-[190px]" />,
     },
     {
       accessorKey: 'outlet',
       header: ({ column }) => (
-        <DataGridColumnHeader
-          title="OUTLET NAME"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
+        <DataGridColumnHeader title="OUTLET NAME" column={column} className="text-[#43474F] font-semibold" />
       ),
-      cell: ({ row }) => (
-        <TruncatedCell
-          value={row.original.outlet}
-          widthClass="max-w-[190px] py-3"
-        />
-      ),
+      cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[190px] py-3" />,
     },
     {
       accessorKey: 'raisedBy',
       header: ({ column }) => (
-        <DataGridColumnHeader
-          title="RAISED BY"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
+        <DataGridColumnHeader title="RAISED BY" column={column} className="text-[#43474F] font-semibold" />
       ),
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold">
-            {row.original.initials}
+            {(row.original.raisedBy || '?').slice(0, 2).toUpperCase()}
           </div>
           {row.original.raisedBy}
         </div>
@@ -220,11 +206,7 @@ const PurchaseOrderRequest = () => {
     {
       accessorKey: 'status',
       header: ({ column }) => (
-        <DataGridColumnHeader
-          title="STATUS"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
+        <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
       ),
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
       size: 110,
@@ -232,35 +214,37 @@ const PurchaseOrderRequest = () => {
     {
       id: 'actions',
       header: ({ column }) => (
-        <DataGridColumnHeader
-          title="ACTIONS"
-          column={column}
-          className="text-[#43474F] font-semibold py-6"
-        />
+        <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold py-6" />
       ),
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          {row.original.action === 'Generate PO' ? (
-            <>
-              <Link
-                to="/purchase/create-purchase-order-requests"
-                state={row.original}
-              >
-                <button className="bg-[#084E92] text-white px-4 py-1 rounded-lg text-xs cursor-pointer">
-                  Generate PO
+      cell: ({ row }) => {
+        const original = row.original;
+        const isRejecting = rejectingId === original.id;
+        return (
+          <div className="flex gap-2">
+            {original.poCode === 'TO BE GENERATED' ? (
+              <>
+                <Link to="/purchase/create-purchase-order-requests" state={original}>
+                  <button className="bg-[#084E92] text-white px-4 py-1 rounded-lg text-xs cursor-pointer">
+                    Generate PO
+                  </button>
+                </Link>
+                <button
+                  type="button"
+                  disabled={isRejecting}
+                  onClick={() => handleReject(original)}
+                  className="border px-4 py-1 rounded-lg text-xs cursor-pointer disabled:opacity-50"
+                >
+                  {isRejecting ? 'Rejecting...' : 'Reject'}
                 </button>
+              </>
+            ) : (
+              <Link to={`/purchase/edit-purchase-order/${original.id}`} state={original}>
+                <button className="border px-4 py-1 rounded text-xs cursor-pointer">Edit</button>
               </Link>
-              <button className="border px-4 py-1 rounded-lg text-xs cursor-pointer">
-                Reject
-              </button>
-            </>
-          ) : (
-            <button className="border px-4 py-1 rounded text-xs cursor-pointer">
-              Edit
-            </button>
-          )}
-        </div>
-      ),
+            )}
+          </div>
+        );
+      },
       size: 230,
     },
   ];
@@ -268,22 +252,19 @@ const PurchaseOrderRequest = () => {
   const filteredRequests = useMemo(() => {
     const keyword = search.toLowerCase().trim();
 
-    return prRequest.filter((item) => {
+    return poList.filter((item) => {
       const matchesSearch =
         item.prCode.toLowerCase().includes(keyword) ||
         item.company.toLowerCase().includes(keyword) ||
         item.raisedBy.toLowerCase().includes(keyword);
 
-      const matchesCompany =
-        companyFilter === 'All Companies' || item.company === companyFilter;
-      const matchesOutlet =
-        outletFilter === 'All Outlets' || item.outlet === outletFilter;
-      const matchesStatus =
-        statusFilter === 'All Status' || item.status === statusFilter;
+      const matchesCompany = companyFilter === 'All Companies' || item.company === companyFilter;
+      const matchesOutlet = outletFilter === 'All Outlets' || item.outlet === outletFilter;
+      const matchesStatus = statusFilter === 'All Status' || item.rawStatus === statusFilter;
 
       return matchesSearch && matchesCompany && matchesOutlet && matchesStatus;
     });
-  }, [prRequest, search, companyFilter, outletFilter, statusFilter]);
+  }, [poList, search, companyFilter, outletFilter, statusFilter]);
 
   const table = useReactTable({
     data: filteredRequests,
@@ -298,72 +279,50 @@ const PurchaseOrderRequest = () => {
 
   const STATS = [
     {
-      title: 'Total PRs',
-      value: '1,240',
-      icon: (
-        <ClipboardList
-          size={22}
-          className="text-blue-600 p-1 bg-blue-100 rounded"
-        />
-      ),
+      title: 'Total Requests',
+      value: String(poList.length),
+      icon: <ClipboardList size={22} className="text-blue-600 p-1 bg-blue-100 rounded" />,
     },
     {
       title: 'Pending POs',
-      value: '12',
-      icon: (
-        <Package
-          size={22}
-          className="text-orange-500 p-1 bg-orange-100 rounded"
-        />
-      ),
+      value: String(poList.filter((p) => p.rawStatus === PO_STATUS.PENDING).length),
+      icon: <Package size={22} className="text-orange-500 p-1 bg-orange-100 rounded" />,
     },
     {
       title: 'PO Generated',
-      value: '850',
-      icon: (
-        <CircleCheck
-          size={22}
-          className="text-green-600 p-1 bg-green-100 rounded"
-        />
-      ),
+      value: String(poList.filter((p) => p.poCode !== 'TO BE GENERATED').length),
+      icon: <CircleCheck size={22} className="text-green-600 p-1 bg-green-100 rounded" />,
     },
     {
       title: 'Rejected',
-      value: '04',
-      icon: (
-        <CircleX size={22} className="text-red-500 p-1 bg-red-100 rounded" />
-      ),
+      value: String(poList.filter((p) => p.rawStatus === PO_STATUS.REJECTED).length),
+      icon: <CircleX size={22} className="text-red-500 p-1 bg-red-100 rounded" />,
     },
   ];
 
   return (
     <Container>
       <div className="p-4 md:p-6">
-        {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
           <span>Dashboard</span>
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Purchase Order Requests
-          </span>
+          <span className="text-[#084E92] font-medium">Purchase Order Requests</span>
         </div>
 
         <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-[#0F172A]">
-              Purchase Order Requests
-            </h1>
+            <h1 className="text-3xl font-bold text-[#0F172A]">Purchase Order Requests</h1>
             <p className="text-[#737781] mt-1 md:w-[90%]">
-              Review approved purchase requisitions and generate purchase orders
-              for procurement workflows.
+              Review approved purchase requisitions and generate purchase orders for procurement workflows.
             </p>
           </div>
 
           <div className="flex gap-3 self-end">
             <button
               type="button"
+              onClick={loadData}
               className="px-4 py-2 bg-[#FFFFFF] border border-[#E2E8F0] text-[#334155] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-gray-50 transition"
             >
               <RotateCcw size={16} />
@@ -372,40 +331,31 @@ const PurchaseOrderRequest = () => {
           </div>
         </div>
 
-        {/* Stat cards */}
+        {scopeError && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 flex items-center justify-between">
+            {scopeError}
+            <button onClick={retryScope} className="text-xs font-semibold underline shrink-0 ml-3">
+              Retry
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
           {STATS.map((item) => (
-            <div
-              key={item.title}
-              className="border border-[#C3C6D1] rounded-2xl p-4"
-            >
+            <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
               <div className="flex justify-between items-center pb-2">
                 <p>{item.icon}</p>
-                {item.badge && (
-                  <p
-                    className={`text-xs rounded font-semibold px-1.5 py-1 ${item.badgeStyle}`}
-                  >
-                    {item.badge}
-                  </p>
-                )}
               </div>
               <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-              <h2 className={`text-xl font-bold ${item.color}`}>
-                {item.value}
-              </h2>
+              <h2 className="text-xl font-bold">{item.value}</h2>
             </div>
           ))}
         </div>
 
-        {/* Filters */}
         <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Search */}
             <div className="relative pr-4 py-2 border border-[#C3C6D1] rounded-lg w-full">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
+              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={search}
@@ -415,94 +365,91 @@ const PurchaseOrderRequest = () => {
               />
             </div>
 
-            {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Company */}
               <Select value={companyFilter} onValueChange={setCompanyFilter}>
                 <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
                   <SelectValue placeholder="All Companies" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All Companies">All Companies</SelectItem>
-                  <SelectItem value="Reliance Retail Ltd.">
-                    Reliance Retail Ltd.
-                  </SelectItem>
-                  <SelectItem value="Tata Consumer Products">
-                    Tata Consumer Products
-                  </SelectItem>
-                  <SelectItem value="Britannia Industries">
-                    Britannia Industries
-                  </SelectItem>
-                  <SelectItem value="Amul India">Amul India</SelectItem>
-                  <SelectItem value="Nestle Waters">Nestle Waters</SelectItem>
+                  {companyOptions.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
-              {/* Outlet */}
               <Select value={outletFilter} onValueChange={setOutletFilter}>
                 <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
                   <SelectValue placeholder="All Outlets" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All Outlets">All Outlets</SelectItem>
-                  <SelectItem value="Mumbai - Main Hub">
-                    Mumbai - Main Hub
-                  </SelectItem>
-                  <SelectItem value="Delhi North Outlet">
-                    Delhi North Outlet
-                  </SelectItem>
-                  <SelectItem value="Bangalore Central">
-                    Bangalore Central
-                  </SelectItem>
-                  <SelectItem value="Ahmedabad Plant">
-                    Ahmedabad Plant
-                  </SelectItem>
-                  <SelectItem value="Pune South Hub">Pune South Hub</SelectItem>
+                  {outletOptions.map((o) => (
+                    <SelectItem key={o} value={o}>
+                      {o}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
-              {/* Status */}
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="All Status">All Status</SelectItem>
-                  <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Rejected">Rejected</SelectItem>
+                  {PO_STATUS_LIST.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          {showUnitDropdown && (
+            <div className="mt-4">
+              <UnitDropdown units={units} selectedUnitId={selectedUnitId} onChange={setSelectedUnitId} />
+            </div>
+          )}
         </div>
 
+        {poError && (
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {poError}
+            <button
+              type="button"
+              onClick={loadData}
+              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
         <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-          {loading && (
-            <p className="p-4 text-sm text-gray-500">
-              Loading purchase requests...
-            </p>
+          {poLoading || scopeLoading ? (
+            <div className="px-6 py-16 text-center text-sm text-gray-400">
+              Loading purchase orders...
+            </div>
+          ) : (
+            <DataGrid table={table} recordCount={filteredRequests.length} className="rounded-2xl">
+              <Card className="rounded-t-none border-t-0 rounded-2xl">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+
+                <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-
-          <DataGrid
-            table={table}
-            recordCount={filteredRequests.length}
-            className="rounded-2xl"
-          >
-            <Card className="rounded-t-none border-t-0 rounded-2xl">
-              <CardTable>
-                <ScrollArea>
-                  <DataGridTable />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-              </CardTable>
-
-              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                <DataGridPagination />
-              </CardFooter>
-            </Card>
-          </DataGrid>
         </div>
       </div>
     </Container>

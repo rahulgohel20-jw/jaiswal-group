@@ -862,3 +862,56 @@ export const deletePurchaseRequisition = (id, actionBy) => {
 export const getAuditLogs = (moduleId, moduleName, subModuleId) => {
   return GET('/audit-logs', { moduleId, moduleName, subModuleId });
 };
+
+// ---- Purchase Order APIs ----
+
+export const createPurchaseOrder = (payload) => {
+  return POST('/purchase-orders/add', payload);
+};
+
+export const deletePurchaseOrder = (id) => {
+  return DELETE(`/purchase-orders/delete/${id}`);
+};
+
+export const filterPurchaseOrdersByDates = (payload) => {
+  return POST('/purchase-orders/filter-by-dates', payload);
+};
+
+export const filterPurchaseOrdersByDatesAll = (payload) => {
+  return POST('/purchase-orders/filter-by-dates-all', payload);
+};
+
+export const getPurchaseOrderById = (id) => {
+  return GET('/purchase-orders/getbyid', { id });
+};
+
+export const getPurchaseOrdersByOutlet = (outletId) => {
+  return GET('/purchase-orders/getbyoutlet', { outletId });
+};
+
+export const getPurchaseOrdersByStatuses = (payload) => {
+  return POST('/purchase-orders/getbystatuses', payload);
+};
+
+export const getPurchaseOrdersByCreatedBy = (userId) => {
+  return GET('/purchase-orders/getbyuser', { userId });
+};
+
+export const getPurchaseOrdersByVendors = (payload) => {
+  return POST('/purchase-orders/getbyvendors', payload);
+};
+
+export const getPurchaseOrderL1Report = (payload) => {
+  return POST('/purchase-orders/l1-report', payload);
+};
+
+export const updatePurchaseOrder = (id, payload) => {
+  return PUT(`/purchase-orders/update/${id}`, payload);
+};
+
+export const updatePurchaseOrderStatus = (id, payload) => {
+  return axiosInstance.patch(
+    `/purchase-orders/updatestatus/${id}`,
+    payload
+  );
+};
