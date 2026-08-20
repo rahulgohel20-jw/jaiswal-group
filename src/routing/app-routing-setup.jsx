@@ -175,6 +175,8 @@ import AddVendor from '../pages/vendors/AddVendor';
 import VendorListing from '../pages/vendors/VendorListing';
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
 import RawMaterialSubCategory from '../pages/raw-material/raw-material-subcategory/RawMaterialSubCategory';
+import PurchaseRequisitionApprovalDetail from '../pages/purchase-requisition/PurchaseRequisitionApprovalDetail';
+import PurchaseRequisitionView from '../pages/purchase-requisition/PurchaseRequisitionView';
 
 export function AppRoutingSetup() {
   return (
@@ -351,6 +353,17 @@ export function AppRoutingSetup() {
             path="/purchase-requisition/add"
             element={<AddPurchaseRequisition />}
           />
+          <Route path="/purchase-requisition/edit/:id" element={<AddPurchaseRequisition />} />
+          <Route
+              path="/approve-purchase-requisition/approve/:id"
+              element={<PurchaseRequisitionApprovalDetail mode="approve" />}
+            />
+            <Route
+              path="/approve-purchase-requisition/reject/:id"
+              element={<PurchaseRequisitionApprovalDetail mode="reject" />}
+            />
+
+            <Route path="/purchase-requisition/view/:id" element={<PurchaseRequisitionView />} />
           <Route
             path="/approve-purchase-requisition/list"
             element={<PurchaseRequisitionApproval />}

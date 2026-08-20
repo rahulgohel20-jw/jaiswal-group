@@ -1,618 +1,717 @@
-import React, { useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ChevronDown,
-  ChevronLeft,
   ChevronRight,
-  ClipboardList,
-  Info,
-  Package,
-  Plus,
   Search,
-  Send,
   Trash2,
+  Save,
+  CheckCircle2,
+  Loader2,
+  ChevronLeft,
+  ScrollText,
+  Link,
 } from 'lucide-react';
+import { Container } from '@/components/common/container';
+import { getAllRawMaterialItems } from '@/services/apiServices';
+import { OrgTypes } from '@/constants/orgTypes';
+import { getUserIdFromToken } from '@/utils/auth';
+import { useOrgScope } from '@/hooks/useOrgScope';
+import { usePurchaseRequisitions } from './utils/usePurchaseRequisitions';
+import { PR_STATUS, getStatusLabel } from './utils/prStatus';
 import PurchaseRequisitionLog from './PurchaseRequisitionLog';
-
-/* -------------------------------------------------------------------------
- * Shared style tokens & primitives
- * These mirror the conventions used across the Asset module (AddAsset.jsx)
- * so every ERP form in the app looks and behaves the same way.
- * ---------------------------------------------------------------------- */
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
   'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
 
-const selectCls =
-  'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer';
+const errorInputCls =
+  'w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
+  'placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300';
 
-const Label = ({ children, required, hint }) => (
-  <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-1.5">
-    {children}
-    {required && <span className="text-red-500">*</span>}
-    {hint && (
-      <span className="w-3.5 h-3.5 rounded-full border border-gray-300 text-[9px] leading-3.25 text-gray-400 text-center font-semibold">
-        i
-      </span>
-    )}
-  </label>
-);
+const labelCls = 'text-sm font-medium text-gray-700 mb-1.5 block';
 
 const SectionCard = ({ children, className = '' }) => (
-  <div
-    className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}
-  >
+  <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>
     {children}
   </div>
 );
 
-const SectionHeader = ({ icon: Icon, title, subtitle }) => (
-  <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-100">
-    <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
-      <Icon className="w-4 h-4" />
-    </div>
-    <div className="flex-1 min-w-0">
-      <h2 className="text-sm font-bold text-gray-800 leading-none">{title}</h2>
-      {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
-    </div>
-  </div>
-);
+const getAvailableStock = (item) =>
+  item?.availableStock != null ? item.availableStock : item?.opbStock;
 
-// Options can be plain strings or { value, label } objects (dynamic API-backed lists).
-const Select = ({ value, onChange, options, placeholder, disabled }) => (
-  <div className="relative">
-    <select
-      value={value}
-      onChange={onChange}
-      className={selectCls}
-      disabled={disabled}
-    >
-      <option value="" disabled>
-        {placeholder}
-      </option>
-      {options.map((o) => {
-        const val = typeof o === 'object' && o !== null ? o.value : o;
-        const label = typeof o === 'object' && o !== null ? o.label : o;
+const getStockTone = (stock, minStock) => {
+  if (stock == null) return { dot: 'bg-gray-300', text: 'text-gray-400' };
+  if (minStock && stock <= minStock) return { dot: 'bg-red-500', text: 'text-gray-700' };
+  if (minStock && stock <= minStock * 2) return { dot: 'bg-amber-500', text: 'text-gray-700' };
+  return { dot: 'bg-emerald-500', text: 'text-gray-700' };
+};
+
+const DETAILS_PAGE_SIZE = 5;
+
+/* -------------------------------------------------------------------------
+ * Convert a DD/MM/YYYY string (API's date format) to YYYY-MM-DD for
+ * <input type="date">, and back again on submit.
+ * ---------------------------------------------------------------------- */
+
+const apiDateToInputDate = (str) => {
+  if (!str) return '';
+  const [d, m, y] = str.split('/');
+  if (!d || !m || !y) return '';
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+};
+
+const inputDateToApiDate = (str) => {
+  if (!str) return '';
+  const [y, m, d] = str.split('-');
+  if (!d || !m || !y) return '';
+  return `${d}/${m}/${y}`;
+};
+
+/* -------------------------------------------------------------------------
+ * Item picker (unchanged)
+ * ---------------------------------------------------------------------- */
+
+const RawMaterialPicker = ({ rawMaterials, alreadyAddedIds, onAdd, loading }) => {
+  const [term, setTerm] = useState('');
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const matches = useMemo(() => {
+    const q = term.trim().toLowerCase();
+    return rawMaterials
+      .filter((rm) => !alreadyAddedIds.has(String(rm.id)))
+      .filter((rm) => {
+        if (!q) return true;
         return (
-          <option key={val} value={val}>
-            {label}
-          </option>
+          String(rm.nameEnglish || '').toLowerCase().includes(q) ||
+          String(rm.itemCode || rm.code || '').toLowerCase().includes(q)
         );
-      })}
-    </select>
-    <ChevronDown className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-  </div>
-);
+      })
+      .slice(0, 8);
+  }, [rawMaterials, term, alreadyAddedIds]);
 
-const Breadcrumb = ({ items }) => (
-  <nav className="flex items-center gap-1.5 text-xs text-gray-400 flex-wrap">
-    {items.map((item, i) => (
-      <span key={item} className="flex items-center gap-1.5">
-        {i > 0 && <span className="text-gray-300">/</span>}
-        <span
-          className={i === items.length - 1 ? 'text-[#084E92] font-medium' : ''}
-        >
-          {item}
-        </span>
-      </span>
-    ))}
-  </nav>
-);
+  const handleSelect = (item) => {
+    onAdd(item);
+    setTerm('');
+    setOpen(false);
+  };
 
-// Stock-health indicator dot used in the item table.
-const stockDotColor = {
-  low: 'bg-red-500',
-  medium: 'bg-amber-500',
-  good: 'bg-emerald-500',
-};
-
-const StockBadge = ({ value, status }) => (
-  <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-    <span
-      className={`w-1.5 h-1.5 rounded-full ${stockDotColor[status] || 'bg-gray-300'}`}
-    />
-    {Number(value).toFixed(2)}
-  </span>
-);
-
-/* -------------------------------------------------------------------------
- * Mock catalogue — stand-in for an item-master API in this standalone demo.
- * ---------------------------------------------------------------------- */
-
-const ITEM_CATALOGUE = [
-  {
-    id: 'itm-1',
-    code: 'GRC-LUB-050',
-    name: 'Industrial Grade Lubricant XT-50',
-    category: 'Grocery',
-    unit: 'Litres',
-    availableStock: 120,
-    stockStatus: 'low',
-  },
-  {
-    id: 'itm-2',
-    code: 'VEG-FLG-012',
-    name: 'Stainless Steel Flange 12"',
-    category: 'Vegetable',
-    unit: 'Units',
-    availableStock: 45,
-    stockStatus: 'medium',
-  },
-  {
-    id: 'itm-3',
-    code: 'GRC-CMP-240',
-    name: 'Heavy Duty Compressor G-240',
-    category: 'Grocery',
-    unit: 'Units',
-    availableStock: 3,
-    stockStatus: 'good',
-  },
-  {
-    id: 'itm-4',
-    code: 'GRC-RCE-025',
-    name: 'Basmati Rice Premium 25kg',
-    category: 'Grocery',
-    unit: 'Bags',
-    availableStock: 210,
-    stockStatus: 'good',
-  },
-  {
-    id: 'itm-5',
-    code: 'VEG-TOM-001',
-    name: 'Fresh Tomatoes',
-    category: 'Vegetable',
-    unit: 'Kg',
-    availableStock: 18,
-    stockStatus: 'low',
-  },
-  {
-    id: 'itm-6',
-    code: 'GRC-OIL-005',
-    name: 'Refined Sunflower Oil 15L',
-    category: 'Grocery',
-    unit: 'Cans',
-    availableStock: 60,
-    stockStatus: 'medium',
-  },
-];
-
-const OUTLET_OPTIONS = [
-  { value: 'wh-mumbai', label: 'Main Warehouse - Mumbai' },
-  { value: 'wh-pune', label: 'Central Store - Pune' },
-  { value: 'wh-delhi', label: 'Regional Depot - Delhi' },
-];
-
-const genPRCode = () => {
-  const year = new Date().getFullYear();
-  return `PDPU-PR-${year}-001`;
-};
-
-const todayInputDate = () => {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
-};
-
-/* -------------------------------------------------------------------------
- * Item picker — shared between the search box and the "Add Item" button.
- * ---------------------------------------------------------------------- */
-
-const ItemPicker = ({
-  open,
-  onClose,
-  query,
-  onQueryChange,
-  results,
-  onPick,
-}) => {
-  if (!open) return null;
   return (
-    <div className="absolute z-20 top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
-      <div className="max-h-64 overflow-y-auto">
-        {results.length === 0 ? (
-          <p className="text-sm text-gray-400 px-4 py-6 text-center">
-            No items match "{query}"
-          </p>
-        ) : (
-          results.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onPick(item)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-2.5 text-left hover:bg-blue-50/60 transition cursor-pointer border-0 bg-transparent"
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-[#084E92] truncate">
-                  {item.name}
-                </p>
-                <p className="text-[10px] uppercase tracking-wide text-gray-400">
-                  {item.category}
-                </p>
-              </div>
-              <span className="text-xs text-gray-400 shrink-0">
-                {item.code}
-              </span>
-            </button>
-          ))
-        )}
+    <div ref={wrapperRef} className="relative">
+      <label className={labelCls}>Select Item to Add</label>
+      <div className="relative">
+        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <input
+          value={term}
+          onChange={(e) => {
+            setTerm(e.target.value);
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder={loading ? 'Loading items...' : 'Search item by name or code...'}
+          disabled={loading}
+          className={`${inputCls} pl-9`}
+        />
       </div>
+
+      {open && (
+        <div className="absolute z-20 mt-1.5 w-full max-h-72 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg">
+          {matches.length === 0 ? (
+            <div className="px-4 py-4 text-sm text-gray-400 text-center">
+              No matching items found.
+            </div>
+          ) : (
+            matches.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleSelect(item)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-gray-50 last:border-b-0"
+              >
+                <span className="text-sm font-semibold text-[#084E92] truncate">
+                  {item.nameEnglish}
+                </span>
+                <span className="text-xs font-semibold text-gray-600 shrink-0">
+                  {item.supplierRate != null ? `₹${item.supplierRate}` : '—'}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
 /* -------------------------------------------------------------------------
- * Main page
+ * Main page — Add + Edit
  * ---------------------------------------------------------------------- */
 
-const PAGE_SIZE = 3;
+const AddPurchaseRequisition = () => {
+  const navigate = useNavigate();
+  const { id } = useParams(); // present -> edit mode
+  const isEditMode = Boolean(id);
 
-const PurchaseRequisition = () => {
-  const [form, setForm] = useState({
-    prCode: genPRCode(),
-    date: todayInputDate(),
-    purchaseRequiredDate: todayInputDate(),
-    outlet: 'wh-mumbai',
-    remarks: '',
-  });
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
+  const { fetchById, createDraft, createAndSendForApproval, updateDraft, updateAndSendForApproval } =
+    usePurchaseRequisitions();
 
-  const [rows, setRows] = useState([
-    { rowId: 1, ...ITEM_CATALOGUE[0], quantity: 500 },
-    { rowId: 2, ...ITEM_CATALOGUE[1], quantity: 10 },
-    { rowId: 3, ...ITEM_CATALOGUE[2], quantity: 2 },
-  ]);
-  const [nextRowId, setNextRowId] = useState(4);
+  // ---- Outlet scope (GROUP/SUB_COMPANY -> dropdown of own outlets, OUTLET -> self, locked) ----
+  const {
+    loading: outletsLoading,
+    orgType,
+    units: outlets, // [{ id, name, code }]
+    selectedUnitId: outletId,
+    setSelectedUnitId: setOutletId,
+  } = useOrgScope();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const searchWrapRef = useRef(null);
+  const hasOutletDropdownAccess = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
 
-  const [page, setPage] = useState(1);
+  // ---- Raw materials ----
+  const [rawMaterials, setRawMaterials] = useState([]);
+  const [rawMaterialsLoading, setRawMaterialsLoading] = useState(false);
+
+  // ---- Form fields ----
+  const [prDate, setPrDate] = useState('');
+  const [prRequiredDate, setPrRequiredDate] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [details, setDetails] = useState([]);
+  const [detailsPage, setDetailsPage] = useState(0);
+  const [itemPickError, setItemPickError] = useState('');
+
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+  const [sendingForApproval, setSendingForApproval] = useState(false);
+
+  // ---- Edit-mode-only state ----
+  const [loadingPr, setLoadingPr] = useState(isEditMode);
+  const [loadedPr, setLoadedPr] = useState(null);
+  const [notEditable, setNotEditable] = useState(false);
   const [showLog, setShowLog] = useState(false);
 
-  const addedItemIds = useMemo(() => new Set(rows.map((r) => r.id)), [rows]);
+  /* ---- Load raw materials ---- */
+  useEffect(() => {
+    const fetchRawMaterials = async () => {
+      setRawMaterialsLoading(true);
+      try {
+        const res = await getAllRawMaterialItems(0, 0, true, '', '', '');
+        setRawMaterials(res?.data?.data?.['Raw Material Details'] || []);
+      } catch (err) {
+        console.error('Failed to load raw materials', err);
+      } finally {
+        setRawMaterialsLoading(false);
+      }
+    };
+    fetchRawMaterials();
+  }, []);
 
-  const filteredCatalogue = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return ITEM_CATALOGUE.filter((item) => !addedItemIds.has(item.id)).filter(
-      (item) =>
-        !q ||
-        item.name.toLowerCase().includes(q) ||
-        item.code.toLowerCase().includes(q),
-    );
-  }, [searchQuery, addedItemIds]);
+  /* ---- Edit mode: load the existing PR and pre-fill ---- */
+  useEffect(() => {
+    if (!isEditMode) return;
+    const load = async () => {
+      setLoadingPr(true);
+      try {
+        const pr = await fetchById(id);
+        setLoadedPr(pr);
 
-  const handlePickItem = (item) => {
-    setRows((r) => [...r, { rowId: nextRowId, ...item, quantity: 1 }]);
-    setNextRowId((n) => n + 1);
-    setSearchQuery('');
-    setPickerOpen(false);
+        if (pr.rawStatus !== PR_STATUS.PENDING) {
+          // Guard: only PENDING PRs are editable. Someone may have hit
+          // this URL directly for a PR that's moved on since the list
+          // was last refreshed.
+          setNotEditable(true);
+          return;
+        }
+
+        setOutletId(pr.outletId != null ? String(pr.outletId) : '');
+        setPrDate(apiDateToInputDate(pr.date));
+        setPrRequiredDate(apiDateToInputDate(pr.requiredDate));
+        setRemarks(pr.remarks || '');
+        setDetails(
+          (pr.details || []).map((d) => ({
+            id: d.id ?? 0,
+            rawMaterialId: d.rawMaterialId,
+            rawMaterialName: d.rawMaterialName,
+            uomId: d.uomId,
+            uomName: d.uomName || '',
+            category: '',
+            availableStock: null,
+            minStock: null,
+            quantity: d.quantity,
+          })),
+        );
+      } catch (err) {
+        console.error('Failed to load purchase requisition', err);
+      } finally {
+        setLoadingPr(false);
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isEditMode]);
+
+  const selectedOutlet = outlets.find((o) => String(o.id) === String(outletId));
+
+  // Outlet field is editable for GROUP/SUB_COMPANY users, but only while
+  // the PR is still PENDING (draft, not yet sent for approval). Once it's
+  // SENT_FOR_APPROVAL or later, the outlet is locked for everyone — an
+  // approver editing details shouldn't be able to reassign which outlet
+  // the PR belongs to. In create mode there's no status yet, so it's
+  // always editable for dropdown-access users.
+  const outletFieldIsEditable =
+    hasOutletDropdownAccess && (!isEditMode || loadedPr?.rawStatus === PR_STATUS.PENDING);
+
+  const alreadyAddedIds = useMemo(
+    () => new Set(details.map((d) => String(d.rawMaterialId))),
+    [details],
+  );
+
+  const handleAddItem = (item) => {
+    const uomId = item.unitId ?? item.unit?.id ?? 0;
+    const uomName = item.unit?.nameEnglish || item.unitName || '';
+
+    if (!uomId || !uomName) {
+      setItemPickError(`"${item.nameEnglish}" has no unit configured and can't be added. Set a unit on the item first.`);
+      return;
+    }
+    setItemPickError('');
+
+    setDetails((prev) => [
+      ...prev,
+      {
+        id: 0,
+        rawMaterialId: item.id,
+        rawMaterialName: item.nameEnglish,
+        uomId,
+        uomName,
+        category: item.rawMaterialCat?.nameEnglish || item.rawMaterialCategoryName || '',
+        availableStock: getAvailableStock(item),
+        minStock: item.minStock,
+        quantity: 1,
+      },
+    ]);
+    setDetailsPage(Math.floor(details.length / DETAILS_PAGE_SIZE));
   };
 
-  const handleQuantityChange = (rowId, value) => {
-    const numeric = value.replace(/[^\d]/g, '');
-    setRows((r) =>
-      r.map((row) =>
-        row.rowId === rowId ? { ...row, quantity: numeric } : row,
+  const updateQuantity = (rawMaterialId, quantity) => {
+    setDetails((prev) =>
+      prev.map((d) =>
+        d.rawMaterialId === rawMaterialId
+          ? { ...d, quantity: quantity === '' ? '' : Number(quantity) }
+          : d,
       ),
     );
   };
 
-  const handleRemoveRow = (rowId) => {
-    setRows((r) => r.filter((row) => row.rowId !== rowId));
+  const removeDetail = (rawMaterialId) => {
+    setDetails((prev) => prev.filter((d) => d.rawMaterialId !== rawMaterialId));
   };
 
-  const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const pagedRows = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const pageCount = Math.max(1, Math.ceil(details.length / DETAILS_PAGE_SIZE));
+  const pagedDetails = details.slice(
+    detailsPage * DETAILS_PAGE_SIZE,
+    detailsPage * DETAILS_PAGE_SIZE + DETAILS_PAGE_SIZE,
+  );
 
-  const buildRequisitionPayload = () => ({
-    prCode: form.prCode,
-    date: form.date,
-    purchaseRequiredDate: form.purchaseRequiredDate,
-    outletId: form.outlet,
-    remarks: form.remarks,
-    items: rows.map((r) => ({
-      itemId: r.id,
-      code: r.code,
-      quantity: Number(r.quantity) || 0,
+  const validate = () => {
+    const next = {};
+    if (!outletId) next.outletId = 'Outlet is required';
+    if (!prDate) next.prDate = 'PR date is required';
+    if (!prRequiredDate) next.prRequiredDate = 'Required date is required';
+
+    if (details.length === 0) {
+      next.details = 'Add at least one item';
+    } else if (details.some((d) => !d.quantity || Number(d.quantity) <= 0)) {
+      next.details = 'Every line item needs a quantity greater than 0';
+    } else if (details.some((d) => !d.uomId || !d.uomName)) {
+      next.details = 'Every line item requires a unit — remove or fix items missing a unit';
+    }
+
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  // buildPayload no longer sets status — the hook functions add it based
+  // on which button was clicked.
+  const buildPayload = () => ({
+    userId: getUserIdFromToken(),
+    actionBy: getUserIdFromToken(),
+    details: details.map((d) => ({
+      id: d.id || 0,
+      quantity: Number(d.quantity),
+      rawMaterialId: d.rawMaterialId,
+      rawMaterialName: d.rawMaterialName,
+      uomId: d.uomId,
+      uomName: d.uomName,
     })),
+    outletId: Number(outletId),
+    outletName: selectedOutlet?.name || '',
+    outletShortCode: selectedOutlet?.code || '',
+    prDate: prDate,
+    prRequiredDate: prRequiredDate,
+    remarks,
   });
 
+  // "Save" — sends status: PENDING
   const handleSave = async () => {
+    if (!validate()) return;
     setSaving(true);
     try {
-      // TODO: wire to createPurchaseRequisition(buildRequisitionPayload())
-      await new Promise((res) => setTimeout(res, 500));
+      if (isEditMode) {
+        await updateDraft(id, buildPayload()); // status: PENDING, embedded in payload
+      } else {
+        await createDraft(buildPayload()); // status: PENDING, embedded in payload
+      }
+      navigate('/purchase-requisition/list');
+    } catch (err) {
+      console.error('Failed to save purchase requisition', err);
     } finally {
       setSaving(false);
     }
   };
 
+  // "Send For Approval" — sends status: SENT_FOR_APPROVAL
   const handleSendForApproval = async () => {
-    setSaving(true);
+    if (!validate()) return;
+    setSendingForApproval(true);
     try {
-      // TODO: wire to submitPurchaseRequisition(buildRequisitionPayload())
-      await new Promise((res) => setTimeout(res, 500));
+      if (isEditMode) {
+        await updateAndSendForApproval(id, buildPayload()); // status: SENT_FOR_APPROVAL
+      } else {
+        await createAndSendForApproval(buildPayload()); // status: SENT_FOR_APPROVAL
+      }
+      navigate('/purchase-requisition/list');
+    } catch (err) {
+      console.error('Failed to send purchase requisition for approval', err);
     } finally {
-      setSaving(false);
+      setSendingForApproval(false);
     }
   };
+
+  const busy = saving || sendingForApproval;
+
+  /* ---- Edit mode: loading / not-editable states ---- */
+
+  if (isEditMode && loadingPr) {
+    return (
+      <Container>
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-10 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+        </div>
+      </Container>
+    );
+  }
+
+  if (isEditMode && notEditable) {
+    return (
+      <Container>
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-10">
+          <SectionCard className="mt-10 p-8 text-center">
+            <p className="text-sm text-gray-500">
+              This requisition is <strong>{getStatusLabel(loadedPr?.rawStatus)}</strong> and can no
+              longer be edited. Only requisitions in <strong>Pending</strong> status are editable.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/purchase-requisition')}
+              className="mt-4 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+            >
+              Back to list
+            </button>
+          </SectionCard>
+        </div>
+      </Container>
+    );
+  }
 
   return (
-    <div className="mx-auto max-w-6xl min-h-screen pb-10">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-        <span>Dashboard</span>
-        <ChevronRight size={12} />
-        <span>Purchase</span>
-        <ChevronRight size={12} />
-        <span className="text-[#084E92] font-medium">Purchase Requisition</span>
-      </div>
-      <div className="flex flex-col gap-1 mt-3">
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          Purchase Requisition
-        </h1>
-        <p className="text-[#43474F] mt-1 text-sm sm:text-base">
-          Create a purchase requisition by selecting items and required
-          quantities.
-        </p>
-      </div>
-
-      {/* Requisition details */}
-      <SectionCard className="mt-5">
-        <SectionHeader icon={Info} title="Purchase Requisition Information" />
-        <div className="px-4 sm:px-6 py-6 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label>PR Code</Label>
-              <input
-                value={form.prCode}
-                disabled
-                className={`${inputCls} bg-blue-50/60 text-[#084E92] font-medium cursor-not-allowed`}
-              />
-            </div>
-            <div>
-              <Label>Outlet Name</Label>
-              <Select
-                value={form.outlet}
-                onChange={(e) => set('outlet', e.target.value)}
-                placeholder="Select outlet"
-                options={OUTLET_OPTIONS}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label>Date</Label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={(e) => set('date', e.target.value)}
-                className={inputCls}
-              />
-            </div>
-            <div>
-              <Label>Purchase Required Date</Label>
-              <input
-                type="date"
-                value={form.purchaseRequiredDate}
-                min={form.date}
-                onChange={(e) => set('purchaseRequiredDate', e.target.value)}
-                className={inputCls}
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label>Remarks</Label>
-            <textarea
-              value={form.remarks}
-              onChange={(e) => set('remarks', e.target.value)}
-              rows={3}
-              placeholder="Add any specific instructions or reason for requisition..."
-              className={`${inputCls} resize-none`}
-            />
-          </div>
+    <Container>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-10">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 mt-3">
+          <span>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Purchase</span>
+          <ChevronRight size={12} />
+          <span>Purchase Requisition List</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">{isEditMode ? 'Edit' : 'Create'}</span>
         </div>
-      </SectionCard>
 
-      {/* Items to add */}
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={Package}
-          title="Items to Add"
-          subtitle="Search the catalogue and add items with the required quantities."
-        />
-        <div className="px-4 sm:px-6 py-6 space-y-5">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1" ref={searchWrapRef}>
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPickerOpen(true);
-                }}
-                onFocus={() => setPickerOpen(true)}
-                onBlur={() => setTimeout(() => setPickerOpen(false), 150)}
-                placeholder="Search item by name or code..."
-                className={`${inputCls} pl-9`}
-              />
-              <ItemPicker
-                open={pickerOpen}
-                onClose={() => setPickerOpen(false)}
-                query={searchQuery}
-                results={filteredCatalogue}
-                onPick={handlePickItem}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowLog(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-semibold border-0 cursor-pointer hover:bg-emerald-600 transition shrink-0"
-            >
-              <ClipboardList className="w-4 h-4" />
-              Log
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setPickerOpen(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-white text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              Add Item
-            </button>
+        <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
+          <div>
+            <h1 className="text-2xl md:text-4xl font-semibold">
+              {isEditMode ? `Edit Purchase Requisition` : 'Create Purchase Requisition'}
+            </h1>
+            <p className="text-[#43474F] mt-1 text-sm sm:text-base">
+              {isEditMode
+                ? `Editing ${loadedPr?.prCode || ''} for ${loadedPr?.outlet || 'the selected outlet'}.`
+                : 'Raise a new purchase requisition for an outlet.'}
+            </p>
           </div>
 
-          {/* Items table */}
-          <div className="border border-gray-100 rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
-                <thead>
-                  <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                    <th className="text-left font-semibold px-4 py-3 w-16">
-                      Sr. No.
-                    </th>
-                    <th className="text-left font-semibold px-4 py-3">
-                      Item Name
-                    </th>
-                    <th className="text-left font-semibold px-4 py-3">Unit</th>
-                    <th className="text-left font-semibold px-4 py-3">
-                      Available Stock
-                    </th>
-                    <th className="text-left font-semibold px-4 py-3 w-32">
-                      Quantity
-                    </th>
-                    <th className="text-left font-semibold px-4 py-3 w-16">
-                      Action
-                    </th>
+          {isEditMode && (
+              <button
+                type="button"
+                onClick={() => setShowLog(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-sm font-semibold text-white hover:bg-[#073e77] transition-colors cursor-pointer border-0 shadow-sm shrink-0"
+              >
+                <ScrollText className="w-4 h-4 shrink-0" />
+                <span>See Activity Log</span>
+              </button>
+            )}
+        </div>
+
+          {/* Origin details */}
+<SectionCard className="mt-5 p-5 sm:p-6">
+  <h2 className="text-sm font-semibold text-gray-800 mb-4">Origin Details</h2>
+
+  <div className={`grid grid-cols-1 ${hasOutletDropdownAccess ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
+    {hasOutletDropdownAccess && (
+      <div>
+        <label className={labelCls}>
+          Outlet <span className="text-red-500">*</span>
+        </label>
+
+        {outletFieldIsEditable ? (
+          <select
+            value={outletId ?? ''}
+            onChange={(e) => setOutletId(e.target.value)}
+            disabled={outletsLoading}
+            className={errors.outletId ? errorInputCls : inputCls}
+          >
+            <option value="">
+              {outletsLoading ? 'Loading outlets...' : 'Select outlet'}
+            </option>
+            {outlets.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name} {o.code ? `(${o.code})` : ''}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className={`${inputCls} bg-gray-50 text-gray-600`}>
+            {outletsLoading
+              ? 'Loading...'
+              : selectedOutlet?.name || outlets[0]?.name || '—'}
+          </div>
+        )}
+
+        {errors.outletId && (
+          <p className="text-xs text-red-500 mt-1">{errors.outletId}</p>
+        )}
+      </div>
+    )}
+
+    <div>
+      <label className={labelCls}>
+        PR Date <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="date"
+        value={prDate}
+        onChange={(e) => setPrDate(e.target.value)}
+        className={errors.prDate ? errorInputCls : inputCls}
+      />
+      {errors.prDate && <p className="text-xs text-red-500 mt-1">{errors.prDate}</p>}
+    </div>
+
+    <div>
+      <label className={labelCls}>
+        Required Date <span className="text-red-500">*</span>
+      </label>
+      <input
+        type="date"
+        value={prRequiredDate}
+        onChange={(e) => setPrRequiredDate(e.target.value)}
+        className={errors.prRequiredDate ? errorInputCls : inputCls}
+      />
+      {errors.prRequiredDate && (
+        <p className="text-xs text-red-500 mt-1">{errors.prRequiredDate}</p>
+      )}
+    </div>
+  </div>
+
+  <div className="mt-4">
+    <label className={labelCls}>Remarks</label>
+    <textarea
+      value={remarks}
+      onChange={(e) => setRemarks(e.target.value)}
+      rows={3}
+      placeholder="Internal notes for this requisition..."
+      className={`${inputCls} resize-none`}
+    />
+  </div>
+</SectionCard>
+
+        {/* Raw materials */}
+        <SectionCard className="mt-5 p-5 sm:p-6">
+          <RawMaterialPicker
+            rawMaterials={rawMaterials}
+            alreadyAddedIds={alreadyAddedIds}
+            onAdd={handleAddItem}
+            loading={rawMaterialsLoading}
+          />
+
+          {itemPickError && (
+            <p className="text-xs text-red-500 mt-2">{itemPickError}</p>
+          )}
+          {errors.details && <p className="text-xs text-red-500 mt-2">{errors.details}</p>}
+
+          <div className="mt-4 overflow-x-auto rounded-xl border border-gray-100">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
+                  <th className="text-left font-semibold px-4 py-3 w-16">Sr. No.</th>
+                  <th className="text-left font-semibold px-4 py-3">Item Name</th>
+                  <th className="text-left font-semibold px-4 py-3">
+                    Unit <span className="text-red-500">*</span>
+                  </th>
+                  <th className="text-left font-semibold px-4 py-3">Available Stock</th>
+                  <th className="text-left font-semibold px-4 py-3 w-32">Quantity</th>
+                  <th className="text-left font-semibold px-4 py-3 w-16">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {details.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-gray-400">
+                      No items added yet — search above to add raw materials.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {pagedRows.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-10 text-center text-gray-400"
-                      >
-                        No items added yet. Use search or "Add Item" to get
-                        started.
-                      </td>
-                    </tr>
-                  ) : (
-                    pagedRows.map((row, idx) => (
-                      <tr key={row.rowId} className="border-t border-gray-100">
-                        <td className="px-4 py-3.5 text-gray-500">
-                          {String((page - 1) * PAGE_SIZE + idx + 1).padStart(
-                            2,
-                            '0',
+                ) : (
+                  pagedDetails.map((d, i) => {
+                    const tone = getStockTone(d.availableStock, d.minStock);
+                    const missingUnit = !d.uomId || !d.uomName;
+                    return (
+                      <tr key={d.rawMaterialId} className="border-t border-gray-100">
+                        <td className="px-4 py-4 text-gray-400">
+                          {String(detailsPage * DETAILS_PAGE_SIZE + i + 1).padStart(2, '0')}
+                        </td>
+                        <td className="px-4 py-4">
+                          <p className="font-semibold text-[#084E92]">{d.rawMaterialName}</p>
+                          {d.category && (
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
+                              {d.category}
+                            </p>
                           )}
                         </td>
-                        <td className="px-4 py-3.5">
-                          <p className="text-[#084E92] font-medium">
-                            {row.name}
-                          </p>
-                          <p className="text-[10px] uppercase tracking-wide text-gray-400">
-                            {row.category}
-                          </p>
+                        <td className="px-4 py-4">
+                          {missingUnit ? (
+                            <span className="text-xs font-medium text-red-500">Missing unit</span>
+                          ) : (
+                            <span className="text-gray-600">{d.uomName}</span>
+                          )}
                         </td>
-                        <td className="px-4 py-3.5 text-gray-600">
-                          {row.unit}
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`} />
+                            <span className={tone.text}>
+                              {d.availableStock != null ? Number(d.availableStock).toFixed(2) : '—'}
+                            </span>
+                          </div>
                         </td>
-                        <td className="px-4 py-3.5">
-                          <StockBadge
-                            value={row.availableStock}
-                            status={row.stockStatus}
-                          />
-                        </td>
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-4">
                           <input
-                            value={row.quantity}
-                            onChange={(e) =>
-                              handleQuantityChange(row.rowId, e.target.value)
-                            }
-                            inputMode="numeric"
-                            className={`${inputCls} py-2`}
+                            type="number"
+                            min="1"
+                            value={d.quantity}
+                            onChange={(e) => updateQuantity(d.rawMaterialId, e.target.value)}
+                            className={`${inputCls} py-1.5`}
                           />
                         </td>
-                        <td className="px-4 py-3.5">
+                        <td className="px-4 py-4">
                           <button
                             type="button"
-                            onClick={() => handleRemoveRow(row.rowId)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer bg-transparent border-0"
+                            onClick={() => removeDetail(d.rawMaterialId)}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 transition cursor-pointer bg-transparent border-0"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
 
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <p className="text-xs text-gray-400">
-              Showing {rows.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
-              {rows.length > 0 &&
-                `–${Math.min(page * PAGE_SIZE, rows.length)}`}{' '}
-              of {rows.length} items added to this requisition.
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+          {details.length > 0 && (
+            <div className="flex items-center justify-between mt-3">
+              <p className="text-xs text-gray-400">
+                Showing {pagedDetails.length} of {details.length} items added to this requisition.
+              </p>
+              {pageCount > 1 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDetailsPage((p) => Math.max(0, p - 1))}
+                    disabled={detailsPage === 0}
+                    className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDetailsPage((p) => Math.min(pageCount - 1, p + 1))}
+                    disabled={detailsPage === pageCount - 1}
+                    className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
+          )}
+        </SectionCard>
+
+        {/* Footer actions */}
+        <div className="flex items-center justify-end gap-3 mt-5">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={busy}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={handleSendForApproval}
+            disabled={busy}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition disabled:opacity-60"
+          >
+            {sendingForApproval ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4" />
+            )}
+            Send For Approval
+          </button>
         </div>
-      </SectionCard>
-
-      {/* Footer actions */}
-      <div className="flex items-center justify-end gap-3 pb-2 mt-6 border-t border-gray-200 pt-6 flex-wrap">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-60"
-        >
-          {saving ? 'Saving...' : 'Save'}
-        </button>
-        <button
-          type="button"
-          onClick={handleSendForApproval}
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 hover:bg-[#073e77] transition cursor-pointer disabled:opacity-60"
-        >
-          <Send className="w-4 h-4" />
-          {saving ? 'Sending...' : 'Send For Approval'}
-        </button>
       </div>
 
-      <PurchaseRequisitionLog
-        open={showLog}
-        onClose={() => setShowLog(false)}
-        prCode={form.prCode}
-      />
-    </div>
+    {isEditMode && loadedPr && (
+  <PurchaseRequisitionLog
+    open={showLog}
+    onClose={() => setShowLog(false)}
+    prCode={loadedPr.prCode}
+    moduleId={loadedPr.id}
+    moduleName="PURCHASE_REQUISITION"
+  />
+)}
+    </Container>
   );
 };
 
-export default PurchaseRequisition;
+export default AddPurchaseRequisition;

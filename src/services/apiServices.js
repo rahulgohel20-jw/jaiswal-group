@@ -818,3 +818,47 @@ export const updateAssignAsset = (payload) => {
 export const deleteAssignAsset = (id) => {
   return DELETE('/assign-assets/delete', { id });
 };
+
+
+// ---- Purchase Requisition APIs ----
+
+export const createPurchaseRequisition = (payload) => {
+  return POST('/purchase-requisitions/add', payload);
+};
+
+export const getPurchaseRequisitionById = (id) => {
+  return GET('/purchase-requisitions/getbyid', { id });
+};
+
+export const getPurchaseRequisitionsByOutlet = (outletId, status) => {
+  return GET('/purchase-requisitions/getbyoutlet', { outletId, status });
+};
+
+export const getPurchaseRequisitionsByStatus = (status) => {
+  return GET('/purchase-requisitions/getbystatus', { status });
+};
+
+export const updatePurchaseRequisition = (id, payload) => {
+  return PUT(`/purchase-requisitions/update/${id}`, payload);
+};
+
+export const updatePurchaseRequisitionStatus = (id, payload) => {
+  return axiosInstance.patch(`/purchase-requisitions/updatestatus/${id}`, payload);
+};
+
+export const getChildrenByParentId = (parentId) => {
+  return GET(`/organization/children/${parentId}`);
+};
+
+export const deletePurchaseRequisition = (id, actionBy) => {
+  return DELETE(`/purchase-requisitions/${id}`, { actionBy });
+};
+
+// ---- Audit Log APIs ----
+// GET /api/audit-logs?moduleId=&moduleName=&subModuleId=
+// moduleId: id of the record being viewed (e.g. the PR id)
+// moduleName: fixed string per module, e.g. "PURCHASE_REQUISITION"
+// subModuleId: optional, omit when not applicable
+export const getAuditLogs = (moduleId, moduleName, subModuleId) => {
+  return GET('/audit-logs', { moduleId, moduleName, subModuleId });
+};

@@ -1,379 +1,156 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router";
 import {
   Search,
   Filter,
-  Download,
-  Plus,
-  Trash2,
   ClipboardList,
   CheckCircle2,
   XCircle,
-  ChevronLeft,
   ChevronRight,
-  ArrowLeft,
-  RefreshCw,
-  Share2,
+  Loader2,
+  AlertTriangle,
+  Eye,
 } from "lucide-react";
 import { Container } from "@/components/common/container";
-
-// ---------------------------------------------------------------------------
-// Design tokens
-// ---------------------------------------------------------------------------
-// Background   #F4F6FB   soft blue-grey
-// Surface      #FFFFFF
-// Ink          #101828
-// Ink-muted    #667085
-// Line         #E7EAF0
-// Primary      #2952E3   (deep procurement blue)
-// Primary-tint #EEF2FE
-// Success      #14804A / tint #E7F7EE
-// Watch/Amber  #B5590B / tint #FDF1E3
-// Danger       #C0293D / tint #FBEAEC
-// Display face: "Plus Jakarta Sans" (headings) / Body: "Inter" / Mono for codes: "IBM Plex Mono"
+import { Card, CardFooter, CardTable } from "@/components/ui/card";
+import { DataGrid } from "@/components/ui/data-grid";
+import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
+import { DataGridPagination } from "@/components/ui/data-grid-pagination";
+import { DataGridTable } from "@/components/ui/data-grid-table";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import SearchableSelect from "@/utils/SearchableSelect";
+import { getPurchaseRequisitionsByOutlet } from "@/services/apiServices";
+import { useOrgScope } from "@/hooks/useOrgScope";
+import { OrgTypes } from "@/constants/orgTypes";
+import { PR_STATUS, PR_STATUS_LIST, getStatusLabel } from './utils/prStatus';
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 
 const FONT_IMPORT_URL =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap";
 
-// ---------------------------------------------------------------------------
-// Seed data
-// ---------------------------------------------------------------------------
-const REQUISITIONS = [
-  {
-    code: "PR-2024-OUT-001",
-    date: "Oct 12, 2023",
-    raisedBy: "Ankit Sharma",
-    initials: "AS",
-    outlet: "Laxmi Nagar Branch",
-    status: "approved",
-  },
-  {
-    code: "PR-2024-OUT-002",
-    date: "Oct 12, 2023",
-    raisedBy: "Priya Singh",
-    initials: "PS",
-    outlet: "Connaught Place Hub",
-    status: "pending",
-  },
-  {
-    code: "PR-2024-OUT-003",
-    date: "Oct 11, 2023",
-    raisedBy: "Manish Kumar",
-    initials: "MK",
-    outlet: "Dwarka Sector 12",
-    status: "approved",
-  },
-  {
-    code: "PR-2024-0892",
-    date: "Oct 24, 2024",
-    raisedBy: "Sanjay Kapoor",
-    initials: "SK",
-    outlet: "Mumbai Central Warehouse - WH01",
-    status: "pending",
-  },
-  {
-    code: "PR-2024-OUT-005",
-    date: "Oct 10, 2023",
-    raisedBy: "Sanjay Verma",
-    initials: "SV",
-    outlet: "Gurgaon Sector 44",
-    status: "pending",
-  },
+// Statuses visible to an approver, and which of those still allow action.
+const APPROVER_VISIBLE_STATUSES = [
+  PR_STATUS.SENT_FOR_APPROVAL,
+  PR_STATUS.IN_PROGRESS,
+  PR_STATUS.APPROVED,
+  PR_STATUS.REJECTED,
+];
+const ACTIONABLE_STATUSES = [PR_STATUS.SENT_FOR_APPROVAL, PR_STATUS.IN_PROGRESS];
+
+// "ALL" is a UI-only sentinel — not sent to the API as a real status.
+const ALL_STATUS = "ALL";
+const STATUS_FILTER_OPTIONS = [
+  { value: ALL_STATUS, label: "All statuses" },
+  ...PR_STATUS_LIST.filter((s) => APPROVER_VISIBLE_STATUSES.includes(s.value)),
 ];
 
-const INITIAL_ITEMS = [
-  {
-    id: 1,
-    name: "Basmati Rice (Premium)",
-    sku: "GRN-BR-001",
-    unit: "KG",
-    reqQty: 100,
-    apprQty: 100,
-    stock: 500,
-  },
-  {
-    id: 2,
-    name: "Sunflower Oil (5L)",
-    sku: "OIL-SF-005",
-    unit: "Bottle",
-    reqQty: 50,
-    apprQty: 40,
-    stock: 120,
-  },
-  {
-    id: 3,
-    name: "Table Salt (1kg)",
-    sku: "SALT-T-001",
-    unit: "Packet",
-    reqQty: 200,
-    apprQty: 0,
-    stock: 15,
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function varianceInfo(reqQty, apprQty) {
-  if (apprQty === 0) return { label: "Rejected", tone: "danger" };
-  const diff = apprQty - reqQty;
-  const pct = Math.round((diff / reqQty) * 100);
-  if (diff === 0) return { label: "Matched", tone: "success" };
-  if (pct <= -15) return { label: `${pct}%`, tone: "watch" };
-  return { label: `${pct > 0 ? "+" : ""}${pct}%`, tone: pct < 0 ? "amber" : "success" };
-}
-
-const toneStyles = {
-  success: { bg: "#E7F7EE", fg: "#14804A", dot: "#14804A" },
-  watch: { bg: "#EAF1FE", fg: "#2952E3", dot: "#2952E3" },
-  amber: { bg: "#FDF1E3", fg: "#B5590B", dot: "#B5590B" },
-  danger: { bg: "#FBEAEC", fg: "#C0293D", dot: "#C0293D" },
+const STATUS_META = {
+  [PR_STATUS.SENT_FOR_APPROVAL]: { bg: "#EEF2FE", fg: "#2952E3" },
+  [PR_STATUS.IN_PROGRESS]: { bg: "#FDF1E3", fg: "#B5590B" },
+  [PR_STATUS.APPROVED]: { bg: "#E7F7EE", fg: "#14804A" },
+  [PR_STATUS.REJECTED]: { bg: "#FBEAEC", fg: "#C0293D" },
 };
 
+// Truncates long text within a fixed-width box, revealing the full value on hover
+// (mirrors TruncatedCell from UserManagementList.jsx)
+const TruncatedCell = ({
+  value,
+  widthClass = "max-w-[180px]",
+  className = "text-[#475467]",
+}) => (
+  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+    {value}
+  </span>
+);
+
+// Normalizes one API PR record (see /purchase-requisitions/getbyoutlet
+// response shape) into what the table/UI expects.
+const mapPr = (pr) => ({
+  id: pr.id,
+  code: pr.prCode,
+  date: pr.prDate,
+  requiredDate: pr.prRequiredDate,
+  remarks: pr.remarks,
+  status: pr.status,
+  outletId: pr.outletId,
+  outlet: pr.outletName ?? `Outlet #${pr.outletId}`,
+  details: pr.details ?? [],
+});
+
+// ---- PR fetch hook — driven by BOTH the selected unit and the selected
+// status. Selecting a specific status in the dropdown sends that status
+// straight to getbyoutlet as a single call. "All statuses" is the one case
+// that still needs to fan out across all 4 visible statuses and merge,
+// since the endpoint only accepts one status per call.
+function useRequisitions(unitId, statusFilter) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [requisitions, setRequisitions] = useState([]);
+
+  const reload = useCallback(async () => {
+    if (!unitId) {
+      setRequisitions([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      let raw;
+      if (statusFilter === ALL_STATUS) {
+        const responses = await Promise.all(
+          APPROVER_VISIBLE_STATUSES.map((status) =>
+            getPurchaseRequisitionsByOutlet(unitId, status)
+          )
+        );
+        raw = responses.flatMap((res) => {
+          const data = res?.data?.data ?? res?.data ?? res ?? [];
+          return Array.isArray(data) ? data : [];
+        });
+      } else {
+        const res = await getPurchaseRequisitionsByOutlet(unitId, statusFilter);
+        const data = res?.data?.data ?? res?.data ?? res ?? [];
+        raw = Array.isArray(data) ? data : [];
+      }
+      setRequisitions(raw.map(mapPr));
+    } catch (err) {
+      setError(err?.message || "Failed to load purchase requisitions.");
+    } finally {
+      setLoading(false);
+    }
+  }, [unitId, statusFilter]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  return { loading, error, requisitions, reload };
+}
+
 function StatusPill({ status }) {
-  const map = {
-    approved: { bg: "#EEF2FE", fg: "#2952E3", label: "Approved" },
-    pending: { bg: "#FDF1E3", fg: "#B5590B", label: "Pending" },
-  };
-  const s = map[status];
+  const meta = STATUS_META[status] ?? { bg: "#F2F4F7", fg: "#667085" };
   return (
     <span
-      style={{ background: s.bg, color: s.fg }}
+      style={{ background: meta.bg, color: meta.fg }}
       className="px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase"
     >
-      {s.label}
+      {getStatusLabel(status)}
     </span>
-  );
-}
-
-function Avatar({ initials }) {
-  const colors = ["#2952E3", "#B5590B", "#14804A", "#8B5CF6", "#DB2777"];
-  const idx = initials.charCodeAt(0) % colors.length;
-  return (
-    <div
-      className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-      style={{ background: colors[idx] }}
-    >
-      {initials}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// List View
-// ---------------------------------------------------------------------------
-function ListView({ onApprove }) {
-  const [query, setQuery] = useState("");
-
-  const filtered = useMemo(() => {
-    if (!query.trim()) return REQUISITIONS;
-    const q = query.toLowerCase();
-    return REQUISITIONS.filter(
-      (r) =>
-        r.code.toLowerCase().includes(q) ||
-        r.outlet.toLowerCase().includes(q) ||
-        r.raisedBy.toLowerCase().includes(q)
-    );
-  }, [query]);
-
-  return (
-    <Container>
-      <div className="mx-auto py-10 p-6">
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-        <span>Dashboard</span>
-        <ChevronRight size={12} />
-        <span>Purchase</span>
-        <ChevronRight size={12} />
-        <span className="text-[#084E92] font-medium">Purchase Approval</span>
-      </div>
-      <div className="mb-8">
-        <h1
-          className="text-[28px] font-bold text-[#101828]"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
-          Purchase Approval
-        </h1>
-        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-          Manage and review pending purchase requisitions from various outlets for final
-          authorization.
-        </p>
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-3 gap-4 mb-7">
-        <StatCard
-          icon={<ClipboardList size={18} />}
-          iconBg="#EEF2FE"
-          iconFg="#2952E3"
-          label="Pending approvals"
-          value="24"
-        />
-        <StatCard
-          icon={<CheckCircle2 size={18} />}
-          iconBg="#E7F7EE"
-          iconFg="#14804A"
-          label="Today's approved"
-          value="156"
-        />
-        <StatCard
-          icon={<XCircle size={18} />}
-          iconBg="#FBEAEC"
-          iconFg="#C0293D"
-          label="Today's rejected"
-          value="12"
-        />
-      </div>
-
-      {/* Search + filter row */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search PR code, outlet or manager..."
-            className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-          />
-        </div>
-        <button className="h-11 px-4 rounded-xl border border-[#E7EAF0] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors">
-          <Filter size={15} />
-          Filter
-        </button>
-        <button
-          className="w-11 h-11 rounded-xl border border-[#E7EAF0] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
-          aria-label="Refresh"
-        >
-          <RefreshCw size={15} />
-        </button>
-        <button
-          className="w-11 h-11 rounded-xl border border-[#E7EAF0] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
-          aria-label="Export"
-        >
-          <Share2 size={15} />
-        </button>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-[#F9FAFC] border-b border-[#E7EAF0]">
-              {["PR Code", "Date", "Raised by", "Outlet name", "Status", "Actions"].map(
-                (h) => (
-                  <th
-                    key={h}
-                    className="text-left font-semibold text-[#667085] text-[11px] uppercase tracking-wide px-5 py-3.5"
-                  >
-                    {h}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((r, i) => (
-              <tr
-                key={r.code}
-                className={`transition-colors ${i !== filtered.length - 1 ? "border-b border-[#EFF1F5]" : ""
-                  }`}
-              >
-                <td className="px-5 py-4">
-                  <span
-                    className="font-semibold text-[#2952E3] text-[13px]"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                  >
-                    {r.code}
-                  </span>
-                </td>
-                <td className="px-5 py-4 text-[#475467]">{r.date}</td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-2.5">
-                    <Avatar initials={r.initials} />
-                    <span className="text-[#101828] font-medium">{r.raisedBy}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-4 text-[#475467]">{r.outlet}</td>
-                <td className="px-5 py-4">
-                  <StatusPill status={r.status} />
-                </td>
-                <td className="px-5 py-4">
-                  {r.status === "pending" ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => onApprove(r)}
-                        className="px-3.5 py-1.5 cursor-pointer rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
-                      >
-                        Approve
-                      </button>
-                      <button className="px-3.5 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors">
-                        Reject
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="px-3.5 py-1.5 rounded-lg bg-[#F2F4F7] text-[#98A2B3] text-xs font-semibold inline-block">
-                      Approved
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-5 py-4 border-t border-[#E7EAF0]">
-          <span className="text-xs text-[#667085]">
-            Showing 1–{filtered.length} of 124 requisitions
-          </span>
-          <div className="flex items-center gap-1.5">
-            <button className="w-8 h-8 rounded-lg border border-[#E7EAF0] flex items-center justify-center text-[#98A2B3] hover:bg-[#F9FAFC]">
-              <ChevronLeft size={14} />
-            </button>
-            {[1, 2, 3].map((p) => (
-              <button
-                key={p}
-                className={`w-8 h-8 rounded-lg text-xs font-semibold ${p === 1
-                    ? "bg-[#2952E3] text-white"
-                    : "border border-[#E7EAF0] text-[#475467] hover:bg-[#F9FAFC]"
-                  }`}
-              >
-                {p}
-              </button>
-            ))}
-            <span className="text-[#98A2B3] text-xs px-1">…</span>
-            <button className="w-8 h-8 rounded-lg border border-[#E7EAF0] text-xs font-semibold text-[#475467] hover:bg-[#F9FAFC]">
-              25
-            </button>
-            <button className="w-8 h-8 rounded-lg border border-[#E7EAF0] flex items-center justify-center text-[#98A2B3] hover:bg-[#F9FAFC]">
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    </Container>
   );
 }
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
     <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex items-center gap-3.5">
-      <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: iconBg, color: iconFg }}
-      >
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
         {icon}
       </div>
       <div>
-        <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide">
-          {label}
-        </div>
-        <div
-          className="text-2xl font-bold text-[#101828] mt-0.5"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
+        <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide">{label}</div>
+        <div className="text-2xl font-bold text-[#101828] mt-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
           {value}
         </div>
       </div>
@@ -381,297 +158,306 @@ function StatCard({ icon, iconBg, iconFg, label, value }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Detail / Approval View
-// ---------------------------------------------------------------------------
-function ApprovalView({ requisition, onBack }) {
-  const [items, setItems] = useState(INITIAL_ITEMS);
-  const [remarks, setRemarks] = useState("");
+// Only rendered for GROUP / SUB_COMPANY — OUTLET users never see this.
+// Uses the shared SearchableSelect so a long unit list can be typed/filtered.
+function UnitDropdown({ units, selectedUnitId, onChange }) {
+  const options = units.map((u) => ({ value: u.id, label: u.name }));
+  return (
+    <div className="min-w-[220px]">
+      <SearchableSelect
+        name="unit"
+        value={selectedUnitId ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        options={options}
+        placeholder={units.length === 0 ? "No units available" : "Select unit..."}
+        disabled={units.length === 0}
+      />
+    </div>
+  );
+}
 
-  const updateQty = (id, value) => {
-    const num = Math.max(0, Number(value) || 0);
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, apprQty: num } : it)));
-  };
+// Drives the status sent to getPurchaseRequisitionsByOutlet directly.
+function StatusDropdown({ value, onChange }) {
+  return (
+    <div className="relative">
+      <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-11 pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3] min-w-[190px]"
+      >
+        {STATUS_FILTER_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
-  const removeItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
+const PAGE_SIZE = 10;
 
-  const totals = useMemo(
-    () => ({
-      count: items.length,
-      req: items.reduce((s, i) => s + i.reqQty, 0),
-      appr: items.reduce((s, i) => s + i.apprQty, 0),
-    }),
-    [items]
+function ListView({ onApprove, onReject, onView }) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+
+  const {
+    loading: scopeLoading,
+    error: scopeError,
+    orgType,
+    units,
+    selectedUnitId,
+    setSelectedUnitId,
+    retry: retryScope,
+  } = useOrgScope();
+
+  const { loading: prLoading, error: prError, requisitions } = useRequisitions(
+    selectedUnitId,
+    statusFilter
   );
 
-  return (
-    <div className="max-w-6xl mx-auto py-10">
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm font-medium text-[#475467] hover:text-[#101828] mb-5 transition-colors"
-      >
-        <ArrowLeft size={15} />
-        Back to approvals
-      </button>
+  const showUnitDropdown = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
 
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1
-            className="text-[28px] font-bold text-[#101828]"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+  // Counts reflect whatever is currently loaded. They're exact when "All
+  // statuses" is selected; when one specific status is picked, only that
+  // status's card is non-zero, since the others weren't fetched. If you
+  // want all three cards always accurate regardless of the dropdown, fetch
+  // counts separately (4 parallel calls) instead of deriving from `requisitions`.
+  const counts = useMemo(() => {
+    const c = {};
+    APPROVER_VISIBLE_STATUSES.forEach((s) => (c[s] = 0));
+    requisitions.forEach((r) => {
+      if (c[r.status] != null) c[r.status] += 1;
+    });
+    return c;
+  }, [requisitions]);
+
+  const filtered = useMemo(() => {
+    if (!query.trim()) return requisitions;
+    const q = query.toLowerCase();
+    return requisitions.filter(
+      (r) =>
+        (r.code || "").toLowerCase().includes(q) ||
+        (r.outlet || "").toLowerCase().includes(q)
+    );
+  }, [requisitions, query]);
+
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [query, statusFilter, selectedUnitId]);
+
+  const columns = useMemo(
+    () => [
+      {
+        id: "code",
+        accessorFn: (row) => row.code,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span
+            className="font-semibold text-[#2952E3] text-[13px]"
+            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
           >
-            Purchase Approval View
+            {row.original.code}
+          </span>
+        ),
+        size: 140,
+      },
+      {
+        id: "date",
+        accessorFn: (row) => row.date,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
+        size: 130,
+      },
+      {
+        id: "outlet",
+        accessorFn: (row) => row.outlet,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
+        size: 190,
+      },
+      {
+        id: "status",
+        accessorFn: (row) => row.status,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <StatusPill status={row.original.status} />,
+        size: 160,
+      },
+      {
+        id: "action",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => {
+          const r = row.original;
+          const actionable = ACTIONABLE_STATUSES.includes(r.status);
+          return actionable ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onApprove(r)}
+                className="px-3.5 py-1.5 cursor-pointer rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
+              >
+                Approve
+              </button>
+              <button
+                onClick={() => onReject(r)}
+                className="px-3.5 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+              >
+                Reject
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => onView(r)}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#E7EAF0] text-[#475467] text-xs font-semibold hover:bg-[#F9FAFC] transition-colors"
+            >
+              <Eye size={13} />
+              View
+            </button>
+          );
+        },
+        enableSorting: false,
+        size: 160,
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onApprove, onReject, onView],
+  );
+
+  const table = useReactTable({
+    data: filtered,
+    columns,
+    state: { pagination },
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+  });
+
+  return (
+    <Container>
+      <div className="mx-auto py-10 p-6">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Purchase</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">Purchase Approval</span>
+        </div>
+        <div className="mb-8">
+          <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            Purchase Approval
           </h1>
           <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-            Complete the formal review of this requisition. Ensure all compliance
-            benchmarks are met before institutional sign-off.
+            Manage and review purchase requisitions awaiting your review.
           </p>
         </div>
-        <button className="h-10 px-4 rounded-xl border border-[#E7EAF0] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors shrink-0">
-          <Download size={15} />
-          Download PDF
-        </button>
-      </div>
 
-      {/* Requisition info card */}
-      <div className="bg-white rounded-2xl border border-[#E7EAF0] px-6 py-5 mb-6">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2 text-[#101828] font-semibold text-sm">
-            <ClipboardList size={16} className="text-[#2952E3]" />
-            Requisition information
+        {scopeError && (
+          <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-[#C0293D]">{scopeError}</span>
+            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
+              Retry
+            </button>
           </div>
-          <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase bg-[#FDF1E3] text-[#B5590B]">
-            PR status: Pending
-          </span>
+        )}
+
+        <div className="grid grid-cols-3 gap-4 mb-7">
+          <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Send for approval" value={counts[PR_STATUS.SENT_FOR_APPROVAL] ?? 0} />
+          <StatCard icon={<CheckCircle2 size={18} />} iconBg="#E7F7EE" iconFg="#14804A" label="Approved" value={counts[PR_STATUS.APPROVED] ?? 0} />
+          <StatCard icon={<XCircle size={18} />} iconBg="#FBEAEC" iconFg="#C0293D" label="Rejected" value={counts[PR_STATUS.REJECTED] ?? 0} />
         </div>
-        <div className="grid grid-cols-4 gap-6">
-          <Field
-            label="PR code"
-            value={requisition?.code ?? "PR-2024-0892"}
-            mono
-            accent
-          />
-          <Field label="PR date" value={requisition?.date ?? "Oct 24, 2024"} />
-          <Field
-            label="Outlet location"
-            value={requisition?.outlet ?? "Mumbai Central Warehouse - WH01"}
-          />
-          <Field label="Approval date" value="10/25/2024" />
-        </div>
-        <div className="grid grid-cols-2 gap-6 mt-5 pt-5 border-t border-[#EFF1F5]">
-          <div>
-            <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-2">
-              Raised by
-            </div>
-            <div className="flex items-center gap-2.5">
-              <span className="text-[#101828] font-medium text-sm">
-                {requisition?.raisedBy ?? "Sanjay Kapoor"}{" "}
-                <span className="text-[#98A2B3] font-normal">(Inv. Mgr)</span>
-              </span>
-            </div>
-          </div>
-          <div>
-            <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-2">
-              Remarks
-            </div>
+
+        {/* Search + unit dropdown + status dropdown, aligned in one row */}
+        <div className="flex items-center gap-3 mb-5 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
             <input
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Enter administrative remarks regarding this procurement..."
-              className="w-full h-9 px-3 rounded-lg border border-[#E7EAF0] text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search PR code or outlet..."
+              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
+          {showUnitDropdown && (
+            <UnitDropdown units={units} selectedUnitId={selectedUnitId} onChange={setSelectedUnitId} />
+          )}
+          <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
         </div>
-      </div>
 
-      {/* Search + add item */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
-          />
-          <input
-            placeholder="Search item by name or code..."
-            className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-          />
-        </div>
-        <button className="h-11 px-4 rounded-xl bg-[#2952E3] text-white text-sm font-semibold flex items-center gap-2 hover:bg-[#2444c4] transition-colors shrink-0">
-          <Plus size={15} />
-          Add item
-        </button>
-      </div>
-
-      {/* Item table */}
-      <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E7EAF0]">
-          <div className="flex items-center gap-2 text-[#101828] font-semibold text-sm">
-            <ClipboardList size={16} className="text-[#2952E3]" />
-            Item details list
+        {prError && !scopeLoading && !prLoading && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{prError}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="h-9 px-3.5 rounded-lg border border-[#E7EAF0] text-xs font-medium text-[#344054] flex items-center gap-1.5 hover:bg-[#F9FAFC]">
-              <Filter size={13} />
-              Filter
-            </button>
-            <button className="h-9 px-3.5 rounded-lg border border-[#E7EAF0] text-xs font-medium text-[#344054] flex items-center gap-1.5 hover:bg-[#F9FAFC]">
-              <Download size={13} />
-              Export
-            </button>
-          </div>
-        </div>
+        )}
 
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-[#F9FAFC] border-b border-[#E7EAF0]">
-              {["Sr. no.", "Item name", "Unit", "Req. qty", "Appr. qty", "Variance", "Stock avail.", "Action"].map(
-                (h) => (
-                  <th
-                    key={h}
-                    className="text-left font-semibold text-[#667085] text-[11px] uppercase tracking-wide px-5 py-3.5"
-                  >
-                    {h}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it, idx) => {
-              const v = varianceInfo(it.reqQty, it.apprQty);
-              const tone = toneStyles[v.tone];
-              const fillPct = Math.min(100, Math.round((it.apprQty / it.reqQty) * 100));
-              return (
-                <tr
-                  key={it.id}
-                  className={idx !== items.length - 1 ? "border-b border-[#EFF1F5]" : ""}
-                >
-                  <td className="px-5 py-4 text-[#667085] font-medium">
-                    {String(idx + 1).padStart(2, "0")}
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="text-[#101828] font-semibold">{it.name}</div>
-                    <div
-                      className="text-[11px] text-[#98A2B3] mt-0.5"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-                    >
-                      SKU: {it.sku}
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 text-[#475467]">{it.unit}</td>
-                  <td className="px-5 py-4 text-[#475467]">{it.reqQty.toFixed(2)}</td>
-                  <td className="px-5 py-4">
-                    <input
-                      value={it.apprQty}
-                      onChange={(e) => updateQty(it.id, e.target.value)}
-                      type="number"
-                      min={0}
-                      className="w-20 h-9 px-2.5 rounded-lg border border-[#E7EAF0] text-sm text-[#101828] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-                    />
-                  </td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <span
-                        style={{ background: tone.bg, color: tone.fg }}
-                        className="px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase whitespace-nowrap"
-                      >
-                        {v.label}
-                      </span>
-                      <div className="w-12 h-1.5 rounded-full bg-[#EFF1F5] overflow-hidden hidden md:block">
-                        <div
-                          className="h-full rounded-full"
-                          style={{ width: `${fillPct}%`, background: tone.dot }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-5 py-4 text-[#475467]">{it.stock.toFixed(2)}</td>
-                  <td className="px-5 py-4">
-                    <button
-                      onClick={() => removeItem(it.id)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-[#C0293D] hover:bg-[#FBEAEC] transition-colors"
-                      aria-label={`Remove ${it.name}`}
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        {/* Totals footer */}
-        <div className="grid grid-cols-3 px-5 py-4 border-t border-[#E7EAF0] bg-[#F9FAFC]">
-          <TotalStat label="Total items" value={String(totals.count).padStart(2, "0")} />
-          <TotalStat label="Total req. qty" value={totals.req.toFixed(2)} />
-          <TotalStat label="Total appr. qty" value={totals.appr.toFixed(2)} />
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
+          {(scopeLoading || prLoading) ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
+              <Loader2 size={16} className="animate-spin" />
+              Loading requisitions…
+            </div>
+          ) : (
+            <DataGrid
+              table={table}
+              recordCount={filtered.length}
+              className="rounded-2xl"
+              tableLayout={{
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
+            >
+              <Card className="rounded-t-none border-t-0 rounded-2xl">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
+          )}
         </div>
       </div>
-
-      {/* Action bar */}
-      <div className="flex items-center justify-end gap-3 mt-6">
-        <button className="h-11 px-5 rounded-xl border border-[#E7EAF0] bg-white text-sm font-semibold text-[#344054] hover:bg-[#F9FAFC] transition-colors">
-          Save
-        </button>
-        <button className="h-11 px-5 rounded-xl bg-[#2952E3] text-white text-sm font-semibold flex items-center gap-2 hover:bg-[#2444c4] transition-colors">
-          <CheckCircle2 size={16} />
-          Save & approval
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Field({ label, value, mono, accent }) {
-  return (
-    <div>
-      <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1.5">
-        {label}
-      </div>
-      <div
-        className={`text-sm font-semibold ${accent ? "text-[#2952E3]" : "text-[#101828]"}`}
-        style={mono ? { fontFamily: "'IBM Plex Mono', monospace" } : undefined}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function TotalStat({ label, value }) {
-  return (
-    <div className="text-right px-4">
-      <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">
-        {label}
-      </div>
-      <div
-        className="text-lg font-bold text-[#101828]"
-        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-      >
-        {value}
-      </div>
-    </div>
+    </Container>
   );
 }
 
 export default function PurchaseRequisitionApproval() {
-  const [view, setView] = useState("list");
-  const [active, setActive] = useState(null);
+  const navigate = useNavigate();
 
-  const openDetail = (req) => {
-    setActive(req);
-    setView("detail");
+  const handleApprove = (req) => {
+    navigate(`/approve-purchase-requisition/approve/${req.id}`, {
+      state: { requisition: req },
+    });
   };
 
-  return (
-    <div className="min-h-screen w-full">
-      <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
-      {view === "list" ? (
-        <ListView onApprove={openDetail} />
-      ) : (
-        <ApprovalView requisition={active} onBack={() => setView("list")} />
-      )}
-    </div>
-  );
+  const handleReject = (req) => {
+    navigate(`/approve-purchase-requisition/reject/${req.id}`, {
+      state: { requisition: req },
+    });
+  };
+
+  // Approved/Rejected rows route into the existing detail view
+  // (PurchaseRequisitionView.jsx) rather than a separate approval-only page.
+  const handleView = (req) => {
+    navigate(`/purchase-requisition/view/${req.id}`);
+  };
+
+  return <ListView onApprove={handleApprove} onReject={handleReject} onView={handleView} />;
 }
