@@ -1,4 +1,8 @@
-import React, { useMemo, useState } from 'react';
+// ============================================
+// File: src/pages/PurchaseRequisitionList.jsx
+// ============================================
+
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
   getCoreRowModel,
@@ -6,74 +10,53 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import {
-  Building2,
-  Calendar,
-  ChevronLeft,
-  ChevronRight,
-  Download,
   Eye,
-  FileText,
-  Filter,
   Pencil,
   Plus,
-  Printer,
-  RefreshCw,
   Search,
   Trash2,
-  X,
+  ChevronRight,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { Container } from '@/components/common/container';
+import { Card, CardFooter, CardTable } from '@/components/ui/card';
+import { DataGrid } from '@/components/ui/data-grid';
+import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
+import { DataGridPagination } from '@/components/ui/data-grid-pagination';
+import { DataGridTable } from '@/components/ui/data-grid-table';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import SearchableSelect from '@/utils/searchableSelect';
+import { getPurchaseRequisitionsByOutlet, deletePurchaseRequisition } from '@/services/apiServices';
+import { useOrgScope } from '@/hooks/useOrgScope';
+import { OrgTypes } from '@/constants/orgTypes';
+import { PR_STATUS, PR_STATUS_LIST, EDITABLE_STATUSES, getStatusLabel } from './utils/prStatus';
+import { getUserIdFromToken } from '../../utils/auth';
 
 /* -------------------------------------------------------------------------
- * Shared style tokens & primitives
- * Kept in sync with the rest of the Purchase Requisition module (see
- * PurchaseRequisition.jsx / AddAsset.jsx) so every list screen matches.
+ * Shared style tokens & primitives (unchanged)
  * ---------------------------------------------------------------------- */
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
   'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
 
-const SectionCard = ({ children, className = '' }) => (
-  <div
-    className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}
-  >
-    {children}
-  </div>
-);
-
-const Breadcrumb = ({ items }) => (
-  <nav className="flex items-center gap-1.5 text-xs text-gray-400 flex-wrap">
-    {items.map((item, i) => (
-      <span key={item} className="flex items-center gap-1.5">
-        {i > 0 && <span className="text-gray-300">/</span>}
-        <span
-          className={i === items.length - 1 ? 'text-[#084E92] font-medium' : ''}
-        >
-          {item}
-        </span>
-      </span>
-    ))}
-  </nav>
-);
-
 const STATUS_STYLES = {
+  Pending: 'bg-red-50 text-red-600',
+  'Sent for Approval': 'bg-amber-50 text-amber-600',
+  'In Progress': 'bg-blue-50 text-blue-600',
   Approved: 'bg-emerald-50 text-emerald-600',
-  'Send for Approval': 'bg-amber-50 text-amber-600',
-  'In Review': 'bg-blue-50 text-blue-600',
-  Draft: 'bg-red-50 text-red-600',
+  Rejected: 'bg-rose-50 text-rose-600',
+  Cancelled: 'bg-gray-100 text-gray-500',
 };
 
 const STATUS_DOT = {
+  Pending: 'bg-red-500',
+  'Sent for Approval': 'bg-amber-500',
+  'In Progress': 'bg-blue-500',
   Approved: 'bg-emerald-500',
-  'Send for Approval': 'bg-amber-500',
-  'In Review': 'bg-blue-500',
-  Draft: 'bg-red-500',
+  Rejected: 'bg-rose-500',
+  Cancelled: 'bg-gray-400',
 };
-
-// Statuses a requisition can still be edited in; approved/pending ones are read-only.
-const EDITABLE_STATUSES = new Set(['Draft', 'In Review']);
 
 const StatusBadge = ({ status, size = 'md' }) => (
   <span
@@ -81,342 +64,140 @@ const StatusBadge = ({ status, size = 'md' }) => (
       size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
     } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
   >
-    <span
-      className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`}
-    />
+    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
     {status}
   </span>
 );
 
-const IconButton = ({ icon: Icon, onClick, tone = 'default', title }) => {
-  const toneCls =
-    tone === 'danger'
-      ? 'text-gray-400 hover:text-red-500'
-      : tone === 'edit'
-        ? 'text-gray-400 hover:text-blue-500'
-        : 'text-gray-400 hover:text-green-600 ';
+// Truncates long text within a fixed-width box, revealing the full value on hover
+// (mirrors TruncatedCell from UserManagementList.jsx)
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-[180px]',
+  className = 'text-gray-600',
+}) => (
+  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+    {value}
+  </span>
+);
+
+// Only rendered for GROUP / SUB_COMPANY — mirrors the approval screen's dropdown,
+// now searchable so a long outlet list can be typed/filtered.
+function UnitDropdown({ units, selectedUnitId, onChange }) {
+  const options = units.map((u) => ({ value: u.id, label: u.name }));
   return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      className={`w-8 h-8 rounded-lg flex items-center justify-center transition cursor-pointer bg-transparent border-0 ${toneCls}`}
-    >
-      <Icon className="w-4 h-4" />
-    </button>
-  );
-};
-
-/* -------------------------------------------------------------------------
- * View details modal
- * Mirrors the "Purchase Requisition Details" design: header with doc icon
- * + close, PR number / status row, an Origin Details section, a notes
- * card, and a Print / Cancel / Download PDF footer.
- * ---------------------------------------------------------------------- */
-
-const ViewRequisitionModal = ({ row, onClose }) => {
-  if (!row) return null;
-
-  const handlePrint = () => window.print();
-  const handleDownloadPdf = () => {
-    // TODO: wire to downloadPurchaseRequisitionPdf(row.id)
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-      role="dialog"
-      aria-modal="true"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between px-5 pt-5 pb-4">
-          <div className="flex items-start gap-3">
-            <span className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-[#084E92] shrink-0">
-              <FileText className="w-4.5 h-4.5" />
-            </span>
-            <div>
-              <h3 className="text-base font-semibold text-gray-900 leading-tight">
-                Purchase Requisition Details
-              </h3>
-              <p className="text-[11px] text-gray-400 mt-0.5 tracking-wide">
-                SUPER ADMIN MODULE · ERP 2026 VERSION 4.2
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-50 hover:text-gray-600 transition cursor-pointer bg-transparent border-0 shrink-0"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="px-5 pb-5 space-y-4">
-          {/* PR Number / Status */}
-          <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/60 px-4 py-3">
-            <div>
-              <p className="text-[11px] text-gray-400 uppercase tracking-wide">
-                PR Number
-              </p>
-              <p className="text-sm font-semibold text-gray-900 mt-0.5">
-                {row.prCode}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-[11px] text-gray-400 uppercase tracking-wide">
-                Status
-              </p>
-              <div className="mt-1">
-                <StatusBadge status={row.status} size="sm" />
-              </div>
-            </div>
-          </div>
-
-          {/* Origin Details */}
-          <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">
-              <Calendar className="w-3.5 h-3.5" />
-              Origin Details
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl border border-gray-100 px-4 py-3">
-                <p className="text-[11px] text-gray-400">Created Date</p>
-                <p className="text-sm font-medium text-gray-800 mt-0.5">
-                  {row.date}
-                </p>
-              </div>
-              <div className="rounded-xl border border-gray-100 px-4 py-3">
-                <p className="text-[11px] text-gray-400">Required Date</p>
-                <p className="text-sm font-medium text-gray-800 mt-0.5">
-                  {row.requiredDate}
-                </p>
-              </div>
-              <div className="rounded-xl border border-gray-100 px-4 py-3 col-span-2">
-                <p className="text-[11px] text-gray-400">Outlet/Branch</p>
-                <p className="text-sm font-medium text-gray-800 mt-0.5">
-                  {row.outlet}
-                </p>
-                {row.section && (
-                  <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
-                    {row.section}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div className="rounded-xl bg-blue-50/50 border border-blue-100 px-4 py-3">
-            <p className="text-[11px] font-semibold text-[#084E92] uppercase tracking-wide mb-1.5">
-              Internal Requisition Notes
-            </p>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              {row.notes || row.remarks}
-            </p>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end px-5 py-4 border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadPdf}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
-            >
-              <Download className="w-4 h-4" />
-              Download PDF
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="w-56 shrink-0">
+      <SearchableSelect
+        name="unit"
+        value={selectedUnitId ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        options={options}
+        placeholder={units.length === 0 ? 'No outlets available' : 'Select outlet...'}
+        disabled={units.length === 0}
+      />
     </div>
   );
-};
-
-/* -------------------------------------------------------------------------
- * Mock data — stand-in for the requisitions-list API in this demo.
- * ---------------------------------------------------------------------- */
-
-const MOCK_REQUISITIONS = [
-  {
-    id: 'pr-1',
-    prCode: 'PR-2024-001',
-    date: 'Oct 12, 2023',
-    requiredDate: 'Oct 25, 2023',
-    outlet: 'South City Mall',
-    section: 'Apparel Section',
-    status: 'Approved',
-    remarks: 'Quarterly inventory restock',
-    notes:
-      'This requisition is for the upcoming winter collection inventory replenishment. Pricing has been negotiated based on the master service agreement. All items meet the quality standards of Jaiswal Group retail division. Approval from the regional director is attached in the digital archive.',
-  },
-  {
-    id: 'pr-2',
-    prCode: 'PR-2024-002',
-    date: 'Oct 14, 2023',
-    requiredDate: 'Oct 25, 2023',
-    outlet: 'Mumbai Airport Flagship',
-    section: 'Electronics Section',
-    status: 'Send for Approval',
-    remarks: 'Urgent procurement for tec...',
-    notes:
-      'Urgent procurement for technical equipment ahead of the flagship relaunch. Vendor quotes are attached.',
-  },
-  {
-    id: 'pr-3',
-    prCode: 'PR-2024-003',
-    date: 'Oct 15, 2023',
-    requiredDate: 'Oct 25, 2023',
-    outlet: 'Bangalore Tech Park Hub',
-    section: 'Facilities Section',
-    status: 'In Review',
-    remarks: 'Office furniture replacemen...',
-    notes:
-      'Office furniture replacement for the second floor workspace remodel, pending facilities sign-off.',
-  },
-  {
-    id: 'pr-4',
-    prCode: 'PR-2024-004',
-    date: 'Oct 18, 2023',
-    requiredDate: 'Oct 25, 2023',
-    outlet: 'Delhi Connaught Place Store',
-    section: 'Admin Section',
-    status: 'Draft',
-    remarks: 'Stationery and housekeepi...',
-    notes:
-      'Stationery and housekeeping supplies for the monthly admin order, still pending final line items.',
-  },
-  {
-    id: 'pr-5',
-    prCode: 'PR-2024-005',
-    date: 'Oct 20, 2023',
-    requiredDate: 'Oct 25, 2023',
-    outlet: 'Kolkata Head Office',
-    section: 'IT Section',
-    status: 'Approved',
-    remarks: 'Annual IT hardware mainten...',
-    notes:
-      'Annual IT hardware maintenance contract renewal, approved as part of the FY24 budget cycle.',
-  },
-];
+}
 
 const PAGE_SIZE = 10;
 
-/* -------------------------------------------------------------------------
- * Pagination — now driven by the real table state (page, pageCount, row
- * count) instead of a hardcoded total, same source of truth as the table
- * used in UserManagementList.
- * ---------------------------------------------------------------------- */
-
-const Pagination = ({ page, totalPages, onChange }) => {
-  // Compact page list: 1, 2, 3, ..., last (matches the design's "1 2 3 ... 5" pattern)
-  const pages = useMemo(() => {
-    if (totalPages <= 5)
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    const result = [1, 2, 3];
-    if (page > 4 && page < totalPages - 1) result.push(page);
-    result.push('ellipsis', totalPages);
-    return [...new Set(result)];
-  }, [page, totalPages]);
-
-  if (totalPages <= 1) return null;
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={() => onChange(Math.max(1, page - 1))}
-        disabled={page === 1}
-        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
-      >
-        <ChevronLeft className="w-4 h-4" />
-      </button>
-
-      {pages.map((p, i) =>
-        p === 'ellipsis' ? (
-          <span
-            key={`e-${i}`}
-            className="w-8 h-8 flex items-center justify-center text-gray-400 text-sm"
-          >
-            ...
-          </span>
-        ) : (
-          <button
-            key={p}
-            type="button"
-            onClick={() => onChange(p)}
-            className={`w-8 h-8 rounded-lg text-sm font-semibold transition cursor-pointer border ${
-              p === page
-                ? 'bg-[#084E92] text-white border-[#084E92]'
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {p}
-          </button>
-        ),
-      )}
-
-      <button
-        type="button"
-        onClick={() => onChange(Math.min(totalPages, page + 1))}
-        disabled={page === totalPages}
-        className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
-      >
-        <ChevronRight className="w-4 h-4" />
-      </button>
-    </div>
-  );
-};
+// Normalizes a raw PR record from getPurchaseRequisitionsByOutlet into the
+// row shape this page's table/modal expect (mirrors normalizePr from
+// usePurchaseRequisitions.js, kept local since this fetch bypasses that hook).
+const normalizeRow = (pr) => ({
+  id: pr.id,
+  prCode: pr.prCode,
+  date: pr.prDate,
+  requiredDate: pr.prRequiredDate,
+  outlet: pr.outletName ?? '',
+  outletId: pr.outletId,
+  status: getStatusLabel(pr.status),
+  rawStatus: pr.status,
+  remarks: pr.remarks ?? '',
+  notes: pr.remarks ?? '',
+  details: pr.details ?? [],
+  createdBy: pr.createdBy,
+  createdAt: pr.createdAt,
+  updatedBy: pr.updatedBy,
+  updatedAt: pr.updatedAt,
+});
 
 /* -------------------------------------------------------------------------
- * Main page
+ * Main page — scoped to the logged-in user's org (GROUP/SUB_COMPANY get an
+ * outlet dropdown, OUTLET users only ever see their own outlet's PRs).
+ * Fetches by outlet (not by status) since that's the only way to scope the
+ * request; status filter is then applied client-side.
+ *
+ * Table + pagination follow the same DataGrid/DataGridPagination pattern
+ * used in UserManagementList.jsx.
  * ---------------------------------------------------------------------- */
 
 const PurchaseRequisitionList = () => {
   const navigate = useNavigate();
 
+  const {
+    loading: scopeLoading,
+    error: scopeError,
+    orgType,
+    units,
+    selectedUnitId,
+    setSelectedUnitId,
+    retry: retryScope,
+  } = useOrgScope();
+
+  const showUnitDropdown = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
+
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [prError, setPrError] = useState(null);
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [rows, setRows] = useState(MOCK_REQUISITIONS);
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: PAGE_SIZE,
-  });
-  const [viewingRow, setViewingRow] = useState(null);
+  const [statusFilter, setStatusFilter] = useState(PR_STATUS.PENDING); // default: Pending
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
-  const filteredRows = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
-        r.prCode.toLowerCase().includes(q) ||
-        r.outlet.toLowerCase().includes(q),
-    );
-  }, [rows, searchQuery]);
+  const loadData = useCallback(async () => {
+    if (!selectedUnitId) {
+      setList([]);
+      return;
+    }
+    setLoading(true);
+    setPrError(null);
+    try {
+      const res = await getPurchaseRequisitionsByOutlet(selectedUnitId, statusFilter);
+      const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      const rows = Array.isArray(raw) ? raw.map(normalizeRow) : [];
+      setList(rows);
+    } catch (err) {
+      setPrError(err?.message || 'Failed to load purchase requisitions.');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedUnitId, statusFilter]);
 
-  // Columns are only used to drive the pagination row model here — the
-  // table body below is still rendered with the existing custom markup,
-  // same split UserManagementList uses between table state and table UI.
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleteSaving(true);
+    try {
+      await deletePurchaseRequisition(deleteTarget.id, getUserIdFromToken());
+      closeDeleteConfirm();
+      await loadData();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
+
   const openDeleteConfirm = (item) => {
-    setDeleteTarget({ id: item.id, itemLabel: item.name });
+    setDeleteTarget({ id: item.id, itemLabel: item.prCode, actionBy: item.createdBy });
     setShowDeleteConfirm(true);
   };
 
@@ -426,30 +207,120 @@ const PurchaseRequisitionList = () => {
     setDeleteTarget(null);
   };
 
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-
-    setDeleteSaving(true);
-
-    try {
-      closeDeleteConfirm();
-      fetchMenuItems();
-    } catch (err) {
-      console.error(err);
-      notify.error('Failed to delete menu item');
-    } finally {
-      setDeleteSaving(false);
+  const filteredRows = useMemo(() => {
+    let rows = list.filter((r) => r.rawStatus === statusFilter);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (r) => r.prCode.toLowerCase().includes(q) || r.outlet.toLowerCase().includes(q),
+      );
     }
-  };
+    return rows;
+  }, [list, statusFilter, searchQuery]);
+
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [searchQuery, statusFilter, selectedUnitId]);
+
+  const handleView = (row) => navigate(`/purchase-requisition/view/${row.id}`);
+  const handleEdit = (row) => navigate(`/purchase-requisition/edit/${row.id}`);
+
   const columns = useMemo(
     () => [
-      { id: 'prCode', accessorFn: (r) => r.prCode },
-      { id: 'date', accessorFn: (r) => r.date },
-      { id: 'requiredDate', accessorFn: (r) => r.requiredDate },
-      { id: 'outlet', accessorFn: (r) => r.outlet },
-      { id: 'status', accessorFn: (r) => r.status },
-      { id: 'remarks', accessorFn: (r) => r.remarks },
+      {
+        id: 'prCode',
+        accessorFn: (row) => row.prCode,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span className="font-semibold text-[#084E92]">{row.original.prCode}</span>
+        ),
+        size: 140,
+      },
+      {
+        id: 'date',
+        accessorFn: (row) => row.date,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
+        size: 130,
+      },
+      {
+        id: 'requiredDate',
+        accessorFn: (row) => row.requiredDate,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="REQUIRED DATE" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[130px]" />
+        ),
+        size: 140,
+      },
+      {
+        id: 'outlet',
+        accessorFn: (row) => row.outlet,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
+        size: 190,
+      },
+      {
+        id: 'status',
+        accessorFn: (row) => row.status,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        size: 160,
+      },
+      {
+        id: 'action',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => {
+          const original = row.original;
+          return (
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => handleView(original)}
+                className="text-gray-500 hover:text-green-600 cursor-pointer"
+                title="View"
+              >
+                <Eye size={18} />
+              </button>
+              {EDITABLE_STATUSES.has(original.rawStatus) && (
+                <button
+                  type="button"
+                  onClick={() => handleEdit(original)}
+                  className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                  title="Edit"
+                >
+                  <Pencil size={18} />
+                </button>
+              )}
+              {original.rawStatus === PR_STATUS.PENDING && (
+                <button
+                  type="button"
+                  onClick={() => openDeleteConfirm(original)}
+                  className="text-red-300 hover:text-red-600 cursor-pointer"
+                  title="Delete"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
+            </div>
+          );
+        },
+        enableSorting: false,
+        size: 110,
+      },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -462,230 +333,120 @@ const PurchaseRequisitionList = () => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
-  // Reset back to page 1 whenever the search narrows/widens the result set,
-  // so you can't land on an out-of-range page.
-  useMemo(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
-
-  const pageRows = table.getRowModel().rows.map((r) => r.original);
-  const pageCount = table.getPageCount();
-  const currentPage = pagination.pageIndex + 1;
-  const totalResults = filteredRows.length;
-  const firstResultIndex =
-    totalResults === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1;
-  const lastResultIndex = Math.min(
-    (pagination.pageIndex + 1) * pagination.pageSize,
-    totalResults,
-  );
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      // TODO: wire to getPurchaseRequisitions({ page: currentPage, query: searchQuery })
-      await new Promise((res) => setTimeout(res, 500));
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const handleExport = () => {
-    // TODO: wire to exportPurchaseRequisitions({ query: searchQuery })
-  };
-
-  const handleDelete = (id) => {
-    setRows((r) => r.filter((row) => row.id !== id));
-    // TODO: wire to deletePurchaseRequisition(id)
-  };
-
   return (
     <Container>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-screen pb-10">
-        {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
           <span>Dashboard</span>
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Purchase Requisition List
-          </span>
+          <span className="text-[#084E92] font-medium">Purchase Requisition List</span>
         </div>
 
         <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl md:text-4xl font-semibold">
-              Purchase Requisition List
-            </h1>
+            <h1 className="text-2xl md:text-4xl font-semibold">Purchase Requisition List</h1>
             <p className="text-[#43474F] mt-1 text-sm sm:text-base">
-              View and manage all purchase requisitions across enterprise
-              departments.
+              View and manage all purchase requisitions across enterprise departments.
             </p>
           </div>
-          <Link
-            to="/purchase-requisition/add"
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            Create Purchase Requisition
-          </Link>
+          <div className="flex items-center gap-3 shrink-0">
+            <Link
+              to="/purchase-requisition/add"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
+            >
+              <Plus className="w-4 h-4" />
+              Create Purchase Requisition
+            </Link>
+          </div>
         </div>
 
-        <SectionCard className="mt-5">
-          {/* Toolbar */}
-          <div className="flex items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-100 flex-wrap">
-            <div className="relative flex-1 min-w-55">
+        {scopeError && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 flex items-center justify-between">
+            {scopeError}
+            <button onClick={retryScope} className="text-xs font-semibold underline shrink-0 ml-3">
+              Retry
+            </button>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-55 border border-[#C3C6D1] rounded-lg">
               <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search PR Code, Outlet..."
-                className={`${inputCls} pl-9`}
+                className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
               />
             </div>
 
-            <button
-              type="button"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white shrink-0"
-            >
-              <Filter className="w-4 h-4" />
-              Filter
-            </button>
+            {showUnitDropdown && (
+              <UnitDropdown units={units} selectedUnitId={selectedUnitId} onChange={setSelectedUnitId} />
+            )}
 
-            <div className="flex items-center gap-2 ml-auto shrink-0">
-              <button
-                type="button"
-                onClick={handleRefresh}
-                title="Refresh"
-                className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 transition cursor-pointer bg-white"
+            <div className="w-48 shrink-0">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className={inputCls}
               >
-                <RefreshCw
-                  className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}
-                />
-              </button>
-              <button
-                type="button"
-                onClick={handleExport}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-              >
-                <Download className="w-4 h-4" />
-                Export
-              </button>
+                {PR_STATUS_LIST.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+        </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-190 text-sm">
-              <thead>
-                <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                  <th className="text-left font-semibold px-4 sm:px-6 py-3">
-                    PR Code
-                  </th>
-                  <th className="text-left font-semibold px-4 py-3">Date</th>
-                  <th className="text-left font-semibold px-4 py-3">
-                    Required Date
-                  </th>
-                  <th className="text-left font-semibold px-4 py-3">
-                    Outlet Name
-                  </th>
-                  <th className="text-left font-semibold px-4 py-3">Status</th>
-                  <th className="text-left font-semibold px-4 py-3">Remarks</th>
-                  <th className="text-left font-semibold px-4 sm:px-6 py-3 w-28">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-6 py-10 text-center text-gray-400"
-                    >
-                      No purchase requisitions match your search.
-                    </td>
-                  </tr>
-                ) : (
-                  pageRows.map((row) => (
-                    <tr key={row.id} className="border-t border-gray-100">
-                      <td className="px-4 sm:px-6 py-4 font-semibold text-[#084E92] whitespace-nowrap">
-                        {row.prCode}
-                      </td>
-                      <td className="px-4 py-4 text-gray-600 whitespace-nowrap">
-                        {row.date}
-                      </td>
-                      <td className="px-4 py-4 text-gray-600 whitespace-nowrap">
-                        {row.requiredDate}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
-                            <Building2 className="w-3.5 h-3.5" />
-                          </span>
-                          <span className="text-gray-700">{row.outlet}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <StatusBadge status={row.status} />
-                      </td>
-                      <td className="px-4 py-4 text-gray-500 max-w-55 truncate">
-                        {row.remarks}
-                      </td>
-                      <td className="px-4 sm:px-6 py-4">
-                        <div className="flex items-center">
-                          <IconButton
-                            icon={Eye}
-                            title="View"
-                            onClick={() => setViewingRow(row)}
-                          />
-                          {EDITABLE_STATUSES.has(row.status) && (
-                            <IconButton
-                              icon={Pencil}
-                              tone="edit"
-                              title="Edit"
-                              onClick={() =>
-                                navigate(`/purchase-requisition/edit/${row.id}`)
-                              }
-                            />
-                          )}
-                          <IconButton
-                            icon={Trash2}
-                            tone="danger"
-                            title="Delete"
-                            onClick={() => openDeleteConfirm(row)}
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        {prError && (
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {prError}
+            <button
+              type="button"
+              onClick={loadData}
+              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
+            >
+              Retry
+            </button>
           </div>
+        )}
 
-          {/* Footer */}
-          <div className="flex items-center justify-between flex-wrap gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
-            <p className="text-xs text-gray-400">
-              {totalResults === 0
-                ? 'Showing 0 results'
-                : `Showing ${firstResultIndex}-${lastResultIndex} of ${totalResults} results`}
-            </p>
-            <Pagination
-              page={currentPage}
-              totalPages={Math.max(pageCount, 1)}
-              onChange={(p) =>
-                setPagination((prev) => ({ ...prev, pageIndex: p - 1 }))
-              }
-            />
-          </div>
-        </SectionCard>
-
-        <ViewRequisitionModal
-          row={viewingRow}
-          onClose={() => setViewingRow(null)}
-        />
+        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+          {loading || scopeLoading ? (
+            <div className="px-6 py-16 text-center text-sm text-gray-400">
+              Loading purchase requisitions...
+            </div>
+          ) : (
+            <DataGrid
+              table={table}
+              recordCount={filteredRows.length}
+              className="rounded-2xl"
+              tableLayout={{
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
+            >
+              <Card className="rounded-t-none border-t-0 rounded-2xl">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+                <CardFooter className="bg-[#F9F9FF] rounded-b-2xl">
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
+          )}
+        </div>  
 
         <DeleteConfirmModal
           isOpen={showDeleteConfirm}

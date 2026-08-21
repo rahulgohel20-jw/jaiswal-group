@@ -30,3 +30,13 @@ export const getEmailFromToken = () => {
   const user = auth?.user || auth?.data || auth;
   return user?.email ?? null;
 };
+
+// `name` comes from the login response body (payload.name), not the JWT —
+// the token itself only has organizationId/departmentId/userType/userId/sub.
+// saveAuth(payload) stores the whole login payload, so it's read the same
+// way getEmailFromToken reads `email` off that stored object.
+export const getUsernameFromToken = () => {
+  const auth = getAuth();
+  const user = auth?.user || auth?.data || auth;
+  return user?.name ?? null;
+};

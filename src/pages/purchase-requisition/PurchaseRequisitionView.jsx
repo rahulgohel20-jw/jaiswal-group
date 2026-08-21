@@ -57,7 +57,7 @@ const StatusBadge = ({ status, size = 'md' }) => (
     <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
     {status}
   </span>
-);
+)
 
 // A small labeled value block used inside the Origin Details / Approval Details cards.
 const InfoTile = ({ label, value, icon: Icon, className = '' }) => (
@@ -129,13 +129,13 @@ const PurchaseRequisitionView = () => {
         {/* Header card */}
         <div className="rounded-2xl bg-gradient-to-r from-[#084E92] to-[#0B65BD] px-6 py-5 flex items-center justify-between gap-4 flex-wrap shadow-sm">
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => navigate('/purchase-requisition')}
+            <Link
+              to="/purchase-requisition/list"
+              className="text-white/80 hover:text-white transition text-sm font-medium" 
               className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center text-white hover:bg-white/25 transition cursor-pointer border-0"
             >
               <ArrowLeft className="w-4 h-4" />
-            </button>
+            </Link>
             <div>
               <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">{row.prCode}</h1>
               <p className="text-blue-100/80 text-xs mt-0.5">Purchase requisition details</p>
@@ -191,7 +191,7 @@ const PurchaseRequisitionView = () => {
             <SectionHeader icon={CheckCircle2} title={`${row.status} Details`} />
             <div className="px-5 pb-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <InfoTile label={`${row.status} By`} value={row.actionBy || '—'} />
+                <InfoTile label={`${row.status} By`} value={row.updatedBy || '—'} />
                 <InfoTile label={`${row.status} On`} value={row.updatedAt || '—'} />
               </div>
 

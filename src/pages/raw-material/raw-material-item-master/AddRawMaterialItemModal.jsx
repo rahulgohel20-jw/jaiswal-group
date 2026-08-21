@@ -19,11 +19,9 @@ import {
   addRawMaterialItem,
   getAllActiveRawMaterialBrand,
   getAllActiveVendors,
-  getAllRawMaterialBrand,
   getAllRawMaterialCategory,
   getAllRawMaterialUnits,
   getAllSubCategoryByCategoryId,
-  getRawMaterialCategoryBrandsByCategoryId,
   updateRawMaterialItem,
 } from '../../../services/apiServices';
 import { getUserIdFromToken } from '../../../utils/auth';
@@ -85,6 +83,75 @@ const formatDateToInputValue = (dateStr) => {
   const [day, month, year] = parts;
 
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
+/* -------------------------------------------------------------------------
+ * Normalization helpers
+ * The "edit an existing item" path (data from getRawMaterialById) and the
+ * "just created via the + modal" path (data from onSaved(createdRecord))
+ * don't necessarily share the same shape — one may be a flat id+name pair,
+ * the other a nested object. These helpers coerce either into a single
+ * {id, nameEnglish} / {id, name} shape so the rest of the component doesn't
+ * need to care which source it came from.
+ * ---------------------------------------------------------------------- */
+
+const pickDefined = (...vals) =>
+  vals.find((v) => v !== undefined && v !== null && v !== '');
+
+const normalizeCategory = (data) => {
+  if (!data) return null;
+  const id = pickDefined(
+    data.rawMaterialCatId,
+    data.rawMaterialCat?.id,
+    data.rawMaterialCategory?.id,
+    data.categoryId,
+    data.id,
+  );
+  if (id == null || id === '') return null;
+  const name =
+    data.rawMaterialCat?.nameEnglish ||
+    data.rawMaterialCategory?.nameEnglish ||
+    data.rawMaterialCategoryName ||
+    data.categoryName ||
+    data.nameEnglish ||
+    '';
+  return { id, nameEnglish: name };
+};
+
+const normalizeSubCategory = (data) => {
+  if (!data) return null;
+  const rawSubCat = data.subCategoryId;
+  const id = pickDefined(
+    typeof rawSubCat === 'object' ? rawSubCat?.id : rawSubCat,
+    data.subCategory?.id,
+    data.id,
+  );
+  if (id == null || id === '') return null;
+  const name =
+    data.subCategoryName ||
+    data.subCategory?.nameEnglish ||
+    (typeof rawSubCat === 'object' ? rawSubCat?.nameEnglish : '') ||
+    data.nameEnglish ||
+    '';
+  return { id, nameEnglish: name };
+};
+
+const normalizeUnit = (data) => {
+  if (!data) return null;
+  const id = pickDefined(data.unitId, data.unit?.id, data.id);
+  if (id == null || id === '') return null;
+  const name = data.unit?.nameEnglish || data.unitName || data.nameEnglish || '';
+  return { id, nameEnglish: name };
+};
+
+// Brand list now comes from getAllActiveRawMaterialBrand, which returns
+// { id, name, description, active, ... } — not nested under a "brand" key.
+const normalizeBrand = (data) => {
+  if (!data) return null;
+  const id = pickDefined(data.brandId, data.brand?.id, data.id);
+  if (id == null || id === '') return null;
+  const name = data.brandName || data.brand?.name || data.name || '';
+  return { id, name };
 };
 
 const AddRawMaterialItemModal = ({
@@ -157,6 +224,7 @@ const AddRawMaterialItemModal = ({
 
     return Object.keys(newErrors).length === 0;
   };
+
   const fetchUnits = async (editUnit = null) => {
     try {
       const res = await getAllRawMaterialUnits();
@@ -165,8 +233,11 @@ const AddRawMaterialItemModal = ({
 
       let activeList = unitData.filter((item) => item.isActive === true);
 
-      if (editUnit && !activeList.some((u) => u.id === editUnit.id)) {
-        activeList = [...activeList, editUnit];
+      if (
+        editUnit?.id != null &&
+        !activeList.some((u) => String(u.id) === String(editUnit.id))
+      ) {
+        activeList = [...activeList, { ...editUnit, isActive: true }];
       }
 
       setUnits(activeList);
@@ -185,8 +256,11 @@ const AddRawMaterialItemModal = ({
 
       let activeList = categoryData.filter((item) => item.isActive === true);
 
-      if (editCategory && !activeList.some((c) => c.id === editCategory.id)) {
-        activeList = [...activeList, editCategory];
+      if (
+        editCategory?.id != null &&
+        !activeList.some((c) => String(c.id) === String(editCategory.id))
+      ) {
+        activeList = [...activeList, { ...editCategory, isActive: true }];
       }
 
       setCategories(activeList);
@@ -194,6 +268,7 @@ const AddRawMaterialItemModal = ({
       console.error('Failed to load categories:', err);
     }
   };
+
   const fetchSubCategoriesForCategory = async (
     categoryId = form.rawMaterialCatId,
     editSubCategory = null,
@@ -226,44 +301,27 @@ const AddRawMaterialItemModal = ({
     }
   };
 
-  // Brands are scoped to the selected raw material category via the
-  // category-brand mapping endpoint (mapping rows come back flat as
-  // { brandId, brandName, categoryId, ... }, not a nested "brand" object).
-  // editBrand: normalized { id, name } shape, merged in so an existing
-  // selection still shows even if the mapping was later removed/inactive.
-  const fetchBrandsForCategory = async (
-    categoryId = form.rawMaterialCatId,
-    editBrand = null,
-  ) => {
-
-    if (!categoryId) {
-      setBrands([]);
-      return;
-    }
+  // Brands are now a flat, independent list (getAllActiveRawMaterialBrand) —
+  // not scoped to the selected category. editBrand: normalized {id, name},
+  // merged in so an existing selection still shows even if it's since gone
+  // inactive.
+  const fetchBrands = async (editBrand = null) => {
     try {
-      const res = await getRawMaterialCategoryBrandsByCategoryId(categoryId);
-      const mappings =
-        res?.data?.data?.['Raw Material Brand Details'] ||
-        res?.data?.data ||
-        [];
+      const res = await getAllActiveRawMaterialBrand();
+      const brandData = res?.data?.data || [];
 
-      let brandData = mappings
-        .filter((m) => m?.brandId != null)
-        .map((m) => ({
-          id: m.brandId,
-          name: m.brandName || '',
-        }));
+      let activeList = brandData.filter((item) => item.active !== false);
 
       if (
         editBrand?.id != null &&
-        !brandData.some((b) => String(b.id) === String(editBrand.id))
+        !activeList.some((b) => String(b.id) === String(editBrand.id))
       ) {
-        brandData = [...brandData, editBrand];
+        activeList = [...activeList, { ...editBrand, active: true }];
       }
 
-      setBrands(brandData);
+      setBrands(activeList);
     } catch (err) {
-      console.error('Failed to load category brands:', err);
+      console.error('Failed to load brands:', err);
       setBrands([]);
     }
   };
@@ -278,63 +336,39 @@ const AddRawMaterialItemModal = ({
       console.error('Failed to load vendors:', err);
     }
   };
+
   useEffect(() => {
     if (isOpen) {
-      fetchUnits(editData?.unit || null);
-      fetchCategories(editData?.rawMaterialCat || null);
+      fetchUnits(normalizeUnit(editData));
+      fetchCategories(normalizeCategory(editData));
+      fetchBrands(normalizeBrand(editData));
       fetchSuppliers();
-      // Brands are fetched separately, scoped to the selected category —
-      // see the effect below that watches form.rawMaterialCatId.
     }
   }, [isOpen, editData]);
 
-  // Refetch brands whenever the selected category changes (including when
-  // the form is first populated from editData, since that sets
-  // rawMaterialCatId too). If the item being edited belongs to this same
-  // category, merge its existing brand into the list in case the mapping
-  // was later removed or the brand is inactive.
+  // Sub-categories are still scoped to the selected category, so keep
+  // refetching them whenever it changes (including when the form is first
+  // populated from editData, since that sets rawMaterialCatId too).
   useEffect(() => {
     if (!isOpen) return;
 
-    const catId = String(
-      form.rawMaterialCatId ||
-      editData?.rawMaterialCat?.id ||
-      ''
-    );
+    const category = normalizeCategory(editData);
+    const catId = String(form.rawMaterialCatId || category?.id || '');
 
     if (!catId) {
-      setBrands([]);
       setSubCategories([]);
       return;
     }
 
-    const editBrand =
-      editData?.brandId != null
-        ? {
-          id: editData.brandId,
-          name: editData.brandName || '',
-        }
-        : null;
-
-    const editSubCategory =
-      editData?.subCategoryId != null
-        ? {
-          id: editData.subCategoryId,
-          nameEnglish: editData.subCategoryName || '',
-        }
-        : null;
-
-    fetchBrandsForCategory(catId, editBrand);
-    fetchSubCategoriesForCategory(catId, editSubCategory);
+    fetchSubCategoriesForCategory(catId, normalizeSubCategory(editData));
   }, [
     isOpen,
     form.rawMaterialCatId,
     editData?.id,
   ]);
 
-  // If the currently selected brand isn't in the freshly loaded, category-
-  // scoped brand list, clear the selection — it belongs to a different
-  // category (e.g. user just switched category).
+  // If the currently selected brand isn't in the freshly loaded brand list
+  // (e.g. it was deactivated elsewhere), clear the selection.
   useEffect(() => {
     if (!form.brandId || brands.length === 0) return;
 
@@ -354,7 +388,7 @@ const AddRawMaterialItemModal = ({
       (s) => String(s.id) === String(form.rawMaterialSubCatId),
     );
     if (!stillValid) {
-      set('subCategoryId', '');
+      set('rawMaterialSubCatId', '');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subCategories]);
@@ -436,14 +470,17 @@ const AddRawMaterialItemModal = ({
   };
   useEffect(() => {
     if (editData) {
+      const category = normalizeCategory(editData);
+      const subCategory = normalizeSubCategory(editData);
+      const unit = normalizeUnit(editData);
+      const brand = normalizeBrand(editData);
+
       setForm({
         nameEnglish: editData.nameEnglish || '',
-        rawMaterialCatId: String(editData.rawMaterialCat?.id || ''),
-        rawMaterialSubCatId: String(
-          editData.subCategoryId?.id ?? editData.subCategoryId ?? '',
-        ),
-        unitId: String(editData.unit?.id ?? editData.unitId ?? ''),
-        brandId: String(editData?.brandId ?? editData?.brand?.id ?? ''),
+        rawMaterialCatId: String(category?.id ?? ''),
+        rawMaterialSubCatId: String(subCategory?.id ?? ''),
+        unitId: String(unit?.id ?? ''),
+        brandId: String(brand?.id ?? ''),
         supplierRate: editData.supplierRate ?? '',
         status: editData.isActive ? 'Active' : 'Inactive',
         dailyConsumption: editData.dailyConsumption ?? '',
@@ -457,19 +494,11 @@ const AddRawMaterialItemModal = ({
         file: null,
         imageUrl: editData.file || '',
       });
-      const categoryId = editData?.rawMaterialCat?.id;
 
-      if (categoryId) {
-        fetchBrandsForCategory(categoryId, {
-          id: editData.brandId,
-          name: editData.brandName || '',
-        });
-
-        fetchSubCategoriesForCategory(categoryId, {
-          id: editData.subCategoryId,
-          nameEnglish: editData.subCategoryName || '',
-        });
+      if (category?.id != null) {
+        fetchSubCategoriesForCategory(category.id, subCategory);
       }
+      fetchBrands(brand);
       setIsFixedRawMaterial(editData.isGeneralFix ?? false);
 
       const vendorList = editData.vendorPriceConfigs || editData.suppliers;
@@ -494,7 +523,44 @@ const AddRawMaterialItemModal = ({
     }
   }, [editData?.id]);
 
+  // ---- Handlers for the "+" quick-add modals ----
+  // Refetch the relevant list AND merge/select the newly created record so
+  // it shows up in its dropdown immediately, without needing to reopen the
+  // modal. Assumes each child modal's onSaved(createdRecord) passes back the
+  // record it just created.
 
+  const handleCategorySaved = async (newCategory) => {
+    const normalized = normalizeCategory(newCategory) || newCategory;
+    await fetchCategories(normalized || null);
+    if (normalized?.id != null) {
+      set('rawMaterialCatId', String(normalized.id));
+      set('rawMaterialSubCatId', ''); // subcategories don't carry over to a new category
+    }
+  };
+
+  const handleUnitSaved = async (newUnit) => {
+    const normalized = normalizeUnit(newUnit) || newUnit;
+    await fetchUnits(normalized || null);
+    if (normalized?.id != null) {
+      set('unitId', String(normalized.id));
+    }
+  };
+
+  const handleBrandSaved = async (newBrand) => {
+    const normalized = normalizeBrand(newBrand) || newBrand;
+    await fetchBrands(normalized || null);
+    if (normalized?.id != null) {
+      set('brandId', String(normalized.id));
+    }
+  };
+
+  const handleSubCategorySaved = async (newSubCategory) => {
+    const normalized = normalizeSubCategory(newSubCategory) || newSubCategory;
+    await fetchSubCategoriesForCategory(form.rawMaterialCatId, normalized || null);
+    if (normalized?.id != null) {
+      set('rawMaterialSubCatId', String(normalized.id));
+    }
+  };
 
   const handleSave = async () => {
     if (!validate()) return;
@@ -787,12 +853,7 @@ const AddRawMaterialItemModal = ({
                       value: String(item.id),
                       label: item.name,
                     }))}
-                    placeholder={
-                      form.rawMaterialCatId
-                        ? 'Select Brand'
-                        : 'Select a category first'
-                    }
-                    disabled={!form.rawMaterialCatId}
+                    placeholder="Select Brand"
                   />
                 </div>
                 <button
@@ -1176,7 +1237,7 @@ const AddRawMaterialItemModal = ({
         <AddRawMaterialCategoryModal
           isOpen={isCategoryModalOpen}
           onClose={() => setIsCategoryModalOpen(false)}
-          onSaved={fetchCategories}
+          onSaved={handleCategorySaved}
         />
       )}
 
@@ -1184,21 +1245,21 @@ const AddRawMaterialItemModal = ({
         <AddRawMaterialUnit
           isOpen={isUnitModalOpen}
           onClose={() => setIsUnitModalOpen(false)}
-          onSaved={fetchUnits}
+          onSaved={handleUnitSaved}
         />
       )}
       {isBrandModalOpen && (
         <AddRawMaterialBrand
           isOpen={isBrandModalOpen}
           onClose={() => setIsBrandModalOpen(false)}
-          onSaved={() => fetchBrandsForCategory()}
+          onSaved={handleBrandSaved}
         />
       )}
       {isSubCategoryModalOpen && (
         <AddRawMaterialSubCategoryModal
           isOpen={isSubCategoryModalOpen}
           onClose={() => setIsSubCategoryModalOpen(false)}
-          onSaved={() => fetchSubCategoriesForCategory()}
+          onSaved={handleSubCategorySaved}
         />
       )}
     </div>
