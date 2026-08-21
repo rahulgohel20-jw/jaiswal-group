@@ -131,7 +131,6 @@ const PurchaseRequisitionView = () => {
           <div className="flex items-center gap-3">
             <Link
               to="/purchase-requisition/list"
-              className="text-white/80 hover:text-white transition text-sm font-medium" 
               className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center text-white hover:bg-white/25 transition cursor-pointer border-0"
             >
               <ArrowLeft className="w-4 h-4" />
