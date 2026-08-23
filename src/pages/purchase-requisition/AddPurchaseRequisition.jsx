@@ -19,6 +19,8 @@ import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePurchaseRequisitions } from './utils/usePurchaseRequisitions';
 import { PR_STATUS, getStatusLabel } from './utils/prStatus';
 import PurchaseRequisitionLog from './PurchaseRequisitionLog';
+import { getUsernameFromToken } from '../../utils/auth';
+import { getTodayInputDate } from '../../utils/GetCurrentToday';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -181,7 +183,7 @@ const AddPurchaseRequisition = () => {
   const [rawMaterialsLoading, setRawMaterialsLoading] = useState(false);
 
   // ---- Form fields ----
-  const [prDate, setPrDate] = useState('');
+  const [prDate, setPrDate] = useState(isEditMode ? '' : getTodayInputDate());
   const [prRequiredDate, setPrRequiredDate] = useState('');
   const [remarks, setRemarks] = useState('');
   const [details, setDetails] = useState([]);
@@ -343,7 +345,7 @@ const AddPurchaseRequisition = () => {
   // on which button was clicked.
   const buildPayload = () => ({
     userId: getUserIdFromToken(),
-    actionBy: getUserIdFromToken(),
+    actionBy: getUsernameFromToken(),
     details: details.map((d) => ({
       id: d.id || 0,
       quantity: Number(d.quantity),

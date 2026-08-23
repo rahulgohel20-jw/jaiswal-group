@@ -276,6 +276,15 @@ function ListView({ onApprove, onReject, onView }) {
         size: 130,
       },
       {
+        id: "requiredDate",
+        accessorFn: (row) => row.requiredDate,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="REQUIRED DATE" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[120px]" />,
+        size: 140,
+      },
+      {
         id: "outlet",
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (

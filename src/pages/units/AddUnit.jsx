@@ -27,6 +27,14 @@ import {
 } from '@/utils/validations';
 import SearchableSelect from '../../utils/SearchableSelect';
 
+// Letters only — no digits, spaces, or special characters.
+const SHORT_CODE_REGEX = /^[A-Za-z]+$/;
+const validateShortCode = (value) => {
+  if (!value || !value.trim()) return 'Short Code is required';
+  if (!SHORT_CODE_REGEX.test(value.trim())) return 'Only letters are allowed';
+  return '';
+};
+
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -509,47 +517,14 @@ const AddUnit = () => {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  // const handleSubmit = async () => {
-
-  //   try {
-
-  //     const payload = {
-  //       orgType: "OUTLET",
-  //       parentId: Number(form.company),
-  //       username: 1,
-  //       isverified: true,
-  //       companyNameEnglish: form.UnitName,
-  //       emailid: form.email,
-  //       mobilenumber: form.mobile,
-  //       alternatemobilenumber: form.altMobile,
-  //       addressEnglish: form.addressLine1,
-  //       addressline2: form.addressLine2,
-  //       countryId: Number(selectedCountry),
-  //       stateId: Number(selectedState),
-  //       cityId: Number(selectedCity),
-  //       pincode: form.pincode,
-  //       latitude: form.latitude,
-  //       longitude: form.longitude,
-  //       capacity: form.capacity,
-  //     };
-  //     const formData = new FormData();
-  //     if (form.logo) {
-  //       formData.append("logo", form.logo)
-  //     }
-  //     if (form.favicon) {
-  //       formData.append("favicon", form.favicon)
-  //     }
-  //     await createCompany(payload, formData);
-  //     navigate("/Units");
-  //   } catch (error) {
-  //     console.log(error.response?.data || error.message)
-  //   }
-  // }
   const runValidation = () => {
     const formErrors = {};
 
     const unitNameErr = validateRequired(form.UnitName, 'Unit Name');
     if (unitNameErr) formErrors.UnitName = unitNameErr;
+
+    const shortCodeErr = validateShortCode(form.shortCode);
+    if (shortCodeErr) formErrors.shortCode = shortCodeErr;
 
     const emailErr = validateEmail(form.email);
     if (emailErr) formErrors.email = emailErr;
@@ -660,7 +635,7 @@ const AddUnit = () => {
         {openSections.Unit && (
           <div className="px-6 py-6 space-y-5">
             <div
-              className={`grid gap-4 ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'}`}
+              className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-2'}`}
             >
               <div>
                 <Label required>Unit Name</Label>
@@ -675,6 +650,20 @@ const AddUnit = () => {
                   className={`${inputCls} ${errors.UnitName ? 'border-red-400' : ''}`}
                 />
                 <ErrorText error={errors.UnitName} />
+              </div>
+              <div>
+                <Label required>Short Code</Label>
+                <input
+                  value={form.shortCode}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
+                    set('shortCode', val);
+                    setErrorFor('shortCode', validateShortCode(val));
+                  }}
+                  placeholder="e.g. MNG"
+                  className={`${inputCls} ${errors.shortCode ? 'border-red-400' : ''}`}
+                />
+                <ErrorText error={errors.shortCode} />
               </div>
               {isEditMode && (
                 <div>
@@ -704,16 +693,6 @@ const AddUnit = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {isEditMode && (
-                <div>
-                  <Label>Short Code</Label>
-                  <input
-                    value={form.shortCode}
-                    disabled
-                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                  />
-                </div>
-              )}
               <div>
                 <Label required>Email</Label>
                 <input

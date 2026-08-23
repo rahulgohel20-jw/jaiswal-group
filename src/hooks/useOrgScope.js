@@ -10,19 +10,45 @@ function normalizeType(t) {
   return (t || "").toString().trim().toUpperCase().replace(/[\s_-]/g, "_");
 }
 
-async function fetchOutletChildren(parentId) {
+function mapToUnit(child) {
+  return {
+    id: child.id,
+    name: child.companyNameEnglish ?? child.organizationName ?? `Outlet #${child.id}`,
+    code: child.code ?? child.shortCode ?? null,
+  };
+}
+
+// Recursively walks the org tree under parentId and collects every OUTLET
+// found at any depth. Handles both shapes:
+//   GROUP -> SUB_COMPANY -> OUTLET   (Jaiswal Group case — outlets are
+//                                      grandchildren, not direct children)
+//   SUB_COMPANY -> OUTLET            (direct children already)
+// Any child that isn't an OUTLET (e.g. a nested SUB_COMPANY) is treated as
+// a branch to recurse into rather than being dropped.
+async function fetchAllDescendantOutlets(parentId) {
   const res = await getChildrenByParentId(parentId);
-  const list = res?.data?.data ?? res?.data ?? res ?? [];
-  return list
-    .filter(
-      (child) =>
-        normalizeType(child?.orgType ?? child?.organizationType) === OrgTypes.OUTLET
-    )
-    .map((child) => ({
-      id: child.id,
-      name: child.companyNameEnglish ?? child.organizationName ?? `Outlet #${child.id}`,
-      code: child.code ?? child.shortCode ?? null,
-    }));
+  const children = res?.data?.data ?? res?.data ?? res ?? [];
+
+  const outlets = [];
+  const branches = [];
+
+  for (const child of children) {
+    const childType = normalizeType(child?.orgType ?? child?.organizationType);
+    if (childType === OrgTypes.OUTLET) {
+      outlets.push(mapToUnit(child));
+    } else {
+      // SUB_COMPANY (or any other non-outlet node) — recurse into it looking
+      // for outlets further down the tree.
+      branches.push(child.id);
+    }
+  }
+
+  if (branches.length > 0) {
+    const nested = await Promise.all(branches.map(fetchAllDescendantOutlets));
+    nested.forEach((outletsForBranch) => outlets.push(...outletsForBranch));
+  }
+
+  return outlets;
 }
 
 export function useOrgScope() {
@@ -49,9 +75,11 @@ export function useOrgScope() {
 
       if (type === OrgTypes.GROUP || type === OrgTypes.SUB_COMPANY) {
         setOrgType(type);
-        const children = await fetchOutletChildren(organizationId);
-        setUnits(children);
-        setSelectedUnitId(children[0]?.id ?? null);
+        // Recurse through any SUB_COMPANY layers so a MAIN GROUP user sees
+        // every outlet under every sub-company, not just direct children.
+        const allOutlets = await fetchAllDescendantOutlets(organizationId);
+        setUnits(allOutlets);
+        setSelectedUnitId(null);
       } else {
         setOrgType(OrgTypes.OUTLET);
         const self = {

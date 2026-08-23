@@ -472,7 +472,7 @@ export const MENU_SIDEBAR = [
         title: 'Purchase Order Requests',
         path: '/purchase-order-request/purchase',
       },
-      { title: 'Purchase Order', path: '/purchase/approved-order' },
+      { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
     ],
   },
   {
@@ -572,7 +572,7 @@ export const MENU_SIDEBAR_ADMIN = [
         title: 'Purchase Order Requests',
         path: '/purchase-order-request/purchase',
       },
-      { title: 'Purchase Order', path: '/purchase/approved-order' },
+      { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
     ],
   },
   {

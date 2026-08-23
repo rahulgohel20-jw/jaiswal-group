@@ -7,23 +7,42 @@ const formatINR = (value) =>
     maximumFractionDigits: 2,
   }).format(Number(value || 0));
 
+/**
+ * Expects quotations shaped like the /vendor-price-configurations response:
+ * { id, vendorId, vendorName, vendorCode, vendorCompanyName, rawMaterialId,
+ *   rawMaterialNameEnglish, price, fromDate, toDate, isMapped }
+ */
 const VendorPriceComparisonModal = ({
   open,
   onClose,
   item,
   quotations = [],
+  loading = false,
   onSelectPrice,
 }) => {
   const [sortOrder, setSortOrder] = useState('desc'); // desc = Highest to Lowest
   const [selectedVendorId, setSelectedVendorId] = useState(null);
+  const [quantities, setQuantities] = useState({}); // { [quotationId]: string }
+
+  // the PO/PR line item's required quantity — support whichever field name the caller passes
+  const poQuantity =
+    item?.approvedQty ?? item?.quantity ?? item?.qty ?? item?.requiredQuantity ?? null;
 
   // reset local state whenever a different item is opened
+  // (PR/PO line items are keyed by rawMaterialId, not id)
+  // pre-fill every vendor row with the PO's required quantity, so Amount shows immediately
   useEffect(() => {
     if (open) {
       setSortOrder('desc');
       setSelectedVendorId(null);
+      const defaults = {};
+      quotations.forEach((q) => {
+        defaults[q.id] = poQuantity != null ? String(poQuantity) : '';
+      });
+      setQuantities(defaults);
     }
-  }, [open, item?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, item?.rawMaterialId, quotations, poQuantity]);
 
   // close on Escape
   useEffect(() => {
@@ -36,28 +55,45 @@ const VendorPriceComparisonModal = ({
   // lowest price is computed from the FULL list, independent of sorting
   const lowestPrice = useMemo(() => {
     if (!quotations.length) return null;
-    return Math.min(...quotations.map((q) => Number(q.itemPrice) || Infinity));
+    const prices = quotations
+      .map((q) => Number(q.price))
+      .filter((n) => !Number.isNaN(n));
+    return prices.length ? Math.min(...prices) : null;
   }, [quotations]);
 
   const sortedQuotations = useMemo(() => {
     const list = [...quotations];
-    list.sort((a, b) =>
-      sortOrder === 'desc'
-        ? Number(b.itemPrice) - Number(a.itemPrice)
-        : Number(a.itemPrice) - Number(b.itemPrice),
-    );
+    list.sort((a, b) => {
+      const priceA = Number(a.price) || 0;
+      const priceB = Number(b.price) || 0;
+      return sortOrder === 'desc' ? priceB - priceA : priceA - priceB;
+    });
     return list;
   }, [quotations, sortOrder]);
+
+  const handleQuantityChange = (id, value) => {
+    // allow empty string, and non-negative numbers only
+    if (value !== '' && (Number.isNaN(Number(value)) || Number(value) < 0)) return;
+    setQuantities((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleClose = (e) => {
+    e?.stopPropagation?.();
+    onClose?.();
+  };
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={handleClose} />
 
       {/* Dialog */}
-      <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div
+        className="relative z-10 w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-[#E2E8F0]">
           <div>
@@ -67,7 +103,7 @@ const VendorPriceComparisonModal = ({
             <p className="text-sm text-[#737781] mt-1">
               Item:{' '}
               <span className="font-medium text-[#475569]">
-                {item?.itemName || '-'}
+                {item?.itemName || item?.rawMaterialNameEnglish || '-'}
               </span>
               {item?.unit ? ` (${item.unit})` : ''}
             </p>
@@ -75,8 +111,8 @@ const VendorPriceComparisonModal = ({
 
           <button
             type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] cursor-pointer"
+            onClick={handleClose}
+            className="p-1.5 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] cursor-pointer relative z-10"
             aria-label="Close"
           >
             <X size={20} />
@@ -88,8 +124,14 @@ const VendorPriceComparisonModal = ({
           <div className="flex items-center gap-2 text-sm text-[#475569]">
             <Info size={16} className="text-[#94A3B8]" />
             <span>
-              Reviewing {quotations.length} vendor bid
-              {quotations.length === 1 ? '' : 's'} for procurement.
+              {loading
+                ? 'Loading vendor prices...'
+                : `Reviewing ${quotations.length} vendor price${quotations.length === 1 ? '' : 's'} for procurement.`}
+              {!loading && poQuantity != null && (
+                <span className="ml-1 font-semibold text-[#0F172A]">
+                  · PO Quantity: {poQuantity}
+                </span>
+              )}
             </span>
           </div>
 
@@ -115,10 +157,10 @@ const VendorPriceComparisonModal = ({
         {/* Table */}
         <div className="max-h-[55vh] overflow-y-auto">
           <table className="w-full">
-            <thead className="sticky top-0 bg-white">
+            <thead className="sticky top-0 bg-white z-[1]">
               <tr className="border-b border-[#E2E8F0]">
                 <th className="text-left text-xs font-semibold text-[#64748B] uppercase tracking-wide px-6 py-3">
-                  Vendor Name
+                  Vendor
                 </th>
                 <th className="text-right text-xs font-semibold text-[#64748B] uppercase tracking-wide px-4 py-3">
                   Item Price
@@ -127,7 +169,7 @@ const VendorPriceComparisonModal = ({
                   Quantity
                 </th>
                 <th className="text-right text-xs font-semibold text-[#64748B] uppercase tracking-wide px-4 py-3">
-                  Total Amount
+                  Amount
                 </th>
                 <th className="text-center text-xs font-semibold text-[#64748B] uppercase tracking-wide px-4 py-3">
                   Status
@@ -139,109 +181,140 @@ const VendorPriceComparisonModal = ({
             </thead>
 
             <tbody>
-              {sortedQuotations.map((q) => {
-                const isLowest = Number(q.itemPrice) === lowestPrice;
-                const isSelected = selectedVendorId === q.id;
-                const totalAmount =
-                  q.totalAmount ?? Number(q.itemPrice) * Number(q.quantity);
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-12 text-center">
+                    <p className="text-sm text-[#94A3B8]">Loading vendor prices...</p>
+                  </td>
+                </tr>
+              )}
 
-                return (
-                  <tr
-                    key={q.id}
-                    className={`border-b border-[#F1F5F9] transition-colors ${
-                      isLowest
-                        ? 'bg-[#ECFDF5] hover:bg-[#DCFCE7]'
-                        : 'hover:bg-[#F8FAFC]'
-                    } ${isSelected ? 'ring-2 ring-inset ring-[#084E92]' : ''}`}
-                  >
-                    {/* Vendor */}
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
-                            isLowest ? 'bg-[#D1FAE5]' : 'bg-[#EFF6FF]'
+              {!loading &&
+                sortedQuotations.map((q) => {
+                  const isLowest = lowestPrice !== null && Number(q.price) === lowestPrice;
+                  const isSelected = selectedVendorId === q.id;
+                  const qty = quantities[q.id] ?? '';
+                  const amount =
+                    qty !== '' ? Number(q.price) * Number(qty) : null;
+
+                  return (
+                    <tr
+                      key={q.id}
+                      className={`border-b border-[#F1F5F9] transition-colors ${
+                        isLowest
+                          ? 'bg-[#ECFDF5] hover:bg-[#DCFCE7]'
+                          : 'hover:bg-[#F8FAFC]'
+                      } ${isSelected ? 'ring-2 ring-inset ring-[#084E92]' : ''}`}
+                    >
+                      {/* Vendor name + code, side by side */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                              isLowest ? 'bg-[#D1FAE5]' : 'bg-[#EFF6FF]'
+                            }`}
+                          >
+                            <Building2
+                              size={16}
+                              className={
+                                isLowest ? 'text-[#047857]' : 'text-[#0B5CAD]'
+                              }
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-[#1E293B] truncate">
+                              {q.vendorName}
+                            </span>
+                            {q.vendorCode && (
+                              <span className="text-[11px] font-medium text-[#0B5CAD] bg-[#EFF6FF] px-2 py-0.5 rounded-full shrink-0">
+                                {q.vendorCode}
+                              </span>
+                            )}
+                            {isLowest && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[#047857] w-full">
+                                <TrendingDown size={11} />
+                                Lowest Price
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Item price — lowest gets a different colour */}
+                      <td className="px-4 py-4 text-right">
+                        <span
+                          className={`text-sm font-semibold ${
+                            isLowest ? 'text-[#047857]' : 'text-[#DC2626]'
                           }`}
                         >
-                          <Building2
-                            size={16}
-                            className={
-                              isLowest ? 'text-[#047857]' : 'text-[#0B5CAD]'
-                            }
-                          />
+                          ₹ {formatINR(q.price)}
+                        </span>
+                      </td>
+
+                      {/* Editable quantity */}
+                      <td className="px-4 py-4 text-right">
+                        <input
+                          type="number"
+                          min="0"
+                          value={qty}
+                          onChange={(e) => handleQuantityChange(q.id, e.target.value)}
+                          placeholder="0"
+                          className="w-20 h-8 px-2 text-right text-sm border border-[#E2E8F0] rounded-md outline-none focus:border-[#0B5CAD]"
+                        />
+                      </td>
+
+                      {/* Amount = price x quantity */}
+                      <td className="px-4 py-4 text-right">
+                        <div
+                          className={`text-sm font-bold ${
+                            isLowest ? 'text-[#047857]' : 'text-[#0F172A]'
+                          }`}
+                        >
+                          {amount !== null ? `₹ ${formatINR(amount)}` : '—'}
                         </div>
+                        {amount !== null && (
+                          <div className="text-[11px] text-[#94A3B8] mt-0.5">
+                            {formatINR(q.price)} × {qty}
+                          </div>
+                        )}
+                      </td>
 
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-[#1E293B] truncate">
-                            {q.vendorName}
-                          </p>
-                          {isLowest && (
-                            <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#047857]">
-                              <TrendingDown size={11} />
-                              Lowest Price
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
+                      {/* Status — mapped vs not mapped, distinct colours */}
+                      <td className="px-4 py-4 text-center">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            q.isMapped
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {q.isMapped ? 'Mapped' : 'Not Mapped'}
+                        </span>
+                      </td>
 
-                    {/* Item price — lowest gets a different colour */}
-                    <td className="px-4 py-4 text-right">
-                      <span
-                        className={`text-sm font-semibold ${
-                          isLowest ? 'text-[#047857]' : 'text-[#DC2626]'
-                        }`}
-                      >
-                        ₹ {formatINR(q.itemPrice)}
-                      </span>
-                    </td>
+                      {/* Action */}
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedVendorId(q.id);
+                            onSelectPrice?.({ ...q, quantity: qty, amount }, item);
+                          }}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium text-white cursor-pointer transition-colors ${
+                            isLowest
+                              ? 'bg-[#047857] hover:bg-[#036848]'
+                              : 'bg-[#084E92] hover:bg-[#063d73]'
+                          }`}
+                        >
+                          {isSelected ? 'Selected' : 'Select Price'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
 
-                    <td className="px-4 py-4 text-right text-sm text-[#475569]">
-                      {q.quantity}
-                    </td>
-
-                    <td
-                      className={`px-4 py-4 text-right text-sm font-bold ${
-                        isLowest ? 'text-[#047857]' : 'text-[#0F172A]'
-                      }`}
-                    >
-                      ₹ {formatINR(totalAmount)}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-4 py-4 text-center">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          q.status === 'Map'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-red-100 text-red-600'
-                        }`}
-                      >
-                        {q.status}
-                      </span>
-                    </td>
-
-                    {/* Action */}
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedVendorId(q.id);
-                          onSelectPrice?.(q, item);
-                        }}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium text-white cursor-pointer transition-colors ${
-                          isLowest
-                            ? 'bg-[#047857] hover:bg-[#036848]'
-                            : 'bg-[#084E92] hover:bg-[#063d73]'
-                        }`}
-                      >
-                        {isSelected ? 'Selected' : 'Select Price'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-
-              {!sortedQuotations.length && (
+              {!loading && !sortedQuotations.length && (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center">
                     <Building2
@@ -249,24 +322,13 @@ const VendorPriceComparisonModal = ({
                       className="mx-auto mb-3 text-[#CBD5E1]"
                     />
                     <p className="text-sm text-[#94A3B8]">
-                      No vendor quotations found for this item.
+                      No vendor prices found for this item.
                     </p>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
-
-        {/* Footer */}
-        <div className="flex justify-end px-6 py-4 border-t border-[#E2E8F0] bg-white">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-6 py-2.5 border border-[#D1D5DB] rounded-lg text-[#475569] hover:bg-gray-50 cursor-pointer"
-          >
-            Cancel
-          </button>
         </div>
       </div>
     </div>
