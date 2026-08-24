@@ -351,9 +351,7 @@ export const getMenuCategoryById = (id) => {
 };
 
 export const addMenuCategory = (formData) => {
-  return axiosInstance.post('/menucategory/add', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  return axiosInstance.post('/menucategory/add', formData);
 };
 
 export const updateMenuCategory = (formData) => {
@@ -371,8 +369,8 @@ export const updateMenuCategoryStatus = ({ id, isActive }) => {
 };
 
 // Subcategory API
-export const getAllMenuSubCategoryById = (userId) => {
-  return GET(`/menusubcategory/getallbyuserid?userid=${userId}`);
+export const getAllMenuSubCategoryById = () => {
+  return GET(`/menusubcategory/getall`);
 };
 export const updateMenuSubCategory = (id, data) => {
   return PUT(`/menusubcategory/update?id=${id}`, data);
@@ -383,8 +381,10 @@ export const updateMenuSubCategoryStatus = ({ id, isActive }) => {
 export const deleteMenuSubCategoryById = (id) => {
   return DELETE(`/menusubcategory/deletebyid?id=${id}`);
 };
-export const addMenuSubCategory = (data) => {
-  return axiosInstance.post('/menusubcategory/add', data);
+export const addMenuSubCategory = (formData) => {
+  return POST('/menusubcategory/add', formData, {
+    headers: { "Content-Type": "multipart/form-data" },
+  });
 };
 
 //Menu Item API
@@ -392,7 +392,7 @@ export const addMenuItem = (data) => {
   return axiosInstance.post('/menuitems/add', data);
 };
 export const getAllMenuItem = (params) => {
-  return axiosInstance.get('/menuitems/getallbyuserid', {
+  return axiosInstance.get('/menuitems/getall', {
     params,
   });
 };
@@ -409,6 +409,20 @@ export const deleteMenuItemById = (id) => {
 };
 export const updateMenuItemStatus = ({ id, isActive }) => {
   return PUT(`/menuitems/updatestatus?id=${id}&isActive=${isActive}`);
+};
+export const getAllExistingRawItems = (isCaptainRecipe) => {
+  return GET( `/menuitems/getallexistingrawitems?isCaptainRecipe=${isCaptainRecipe}` );
+}
+export const deleteMenuItemRawmaterialById = (ids) => {
+  return axiosInstance.delete('/menuitems/deleteitemrawmaterialbyid', {
+    data: { id: ids },
+  });
+};
+export const getMenuItemCaptainReceipeByMenuId = (menuItemId, isSync) => {
+  return GET('/menuitems/getmenuitemcaptainreceipebymenuid', { menuItemId, isSync });
+};
+export const getMenuItemRawMaterialByMenuId = (menuItemId, isSync) => {
+  return GET('/menuitems/getmenuitemrawmaterialbymenuid', { menuItemId, isSync });
 };
 // ---- Sub-Outlet APIs ----
 

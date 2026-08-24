@@ -155,9 +155,13 @@ const RowMaterialItemMaster = () => {
             const totalItems = responseData.totalItems || 0;
             const totalPages = responseData.totalPages || 0;
 
-            const mapped = list.map((item) => ({
+            const mapped = list.map((item) => {
+                const latestImage = [...(item.images || [])]
+                    .filter(img => img.isActive && img.path)
+                    .sort((a, b) => b.id - a.id)[0];
+                return {
                 id: item.id,
-                image: item.imagePath,
+                image: latestImage?.path || "",
                 name: item.nameEnglish,
                 nameEnglish: item.nameEnglish,
                 category:
@@ -183,7 +187,7 @@ const RowMaterialItemMaster = () => {
                 weightPer100Pax: item.weightPer100Pax,
                 isGeneralFix: item.isGeneralFix ?? false,
                 isApplyCal: item.isApplyCal ?? false,
-            }));
+            }});
 
             setItemData(mapped);
             setTotalItems(responseData.totalItems || 0);
@@ -500,7 +504,7 @@ const RowMaterialItemMaster = () => {
 
                     <button
                         onClick={openCreateModal}
-                        className="bg-[#00376C] hover:bg-[#074486] cursor-pointer transition-colors duration-200 text-white rounded-xl px-6 py-3 flex items-center gap-2 shadow-lg"
+                        className="bg-[#084E92] hover:bg-[#074486] cursor-pointer transition-colors duration-200 text-white rounded-xl px-6 py-3 flex items-center gap-2 shadow-lg"
                     >
                         <Plus size={18} />
                         Add New Item

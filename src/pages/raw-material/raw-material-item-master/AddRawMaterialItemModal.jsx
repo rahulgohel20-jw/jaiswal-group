@@ -31,6 +31,15 @@ import AddRawMaterialCategoryModal from '../row-material-categories/AddRowMateri
 import SearchableSelect from '../../../utils/SearchableSelect';
 import AddRawMaterialSubCategoryModal from '../raw-material-subcategory/AddRawMaterialSubCategoryModal';
 
+const getLatestImage = (images) => {
+  if (!Array.isArray(images) || images.length === 0) {
+    return "";
+  }
+
+  return [...images]
+    .sort((a, b) => Number(b.id) - Number(a.id))[0]?.path || "";
+};
+
 const emptyForm = {
   nameEnglish: '',
   rawMaterialCatId: '',
@@ -475,6 +484,7 @@ const AddRawMaterialItemModal = ({
       const unit = normalizeUnit(editData);
       const brand = normalizeBrand(editData);
 
+      const latestImage = getLatestImage(editData.images);
       setForm({
         nameEnglish: editData.nameEnglish || '',
         rawMaterialCatId: String(category?.id ?? ''),
@@ -492,7 +502,7 @@ const AddRawMaterialItemModal = ({
         isGeneralFix: editData.isGeneralFix ?? false,
         isApplyCal: editData.isApplyCal ?? false,
         file: null,
-        imageUrl: editData.file || '',
+        imageUrl: latestImage,
       });
 
       if (category?.id != null) {
@@ -958,6 +968,17 @@ const AddRawMaterialItemModal = ({
 
                   <span className="text-sm text-gray-600">
                     {form.file.name}
+                  </span>
+                </div>
+              ) : form.imageUrl ? (
+                <div className="flex flex-col items-center gap-3">
+                  <img
+                    src={imagePreview}
+                    alt="Existing Raw Material"
+                    className="w-28 h-28 rounded-lg object-cover"
+                  />
+                  <span className="text-sm text-gray-600">
+                    Existing Image
                   </span>
                 </div>
               ) : (

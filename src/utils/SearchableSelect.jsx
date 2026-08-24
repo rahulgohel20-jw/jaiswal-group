@@ -4,17 +4,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ChevronDown } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 
 const inputCls =
-  'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
+  "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
+  "placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300";
 
 const errorInputCls =
-  'w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300';
-
+  "w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
+  "placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300";
 
 const SearchableSelect = ({
   value,
@@ -34,11 +33,6 @@ const SearchableSelect = ({
 
   const selectedLabel = selectedOption?.label || "";
 
-  useEffect(() => {
-    if (!open) {
-      setSearch(selectedLabel);
-    }
-  }, [open, selectedLabel]);
 
   const filteredOptions = options.filter((option) =>
     String(option.label || "")
@@ -54,18 +48,15 @@ const SearchableSelect = ({
       },
     });
 
-    setSearch(option.label || "");
+    setSearch( "");
     setOpen(false);
   };
 
   const handleInputChange = (e) => {
-    const value = e.target.value;
-
-    setSearch(value);
+    const inputValue = e.target.value;
+    setSearch(inputValue);
     setOpen(true);
-
-    // User starts typing/searching -> don't keep old selection
-    if (String(value) !== String(selectedLabel)) {
+    if (inputValue !== selectedLabel) {
       onChange({
         target: {
           name,
@@ -75,33 +66,32 @@ const SearchableSelect = ({
     }
   };
 
+  const handleInputClick = () => {
+    if (disabled) return;
+    setOpen(true);
+    setSearch("");
+  };
+  const handleOpenChange = (nextOpen) => {
+    if (disabled) return;
+
+    setOpen(nextOpen);
+    setSearch("");
+  };
+
   return (
     <Popover
       open={open}
-      onOpenChange={(nextOpen) => {
-        if (disabled) return;
-
-        setOpen(nextOpen);
-
-        if (nextOpen) {
-          setSearch(selectedLabel);
-        }
-      }}
+      onOpenChange={handleOpenChange}
       modal={false}
     >
       <PopoverTrigger asChild>
         <div className="relative w-full">
           <Input
             name={name}
-            value={search}
+            value={open ? search : selectedLabel}
             disabled={disabled}
-            placeholder={placeholder}
-            onClick={() => {
-              if (!disabled) {
-                setOpen(true);
-                setSearch(selectedLabel);
-              }
-            }}
+            placeholder={open && selectedLabel ? selectedLabel : placeholder}
+            onClick={handleInputClick}
             onChange={handleInputChange}
             className={
               hasError
@@ -112,9 +102,8 @@ const SearchableSelect = ({
 
           <ChevronDown
             size={16}
-            className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${
-              disabled ? "text-gray-300" : "text-gray-400"
-            }`}
+            className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${disabled ? "text-gray-300" : "text-gray-400"
+              }`}
           />
         </div>
       </PopoverTrigger>
@@ -138,11 +127,10 @@ const SearchableSelect = ({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleSelect(option)}
-                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${
-                    isSelected
-                      ? "bg-blue-50 text-primary font-medium"
-                      : "text-gray-700"
-                  }`}
+                  className={`w-[95%] text-left px-3 py-2.5 text-sm mx-1.5 rounded mt-1 hover:bg-[#f5f2f2] ${isSelected
+                    ? "bg-[#f5f2f2] text-primary font-medium"
+                    : "text-gray-700"
+                    }`}
                 >
                   {option.label}
                 </button>
