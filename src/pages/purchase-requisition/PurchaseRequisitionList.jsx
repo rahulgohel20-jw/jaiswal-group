@@ -16,6 +16,9 @@
     Search,
     Trash2,
     ChevronRight,
+    Copy,
+    Filter,
+    Loader2,
   } from 'lucide-react';
   import { Link, useNavigate } from 'react-router';
   import { Container } from '@/components/common/container';
@@ -35,10 +38,6 @@
   /* -------------------------------------------------------------------------
   * Shared style tokens & primitives (unchanged)
   * ---------------------------------------------------------------------- */
-
-  const inputCls =
-    'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-    'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
 
   const STATUS_STYLES = {
     Pending: 'bg-red-50 text-red-600',
@@ -86,7 +85,7 @@
   function UnitDropdown({ units, selectedUnitId, onChange }) {
     const options = units.map((u) => ({ value: u.id, label: u.name }));
     return (
-      <div className="w-56 shrink-0">
+      <div className="min-w-[220px]">
         <SearchableSelect
           name="unit"
           value={selectedUnitId ?? ''}
@@ -95,6 +94,25 @@
           placeholder={units.length === 0 ? 'No outlets available' : 'Select outlet...'}
           disabled={units.length === 0}
         />
+      </div>
+    );
+  }
+
+  function StatusDropdown({ value, onChange }) {
+    return (
+      <div className="relative min-w-[190px]">
+        <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        >
+          {PR_STATUS_LIST.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </div>
     );
   }
@@ -223,7 +241,16 @@
     }, [searchQuery, statusFilter, selectedUnitId]);
 
     const handleView = (row) => navigate(`/purchase-requisition/view/${row.id}`);
-    const handleEdit = (row) => navigate(`/purchase-requisition/edit/${row.id}`);
+    const handleEdit = (row) => navigate(`/purchase-requisition/edit/${row.id}`, { state: row });
+    const handleCopyPr = (row) => {
+      navigate('/purchase-requisition/add', {
+        state: {
+          copyFromId: row.id,
+          isCopy: true,
+          ...row,
+        },
+      });
+    };
 
     const columns = useMemo(
       () => [
@@ -283,6 +310,7 @@
           ),
           cell: ({ row }) => {
             const original = row.original;
+            const isRejected = original.rawStatus === PR_STATUS.REJECTED || String(original.rawStatus).toUpperCase() === 'REJECTED';
             return (
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <button
@@ -313,11 +341,21 @@
                     <Trash2 size={18} />
                   </button>
                 )}
+                {isRejected && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyPr(original)}
+                    className="text-gray-500 hover:text-[#084E92] cursor-pointer"
+                    title="Copy PR"
+                  >
+                    <Copy size={18} />
+                  </button>
+                )}
               </div>
             );
           },
           enableSorting: false,
-          size: 110,
+          size: 120,
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -335,7 +373,7 @@
 
     return (
       <Container>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 min-h-screen pb-10">
+        <div className="mx-auto py-10 p-6">
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
             <span>Dashboard</span>
             <ChevronRight size={12} />
@@ -344,10 +382,12 @@
             <span className="text-[#084E92] font-medium">Purchase Requisition List</span>
           </div>
 
-          <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap mt-3 mb-6">
             <div className="flex flex-col gap-1">
-              <h1 className="text-2xl md:text-4xl font-semibold">Purchase Requisition List</h1>
-              <p className="text-[#43474F] mt-1 text-sm sm:text-base">
+              <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                Purchase Requisition List
+              </h1>
+              <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
                 View and manage all purchase requisitions across enterprise departments.
               </p>
             </div>
@@ -363,49 +403,36 @@
           </div>
 
           {scopeError && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700 flex items-center justify-between">
-              {scopeError}
-              <button onClick={retryScope} className="text-xs font-semibold underline shrink-0 ml-3">
+            <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
+              <span className="text-sm text-[#C0293D]">{scopeError}</span>
+              <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
                 Retry
               </button>
             </div>
           )}
 
-          <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative flex-1 min-w-55 border border-[#C3C6D1] rounded-lg">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search PR Code, Outlet..."
-                  className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
-                />
-              </div>
-
-              {showUnitDropdown && (
-                <UnitDropdown units={units} selectedUnitId={selectedUnitId} onChange={setSelectedUnitId} />
-              )}
-
-              <div className="w-48 shrink-0">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className={inputCls}
-                >
-                  {PR_STATUS_LIST.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {/* Search + unit dropdown + status dropdown, aligned in one row */}
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <div className="relative flex-1 min-w-[220px]">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search PR Code, Outlet..."
+                className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              />
             </div>
+
+            {showUnitDropdown && (
+              <UnitDropdown units={units} selectedUnitId={selectedUnitId} onChange={setSelectedUnitId} />
+            )}
+
+            <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
           </div>
 
           {prError && (
-            <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {prError}
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
+              <span>{prError}</span>
               <button
                 type="button"
                 onClick={loadData}
@@ -416,10 +443,11 @@
             </div>
           )}
 
-          <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
             {loading || scopeLoading ? (
-              <div className="px-6 py-16 text-center text-sm text-gray-400">
-                Loading purchase requisitions...
+              <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
+                <Loader2 size={16} className="animate-spin" />
+                Loading purchase requisitions…
               </div>
             ) : (
               <DataGrid
@@ -440,7 +468,7 @@
                       <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                   </CardTable>
-                  <CardFooter className="bg-[#F9F9FF] rounded-b-2xl">
+                  <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                     <DataGridPagination />
                   </CardFooter>
                 </Card>

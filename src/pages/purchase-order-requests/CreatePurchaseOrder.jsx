@@ -18,7 +18,7 @@ import {
   Search,
   Trash2,
 } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -39,6 +39,8 @@ import {
   getUsernameFromToken,
   getOrgIdFromToken,
 } from '../../utils/auth';
+import { useOrgScope } from '@/hooks/useOrgScope';
+import { OrgTypes } from '@/constants/orgTypes';
 import { PO_STATUS } from './utils/poStatus';
 
 const getTodayForDateInput = () => {
@@ -165,7 +167,9 @@ const Field = ({ label, value, required }) => (
 );
 
 const CreatePurchaseOrder = () => {
-  const { state } = useLocation();
+  const location = useLocation();
+  const { state } = location;
+  const { id: routeId } = useParams();
   const navigate = useNavigate();
 
   const { current: pr, loading: prLoading, error: prError, fetchById } = usePurchaseRequisitions();
@@ -192,6 +196,7 @@ const CreatePurchaseOrder = () => {
   const [rawMaterialsLoading, setRawMaterialsLoading] = useState(false);
   const [itemPickError, setItemPickError] = useState('');
   const [manualItems, setManualItems] = useState([]);
+  const [deletedRawMaterialIds, setDeletedRawMaterialIds] = useState(new Set());
 
   const [vendorMap, setVendorMap] = useState({});
   const [poQtyMap, setPoQtyMap] = useState({});
@@ -201,8 +206,41 @@ const CreatePurchaseOrder = () => {
   const [poDate, setPoDate] = useState(getTodayForDateInput());
   const [remarks, setRemarks] = useState('');
   const [remarksError, setRemarksError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isEditingExistingPo = !!state?.id && state?.poCode && state.poCode !== 'TO BE GENERATED';
+  const {
+    loading: outletsLoading,
+    orgType,
+    units: outlets, // [{ id, name, code }]
+    selectedUnitId: orgScopeOutletId,
+  } = useOrgScope();
+
+  const hasOutletDropdownAccess = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
+  const [selectedOutletId, setSelectedOutletId] = useState(
+    state?.outletId != null ? String(state.outletId) : '',
+  );
+
+  const isEditRoute = location.pathname.includes('/edit-purchase-order') || !!routeId;
+  const isEditingExistingPo = isEditRoute && !state?.isCopyPr;
+  const targetPoId = isEditingExistingPo ? (routeId || state?.id) : null;
+  const isCopyPr = !!state?.isCopyPr;
+  const isGeneratePo = Boolean(
+    state?.isGeneratePo ||
+    (state?.stage === 'PR_NO_PO' && !state?.isCopyPr && !isEditingExistingPo),
+  );
+
+  useEffect(() => {
+    if (!isEditingExistingPo && !isGeneratePo && !selectedOutletId && orgScopeOutletId) {
+      setSelectedOutletId(String(orgScopeOutletId));
+    }
+  }, [isEditingExistingPo, isGeneratePo, selectedOutletId, orgScopeOutletId]);
+
+  useEffect(() => {
+    if (poRecord?.outletId && !selectedOutletId) {
+      setSelectedOutletId(String(poRecord.outletId));
+    }
+  }, [poRecord?.outletId, selectedOutletId]);
 
   // Set by PurchaseOrderApproval.jsx's navigate() call:
   //  - 'approve' -> actionable review, shows an Approve button
@@ -212,20 +250,29 @@ const CreatePurchaseOrder = () => {
   const isApproveMode = reviewMode === 'approve';
   const isRejectMode = reviewMode === 'reject';
   const isReviewMode = isApproveMode || isRejectMode;
+  const isExistingInProgress =
+    poRecord?.rawStatus === PO_STATUS.IN_PROGRESS ||
+    state?.rawStatus === PO_STATUS.IN_PROGRESS ||
+    state?.status === 'IN_PROGRESS';
 
   useEffect(() => {
-    if (!isEditingExistingPo && state?.prId) {
-      fetchById(state.prId);
+    if (isEditingExistingPo && targetPoId) {
+      fetchPoById(targetPoId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state?.prId, isEditingExistingPo]);
+  }, [isEditingExistingPo, targetPoId, fetchPoById]);
 
   useEffect(() => {
-    if (isEditingExistingPo && state?.id) {
-      fetchPoById(state.id);
+    const prTargetId =
+      state?.prId ||
+      state?.purchaseRequisitionId ||
+      poRecord?.purchaseRequisitionId ||
+      poRecord?.prId ||
+      (!isEditingExistingPo ? state?.id : undefined);
+
+    if (prTargetId && !pr) {
+      fetchById(prTargetId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditingExistingPo, state?.id]);
+  }, [state?.prId, state?.purchaseRequisitionId, state?.id, isEditingExistingPo, poRecord?.purchaseRequisitionId, poRecord?.prId, pr, fetchById]);
 
   useEffect(() => {
     if (isEditingExistingPo || !pr?.details) return;
@@ -257,9 +304,9 @@ const CreatePurchaseOrder = () => {
       priceNext[d.rawMaterialId] = d.unitPrice;
       if (d.vendorId) vendorNext[d.rawMaterialId] = d.vendorId;
     });
-    setPoQtyMap((prev) => ({ ...qtyNext, ...prev }));
-    setPriceMap((prev) => ({ ...priceNext, ...prev }));
-    setVendorMap((prev) => ({ ...vendorNext, ...prev }));
+    setPoQtyMap((prev) => ({ ...prev, ...qtyNext }));
+    setPriceMap((prev) => ({ ...prev, ...priceNext }));
+    setVendorMap((prev) => ({ ...prev, ...vendorNext }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poRecord, isEditingExistingPo]);
 
@@ -299,7 +346,16 @@ const CreatePurchaseOrder = () => {
   const applyCommonVendorToChecked = (vendorId, selection, rows) => {
     if (!vendorId) return;
     const selectedIndexes = Object.keys(selection).filter((k) => selection[k]);
-    if (selectedIndexes.length === 0) return;
+    if (selectedIndexes.length === 0) {
+      setVendorMap((prev) => {
+        const next = { ...prev };
+        rows.forEach((item) => {
+          if (item?.rawMaterialId) next[item.rawMaterialId] = vendorId;
+        });
+        return next;
+      });
+      return;
+    }
     setVendorMap((prev) => {
       const next = { ...prev };
       selectedIndexes.forEach((idx) => {
@@ -322,24 +378,46 @@ const CreatePurchaseOrder = () => {
     }
     setItemPickError('');
 
-    setManualItems((prev) => [
-      ...prev,
-      {
-        rawMaterialId: item.id,
-        itemName: item.nameEnglish,
-        unit: uomName,
-        uomId,
-        uomName,
-      },
-    ]);
-    setPoQtyMap((prev) => ({ ...prev, [item.id]: 1 }));
+    // If previously removed, un-delete it
+    setDeletedRawMaterialIds((prev) => {
+      const next = new Set(prev);
+      next.delete(String(item.id));
+      return next;
+    });
+
+    const inBaseline = (isEditingExistingPo ? poRecord?.details : pr?.details)?.some(
+      (d) => String(d.rawMaterialId) === String(item.id),
+    );
+
+    if (!inBaseline) {
+      setManualItems((prev) => {
+        if (prev.some((m) => String(m.rawMaterialId) === String(item.id))) return prev;
+        return [
+          ...prev,
+          {
+            rawMaterialId: item.id,
+            itemName: item.nameEnglish,
+            unit: uomName,
+            uomId,
+            uomName,
+          },
+        ];
+      });
+    }
+
+    setPoQtyMap((prev) => ({ ...prev, [item.id]: prev[item.id] || 1 }));
     if (item.supplierRate != null) {
-      setPriceMap((prev) => ({ ...prev, [item.id]: item.supplierRate }));
+      setPriceMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? item.supplierRate }));
     }
   };
 
-  const removeManualItem = (rawMaterialId) => {
-    setManualItems((prev) => prev.filter((m) => m.rawMaterialId !== rawMaterialId));
+  const handleRemoveItem = (rawMaterialId) => {
+    setDeletedRawMaterialIds((prev) => {
+      const next = new Set(prev);
+      next.add(String(rawMaterialId));
+      return next;
+    });
+    setManualItems((prev) => prev.filter((m) => String(m.rawMaterialId) !== String(rawMaterialId)));
     setPoQtyMap((prev) => {
       const next = { ...prev };
       delete next[rawMaterialId];
@@ -410,7 +488,7 @@ const CreatePurchaseOrder = () => {
     const baseline = isEditingExistingPo
       ? (poRecord?.details || []).map((d, idx) => ({
           rawMaterialId: d.rawMaterialId,
-          prDetailId: d.prDetailId ?? null,
+          prDetailId: d.prDetailId != null ? Number(d.prDetailId) : (d.id != null ? Number(d.id) : null),
           srNo: String(idx + 1).padStart(2, '0'),
           itemName: d.rawMaterialName,
           unit: d.uomName,
@@ -421,13 +499,13 @@ const CreatePurchaseOrder = () => {
         }))
       : (pr?.details || []).map((d, idx) => ({
           rawMaterialId: d.rawMaterialId,
-          prDetailId: d.id,
+          prDetailId: d.id != null ? Number(d.id) : (d.prDetailId != null ? Number(d.prDetailId) : null),
           srNo: String(idx + 1).padStart(2, '0'),
           itemName: d.rawMaterialName,
           unit: d.uomName,
           uomId: d.uomId,
           uomName: d.uomName,
-          approvedQty: d.orderedQuantity,
+          approvedQty: d.quantity ?? d.orderedQuantity,
           source: 'pr',
         }));
     const fromManual = manualItems.map((m, idx) => ({
@@ -441,8 +519,13 @@ const CreatePurchaseOrder = () => {
       approvedQty: null,
       source: 'manual',
     }));
-    return [...baseline, ...fromManual];
-  }, [pr, poRecord, isEditingExistingPo, manualItems]);
+    return [...baseline, ...fromManual]
+      .filter((item) => !deletedRawMaterialIds.has(String(item.rawMaterialId)))
+      .map((item, idx) => ({
+        ...item,
+        srNo: String(idx + 1).padStart(2, '0'),
+      }));
+  }, [pr, poRecord, isEditingExistingPo, manualItems, deletedRawMaterialIds]);
 
   const alreadyAddedIds = useMemo(
     () => new Set(purchaseItems.map((item) => String(item.rawMaterialId))),
@@ -517,7 +600,7 @@ const CreatePurchaseOrder = () => {
                   [row.original.rawMaterialId]: e.target.value,
                 }))
               }
-              disabled={isReviewMode}
+              disabled={isRejectMode}
               className="w-full max-w-[140px] h-9 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#1E293B] appearance-none outline-none bg-white cursor-pointer disabled:bg-[#F8FAFC] disabled:cursor-not-allowed"
             >
               <option value="">Select</option>
@@ -547,7 +630,7 @@ const CreatePurchaseOrder = () => {
                 [row.original.rawMaterialId]: e.target.value === '' ? '' : Number(e.target.value),
               }))
             }
-            disabled={isReviewMode}
+            disabled={isRejectMode}
             className="w-20 h-9 border rounded-lg text-center outline-none disabled:bg-[#F8FAFC] disabled:text-[#475467]"
           />
         ),
@@ -568,7 +651,7 @@ const CreatePurchaseOrder = () => {
               }))
             }
             placeholder="—"
-            disabled={isReviewMode}
+            disabled={isRejectMode}
             className="w-24 h-9 border rounded-lg text-center outline-none disabled:bg-[#F8FAFC] disabled:text-[#475467]"
           />
         ),
@@ -580,20 +663,10 @@ const CreatePurchaseOrder = () => {
           <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-semibold" />
         ),
         cell: ({ row }) =>
-          isReviewMode ? null : (
+          isRejectMode ? null : (
             <button
               type="button"
-              onClick={() => {
-                if (row.original.source === 'manual') {
-                  removeManualItem(row.original.rawMaterialId);
-                } else {
-                  setPoQtyMap((prev) => {
-                    const next = { ...prev };
-                    delete next[row.original.rawMaterialId];
-                    return next;
-                  });
-                }
-              }}
+              onClick={() => handleRemoveItem(row.original.rawMaterialId)}
               className="cursor-pointer"
               title="Remove from PO"
             >
@@ -603,7 +676,7 @@ const CreatePurchaseOrder = () => {
         size: 90,
       },
     ],
-    [vendors, vendorMap, poQtyMap, priceMap, isReviewMode],
+    [vendors, vendorMap, poQtyMap, priceMap, isReviewMode, isRejectMode],
   );
 
   const table = useReactTable({
@@ -621,68 +694,174 @@ const CreatePurchaseOrder = () => {
     (item) => poQtyMap[item.rawMaterialId] !== undefined && poQtyMap[item.rawMaterialId] !== '',
   );
 
-  const buildPayload = (status) => ({
-    prId: pr?.id,
-    outletId: pr?.outletId ?? poRecord?.outletId,
-    poDate: inputDateToApiDate(poDate),
-    remarks,
-    vendorId: commonVendorId || undefined,
-    status,
-    expectedDeliveryDate: inputDateToApiDate(expectedDeliveryDate),
-    userId: getUserIdFromToken(),
-    details: includedItems.map((item) => ({
-      uomId: item.uomId,
-      uomName: item.uomName,
-      rawMaterialId: item.rawMaterialId,
-      rawMaterialName: item.itemName,
-      quantity: poQtyMap[item.rawMaterialId],
-      unitPrice: priceMap[item.rawMaterialId] || 0,
-      vendorId: vendorMap[item.rawMaterialId] || commonVendorId || undefined,
-      orderedQuantity: poQtyMap[item.rawMaterialId],
-      receivedQuantity: 0,
-      tax: 0,
-      prDetailId: item.prDetailId ?? null,
-    })),
-    actionBy: getUsernameFromToken(),
-  });
+  const getPurchaseRequisitionId = () => {
+    const rawId =
+      state?.purchaseRequisitionId ??
+      state?.prId ??
+      poRecord?.purchaseRequisitionId ??
+      poRecord?.prId ??
+      pr?.id ??
+      (!isEditingExistingPo ? state?.id : undefined);
+    return rawId ? Number(rawId) || rawId : undefined;
+  };
+
+  const buildSinglePayload = (status) => {
+    const reqId = getPurchaseRequisitionId();
+    const outletId = Number(selectedOutletId) || pr?.outletId || poRecord?.outletId || state?.outletId;
+    const formattedPoDate = inputDateToApiDate(poDate);
+    const formattedExpectedDate = inputDateToApiDate(expectedDeliveryDate);
+    const userId = getUserIdFromToken();
+    const actionBy = getUsernameFromToken();
+    const firstVendorId = Object.values(vendorMap).find(Boolean) || commonVendorId || poRecord?.vendorId;
+
+    // Line items inserted vendor-wise (ordered by vendorId)
+    const details = [...includedItems]
+      .map((item) => {
+        const itemVendorId = vendorMap[item.rawMaterialId] || commonVendorId || firstVendorId;
+        const vendorObj = vendors.find((v) => String(v.id) === String(itemVendorId));
+        return {
+          uomId: item.uomId,
+          uomName: item.uomName,
+          rawMaterialId: item.rawMaterialId,
+          rawMaterialName: item.itemName,
+          quantity: Number(poQtyMap[item.rawMaterialId]),
+          unitPrice: Number(priceMap[item.rawMaterialId]) || 0,
+          vendorId: itemVendorId ? Number(itemVendorId) : undefined,
+          vendorName: vendorObj?.name ?? item.vendorName ?? '',
+          orderedQuantity: Number(poQtyMap[item.rawMaterialId]),
+          receivedQuantity: 0,
+          tax: 0,
+          prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
+        };
+      })
+      .sort((a, b) => (Number(a.vendorId) || 0) - (Number(b.vendorId) || 0));
+
+    return {
+      purchaseRequisitionId: reqId,
+      prId: reqId,
+      outletId,
+      poDate: formattedPoDate,
+      expectedDeliveryDate: formattedExpectedDate,
+      remarks,
+      vendorId: firstVendorId ? Number(firstVendorId) : undefined,
+      status,
+      userId,
+      actionBy,
+      details,
+    };
+  };
+
+  const validateForm = () => {
+    const activeOutletId = Number(selectedOutletId) || pr?.outletId || poRecord?.outletId || state?.outletId;
+    if (!activeOutletId) {
+      setSubmitError('Please select an outlet.');
+      return false;
+    }
+    if (!poDate) {
+      setSubmitError('PO Date is required.');
+      return false;
+    }
+    if (!expectedDeliveryDate) {
+      setSubmitError('Expected Delivery Date is required.');
+      return false;
+    }
+    if (includedItems.length === 0) {
+      setSubmitError('Please include at least one item with a valid quantity.');
+      return false;
+    }
+    for (const item of includedItems) {
+      const qty = Number(poQtyMap[item.rawMaterialId]);
+      if (qty === undefined || qty === null || qty <= 0 || isNaN(qty)) {
+        setSubmitError(`Please enter a valid quantity greater than 0 for "${item.itemName}".`);
+        return false;
+      }
+      const vendorId = vendorMap[item.rawMaterialId] || commonVendorId;
+      if (!vendorId) {
+        setSubmitError(`Please select a vendor for "${item.itemName}".`);
+        return false;
+      }
+    }
+    setSubmitError('');
+    return true;
+  };
 
   const handleSaveDraft = async () => {
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    setSubmitError('');
     try {
-      const payload = buildPayload(PO_STATUS.PENDING);
-      if (isEditingExistingPo) {
-        await update(state.id, payload);
+      const currentRawStatus = poRecord?.rawStatus || state?.rawStatus;
+      const targetStatus = currentRawStatus === PO_STATUS.IN_PROGRESS ? PO_STATUS.IN_PROGRESS : PO_STATUS.PENDING;
+      const payload = buildSinglePayload(targetStatus);
+      if (isEditingExistingPo && targetPoId) {
+        await update(targetPoId, payload);
       } else {
         await create(payload);
       }
-      navigate('/purchase-order-request/purchase');
+      navigate(-1);
     } catch (err) {
       console.error(err);
+      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to save purchase order draft.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleGenerate = async () => {
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    setSubmitError('');
     try {
-      const payload = buildPayload(PO_STATUS.SENT_FOR_APPROVAL);
-      if (isEditingExistingPo) {
-        await update(state.id, payload);
+      const payload = buildSinglePayload(PO_STATUS.SENT_FOR_APPROVAL);
+      if (isEditingExistingPo && targetPoId) {
+        await update(targetPoId, payload);
       } else {
         await create(payload);
       }
       navigate('/purchase-order-request/purchase');
     } catch (err) {
       console.error(err);
+      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to generate purchase order.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Approve/Reject reuse the same update() call as Save Draft/Generate —
+  // Approve/Reject/Save-in-progress reuse the same update() call as Save Draft/Generate —
   // only the target status (and, for reject, the required remarks) differ.
-  const handleApprovePO = async () => {
+  const handleSaveInProgress = async () => {
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    setSubmitError('');
     try {
-      const payload = buildPayload(PO_STATUS.APPROVED);
-      await update(state.id, payload);
+      const payload = buildSinglePayload(PO_STATUS.IN_PROGRESS);
+      if (targetPoId) {
+        await update(targetPoId, payload);
+      }
       navigate(-1);
     } catch (err) {
       console.error(err);
+      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to save purchase order progress.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleApprovePO = async () => {
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      const payload = buildSinglePayload(PO_STATUS.APPROVED);
+      if (targetPoId) {
+        await update(targetPoId, payload);
+      }
+      navigate(-1);
+    } catch (err) {
+      console.error(err);
+      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to approve purchase order.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -692,12 +871,19 @@ const CreatePurchaseOrder = () => {
       return;
     }
     setRemarksError('');
+    setIsSubmitting(true);
+    setSubmitError('');
     try {
-      const payload = buildPayload(PO_STATUS.REJECTED);
-      await update(state.id, payload);
+      const payload = buildSinglePayload(PO_STATUS.REJECTED);
+      if (targetPoId) {
+        await update(targetPoId, payload);
+      }
       navigate(-1);
     } catch (err) {
       console.error(err);
+      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to reject purchase order.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -715,6 +901,8 @@ const CreatePurchaseOrder = () => {
   const approvalDateDisplay =
     poRecord?.rawStatus === PO_STATUS.APPROVED ? poRecord?.updatedAt : '';
 
+  const isSaving = poSaving || isSubmitting;
+
   return (
     <Container>
       <div className="p-4 md:p-6">
@@ -724,22 +912,38 @@ const CreatePurchaseOrder = () => {
           <span>Purchase Order Request</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">
-            {isApproveMode ? 'Approve Purchase Order' : isRejectMode ? 'Reject Purchase Order' : 'Create Purchase Order'}
+            {isRejectMode
+              ? 'Reject Purchase Order'
+              : isApproveMode && !isExistingInProgress
+                ? 'Approve Purchase Order'
+                : isEditingExistingPo
+                  ? 'Edit Purchase Order'
+                  : 'Create Purchase Order'}
           </span>
         </div>
 
         <div className="my-6">
           <h1 className="text-3xl font-bold text-[#0F172A]">
-            {isApproveMode ? 'Approve Purchase Order' : isRejectMode ? 'Reject Purchase Order' : 'Create Purchase Order'}
+            {isRejectMode
+              ? 'Reject Purchase Order'
+              : isApproveMode && !isExistingInProgress
+                ? 'Approve Purchase Order'
+                : isEditingExistingPo
+                  ? 'Edit Purchase Order'
+                  : 'Create Purchase Order'}
           </h1>
           <p className="text-sm text-[#737781] mt-1">
-            {isReviewMode
-              ? 'Review the purchase order details before submitting your decision.'
-              : 'Review requisition details and finalize the purchase order for vendor submission.'}
+            {isRejectMode
+              ? 'Review the purchase order details and provide rejection remarks.'
+              : isReviewMode && !isExistingInProgress
+                ? 'Review the purchase order details before submitting your decision.'
+                : isEditingExistingPo
+                  ? 'Update purchase order line items, pricing, vendor assignment, and details.'
+                  : 'Review requisition details and finalize the purchase order for vendor submission.'}
           </p>
         </div>
 
-        {prError && (
+        {prError && isGeneratePo && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
             {prError?.message || 'Failed to load the source purchase requisition.'}
           </div>
@@ -752,96 +956,256 @@ const CreatePurchaseOrder = () => {
               <h2 className="text-xl font-semibold text-[#1E293B]">Purchase Order Information</h2>
             </div>
           </div>
-
           <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <Field
-                label="PO Code"
-                value={poRecord?.poCode ?? (isEditingExistingPo ? undefined : 'TO BE GENERATED')}
-              />
-              {/*
-                PR Code isn't returned on the PO object (only prDetailId per
-                line item), so once editing an existing PO there's no real
-                source for this — falls back to whatever was passed in
-                navigation state (only populated on the fresh-from-PR flow)
-                and otherwise shows "—" rather than a silently blank box.
-              */}
-              <Field label="PR Code" value={pr?.prCode ?? state?.prCode} />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-              <Field label="PR Date" value={pr?.date ?? state?.date} />
-              <Field label="Approval Date" value={approvalDateDisplay} />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-              <Field label="Outlet Name" value={pr?.outlet ?? poRecord?.outlet ?? state?.outlet} />
-              {/* Same limitation as PR Code — the PO API has no field for
-                  who approved the source PR. */}
-              <Field label="PR Approved By" value={pr?.updatedBy} />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-              <div>
-                <label className="text-sm text-[#475569] mb-1 block">
-                  PO Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={poDate}
-                  onChange={(e) => setPoDate(e.target.value)}
-                  disabled={isReviewMode}
-                  className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                />
-              </div>
-              <div>
-                <label className="text-sm text-[#475569] mb-1 block">
-                  Expected Delivery Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={expectedDeliveryDate}
-                  onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                  disabled={isReviewMode}
-                  className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-              <div>
-                <label className="text-sm text-[#475569] mb-1 block">
-                  Vendor Name <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <select
-                      value={commonVendorId}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setCommonVendorId(v);
-                        if (v) applyCommonVendorToChecked(v, rowSelection, purchaseItems);
-                      }}
-                      disabled={vendorsLoading || isReviewMode}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 appearance-none outline-none disabled:bg-[#F8FAFC]"
-                    >
-                      <option value="">{vendorsLoading ? 'Loading vendors...' : 'Select Vendor'}</option>
-                      {vendors.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {v.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                  </div>
-                  {!isReviewMode && (
-                    <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
-                      <Plus size={18} className="text-[#0B5CAD]" />
-                    </button>
-                  )}
+            {isGeneratePo ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Field
+                    label="PO Code"
+                    value={poRecord?.poCode || state?.poCode || 'TO BE GENERATED'}
+                  />
+                  <Field label="PR Code" value={pr?.prCode ?? state?.prCode} />
                 </div>
-              </div>
-            </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <Field label="PR Date" value={pr?.date ?? state?.date} />
+                  <Field label="Approval Date" value={approvalDateDisplay} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <Field label="Outlet Name" value={pr?.outlet ?? poRecord?.outlet ?? state?.outlet} />
+                  <Field label="PR Approved By" value={pr?.updatedBy} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      PO Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={poDate}
+                      onChange={(e) => setPoDate(e.target.value)}
+                      disabled={isRejectMode}
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      Expected Delivery Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={expectedDeliveryDate}
+                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                      disabled={isRejectMode}
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      Vendor Name <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <select
+                          value={commonVendorId}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCommonVendorId(v);
+                            if (v) applyCommonVendorToChecked(v, rowSelection, purchaseItems);
+                          }}
+                          disabled={vendorsLoading || isRejectMode}
+                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                        >
+                          <option value="">
+                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
+                          </option>
+                          {vendors.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                      </div>
+                      {!isRejectMode && (
+                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
+                          <Plus size={18} className="text-[#0B5CAD]" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : isEditingExistingPo ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <Field
+                    label="PO Code"
+                    value={poRecord?.poCode || state?.poCode || 'TO BE GENERATED'}
+                  />
+                  <Field label="Outlet Name" value={pr?.outlet ?? poRecord?.outlet ?? state?.outlet} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      PO Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={poDate}
+                      onChange={(e) => setPoDate(e.target.value)}
+                      disabled={isRejectMode}
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      Expected Delivery Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={expectedDeliveryDate}
+                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                      disabled={isRejectMode}
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      Vendor Name <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <select
+                          value={commonVendorId}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCommonVendorId(v);
+                            if (v) applyCommonVendorToChecked(v, rowSelection, purchaseItems);
+                          }}
+                          disabled={vendorsLoading || isRejectMode}
+                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                        >
+                          <option value="">
+                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
+                          </option>
+                          {vendors.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                      </div>
+                      {!isRejectMode && (
+                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
+                          <Plus size={18} className="text-[#0B5CAD]" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      Outlet <span className="text-red-500">*</span>
+                    </label>
+                    {hasOutletDropdownAccess ? (
+                      <select
+                        value={selectedOutletId ? String(selectedOutletId) : ''}
+                        onChange={(e) => setSelectedOutletId(e.target.value)}
+                        disabled={outletsLoading}
+                        className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                      >
+                        <option value="">
+                          {outletsLoading ? 'Loading outlets...' : 'Select outlet...'}
+                        </option>
+                        {outlets.map((o) => (
+                          <option key={o.id} value={String(o.id)}>
+                            {o.name} {o.code ? `(${o.code})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="w-full h-11 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 flex items-center text-sm text-[#1E293B]">
+                        {outletsLoading
+                          ? 'Loading...'
+                          : outlets.find((o) => String(o.id) === String(selectedOutletId))?.name || outlets[0]?.name || '—'}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      Vendor Name <span className="text-red-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <select
+                          value={commonVendorId}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCommonVendorId(v);
+                            if (v) applyCommonVendorToChecked(v, rowSelection, purchaseItems);
+                          }}
+                          disabled={vendorsLoading}
+                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                        >
+                          <option value="">
+                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
+                          </option>
+                          {vendors.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                      </div>
+                      <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
+                        <Plus size={18} className="text-[#0B5CAD]" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      PO Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={poDate}
+                      onChange={(e) => setPoDate(e.target.value)}
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm text-[#475569] mb-1 block">
+                      Expected Delivery Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={expectedDeliveryDate}
+                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD]"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -856,7 +1220,7 @@ const CreatePurchaseOrder = () => {
                 <h1 className="text-2xl font-semibold text-black">Purchase Items</h1>
               </div>
             </div>
-            {!isReviewMode && (
+            {!isRejectMode && (
               <div>
                 <RawMaterialItemPicker
                   rawMaterials={rawMaterials}
@@ -919,7 +1283,7 @@ const CreatePurchaseOrder = () => {
               placeholder={
                 isRejectMode
                   ? 'Explain why this purchase order is being rejected...'
-                  : 'Add specific delivery instructions or terms for the vendor...'
+                  : 'Add specific Remarks/Instructions'
               }
               className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 resize-none outline-none focus:border-[#0B5CAD] focus:ring-2 focus:ring-[#DBEAFE]"
             />
@@ -927,33 +1291,43 @@ const CreatePurchaseOrder = () => {
           </div>
         </div>
 
-        {poSaveError && (
+        {(submitError || poSaveError) && (
           <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {poSaveError}
+            {submitError || poSaveError}
           </div>
         )}
 
         <div className="flex justify-between items-center mt-8 border-t py-5">
-          {isReviewMode ? (
+          {isReviewMode || isExistingInProgress ? (
             <div className="flex gap-3 ml-auto">
-              {isApproveMode && (
-                <button
-                  type="button"
-                  disabled={poSaving}
-                  onClick={handleApprovePO}
-                  className="px-6 py-2.5 bg-[#14804A] text-white rounded-lg hover:bg-[#106b3d] cursor-pointer disabled:opacity-50"
-                >
-                  {poSaving ? 'Approving...' : 'Approve purchase order'}
-                </button>
+              {!isRejectMode && (isApproveMode || isExistingInProgress) && (
+                <>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={handleSaveInProgress}
+                    className="px-6 py-2.5 border border-[#084E92] text-[#084E92] rounded-lg hover:bg-[#EFF6FF] cursor-pointer disabled:opacity-50 font-medium text-sm transition"
+                  >
+                    {isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={handleApprovePO}
+                    className="px-6 py-2.5 bg-[#14804A] text-white rounded-lg hover:bg-[#106b3d] cursor-pointer disabled:opacity-50 font-medium text-sm transition"
+                  >
+                    {isSaving ? 'Approving...' : 'Approve purchase order'}
+                  </button>
+                </>
               )}
               {isRejectMode && (
                 <button
                   type="button"
-                  disabled={poSaving}
+                  disabled={isSaving}
                   onClick={handleRejectPO}
-                  className="px-6 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 cursor-pointer disabled:opacity-50"
+                  className="px-6 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 cursor-pointer disabled:opacity-50 font-medium text-sm transition"
                 >
-                  {poSaving ? 'Rejecting...' : 'Reject purchase order'}
+                  {isSaving ? 'Rejecting...' : 'Reject purchase order'}
                 </button>
               )}
             </div>
@@ -961,19 +1335,19 @@ const CreatePurchaseOrder = () => {
             <div className="flex gap-3">
               <button
                 type="button"
-                disabled={poSaving}
+                disabled={isSaving}
                 onClick={handleSaveDraft}
                 className="px-6 py-2.5 border border-[#084E92] text-[#084E92] rounded-lg hover:bg-[#EFF6FF] cursor-pointer disabled:opacity-50"
               >
-                {poSaving ? 'Saving...' : 'Save as Draft'}
+                {isSaving ? 'Saving...' : 'Save as Draft'}
               </button>
               <button
                 type="button"
-                disabled={poSaving}
+                disabled={isSaving}
                 onClick={handleGenerate}
                 className="px-6 py-2.5 bg-[#084E92] text-white rounded-lg hover:bg-[#063d73] cursor-pointer disabled:opacity-50"
               >
-                {poSaving ? 'Saving...' : 'Generate Purchase Order'}
+                {isSaving ? 'Saving...' : 'Generate Purchase Order'}
               </button>
             </div>
           )}

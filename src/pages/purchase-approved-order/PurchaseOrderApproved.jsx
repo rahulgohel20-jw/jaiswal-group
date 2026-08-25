@@ -44,13 +44,16 @@ const APPROVER_VISIBLE_STATUSES = [
   PO_STATUS.APPROVED,
   PO_STATUS.REJECTED,
 ];
-const ACTIONABLE_STATUSES = [PO_STATUS.SENT_FOR_APPROVAL];
-const EDITABLE_STATUSES = [PO_STATUS.IN_PROGRESS];
+const ACTIONABLE_STATUSES = [PO_STATUS.SENT_FOR_APPROVAL, PO_STATUS.IN_PROGRESS];
+const EDITABLE_STATUSES = [];
 
 const ALL_STATUS = 'ALL';
 const STATUS_FILTER_OPTIONS = [
-  { value: ALL_STATUS, label: 'All statuses' },
-  ...PO_STATUS_LIST.filter((s) => APPROVER_VISIBLE_STATUSES.includes(s.value)),
+  { value: ALL_STATUS, label: 'All Statuses' },
+  ...APPROVER_VISIBLE_STATUSES.map((status) => ({
+    value: status,
+    label: getPoStatusLabel(status),
+  })),
 ];
 
 const STATUS_META = {
@@ -139,7 +142,7 @@ const PAGE_SIZE = 10;
 const PurchaseOrderApproval = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
+  const [statusFilter, setStatusFilter] = useState(PO_STATUS.SENT_FOR_APPROVAL);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const {
@@ -160,27 +163,28 @@ const PurchaseOrderApproval = () => {
   } = usePurchaseOrders();
 
   const showUnitDropdown = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
+  const currentUnitId = selectedUnitId || 0;
 
-  // Requests all approver-visible statuses in one go (fetchByOutletandStatus
-  // fires one call per status and merges results) — a PO that moves to
-  // IN_PROGRESS, APPROVED, or REJECTED must still show up here, not just
-  // SENT_FOR_APPROVAL.
+  const targetStatus = useMemo(() => {
+    if (!statusFilter) return PO_STATUS.SENT_FOR_APPROVAL;
+    if (statusFilter === ALL_STATUS) return APPROVER_VISIBLE_STATUSES;
+    return statusFilter;
+  }, [statusFilter]);
+
   const loadData = () => {
-    if (selectedUnitId) {
-      fetchByOutletandStatus(selectedUnitId, APPROVER_VISIBLE_STATUSES);
-    }
+    fetchByOutletandStatus(currentUnitId, targetStatus);
   };
 
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUnitId]);
+  }, [currentUnitId, targetStatus]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [query, statusFilter, selectedUnitId]);
+  }, [query, statusFilter, currentUnitId]);
 
-  // Safety net in case the merged response ever includes something outside
+  // Safety net in case the response ever includes something outside
   // the approver-visible set.
   const approverPos = useMemo(
     () => allPos.filter((p) => APPROVER_VISIBLE_STATUSES.includes(p.rawStatus)),
@@ -233,9 +237,9 @@ const PurchaseOrderApproval = () => {
     navigate(`/purchase/purchase-order-detail/${po.id}`);
   };
 
-  // Edit still goes to the editable create/edit form for IN_PROGRESS rows.
+  // Edit goes to the editable form for IN_PROGRESS rows with approve review mode.
   const handleEdit = (po) => {
-    navigate(`/purchase/edit-purchase-order/${po.id}`, { state: po });
+    navigate(`/purchase/edit-purchase-order/${po.id}`, { state: { ...po, reviewMode: 'approve' } });
   };
 
   const columns = useMemo(
@@ -260,7 +264,7 @@ const PurchaseOrderApproval = () => {
         id: 'date',
         accessorFn: (row) => row.date,
         header: ({ column }) => (
-          <DataGridColumnHeader title="DATE RAISED" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="RAISED" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
         size: 130,
@@ -427,11 +431,7 @@ const PurchaseOrderApproval = () => {
         )}
 
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
-          {!selectedUnitId ? (
-            <div className="flex items-center justify-center py-16 text-[#98A2B3] text-sm">
-              Select an outlet to view purchase orders.
-            </div>
-          ) : scopeLoading || poLoading ? (
+          {scopeLoading || poLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
               Loading purchase orders…

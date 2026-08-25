@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useLocation } from 'react-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronRight,
@@ -163,6 +163,8 @@ const AddPurchaseRequisition = () => {
   const navigate = useNavigate();
   const { id } = useParams(); // present -> edit mode
   const isEditMode = Boolean(id);
+  const { state } = useLocation();
+  const copyPrId = state?.copyFromId || (state?.isCopy ? state?.id : null);
 
   const { fetchById, createDraft, createAndSendForApproval, updateDraft, updateAndSendForApproval } =
     usePurchaseRequisitions();
@@ -172,8 +174,7 @@ const AddPurchaseRequisition = () => {
     loading: outletsLoading,
     orgType,
     units: outlets, // [{ id, name, code }]
-    selectedUnitId: outletId,
-    setSelectedUnitId: setOutletId,
+    selectedUnitId: orgScopeOutletId,
   } = useOrgScope();
 
   const hasOutletDropdownAccess = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
@@ -183,6 +184,7 @@ const AddPurchaseRequisition = () => {
   const [rawMaterialsLoading, setRawMaterialsLoading] = useState(false);
 
   // ---- Form fields ----
+  const [outletId, setOutletId] = useState(state?.outletId != null ? String(state.outletId) : '');
   const [prDate, setPrDate] = useState(isEditMode ? '' : getTodayInputDate());
   const [prRequiredDate, setPrRequiredDate] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -195,10 +197,17 @@ const AddPurchaseRequisition = () => {
   const [sendingForApproval, setSendingForApproval] = useState(false);
 
   // ---- Edit-mode-only state ----
-  const [loadingPr, setLoadingPr] = useState(isEditMode);
+  const [loadingPr, setLoadingPr] = useState(isEditMode || Boolean(copyPrId));
   const [loadedPr, setLoadedPr] = useState(null);
   const [notEditable, setNotEditable] = useState(false);
   const [showLog, setShowLog] = useState(false);
+
+  // Sync outletId for OUTLET users in create mode
+  useEffect(() => {
+    if (!isEditMode && !copyPrId && !outletId && orgScopeOutletId) {
+      setOutletId(String(orgScopeOutletId));
+    }
+  }, [isEditMode, copyPrId, outletId, orgScopeOutletId]);
 
   /* ---- Load raw materials ---- */
   useEffect(() => {
@@ -216,16 +225,17 @@ const AddPurchaseRequisition = () => {
     fetchRawMaterials();
   }, []);
 
-  /* ---- Edit mode: load the existing PR and pre-fill ---- */
+  /* ---- Edit mode or Copy mode: load the existing PR and pre-fill ---- */
   useEffect(() => {
-    if (!isEditMode) return;
+    if (!isEditMode && !copyPrId) return;
     const load = async () => {
       setLoadingPr(true);
       try {
-        const pr = await fetchById(id);
+        const targetId = isEditMode ? id : copyPrId;
+        const pr = await fetchById(targetId);
         setLoadedPr(pr);
 
-        if (pr.rawStatus !== PR_STATUS.PENDING) {
+        if (isEditMode && pr.rawStatus !== PR_STATUS.PENDING) {
           // Guard: only PENDING PRs are editable. Someone may have hit
           // this URL directly for a PR that's moved on since the list
           // was last refreshed.
@@ -233,13 +243,15 @@ const AddPurchaseRequisition = () => {
           return;
         }
 
-        setOutletId(pr.outletId != null ? String(pr.outletId) : '');
-        setPrDate(apiDateToInputDate(pr.date));
+        if (pr.outletId != null) {
+          setOutletId(String(pr.outletId));
+        }
+        setPrDate(isEditMode ? apiDateToInputDate(pr.date) : getTodayInputDate());
         setPrRequiredDate(apiDateToInputDate(pr.requiredDate));
         setRemarks(pr.remarks || '');
         setDetails(
           (pr.details || []).map((d) => ({
-            id: d.id ?? 0,
+            id: isEditMode ? (d.id ?? 0) : 0,
             rawMaterialId: d.rawMaterialId,
             rawMaterialName: d.rawMaterialName,
             uomId: d.uomId,
@@ -258,7 +270,7 @@ const AddPurchaseRequisition = () => {
     };
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isEditMode]);
+  }, [id, isEditMode, copyPrId]);
 
   const selectedOutlet = outlets.find((o) => String(o.id) === String(outletId));
 
@@ -485,7 +497,7 @@ const AddPurchaseRequisition = () => {
 
         {outletFieldIsEditable ? (
           <select
-            value={outletId ?? ''}
+            value={outletId ? String(outletId) : ''}
             onChange={(e) => setOutletId(e.target.value)}
             disabled={outletsLoading}
             className={errors.outletId ? errorInputCls : inputCls}
@@ -494,7 +506,7 @@ const AddPurchaseRequisition = () => {
               {outletsLoading ? 'Loading outlets...' : 'Select outlet'}
             </option>
             {outlets.map((o) => (
-              <option key={o.id} value={o.id}>
+              <option key={o.id} value={String(o.id)}>
                 {o.name} {o.code ? `(${o.code})` : ''}
               </option>
             ))}

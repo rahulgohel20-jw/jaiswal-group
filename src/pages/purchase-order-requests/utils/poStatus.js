@@ -15,8 +15,6 @@ export const PO_STATUS = {
   SENT_FOR_APPROVAL: 'SENT_FOR_APPROVAL',
   IN_PROGRESS: 'IN_PROGRESS',
   APPROVED: 'APPROVED',
-  PARTIALLY_RECEIVED: 'PARTIALLY_RECEIVED',
-  CLOSED: 'CLOSED',
   REJECTED: 'REJECTED',
 };
 
@@ -28,8 +26,6 @@ const PO_STATUS_LABELS = {
   [PO_STATUS.SENT_FOR_APPROVAL]: 'Sent for Approval',
   [PO_STATUS.IN_PROGRESS]: 'In Progress',
   [PO_STATUS.APPROVED]: 'Approved',
-  [PO_STATUS.PARTIALLY_RECEIVED]: 'Partially Received',
-  [PO_STATUS.CLOSED]: 'Closed',
   [PO_STATUS.REJECTED]: 'Rejected',
 };
 
@@ -41,20 +37,17 @@ export const getPoStatusLabel = (status) => PO_STATUS_LABELS[status] || status |
 export const PO_STATUS_GROUP = {
   [PO_STATUS.PENDING]: 'DRAFT',
   [PO_STATUS.SENT_FOR_APPROVAL]: 'PENDING_APPROVAL',
-  [PO_STATUS.IN_PROGRESS]: 'APPROVED',
+  [PO_STATUS.IN_PROGRESS]: 'IN_PROGRESS',
   [PO_STATUS.APPROVED]: 'APPROVED',
-  [PO_STATUS.PARTIALLY_RECEIVED]: 'RECEIVING',
-  [PO_STATUS.CLOSED]: 'CLOSED',
   [PO_STATUS.REJECTED]: 'REJECTED',
 };
 
-// Tab definitions for the Purchase Order Request list page, in display order.
+// Group definitions for the Purchase Order Request list page, in display order.
 export const PO_GROUPS = [
   { key: 'AWAITING_PO', label: 'Awaiting PO' },
   { key: 'DRAFT', label: 'Draft' },
   { key: 'PENDING_APPROVAL', label: 'Sent for Approval' },
+  { key: 'IN_PROGRESS', label: 'In Progress' },
   { key: 'APPROVED', label: 'Approved' },
-  { key: 'RECEIVING', label: 'Partially Received' },
-  { key: 'CLOSED', label: 'Closed' },
   { key: 'REJECTED', label: 'Rejected' },
 ];

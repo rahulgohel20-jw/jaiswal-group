@@ -44,6 +44,12 @@ const Field = ({ label, value }) => (
   </div>
 );
 
+const formatDateOnly = (dateStr) => {
+  if (!dateStr) return '—';
+  const firstPart = String(dateStr).split(' ')[0];
+  return firstPart || dateStr;
+};
+
 const PurchaseOrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -109,10 +115,8 @@ const PurchaseOrderDetail = () => {
                 <Field label="PO Date" value={po?.date} />
                 <Field label="Outlet Name" value={po?.outlet} />
                 <Field label="Expected Delivery Date" value={po?.expectedDeliveryDate} />
-                <Field label="Created By" value={po?.createdBy} />
-                <Field label="Created At" value={po?.createdAt} />
-                <Field label="Updated By" value={po?.raisedBy} />
-                <Field label="Updated At" value={po?.updatedAt} />
+                <Field label="PO Created By" value={po?.raisedBy} />
+                <Field label="Created Date" value={formatDateOnly(po?.createdAt)} />
               </div>
             </div>
 
