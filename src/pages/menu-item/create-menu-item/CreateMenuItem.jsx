@@ -3,7 +3,7 @@ import { ChevronDown, FileText, Image, Layers, Menu, Plus, UploadCloud, Search, 
 import CreateSubCategory from "../menu-subcategory/CreateSubCategory";
 import CreateMenuCategory from "../menu-category/CreateMenuCategory";
 import { Link, useNavigate, useParams } from "react-router";
-import { addMenuItem, getAllMenuCategory, getAllMenuSubCategoryById, getMenuItemById, updateMenuItem, getAllRawMaterialItems, getAllRawMaterialUnits, deleteMenuItemRawmaterialById, getMenuItemCaptainReceipeByMenuId, getMenuItemRawMaterialByMenuId } from "../../../services/apiServices";
+import { addMenuItem, getAllMenuCategory, getAllMenuSubCategoryById, getMenuItemById, updateMenuItem, getAllRawMaterialItems, getAllRawMaterialUnits, deleteMenuItemRawmaterialById, getMenuItemCaptainReceipeByMenuId, getMenuItemRawMaterialByMenuId, getAllCaptainReceipeByOrgId } from "../../../services/apiServices";
 import { notify } from "@/utils/toast";
 import { getOrgIdFromToken, getUserIdFromToken } from "../../../utils/auth";
 import { Container } from "@/components/common/container";
@@ -558,79 +558,117 @@ const CreateMenuItem = () => {
     };
 
     const handleCopyIngredients = (data) => {
-        console.log("COPY MODAL DATA:", data);
 
         const copiedIngredients = Array.isArray(data?.ingredients)
             ? data.ingredients
             : [];
-
         if (copiedIngredients.length === 0) {
             notify.error("No ingredients found to copy");
             return;
         }
+        if (isCaptainRecipe) {
+            // ---- Captain Recipe branch ----
+            const newCaptainRows = copiedIngredients.map((ingredient) => {
+                const captainRecipeId =
+                    ingredient.captainReceipeId ??
+                    ingredient.captainRecipeId ??
+                    ingredient.captainReceipe?.id ??
+                    ingredient.id;
+                const recipe = captainRecipeCatalog.find(
+                    (item) => String(item.id) === String(captainRecipeId)
+                );
+                const unitId =
+                    ingredient.unitId ??
+                    ingredient.unit?.id;
+                const unit = unitCatalog.find(
+                    (item) => String(item.id) === String(unitId)
+                );
+                return {
+                    rowId: captainRowSeq++,
+                    captainRecipeId: captainRecipeId,
+                    category:
+                        ingredient.category ??
+                        ingredient.categoryName ??
+                        recipe?.category ??
+                        "",
+                    name:
+                        ingredient.name ??
+                        ingredient.nameEnglish ??
+                        recipe?.name ??
+                        "",
+                    weight:
+                        ingredient.weight ??
+                        ingredient.quantity ??
+                        0,
+                    unitId: unitId,
+                    unit:
+                        ingredient.unitName ??
+                        (typeof ingredient.unit === "string"
+                            ? ingredient.unit
+                            : ingredient.unit?.nameEnglish) ??
+                        unit?.name ??
+                        "",
+                    rate:
+                        Number(ingredient.rate ?? recipe?.rate ?? 0),
+                    venue:
+                        ingredient.venue ?? "At Venue",
+                };
+            });
 
+            setCaptainRows((prev) => [...prev, ...newCaptainRows]);
+            setCopyRecipeOpen(false);
+            notify.success(`${newCaptainRows.length} ingredient(s) copied successfully`);
+            return;
+        }
+
+        // ---- Raw Material branch (unchanged) ----
         const newRows = copiedIngredients.map((ingredient) => {
             const rawMaterialId =
                 ingredient.rawMaterialId ??
                 ingredient.rawMaterial?.id ??
                 ingredient.id;
-
             const rawMaterial = rawMaterialCatalog.find(
                 (item) => String(item.id) === String(rawMaterialId)
             );
-
             const unitId =
                 ingredient.unitId ??
                 ingredient.unit?.id ??
                 rawMaterial?.unitId;
-
             const unit = unitCatalog.find(
                 (item) => String(item.id) === String(unitId)
             );
-
             return {
-                // IMPORTANT: table uses rowId
                 rowId: rawMaterialRowSeq++,
-
                 rawMaterialId: rawMaterialId,
-
                 categoryId:
                     ingredient.categoryId ??
                     ingredient.rawMaterialCatId ??
                     rawMaterial?.categoryId ??
                     null,
-
                 category:
                     ingredient.category ??
                     ingredient.categoryName ??
                     rawMaterial?.category ??
                     "",
-
-                // IMPORTANT: table uses name
                 name:
                     ingredient.name ??
                     ingredient.nameEnglish ??
                     rawMaterial?.name ??
                     "",
-
                 nameEnglish:
                     ingredient.nameEnglish ??
                     ingredient.name ??
                     rawMaterial?.nameEnglish ??
                     "",
-
                 weight:
                     ingredient.weight ??
                     ingredient.quantity ??
                     0,
-
                 quantity:
                     ingredient.quantity ??
                     ingredient.weight ??
                     0,
-
                 unitId: unitId,
-
                 unit:
                     ingredient.unitName ??
                     (typeof ingredient.unit === "string"
@@ -639,7 +677,6 @@ const CreateMenuItem = () => {
                     unit?.name ??
                     rawMaterial?.unit ??
                     "",
-
                 rate:
                     Number(
                         ingredient.rate ??
@@ -647,25 +684,16 @@ const CreateMenuItem = () => {
                         rawMaterial?.rate ??
                         0
                     ),
-
                 venue:
                     ingredient.venue ??
                     "At Venue",
-
                 visible:
                     ingredient.visible ?? true,
             };
         });
 
-        console.log("ROWS TO ADD:", newRows);
-
-        setRawMaterialRows((prev) => [
-            ...prev,
-            ...newRows,
-        ]);
-
+        setRawMaterialRows((prev) => [...prev, ...newRows]);
         setCopyRecipeOpen(false);
-
         notify.success(`${newRows.length} ingredient(s) copied successfully`);
     };
 
@@ -895,114 +923,9 @@ const CreateMenuItem = () => {
 
     const fetchCaptainRecipeCatalog = useCallback(async () => {
         try {
-            // TODO: wire this up to real endpoint, e.g.:
-            // const res = await getAllCaptainRecipe();
-            // const data = res?.data?.data?.["Captain Recipe Details"] || [];
-            // setCaptainRecipeCatalog(Array.isArray(data) ? data : []);
-             const demoData = [
-            {
-                id: 1,
-                name: "demo",
-                orgId: 1,
-                weight: 10,
-                unitId: 1,
-                unitName: "Litre",
-                unitHierarchy: {
-                    unitId: 1,
-                    nameEnglish: "Litre",
-                    nameHindi: "",
-                    nameGujarati: "",
-                    symbolEnglish: "L",
-                    symbolHindi: "",
-                    symbolGujarati: "",
-                    children: [],
-                },
-                rate: 20,
-                isActive: true,
-                isDelete: false,
-                createdAt: "21/08/2026 16:46:49",
-                updatedAt: null,
-                rawMaterial: [],
-            },
-            {
-                id: 2,
-                name: "demo",
-                orgId: 1,
-                weight: 10,
-                unitId: 1,
-                unitName: "Litre",
-                unitHierarchy: {
-                    unitId: 1,
-                    nameEnglish: "Litre",
-                    nameHindi: "",
-                    nameGujarati: "",
-                    symbolEnglish: "L",
-                    symbolHindi: "",
-                    symbolGujarati: "",
-                    children: [],
-                },
-                rate: 20,
-                isActive: true,
-                isDelete: false,
-                createdAt: "21/08/2026 16:47:58",
-                updatedAt: null,
-                rawMaterial: [
-                    {
-                        id: 1,
-                        rawItemId: 8,
-                        rawItemName: "Coriander",
-                        captainReceipeId: 2,
-                        qty: 10,
-                        unitId: 1,
-                        unitName: "Litre",
-                        isDelete: false,
-                        createdAt: "21/08/2026 16:47:58",
-                        updatedAt: null,
-                        rate: 0.1,
-                    },
-                    
-                ],
-            },
-            {
-      "id": 4,
-      "name": "test captain recipe",
-      "orgId": 1,
-      "weight": 50,
-      "unitId": 10,
-      "unitName": "new unit",
-      "unitHierarchy": {
-        "unitId": 10,
-        "nameEnglish": "new unit",
-        "nameHindi": "",
-        "nameGujarati": "",
-        "symbolEnglish": "nu",
-        "symbolHindi": "",
-        "symbolGujarati": "",
-        "children": []
-      },
-      "rate": 20,
-      "isActive": true,
-      "isDelete": false,
-      "createdAt": "24/08/2026 11:36:29",
-      "updatedAt": null,
-      "rawMaterial": [
-        {
-          "id": 2,
-          "rawItemId": 8,
-          "rawItemName": "Coriander",
-          "captainReceipeId": 4,
-          "qty": 100,
-          "unitId": 10,
-          "unitName": "new unit",
-          "isDelete": false,
-          "createdAt": "24/08/2026 11:36:29",
-          "updatedAt": null,
-          "rate": 10
-        }
-      ]
-    }
-        ];
-            setCaptainRecipeCatalog(demoData);
+            const res = await getAllCaptainReceipeByOrgId(orgId, true);
+            const data = res?.data?.data || [];
+            setCaptainRecipeCatalog(Array.isArray(data) ? data : []);
         } catch (err) {
             console.error("Failed to load captain recipes", err);
         }
@@ -1021,6 +944,30 @@ const CreateMenuItem = () => {
         );
         return captainRecipeCatalog.filter((item) => !usedIds.has(String(item.id)));
     }, [captainRecipeCatalog, captainRows, editingCaptainRowId]);
+
+    const selectedCaptainRecipeData = useMemo(() => {
+        return captainRecipeCatalog.find(
+            (item) => String(item.id) === String(selectedCaptainRecipe)
+        );
+    }, [captainRecipeCatalog, selectedCaptainRecipe]);
+
+    const filteredCaptainUnits = useMemo(() => {
+        if (!selectedCaptainRecipeData?.unitId) return [];
+
+        const list = unitCatalog.filter(
+            (unit) => String(unit.id) === String(selectedCaptainRecipeData.unitId)
+        );
+
+        // fallback if the unit isn't in unitCatalog (e.g. inactive)
+        if (list.length === 0 && selectedCaptainRecipeData.unitId) {
+            return [{
+                id: selectedCaptainRecipeData.unitId,
+                name: selectedCaptainRecipeData.unitName || "",
+            }];
+        }
+
+        return list;
+    }, [unitCatalog, selectedCaptainRecipeData]);
 
     const resetCaptainForm = () => {
         setSelectedCaptainRecipe("");
@@ -1046,9 +993,9 @@ const CreateMenuItem = () => {
         const recipe = captainRecipeCatalog.find(
             (item) => String(item.id) === String(selectedCaptainRecipe)
         );
-        const unit = unitCatalog.find(
-            (item) => String(item.id) === String(selectedCaptainUnit)
-        );
+        const unit =
+            unitCatalog.find((item) => String(item.id) === String(selectedCaptainUnit)) ??
+            filteredCaptainUnits.find((item) => String(item.id) === String(selectedCaptainUnit));
 
         if (editingCaptainRowId) {
             setCaptainRows((prev) =>
@@ -1184,16 +1131,13 @@ const CreateMenuItem = () => {
                 return {
                     rowId: captainRowSeq++,
                     id: item.id,
-                    captainRecipeId: item.captainReceipeId ?? item.captainReceipe?.id ?? "",
+                    captainRecipeId: item.captainReceipeMaster?.id ?? "",
                     category:
                         item.category ??
                         item.captainReceipe?.category ??
                         recipe?.category ??
                         "",
-                    name:
-                        item.captainReceipe?.nameEnglish ??
-                        recipe?.name ??
-                        "",
+                    name: item.captainReceipeMaster?.name ?? recipe?.name ?? "",
                     weight: item.weight ?? 0,
                     unitId: item.unitId ?? item.unit?.id ?? "",
                     unit:
@@ -1344,7 +1288,7 @@ const CreateMenuItem = () => {
                     <input
                         value={row.original.venue}
                         onChange={(e) => handleCaptainVenueChange(row.original.rowId, e.target.value)}
-                        className="border border-gray-200 rounded-md px-2 py-1.5 text-sm w-28"
+                        className="border border-gray-200 rounded-md px-2 py-1.5 text-sm w-28 outline-none"
                     />
                 ),
                 enableSorting: false,
@@ -1907,11 +1851,32 @@ const CreateMenuItem = () => {
                                     <SearchableSelect
                                         name="captainRecipe"
                                         value={selectedCaptainRecipe}
-                                        onChange={(e) => setSelectedCaptainRecipe(e.target.value)}
-                                        options={availableCaptainRecipes.map((r) => ({
-                                            value: String(r.id),
-                                            label: r.name,
-                                        }))}
+                                        onChange={(e) => {
+                                            const recipeId = e.target.value;
+                                            setSelectedCaptainRecipe(recipeId);
+                                            const recipe = captainRecipeCatalog.find(
+                                                (item) => String(item.id) === String(recipeId)
+                                            );
+                                            setSelectedCaptainUnit(recipe?.unitId ? String(recipe.unitId) : "");
+                                        }}
+                                        options={availableCaptainRecipes.map((r) => {
+                                            const editingRow = editingCaptainRowId
+                                                ? captainRows.find((row) => row.rowId === editingCaptainRowId)
+                                                : null;
+
+                                            // Show the row's own stored name (e.g. copied ingredient "Coriander")
+                                            // instead of the catalog recipe name, only for the row being edited.
+                                            const label =
+                                                editingRow && String(r.id) === String(editingRow.captainRecipeId)
+                                                    ? editingRow.name || r.name
+                                                    : r.name;
+
+                                            return {
+                                                value: String(r.id),
+                                                label,
+                                            };
+                                        })}
+
                                         selectedLabelFallback={
                                             editingCaptainRowId
                                                 ? captainRows.find((r) => r.rowId === editingCaptainRowId)?.name
@@ -1939,16 +1904,28 @@ const CreateMenuItem = () => {
                                         name="captainUnit"
                                         value={selectedCaptainUnit}
                                         onChange={(e) => setSelectedCaptainUnit(e.target.value)}
-                                        options={unitCatalog.map((u) => ({
+                                        options={filteredCaptainUnits.map((u) => ({
                                             value: String(u.id),
                                             label: u.name,
                                         }))}
                                         selectedLabelFallback={
                                             editingCaptainRowId
-                                                ? captainRows.find((r) => r.rowId === editingCaptainRowId)?.unit
+                                                ? captainRows.find(
+                                                    (r) => r.rowId === editingCaptainRowId
+                                                )?.unit
                                                 : ""
                                         }
-                                        placeholder="Select Unit"
+                                        placeholder={
+                                            !selectedCaptainRecipe
+                                                ? "First Select Captain Recipe"
+                                                : filteredCaptainUnits.length
+                                                    ? "Select Unit"
+                                                    : "No Unit Available"
+                                        }
+                                        disabled={
+                                            !selectedCaptainRecipe ||
+                                            filteredCaptainUnits.length === 0
+                                        }
                                     />
                                 </div>
                             </div>
@@ -2044,18 +2021,19 @@ const CreateMenuItem = () => {
                 <CreateMenuCategory
                     open={openCategory}
                     selectedCategory={selectedCategory}
-                    onClose={() => setOpenCategory(false)}
                     onSuccess={async () => {
                         await fetchCategories();
                     }}
+                    onClose={() => setOpenCategory(false)}
+
                 />
 
                 <CreateSubCategory
                     open={openSubCategory}
-                    onClose={() => setSubOpenCategory(false)}
                     onSuccess={async () => {
                         await fetchSubCategories();
                     }}
+                    onClose={() => setSubOpenCategory(false)}
                 />
 
                 <CopyRecipeModal
@@ -2067,10 +2045,8 @@ const CreateMenuItem = () => {
                 />
                 <AddRawMaterialItemModal
                     isOpen={openRawMaterialItem}
+                    fetchRawMaterialList={fetchRawMaterialCatalog}
                     onClose={() => setOpenRawMaterialItem(false)}
-                    onSuccess={async () => {
-                        await fetchRawMaterialCatalog();
-                    }}
                 />
 
                 <DeleteConfirmModal

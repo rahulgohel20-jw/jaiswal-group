@@ -83,7 +83,6 @@ const MenuItemsListing = ({ onAddNew }) => {
 
     try {
       const res = await getAllMenuItem({
-        orgId,
         page: pagination.pageIndex + 1,
         size: pagination.pageSize,
       });
@@ -99,12 +98,11 @@ const MenuItemsListing = ({ onAddNew }) => {
         name: item.nameEnglish,
         category: item.menuCategory?.nameEnglish,
         subCategory: item.menuSubCategory?.nameEnglish,
-        price: item.price,
+        price: item.dishCosting,
         sequence: item.sequence,
         status: item.isActive ? 'Active' : 'Inactive',
         raw: item,
       }));
-
       setMenuItems(list);
     } catch (err) {
       console.error(err);

@@ -17,11 +17,11 @@ import {
 } from '@/components/ui/popover';
 import {
   addRawMaterialItem,
-  getAllActiveRawMaterialBrand,
   getAllActiveVendors,
   getAllRawMaterialCategory,
   getAllRawMaterialUnits,
   getAllSubCategoryByCategoryId,
+  getRawMaterialCategoryBrandsByCategoryId,
   updateRawMaterialItem,
 } from '../../../services/apiServices';
 import { getUserIdFromToken } from '../../../utils/auth';
@@ -133,7 +133,6 @@ const normalizeSubCategory = (data) => {
   const id = pickDefined(
     typeof rawSubCat === 'object' ? rawSubCat?.id : rawSubCat,
     data.subCategory?.id,
-    data.id,
   );
   if (id == null || id === '') return null;
   const name =
@@ -279,59 +278,80 @@ const AddRawMaterialItemModal = ({
   };
 
   const fetchSubCategoriesForCategory = async (
-    categoryId = form.rawMaterialCatId,
+    categoryId,
     editSubCategory = null,
   ) => {
     if (!categoryId) {
       setSubCategories([]);
-      return;
+      return [];
     }
+
     setLoadingSubCategories(true);
+
     try {
       const res = await getAllSubCategoryByCategoryId(categoryId);
-      const subCategoryData =
-        res?.data || [];
 
-      let activeList = subCategoryData.filter((item) => item.isActive === true);
+      const subCategoryData = Array.isArray(res?.data)
+        ? res.data
+        : res?.data?.data || [];
 
+      let activeList = subCategoryData.filter(
+        (item) => item.isActive === true
+      );
+
+      // If edit mode has an existing subcategory,
+      // make sure it exists in the dropdown.
       if (
         editSubCategory?.id != null &&
-        !activeList.some((s) => String(s.id) === String(editSubCategory.id))
+        !activeList.some(
+          (s) => String(s.id) === String(editSubCategory.id)
+        )
       ) {
         activeList = [...activeList, editSubCategory];
       }
 
       setSubCategories(activeList);
+
+      return activeList;
     } catch (err) {
       console.error('Failed to load sub-categories:', err);
       setSubCategories([]);
+      return [];
     } finally {
       setLoadingSubCategories(false);
     }
   };
-
   // Brands are now a flat, independent list (getAllActiveRawMaterialBrand) —
   // not scoped to the selected category. editBrand: normalized {id, name},
   // merged in so an existing selection still shows even if it's since gone
   // inactive.
-  const fetchBrands = async (editBrand = null) => {
+  const fetchBrands = async (categoryId, editBrand = null) => {
+    if (!categoryId) {
+      setBrands([]);
+      return;
+    }
     try {
-      const res = await getAllActiveRawMaterialBrand();
-      const brandData = res?.data?.data || [];
+      const res = await getRawMaterialCategoryBrandsByCategoryId(categoryId);
+      const brandData = res?.data?.data?.['Raw Material Brand Details'] || [];
+      let brandList = brandData.map((item) => ({
+        id: item.brandId,
+        name: item.brandName,
+      }));
 
-      let activeList = brandData.filter((item) => item.active !== false);
 
       if (
         editBrand?.id != null &&
-        !activeList.some((b) => String(b.id) === String(editBrand.id))
+        !brandList.some((b) => String(b.id) === String(editBrand.id))
       ) {
-        activeList = [...activeList, { ...editBrand, active: true }];
+        brandList = [...brandList, { id: editBrand.id, name: editBrand.name, },];
       }
 
-      setBrands(activeList);
+      setBrands(brandList);
+      return brandList;
     } catch (err) {
       console.error('Failed to load brands:', err);
       setBrands([]);
+      return [];
     }
   };
 
@@ -350,7 +370,6 @@ const AddRawMaterialItemModal = ({
     if (isOpen) {
       fetchUnits(normalizeUnit(editData));
       fetchCategories(normalizeCategory(editData));
-      fetchBrands(normalizeBrand(editData));
       fetchSuppliers();
     }
   }, [isOpen, editData]);
@@ -359,48 +378,43 @@ const AddRawMaterialItemModal = ({
   // refetching them whenever it changes (including when the form is first
   // populated from editData, since that sets rawMaterialCatId too).
   useEffect(() => {
-    if (!isOpen) return;
-
-    const category = normalizeCategory(editData);
-    const catId = String(form.rawMaterialCatId || category?.id || '');
-
-    if (!catId) {
+    if (!isOpen || !form.rawMaterialCatId) {
       setSubCategories([]);
       return;
     }
+    const currentCategoryId = String(form.rawMaterialCatId);
+    // Only use the edit subcategory when the current category
+    // is still the original category.
+    const originalCategory = normalizeCategory(editData);
 
-    fetchSubCategoriesForCategory(catId, normalizeSubCategory(editData));
-  }, [
-    isOpen,
-    form.rawMaterialCatId,
-    editData?.id,
-  ]);
+    const editSubCategory =
+      originalCategory?.id != null &&
+        String(originalCategory.id) === currentCategoryId
+        ? normalizeSubCategory(editData)
+        : null;
 
-  // If the currently selected brand isn't in the freshly loaded brand list
-  // (e.g. it was deactivated elsewhere), clear the selection.
-  useEffect(() => {
-    if (!form.brandId || brands.length === 0) return;
+    fetchSubCategoriesForCategory(currentCategoryId, editSubCategory);
+  }, [isOpen, form.rawMaterialCatId, editData?.id,]);
 
-    const stillValid = brands.some(
-      (b) => String(b.id) === String(form.brandId)
-    );
-
-    if (!stillValid) {
-      set('brandId', '');
-    }
-  }, [brands]);
 
   // Same clearing behavior for sub-category.
   useEffect(() => {
-    if (!form.rawMaterialSubCatId) return;
-    const stillValid = subCategories.some(
-      (s) => String(s.id) === String(form.rawMaterialSubCatId),
+    if (loadingSubCategories || !form.rawMaterialSubCatId) {
+      return;
+    }
+
+    const stillValid = subCategories.some((s) =>
+      String(s.id) === String(form.rawMaterialSubCatId)
     );
+
     if (!stillValid) {
       set('rawMaterialSubCatId', '');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subCategories]);
+  }, [
+    subCategories,
+    loadingSubCategories,
+    form.rawMaterialSubCatId,
+  ]);
 
   const userId = getUserIdFromToken();
 
@@ -478,19 +492,31 @@ const AddRawMaterialItemModal = ({
     );
   };
   useEffect(() => {
-    if (editData) {
+    const loadEditData = async () => {
+      if (!editData) {
+        setForm(emptyForm);
+        setIsFixedRawMaterial(false);
+        setSupplierRows([]);
+        setSubCategories([]);
+        return;
+      }
+
       const category = normalizeCategory(editData);
       const subCategory = normalizeSubCategory(editData);
       const unit = normalizeUnit(editData);
       const brand = normalizeBrand(editData);
-
       const latestImage = getLatestImage(editData.images);
+
+      const categoryId = String(category?.id ?? '');
+      const subCategoryId = String(subCategory?.id ?? '');
+
+      // First set form WITHOUT subcategory
       setForm({
         nameEnglish: editData.nameEnglish || '',
-        rawMaterialCatId: String(category?.id ?? ''),
-        rawMaterialSubCatId: String(subCategory?.id ?? ''),
+        rawMaterialCatId: categoryId,
+        rawMaterialSubCatId: '',
         unitId: String(unit?.id ?? ''),
-        brandId: String(brand?.id ?? ''),
+        brandId: '',
         supplierRate: editData.supplierRate ?? '',
         status: editData.isActive ? 'Active' : 'Inactive',
         dailyConsumption: editData.dailyConsumption ?? '',
@@ -505,32 +531,72 @@ const AddRawMaterialItemModal = ({
         imageUrl: latestImage,
       });
 
-      if (category?.id != null) {
-        fetchSubCategoriesForCategory(category.id, subCategory);
-      }
-      fetchBrands(brand);
       setIsFixedRawMaterial(editData.isGeneralFix ?? false);
 
-      const vendorList = editData.vendorPriceConfigs || editData.suppliers;
+      // Load subcategories first
+      if (category?.id != null) {
+        const loadedSubCategories =
+          await fetchSubCategoriesForCategory(
+            category.id,
+            subCategory
+          );
+
+        // Now select existing subcategory
+        if (
+          subCategory?.id != null &&
+          loadedSubCategories.some(
+            (item) => String(item.id) === String(subCategory.id)
+          )
+        ) {
+          setForm((prev) => ({
+            ...prev,
+            rawMaterialSubCatId: subCategoryId,
+          }));
+        }
+
+        const loadedBrands = await fetchBrands(category.id, brand);
+
+        if (brand?.id != null) {
+          const brandExists = loadedBrands.some(
+            (b) => String(b.id) === String(brand.id)
+          );
+
+          if (brandExists) {
+            setForm((prev) => ({
+              ...prev,
+              brandId: String(brand.id),
+            }));
+          }
+        }
+      }
+
+      const vendorList =
+        editData.vendorPriceConfigs || editData.suppliers;
+
       if (Array.isArray(vendorList)) {
         setSupplierRows(
           vendorList.map((s) => ({
             id: s.id,
             supplierId: s.vendorId ?? s.supplierId ?? s.id,
-            name: s.vendorName || s.fullName || s.name || 'Unknown Supplier',
-            from: formatDateToInputValue(s.fromDate || s.from || ''),
-            to: formatDateToInputValue(s.toDate || s.to || ''),
+            name:
+              s.vendorName ||
+              s.fullName ||
+              s.name ||
+              'Unknown Supplier',
+            from: formatDateToInputValue(
+              s.fromDate || s.from || ''
+            ),
+            to: formatDateToInputValue(
+              s.toDate || s.to || ''
+            ),
             price: s.price ?? '',
-          })),
+          }))
         );
       } else {
         setSupplierRows([]);
       }
-    } else {
-      setForm(emptyForm);
-      setIsFixedRawMaterial(false);
-      setSupplierRows([]);
-    }
+    };
+    loadEditData();
   }, [editData?.id]);
 
   // ---- Handlers for the "+" quick-add modals ----
@@ -558,7 +624,10 @@ const AddRawMaterialItemModal = ({
 
   const handleBrandSaved = async (newBrand) => {
     const normalized = normalizeBrand(newBrand) || newBrand;
-    await fetchBrands(normalized || null);
+    if (form.rawMaterialCatId) {
+      await fetchBrands(form.rawMaterialCatId, normalized);
+    }
+
     if (normalized?.id != null) {
       set('brandId', String(normalized.id));
     }
@@ -736,8 +805,13 @@ const AddRawMaterialItemModal = ({
                     name="rawMaterialCatId"
                     value={form.rawMaterialCatId}
                     onChange={(e) => {
-                      set('rawMaterialCatId', String(e.target.value));
+                      const categoryId = String(e.target.value);
+                      set('rawMaterialCatId', categoryId);
                       set('rawMaterialSubCatId', '');
+                      set('brandId', '');
+
+                      // Fetch brands for selected category
+                      fetchBrands(categoryId);
                     }}
                     options={categories.map((item) => ({
                       value: String(item.id),

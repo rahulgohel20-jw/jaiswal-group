@@ -34,7 +34,7 @@ const CopyRecipeModal = ({
 
         const fetchUnits = async () => {
             try {
-                const res = await getAllRawMaterialUnits(); 
+                const res = await getAllRawMaterialUnits();
                 const data = res?.data?.data ?? res?.data ?? [];
                 setAllUnits(Array.isArray(data) ? data : []);
             } catch (error) {
@@ -87,26 +87,44 @@ const CopyRecipeModal = ({
 
                 if (isCaptainRecipe) {
                     const res = await getMenuItemCaptainReceipeByMenuId(selectedRecipeId, false);
-                    
+
                     const data =
                         res?.data?.data?.["menuItemRawMaterials"] ||
                         res?.data?.data ||
                         [];
 
                     const list = Array.isArray(data) ? data : [];
-                    const mappedIngredients = list.map((item) => ({
-                        id: item.captainReceipeId ?? item.captainReceipe?.id,
-                        captainReceipeId: item.captainReceipeId ?? item.captainReceipe?.id,
-                        name: item.captainReceipe?.nameEnglish ?? item.name ?? "",
-                        category:
-                            item.captainReceipe?.category ??
-                            item.category ??
-                            "",
-                        weight: item.weight ?? 0,
-                        unit: item.unit?.nameEnglish ?? item.unitName ?? "",
-                        unitId: item.unitId ?? item.unit?.id ?? "",
-                        rate: Number(item.rate ?? 0),
-                    }));
+
+                    // Show each captain-recipe assignment itself as a row (not its
+                    // nested rawMaterial ingredients).
+                    const mappedIngredients = list
+                        .filter((entry) => entry.captainReceipeMaster)
+                        .map((entry) => {
+                            const master = entry.captainReceipeMaster;
+                            const unitId = entry.unitId ?? master?.unitId ?? "";
+                            const matchedUnit = allUnits.find(
+                                (u) => String(u.id) === String(unitId)
+                            );
+
+                            return {
+                                id: entry.id,
+                                captainReceipeId: master?.id,
+                                name: master?.name ?? "",
+                                category: entry.category ?? "",
+                                weight: entry.weight ?? 0,
+                                unit:
+                                    matchedUnit ??
+                                    (entry.unitName || entry.unitHierarchy?.nameEnglish
+                                        ? {
+                                            id: unitId,
+                                            nameEnglish:
+                                                entry.unitName || entry.unitHierarchy?.nameEnglish,
+                                        }
+                                        : null),
+                                unitId,
+                                rate: Number(entry.rate ?? master?.rate ?? 0),
+                            };
+                        });
 
                     setIngredients(mappedIngredients);
                 } else {
@@ -224,7 +242,14 @@ const CopyRecipeModal = ({
             )
         );
     };
-
+    useEffect(() => {
+        if (!open) {
+            setSelectedRecipeId("");
+            setSelectedIngredients([]);
+            setIngredients([]);
+            setRecipes([]);
+        }
+    }, [open]);
     const handleCopy = () => {
         const selectedItems = ingredients.filter((item) =>
             selectedIngredients.includes(item.id)

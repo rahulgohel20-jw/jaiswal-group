@@ -424,6 +424,15 @@ export const getMenuItemCaptainReceipeByMenuId = (menuItemId, isSync) => {
 export const getMenuItemRawMaterialByMenuId = (menuItemId, isSync) => {
   return GET('/menuitems/getmenuitemrawmaterialbymenuid', { menuItemId, isSync });
 };
+
+//Captain Recipe API
+export const getAllCaptainReceipeByOrgId = (orgId, status = true) =>{
+  return GET(`/captain-receipe-master/getallbyorgid?orgId=${orgId}&status=${status}`);
+}
+export const deleteCaptainRecipeById = (id) => {
+  return DELETE(`/captain-receipe-master/deletebyid?id=${id}`)
+}
+  
 // ---- Sub-Outlet APIs ----
 
 export const getAllSubOutlets = () => {
@@ -707,7 +716,7 @@ export const getRawMaterialCategoryBrandById = (id) => {
 };
 
 export const getRawMaterialCategoryBrandsByCategoryId = (categoryId) => {
-  return GET('/rawmaterialcategorybrand/getbycategoryid', { categoryId });
+  return GET(`/rawmaterialcategorybrand/getbycategoryid?categoryId=${categoryId}`);
 };
 
 export const getRawMaterialCategoryBrandsByBrandId = (brandId) => {
