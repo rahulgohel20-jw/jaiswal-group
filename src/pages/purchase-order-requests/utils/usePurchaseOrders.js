@@ -20,6 +20,7 @@ import {
   getAuditLogs,
 } from '@/services/apiServices';
 import { PO_STATUS, getPoStatusLabel } from './poStatus';
+import { getUserIdFromToken, getUsernameFromToken } from '@/utils/auth';
 
 const PR_APPROVED_STATUS = 'APPROVED';
 const PR_REJECTED_STATUS = 'REJECTED';
@@ -280,12 +281,17 @@ export const usePurchaseOrders = () => {
     }
   }, []);
 
-  const remove = useCallback(async (id, { actionBy }) => {
+  const remove = useCallback(async (id, payload = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await deletePurchaseOrder(id, { actionBy });
-      return res.data;
+      const userId = getUserIdFromToken();
+      const actionBy = getUsernameFromToken() || userId;
+      const params = typeof payload === 'object' && payload !== null
+        ? { userId, actionBy, ...payload }
+        : { userId, actionBy: payload || actionBy };
+      const res = await deletePurchaseOrder(id, params);
+      return res?.data ?? res;
     } catch (err) {
       setError(err?.message || 'Failed to delete purchase order.');
       throw err;

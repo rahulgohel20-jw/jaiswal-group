@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, ChevronDown, Info, TrendingDown, X } from 'lucide-react';
+import { Building2, ChevronDown, Info, Loader2, TrendingDown, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { assignVendorOutletMapping } from '@/services/apiServices';
+import { getUsernameFromToken } from '@/utils/auth';
 
 const formatINR = (value) =>
   new Intl.NumberFormat('en-IN', {
@@ -19,10 +22,14 @@ const VendorPriceComparisonModal = ({
   quotations = [],
   loading = false,
   onSelectPrice,
+  outletId,
+  onVendorMapped,
 }) => {
   const [sortOrder, setSortOrder] = useState('desc'); // desc = Highest to Lowest
   const [selectedVendorId, setSelectedVendorId] = useState(null);
   const [quantities, setQuantities] = useState({}); // { [quotationId]: string }
+  const [localQuotations, setLocalQuotations] = useState([]);
+  const [mappingVendorId, setMappingVendorId] = useState(null);
 
   // the PO/PR line item's required quantity — support whichever field name the caller passes
   const poQuantity =
@@ -35,6 +42,7 @@ const VendorPriceComparisonModal = ({
     if (open) {
       setSortOrder('desc');
       setSelectedVendorId(null);
+      setLocalQuotations(quotations);
       const defaults = {};
       quotations.forEach((q) => {
         defaults[q.id] = poQuantity != null ? String(poQuantity) : '';
@@ -43,6 +51,30 @@ const VendorPriceComparisonModal = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, item?.rawMaterialId, quotations, poQuantity]);
+
+  const handleMapVendor = async (quotation) => {
+    if (!outletId || !quotation.vendorId) return;
+    setMappingVendorId(quotation.vendorId);
+    try {
+      await assignVendorOutletMapping({
+        outletIds: [Number(outletId)],
+        username: getUsernameFromToken() || 'system',
+        vendorId: Number(quotation.vendorId),
+      });
+      toast.success(`${quotation.vendorName || 'Vendor'} mapped to outlet successfully!`);
+      setLocalQuotations((prev) =>
+        prev.map((item) =>
+          item.vendorId === quotation.vendorId ? { ...item, isMapped: true } : item,
+        ),
+      );
+      onVendorMapped?.(quotation.vendorId, outletId);
+    } catch (err) {
+      console.error('Failed to map vendor to outlet', err);
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to map vendor to outlet.');
+    } finally {
+      setMappingVendorId(null);
+    }
+  };
 
   // close on Escape
   useEffect(() => {
@@ -54,22 +86,22 @@ const VendorPriceComparisonModal = ({
 
   // lowest price is computed from the FULL list, independent of sorting
   const lowestPrice = useMemo(() => {
-    if (!quotations.length) return null;
-    const prices = quotations
+    if (!localQuotations.length) return null;
+    const prices = localQuotations
       .map((q) => Number(q.price))
       .filter((n) => !Number.isNaN(n));
     return prices.length ? Math.min(...prices) : null;
-  }, [quotations]);
+  }, [localQuotations]);
 
   const sortedQuotations = useMemo(() => {
-    const list = [...quotations];
+    const list = [...localQuotations];
     list.sort((a, b) => {
       const priceA = Number(a.price) || 0;
       const priceB = Number(b.price) || 0;
       return sortOrder === 'desc' ? priceB - priceA : priceA - priceB;
     });
     return list;
-  }, [quotations, sortOrder]);
+  }, [localQuotations, sortOrder]);
 
   const handleQuantityChange = (id, value) => {
     // allow empty string, and non-negative numbers only
@@ -282,15 +314,34 @@ const VendorPriceComparisonModal = ({
 
                       {/* Status — mapped vs not mapped, distinct colours */}
                       <td className="px-4 py-4 text-center">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            q.isMapped
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}
-                        >
-                          {q.isMapped ? 'Mapped' : 'Not Mapped'}
-                        </span>
+                        <div className="flex flex-col items-center gap-1.5">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              q.isMapped
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}
+                          >
+                            {q.isMapped ? 'Mapped' : 'Not Mapped'}
+                          </span>
+                          {!q.isMapped && outletId && (
+                            <button
+                              type="button"
+                              disabled={mappingVendorId === q.vendorId}
+                              onClick={() => handleMapVendor(q)}
+                              className="text-[11px] font-semibold text-[#084E92] hover:underline cursor-pointer disabled:opacity-50 inline-flex items-center gap-1"
+                            >
+                              {mappingVendorId === q.vendorId ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>Mapping...</span>
+                                </>
+                              ) : (
+                                <span>+ Map to Outlet</span>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Action */}

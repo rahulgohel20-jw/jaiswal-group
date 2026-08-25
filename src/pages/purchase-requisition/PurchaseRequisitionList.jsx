@@ -33,7 +33,7 @@
   import { useOrgScope } from '@/hooks/useOrgScope';
   import { OrgTypes } from '@/constants/orgTypes';
   import { PR_STATUS, PR_STATUS_LIST, EDITABLE_STATUSES, getStatusLabel } from './utils/prStatus';
-  import { getUserIdFromToken } from '../../utils/auth';
+  import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
 
   /* -------------------------------------------------------------------------
   * Shared style tokens & primitives (unchanged)
@@ -194,13 +194,17 @@
       loading: scopeLoading,
       error: scopeError,
       orgType,
+      isOutletUser,
+      isCompanyUser,
+      isGroupUser,
+      showUnitDropdown,
       units,
       selectedUnitId,
       setSelectedUnitId,
+      effectiveOutletId,
+      filterRowsByScope,
       retry: retryScope,
     } = useOrgScope();
-
-    const showUnitDropdown = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
 
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -215,23 +219,21 @@
     const [deleteSaving, setDeleteSaving] = useState(false);
 
     const loadData = useCallback(async () => {
-      if (!selectedUnitId) {
-        setList([]);
-        return;
-      }
+      if (scopeLoading) return;
       setLoading(true);
       setPrError(null);
       try {
-        const res = await getPurchaseRequisitionsByOutlet(selectedUnitId, statusFilter);
+        const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId, statusFilter || PR_STATUS.PENDING);
         const raw = res?.data?.data ?? res?.data ?? res ?? [];
         const rows = Array.isArray(raw) ? raw.map(normalizeRow) : [];
-        setList(rows);
+        const scopedRows = filterRowsByScope(rows);
+        setList(scopedRows);
       } catch (err) {
         setPrError(err?.message || 'Failed to load purchase requisitions.');
       } finally {
         setLoading(false);
       }
-    }, [selectedUnitId, statusFilter]);
+    }, [scopeLoading, effectiveOutletId, statusFilter, filterRowsByScope]);
 
     useEffect(() => {
       loadData();
@@ -241,7 +243,9 @@
       if (!deleteTarget) return;
       setDeleteSaving(true);
       try {
-        await deletePurchaseRequisition(deleteTarget.id, getUserIdFromToken());
+        const userId = getUserIdFromToken();
+        const actionBy = getUsernameFromToken() || userId;
+        await deletePurchaseRequisition(deleteTarget.id, { userId, actionBy });
         closeDeleteConfirm();
         await loadData();
       } catch (err) {

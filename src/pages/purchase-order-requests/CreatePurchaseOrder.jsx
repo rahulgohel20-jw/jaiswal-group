@@ -2,7 +2,7 @@
 // File: src/pages/CreatePurchaseOrder.jsx
 // ============================================
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -32,6 +32,7 @@ import { usePurchaseRequisitions } from '../purchase-requisition/utils/usePurcha
 import { usePurchaseOrders } from './utils/usePurchaseOrders';
 import {
   getAllActiveVendors,
+  getAllVendorOutletMappings,
   getActiveVendorPriceConfigsByDate,
   getAllRawMaterialItems,
 } from '@/services/apiServices';
@@ -312,6 +313,22 @@ const CreatePurchaseOrder = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poRecord, isEditingExistingPo]);
 
+  const [vendorOutletMappings, setVendorOutletMappings] = useState([]);
+
+  const loadVendorOutletMappings = useCallback(async () => {
+    try {
+      const res = await getAllVendorOutletMappings();
+      const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      setVendorOutletMappings(Array.isArray(raw) ? raw : []);
+    } catch (err) {
+      console.error('Failed to load vendor outlet mappings', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadVendorOutletMappings();
+  }, [loadVendorOutletMappings]);
+
   useEffect(() => {
     (async () => {
       setVendorsLoading(true);
@@ -331,6 +348,57 @@ const CreatePurchaseOrder = () => {
     })();
   }, []);
 
+  const activeOutletId =
+    selectedOutletId ||
+    (poRecord?.outletId != null ? String(poRecord.outletId) : '') ||
+    (pr?.outletId != null ? String(pr.outletId) : '') ||
+    (state?.outletId != null ? String(state.outletId) : '') ||
+    (orgScopeOutletId != null ? String(orgScopeOutletId) : '');
+
+  const mappedVendors = useMemo(() => {
+    if (!activeOutletId || !vendorOutletMappings.length) return vendors;
+    const mappedVendorIds = new Set(
+      vendorOutletMappings
+        .filter((m) => String(m.outletId) === String(activeOutletId))
+        .map((m) => Number(m.vendorId)),
+    );
+    const filtered = vendors.filter((v) => mappedVendorIds.has(Number(v.id)));
+    return filtered.length > 0 ? filtered : vendors;
+  }, [vendors, vendorOutletMappings, activeOutletId]);
+
+  const fetchAndSetPriceForVendor = useCallback(async (rawMaterialId, vendorId) => {
+    if (!rawMaterialId || !vendorId) return;
+    try {
+      const res = await getActiveVendorPriceConfigsByDate({
+        isNullConsidered: false,
+        organizationId: getOrgIdFromToken(),
+        rawMaterialId: Number(rawMaterialId),
+        targetDate: getTodayForApiDate(),
+      });
+      const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      const configs = Array.isArray(raw) ? raw : [];
+      const matched = configs.find((c) => Number(c.vendorId) === Number(vendorId));
+      if (matched && matched.price != null) {
+        setPriceMap((prev) => ({
+          ...prev,
+          [rawMaterialId]: matched.price,
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch vendor price config', err);
+    }
+  }, []);
+
+  const handleVendorChange = (rawMaterialId, vendorId) => {
+    setVendorMap((prev) => ({
+      ...prev,
+      [rawMaterialId]: vendorId,
+    }));
+    if (vendorId) {
+      fetchAndSetPriceForVendor(rawMaterialId, vendorId);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       setRawMaterialsLoading(true);
@@ -348,23 +416,22 @@ const CreatePurchaseOrder = () => {
   const applyCommonVendorToChecked = (vendorId, selection, rows) => {
     if (!vendorId) return;
     const selectedIndexes = Object.keys(selection).filter((k) => selection[k]);
-    if (selectedIndexes.length === 0) {
-      setVendorMap((prev) => {
-        const next = { ...prev };
-        rows.forEach((item) => {
-          if (item?.rawMaterialId) next[item.rawMaterialId] = vendorId;
-        });
-        return next;
-      });
-      return;
-    }
+    const targetRows = selectedIndexes.length > 0
+      ? selectedIndexes.map((idx) => rows[Number(idx)]).filter(Boolean)
+      : rows;
+
     setVendorMap((prev) => {
       const next = { ...prev };
-      selectedIndexes.forEach((idx) => {
-        const item = rows[Number(idx)];
-        if (item) next[item.rawMaterialId] = vendorId;
+      targetRows.forEach((item) => {
+        if (item?.rawMaterialId) next[item.rawMaterialId] = vendorId;
       });
       return next;
+    });
+
+    targetRows.forEach((item) => {
+      if (item?.rawMaterialId) {
+        fetchAndSetPriceForVendor(item.rawMaterialId, vendorId);
+      }
     });
   };
 
@@ -597,16 +664,13 @@ const CreatePurchaseOrder = () => {
             <select
               value={vendorMap[row.original.rawMaterialId] || ''}
               onChange={(e) =>
-                setVendorMap((prev) => ({
-                  ...prev,
-                  [row.original.rawMaterialId]: e.target.value,
-                }))
+                handleVendorChange(row.original.rawMaterialId, e.target.value)
               }
               disabled={isRejectMode}
               className="w-full max-w-[140px] h-9 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#1E293B] appearance-none outline-none bg-white cursor-pointer disabled:bg-[#F8FAFC] disabled:cursor-not-allowed"
             >
               <option value="">Select</option>
-              {vendors.map((v) => (
+              {mappedVendors.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name}
                 </option>
@@ -646,15 +710,10 @@ const CreatePurchaseOrder = () => {
           <input
             type="number"
             value={priceMap[row.original.rawMaterialId] ?? ''}
-            onChange={(e) =>
-              setPriceMap((prev) => ({
-                ...prev,
-                [row.original.rawMaterialId]: e.target.value === '' ? '' : Number(e.target.value),
-              }))
-            }
+            readOnly
+            disabled
             placeholder="—"
-            disabled={isRejectMode}
-            className="w-24 h-9 border rounded-lg text-center outline-none disabled:bg-[#F8FAFC] disabled:text-[#475467]"
+            className="w-24 h-9 border border-[#E2E8F0] bg-[#F8FAFC] text-[#475467] rounded-lg text-center outline-none cursor-not-allowed"
           />
         ),
         size: 100,
@@ -765,6 +824,10 @@ const CreatePurchaseOrder = () => {
     }
     if (!expectedDeliveryDate) {
       setSubmitError('Expected Delivery Date is required.');
+      return false;
+    }
+    if (poDate && expectedDeliveryDate && expectedDeliveryDate < poDate) {
+      setSubmitError('Expected Delivery Date cannot be less than PO Date.');
       return false;
     }
     if (includedItems.length === 0) {
@@ -998,7 +1061,14 @@ const CreatePurchaseOrder = () => {
                     <input
                       type="date"
                       value={poDate}
-                      onChange={(e) => setPoDate(e.target.value)}
+                      min={getTodayForDateInput()}
+                      onChange={(e) => {
+                        const newPoDate = e.target.value;
+                        setPoDate(newPoDate);
+                        if (expectedDeliveryDate && newPoDate && expectedDeliveryDate < newPoDate) {
+                          setExpectedDeliveryDate(newPoDate);
+                        }
+                      }}
                       disabled={isRejectMode}
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                     />
@@ -1010,6 +1080,7 @@ const CreatePurchaseOrder = () => {
                     <input
                       type="date"
                       value={expectedDeliveryDate}
+                      min={poDate || getTodayForDateInput()}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                       disabled={isRejectMode}
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
@@ -1037,7 +1108,7 @@ const CreatePurchaseOrder = () => {
                           <option value="">
                             {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
                           </option>
-                          {vendors.map((v) => (
+                          {mappedVendors.map((v) => (
                             <option key={v.id} value={v.id}>
                               {v.name}
                             </option>
@@ -1072,7 +1143,14 @@ const CreatePurchaseOrder = () => {
                     <input
                       type="date"
                       value={poDate}
-                      onChange={(e) => setPoDate(e.target.value)}
+                      min={getTodayForDateInput()}
+                      onChange={(e) => {
+                        const newPoDate = e.target.value;
+                        setPoDate(newPoDate);
+                        if (expectedDeliveryDate && newPoDate && expectedDeliveryDate < newPoDate) {
+                          setExpectedDeliveryDate(newPoDate);
+                        }
+                      }}
                       disabled={isRejectMode}
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                     />
@@ -1084,6 +1162,7 @@ const CreatePurchaseOrder = () => {
                     <input
                       type="date"
                       value={expectedDeliveryDate}
+                      min={poDate || getTodayForDateInput()}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                       disabled={isRejectMode}
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
@@ -1111,7 +1190,7 @@ const CreatePurchaseOrder = () => {
                           <option value="">
                             {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
                           </option>
-                          {vendors.map((v) => (
+                          {mappedVendors.map((v) => (
                             <option key={v.id} value={v.id}>
                               {v.name}
                             </option>
@@ -1178,7 +1257,7 @@ const CreatePurchaseOrder = () => {
                           <option value="">
                             {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
                           </option>
-                          {vendors.map((v) => (
+                          {mappedVendors.map((v) => (
                             <option key={v.id} value={v.id}>
                               {v.name}
                             </option>
@@ -1201,7 +1280,14 @@ const CreatePurchaseOrder = () => {
                     <input
                       type="date"
                       value={poDate}
-                      onChange={(e) => setPoDate(e.target.value)}
+                      min={getTodayForDateInput()}
+                      onChange={(e) => {
+                        const newPoDate = e.target.value;
+                        setPoDate(newPoDate);
+                        if (expectedDeliveryDate && newPoDate && expectedDeliveryDate < newPoDate) {
+                          setExpectedDeliveryDate(newPoDate);
+                        }
+                      }}
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD]"
                     />
                   </div>
@@ -1212,6 +1298,7 @@ const CreatePurchaseOrder = () => {
                     <input
                       type="date"
                       value={expectedDeliveryDate}
+                      min={poDate || getTodayForDateInput()}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD]"
                     />
@@ -1374,6 +1461,8 @@ const CreatePurchaseOrder = () => {
         loading={quotationsLoading}
         onClose={closeQuotationModal}
         onSelectPrice={handleSelectPrice}
+        outletId={activeOutletId}
+        onVendorMapped={() => loadVendorOutletMappings()}
       />
 
       <DeleteConfirmModal

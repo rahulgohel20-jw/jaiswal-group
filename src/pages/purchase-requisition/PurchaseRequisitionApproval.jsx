@@ -123,16 +123,13 @@ const sortByDateDesc = (a, b) => {
 // straight to getbyoutlet as a single call. "All statuses" is the one case
 // that still needs to fan out across all 4 visible statuses and merge,
 // since the endpoint only accepts one status per call.
-function useRequisitions(unitId, statusFilter) {
+function useRequisitions(effectiveOutletId, statusFilter, filterRowsByScope, scopeLoading) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [requisitions, setRequisitions] = useState([]);
 
   const reload = useCallback(async () => {
-    if (!unitId) {
-      setRequisitions([]);
-      return;
-    }
+    if (scopeLoading) return;
     setLoading(true);
     setError(null);
     try {
@@ -140,7 +137,7 @@ function useRequisitions(unitId, statusFilter) {
       if (statusFilter === ALL_STATUS) {
         const responses = await Promise.all(
           APPROVER_VISIBLE_STATUSES.map((status) =>
-            getPurchaseRequisitionsByOutlet(unitId, status)
+            getPurchaseRequisitionsByOutlet(effectiveOutletId, status)
           )
         );
         raw = responses.flatMap((res) => {
@@ -148,17 +145,20 @@ function useRequisitions(unitId, statusFilter) {
           return Array.isArray(data) ? data : [];
         });
       } else {
-        const res = await getPurchaseRequisitionsByOutlet(unitId, statusFilter);
+        const targetStatus = statusFilter || PR_STATUS.SENT_FOR_APPROVAL;
+        const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId, targetStatus);
         const data = res?.data?.data ?? res?.data ?? res ?? [];
         raw = Array.isArray(data) ? data : [];
       }
-      setRequisitions(raw.map(mapPr));
+      const mapped = raw.map(mapPr);
+      const scoped = filterRowsByScope ? filterRowsByScope(mapped) : mapped;
+      setRequisitions(scoped);
     } catch (err) {
       setError(err?.message || "Failed to load purchase requisitions.");
     } finally {
       setLoading(false);
     }
-  }, [unitId, statusFilter]);
+  }, [effectiveOutletId, statusFilter, filterRowsByScope, scopeLoading]);
 
   useEffect(() => {
     reload();
@@ -237,25 +237,31 @@ const PAGE_SIZE = 10;
 
 function ListView({ onApprove, onReject, onView }) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
+  const [statusFilter, setStatusFilter] = useState(PR_STATUS.SENT_FOR_APPROVAL);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const {
     loading: scopeLoading,
     error: scopeError,
     orgType,
+    isOutletUser,
+    isCompanyUser,
+    isGroupUser,
+    showUnitDropdown,
     units,
     selectedUnitId,
     setSelectedUnitId,
+    effectiveOutletId,
+    filterRowsByScope,
     retry: retryScope,
   } = useOrgScope();
 
   const { loading: prLoading, error: prError, requisitions } = useRequisitions(
-    selectedUnitId,
-    statusFilter
+    effectiveOutletId,
+    statusFilter,
+    filterRowsByScope,
+    scopeLoading
   );
-
-  const showUnitDropdown = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
 
   // Counts reflect whatever is currently loaded. They're exact when "All
   // statuses" is selected; when one specific status is picked, only that

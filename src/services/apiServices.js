@@ -850,8 +850,9 @@
     return GET(`/organization/children/${parentId}`);
   };
 
-  export const deletePurchaseRequisition = (id, actionBy) => {
-    return DELETE(`/purchase-requisitions/${id}`, { actionBy });
+  export const deletePurchaseRequisition = (id, params = {}) => {
+    const queryParams = typeof params === 'object' && params !== null ? params : { userId: params, actionBy: params };
+    return DELETE(`/purchase-requisitions/${id}`, queryParams);
   };
 
   // ---- Audit Log APIs ----
@@ -869,8 +870,9 @@
     return POST('/purchase-orders/add', payload);
   };
 
-  export const deletePurchaseOrder = (id, { actionBy }) => {
-    return DELETE(`/purchase-orders/delete/${id}`, { actionBy });
+  export const deletePurchaseOrder = (id, params = {}) => {
+    const queryParams = typeof params === 'object' && params !== null ? params : { userId: params, actionBy: params };
+    return DELETE(`/purchase-orders/delete/${id}`, queryParams);
   };
 
   export const filterPurchaseOrdersByDates = (payload) => {
