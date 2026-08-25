@@ -133,12 +133,49 @@
     rawStatus: pr.status,
     remarks: pr.remarks ?? '',
     notes: pr.remarks ?? '',
+    raisedBy: pr.createdByName ?? pr.updatedByName ?? pr.actionBy ?? pr.updatedBy ?? pr.createdBy ?? '',
     details: pr.details ?? [],
     createdBy: pr.createdBy,
+    createdByName: pr.createdByName,
     createdAt: pr.createdAt,
     updatedBy: pr.updatedBy,
+    updatedByName: pr.updatedByName,
     updatedAt: pr.updatedAt,
   });
+
+  const parseDateToTime = (dateStr, createdAt, id) => {
+    if (createdAt) {
+      const match = String(createdAt).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?)?/i);
+      if (match) {
+        let [, d, m, y, h = '0', min = '0', ampm] = match;
+        let hour = parseInt(h, 10);
+        if (ampm) {
+          if (ampm.toUpperCase() === 'PM' && hour < 12) hour += 12;
+          if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+        }
+        return new Date(y, m - 1, d, hour, parseInt(min, 10)).getTime();
+      }
+      const t = new Date(createdAt).getTime();
+      if (!isNaN(t)) return t;
+    }
+    if (dateStr) {
+      const match = String(dateStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (match) {
+        const [, d, m, y] = match;
+        return new Date(y, m - 1, d).getTime();
+      }
+      const t = new Date(dateStr).getTime();
+      if (!isNaN(t)) return t;
+    }
+    return Number(id) || 0;
+  };
+
+  const sortByDateDesc = (a, b) => {
+    const timeA = parseDateToTime(a.date, a.createdAt, a.id);
+    const timeB = parseDateToTime(b.date, b.createdAt, b.id);
+    if (timeB !== timeA) return timeB - timeA;
+    return (Number(b.id) || 0) - (Number(a.id) || 0);
+  };
 
   /* -------------------------------------------------------------------------
   * Main page — scoped to the logged-in user's org (GROUP/SUB_COMPANY get an
@@ -230,10 +267,14 @@
       const q = searchQuery.trim().toLowerCase();
       if (q) {
         rows = rows.filter(
-          (r) => r.prCode.toLowerCase().includes(q) || r.outlet.toLowerCase().includes(q),
+          (r) =>
+            r.prCode.toLowerCase().includes(q) ||
+            r.outlet.toLowerCase().includes(q) ||
+            (r.raisedBy || '').toLowerCase().includes(q) ||
+            (r.createdByName || '').toLowerCase().includes(q),
         );
       }
-      return rows;
+      return rows.slice().sort(sortByDateDesc);
     }, [list, statusFilter, searchQuery]);
 
     useEffect(() => {
@@ -293,6 +334,18 @@
           ),
           cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
           size: 190,
+        },
+        {
+          id: 'raisedBy',
+          accessorFn: (row) => row.raisedBy || row.createdByName,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => {
+            const name = row.original.raisedBy || row.original.createdByName;
+            return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+          },
+          size: 150,
         },
         {
           id: 'status',

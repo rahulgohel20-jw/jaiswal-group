@@ -94,11 +94,14 @@ const normalizePr = (pr) => ({
   rawStatus: pr.status,
   remarks: pr.remarks ?? '',
   notes: pr.remarks ?? '',
-  actionBy: pr.actionBy ?? '',
+  raisedBy: pr.createdByName ?? pr.updatedByName ?? pr.actionBy ?? pr.updatedBy ?? pr.createdBy ?? '',
+  actionBy: pr.actionBy ?? pr.updatedByName ?? pr.createdByName ?? '',
   details: pr.details ?? [],
   createdBy: pr.createdBy,
+  createdByName: pr.createdByName,
   createdAt: pr.createdAt,
   updatedBy: pr.updatedBy,
+  updatedByName: pr.updatedByName,
   updatedAt: pr.updatedAt,
 });
 

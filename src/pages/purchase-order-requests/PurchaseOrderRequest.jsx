@@ -155,6 +155,40 @@ function StatCard({ icon, iconBg, iconFg, label, value }) {
   );
 }
 
+const parseDateToTime = (dateStr, createdAt, id) => {
+  if (createdAt) {
+    const match = String(createdAt).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?)?/i);
+    if (match) {
+      let [, d, m, y, h = '0', min = '0', ampm] = match;
+      let hour = parseInt(h, 10);
+      if (ampm) {
+        if (ampm.toUpperCase() === 'PM' && hour < 12) hour += 12;
+        if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+      }
+      return new Date(y, m - 1, d, hour, parseInt(min, 10)).getTime();
+    }
+    const t = new Date(createdAt).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (dateStr) {
+    const match = String(dateStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (match) {
+      const [, d, m, y] = match;
+      return new Date(y, m - 1, d).getTime();
+    }
+    const t = new Date(dateStr).getTime();
+    if (!isNaN(t)) return t;
+  }
+  return Number(id) || 0;
+};
+
+const sortByDateDesc = (a, b) => {
+  const timeA = parseDateToTime(a.date, a.createdAt, a.id);
+  const timeB = parseDateToTime(b.date, b.createdAt, b.id);
+  if (timeB !== timeA) return timeB - timeA;
+  return (Number(b.id) || 0) - (Number(a.id) || 0);
+};
+
 const PurchaseOrderRequest = () => {
   const {
     loading: scopeLoading,
@@ -216,11 +250,12 @@ const PurchaseOrderRequest = () => {
     }
   };
 
-  // ---- Stage 1: Approved PRs with no PO yet ----
+  // ---- Stage 1: Approved PRs with no PO yet (Awaiting PO) ----
   useEffect(() => {
-    fetchApprovedRequestsByOutlet(currentUnitId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUnitId]);
+    if (isAllGroups || isAwaitingPoOnly) {
+      fetchApprovedRequestsByOutlet(currentUnitId);
+    }
+  }, [currentUnitId, activeGroup, isAllGroups, isAwaitingPoOnly, fetchApprovedRequestsByOutlet]);
 
   // ---- Stage 2: POs per group ----
   useEffect(() => {
@@ -228,8 +263,7 @@ const PurchaseOrderRequest = () => {
     const statuses = GROUP_TO_STATUSES[activeGroup] || [];
     if (statuses.length === 0) return;
     fetchByOutletandStatus(currentUnitId, statuses);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUnitId, activeGroup]);
+  }, [currentUnitId, activeGroup, isAwaitingPoOnly, fetchByOutletandStatus]);
 
   // Merge freshly-fetched POs into the per-group cache
   useEffect(() => {
@@ -385,7 +419,7 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => {
-          const raisedBy = row.original.raisedBy;
+          const raisedBy = row.original.raisedBy || row.original.createdByName;
           const displayName = raisedBy != null && raisedBy !== '' ? String(raisedBy) : '';
           const initials = displayName ? displayName.slice(0, 2).toUpperCase() : '?';
           return (
@@ -393,7 +427,9 @@ const PurchaseOrderRequest = () => {
               <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold shrink-0">
                 {initials}
               </div>
-              <span className="text-sm text-gray-700 truncate max-w-[130px]">{displayName || '—'}</span>
+              <span className="text-sm text-gray-700 truncate max-w-[130px]" title={displayName}>
+                {displayName || '—'}
+              </span>
             </div>
           );
         },
@@ -475,14 +511,19 @@ const PurchaseOrderRequest = () => {
   const filteredRequests = useMemo(() => {
     const keyword = search.toLowerCase().trim();
 
-    return combinedList.filter((item) => {
-      if (!keyword) return true;
-      return (
-        (item.prCode || '').toLowerCase().includes(keyword) ||
-        (item.raisedBy || '').toLowerCase().includes(keyword) ||
-        (item.poCode || '').toLowerCase().includes(keyword)
-      );
-    });
+    let rows = combinedList;
+    if (keyword) {
+      rows = combinedList.filter((item) => {
+        return (
+          (item.prCode || '').toLowerCase().includes(keyword) ||
+          (item.raisedBy || '').toLowerCase().includes(keyword) ||
+          (item.createdByName || '').toLowerCase().includes(keyword) ||
+          (item.poCode || '').toLowerCase().includes(keyword) ||
+          (item.outlet || '').toLowerCase().includes(keyword)
+        );
+      });
+    }
+    return rows.slice().sort(sortByDateDesc);
   }, [combinedList, search]);
 
   const table = useReactTable({

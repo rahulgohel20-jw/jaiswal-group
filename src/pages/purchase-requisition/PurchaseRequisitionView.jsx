@@ -166,9 +166,11 @@ const PurchaseRequisitionView = () => {
           <SectionHeader icon={Calendar} title="Origin Details" />
           <div className="px-5 pb-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <InfoTile label="Created Date" value={row.date} />
-              <InfoTile label="Required Date" value={row.requiredDate} />
-              <InfoTile label="Outlet / Branch" value={row.outlet} icon={Building2} className="col-span-2" />
+              <InfoTile label="Created Date" value={row.date || (row.createdAt ? String(row.createdAt).split(' ')[0] : '—')} />
+              <InfoTile label="Required Date" value={row.requiredDate || '—'} />
+              <InfoTile label="Created By" value={row.createdByName || row.raisedBy || (row.createdBy ? String(row.createdBy) : '—')} />
+              <InfoTile label="Last Updated By" value={row.updatedByName || row.actionBy || (row.updatedBy ? String(row.updatedBy) : '—')} />
+              <InfoTile label="Outlet / Branch" value={row.outlet} icon={Building2} className="col-span-2 sm:col-span-4" />
             </div>
 
             {row.remarks && (
@@ -183,14 +185,13 @@ const PurchaseRequisitionView = () => {
         </SectionCard>
 
         {/* Approval / Rejection details — only shown once the PR has been
-            decided. actionBy is the username of whoever approved/rejected it,
-            sourced directly from getPurchaseRequisitionById via normalizePr. */}
+            decided. */}
         {isDecided && (
           <SectionCard className="mt-5">
             <SectionHeader icon={CheckCircle2} title={`${row.status} Details`} />
             <div className="px-5 pb-5">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <InfoTile label={`${row.status} By`} value={row.updatedBy || '—'} />
+                <InfoTile label={`${row.status} By`} value={row.updatedByName || row.actionBy || (row.updatedBy ? String(row.updatedBy) : '—')} />
                 <InfoTile label={`${row.status} On`} value={row.updatedAt || '—'} />
               </div>
 
