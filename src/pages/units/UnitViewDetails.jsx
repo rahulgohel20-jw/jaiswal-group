@@ -166,6 +166,12 @@ const UnitViewDetails = () => {
         />
 
         <StatCard
+          label="Short Code"
+          value={unit.shortCode || unit.originalData?.shortCode}
+          icon={BadgeCheck}
+        />
+
+        <StatCard
           label="Location"
           value={unit.location}
           icon={MapPin}
