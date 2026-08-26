@@ -27,10 +27,11 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import {
   deleteMenuItemById,
+  getAllMenuCategory,
   getAllMenuItem,
   updateMenuItemStatus,
 } from '../../../services/apiServices';
-import { getUserIdFromToken } from '../../../utils/auth';
+import { getOrgIdFromToken, getUserIdFromToken } from '../../../utils/auth';
 import {
   Select,
   SelectContent,
@@ -38,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import SearchableSelect from '../../../utils/SearchableSelect';
 
 const StatCard = ({ label, value, icon, tone }) => (
   <div className="bg-white border rounded-xl py-3 px-4">
@@ -56,12 +58,13 @@ const StatCard = ({ label, value, icon, tone }) => (
 const MenuItemsListing = ({ onAddNew }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
-  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
   const [loading, setLoading] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [error, setError] = useState(null);
+  const [categoryOptions, setCategoryOptions] = useState([])
 
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [statusSaving, setStatusSaving] = useState(false);
@@ -72,6 +75,7 @@ const MenuItemsListing = ({ onAddNew }) => {
   const [deleteSaving, setDeleteSaving] = useState(false);
 
   const userId = getUserIdFromToken();
+  const orgId = getOrgIdFromToken();
 
   const fetchMenuItems = useCallback(async () => {
     setLoading(true);
@@ -79,15 +83,13 @@ const MenuItemsListing = ({ onAddNew }) => {
 
     try {
       const res = await getAllMenuItem({
-        userId,
         page: pagination.pageIndex + 1,
         size: pagination.pageSize,
       });
 
       const payload = res?.data?.data ?? {};
-
+     
       const rawList = payload['Menu Item Details'] || payload.items || [];
-
       const list = rawList.map((item) => ({
         id: item.id,
         image: item.files
@@ -96,12 +98,11 @@ const MenuItemsListing = ({ onAddNew }) => {
         name: item.nameEnglish,
         category: item.menuCategory?.nameEnglish,
         subCategory: item.menuSubCategory?.nameEnglish,
-        price: item.price,
+        price: item.dishCosting,
         sequence: item.sequence,
         status: item.isActive ? 'Active' : 'Inactive',
         raw: item,
       }));
-
       setMenuItems(list);
     } catch (err) {
       console.error(err);
@@ -110,15 +111,50 @@ const MenuItemsListing = ({ onAddNew }) => {
     } finally {
       setLoading(false);
     }
-  }, [userId, pagination.pageIndex, pagination.pageSize]);
+  }, [orgId, pagination.pageIndex, pagination.pageSize]);
 
   useEffect(() => {
     fetchMenuItems();
   }, [fetchMenuItems]);
 
-  const categoryOptions = [
-    ...new Set(menuItems.map((item) => item.category).filter(Boolean)),
-  ];
+  useEffect(() => {
+  const fetchCategories = async () => {
+    try {
+      const res = await getAllMenuCategory();
+
+      const data = res?.data?.data?.["Menu Category Details"] || [];
+
+      const activeCategories = Array.isArray(data)
+        ? data.filter((item) => item.isActive === true)
+        : [];
+
+      setCategoryOptions(activeCategories);
+    } catch (err) {
+      console.error("Failed to load categories", err);
+      setCategoryOptions([]);
+    }
+  };
+
+  fetchCategories();
+}, []);
+
+const categorySelectOptions = useMemo(
+  () => [
+    {
+      value: '',
+      label: 'All Categories',
+    },
+    ...categoryOptions
+      .filter((category) => category?.nameEnglish)
+      .map((category) => ({
+        value: category.nameEnglish,
+        label: category.nameEnglish,
+      })),
+  ],
+  [categoryOptions],
+);
+
+  
   const totalItems = menuItems.length;
 
   const activeItems = menuItems.filter(
@@ -137,7 +173,7 @@ const MenuItemsListing = ({ onAddNew }) => {
       const matchesStatus =
         statusFilter === 'All Status' || item.status === statusFilter;
       const matchesCategory =
-        categoryFilter === 'All' ||
+        !categoryFilter ||
         item.category === categoryFilter;
       return matchesSearch && matchesStatus && matchesCategory;
     });
@@ -441,7 +477,7 @@ const MenuItemsListing = ({ onAddNew }) => {
     <Container>
       <div className="p-4 md:p-6 text-gray-600 min-h-screen">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-sm text-gray-400 mb-2">
           <span>Dashboard</span>
           <ChevronRight size={12} />
           <span>Master Data</span>
@@ -463,7 +499,7 @@ const MenuItemsListing = ({ onAddNew }) => {
 
           <Link
             to="/menu-item/add-menu-items"
-            className="flex items-center gap-2 bg-[#084E92] text-white px-4 py-2.5 rounded-lg font-medium cursor-pointer whitespace-nowrap"
+            className="flex items-center w-max gap-2 bg-[#084E92] text-white px-4 py-2.5 rounded-lg font-medium cursor-pointer whitespace-nowrap"
           >
             <Plus size={18} />
             Add New Item
@@ -493,55 +529,44 @@ const MenuItemsListing = ({ onAddNew }) => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white border rounded-xl p-3 py-4 grid md:grid-cols-4 grid-cols-1 gap-5 mb-6">
-          <div className="flex-1 flex items-center gap-2 border rounded-lg px-3 py-2 col-span-2">
-            <Search size={16} className="text-gray-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by item name..."
-              className="flex-1 bg-transparent outline-none text-sm"
-            />
+        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative md:col-span-2">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by item name..."
+                className="w-full pl-10 py-2 border rounded-lg outline-none"
+              />
+            </div>
+
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg my-auto">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="All Status">All Status</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className=' border-[#C3C6D1] rounded-lg'>
+              <SearchableSelect
+                name="categoryFilter"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                options={categorySelectOptions}
+                placeholder="All Categories"
+              />
+            </div>
+
           </div>
-
-
-          <Select
-            value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value)}
-          >
-            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="All Status">All Status</SelectItem>
-              <SelectItem value="Active">Active</SelectItem>
-              <SelectItem value="Inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={categoryFilter}
-            onValueChange={setCategoryFilter}
-          >
-            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="All">All Categories</SelectItem>
-
-              {categoryOptions.map((category) => (
-                <SelectItem
-                  key={category}
-                  value={category}
-                >
-                  {category}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
         </div>
 
         {/* Table */}

@@ -2,33 +2,8 @@ import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { addMenuCategory, updateMenuCategory } from "@/services/apiServices";
 import { notify } from "@/utils/toast";
+import { getOrgIdFromToken, getUserIdFromToken } from "../../../utils/auth";
 
-// Decodes the JWT stored under the "authToken" localStorage key and pulls
-// the user id out of its payload. Tries the common claim names in order
-// (userId, id, sub) since APIs vary in what they call it.
-const getUserIdFromToken = () => {
-  try {
-    const token = localStorage.getItem("authToken");
-    if (!token) return null;
-
-    const payloadPart = token.split(".")[1];
-    if (!payloadPart) return null;
-
-    const base64 = payloadPart.replace(/-/g, "+").replace(/_/g, "/");
-    const json = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
-        .join("")
-    );
-    const payload = JSON.parse(json);
-
-    return payload.userId ?? payload.id ?? payload.sub ?? null;
-  } catch (err) {
-    console.error("Failed to decode authToken:", err);
-    return null;
-  }
-};
 
 const getLatestImage = (images) => {
   if (!Array.isArray(images) || images.length === 0) {
@@ -108,12 +83,17 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
       setError("Could not identify the logged-in user. Please log in again.");
       return;
     }
+    const orgId = getOrgIdFromToken();
+    if (!orgId || Number(orgId) <= 0) {
+      setError("Could not identify the organization. Please log in again.");
+      return;
+}
 
     const payload = new FormData();
     if (editData) payload.append("id", editData.id);
     payload.append("nameEnglish", formData.name.trim());
     payload.append("userId", userId);
-
+    payload.append("orgId", String(orgId));
     if (formData.price !== "" && formData.price !== null) {
       payload.append("price", formData.price);
     }
@@ -128,8 +108,7 @@ const CreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
     }
 
     setSubmitting(true);
-    setError(null);
-
+    setError(null); 
     try {
       if (editData) {
         await updateMenuCategory(payload);

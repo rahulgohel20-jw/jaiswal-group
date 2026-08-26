@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ChevronDown, Search, X } from "lucide-react";
 import { addMenuSubCategory, getAllMenuCategory, getAllMenuSubCategoryById, updateMenuSubCategory } from "../../../services/apiServices";
 import { notify } from "@/utils/toast";
-import { getUserIdFromToken } from "../../../utils/auth";
+import { getOrgIdFromToken, getUserIdFromToken } from "../../../utils/auth";
 import {
   Popover,
   PopoverContent,
@@ -21,6 +21,19 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
   const [categoryOpen, setCategoryOpen] = useState(false);
 
   const isEditMode = !!editData;
+  const resetForm = () => {
+  setForm({
+    nameEnglish: "",
+    menuCategoryId: "",
+  });
+
+  setCategorySearch("");
+  setCategoryOpen(false);
+};
+const handleClose = () => {
+  resetForm();
+  onClose();
+};
   useEffect(() => {
     if (editData) {
       setForm({
@@ -56,6 +69,8 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
 }, [editData, categories]);
 
   const userId = getUserIdFromToken();
+  const orgId = getOrgIdFromToken();
+
   const handleSave = async () => {
     try {
       if (!form.nameEnglish.trim()) {
@@ -73,20 +88,24 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
         nameEnglish: form.nameEnglish,
         nameGujarati: "",
         nameHindi: "",
-        userId: Number(userId),
+        orgId: Number(orgId),
       };
 
-
+      const formData = new FormData();
+      formData.append(
+        "request",
+        new Blob([JSON.stringify(payload)], { type: "application/json" })
+      );
       if (editData) {
-        await updateMenuSubCategory(editData.id, payload);
+        await updateMenuSubCategory(editData.id, formData);
       } else {
-        await addMenuSubCategory(payload);
+        await addMenuSubCategory(formData);
       }
 
       onSuccess?.();
 
       onClose();
-      await getAllMenuSubCategoryById(userId);
+      await getAllMenuSubCategoryById();
 
     } catch (err) {
       console.error(err);
@@ -127,7 +146,7 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
 
           <X
             className="cursor-pointer text-gray-500"
-            onClick={onClose}
+            onClick={handleClose}
           />
         </div>
 
@@ -252,7 +271,7 @@ const CreateSubCategory = ({ open, onClose, editData, onSuccess, }) => {
         <div className="flex justify-end gap-3 mt-4">
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-6 py-2 rounded bg-gray-200  cursor-pointer text-sm"
           >
             Cancel

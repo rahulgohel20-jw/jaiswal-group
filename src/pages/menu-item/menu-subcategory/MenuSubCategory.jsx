@@ -29,6 +29,7 @@ import {
   updateMenuSubCategoryStatus,
 } from '../../../services/apiServices';
 import CreateSubCategory from './CreateSubCategory';
+import { getOrgIdFromToken } from '../../../utils/auth';
 
 const MenuSubCategory = () => {
   const [search, setSearch] = useState('');
@@ -113,7 +114,7 @@ const MenuSubCategory = () => {
     setError(null);
 
     try {
-      const res = await getAllMenuSubCategoryById(userId);
+      const res = await getAllMenuSubCategoryById();
 
       const payload = res?.data?.data ?? res?.data ?? res;
 
@@ -352,7 +353,7 @@ const MenuSubCategory = () => {
     <Container>
       <div className="p-4 md:p-6">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-sm text-gray-400 mb-2">
           <span>Dashboard</span>
           <ChevronRight size={12} />
           <span>Menu Item</span>
@@ -360,14 +361,14 @@ const MenuSubCategory = () => {
           <span className="text-[#084E92] font-medium">Sub Category</span>
         </div>
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+        <div className="flex justify-between md:items-center flex-col md:flex-row gap-4">
           <div>
             <h1 className="text-2xl font-bold text-[#0F172A] text-start">
               Menu Item Sub Category
             </h1>
           </div>
 
-          <div className="flex gap-3 self-end">
+          <div className="flex gap-3 md:self-end">
             <button
               type="button"
               onClick={() => {
