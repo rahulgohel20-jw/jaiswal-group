@@ -67,8 +67,6 @@ const TruncatedCell = ({
   </span>
 );
 
-// Normalizes one API PR record (see /purchase-requisitions/getbyoutlet
-// response shape) into what the table/UI expects.
 const mapPr = (pr) => ({
   id: pr.id,
   code: pr.prCode,
@@ -78,24 +76,60 @@ const mapPr = (pr) => ({
   status: pr.status,
   outletId: pr.outletId,
   outlet: pr.outletName ?? `Outlet #${pr.outletId}`,
+  raisedBy: pr.createdByName ?? pr.updatedByName ?? pr.actionBy ?? pr.updatedBy ?? pr.createdBy ?? '',
+  createdBy: pr.createdBy,
+  createdByName: pr.createdByName,
+  updatedBy: pr.updatedBy,
+  updatedByName: pr.updatedByName,
   details: pr.details ?? [],
 });
+
+const parseDateToTime = (dateStr, createdAt, id) => {
+  if (createdAt) {
+    const match = String(createdAt).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?)?/i);
+    if (match) {
+      let [, d, m, y, h = '0', min = '0', ampm] = match;
+      let hour = parseInt(h, 10);
+      if (ampm) {
+        if (ampm.toUpperCase() === 'PM' && hour < 12) hour += 12;
+        if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+      }
+      return new Date(y, m - 1, d, hour, parseInt(min, 10)).getTime();
+    }
+    const t = new Date(createdAt).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (dateStr) {
+    const match = String(dateStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (match) {
+      const [, d, m, y] = match;
+      return new Date(y, m - 1, d).getTime();
+    }
+    const t = new Date(dateStr).getTime();
+    if (!isNaN(t)) return t;
+  }
+  return Number(id) || 0;
+};
+
+const sortByDateDesc = (a, b) => {
+  const timeA = parseDateToTime(a.date, a.createdAt, a.id);
+  const timeB = parseDateToTime(b.date, b.createdAt, b.id);
+  if (timeB !== timeA) return timeB - timeA;
+  return (Number(b.id) || 0) - (Number(a.id) || 0);
+};
 
 // ---- PR fetch hook — driven by BOTH the selected unit and the selected
 // status. Selecting a specific status in the dropdown sends that status
 // straight to getbyoutlet as a single call. "All statuses" is the one case
 // that still needs to fan out across all 4 visible statuses and merge,
 // since the endpoint only accepts one status per call.
-function useRequisitions(unitId, statusFilter) {
+function useRequisitions(effectiveOutletId, statusFilter, filterRowsByScope, scopeLoading) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [requisitions, setRequisitions] = useState([]);
 
   const reload = useCallback(async () => {
-    if (!unitId) {
-      setRequisitions([]);
-      return;
-    }
+    if (scopeLoading) return;
     setLoading(true);
     setError(null);
     try {
@@ -103,7 +137,7 @@ function useRequisitions(unitId, statusFilter) {
       if (statusFilter === ALL_STATUS) {
         const responses = await Promise.all(
           APPROVER_VISIBLE_STATUSES.map((status) =>
-            getPurchaseRequisitionsByOutlet(unitId, status)
+            getPurchaseRequisitionsByOutlet(effectiveOutletId, status)
           )
         );
         raw = responses.flatMap((res) => {
@@ -111,17 +145,20 @@ function useRequisitions(unitId, statusFilter) {
           return Array.isArray(data) ? data : [];
         });
       } else {
-        const res = await getPurchaseRequisitionsByOutlet(unitId, statusFilter);
+        const targetStatus = statusFilter || PR_STATUS.SENT_FOR_APPROVAL;
+        const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId, targetStatus);
         const data = res?.data?.data ?? res?.data ?? res ?? [];
         raw = Array.isArray(data) ? data : [];
       }
-      setRequisitions(raw.map(mapPr));
+      const mapped = raw.map(mapPr);
+      const scoped = filterRowsByScope ? filterRowsByScope(mapped) : mapped;
+      setRequisitions(scoped);
     } catch (err) {
       setError(err?.message || "Failed to load purchase requisitions.");
     } finally {
       setLoading(false);
     }
-  }, [unitId, statusFilter]);
+  }, [effectiveOutletId, statusFilter, filterRowsByScope, scopeLoading]);
 
   useEffect(() => {
     reload();
@@ -200,25 +237,31 @@ const PAGE_SIZE = 10;
 
 function ListView({ onApprove, onReject, onView }) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
+  const [statusFilter, setStatusFilter] = useState(PR_STATUS.SENT_FOR_APPROVAL);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const {
     loading: scopeLoading,
     error: scopeError,
     orgType,
+    isOutletUser,
+    isCompanyUser,
+    isGroupUser,
+    showUnitDropdown,
     units,
     selectedUnitId,
     setSelectedUnitId,
+    effectiveOutletId,
+    filterRowsByScope,
     retry: retryScope,
   } = useOrgScope();
 
   const { loading: prLoading, error: prError, requisitions } = useRequisitions(
-    selectedUnitId,
-    statusFilter
+    effectiveOutletId,
+    statusFilter,
+    filterRowsByScope,
+    scopeLoading
   );
-
-  const showUnitDropdown = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
 
   // Counts reflect whatever is currently loaded. They're exact when "All
   // statuses" is selected; when one specific status is picked, only that
@@ -235,13 +278,18 @@ function ListView({ onApprove, onReject, onView }) {
   }, [requisitions]);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return requisitions;
-    const q = query.toLowerCase();
-    return requisitions.filter(
-      (r) =>
-        (r.code || "").toLowerCase().includes(q) ||
-        (r.outlet || "").toLowerCase().includes(q)
-    );
+    let rows = requisitions;
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      rows = requisitions.filter(
+        (r) =>
+          (r.code || "").toLowerCase().includes(q) ||
+          (r.outlet || "").toLowerCase().includes(q) ||
+          (r.raisedBy || "").toLowerCase().includes(q) ||
+          (r.createdByName || "").toLowerCase().includes(q)
+      );
+    }
+    return rows.slice().sort(sortByDateDesc);
   }, [requisitions, query]);
 
   useEffect(() => {
@@ -276,6 +324,15 @@ function ListView({ onApprove, onReject, onView }) {
         size: 130,
       },
       {
+        id: "requiredDate",
+        accessorFn: (row) => row.requiredDate,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="REQUIRED DATE" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[120px]" />,
+        size: 140,
+      },
+      {
         id: "outlet",
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
@@ -283,6 +340,18 @@ function ListView({ onApprove, onReject, onView }) {
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
         size: 190,
+      },
+      {
+        id: "raisedBy",
+        accessorFn: (row) => row.raisedBy || row.createdByName,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => {
+          const name = row.original.raisedBy || row.original.createdByName;
+          return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+        },
+        size: 150,
       },
       {
         id: "status",
@@ -351,11 +420,11 @@ function ListView({ onApprove, onReject, onView }) {
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Purchase Approval</span>
+          <span className="text-[#084E92] font-medium">Purchase Requisition Approval</span>
         </div>
         <div className="mb-8">
           <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Purchase Approval
+            Purchase Requisition Approval
           </h1>
           <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
             Manage and review purchase requisitions awaiting your review.

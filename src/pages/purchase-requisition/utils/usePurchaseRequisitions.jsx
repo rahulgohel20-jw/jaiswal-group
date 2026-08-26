@@ -12,6 +12,7 @@ import {
   deletePurchaseRequisition
 } from '@/services/apiServices';
 import { PR_STATUS, getStatusLabel } from './prStatus';
+import { getUserIdFromToken, getUsernameFromToken } from '@/utils/auth';
 
 /* ---------------- payload builders ---------------- */
 
@@ -94,11 +95,14 @@ const normalizePr = (pr) => ({
   rawStatus: pr.status,
   remarks: pr.remarks ?? '',
   notes: pr.remarks ?? '',
-  actionBy: pr.actionBy ?? '',
+  raisedBy: pr.createdByName ?? pr.updatedByName ?? pr.actionBy ?? pr.updatedBy ?? pr.createdBy ?? '',
+  actionBy: pr.actionBy ?? pr.updatedByName ?? pr.createdByName ?? '',
   details: pr.details ?? [],
   createdBy: pr.createdBy,
+  createdByName: pr.createdByName,
   createdAt: pr.createdAt,
   updatedBy: pr.updatedBy,
+  updatedByName: pr.updatedByName,
   updatedAt: pr.updatedAt,
 });
 
@@ -271,11 +275,16 @@ export const usePurchaseRequisitions = () => {
     }
   }, []);
 
-  const deletePr = useCallback(async (id, actionBy) => {
+  const deletePr = useCallback(async (id, payload = {}) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await deletePurchaseRequisition(id, actionBy);
+      const userId = getUserIdFromToken();
+      const actionBy = getUsernameFromToken() || userId;
+      const params = typeof payload === 'object' && payload !== null
+        ? { userId, actionBy, ...payload }
+        : { userId, actionBy: payload || actionBy };
+      const res = await deletePurchaseRequisition(id, params);
       return res.data;
     } catch (err) {
       setError(err);

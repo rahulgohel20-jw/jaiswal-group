@@ -230,6 +230,13 @@ const CompanyViewDetails = () => {
 
 
                 <StatCard
+                    label="Short Code"
+                    value={company.shortCode}
+                    icon={BadgeCheck}
+                />
+
+
+                <StatCard
                     label="Location"
                     value={company.cityName}
                     icon={MapPin}
@@ -240,13 +247,6 @@ const CompanyViewDetails = () => {
                     label="Created On"
                     value={company.createdAt}
                     icon={Calendar}
-                />
-
-
-                <StatCard
-                    label="Verification"
-                    value={company.isverified ? "Verified" : "Pending"}
-                    icon={BadgeCheck}
                 />
 
 
@@ -271,14 +271,14 @@ const CompanyViewDetails = () => {
 
 
                     <InfoCard
-                        label="Company Code"
-                        value={company.companyCode}
+                        label="Short Code"
+                        value={company.shortCode}
                     />
 
 
                     <InfoCard
-                        label="Short Code"
-                        value={company.shortCode}
+                        label="Company Code"
+                        value={company.companyCode}
                     />
 
 

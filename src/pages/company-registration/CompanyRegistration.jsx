@@ -415,6 +415,14 @@ const validateUPIOptional = (value) => {
   return '';
 };
 
+// Letters only — no digits, spaces, or special characters.
+const SHORT_CODE_REGEX = /^[A-Za-z]+$/;
+const validateShortCode = (value) => {
+  if (!value || !value.trim()) return 'Short Code is required';
+  if (!SHORT_CODE_REGEX.test(value.trim())) return 'Only letters are allowed';
+  return '';
+};
+
 const SECTIONS = {
   COMPANY: 'company',
   ADDRESS: 'address',
@@ -606,6 +614,9 @@ const CompanyRegistration = () => {
     const companyNameErr = validateRequired(form.companyName, 'Company Name');
     if (companyNameErr) formErrors.companyName = companyNameErr;
 
+    const shortCodeErr = validateShortCode(form.shortCode);
+    if (shortCodeErr) formErrors.shortCode = shortCodeErr;
+
     const gstErr = validateGSTNumberOptional(form.gstNumber);
     if (gstErr) formErrors.gstNumber = gstErr;
 
@@ -697,6 +708,7 @@ const CompanyRegistration = () => {
         isverified: true,
 
         companyNameEnglish: form.companyName,
+        shortCode: form.shortCode,
         gstNumber: form.gstNumber,
         panNumber: form.panNumber,
         mobilenumber: form.mobile,
@@ -773,6 +785,7 @@ const CompanyRegistration = () => {
 
   const companySectionHasError = [
     'companyName',
+    'shortCode',
     'gstNumber',
     'panNumber',
     'mobile',
@@ -819,43 +832,49 @@ const CompanyRegistration = () => {
 
         {openSections.company && (
           <div className="px-6 py-6 space-y-5">
-            <div>
-              <Label required>Company Name</Label>
-              <input
-                value={form.companyName}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  set('companyName', val);
-                  setErrorFor('companyName', validateRequired(val, 'Company Name'));
-                }}
-                placeholder="e.g. Jaiswal Group"
-                className={`${inputCls} ${errors.companyName ? errorInputCls : ''}`}
-              />
-              <ErrorText error={errors.companyName} />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label required>Company Name</Label>
+                <input
+                  value={form.companyName}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set('companyName', val);
+                    setErrorFor('companyName', validateRequired(val, 'Company Name'));
+                  }}
+                  placeholder="e.g. Jaiswal Group"
+                  className={`${inputCls} ${errors.companyName ? errorInputCls : ''}`}
+                />
+                <ErrorText error={errors.companyName} />
+              </div>
+              <div>
+                <Label required>Short Code</Label>
+                <input
+                  value={form.shortCode}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z]/g, '');
+                    set('shortCode', val);
+                    setErrorFor('shortCode', validateShortCode(val));
+                  }}
+                  placeholder="e.g. JSG"
+                  className={`${inputCls} ${errors.shortCode ? errorInputCls : ''}`}
+                />
+                <ErrorText error={errors.shortCode} />
+              </div>
             </div>
 
             <div
-              className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-1'}`}
+              className={`grid gap-4 ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'}`}
             >
               {isEditMode && (
-                <>
-                  <div>
-                    <Label>Company Code</Label>
-                    <input
-                      value={form.companyCode}
-                      disabled
-                      className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                    />
-                  </div>
-                  <div>
-                    <Label>Short Code</Label>
-                    <input
-                      value={form.shortCode}
-                      disabled
-                      className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                    />
-                  </div>
-                </>
+                <div>
+                  <Label>Company Code</Label>
+                  <input
+                    value={form.companyCode}
+                    disabled
+                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                  />
+                </div>
               )}
               <div>
                 <Label>GST Number</Label>

@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useLocation } from 'react-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronRight,
@@ -19,6 +19,8 @@ import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePurchaseRequisitions } from './utils/usePurchaseRequisitions';
 import { PR_STATUS, getStatusLabel } from './utils/prStatus';
 import PurchaseRequisitionLog from './PurchaseRequisitionLog';
+import { getUsernameFromToken } from '../../utils/auth';
+import { getTodayInputDate } from '../../utils/GetCurrentToday';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -161,6 +163,8 @@ const AddPurchaseRequisition = () => {
   const navigate = useNavigate();
   const { id } = useParams(); // present -> edit mode
   const isEditMode = Boolean(id);
+  const { state } = useLocation();
+  const copyPrId = state?.copyFromId || (state?.isCopy ? state?.id : null);
 
   const { fetchById, createDraft, createAndSendForApproval, updateDraft, updateAndSendForApproval } =
     usePurchaseRequisitions();
@@ -170,8 +174,7 @@ const AddPurchaseRequisition = () => {
     loading: outletsLoading,
     orgType,
     units: outlets, // [{ id, name, code }]
-    selectedUnitId: outletId,
-    setSelectedUnitId: setOutletId,
+    selectedUnitId: orgScopeOutletId,
   } = useOrgScope();
 
   const hasOutletDropdownAccess = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
@@ -181,7 +184,8 @@ const AddPurchaseRequisition = () => {
   const [rawMaterialsLoading, setRawMaterialsLoading] = useState(false);
 
   // ---- Form fields ----
-  const [prDate, setPrDate] = useState('');
+  const [outletId, setOutletId] = useState(state?.outletId != null ? String(state.outletId) : '');
+  const [prDate, setPrDate] = useState(isEditMode ? '' : getTodayInputDate());
   const [prRequiredDate, setPrRequiredDate] = useState('');
   const [remarks, setRemarks] = useState('');
   const [details, setDetails] = useState([]);
@@ -193,10 +197,17 @@ const AddPurchaseRequisition = () => {
   const [sendingForApproval, setSendingForApproval] = useState(false);
 
   // ---- Edit-mode-only state ----
-  const [loadingPr, setLoadingPr] = useState(isEditMode);
+  const [loadingPr, setLoadingPr] = useState(isEditMode || Boolean(copyPrId));
   const [loadedPr, setLoadedPr] = useState(null);
   const [notEditable, setNotEditable] = useState(false);
   const [showLog, setShowLog] = useState(false);
+
+  // Sync outletId for OUTLET users in create mode
+  useEffect(() => {
+    if (!isEditMode && !copyPrId && !outletId && orgScopeOutletId) {
+      setOutletId(String(orgScopeOutletId));
+    }
+  }, [isEditMode, copyPrId, outletId, orgScopeOutletId]);
 
   /* ---- Load raw materials ---- */
   useEffect(() => {
@@ -214,16 +225,17 @@ const AddPurchaseRequisition = () => {
     fetchRawMaterials();
   }, []);
 
-  /* ---- Edit mode: load the existing PR and pre-fill ---- */
+  /* ---- Edit mode or Copy mode: load the existing PR and pre-fill ---- */
   useEffect(() => {
-    if (!isEditMode) return;
+    if (!isEditMode && !copyPrId) return;
     const load = async () => {
       setLoadingPr(true);
       try {
-        const pr = await fetchById(id);
+        const targetId = isEditMode ? id : copyPrId;
+        const pr = await fetchById(targetId);
         setLoadedPr(pr);
 
-        if (pr.rawStatus !== PR_STATUS.PENDING) {
+        if (isEditMode && pr.rawStatus !== PR_STATUS.PENDING) {
           // Guard: only PENDING PRs are editable. Someone may have hit
           // this URL directly for a PR that's moved on since the list
           // was last refreshed.
@@ -231,13 +243,15 @@ const AddPurchaseRequisition = () => {
           return;
         }
 
-        setOutletId(pr.outletId != null ? String(pr.outletId) : '');
-        setPrDate(apiDateToInputDate(pr.date));
+        if (pr.outletId != null) {
+          setOutletId(String(pr.outletId));
+        }
+        setPrDate(isEditMode ? apiDateToInputDate(pr.date) : getTodayInputDate());
         setPrRequiredDate(apiDateToInputDate(pr.requiredDate));
         setRemarks(pr.remarks || '');
         setDetails(
           (pr.details || []).map((d) => ({
-            id: d.id ?? 0,
+            id: isEditMode ? (d.id ?? 0) : 0,
             rawMaterialId: d.rawMaterialId,
             rawMaterialName: d.rawMaterialName,
             uomId: d.uomId,
@@ -256,7 +270,7 @@ const AddPurchaseRequisition = () => {
     };
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isEditMode]);
+  }, [id, isEditMode, copyPrId]);
 
   const selectedOutlet = outlets.find((o) => String(o.id) === String(outletId));
 
@@ -324,8 +338,14 @@ const AddPurchaseRequisition = () => {
   const validate = () => {
     const next = {};
     if (!outletId) next.outletId = 'Outlet is required';
-    if (!prDate) next.prDate = 'PR date is required';
-    if (!prRequiredDate) next.prRequiredDate = 'Required date is required';
+    if (!prDate) {
+      next.prDate = 'PR date is required';
+    }
+    if (!prRequiredDate) {
+      next.prRequiredDate = 'Required date is required';
+    } else if (prDate && prRequiredDate < prDate) {
+      next.prRequiredDate = 'Required date cannot be less than PR date';
+    }
 
     if (details.length === 0) {
       next.details = 'Add at least one item';
@@ -343,7 +363,7 @@ const AddPurchaseRequisition = () => {
   // on which button was clicked.
   const buildPayload = () => ({
     userId: getUserIdFromToken(),
-    actionBy: getUserIdFromToken(),
+    actionBy: getUsernameFromToken(),
     details: details.map((d) => ({
       id: d.id || 0,
       quantity: Number(d.quantity),
@@ -483,7 +503,7 @@ const AddPurchaseRequisition = () => {
 
         {outletFieldIsEditable ? (
           <select
-            value={outletId ?? ''}
+            value={outletId ? String(outletId) : ''}
             onChange={(e) => setOutletId(e.target.value)}
             disabled={outletsLoading}
             className={errors.outletId ? errorInputCls : inputCls}
@@ -492,7 +512,7 @@ const AddPurchaseRequisition = () => {
               {outletsLoading ? 'Loading outlets...' : 'Select outlet'}
             </option>
             {outlets.map((o) => (
-              <option key={o.id} value={o.id}>
+              <option key={o.id} value={String(o.id)}>
                 {o.name} {o.code ? `(${o.code})` : ''}
               </option>
             ))}
@@ -518,7 +538,14 @@ const AddPurchaseRequisition = () => {
       <input
         type="date"
         value={prDate}
-        onChange={(e) => setPrDate(e.target.value)}
+        min={getTodayInputDate()}
+        onChange={(e) => {
+          const newPrDate = e.target.value;
+          setPrDate(newPrDate);
+          if (prRequiredDate && newPrDate && prRequiredDate < newPrDate) {
+            setPrRequiredDate(newPrDate);
+          }
+        }}
         className={errors.prDate ? errorInputCls : inputCls}
       />
       {errors.prDate && <p className="text-xs text-red-500 mt-1">{errors.prDate}</p>}
@@ -531,6 +558,7 @@ const AddPurchaseRequisition = () => {
       <input
         type="date"
         value={prRequiredDate}
+        min={prDate || getTodayInputDate()}
         onChange={(e) => setPrRequiredDate(e.target.value)}
         className={errors.prRequiredDate ? errorInputCls : inputCls}
       />
