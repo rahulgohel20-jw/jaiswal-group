@@ -67,8 +67,6 @@ const TruncatedCell = ({
   </span>
 );
 
-// Normalizes one API PR record (see /purchase-requisitions/getbyoutlet
-// response shape) into what the table/UI expects.
 const mapPr = (pr) => ({
   id: pr.id,
   code: pr.prCode,
@@ -78,8 +76,47 @@ const mapPr = (pr) => ({
   status: pr.status,
   outletId: pr.outletId,
   outlet: pr.outletName ?? `Outlet #${pr.outletId}`,
+  raisedBy: pr.createdByName ?? pr.updatedByName ?? pr.actionBy ?? pr.updatedBy ?? pr.createdBy ?? '',
+  createdBy: pr.createdBy,
+  createdByName: pr.createdByName,
+  updatedBy: pr.updatedBy,
+  updatedByName: pr.updatedByName,
   details: pr.details ?? [],
 });
+
+const parseDateToTime = (dateStr, createdAt, id) => {
+  if (createdAt) {
+    const match = String(createdAt).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?)?/i);
+    if (match) {
+      let [, d, m, y, h = '0', min = '0', ampm] = match;
+      let hour = parseInt(h, 10);
+      if (ampm) {
+        if (ampm.toUpperCase() === 'PM' && hour < 12) hour += 12;
+        if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+      }
+      return new Date(y, m - 1, d, hour, parseInt(min, 10)).getTime();
+    }
+    const t = new Date(createdAt).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (dateStr) {
+    const match = String(dateStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (match) {
+      const [, d, m, y] = match;
+      return new Date(y, m - 1, d).getTime();
+    }
+    const t = new Date(dateStr).getTime();
+    if (!isNaN(t)) return t;
+  }
+  return Number(id) || 0;
+};
+
+const sortByDateDesc = (a, b) => {
+  const timeA = parseDateToTime(a.date, a.createdAt, a.id);
+  const timeB = parseDateToTime(b.date, b.createdAt, b.id);
+  if (timeB !== timeA) return timeB - timeA;
+  return (Number(b.id) || 0) - (Number(a.id) || 0);
+};
 
 // ---- PR fetch hook — driven by BOTH the selected unit and the selected
 // status. Selecting a specific status in the dropdown sends that status
@@ -235,13 +272,18 @@ function ListView({ onApprove, onReject, onView }) {
   }, [requisitions]);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return requisitions;
-    const q = query.toLowerCase();
-    return requisitions.filter(
-      (r) =>
-        (r.code || "").toLowerCase().includes(q) ||
-        (r.outlet || "").toLowerCase().includes(q)
-    );
+    let rows = requisitions;
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      rows = requisitions.filter(
+        (r) =>
+          (r.code || "").toLowerCase().includes(q) ||
+          (r.outlet || "").toLowerCase().includes(q) ||
+          (r.raisedBy || "").toLowerCase().includes(q) ||
+          (r.createdByName || "").toLowerCase().includes(q)
+      );
+    }
+    return rows.slice().sort(sortByDateDesc);
   }, [requisitions, query]);
 
   useEffect(() => {
@@ -292,6 +334,18 @@ function ListView({ onApprove, onReject, onView }) {
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
         size: 190,
+      },
+      {
+        id: "raisedBy",
+        accessorFn: (row) => row.raisedBy || row.createdByName,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => {
+          const name = row.original.raisedBy || row.original.createdByName;
+          return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+        },
+        size: 150,
       },
       {
         id: "status",
@@ -360,11 +414,11 @@ function ListView({ onApprove, onReject, onView }) {
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Purchase Approval</span>
+          <span className="text-[#084E92] font-medium">Purchase Requisition Approval</span>
         </div>
         <div className="mb-8">
           <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Purchase Approval
+            Purchase Requisition Approval
           </h1>
           <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
             Manage and review purchase requisitions awaiting your review.

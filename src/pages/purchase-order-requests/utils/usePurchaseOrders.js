@@ -17,6 +17,7 @@ import {
   deletePurchaseOrder,
   getPurchaseRequisitionsByOutlet,
   updatePurchaseRequisitionStatus,
+  getAuditLogs,
 } from '@/services/apiServices';
 import { PO_STATUS, getPoStatusLabel } from './poStatus';
 
@@ -46,10 +47,13 @@ const normalizePo = (po) => {
     date: po.poDate ?? '',
     expectedDeliveryDate: po.expectedDeliveryDate ?? '',
     remarks: po.remarks ?? '',
-    raisedBy: po.updatedBy ?? '',
+    raisedBy: po.createdByName ?? po.updatedByName ?? po.updatedBy ?? po.createdBy ?? '',
     status: getPoStatusLabel(po.status),
     rawStatus: po.status,
     createdBy: po.createdBy,
+    createdByName: po.createdByName,
+    updatedBy: po.updatedBy,
+    updatedByName: po.updatedByName,
     createdAt: po.createdAt,
     updatedAt: po.updatedAt,
     details: (po.details || []).map((d) => ({
@@ -81,13 +85,17 @@ const normalizePurchaseRequest = (pr) => ({
   company: pr.companyName ?? '',
   outlet: pr.outletName ?? '',
   outletId: pr.outletId,
-  raisedBy: pr.updatedBy ?? '',
+  raisedBy: pr.createdByName ?? pr.updatedByName ?? pr.updatedBy ?? pr.createdBy ?? '',
   status: getPoStatusLabel(PO_STATUS.PENDING),
   rawStatus: PO_STATUS.PENDING,
   vendorId: pr.vendorId,
   vendorName: pr.vendorName ?? '',
   createdBy: pr.createdBy,
+  createdByName: pr.createdByName,
+  updatedBy: pr.updatedBy,
+  updatedByName: pr.updatedByName,
   createdAt: pr.createdAt,
+  updatedAt: pr.updatedAt,
   prPoMapping: pr.prPoMapping ?? [],
 });
 
@@ -142,7 +150,7 @@ export const usePurchaseOrders = () => {
 
     try {
       const res = await getPurchaseRequisitionsByOutlet(
-        outletId,
+        finalOutletId,
         PR_APPROVED_STATUS,
       );
 
@@ -286,11 +294,40 @@ export const usePurchaseOrders = () => {
     }
   }, []);
 
+  const [logs, setLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState(null);
+
+  const fetchAuditLogs = useCallback(async (moduleId, moduleName = 'PURCHASE_ORDER', subModuleId) => {
+    if (!moduleId) {
+      setLogs([]);
+      return [];
+    }
+    setLogsLoading(true);
+    setLogsError(null);
+    try {
+      const res = await getAuditLogs(moduleId, moduleName, subModuleId);
+      const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      const list = Array.isArray(raw) ? raw : [];
+      setLogs(list);
+      return list;
+    } catch (err) {
+      setLogsError(err?.message || 'Failed to load activity log.');
+      throw err;
+    } finally {
+      setLogsLoading(false);
+    }
+  }, []);
+
   return {
     list,
     current,
     loading,
     error,
+    logs,
+    logsLoading,
+    logsError,
+    fetchAuditLogs,
     fetchByOutletandStatus,
     fetchApprovedRequestsByOutlet,
     fetchByStatuses,

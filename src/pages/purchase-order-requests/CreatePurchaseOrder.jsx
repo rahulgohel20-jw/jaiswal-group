@@ -26,6 +26,7 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import VendorPriceComparisonModal from './VendorPriceComparisonModal';
 import { usePurchaseRequisitions } from '../purchase-requisition/utils/usePurchaseRequisitions';
 import { usePurchaseOrders } from './utils/usePurchaseOrders';
@@ -208,6 +209,7 @@ const CreatePurchaseOrder = () => {
   const [remarksError, setRemarksError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
 
   const {
     loading: outletsLoading,
@@ -865,9 +867,19 @@ const CreatePurchaseOrder = () => {
     }
   };
 
+  const handleOpenRejectConfirm = () => {
+    if (!remarks.trim()) {
+      setRemarksError('Add a reason for rejecting this purchase order.');
+      return;
+    }
+    setRemarksError('');
+    setShowRejectModal(true);
+  };
+
   const handleRejectPO = async () => {
     if (!remarks.trim()) {
       setRemarksError('Add a reason for rejecting this purchase order.');
+      setShowRejectModal(false);
       return;
     }
     setRemarksError('');
@@ -878,6 +890,7 @@ const CreatePurchaseOrder = () => {
       if (targetPoId) {
         await update(targetPoId, payload);
       }
+      setShowRejectModal(false);
       navigate(-1);
     } catch (err) {
       console.error(err);
@@ -1324,7 +1337,7 @@ const CreatePurchaseOrder = () => {
                 <button
                   type="button"
                   disabled={isSaving}
-                  onClick={handleRejectPO}
+                  onClick={handleOpenRejectConfirm}
                   className="px-6 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 cursor-pointer disabled:opacity-50 font-medium text-sm transition"
                 >
                   {isSaving ? 'Rejecting...' : 'Reject purchase order'}
@@ -1361,6 +1374,18 @@ const CreatePurchaseOrder = () => {
         loading={quotationsLoading}
         onClose={closeQuotationModal}
         onSelectPrice={handleSelectPrice}
+      />
+
+      <DeleteConfirmModal
+        isOpen={showRejectModal}
+        onClose={() => {
+          if (!isSubmitting && !poSaving) setShowRejectModal(false);
+        }}
+        onConfirm={handleRejectPO}
+        title="Reject Purchase Order"
+        itemLabel={poRecord?.poCode || state?.poCode || (targetPoId ? `PO #${targetPoId}` : 'this purchase order')}
+        description="Are you sure you want to reject this purchase order? This action cannot be undone."
+        saving={isSubmitting || poSaving}
       />
     </Container>
   );

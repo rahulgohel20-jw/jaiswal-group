@@ -137,6 +137,40 @@ function StatusDropdown({ value, onChange }) {
   );
 }
 
+const parseDateToTime = (dateStr, createdAt, id) => {
+  if (createdAt) {
+    const match = String(createdAt).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?:\s*([AP]M))?)?/i);
+    if (match) {
+      let [, d, m, y, h = '0', min = '0', ampm] = match;
+      let hour = parseInt(h, 10);
+      if (ampm) {
+        if (ampm.toUpperCase() === 'PM' && hour < 12) hour += 12;
+        if (ampm.toUpperCase() === 'AM' && hour === 12) hour = 0;
+      }
+      return new Date(y, m - 1, d, hour, parseInt(min, 10)).getTime();
+    }
+    const t = new Date(createdAt).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (dateStr) {
+    const match = String(dateStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (match) {
+      const [, d, m, y] = match;
+      return new Date(y, m - 1, d).getTime();
+    }
+    const t = new Date(dateStr).getTime();
+    if (!isNaN(t)) return t;
+  }
+  return Number(id) || 0;
+};
+
+const sortByDateDesc = (a, b) => {
+  const timeA = parseDateToTime(a.date, a.createdAt, a.id);
+  const timeB = parseDateToTime(b.date, b.createdAt, b.id);
+  if (timeB !== timeA) return timeB - timeA;
+  return (Number(b.id) || 0) - (Number(a.id) || 0);
+};
+
 const PAGE_SIZE = 10;
 
 const PurchaseOrderApproval = () => {
@@ -210,10 +244,12 @@ const PurchaseOrderApproval = () => {
       rows = rows.filter(
         (p) =>
           (p.poCode || '').toLowerCase().includes(q) ||
-          (p.outlet || '').toLowerCase().includes(q),
+          (p.outlet || '').toLowerCase().includes(q) ||
+          (p.raisedBy || '').toLowerCase().includes(q) ||
+          (p.createdByName || '').toLowerCase().includes(q),
       );
     }
-    return rows;
+    return rows.slice().sort(sortByDateDesc);
   }, [approverPos, statusFilter, query]);
 
   // Approve/Reject hand off to the shared create/edit form, tagged with
@@ -239,7 +275,9 @@ const PurchaseOrderApproval = () => {
 
   // Edit goes to the editable form for IN_PROGRESS rows with approve review mode.
   const handleEdit = (po) => {
-    navigate(`/purchase/edit-purchase-order/${po.id}`, { state: { ...po, reviewMode: 'approve' } });
+    navigate(`/purchase/edit-purchase-order/${po.id}`, {
+      state: { ...po, reviewMode: 'approve' },
+    });
   };
 
   const columns = useMemo(
@@ -258,13 +296,13 @@ const PurchaseOrderApproval = () => {
             {row.original.poCode}
           </span>
         ),
-        size: 150,
+        size: 190,
       },
       {
         id: 'date',
         accessorFn: (row) => row.date,
         header: ({ column }) => (
-          <DataGridColumnHeader title="RAISED" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="PO DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
         size: 130,
@@ -273,10 +311,12 @@ const PurchaseOrderApproval = () => {
         id: 'expectedDeliveryDate',
         accessorFn: (row) => row.expectedDeliveryDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="DELIVERY DATE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="EXPECTED DELIVERY DATE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.expectedDeliveryDate} widthClass="max-w-[130px]" />,
-        size: 140,
+        cell: ({ row }) => (
+          <TruncatedCell value={row.original.expectedDeliveryDate} widthClass="max-w-[130px]" />
+        ),
+        size: 180,
       },
       {
         id: 'outlet',
@@ -289,11 +329,14 @@ const PurchaseOrderApproval = () => {
       },
       {
         id: 'raisedBy',
-        accessorFn: (row) => row.raisedBy,
+        accessorFn: (row) => row.raisedBy || row.createdByName,
         header: ({ column }) => (
           <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.raisedBy} widthClass="max-w-[140px]" />,
+        cell: ({ row }) => {
+          const name = row.original.raisedBy || row.original.createdByName;
+          return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+        },
         size: 150,
       },
       {
