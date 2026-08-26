@@ -183,9 +183,15 @@ const PurchaseOrderApproval = () => {
     loading: scopeLoading,
     error: scopeError,
     orgType,
+    isOutletUser,
+    isCompanyUser,
+    isGroupUser,
+    showUnitDropdown,
     units,
     selectedUnitId,
     setSelectedUnitId,
+    effectiveOutletId,
+    filterRowsByScope,
     retry: retryScope,
   } = useOrgScope();
 
@@ -196,8 +202,7 @@ const PurchaseOrderApproval = () => {
     fetchByOutletandStatus,
   } = usePurchaseOrders();
 
-  const showUnitDropdown = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
-  const currentUnitId = selectedUnitId || 0;
+  const currentUnitId = effectiveOutletId;
 
   const targetStatus = useMemo(() => {
     if (!statusFilter) return PO_STATUS.SENT_FOR_APPROVAL;
@@ -206,24 +211,27 @@ const PurchaseOrderApproval = () => {
   }, [statusFilter]);
 
   const loadData = () => {
+    if (scopeLoading) return;
     fetchByOutletandStatus(currentUnitId, targetStatus);
   };
 
   useEffect(() => {
-    loadData();
+    if (!scopeLoading) {
+      loadData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUnitId, targetStatus]);
+  }, [scopeLoading, currentUnitId, targetStatus]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [query, statusFilter, currentUnitId]);
 
   // Safety net in case the response ever includes something outside
-  // the approver-visible set.
-  const approverPos = useMemo(
-    () => allPos.filter((p) => APPROVER_VISIBLE_STATUSES.includes(p.rawStatus)),
-    [allPos],
-  );
+  // the approver-visible set, filtered by org scope.
+  const approverPos = useMemo(() => {
+    const visible = allPos.filter((p) => APPROVER_VISIBLE_STATUSES.includes(p.rawStatus));
+    return filterRowsByScope(visible);
+  }, [allPos, filterRowsByScope]);
 
   const counts = useMemo(() => {
     const c = {};

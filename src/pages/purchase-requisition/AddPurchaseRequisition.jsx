@@ -338,8 +338,14 @@ const AddPurchaseRequisition = () => {
   const validate = () => {
     const next = {};
     if (!outletId) next.outletId = 'Outlet is required';
-    if (!prDate) next.prDate = 'PR date is required';
-    if (!prRequiredDate) next.prRequiredDate = 'Required date is required';
+    if (!prDate) {
+      next.prDate = 'PR date is required';
+    }
+    if (!prRequiredDate) {
+      next.prRequiredDate = 'Required date is required';
+    } else if (prDate && prRequiredDate < prDate) {
+      next.prRequiredDate = 'Required date cannot be less than PR date';
+    }
 
     if (details.length === 0) {
       next.details = 'Add at least one item';
@@ -532,7 +538,14 @@ const AddPurchaseRequisition = () => {
       <input
         type="date"
         value={prDate}
-        onChange={(e) => setPrDate(e.target.value)}
+        min={getTodayInputDate()}
+        onChange={(e) => {
+          const newPrDate = e.target.value;
+          setPrDate(newPrDate);
+          if (prRequiredDate && newPrDate && prRequiredDate < newPrDate) {
+            setPrRequiredDate(newPrDate);
+          }
+        }}
         className={errors.prDate ? errorInputCls : inputCls}
       />
       {errors.prDate && <p className="text-xs text-red-500 mt-1">{errors.prDate}</p>}
@@ -545,6 +558,7 @@ const AddPurchaseRequisition = () => {
       <input
         type="date"
         value={prRequiredDate}
+        min={prDate || getTodayInputDate()}
         onChange={(e) => setPrRequiredDate(e.target.value)}
         className={errors.prRequiredDate ? errorInputCls : inputCls}
       />

@@ -537,9 +537,6 @@ const AddUnit = () => {
       if (altMobileErr) formErrors.altMobile = altMobileErr;
     }
 
-    const capacityErr = validateRequired(form.capacity, 'Capacity');
-    if (capacityErr) formErrors.capacity = capacityErr;
-
     const companyErr = validateRequired(form.company, 'Company');
     if (companyErr) formErrors.company = companyErr;
 
@@ -739,14 +736,14 @@ const AddUnit = () => {
                 <ErrorText error={errors.altMobile} />
               </div>
               <div>
-                <Label required>Capacity ( Meals Per Day )</Label>
+                <Label>Capacity ( Meals Per Day )</Label>
                 <input
                   type="number"
                   value={form.capacity}
                   onChange={(e) => {
                     const val = e.target.value;
                     set('capacity', val);
-                    setErrorFor('capacity', validateRequired(val, 'Capacity'));
+                    setErrorFor('capacity', '');
                   }}
                   placeholder="e.g. 200"
                   className={`${inputCls} ${errors.capacity ? 'border-red-400' : ''}`}
