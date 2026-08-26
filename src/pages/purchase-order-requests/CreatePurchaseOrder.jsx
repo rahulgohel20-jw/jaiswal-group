@@ -335,10 +335,24 @@ const CreatePurchaseOrder = () => {
       try {
         const res = await getAllActiveVendors();
         const raw = res?.data?.data ?? res?.data ?? res ?? [];
-        const list = (Array.isArray(raw) ? raw : []).map((v) => ({
-          id: v.id,
-          name: v.name ?? v.vendorName ?? v.companyName ?? `Vendor #${v.id}`,
-        }));
+        const list = (Array.isArray(raw) ? raw : []).map((v) => {
+          const personName = (v.fullName || v.vendorName || v.name || '').trim();
+          const companyName = (v.companyName || v.companyNameEnglish || v.tradeName || v.gstRegisteredName || '').trim();
+
+          let displayName = companyName;
+          if (companyName && personName && companyName.toLowerCase() !== personName.toLowerCase()) {
+            displayName = `${companyName} (${personName})`;
+          } else {
+            displayName = companyName || personName || `Vendor #${v.id}`;
+          }
+
+          return {
+            id: v.id,
+            name: displayName,
+            personName,
+            companyName,
+          };
+        });
         setVendors(list);
       } catch (err) {
         console.error('Failed to load vendors', err);
@@ -667,7 +681,7 @@ const CreatePurchaseOrder = () => {
                 handleVendorChange(row.original.rawMaterialId, e.target.value)
               }
               disabled={isRejectMode}
-              className="w-full max-w-[140px] h-9 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#1E293B] appearance-none outline-none bg-white cursor-pointer disabled:bg-[#F8FAFC] disabled:cursor-not-allowed"
+              className="w-full min-w-[170px] max-w-[230px] h-9 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#1E293B] appearance-none outline-none bg-white cursor-pointer disabled:bg-[#F8FAFC] disabled:cursor-not-allowed"
             >
               <option value="">Select</option>
               {mappedVendors.map((v) => (
@@ -679,7 +693,7 @@ const CreatePurchaseOrder = () => {
             <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
         ),
-        size: 170,
+        size: 240,
       },
       {
         id: 'quantity',
