@@ -88,12 +88,13 @@ const Departmentlist = () => {
       setDepartments(list.map(mapDepartment));
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.msg ||
-          err?.response?.data?.message ||
-          'Failed to load roles.',
-      );
-      notify.error('Failed to load roles.');
+      const serverMsg =
+        err?.response?.data?.errorMessage ||
+        err?.response?.data?.message ||
+        (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
+        'Failed to load roles.';
+      setError(serverMsg);
+      notify.error(serverMsg);
     } finally {
       setLoading(false);
     }
@@ -160,14 +161,23 @@ const Departmentlist = () => {
         setIsAddOpen(false);
         setEditingDepartment(null);
       }
-    } catch (err) {
+      const serverMsg =
+        err?.response?.data?.errorMessage ||
+        err?.response?.data?.message ||
+        (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
+        'Failed to save role.';
+      setError(serverMsg);
+      notify.error(serverMsg);
+    }
+    catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.msg ||
-          err?.response?.data?.message ||
-          'Failed to save role.',
-      );
-      notify.error('Failed to save role.');
+      const serverMsg =
+        err?.response?.data?.errorMessage ||
+        err?.response?.data?.message ||
+        (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
+        'Failed to save role.';
+      setError(serverMsg);
+      notify.error(serverMsg);
     }
   };
 
@@ -180,12 +190,13 @@ const Departmentlist = () => {
     } catch (err) {
       console.error(err);
       setDepartments(prev); // rollback
-      setError(
-        err?.response?.data?.msg ||
-          err?.response?.data?.message ||
-          'Failed to delete role.',
-      );
-      notify.error('Failed to delete role.');
+      const serverMsg =
+        err?.response?.data?.errorMessage ||
+        err?.response?.data?.message ||
+        (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
+        'Failed to delete role.';
+      setError(serverMsg);
+      notify.error(serverMsg);
     }
   };
 

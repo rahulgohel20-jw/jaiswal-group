@@ -19,6 +19,7 @@ import {
   getStateByCountry,
   updateCompany,
 } from '../../services/apiServices';
+import { getUserIdFromToken } from '@/utils/auth';
 import {
   validateRequired,
   validateEmail,
@@ -569,7 +570,9 @@ const AddUnit = () => {
 
     try {
       const formData = new FormData();
+      const userId = getUserIdFromToken() || 0;
 
+      formData.append('userId', userId);
       formData.append('orgType', 'OUTLET');
       formData.append('parentId', form.company ? Number(form.company) : '');
       formData.append('username', 1);
@@ -604,6 +607,14 @@ const AddUnit = () => {
       navigate('/Units');
     } catch (error) {
       console.log(error.response?.data || error.message);
+      const data = error?.response?.data;
+      const errMsg =
+        data?.errorMessage ||
+        data?.message ||
+        (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+        error?.message ||
+        `Failed to ${isEditMode ? 'update' : 'create'} unit.`;
+      notify.error(errMsg);
     }
   };
 

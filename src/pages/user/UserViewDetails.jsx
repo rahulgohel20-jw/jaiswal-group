@@ -202,7 +202,7 @@ const UserViewDetails = () => {
 
               <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-4">
                 <span className="bg-blue-50 text-[#084E92] text-xs font-medium px-3 py-1 rounded-full">
-                  {employee.userCode || 'No Code'}
+                  {employee.erpemployeecode || employee.erpEmployeeCode || employee.userCode || 'No Code'}
                 </span>
 
                 <span className="bg-green-50 text-green-700 text-xs font-medium px-3 py-1 rounded-full">
@@ -233,13 +233,13 @@ const UserViewDetails = () => {
               <SectionCard icon={User} title="Personal Information">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <InfoCard
-                    label="User Code"
-                    value={employee.userCode}
+                    label="Employee Code"
+                    value={employee.erpemployeecode ?? employee.erpEmployeeCode ?? '—'}
                   />
 
                   <InfoCard
-                    label="Username"
-                    value={employee.createdBy}
+                    label="User Code"
+                    value={employee.userCode}
                   />
 
                   <InfoCard
@@ -266,8 +266,6 @@ const UserViewDetails = () => {
                     label="Designation"
                     value={employee.designation}
                   />
-
-
                 </div>
               </SectionCard>
 
@@ -285,11 +283,11 @@ const UserViewDetails = () => {
                 />
                <div className='grid grid-cols-2 gap-4'>
                 <InfoCard
-                  label="Country"
+                  label="State"
                   value={employee.stateName}
                 />
                 <InfoCard
-                  label="Country"
+                  label="City"
                   value={employee.cityName}
                 />
                  <InfoCard

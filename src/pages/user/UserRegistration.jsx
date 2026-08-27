@@ -680,10 +680,7 @@ const UserRegistration = () => {
     if (!form.firstName.trim()) e.firstName = 'First name is required';
     if (!form.lastName.trim()) e.lastName = 'Last name is required';
 
-    if (!form.username.trim()) e.username = 'Username is required';
-    else if (!USERNAME_REGEX.test(form.username))
-      e.username =
-        'Username must be 3-20 characters (letters, numbers, . _ - only)';
+    if (!form.erpemployeecode?.trim()) e.erpemployeecode = 'Employee code is required';
 
     if (!form.email.trim()) e.email = 'Email address is required';
     else if (!isValidEmail(form.email))
@@ -755,13 +752,15 @@ const UserRegistration = () => {
       navigate('/users');
     } catch (err) {
       console.error(err);
-      setSubmitError(
-        err?.response?.data?.message ||
-          `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
-      );
-      notify.error(
-        `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`,
-      );
+      const data = err?.response?.data;
+      const errorMsg =
+        data?.errorMessage ||
+        data?.message ||
+        (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+        err?.message ||
+        `Something went wrong while ${isEditMode ? 'updating' : 'saving'} this user. Please try again.`;
+      setSubmitError(errorMsg);
+      notify.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -786,13 +785,15 @@ const UserRegistration = () => {
       setErrors({});
     } catch (err) {
       console.error(err);
-      setSubmitError(
-        err?.response?.data?.message ||
-          'Something went wrong while saving this user. Please try again.',
-      );
-      notify.error(
-        'Something went wrong while saving this user. Please try again.',
-      );
+      const data = err?.response?.data;
+      const errorMsg =
+        data?.errorMessage ||
+        data?.message ||
+        (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+        err?.message ||
+        'Something went wrong while saving this user. Please try again.';
+      setSubmitError(errorMsg);
+      notify.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -835,8 +836,8 @@ const UserRegistration = () => {
 
             {openSections.personal && (
               <div className="px-6 py-6 space-y-5">
-                {/* Row 1 — Name */}
-                <div className="grid grid-cols-3 gap-4">
+                {/* Row 1 — Name & Employee Code */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <Label required>First Name</Label>
                     <input
@@ -871,10 +872,22 @@ const UserRegistration = () => {
                     />
                     <ErrorText message={errors.lastName} />
                   </div>
+
+                  <div>
+                    <Label required>ERP Employee Code</Label>
+                    <input
+                      name="erpemployeecode"
+                      value={form.erpemployeecode}
+                      onChange={(e) => set('erpemployeecode', e.target.value)}
+                      placeholder="e.g., EMP001"
+                      className={errors.erpemployeecode ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.erpemployeecode} />
+                  </div>
                 </div>
 
-                {/* Row 2 — Username / Email / Group (+ User Code in edit mode) */}
-                <div className={`grid gap-4 grid-cols-3`}>
+                {/* Row 2 — User Code (edit) / Email / Password */}
+                <div className={`grid gap-4 grid-cols-1 md:grid-cols-2`}>
                   {isEditMode && (
                     <div>
                       <Label>User Code (Auto Generated)</Label>
@@ -885,23 +898,6 @@ const UserRegistration = () => {
                       />
                     </div>
                   )}
-
-                  <div>
-                    <Label required>Username</Label>
-                    <input
-                      name="username"
-                      value={form.username}
-                      onChange={(e) => set('username', e.target.value)}
-                      placeholder="e.g., rjaiswal"
-                      disabled={isEditMode}
-                      className={`${errors.username ? errorInputCls : inputCls} ${
-                        isEditMode
-                          ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                          : ''
-                      }`}
-                    />
-                    <ErrorText message={errors.username} />
-                  </div>
 
                   <div>
                     <Label required>Email Address</Label>

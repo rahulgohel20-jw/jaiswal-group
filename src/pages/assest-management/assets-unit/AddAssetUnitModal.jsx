@@ -12,9 +12,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createAssetUnit, updateAssetUnit } from '@/services/apiServices';
-import { notify } from "@/utils/toast";
+import { notify, getApiErrorMessage } from "@/utils/toast";
 
-const emptyForm = { name: '', symbol: '', status: 'Active' };
+const emptyForm = { name: '', description: '', status: 'Active' };
 
 const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
@@ -23,13 +23,14 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
   const isEditMode = Boolean(initialData?.id);
 
+  // Autofill fields when opening in edit mode, reset when opening in create mode
   useEffect(() => {
     if (!isOpen) return;
     if (initialData) {
       setForm({
-        name: initialData.name || '',
-        symbol: initialData.symbol || '',
-        status: initialData.status || 'Active',
+        name: initialData.name || initialData.assetUnitName || '',
+        description: initialData.description || '',
+        status: initialData.status || (initialData.active === false ? 'Inactive' : 'Active'),
       });
     } else {
       setForm(emptyForm);
@@ -37,9 +38,9 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
     setError(null);
   }, [isOpen, initialData]);
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
   if (!isOpen) return null;
+
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleClose = () => {
     setForm(emptyForm);
@@ -47,15 +48,19 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
     onClose?.();
   };
 
-  const isValid = form.name.trim() && form.symbol.trim();
-
   const handleSave = async () => {
+    if (!form.name.trim()) {
+      setError('Unit name is required');
+      return;
+    }
+
     setSaving(true);
     setError(null);
+
     try {
       const payload = {
         name: form.name,
-        symbol: form.symbol,
+        description: form.description,
         active: form.status === 'Active',
       };
 
@@ -70,11 +75,12 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
       onClose?.();
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.message ||
-          `Failed to ${isEditMode ? 'update' : 'create'} unit. Please try again.`
+      const msg = getApiErrorMessage(
+        err,
+        `Failed to ${isEditMode ? 'update' : 'create'} unit. Please try again.`
       );
-      notify.error(`Failed to ${isEditMode ? 'update' : 'create'} Unit. Please try again.`);
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }

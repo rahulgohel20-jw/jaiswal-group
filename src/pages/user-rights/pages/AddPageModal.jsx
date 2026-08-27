@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { notify } from '@/utils/toast';
+import { notify, getApiErrorMessage } from '@/utils/toast';
 import { FileText, Save, X } from 'lucide-react';
 import {
   createPage,
@@ -84,10 +84,7 @@ const AddPageModal = ({ isOpen, onClose, onSaved, initialData }) => {
       onClose?.();
     } catch (err) {
       console.error(err);
-      const errMsg =
-        err?.response?.data?.message ||
-        err?.message ||
-        `Failed to ${isEditMode ? 'update' : 'create'} page.`;
+      const errMsg = getApiErrorMessage(err, `Failed to ${isEditMode ? 'update' : 'create'} page.`);
       setError(errMsg);
       notify.error(errMsg);
     } finally {

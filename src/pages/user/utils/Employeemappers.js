@@ -52,6 +52,7 @@ const idOf = (val) => (val && typeof val === 'object' ? val.id ?? '' : val ?? ''
 
 export const DEFAULT_FORM = {
   id: '',
+  erpemployeecode: '',
   firstName: '',
   middlename: '',
   lastName: '',
@@ -81,6 +82,7 @@ export const mapEmployeeToForm = (emp = {}) => {
   return {
     ...splitName(emp.fullName ?? emp.name ?? ''),
     id: emp.id ?? '',
+    erpemployeecode: emp.erpemployeecode ?? emp.erpEmployeeCode ?? '',
     userCode: emp.code ?? emp.userCode ?? '',
     username: emp.username ?? emp.createdBy ?? '',
     email: emp.emailid ?? emp.email ?? '',
@@ -160,6 +162,7 @@ export const deriveOrgSelection = (orgId, groups = [], allOrgs = []) => {
 
 export const buildEmployeePayload = (form, { isEditMode }) => ({
   ...(isEditMode && form.id ? { id: form.id } : {}),
+  erpemployeecode: form.erpemployeecode,
   addressLine1: form.addressLine1,
   addressLine2: form.addressLine2,
   alternateMobile: form.altMobile,
@@ -180,7 +183,7 @@ export const buildEmployeePayload = (form, { isEditMode }) => ({
   ...(isEditMode ? {} : { password: form.password }),
   pincode: form.pincode,
   stateId: form.stateId,
-  username: form.username,
+  username: form.username || form.erpemployeecode || form.email || '',
 });
 
 // Employee (from API) -> user management table row
@@ -191,6 +194,7 @@ export const mapEmployeeToRow = (emp = {}) => {
     name: fullName,
     createdBy: emp.createdAt ? `Created ${new Date(emp.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : '',
     code: emp.code ?? emp.userCode ?? '',
+    erpemployeecode: emp.erpemployeecode ?? emp.erpEmployeeCode ?? emp.code ?? '',
     email: emp.emailid ?? emp.email ?? '',
     company: emp.organizationName ?? emp.company ?? '',
     role: emp.role ?? emp.designation ?? '',

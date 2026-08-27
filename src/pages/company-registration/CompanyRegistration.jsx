@@ -19,6 +19,7 @@ import {
   getStateByCountry,
   updateCompany,
 } from '../../services/apiServices';
+import { getUserIdFromToken } from '@/utils/auth';
 import {
   validateRequired,
   validateEmail,
@@ -701,7 +702,9 @@ const CompanyRegistration = () => {
     if (applyValidationResult(formErrors)) return;
 
     try {
+      const userId = getUserIdFromToken() || 0;
       const payload = {
+        userId,
         orgType: 'SUB_COMPANY',
         parentId: 1,
         username: 1,
@@ -776,10 +779,15 @@ const CompanyRegistration = () => {
       navigate('/companies');
     } catch (error) {
       console.log('Company save error:', error.response?.data || error.message);
-      setSubmitError(
-        error?.response?.data?.message ||
-        `Failed to ${isEditMode ? 'update' : 'save'} company. Please try again.`,
-      );
+      const data = error?.response?.data;
+      const errMsg =
+        data?.errorMessage ||
+        data?.message ||
+        (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+        error?.message ||
+        `Failed to ${isEditMode ? 'update' : 'save'} company. Please try again.`;
+      setSubmitError(errMsg);
+      notify.error(errMsg);
     }
   };
 

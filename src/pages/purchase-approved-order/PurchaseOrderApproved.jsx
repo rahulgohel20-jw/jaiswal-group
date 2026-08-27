@@ -319,7 +319,7 @@ const PurchaseOrderApproval = () => {
         id: 'expectedDeliveryDate',
         accessorFn: (row) => row.expectedDeliveryDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="EXPECTED DELIVERY DATE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="DELIVERY DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell value={row.original.expectedDeliveryDate} widthClass="max-w-[130px]" />
@@ -377,7 +377,7 @@ const PurchaseOrderApproval = () => {
                 </button>
                 <button
                   onClick={() => handleReject(po)}
-                  className="px-3.5 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                  className="px-3.5 py-1.5 cursor-pointer rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
                 >
                   Reject
                 </button>

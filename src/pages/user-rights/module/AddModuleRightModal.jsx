@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { notify } from '@/utils/toast';
+import { notify, getApiErrorMessage } from '@/utils/toast';
 import { Save, ShieldCheck, X } from 'lucide-react';
 import { createModuleRight, updateModuleRight } from '@/services/apiServices';
 import { Button } from '@/components/ui/button';
@@ -25,18 +25,20 @@ const AddModuleRightModal = ({ isOpen, onClose, onSaved, initialData }) => {
     onClose?.();
   };
 
-  const isValid = name.trim().length > 0;
-
   const handleSave = async () => {
-    if (!isValid) return;
+    if (!name.trim()) {
+      setError('Module name is required');
+      return;
+    }
+
     setSaving(true);
     setError(null);
+
     try {
-      // isAdmin isn't exposed in the UI — always sent as false
-      const payload = { name: name.trim(), isAdmin: false };
+      const payload = { name: name.trim() };
 
       if (isEditMode) {
-        await updateModuleRight({ id: initialData.id, ...payload });
+        await updateModuleRight(initialData.id, payload);
         notify.success('Module right updated successfully');
       } else {
         await createModuleRight(payload);
@@ -48,10 +50,7 @@ const AddModuleRightModal = ({ isOpen, onClose, onSaved, initialData }) => {
       onClose?.();
     } catch (err) {
       console.error(err);
-      const errMsg =
-        err?.response?.data?.message ||
-        err?.message ||
-        `Failed to ${isEditMode ? 'update' : 'create'} module right.`;
+      const errMsg = getApiErrorMessage(err, `Failed to ${isEditMode ? 'update' : 'create'} module right.`);
       setError(errMsg);
       notify.error(errMsg);
     } finally {

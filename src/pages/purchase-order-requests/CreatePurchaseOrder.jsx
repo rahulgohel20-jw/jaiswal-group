@@ -4,27 +4,17 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
-  getCoreRowModel,
-  getPaginationRowModel,
-  useReactTable,
-} from '@tanstack/react-table';
-import {
   ChevronDown,
   ChevronRight,
   ClipboardList,
   FileText,
   Info,
+  Package,
   Plus,
   Search,
   Trash2,
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Card, CardFooter, CardTable } from '@/components/ui/card';
-import { DataGrid } from '@/components/ui/data-grid';
-import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
-import { DataGridPagination } from '@/components/ui/data-grid-pagination';
-import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import VendorPriceComparisonModal from './VendorPriceComparisonModal';
@@ -43,6 +33,7 @@ import {
 } from '../../utils/auth';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { OrgTypes } from '@/constants/orgTypes';
+import { getApiErrorMessage } from '@/utils/toast';
 import { PO_STATUS } from './utils/poStatus';
 
 const getTodayForDateInput = () => {
@@ -111,8 +102,7 @@ const RawMaterialItemPicker = ({ rawMaterials, alreadyAddedIds, onAdd, loading }
   };
 
   return (
-    <div ref={wrapperRef} className="relative max-w-md">
-      <label className="text-sm text-[#475569] mb-1 block">Add Raw Material Item</label>
+    <div ref={wrapperRef} className="relative w-full">
       <div className="relative">
         <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
         <input
@@ -122,9 +112,9 @@ const RawMaterialItemPicker = ({ rawMaterials, alreadyAddedIds, onAdd, loading }
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          placeholder={loading ? 'Loading items...' : 'Search item by name or code...'}
+          placeholder={loading ? 'Loading items...' : 'Search raw material by name or code...'}
           disabled={loading}
-          className="w-full h-11 rounded-lg border border-[#E2E8F0] pl-9 pr-3 text-sm outline-none focus:border-[#0B5CAD]"
+          className="w-full h-10 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] pl-9 pr-3 text-sm outline-none focus:border-[#084E92] focus:bg-white transition"
         />
       </div>
 
@@ -187,7 +177,6 @@ const CreatePurchaseOrder = () => {
   const [vendors, setVendors] = useState([]);
   const [vendorsLoading, setVendorsLoading] = useState(false);
 
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
   const [quotationItem, setQuotationItem] = useState(null);
 
@@ -615,156 +604,6 @@ const CreatePurchaseOrder = () => {
     [purchaseItems],
   );
 
-  const columns = useMemo(
-    () => [
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllPageRowsSelected()}
-            onChange={table.getToggleAllPageRowsSelectedHandler()}
-            className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer"
-          />
-        ),
-        size: 44,
-        enableSorting: false,
-      },
-      {
-        accessorKey: 'itemName',
-        header: ({ column }) => (
-          <DataGridColumnHeader title="ITEM NAME" column={column} className="text-[#43474F] font-semibold my-3" />
-        ),
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => openQuotationModal(row.original)}
-              title="View vendor price comparison"
-              className="text-[#084E92] font-medium underline underline-offset-2 hover:text-[#063d73] cursor-pointer text-left"
-            >
-              {row.original.itemName}
-            </button>
-            {row.original.source === 'manual' && (
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-[#0B5CAD] bg-[#EFF6FF] px-1.5 py-0.5 rounded">
-                Added
-              </span>
-            )}
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'unit',
-        header: ({ column }) => (
-          <DataGridColumnHeader title="UNIT" column={column} className="text-[#43474F] font-semibold my-3" />
-        ),
-        size: 90,
-      },
-      {
-        id: 'vendorName',
-        header: ({ column }) => (
-          <DataGridColumnHeader title="VENDOR NAME" column={column} className="text-[#43474F] font-semibold my-3" />
-        ),
-        cell: ({ row }) => (
-          <div className="relative">
-            <select
-              value={vendorMap[row.original.rawMaterialId] || ''}
-              onChange={(e) =>
-                handleVendorChange(row.original.rawMaterialId, e.target.value)
-              }
-              disabled={isRejectMode}
-              className="w-full min-w-[170px] max-w-[230px] h-9 border border-[#E2E8F0] rounded-lg px-3 text-sm text-[#1E293B] appearance-none outline-none bg-white cursor-pointer disabled:bg-[#F8FAFC] disabled:cursor-not-allowed"
-            >
-              <option value="">Select</option>
-              {mappedVendors.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          </div>
-        ),
-        size: 240,
-      },
-      {
-        id: 'quantity',
-        header: ({ column }) => (
-          <DataGridColumnHeader title="QUANTITY" column={column} className="text-[#43474F] font-semibold my-3" />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="number"
-            value={poQtyMap[row.original.rawMaterialId] ?? ''}
-            onChange={(e) =>
-              setPoQtyMap((prev) => ({
-                ...prev,
-                [row.original.rawMaterialId]: e.target.value === '' ? '' : Number(e.target.value),
-              }))
-            }
-            disabled={isRejectMode}
-            className="w-20 h-9 border rounded-lg text-center outline-none disabled:bg-[#F8FAFC] disabled:text-[#475467]"
-          />
-        ),
-      },
-      {
-        id: 'price',
-        header: ({ column }) => (
-          <DataGridColumnHeader title="PRICE" column={column} className="text-[#43474F] font-semibold my-3" />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="number"
-            value={priceMap[row.original.rawMaterialId] ?? ''}
-            readOnly
-            disabled
-            placeholder="—"
-            className="w-24 h-9 border border-[#E2E8F0] bg-[#F8FAFC] text-[#475467] rounded-lg text-center outline-none cursor-not-allowed"
-          />
-        ),
-        size: 100,
-      },
-      {
-        id: 'action',
-        header: ({ column }) => (
-          <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-semibold" />
-        ),
-        cell: ({ row }) =>
-          isRejectMode ? null : (
-            <button
-              type="button"
-              onClick={() => handleRemoveItem(row.original.rawMaterialId)}
-              className="cursor-pointer"
-              title="Remove from PO"
-            >
-              <Trash2 size={16} className="text-red-500" />
-            </button>
-          ),
-        size: 90,
-      },
-    ],
-    [vendors, vendorMap, poQtyMap, priceMap, isReviewMode, isRejectMode],
-  );
-
-  const table = useReactTable({
-    data: purchaseItems,
-    columns,
-    state: { pagination, rowSelection },
-    onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
-    enableRowSelection: true,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-  });
-
   const includedItems = purchaseItems.filter(
     (item) => poQtyMap[item.rawMaterialId] !== undefined && poQtyMap[item.rawMaterialId] !== '',
   );
@@ -880,7 +719,7 @@ const CreatePurchaseOrder = () => {
       navigate(-1);
     } catch (err) {
       console.error(err);
-      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to save purchase order draft.');
+      setSubmitError(getApiErrorMessage(err, 'Failed to save purchase order draft.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -900,7 +739,7 @@ const CreatePurchaseOrder = () => {
       navigate('/purchase-order-request/purchase');
     } catch (err) {
       console.error(err);
-      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to generate purchase order.');
+      setSubmitError(getApiErrorMessage(err, 'Failed to generate purchase order.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -920,7 +759,7 @@ const CreatePurchaseOrder = () => {
       navigate(-1);
     } catch (err) {
       console.error(err);
-      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to save purchase order progress.');
+      setSubmitError(getApiErrorMessage(err, 'Failed to save purchase order progress.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -938,7 +777,7 @@ const CreatePurchaseOrder = () => {
       navigate(-1);
     } catch (err) {
       console.error(err);
-      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to approve purchase order.');
+      setSubmitError(getApiErrorMessage(err, 'Failed to approve purchase order.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -971,7 +810,7 @@ const CreatePurchaseOrder = () => {
       navigate(-1);
     } catch (err) {
       console.error(err);
-      setSubmitError(err?.response?.data?.message || err?.message || 'Failed to reject purchase order.');
+      setSubmitError(getApiErrorMessage(err, 'Failed to reject purchase order.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -1074,17 +913,10 @@ const CreatePurchaseOrder = () => {
                     </label>
                     <input
                       type="date"
-                      value={poDate}
-                      min={getTodayForDateInput()}
-                      onChange={(e) => {
-                        const newPoDate = e.target.value;
-                        setPoDate(newPoDate);
-                        if (expectedDeliveryDate && newPoDate && expectedDeliveryDate < newPoDate) {
-                          setExpectedDeliveryDate(newPoDate);
-                        }
-                      }}
-                      disabled={isRejectMode}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                      value={poDate || getTodayForDateInput()}
+                      disabled
+                      readOnly
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -1156,17 +988,10 @@ const CreatePurchaseOrder = () => {
                     </label>
                     <input
                       type="date"
-                      value={poDate}
-                      min={getTodayForDateInput()}
-                      onChange={(e) => {
-                        const newPoDate = e.target.value;
-                        setPoDate(newPoDate);
-                        if (expectedDeliveryDate && newPoDate && expectedDeliveryDate < newPoDate) {
-                          setExpectedDeliveryDate(newPoDate);
-                        }
-                      }}
-                      disabled={isRejectMode}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                      value={poDate || getTodayForDateInput()}
+                      disabled
+                      readOnly
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -1293,16 +1118,10 @@ const CreatePurchaseOrder = () => {
                     </label>
                     <input
                       type="date"
-                      value={poDate}
-                      min={getTodayForDateInput()}
-                      onChange={(e) => {
-                        const newPoDate = e.target.value;
-                        setPoDate(newPoDate);
-                        if (expectedDeliveryDate && newPoDate && expectedDeliveryDate < newPoDate) {
-                          setExpectedDeliveryDate(newPoDate);
-                        }
-                      }}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD]"
+                      value={poDate || getTodayForDateInput()}
+                      disabled
+                      readOnly
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -1323,19 +1142,25 @@ const CreatePurchaseOrder = () => {
           </div>
         </div>
 
-        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+        <div className="w-full my-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
           {(isEditingExistingPo ? poSaving && !poRecord : prLoading) && (
-            <p className="p-4 text-sm text-gray-500">Loading purchase items...</p>
+            <div className="p-4 text-sm text-gray-500 bg-blue-50/50 border-b border-blue-100 flex items-center gap-2">
+              <span className="inline-block w-4 h-4 border-2 border-[#084E92] border-t-transparent rounded-full animate-spin" />
+              Loading purchase items...
+            </div>
           )}
-          <div className="flex flex-col gap-4 px-3 py-6 border-b">
-            <div className="flex justify-between items-center flex-wrap gap-4">
-              <div className="flex gap-2 items-center text-[#084E92]">
-                <ClipboardList />
-                <h1 className="text-2xl font-semibold text-black">Purchase Items</h1>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-5 border-b border-[#E2E8F0] bg-white">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#084E92] shrink-0">
+                <ClipboardList className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Purchase Items</h2>
+                <p className="text-xs text-gray-500">Select items, assign vendors, and specify quantities</p>
               </div>
             </div>
             {!isRejectMode && (
-              <div>
+              <div className="w-full md:w-80">
                 <RawMaterialItemPicker
                   rawMaterials={rawMaterials}
                   alreadyAddedIds={alreadyAddedIds}
@@ -1343,36 +1168,163 @@ const CreatePurchaseOrder = () => {
                   loading={rawMaterialsLoading}
                 />
                 {itemPickError && (
-                  <p className="text-xs text-red-500 mt-2">{itemPickError}</p>
+                  <p className="text-xs text-red-500 mt-1.5">{itemPickError}</p>
                 )}
               </div>
             )}
           </div>
-          <DataGrid table={table} recordCount={purchaseItems.length}>
-            <Card className="rounded-t-none border-t-0">
-              <CardTable>
-                <ScrollArea>
-                  <DataGridTable />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
-              </CardTable>
-              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] ">
-                <DataGridPagination />
-              </CardFooter>
-            </Card>
-          </DataGrid>
-          <div className="flex justify-end gap-8 py-4 px-6 border-t bg-[#F8FAFC] items-center">
-            <div className="text-sm flex gap-2">
-              <span className="text-gray-500">Total PR Items</span>
-              <p className="font-semibold">{purchaseItems.length}</p>
-            </div>
-            <div className="text-sm flex gap-2">
-              <span className="text-gray-500">PO Items Included</span>
-              <p className="font-semibold">{includedItems.length}</p>
-            </div>
-            <div className="text-sm flex gap-2 items-center">
-              <span className="text-gray-500">Estimated Total Value:</span>
-              <p className="text-xl font-bold text-[#084E92]">₹ {estimatedTotal.toLocaleString('en-IN')}</p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-semibold tracking-wider text-[#475569] uppercase">
+                  <th className="py-3.5 px-4 w-12 text-center">
+                    <input
+                      type="checkbox"
+                      checked={purchaseItems.length > 0 && purchaseItems.every((_, idx) => !!rowSelection[idx])}
+                      onChange={() => {
+                        const allSelected = purchaseItems.length > 0 && purchaseItems.every((_, idx) => !!rowSelection[idx]);
+                        if (allSelected) {
+                          setRowSelection({});
+                        } else {
+                          const next = {};
+                          purchaseItems.forEach((_, idx) => { next[idx] = true; });
+                          setRowSelection(next);
+                        }
+                      }}
+                      className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer"
+                    />
+                  </th>
+                  <th className="py-3.5 px-4 text-left">Item Name</th>
+                  <th className="py-3.5 px-4 text-left w-24">Unit</th>
+                  <th className="py-3.5 px-4 text-left min-w-[220px]">Vendor Name</th>
+                  <th className="py-3.5 px-4 text-center w-28">Quantity</th>
+                  <th className="py-3.5 px-4 text-right w-28">Price (₹)</th>
+                  <th className="py-3.5 px-4 text-center w-16">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-sm">
+                {purchaseItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-14 text-center">
+                      <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
+                        <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-3">
+                          <Package className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-800">No purchase items added</p>
+                        <p className="text-xs text-gray-400 mt-1">Search and select raw material items above to include them in this purchase order.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  purchaseItems.map((item, idx) => {
+                    const isSelected = !!rowSelection[idx];
+                    return (
+                      <tr key={item.rawMaterialId} className={`hover:bg-blue-50/20 transition-colors ${isSelected ? 'bg-blue-50/30' : ''}`}>
+                        <td className="py-3.5 px-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => setRowSelection(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                            className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer"
+                          />
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => openQuotationModal(item)}
+                              title="Click to compare vendor prices"
+                              className="text-[#084E92] font-semibold hover:underline hover:text-[#063d73] cursor-pointer text-left inline-flex items-center gap-1"
+                            >
+                              <span>{item.itemName}</span>
+                            </button>
+                            {item.source === 'manual' && (
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-[#0B5CAD] bg-[#EFF6FF] px-1.5 py-0.5 rounded">
+                                Added
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-gray-600 text-sm">
+                          {item.unit || '—'}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="relative max-w-[240px]">
+                            <select
+                              value={vendorMap[item.rawMaterialId] || ''}
+                              onChange={(e) => handleVendorChange(item.rawMaterialId, e.target.value)}
+                              disabled={isRejectMode}
+                              className="w-full h-9 border border-[#E2E8F0] rounded-lg px-3 pr-8 text-sm text-[#1E293B] appearance-none outline-none bg-white cursor-pointer focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:cursor-not-allowed"
+                            >
+                              <option value="">Select Vendor</option>
+                              {mappedVendors.map((v) => (
+                                <option key={v.id} value={v.id}>
+                                  {v.name}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <input
+                            type="number"
+                            min="1"
+                            value={poQtyMap[item.rawMaterialId] ?? ''}
+                            onChange={(e) =>
+                              setPoQtyMap((prev) => ({
+                                ...prev,
+                                [item.rawMaterialId]: e.target.value === '' ? '' : Number(e.target.value),
+                              }))
+                            }
+                            disabled={isRejectMode}
+                            placeholder="0"
+                            className="w-20 h-9 border border-[#E2E8F0] rounded-lg text-center font-medium outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:text-[#475467]"
+                          />
+                        </td>
+                        <td className="py-3.5 px-4 text-right font-medium text-sm text-gray-800">
+                          {priceMap[item.rawMaterialId] != null && priceMap[item.rawMaterialId] !== ''
+                            ? `₹${Number(priceMap[item.rawMaterialId]).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                            : '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          {!isRejectMode && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItem(item.rawMaterialId)}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer mx-auto"
+                              title="Remove from PO"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-wrap justify-between items-center gap-4 py-4 px-6 border-t border-[#E2E8F0] bg-[#F8FAFC]">
+            <p className="text-xs text-gray-500">
+              Showing <span className="font-semibold text-gray-700">{purchaseItems.length}</span> item{purchaseItems.length === 1 ? '' : 's'}
+            </p>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="text-sm flex gap-2">
+                <span className="text-gray-500">Total PR Items:</span>
+                <p className="font-semibold text-gray-800">{purchaseItems.length}</p>
+              </div>
+              <div className="text-sm flex gap-2">
+                <span className="text-gray-500">PO Items Included:</span>
+                <p className="font-semibold text-gray-800">{includedItems.length}</p>
+              </div>
+              <div className="text-sm flex gap-2 items-center">
+                <span className="text-gray-500">Estimated Total:</span>
+                <p className="text-xl font-bold text-[#084E92]">₹ {estimatedTotal.toLocaleString('en-IN')}</p>
+              </div>
             </div>
           </div>
         </div>

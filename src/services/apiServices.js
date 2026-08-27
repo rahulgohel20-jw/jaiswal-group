@@ -225,9 +225,9 @@
     return GET(`/organization/get/${id}`);
   };
   export const createCompany = (formData) => {
-    return POST('/organization/save',formData)
+    return POST('/organization/saveOrganization', formData);
   };
-
+  export const saveOrganization = createCompany;
 
   export const updateCompany = (data) =>
     axiosInstance.put('/organization/update', data, {
@@ -235,6 +235,7 @@
         'Content-Type': 'multipart/form-data',
       },
     });
+  export const updateOrganization = updateCompany;
 
   export const deleteCompany = (id) => {
     return DELETE(`/organization/delete/${id}`);

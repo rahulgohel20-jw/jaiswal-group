@@ -2,42 +2,29 @@ import { useState } from 'react';
 import { useAuth } from '@/auth/context/auth-context';
 import {
   AlertTriangle,
-  Building2,
   Eye,
   EyeOff,
-  Info,
   Lock,
-  Mail,
+  User,
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { loginUser } from '@/services/apiServices';
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { saveAuth, setUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
-  const [remember, setRemember] = useState(false);
-  const [email, setEmail] = useState('');
+  const [userCode, setUserCode] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  const [requiresOrgSelection, setRequiresOrgSelection] = useState(false);
-  const [organizations, setOrganizations] = useState([]);
-  const [organizationId, setOrganizationId] = useState('');
-
   const validate = () => {
     const e = {};
-    if (!email.trim()) e.email = 'Email is required';
-    else if (!EMAIL_REGEX.test(email)) e.email = 'Enter a valid email address';
+    if (!userCode.trim()) e.userCode = 'User Code is required';
     if (!password) e.password = 'Password is required';
-    if (requiresOrgSelection && !organizationId) {
-      e.organizationId = 'Please select an organization';
-    }
     return e;
   };
 
@@ -70,23 +57,21 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const res = await loginUser({
-        email,
+        userCode: userCode.trim(),
         password,
-        organizationId: requiresOrgSelection ? Number(organizationId) : 0,
+        email: null,
+        organizationId: null,
       });
-
-      if (res?.data?.data?.requiresOrganizationSelection) {
-        setOrganizations(res.data.data.organizations || []);
-        setRequiresOrgSelection(true);
-        return;
-      }
 
       finishLogin(res);
     } catch (err) {
       console.error(err);
+      const data = err?.response?.data;
       setSubmitError(
-        err?.response?.data?.errorMessage ||
-          err?.response?.data?.msg ||
+        data?.errorMessage ||
+          data?.message ||
+          (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+          err?.message ||
           'Invalid credentials. Please try again.',
       );
     } finally {
@@ -129,7 +114,7 @@ export default function LoginPage() {
             Enter your credentials to access the super admin panel.
           </p>
 
-          {requiresOrgSelection && (
+          {/* {requiresOrgSelection && (
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12px] text-blue-800">
               <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
               <span>
@@ -137,7 +122,7 @@ export default function LoginPage() {
                 select an organization below to continue.
               </span>
             </div>
-          )}
+          )} */}
 
           {submitError && (
             <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] text-red-700">
@@ -149,27 +134,26 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div>
               <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
-                Email ID
+                User Code
               </label>
               <div
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.email ? 'border-red-400' : 'border-[#E1E4E9]'} ${requiresOrgSelection ? 'bg-[#F7F8FA]' : ''}`}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.userCode ? 'border-red-400' : 'border-[#E1E4E9]'}`}
               >
-                <Mail className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
+                <User className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
                 <input
-                  type="email"
-                  value={email}
-                  disabled={requiresOrgSelection}
+                  type="text"
+                  value={userCode}
                   onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (errors.email)
-                      setErrors((prev) => ({ ...prev, email: undefined }));
+                    setUserCode(e.target.value);
+                    if (errors.userCode)
+                      setErrors((prev) => ({ ...prev, userCode: undefined }));
                   }}
-                  placeholder="admin@jaiswal-erp.com"
-                  className={`flex-1 outline-none text-[13px] bg-transparent ${requiresOrgSelection ? 'text-[#54607A] cursor-not-allowed' : 'text-[#0F2A4A] placeholder:text-[#B3B9C4]'}`}
+                  placeholder="Enter your user code"
+                  className="flex-1 outline-none text-[13px] bg-transparent text-[#0F2A4A] placeholder:text-[#B3B9C4]"
                 />
               </div>
-              {errors.email && (
-                <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>
+              {errors.userCode && (
+                <p className="text-[11px] text-red-500 mt-1">{errors.userCode}</p>
               )}
             </div>
 
@@ -178,20 +162,19 @@ export default function LoginPage() {
                 Password
               </label>
               <div
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.password ? 'border-red-400' : 'border-[#E1E4E9]'} ${requiresOrgSelection ? 'bg-[#F7F8FA]' : ''}`}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.password ? 'border-red-400' : 'border-[#E1E4E9]'}`}
               >
                 <Lock className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  disabled={requiresOrgSelection}
                   onChange={(e) => {
                     setPassword(e.target.value);
                     if (errors.password)
                       setErrors((prev) => ({ ...prev, password: undefined }));
                   }}
                   placeholder="••••••••"
-                  className={`flex-1 outline-none text-[13px] bg-transparent ${requiresOrgSelection ? 'text-[#54607A] cursor-not-allowed' : 'text-[#0F2A4A] placeholder:text-[#B3B9C4]'}`}
+                  className="flex-1 outline-none text-[13px] bg-transparent text-[#0F2A4A] placeholder:text-[#B3B9C4]"
                 />
                 <button
                   type="button"
@@ -213,69 +196,21 @@ export default function LoginPage() {
               )}
             </div>
 
-            {requiresOrgSelection && (
-              <div>
-                <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
-                  Organization
-                </label>
-                <div
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.organizationId ? 'border-red-400' : 'border-[#E1E4E9]'}`}
-                >
-                  <Building2 className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
-                  <select
-                    value={organizationId}
-                    onChange={(e) => {
-                      setOrganizationId(e.target.value);
-                      if (errors.organizationId)
-                        setErrors((prev) => ({
-                          ...prev,
-                          organizationId: undefined,
-                        }));
-                    }}
-                    className="flex-1 outline-none text-[13px] text-[#0F2A4A] bg-transparent cursor-pointer"
-                  >
-                    <option value="" disabled>
-                      Choose an organization
-                    </option>
-                    {organizations.map((org) => (
-                      <option
-                        key={org.organizationId}
-                        value={org.organizationId}
-                      >
-                        {org.companyName?.trim()} ({org.companyCode})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {errors.organizationId && (
-                  <p className="text-[11px] text-red-500 mt-1">
-                    {errors.organizationId}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {!requiresOrgSelection && (
-              <div className="flex items-center justify-end pt-1">
-                <Link
-                  to="/auth/forgot-password"
-                  className="text-[12px] text-[#1D4E89] font-medium hover:underline"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
-            )}
+            <div className="flex items-center justify-end pt-1">
+              <Link
+                to="/auth/forgot-password"
+                className="text-[12px] text-[#1D4E89] font-medium hover:underline"
+              >
+                Forgot Password?
+              </Link>
+            </div>
 
             <button
               type="submit"
               disabled={submitting}
               className="w-full bg-[#0F2A4A] hover:bg-[#123256] cursor-pointer text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
             >
-              {submitting
-                ? 'Logging in...'
-                : requiresOrgSelection
-                  ? 'Continue'
-                  : 'Login'}
+              {submitting ? 'Logging in...' : 'Login'}
             </button>
           </form>
 

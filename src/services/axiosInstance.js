@@ -132,9 +132,19 @@ axiosInstance.interceptors.response.use(
     const willRetry = isUnauthorized && !originalRequest?._retry;
 
     if (error.config && !error.config.skipGlobalToast && !willRetry) {
-      const isAuthPath = error.config.url?.includes("/auth/login") || error.config.url?.includes("/system-api/admin/token");
+      const isAuthPath =
+        error.config.url?.includes("/auth/login") ||
+        error.config.url?.includes("/auth/forgot-password") ||
+        error.config.url?.includes("/auth/reset-password") ||
+        error.config.url?.includes("/system-api/admin/token");
       if (!isAuthPath) {
-        const msg = error.response?.data?.message || error.response?.data?.msg || error.message || "An error occurred.";
+        const data = error.response?.data;
+        const msg =
+          data?.errorMessage ||
+          data?.message ||
+          (data?.msg && data.msg !== "FAILED" && data.msg !== "ERROR" ? data.msg : null) ||
+          error.message ||
+          "An error occurred.";
         toast.error(msg);
       }
     }

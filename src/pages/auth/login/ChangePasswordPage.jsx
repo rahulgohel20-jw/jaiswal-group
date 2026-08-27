@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '@/auth/context/auth-context';
-import { getOrgIdFromToken } from '@/utils/auth'; // adjust path
+import { getOrgIdFromToken, getUserCodeFromToken } from '@/utils/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -107,7 +107,7 @@ const ChangePasswordPage = () => {
 
     const payload = {
       organizationId: getOrgIdFromToken(),
-      email: user?.email,
+      userCode: getUserCodeFromToken() || user?.userCode || user?.code || user?.erpemployeecode || '',
       oldPassword,
       newPassword,
     };
@@ -124,9 +124,12 @@ const ChangePasswordPage = () => {
 
       setTimeout(() => navigate('/'), 1000);
     } catch (err) {
+      const data = err?.response?.data;
       setError(
-        err?.response?.data?.errorMessage ||
-          err?.response?.data?.msg ||
+        data?.errorMessage ||
+          data?.message ||
+          (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+          err?.message ||
           'Failed to change password.',
       );
     } finally {

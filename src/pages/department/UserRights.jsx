@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
+import { getApiErrorMessage } from '@/utils/toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAllRoleMasterByUserId } from '@/services/apiServices';
 import { Container } from '@/components/common/container';
@@ -23,11 +24,12 @@ const formatCreatedAt = (value) => {
 // ADJUST: confirm actual field names from GET /department/get-all-active.
 // The screenshot's "Role" column (manger, Team leader, demo, IT, new) implies
 // each item has at least an id, a name, and a created date.
-const mapRole = (d) => ({
-  id: d.id,
-  name: d.name ?? d.roleName ?? d.departmentName,
-  createdAt: d.createdAt ?? d.createdDate ?? null,
-  createdDate: formatCreatedAt(d.createdAt ?? d.createdDate),
+const mapRole = (row) => ({
+  id: row.id ?? row.roleId ?? row.departmentId,
+  name: row.name ?? row.roleName ?? row.departmentName ?? '—',
+  createdAt: row.createdAt ?? row.createdDate ?? null,
+  createdDate: formatCreatedAt(row.createdAt ?? row.createdDate),
+  raw: row,
 });
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
@@ -61,11 +63,7 @@ const UserRights = () => {
       setRoles(list.map(mapRole));
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.msg ||
-          err?.response?.data?.message ||
-          'Failed to load roles.',
-      );
+      setError(getApiErrorMessage(err, 'Failed to load roles.'));
     } finally {
       setLoading(false);
     }
