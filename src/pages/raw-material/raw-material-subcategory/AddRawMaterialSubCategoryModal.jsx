@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-import { notify } from '@/utils/toast';
+import { notify, getApiErrorMessage } from '@/utils/toast';
 import { getUserIdFromToken } from '@/utils/auth';
 
 import {
@@ -173,17 +173,10 @@ const AddRawMaterialSubCategoryModal = ({
             onClose?.();
         } catch (err) {
             console.error('Save subcategory error:', err);
-
-            const backendMsg =
-                err?.response?.data?.msg ||
-                err?.response?.data?.message ||
-                err?.response?.data?.errorMessage;
-
-            const message =
-                backendMsg ||
-                `Failed to ${isEditMode ? 'update' : 'create'
-                } material subcategory. Please try again.`;
-
+            const message = getApiErrorMessage(
+                err,
+                `Failed to ${isEditMode ? 'update' : 'create'} material subcategory. Please try again.`,
+            );
             setError(message);
             notify.error(message);
         } finally {

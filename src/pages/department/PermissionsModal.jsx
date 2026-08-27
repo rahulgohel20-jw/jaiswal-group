@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { notify } from '@/utils/toast';
+import { notify, getApiErrorMessage } from '@/utils/toast';
 import { Loader2, Plus, Save, ShieldCheck, X } from 'lucide-react';
 import {
   addRoleMaster,
@@ -91,11 +91,7 @@ const PermissionsModal = ({
       setChecks(normalizeExistingRights(rightsRes));
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.msg ||
-          err?.response?.data?.message ||
-          'Failed to load permissions.',
-      );
+      setError(getApiErrorMessage(err, 'Failed to load permissions.'));
     } finally {
       setLoading(false);
     }
@@ -208,12 +204,9 @@ const PermissionsModal = ({
       onClose?.();
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.msg ||
-          err?.response?.data?.message ||
-          'Failed to save permissions.',
-      );
-      notify?.error?.('Failed to save permissions.');
+      const msg = getApiErrorMessage(err, 'Failed to save permissions.');
+      setError(msg);
+      notify?.error?.(msg);
     } finally {
       setSaving(false);
     }
@@ -232,10 +225,7 @@ const PermissionsModal = ({
       onDepartmentAdded?.(res?.data?.data ?? payload);
     } catch (err) {
       console.error(err);
-      const msg =
-        err?.response?.data?.msg ||
-        err?.response?.data?.message ||
-        'Failed to add department.';
+      const msg = getApiErrorMessage(err, 'Failed to add department.');
       notify?.error?.(msg);
     } finally {
       setAddingDept(false);

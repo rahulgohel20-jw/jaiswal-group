@@ -40,3 +40,9 @@ export const getUsernameFromToken = () => {
   const user = auth?.user || auth?.data || auth;
   return user?.name ?? null;
 };
+
+export const getUserCodeFromToken = () => {
+  const auth = getAuth();
+  const user = auth?.user || auth?.data || auth;
+  return user?.userCode ?? null;
+}

@@ -646,7 +646,14 @@ const AddAssignAsset = () => {
       setTimeout(() => navigate('/assigned-assets'), 600);
     } catch (err) {
       console.error(err);
-      setSaveError(err?.response?.data?.msg || 'Failed to save assignment.');
+      const data = err?.response?.data;
+      setSaveError(
+        data?.errorMessage ||
+          data?.message ||
+          (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+          err?.message ||
+          'Failed to save assignment.',
+      );
     } finally {
       setSaving(false);
     }

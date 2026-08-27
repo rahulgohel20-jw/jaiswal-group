@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { notify } from "@/utils/toast";
+import { notify, getApiErrorMessage } from "@/utils/toast";
 import {
   addRawMaterialCategory,
   updateRawMaterialCategory,
@@ -171,15 +171,12 @@ const AddRawMaterialCategoryModal = ({
       onClose?.();
     } catch (err) {
       console.error(err);
-      const backendMsg =
-        err?.response?.data?.msg || err?.response?.data?.message;
-      setError(
-        backendMsg ||
-        `Failed to ${isEditMode ? 'update' : 'create'} material category. Please try again.`,
+      const msg = getApiErrorMessage(
+        err,
+        `Failed to ${isEditMode ? 'update' : 'create'} material category. Please try again.`
       );
-      notify.error(`Failed to ${isEditMode ? 'update' : 'create'
-        } material category. Please try again.`);
-
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }
@@ -199,11 +196,9 @@ const AddRawMaterialCategoryModal = ({
       onSaved?.();
     } catch (err) {
       console.error(err);
-      const backendMsg =
-        err?.response?.data?.msg || err?.response?.data?.message;
-      setError(
-        backendMsg || 'Failed to create material category. Please try again.',
-      );
+      const msg = getApiErrorMessage(err, 'Failed to create material category. Please try again.');
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }

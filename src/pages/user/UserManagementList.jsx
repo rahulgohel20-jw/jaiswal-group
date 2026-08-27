@@ -8,15 +8,8 @@ import {
 } from '@tanstack/react-table';
 import {
   AlertTriangle,
-  BadgeCheck,
   Building2,
-  CircleCheck,
-  CircleX,
-  ClockFading,
-  Download,
   Eye,
-  Hourglass,
-  ListFilter,
   Plus,
   Search,
   SquarePen,
@@ -62,34 +55,6 @@ const TruncatedCell = ({
   </span>
 );
 
-const kycMeta = (status) => {
-  if (status === 'Verified')
-    return {
-      icon: <BadgeCheck size={20} />,
-      color: 'text-[#15803D]',
-      KycView: 'View Details',
-    };
-  if (status === 'Rejected')
-    return {
-      icon: <CircleX size={20} />,
-      color: 'text-[#BA1A1A]',
-      KycView: 'View Details',
-    };
-  return {
-    icon: <ClockFading size={20} />,
-    color: 'text-[#5F2600]',
-    KycView: 'Review KYC',
-  };
-};
-
-
-const KYC_OPTIONS = [
-  { key: 'all', label: 'All KYC Statuses' },
-  { key: 'Verified', label: 'Verified' },
-  { key: 'Pending', label: 'Pending' },
-  { key: 'Rejected', label: 'Rejected' },
-];
-
 const UserManagementList = () => {
   const navigate = useNavigate();
   const [userData, setUserData] = useState([]);
@@ -99,7 +64,6 @@ const UserManagementList = () => {
   const [deletingUser, setDeletingUser] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [kycFilter, setKycFilter] = useState('all');
   const [activeCompanies, setActiveCompanies] = useState([]);
   const [search, setSearch] = useState('');
   const [departments, setDepartments] = useState([]);
@@ -164,20 +128,6 @@ const UserManagementList = () => {
       iconBg: 'bg-[#084E921A]/50',
     },
     {
-      label: 'KYC VERIFIED',
-      count: `${userData.filter((u) => u.kycStatus === 'Verified').length}`,
-      icon: <BadgeCheck className="w-5 h-5 text-[#084E92]" />,
-      color: 'text-[#084E92]',
-      iconBg: 'bg-[#084E921A]/50',
-    },
-    {
-      label: 'PENDING REVIEW',
-      count: `${userData.filter((u) => u.kycStatus === 'Pending').length}`,
-      icon: <Hourglass className="w-5 h-5 text-[#084E92]" />,
-      color: 'text-[#084E92]',
-      iconBg: 'bg-[#084E921A]/50',
-    },
-    {
       label: 'ACTIVE ORGANIZATIONS',
       count: `${activeCompanies.length}`,
       icon: <Building2 className="w-5 h-5 text-[#084E92]" />,
@@ -195,16 +145,15 @@ const UserManagementList = () => {
           u.name?.toLowerCase().includes(searchText) ||
           u.email?.toLowerCase().includes(searchText) ||
           u.code?.toLowerCase().includes(searchText) ||
+          u.erpemployeecode?.toLowerCase().includes(searchText) ||
           u.company?.toLowerCase().includes(searchText);
 
         const matchesCategory =
           departmentFilter === 'all' || u.department === departmentFilter;
 
-        const matchesKyc = kycFilter === 'all' || u.kycStatus === kycFilter;
-
-        return matchesSearch && matchesCategory && matchesKyc;
+        return matchesSearch && matchesCategory;
       }),
-    [userData, search, departmentFilter, kycFilter],
+    [userData, search, departmentFilter],
   );
 
   useEffect(() => {
@@ -212,7 +161,7 @@ const UserManagementList = () => {
       ...prev,
       pageIndex: 0,
     }));
-  }, [search, departmentFilter, kycFilter]);
+  }, [search, departmentFilter]);
   // Edit reuses the same registration form component, switched into "update"
   // mode by the presence of state.user — the form fetches the full record
   // by id itself, so only the id needs to travel reliably here.
@@ -363,48 +312,6 @@ const UserManagementList = () => {
         size: 150,
       },
       {
-        id: 'kycStatus',
-        accessorFn: (row) => row.kycStatus,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="KYC STATUS"
-            column={column}
-            className="my-2 text-xs"
-          />
-        ),
-        cell: ({ row }) => {
-          const meta = kycMeta(row.original.kycStatus);
-          return (
-            <div
-              className={`flex gap-1 items-center whitespace-nowrap ${meta.color} font-semibold`}
-            >
-              <span>{meta.icon}</span>
-              <span>{row.original.kycStatus}</span>
-            </div>
-          );
-        },
-        size: 130,
-      },
-      {
-        id: 'KycView',
-        accessorFn: (row) => row.kycStatus,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Kyc View" column={column} />
-        ),
-        cell: ({ row }) => {
-          const meta = kycMeta(row.original.kycStatus);
-          return (
-            <Link
-              to="/user/kyc-information"
-              className={`whitespace-nowrap ${meta.KycView === 'Re-verify' ? 'text-[#BA1A1A]' : 'text-[#084E92]'} font-bold`}
-            >
-              {meta.KycView}
-            </Link>
-          );
-        },
-        size: 130,
-      },
-      {
         id: 'action',
         header: ({ column }) => (
           <DataGridColumnHeader title="ACTIONS" column={column} />
@@ -496,8 +403,8 @@ const UserManagementList = () => {
 
         <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 my-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
-            {/* Search Section - Left 50% */}
-            <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+            {/* Search Section - Left */}
+            <div className="relative flex-1 min-w-[240px] border border-[#C3C6D1] rounded-lg">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 size={18}
@@ -507,31 +414,13 @@ const UserManagementList = () => {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name or email..."
+                placeholder="Search by name, code or email..."
                 className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
               />
             </div>
 
-            {/* Filters Section - Right 50% */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* KYC */}
-              <Select
-                value={kycFilter}
-                onValueChange={setKycFilter}
-              >
-                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {KYC_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.key} value={opt.key}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {/* Department */}
+            {/* Department Filter - Right */}
+            <div className="w-full sm:w-64">
               <Select
                 value={departmentFilter}
                 onValueChange={setDepartmentFilter}
@@ -541,7 +430,7 @@ const UserManagementList = () => {
                 </SelectTrigger>
 
                 <SelectContent>
-                  <SelectItem value="all">All Department</SelectItem>
+                  <SelectItem value="all">All Departments</SelectItem>
 
                   {departments.map((opt) => (
                     <SelectItem
@@ -553,7 +442,6 @@ const UserManagementList = () => {
                   ))}
                 </SelectContent>
               </Select>
-
             </div>
           </div>
         </div>

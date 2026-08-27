@@ -1,41 +1,46 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Mail, ArrowLeft, ShieldCheck, Lock as LockIcon, AlertTriangle, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { User, ArrowLeft, ShieldCheck, Lock as LockIcon, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { forgotPassword } from '@/services/apiServices';
 
 export default function ForgotPasswordPage() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [userCode, setUserCode] = useState('');
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [organizations, setOrganizations] = useState([]);
+  const [serverMsg, setServerMsg] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!userCode.trim()) {
+      setErrorMsg('Please enter your User Code.');
+      return;
+    }
     setErrorMsg('');
     setSubmitting(true);
     try {
-      const res = await forgotPassword({ email });
-      const orgs = res?.data?.data?.organizations || [];
-      setOrganizations(orgs);
+      const res = await forgotPassword({ userCode: userCode.trim() });
+      const msg =
+        res?.data?.msg ||
+        res?.data?.message ||
+        res?.data?.data?.message ||
+        (typeof res?.data?.data === 'string' ? res.data.data : null) ||
+        'Password has been reset. Please contact your administrator for your new password.';
+      setServerMsg(msg);
       setSent(true);
     } catch (err) {
       console.error(err);
-      setErrorMsg(
-        err?.response?.data?.msg ||
-          err?.response?.data?.message ||
-          'Unable to send reset instructions. Please try again.',
-      );
+      const data = err?.response?.data;
+      const errorText =
+        data?.errorMessage ||
+        data?.message ||
+        (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+        err?.message ||
+        'Unable to process password reset. Please contact your administrator.';
+      setErrorMsg(errorText);
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleContinueToReset = () => {
-    navigate('/auth/reset-password', {
-      state: { email, organizations },
-    });
   };
 
   return (
@@ -85,19 +90,19 @@ export default function ForgotPasswordPage() {
               <>
                 <h2 className="text-[20px] font-bold text-[#0F2A4A] mb-1.5">Forgot Password?</h2>
                 <p className="text-[#8B93A1] text-[12.5px] leading-relaxed mb-6">
-                  Enter your registered email address to receive password reset instructions.
+                  Enter your User Code to reset your account password.
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">Email ID</label>
+                    <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">User Code</label>
                     <div className="flex items-center gap-2 rounded-lg border border-[#E1E4E9] px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors">
-                      <Mail className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
+                      <User className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
                       <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="admin@jaiswal-erp.com"
+                        type="text"
+                        value={userCode}
+                        onChange={(e) => setUserCode(e.target.value)}
+                        placeholder="Enter your user code"
                         required
                         className="flex-1 outline-none text-[13px] text-[#0F2A4A] placeholder:text-[#B3B9C4] bg-transparent"
                       />
@@ -109,30 +114,25 @@ export default function ForgotPasswordPage() {
                     disabled={submitting}
                     className="w-full bg-[#0F2A4A] hover:bg-[#123256] text-white text-[13.5px] cursor-pointer font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
                   >
-                    {submitting ? 'Sending...' : 'Send Reset Link'}
+                    {submitting ? 'Resetting Password...' : 'Reset Password'}
                   </button>
                 </form>
               </>
             ) : (
               <>
-                <h2 className="text-[20px] font-bold text-[#0F2A4A] mb-1.5">Check Your Email</h2>
-                <p className="text-[#8B93A1] text-[12.5px] leading-relaxed mb-6">
-                  We've sent a one-time code to <span className="text-[#0F2A4A] font-medium">{email}</span>.
-                </p>
-                <button
-                  type="button"
-                  onClick={handleContinueToReset}
-                  className="w-full bg-[#0F2A4A] cursor-pointer hover:bg-[#123256] text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors"
+                <div className="flex items-center gap-2 text-green-600 mb-2">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <h2 className="text-[18px] font-bold text-[#0F2A4A]">Password Reset Requested</h2>
+                </div>
+                <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 mb-6 text-[12.5px] text-blue-900 leading-relaxed">
+                  {serverMsg}
+                </div>
+                <Link
+                  to="/"
+                  className="w-full block text-center bg-[#0F2A4A] cursor-pointer hover:bg-[#123256] text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors"
                 >
-                  Enter OTP & Reset Password
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSent(false)}
-                  className="w-full mt-2 text-[12.5px] text-[#1D4E89] font-medium hover:underline py-1"
-                >
-                  Resend Link
-                </button>
+                  Return to Login
+                </Link>
               </>
             )}
 

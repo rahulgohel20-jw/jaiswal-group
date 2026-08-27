@@ -505,7 +505,7 @@ const AddSubUnit = () => {
       navigate("/sub-units");
     } catch (err) {
       console.error("Sub unit save error:", err.response?.data || err.message);
-      notify.error("Something went wrong. Please try again.");
+      notify.error(err, "Something went wrong. Please try again.");
     } finally {
       setSaving(false);
     }

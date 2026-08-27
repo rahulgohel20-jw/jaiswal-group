@@ -122,11 +122,7 @@ const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
       onClose();
     } catch (err) {
       console.error("Failed to save city:", err);
-
-      notify.error(
-        err?.response?.data?.message ||
-          "Something went wrong"
-      );
+      notify.error(err, "Failed to save city");
     }
   };
 

@@ -185,7 +185,7 @@ const AddPurchaseRequisition = () => {
 
   // ---- Form fields ----
   const [outletId, setOutletId] = useState(state?.outletId != null ? String(state.outletId) : '');
-  const [prDate, setPrDate] = useState(isEditMode ? '' : getTodayInputDate());
+  const [prDate, setPrDate] = useState(getTodayInputDate());
   const [prRequiredDate, setPrRequiredDate] = useState('');
   const [remarks, setRemarks] = useState('');
   const [details, setDetails] = useState([]);
@@ -537,16 +537,10 @@ const AddPurchaseRequisition = () => {
       </label>
       <input
         type="date"
-        value={prDate}
-        min={getTodayInputDate()}
-        onChange={(e) => {
-          const newPrDate = e.target.value;
-          setPrDate(newPrDate);
-          if (prRequiredDate && newPrDate && prRequiredDate < newPrDate) {
-            setPrRequiredDate(newPrDate);
-          }
-        }}
-        className={errors.prDate ? errorInputCls : inputCls}
+        value={prDate || getTodayInputDate()}
+        disabled
+        readOnly
+        className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`}
       />
       {errors.prDate && <p className="text-xs text-red-500 mt-1">{errors.prDate}</p>}
     </div>

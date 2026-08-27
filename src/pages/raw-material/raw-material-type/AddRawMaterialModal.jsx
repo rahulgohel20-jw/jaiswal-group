@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { notify } from "@/utils/toast";
+import { notify, getApiErrorMessage } from "@/utils/toast";
 import { getUserIdFromToken } from '@/utils/auth';
 import { addRawMaterialCategoryType, updateRawMaterialCategoryType } from '../../../services/apiServices';
 
@@ -19,26 +19,39 @@ const emptyForm = { nameEnglish: '' };
 
 const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const isEditMode = Boolean(initialData?.id);
 
+  // Sync form state whenever the modal opens or the target item changes
   useEffect(() => {
-    if (!isOpen) return;
-    if (initialData) {
-      setForm({
-        nameEnglish: initialData.nameEnglish || '',
-      });
-    } else {
-      setForm(emptyForm);
+    if (isOpen) {
+      setForm(
+        initialData
+          ? {
+              nameEnglish: initialData.nameEnglish || initialData.name || '',
+            }
+          : emptyForm
+      );
+      setErrors({});
+      setError(null);
     }
-    setError(null);
   }, [isOpen, initialData]);
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
   if (!isOpen) return null;
+
+  const validate = () => {
+    const errs = {};
+    if (!form.nameEnglish?.trim()) {
+      errs.nameEnglish = 'Material type name is required';
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleClose = () => {
     setForm(emptyForm);
@@ -47,27 +60,28 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
   };
 
   const save = async () => {
+    const userId = getUserIdFromToken();
+    const payload = {
+      nameEnglish: form.nameEnglish.trim(),
+      userId,
+    };
+
     if (isEditMode) {
-      // Edit mode only updates the name — status is changed separately via the toggle + confirm flow
-      console.log(initialData);
-      const payload = {
-        nameEnglish: form.nameEnglish,
-        nameGujarati: "",
-        nameHindi: "",
-        userId: getUserIdFromToken(),
-      };
       await updateRawMaterialCategoryType(initialData.id, payload);
+      notify.success("Material Type Updated Successfully")
     } else {
-      const payload = {
-        active: true, // new records default to Active; status is changed afterward via the toggle
-        createdBy: getUserIdFromToken(),
-        nameEnglish: form.nameEnglish,
+      const createPayload = {
+        active: true,
+        createdBy: userId,
+        nameEnglish: form.nameEnglish.trim(),
       };
-      await addRawMaterialCategoryType(payload);
+      await addRawMaterialCategoryType(createPayload);
+      notify.success("Material Type Created Successfully")
     }
   };
 
   const handleSave = async () => {
+    if (!validate()) return;
     setSaving(true);
     setError(null);
     try {
@@ -77,12 +91,12 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
       onClose?.();
     } catch (err) {
       console.error(err);
-      const backendMsg = err?.response?.data?.msg || err?.response?.data?.message;
-      setError(
-        backendMsg ||
+      const msg = getApiErrorMessage(
+        err,
         `Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`
       );
-      notify.error(`Failed to ${isEditMode ? 'update' : 'create'} material type. Please try again.`)
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }
@@ -91,6 +105,7 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
   // "Save & Add Another" only applies to create mode: saves, then clears
   // the form and keeps the modal open for the next entry.
   const handleSaveAndAddAnother = async () => {
+    if (!validate()) return;
     setSaving(true);
     setError(null);
     try {
@@ -99,9 +114,9 @@ const AddRawMaterialModal = ({ isOpen, onClose, onSaved, initialData }) => {
       onSaved?.();
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.message || 'Failed to create material type. Please try again.'
-      );
+      const msg = getApiErrorMessage(err, 'Failed to create material type. Please try again.');
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }

@@ -3,6 +3,7 @@ import { Building2, ChevronDown, Info, Loader2, TrendingDown, X } from 'lucide-r
 import { toast } from 'sonner';
 import { assignVendorOutletMapping } from '@/services/apiServices';
 import { getUsernameFromToken } from '@/utils/auth';
+import { getApiErrorMessage } from '@/utils/toast';
 
 const formatINR = (value) =>
   new Intl.NumberFormat('en-IN', {
@@ -70,7 +71,7 @@ const VendorPriceComparisonModal = ({
       onVendorMapped?.(quotation.vendorId, outletId);
     } catch (err) {
       console.error('Failed to map vendor to outlet', err);
-      toast.error(err?.response?.data?.message || err?.message || 'Failed to map vendor to outlet.');
+      toast.error(getApiErrorMessage(err, 'Failed to map vendor to outlet.'));
     } finally {
       setMappingVendorId(null);
     }

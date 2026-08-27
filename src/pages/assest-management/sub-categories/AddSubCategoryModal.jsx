@@ -125,10 +125,12 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSaved, initialData, defaultCat
       onClose?.();
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.message ||
-          `Failed to ${isEditMode ? 'update' : 'create'} sub category. Please try again.`
+      const msg = getApiErrorMessage(
+        err,
+        `Failed to ${isEditMode ? 'update' : 'create'} sub category. Please try again.`
       );
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }

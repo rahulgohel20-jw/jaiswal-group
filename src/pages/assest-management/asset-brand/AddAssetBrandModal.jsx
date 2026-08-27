@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { createAssetBrand, updateAssetBrand } from '@/services/apiServices';
-import { notify } from "@/utils/toast";
+import { notify, getApiErrorMessage } from "@/utils/toast";
 
 const emptyForm = { name: '', description: '', status: 'Active' };
 
@@ -24,13 +24,14 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
   const isEditMode = Boolean(initialData?.id);
 
+  // Autofill fields when opening in edit mode, reset when opening in create mode
   useEffect(() => {
     if (!isOpen) return;
     if (initialData) {
       setForm({
         name: initialData.name || '',
         description: initialData.description || '',
-        status: initialData.status || 'Active',
+        status: initialData.status || (initialData.active ? 'Active' : 'Inactive'),
       });
     } else {
       setForm(emptyForm);
@@ -38,9 +39,9 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
     setError(null);
   }, [isOpen, initialData]);
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
   if (!isOpen) return null;
+
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleClose = () => {
     setForm(emptyForm);
@@ -49,19 +50,24 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
   };
 
   const handleSave = async () => {
+    if (!form.name.trim()) {
+      setError('Brand name is required');
+      return;
+    }
+
     setSaving(true);
     setError(null);
+
     try {
       if (isEditMode) {
         await updateAssetBrand({
+          active: form.status === 'Active',
+          description: form.description,
           id: initialData.id,
           name: form.name,
-          description: form.description,
-          active: form.status === 'Active',
+          updatedBy: 0,
         });
       } else {
-        // Matches the create endpoint's request schema exactly:
-        // { active, createdBy, description, name }
         await createAssetBrand({
           active: form.status === 'Active',
           createdBy: 0,
@@ -75,11 +81,12 @@ const AddAssetBrandModal = ({ isOpen, onClose, onSaved, initialData }) => {
       onClose?.();
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.message ||
-          `Failed to ${isEditMode ? 'update' : 'create'} brand. Please try again.`
+      const msg = getApiErrorMessage(
+        err,
+        `Failed to ${isEditMode ? 'update' : 'create'} brand. Please try again.`
       );
-      notify.error(`Failed to ${isEditMode ? 'update' : 'create'} brand. Please try again.`);
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }

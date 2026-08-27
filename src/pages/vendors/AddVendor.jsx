@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
+import { notify, getApiErrorMessage } from '@/utils/toast';
 import {
   Briefcase,
   Building2,
@@ -1160,13 +1161,13 @@ const handleIfscBlur = async (bankId, ifscValue) => {
       } else {
         await saveVendor(payload);
       }
+      notify.success(`Vendor ${isEditMode ? 'updated' : 'created'} successfully`);
       navigate('/vendors');
     } catch (err) {
       console.error(err);
-      setSubmitError(
-        err?.response?.data?.message ||
-        `Failed to ${isEditMode ? 'update' : 'save'} vendor. Please try again.`,
-      );
+      const msg = getApiErrorMessage(err, `Failed to ${isEditMode ? 'update' : 'save'} vendor. Please try again.`);
+      setSubmitError(msg);
+      notify.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -1181,6 +1182,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
     setSubmitting(true);
     try {
       await saveVendor(payload);
+      notify.success('Vendor created successfully');
       setForm((f) => ({ ...DEFAULT_FORM, organizationId: f.organizationId }));
       setTradeNameTouched(false);
       setErrors({});
@@ -1188,10 +1190,9 @@ const handleIfscBlur = async (bankId, ifscValue) => {
       setOpenSection(SECTIONS.PERSONAL);
     } catch (err) {
       console.error(err);
-      setSubmitError(
-        err?.response?.data?.message ||
-        'Failed to save vendor. Please try again.',
-      );
+      const msg = getApiErrorMessage(err, 'Failed to save vendor. Please try again.');
+      setSubmitError(msg);
+      notify.error(msg);
     } finally {
       setSubmitting(false);
     }

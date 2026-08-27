@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { createAssetUnit, updateAssetUnit } from '@/services/apiServices';
+import { notify, getApiErrorMessage } from '@/utils/toast';
 
 const emptyForm = { name: '', symbol: '', description: '', status: 'Active' };
 
@@ -72,10 +73,12 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
       onClose?.();
     } catch (err) {
       console.error(err);
-      setError(
-        err?.response?.data?.message ||
-          `Failed to ${isEditMode ? 'update' : 'create'} unit. Please try again.`
+      const msg = getApiErrorMessage(
+        err,
+        `Failed to ${isEditMode ? 'update' : 'create'} unit. Please try again.`
       );
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }

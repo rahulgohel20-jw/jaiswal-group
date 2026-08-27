@@ -5,6 +5,7 @@ import { Tags, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createRawMaterialBrand, updateRawMaterialBrand } from '../../../services/apiServices';
+import { notify, getApiErrorMessage } from '@/utils/toast';
 
 const emptyForm = { name: '', description: '' };
 
@@ -30,9 +31,9 @@ const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
     setError(null);
   }, [isOpen, initialData]);
 
-  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
   if (!isOpen) return null;
+
+  const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleClose = () => {
     setForm(emptyForm);
@@ -49,14 +50,12 @@ const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
     setSaving(true);
     setError(null);
 
-    try {
-      const payload = {
-        active: initialData?.active ?? true,
-        createdBy: initialData?.createdBy ?? 0,
-        description: form.description.trim(),
-        name: form.name.trim(),
-      };
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim(),
+    };
 
+    try {
       let response;
 
       if (isEditMode) {
@@ -74,8 +73,9 @@ const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
     } catch (err) {
       console.error('Create Raw Material Brand Error:', err);
 
-      setError(err?.response?.data?.message || err?.response?.data?.errorMessage || `Failed to ${isEditMode ? 'update' : 'create'} raw material brand.`
-      );
+      const msg = getApiErrorMessage(err, `Failed to ${isEditMode ? 'update' : 'create'} raw material brand.`);
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }

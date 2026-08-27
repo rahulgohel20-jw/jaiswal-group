@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { notify } from '@/utils/toast';
+import { notify, getApiErrorMessage } from '@/utils/toast';
 import { addUnitMaster, getAllRawMaterialUnits, updateUnitMaster } from '../../../services/apiServices';
 import { getUserIdFromToken } from "../../../utils/auth";
 // Replace these with your actual API service calls
@@ -243,9 +243,10 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData }) => {
       onClose?.();
     } catch (err) {
       console.error(err);
-      const backendMsg = err?.response?.data?.msg || err?.response?.data?.message;
-      const msg =
-        backendMsg || `Failed to ${isEditMode ? 'update' : 'create'} unit. Please try again.`;
+      const msg = getApiErrorMessage(
+        err,
+        `Failed to ${isEditMode ? 'update' : 'create'} unit. Please try again.`
+      );
       setError(msg);
       notify.error(msg);
     } finally {
