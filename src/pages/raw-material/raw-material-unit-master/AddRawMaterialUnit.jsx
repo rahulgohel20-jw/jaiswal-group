@@ -37,7 +37,7 @@ const rangeTypeLabel = {
   StepWiseRange: 'Step Wise Range',
 };
 
-const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData }) => {
+const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly = false }) => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -273,11 +273,11 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData }) => {
 
             <div>
               <h3 className="text-lg font-semibold leading-none">
-                {isEditMode ? 'Edit Unit' : 'Create New Unit'}
+                {isViewOnly ? 'View Unit Details' : isEditMode ? 'Edit Unit' : 'Create New Unit'}
               </h3>
 
               <p className="text-xs text-gray-500 mt-2">
-                {isEditMode ? 'Update this measurement unit.' : 'Configure a new measurement unit.'}
+                {isViewOnly ? 'View measurement unit configuration.' : isEditMode ? 'Update this measurement unit.' : 'Configure a new measurement unit.'}
               </p>
             </div>
           </div>
@@ -563,21 +563,23 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData }) => {
         <div className="flex items-center justify-end gap-3 p-4 border-t bg-gray-50 shrink-0">
           <Button
             variant="outline"
-            className="border-red-400 text-red-500 hover:bg-red-50"
+            className="border-gray-300 text-gray-700 hover:bg-gray-100"
             onClick={handleClose}
             disabled={saving}
           >
-            Cancel
+            {isViewOnly ? 'Close' : 'Cancel'}
           </Button>
 
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : isEditMode ? 'Update Unit' : 'Save Unit'}
-          </Button>
+          {!isViewOnly && (
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : isEditMode ? 'Update Unit' : 'Save Unit'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -22,6 +22,8 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { Link, useNavigate } from "react-router";
+import { usePagePermissions } from "@/utils/permissions";
+import { AccessDenied } from "@/components/common/AccessDenied";
 import {
   getAllSubOutlets,
   getSubOutletById,
@@ -56,6 +58,7 @@ const StatusBadge = ({ status }) => (
 
 const SubUnitListing = () => {
   const navigate = useNavigate();
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Units');
   const [subUnits, setSubUnits] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -105,37 +108,23 @@ const SubUnitListing = () => {
     fetchSubUnits();
   }, []);
 
-  const handleViewClick = async (subUnit) => {
-    try {
-      const res = await getSubOutletById(subUnit.id);
-      navigate("/sub-units/sub-unit-details", {
-        state: {
-          subUnit: res.data.data,
-        },
-      });
-    } catch (error) {
-      console.error(error);
-    }
+  const handleViewClick = (subUnit) => {
+    navigate('/sub-units/view', {
+      state: { subUnitId: subUnit.id },
+    });
   };
 
-  const filteredSubUnits = useMemo(
-    () =>
-      subUnits.filter((s) => {
-        const q = search.toLowerCase();
-        const matchesSearch =
-          (s.name || "").toLowerCase().includes(q) ||
-          (s.code || "").toLowerCase().includes(q) ||
-          (s.location || "").toLowerCase().includes(q) ||
-          (s.email || "").toLowerCase().includes(q) ||
-          (s.mobile || "").toLowerCase().includes(q);
-        const matchesStatus = statusFilter === "all" || s.status === statusFilter;
-        return matchesSearch && matchesStatus;
-      }),
-    [subUnits, search, statusFilter],
-  );
+  const handleEdit = (subUnit) => {
+    navigate('/sub-units/add', {
+      state: { subUnitId: subUnit.id, isEdit: true },
+    });
+  };
 
-  const openDeleteConfirm = (row) => {
-    setDeleteTarget({ id: row.id, name: row.name });
+  const openDeleteConfirm = (subUnit) => {
+    setDeleteTarget({
+      id: subUnit.id,
+      itemLabel: subUnit.name,
+    });
     setShowDeleteConfirm(true);
   };
 
@@ -147,33 +136,35 @@ const SubUnitListing = () => {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
+
+    setDeleteLoading(true);
     try {
-      setDeleteLoading(true);
       await deleteSubOutletById(deleteTarget.id);
-      setShowDeleteConfirm(false);
-      setDeleteTarget(null);
-      await fetchSubUnits();
+      closeDeleteConfirm();
+      fetchSubUnits();
     } catch (err) {
-      console.error(err);
+      console.error("Failed to delete sub unit:", err);
     } finally {
       setDeleteLoading(false);
     }
   };
 
+  const filteredSubUnits = useMemo(
+    () =>
+      subUnits.filter((item) => {
+        const matchSearch =
+          item.name.toLowerCase().includes(search.toLowerCase()) ||
+          item.code.toLowerCase().includes(search.toLowerCase()) ||
+          item.location.toLowerCase().includes(search.toLowerCase()) ||
+          item.mobile.toLowerCase().includes(search.toLowerCase());
 
+        const matchStatus =
+          statusFilter === "all" ? true : item.status === statusFilter;
 
-  const handleEdit = async (subUnit) => {
-    try {
-      const res = await getSubOutletById(subUnit.id);
-      navigate("/sub-units/update-sub-unit", {
-        state: {
-          subUnit: res.data.data,
-        },
-      });
-    } catch (error) {
-      console.error(error);
-    }
-  };
+        return matchSearch && matchStatus;
+      }),
+    [subUnits, search, statusFilter],
+  );
 
   const columns = useMemo(
     () => [
@@ -182,21 +173,25 @@ const SubUnitListing = () => {
         accessorFn: (row) => row.name,
         header: ({ column }) => <DataGridColumnHeader title="Sub Unit Name" column={column} />,
         cell: ({ row }) => (
-          <span className="font-semibold text-gray-800">{row.original.name}</span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+              <Building2 className="w-4 h-4 text-blue-700" />
+            </div>
+            <span className="font-semibold text-gray-800">{row.original.name}</span>
+          </div>
         ),
-        size: 220,
+      },
+      {
+        id: "code",
+        accessorFn: (row) => row.code,
+        header: ({ column }) => <DataGridColumnHeader title="Sub Unit Code" column={column} />,
+        cell: ({ row }) => <span className="text-gray-600">{row.original.code}</span>,
       },
       {
         id: "location",
         accessorFn: (row) => row.location,
         header: ({ column }) => <DataGridColumnHeader title="Location" column={column} />,
         cell: ({ row }) => <span className="text-gray-600">{row.original.location}</span>,
-      },
-      {
-        id: "email",
-        accessorFn: (row) => row.email,
-        header: ({ column }) => <DataGridColumnHeader title="Contact Email" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.email}</span>,
       },
       {
         id: "mobile",
@@ -227,28 +222,32 @@ const SubUnitListing = () => {
             >
               <Eye size={18} />
             </button>
-            <button
-              type="button"
-              onClick={() => handleEdit(row.original)}
-              className="text-gray-500 hover:text-blue-600 cursor-pointer"
-              title="Update sub unit"
-            >
-              <SquarePen size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => openDeleteConfirm(row.original)}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-              title="Delete sub unit"
-            >
-              <Trash2 size={18} />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => handleEdit(row.original)}
+                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                title="Update sub unit"
+              >
+                <SquarePen size={18} />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => openDeleteConfirm(row.original)}
+                className="text-red-300 hover:text-red-600 cursor-pointer"
+                title="Delete sub unit"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         ),
         enableSorting: false,
       },
     ],
-    [],
+    [canEdit, canDelete],
   );
 
   const table = useReactTable({
@@ -265,6 +264,10 @@ const SubUnitListing = () => {
     { key: "active", label: "Active" },
     { key: "inactive", label: "Inactive" },
   ];
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Sub Units" />;
+  }
 
   if (loading) {
     return (
@@ -300,13 +303,15 @@ const SubUnitListing = () => {
               </p>
             </div>
           </div>
-          <Link
-            to="/sub-units/add"
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition"
-          >
-            <Plus className="w-4 h-4" />
-            Add new sub unit
-          </Link>
+          {canAdd && (
+            <Link
+              to="/sub-units/add"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition"
+            >
+              <Plus className="w-4 h-4" />
+              Add new sub unit
+            </Link>
+          )}
         </div>
 
         <DataGrid table={table} recordCount={filteredSubUnits.length}>

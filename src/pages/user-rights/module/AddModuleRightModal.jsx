@@ -5,7 +5,7 @@ import { createModuleRight, updateModuleRight } from '@/services/apiServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-const AddModuleRightModal = ({ isOpen, onClose, onSaved, initialData }) => {
+const AddModuleRightModal = ({ isOpen, onClose, onSaved, initialData, isViewOnly = false }) => {
   const isEditMode = Boolean(initialData?.id);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -58,6 +58,8 @@ const AddModuleRightModal = ({ isOpen, onClose, onSaved, initialData }) => {
     }
   };
 
+  const isValid = name.trim().length > 0;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 flex flex-col max-h-[90vh]">
@@ -69,10 +71,12 @@ const AddModuleRightModal = ({ isOpen, onClose, onSaved, initialData }) => {
             </div>
             <div>
               <h3 className="text-lg font-semibold leading-none">
-                {isEditMode ? 'Edit Module Right' : 'Add Module Right'}
+                {isViewOnly ? 'View Module Right' : isEditMode ? 'Edit Module Right' : 'Add Module Right'}
               </h3>
               <p className="text-xs text-gray-500 mt-2">
-                {isEditMode
+                {isViewOnly
+                  ? 'View module right details.'
+                  : isEditMode
                   ? 'Update this module right.'
                   : 'Configure a new module right for page assignment.'}
               </p>
@@ -101,6 +105,7 @@ const AddModuleRightModal = ({ isOpen, onClose, onSaved, initialData }) => {
             <Input
               placeholder="Enter Module Right Name"
               className="mt-1.5 border-[#C3C6D1] focus:border-[#084E92]"
+              disabled={isViewOnly}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -110,16 +115,18 @@ const AddModuleRightModal = ({ isOpen, onClose, onSaved, initialData }) => {
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 p-4 border-t bg-gray-50 flex-shrink-0">
           <Button variant="outline" onClick={handleClose} disabled={saving}>
-            Cancel
+            {isViewOnly ? 'Close' : 'Cancel'}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!isValid || saving}
-            className="bg-[#084E92] hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
-          </Button>
+          {!isViewOnly && (
+            <Button
+              onClick={handleSave}
+              disabled={!isValid || saving}
+              className="bg-[#084E92] hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -27,6 +27,8 @@ import {
 } from '@/components/ui/select';
 import AddAssetItemModal, { CATEGORIES } from './AddAssetsItemModal';
 import { notify } from "@/utils/toast";
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 // Seed data so the listing has something to show on first load
 const SEED_ITEMS = [
@@ -122,6 +124,7 @@ const SortableHeader = ({ label, sortKey, sortConfig, onSort }) => {
 };
 
 const AssetItemsList = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Asset Items');
   const [items, setItems] = useState(SEED_ITEMS);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -240,6 +243,10 @@ const AssetItemsList = () => {
   const inactiveCount = items.length - activeCount;
   const categoriesCovered = new Set(items.map((it) => it.category)).size;
 
+  if (!canView) {
+    return <AccessDenied pageTitle="Asset Items" />;
+  }
+
   return (
     <div className="p-4">
       <div className="max-w-6xl mx-auto space-y-4">
@@ -265,13 +272,15 @@ const AssetItemsList = () => {
               <Upload className="h-4 w-4" />
               Export
             </Button>
-            <Button
-              onClick={openAddModal}
-              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Asset Item
-            </Button>
+            {canAdd && (
+              <Button
+                onClick={openAddModal}
+                className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Asset Item
+              </Button>
+            )}
           </div>
         </div>
 
@@ -422,25 +431,29 @@ const AssetItemsList = () => {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => setViewingItem(item)}
-                            className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-primary transition-colors"
+                            className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-primary transition-colors cursor-pointer"
                             title="View"
                           >
                             <Eye className="h-4 w-4" />
                           </button>
-                          <button
-                            onClick={() => openEditModal(item)}
-                            className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-primary transition-colors"
-                            title="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => openEditModal(item)}
+                              className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-primary transition-colors cursor-pointer"
+                              title="Edit"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 rounded hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors cursor-pointer"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

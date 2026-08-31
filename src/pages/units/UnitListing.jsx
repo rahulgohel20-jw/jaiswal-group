@@ -28,6 +28,8 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
   deleteCompany,
@@ -128,26 +130,26 @@ const TruncatedCell = ({
 
 const UnitListing = () => {
   const navigate = useNavigate();
-  const [Units, setUnits] = useState([]);
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Units');
+
+  const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [deleteTarget, setDeleteTarget] = useState(null);
-    const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const normalizeUnit = (item) => ({
     id: item.id,
     name: item.companyNameEnglish || '',
     code: item.companyCode || '',
     location: item.cityName || '',
-    email: item.emailid || '',
+    email: item.email || '',
     mobile: item.mobilenumber || '',
-    address: item.addressEnglish || '',
-    parentName: item.parentName || '',
     status: item.isActive ? 'active' : 'inactive',
     originalData: item,
   });
@@ -178,37 +180,35 @@ const UnitListing = () => {
 
   const filteredUnits = useMemo(
     () =>
-      Units.filter((o) => {
+      units.filter((u) => {
         const searchText = search.toLowerCase();
 
         const matchesSearch =
-          (o.name || '').toLowerCase().includes(searchText) ||
-          (o.code || '').toLowerCase().includes(searchText) ||
-          (o.location || '').toLowerCase().includes(searchText) ||
-          (o.email || '').toLowerCase().includes(searchText) ||
-          (o.mobile || '').toLowerCase().includes(searchText);
+          (u.name || '').toLowerCase().includes(searchText) ||
+          (u.code || '').toLowerCase().includes(searchText) ||
+          (u.location || '').toLowerCase().includes(searchText) ||
+          (u.email || '').toLowerCase().includes(searchText) ||
+          (u.mobile || '').toLowerCase().includes(searchText);
 
         const matchesStatus =
-          statusFilter === 'all' || o.status === statusFilter;
+          statusFilter === 'all' || u.status === statusFilter;
 
         return matchesSearch && matchesStatus;
       }),
-    [Units, search, statusFilter],
+    [units, search, statusFilter],
   );
 
-  // Sends the user to the same form used for creating a Unit, but with the
-  // row's data attached via router state — the form flips into edit mode
-  // (title, copy, and the Save button all switch to "Update") whenever
-  // state.unit is present.
   const handleEdit = (unit) => {
-    navigate('/units/update-unit', {
-      state: {
-        unit: unit.originalData,
-      },
+    navigate('/units/add-unit', {
+      state: { unitId: unit.id, isEdit: true },
     });
   };
-const openDeleteConfirm = (row) => {
-    setDeleteTarget({ id: row.id, name: row.name });
+
+  const openDeleteConfirm = (item) => {
+    setDeleteTarget({
+      id: item.id,
+      itemLabel: item.name,
+    });
     setShowDeleteConfirm(true);
   };
 
@@ -332,7 +332,7 @@ const openDeleteConfirm = (row) => {
               type="button"
               onClick={() =>
                 navigate('/units/view-unit', {
-                  state: { unit: row.original },
+                  state: { unit: row.original.originalData },
                 })
               }
               className="text-gray-500 hover:text-green-600 cursor-pointer"
@@ -340,29 +340,33 @@ const openDeleteConfirm = (row) => {
             >
               <Eye size={18} />
             </button>
-            <button
-              type="button"
-              onClick={() => handleEdit(row.original)}
-              className="text-gray-500 hover:text-blue-600 cursor-pointer"
-              title="Update Unit"
-            >
-              <SquarePen size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => openDeleteConfirm(row.original)}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-              title="Delete Unit"
-            >
-              <Trash2 size={18} />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => handleEdit(row.original)}
+                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                title="Update Unit"
+              >
+                <SquarePen size={18} />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => openDeleteConfirm(row.original)}
+                className="text-red-300 hover:text-red-600 cursor-pointer"
+                title="Delete Unit"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         ),
         enableSorting: false,
         size: 130,
       },
     ],
-    [],
+    [canEdit, canDelete],
   );
 
   const table = useReactTable({
@@ -381,6 +385,10 @@ const openDeleteConfirm = (row) => {
     { key: 'pending', label: 'Pending' },
     { key: 'maintenance', label: 'Maintenance' },
   ];
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Units" />;
+  }
 
   if (loading) {
     return (
@@ -413,13 +421,15 @@ const openDeleteConfirm = (row) => {
               panel.
             </p>
           </div>
-          <Link
-            to="/units/add-unit"
-            className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition whitespace-nowrap shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            Add New Unit
-          </Link>
+          {canAdd && (
+            <Link
+              to="/units/add-unit"
+              className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition whitespace-nowrap shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Add New Unit
+            </Link>
+          )}
         </div>
 
         <DataGrid table={table} recordCount={filteredUnits.length}>

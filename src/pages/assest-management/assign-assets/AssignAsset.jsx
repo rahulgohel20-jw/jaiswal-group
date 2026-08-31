@@ -49,6 +49,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 // Safely pulls the array out of a response, regardless of whether the
 // service resolves to the raw axios response, an already-unwrapped
@@ -111,6 +113,7 @@ const AssignmentPreviewDrawer = ({
   onTransfer,
   onMarkReturned,
   actionSaving,
+  canEdit = true,
 }) => {
   if (!assignment) return null;
 
@@ -176,77 +179,77 @@ const AssignmentPreviewDrawer = ({
             </div>
             <div className="bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-4 grid grid-cols-2 gap-x-4 gap-y-4">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                  Type
+                </p>
+                <div className="mt-1">
+                  <AssignTypeBadge assignType={assignment.assignType} />
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                  Status
+                </p>
+                <div className="mt-1">
+                  <StatusBadge status={assignment.status} />
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                   Assigned To
                 </p>
-                <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                <p className="text-xs font-semibold text-gray-800 mt-1">
                   {assignment.assignedTo}
                 </p>
               </div>
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                   Quantity
                 </p>
-                <p className="text-sm font-semibold text-gray-800 mt-0.5">
+                <p className="text-xs font-semibold text-gray-800 mt-1">
                   {assignment.qty}
                 </p>
               </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Assignment Date
+              <div className="col-span-2">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                  Location / Outlet
                 </p>
-                <p className="text-sm font-semibold text-gray-800 mt-0.5">
-                  {assignment.createdAt ?? '—'}
+                <p className="text-xs font-semibold text-gray-800 mt-1">
+                  {assignment.location}
+                  {assignment.city && assignment.city !== '—'
+                    ? `, ${assignment.city}`
+                    : ''}
+                  {assignment.state && assignment.state !== '—'
+                    ? `, ${assignment.state}`
+                    : ''}
                 </p>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                  Status
-                </p>
-                <p className="text-sm font-semibold text-gray-800 mt-0.5">
-                  {assignment.status}
-                </p>
-              </div>
-              <div className="col-span-2 flex items-start gap-2 pt-1 border-t border-blue-100">
-                <MapPin className="w-3.5 h-3.5 text-gray-400 mt-1 shrink-0" />
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    Location
-                  </p>
-                  <p className="text-sm font-semibold text-gray-800 mt-0.5">
-                    {assignment.location}
-                    {assignment.city && assignment.city !== '—'
-                      ? `, ${assignment.city}`
-                      : ''}
-                    {assignment.state && assignment.state !== '—'
-                      ? `, ${assignment.state}`
-                      : ''}
-                  </p>
-                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 px-5 py-4 border-t border-gray-100 shrink-0">
-          <button
-            type="button"
-            onClick={() => onTransfer?.(assignment)}
-            disabled={actionSaving}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition disabled:opacity-60"
-          >
-            <ArrowLeftRight className="w-4 h-4" />
-            Transfer Asset
-          </button>
-      
-        </div>
+        {canEdit && (
+          <div className="flex items-center gap-3 px-5 py-4 border-t border-gray-100 shrink-0">
+            <button
+              type="button"
+              onClick={() => onTransfer?.(assignment)}
+              disabled={actionSaving}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition disabled:opacity-60"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+              Transfer Asset
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 const AssignAssets = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assigned Asset');
+
   const [assignments, setAssignments] = useState([]);
   const [assets, setAssets] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -506,7 +509,6 @@ const AssignAssets = () => {
       setActionSaving(false);
     }
   };
-
   const handleTransfer = (assignment) => {
     // TODO: no transfer endpoint exists yet in apiServices.js — wire this
     // up once a `/assign-assets/transfer` (or similar) API is available.
@@ -514,7 +516,7 @@ const AssignAssets = () => {
     setPreviewAssignment(null);
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       id: 'select',
       header: ({ table }) => (
@@ -583,27 +585,14 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <div className="font-medium text-gray-800 py-1">
+        <span className="font-semibold text-gray-800 py-1">
           {row.original.itemName}
-        </div>
+        </span>
       ),
       size: 160,
     },
     {
-      id: 'assignType',
-      accessorFn: (row) => row.assignType,
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="ASSIGN TYPE"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => <AssignTypeBadge assignType={row.original.assignType} />,
-      size: 130,
-    },
-    {
-      id: 'assignedTo',
+      id: 'assignee',
       accessorFn: (row) => row.assignedTo,
       header: ({ column }) => (
         <DataGridColumnHeader
@@ -613,26 +602,46 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 py-1">{row.original.assignedTo}</span>
+        <div className="py-1">
+          <p className="font-semibold text-gray-800 leading-tight">
+            {row.original.assignedTo}
+          </p>
+          <p className="text-xs text-gray-400">
+            {row.original.assigneeRole} · {row.original.assigneeDept}
+          </p>
+        </div>
       ),
-      size: 160,
+      size: 170,
     },
     {
-      id: 'location',
-      accessorFn: (row) => row.location,
+      id: 'outlet',
+      accessorFn: (row) => row.outlet,
       header: ({ column }) => (
         <DataGridColumnHeader
-          title="UNIT/LOCATION"
+          title="OUTLET"
           column={column}
           className="text-[#43474F] font-semibold"
         />
       ),
       cell: ({ row }) => (
-        <div className="text-gray-600 text-sm leading-snug py-1">
-          {row.original.location}
-        </div>
+        <span className="text-gray-700 py-1">{row.original.outlet}</span>
       ),
-      size: 170,
+      size: 140,
+    },
+    {
+      id: 'assignedDate',
+      accessorFn: (row) => row.assignedDate,
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="ASSIGNED DATE"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      cell: ({ row }) => (
+        <span className="text-gray-700 py-1">{row.original.assignedDate}</span>
+      ),
+      size: 130,
     },
     {
       id: 'qty',
@@ -678,30 +687,35 @@ const AssignAssets = () => {
           <button
             type="button"
             onClick={() => setPreviewAssignment(row.original)}
+            title="View Assignment"
           >
             <Eye
               size={18}
               className="text-gray-500 hover:text-blue-600 cursor-pointer"
             />
           </button>
-          <Link to={`/assets/assign-asset/edit/${row.original.id}`}>
-            <SquarePen
-              size={18}
-              className="text-gray-500 hover:text-green-600 cursor-pointer"
-            />
-          </Link>
-          <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-            <Trash2
-              size={18}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-            />
-          </button>
+          {canEdit && (
+            <Link to={`/assets/assign-asset/edit/${row.original.id}`}>
+              <SquarePen
+                size={18}
+                className="text-gray-500 hover:text-green-600 cursor-pointer"
+              />
+            </Link>
+          )}
+          {canDelete && (
+            <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete Assignment">
+              <Trash2
+                size={18}
+                className="text-red-300 hover:text-red-600 cursor-pointer"
+              />
+            </button>
+          )}
         </div>
       ),
       enableSorting: false,
       size: 110,
     },
-  ];
+  ], [canEdit, canDelete]);
 
   const table = useReactTable({
     data: filteredAssignments,
@@ -713,6 +727,10 @@ const AssignAssets = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Assigned Asset" />;
+  }
 
   return (
     <Container>
@@ -741,15 +759,17 @@ const AssignAssets = () => {
               <Upload size={16} />
               Export Assignments
             </button>
-            <Link to="/assets/assign-asset">
-              <button
-                type="button"
-                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-              >
-                <Plus size={16} />
-                Assign Asset
-              </button>
-            </Link>
+            {canAdd && (
+              <Link to="/assets/assign-asset">
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                >
+                  <Plus size={16} />
+                  Assign Asset
+                </button>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -872,6 +892,7 @@ const AssignAssets = () => {
             onTransfer={handleTransfer}
             onMarkReturned={handleMarkReturned}
             actionSaving={actionSaving}
+            canEdit={canEdit}
           />
         )}
         <DeleteConfirmModal

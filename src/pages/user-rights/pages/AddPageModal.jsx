@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 
 const emptyForm = { pagename: '', moduleId: '' };
 
-const AddPageModal = ({ isOpen, onClose, onSaved, initialData }) => {
+const AddPageModal = ({ isOpen, onClose, onSaved, initialData, isViewOnly = false }) => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -102,11 +102,11 @@ const AddPageModal = ({ isOpen, onClose, onSaved, initialData }) => {
               <FileText className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold leading-none">
-                {isEditMode ? 'Edit Page' : 'Add Page'}
+              <h3 className="text-base font-bold text-[#1B1B1F] leading-tight">
+                {isViewOnly ? 'View Page Details' : isEditMode ? 'Edit Page' : 'Create New Page'}
               </h3>
-              <p className="text-xs text-gray-500 mt-2">
-                {isEditMode
+              <p className="text-xs text-gray-400 mt-0.5">
+                {isViewOnly ? 'View page configuration.' : isEditMode
                   ? 'Update this page config.'
                   : 'Configure a new page for system permissions.'}
               </p>
@@ -136,6 +136,7 @@ const AddPageModal = ({ isOpen, onClose, onSaved, initialData }) => {
               <Input
                 placeholder="e.g., User Rights"
                 className="mt-1.5 border-[#C3C6D1] focus:border-[#084E92]"
+                disabled={isViewOnly}
                 value={form.pagename}
                 onChange={(e) => set('pagename', e.target.value)}
               />
@@ -148,7 +149,7 @@ const AddPageModal = ({ isOpen, onClose, onSaved, initialData }) => {
               <select
                 value={form.moduleId}
                 onChange={(e) => set('moduleId', e.target.value)}
-                disabled={modulesLoading}
+                disabled={isViewOnly || modulesLoading}
                 className="mt-1.5 w-full border border-[#C3C6D1] rounded-lg px-3 py-2 outline-none focus:border-[#084E92] bg-white disabled:bg-gray-50"
               >
                 <option value="">
@@ -167,16 +168,18 @@ const AddPageModal = ({ isOpen, onClose, onSaved, initialData }) => {
         {/* Footer - Fixed */}
         <div className="flex items-center justify-end gap-2 p-4 border-t bg-gray-50 flex-shrink-0">
           <Button variant="outline" onClick={handleClose} disabled={saving}>
-            Cancel
+            {isViewOnly ? 'Close' : 'Cancel'}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!isValid || saving}
-            className="bg-[#084E92] hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : isEditMode ? 'Update Page' : 'Save Page'}
-          </Button>
+          {!isViewOnly && (
+            <Button
+              onClick={handleSave}
+              disabled={!isValid || saving}
+              className="bg-[#084E92] hover:bg-[#073e77] text-white flex items-center gap-2 cursor-pointer"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : isEditMode ? 'Update Page' : 'Save Page'}
+            </Button>
+          )}
         </div>
       </div>
     </div>

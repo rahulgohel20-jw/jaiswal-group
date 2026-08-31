@@ -21,6 +21,8 @@ import {
   getAssignAssetById,
   updateAssignAsset,
 } from '@/services/apiServices.js';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
   Popover,
   PopoverContent,
@@ -260,6 +262,10 @@ const ASSET_TYPE_OPTIONS = [
 ];
 
 const AddAssignAsset = () => {
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
+  const { canAdd, canEdit, canView } = usePagePermissions('Assigned Asset');
+
   const [form, setForm] = useState({
     assetId: '', // id of the selected asset from the searchable dropdown
     assetType: 'individual', // 'individual' | 'company_outlet'
@@ -284,9 +290,7 @@ const AddAssignAsset = () => {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const { id } = useParams();
   const navigate = useNavigate();
-  const isEditMode = Boolean(id);
   const [loadingRecord, setLoadingRecord] = useState(isEditMode);
 
   useEffect(() => {
@@ -658,6 +662,10 @@ const AddAssignAsset = () => {
       setSaving(false);
     }
   };
+
+  if (!canView || (isEditMode ? !canEdit : !canAdd)) {
+    return <AccessDenied pageTitle={isEditMode ? 'Edit Assignment' : 'Assign Asset'} />;
+  }
 
   return (
     <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">

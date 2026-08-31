@@ -34,6 +34,8 @@ import { Container } from '@/components/common/container';
 import AddRawMaterialCategoryModal from './AddRowMaterialCategoryModel';
 import RawMaterialCategoryDetailsModal from './RawMaterialCategoryDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -74,6 +76,8 @@ const unwrapListPayload = (payload) => {
 };
 
 const RowMaterialCategories = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Categories');
+
   // NOTE: RawMaterialCategoryDetailsModal.jsx also needs its
   // `category.rawMaterialCategoryTypeName || category.typeName` field
   // changed to `category.rawMaterialCatType?.nameEnglish`, matching the
@@ -259,126 +263,135 @@ const RowMaterialCategories = () => {
     return { total, active, inactive };
   }, [categoriesData]);
 
-  const columns = [
-    {
-      id: 'sno',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="S.NO"
-          column={column}
-          className="py-4"
-        />
-      ),
-      cell: ({ row }) => (
-        <span className="text-gray-500 py-2">
-          {String(row.index + 1).padStart(2, '0')}
-        </span>
-      ),
-      enableSorting: false,
-      size: 70,
-    },
-    {
-      id: 'categoryName',
-      accessorFn: (row) => row.nameEnglish,
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="CATEGORY NAME"
-          column={column}
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="font-semibold text-gray-800 py-2 capitalize">
-          {row.original.nameEnglish}
-        </div>
-      ),
-      size: 220,
-    },
-    {
-      id: 'typeName',
-      accessorFn: (row) => row.typeName,
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="TYPE NAME"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="font-semibold text-gray-800 py-2 capitalize">
-          {row.original.typeName}
-        </div>
-      ),
-      size: 220,
-    },
-    {
-      id: 'status',
-      accessorFn: (row) => row.status,
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="VISIBILITY STATUS"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <label className="relative inline-flex cursor-pointer">
-          <input
-            type="checkbox"
-            checked={row.original.status === "Active"}
-            className="sr-only peer"
-            onChange={() => {
-              setStatusTarget({
-                id: row.original.id,
-                itemLabel: row.original.name,
-                nextActive: row.original.status !== "Active",
-                nextStatusLabel:
-                  row.original.status === "Active" ? "Inactive" : "Active",
-              });
-              setShowStatusConfirm(true);
-            }}
+  const columns = useMemo(
+    () => [
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.NO"
+            column={column}
+            className="py-4"
           />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2">
+            {String(row.index + 1).padStart(2, '0')}
+          </span>
+        ),
+        enableSorting: false,
+        size: 70,
+      },
+      {
+        id: 'categoryName',
+        accessorFn: (row) => row.nameEnglish,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="CATEGORY NAME"
+            column={column}
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="font-semibold text-gray-800 py-2 capitalize">
+            {row.original.nameEnglish}
+          </div>
+        ),
+        size: 220,
+      },
+      {
+        id: 'typeName',
+        accessorFn: (row) => row.typeName,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="TYPE NAME"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="font-semibold text-gray-800 py-2 capitalize">
+            {row.original.typeName}
+          </div>
+        ),
+        size: 220,
+      },
+      {
+        id: 'status',
+        accessorFn: (row) => row.status,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="VISIBILITY STATUS"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <label className={`relative inline-flex ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+            <input
+              type="checkbox"
+              checked={row.original.status === "Active"}
+              disabled={!canEdit}
+              className="sr-only peer"
+              onChange={() => {
+                if (!canEdit) return;
+                setStatusTarget({
+                  id: row.original.id,
+                  nameEnglish: row.original.nameEnglish,
+                  nextActive: row.original.status !== "Active",
+                  nextStatusLabel:
+                    row.original.status === "Active" ? "Inactive" : "Active",
+                });
+                setShowStatusConfirm(true);
+              }}
+            />
 
-          <div className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
-              after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full " />
-        </label>
-      ),
-      size: 180,
-    },
-    {
-      id: 'actions',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="ACTIONS"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3 py-1">
-          <button type="button" onClick={() => openViewModal(row.original)}>
-            <Eye
-              size={18}
-              className="text-[#084E92] hover:text-blue-700 cursor-pointer"
-            />
-          </button>
-          <button type="button" onClick={() => openEditModal(row.original)}>
-            <SquarePen
-              size={18}
-              className="text-gray-500 hover:text-green-600 cursor-pointer"
-            />
-          </button>
-          <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-            <Trash2
-              size={18}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-            />
-          </button>
-        </div>
-      ),
-      enableSorting: false,
-      size: 120,
-    },
-  ];
+            <div className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
+                after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full " />
+          </label>
+        ),
+        size: 180,
+      },
+      {
+        id: 'actions',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="ACTIONS"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3 py-1">
+            <button type="button" onClick={() => openViewModal(row.original)} title="View Details">
+              <Eye
+                size={18}
+                className="text-[#084E92] hover:text-blue-700 cursor-pointer"
+              />
+            </button>
+            {canEdit && (
+              <button type="button" onClick={() => openEditModal(row.original)} title="Edit">
+                <SquarePen
+                  size={18}
+                  className="text-gray-500 hover:text-green-600 cursor-pointer"
+                />
+              </button>
+            )}
+            {canDelete && (
+              <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete">
+                <Trash2
+                  size={18}
+                  className="text-red-300 hover:text-red-600 cursor-pointer"
+                />
+              </button>
+            )}
+          </div>
+        ),
+        enableSorting: false,
+        size: 110,
+      },
+    ],
+    [canEdit, canDelete],
+  );
 
   const table = useReactTable({
     data: filteredCategories,
@@ -391,15 +404,15 @@ const RowMaterialCategories = () => {
 
   const STATS = [
     {
-      title: 'Total Category',
-      value: String(stats.total),
+      title: 'Total Categories',
+      value: String(stats.total).padStart(2, '0'),
       icon: (
         <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />
       ),
       color: 'text-[#1B1B1F]',
     },
     {
-      title: 'Active Category',
+      title: 'Active Categories',
       value: String(stats.active).padStart(2, '0'),
       icon: (
         <CircleCheck
@@ -410,7 +423,7 @@ const RowMaterialCategories = () => {
       color: 'text-[#15803D]',
     },
     {
-      title: 'Inactive Category',
+      title: 'Inactive Categories',
       value: String(stats.inactive).padStart(2, '0'),
       icon: (
         <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />
@@ -418,6 +431,10 @@ const RowMaterialCategories = () => {
       color: 'text-[#1B1B1F]',
     },
   ];
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Categories" />;
+  }
 
   return (
     <Container>
@@ -448,14 +465,16 @@ const RowMaterialCategories = () => {
               <Upload size={16} />
               Export
             </button>
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-            >
-              <Plus size={16} />
-              Add Category
-            </button>
+            {canAdd && (
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+              >
+                <Plus size={16} />
+                Add Category
+              </button>
+            )}
           </div>
         </div>
 

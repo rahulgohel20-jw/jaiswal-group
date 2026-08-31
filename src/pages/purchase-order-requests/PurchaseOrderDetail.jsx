@@ -21,6 +21,8 @@ import {
 import { Container } from '@/components/common/container';
 import { usePurchaseOrders } from './utils/usePurchaseOrders';
 import PurchaseOrderLog from './PurchaseOrderLog';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const SectionCard = ({ children, className = '' }) => (
   <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>{children}</div>
@@ -90,13 +92,18 @@ const formatDateOnly = (dateStr) => {
 const PurchaseOrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { canView } = usePagePermissions('Purchase Order Requests');
   const { current: po, loading, error, fetchById } = usePurchaseOrders();
-const [logOpen, setLogOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => {
     if (id) fetchById(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Purchase Order Requests" />;
+  }
 
   const displayStatus = po?.status ?? '';
   const isDecided = displayStatus === 'Approved' || displayStatus === 'Rejected';
@@ -229,13 +236,14 @@ const [logOpen, setLogOpen] = useState(false);
                   <th className="text-right font-semibold px-5 py-3">Ordered Qty</th>
                   <th className="text-right font-semibold px-5 py-3">Received Qty</th>
                   <th className="text-right font-semibold px-5 py-3">Unit Price</th>
+                  <th className="text-left font-semibold px-5 py-3 min-w-[140px]">Remarks</th>
                   <th className="text-right font-semibold px-5 py-3">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {itemCount === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-5 py-14 text-center text-gray-400">
+                    <td colSpan={8} className="px-5 py-14 text-center text-gray-400">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="w-6 h-6 text-gray-300" />
                         No items on this purchase order.
@@ -255,6 +263,9 @@ const [logOpen, setLogOpen] = useState(false);
                       <td className="px-5 py-3.5 text-right font-medium text-gray-700">{item.quantity}</td>
                       <td className="px-5 py-3.5 text-right text-gray-600">{item.receivedQuantity ?? 0}</td>
                       <td className="px-5 py-3.5 text-right text-gray-600">₹{Number(item.unitPrice).toLocaleString('en-IN')}</td>
+                      <td className="px-5 py-3.5 text-left text-xs text-gray-600 max-w-[200px] truncate" title={item.remarks || ''}>
+                        {item.remarks || '—'}
+                      </td>
                       <td className="px-5 py-3.5 text-right font-semibold text-gray-800">
                         ₹{Number(item.totalPrice ?? item.quantity * item.unitPrice).toLocaleString('en-IN')}
                       </td>

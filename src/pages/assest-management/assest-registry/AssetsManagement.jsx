@@ -21,6 +21,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 // Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
 const unwrapList = (res) => {
@@ -100,6 +102,7 @@ const ConditionBadge = ({ condition }) => {
 
 const AssetsManagement = () => {
     const navigate = useNavigate();
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assets');
 
     const [assets, setAssets] = useState([]);
     const [assetsLoading, setAssetsLoading] = useState(true);
@@ -283,7 +286,7 @@ const AssetsManagement = () => {
         });
     }, [assets, searchInput, categoryInput, statusInput]);
 
-    const columns = [
+    const columns = useMemo(() => [
         {
             id: "select",
 
@@ -423,22 +426,26 @@ const AssetsManagement = () => {
                         }} className="text-gray-500 hover:text-green-600 cursor-pointer" />
                     </button>
 
-                    <button onClick={() => navigate(`/assets/edit-asset/${row.original.id}`)}>
-                        <SquarePen
-                            size={18}
-                            className="text-gray-500 hover:text-blue-600 cursor-pointer"
-                        />
-                    </button>
+                    {canEdit && (
+                        <button onClick={() => navigate(`/assets/edit-asset/${row.original.id}`)}>
+                            <SquarePen
+                                size={18}
+                                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                            />
+                        </button>
+                    )}
 
-                    <button onClick={() => openDeleteConfirm(row.original)}>
-                        <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
-                    </button>
+                    {canDelete && (
+                        <button onClick={() => openDeleteConfirm(row.original)}>
+                            <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
+                        </button>
+                    )}
                 </div>
             ),
             enableSorting: false,
             size: 130,
         },
-    ];
+    ], [canEdit, canDelete]);
 
     const table = useReactTable({
         data: filteredAssets,
@@ -453,6 +460,11 @@ const AssetsManagement = () => {
     useEffect(() => {
         table.setPageIndex(0);
     }, [searchInput, categoryInput, statusInput, table]);
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Assets" />;
+    }
+
     return (
        <Container>
          <div className="p-4 md:p-6">
@@ -482,12 +494,14 @@ const AssetsManagement = () => {
                         <Download size={16} />
                         Export
                     </button>
-                    <Link to="/assets/add-asset">
-                        <button className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
-                            <Plus size={16} />
-                            Add Asset
-                        </button>
-                    </Link>
+                    {canAdd && (
+                        <Link to="/assets/add-asset">
+                            <button className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
+                                <Plus size={16} />
+                                Add Asset
+                            </button>
+                        </Link>
+                    )}
                 </div>
             </div>
 

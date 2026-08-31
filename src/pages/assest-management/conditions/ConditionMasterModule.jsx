@@ -18,6 +18,8 @@ import {
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -62,6 +64,8 @@ const normalizeCondition = (raw = {}, index = 0) => ({
 const EMPTY_FORM = { id: null, name: "", status: "Active" };
 
 const ConditionMasterModule = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Conditions Master');
+
   const [conditions, setConditions] = useState([]);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
@@ -232,7 +236,7 @@ const ConditionMasterModule = () => {
   // -------------------------------------------------------------------
   // Table columns
   // -------------------------------------------------------------------
-  const columns = [
+  const columns = useMemo(() => [
     {
       id: "select",
       header: ({ table }) => (
@@ -315,29 +319,36 @@ const ConditionMasterModule = () => {
             size={18}
             className="text-gray-500 hover:text-green-600 cursor-pointer"
             onClick={() => openViewModal(row.original.id)}
+            title="View Condition"
           />
 
-          <SquarePen
-            size={18}
-            className="text-gray-500 hover:text-blue-600 cursor-pointer"
-            onClick={() => openEditModal(row.original.id)}
-          />
-
-          {deletingId === row.original.id ? (
-            <Loader2 size={18} className="animate-spin text-red-500" />
-          ) : (
-            <Trash2
+          {canEdit && (
+            <SquarePen
               size={18}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-              onClick={() => openDeleteConfirm(row.original)}
+              className="text-gray-500 hover:text-blue-600 cursor-pointer"
+              onClick={() => openEditModal(row.original.id)}
+              title="Edit Condition"
             />
+          )}
+
+          {canDelete && (
+            deletingId === row.original.id ? (
+              <Loader2 size={18} className="animate-spin text-red-500" />
+            ) : (
+              <Trash2
+                size={18}
+                className="text-red-300 hover:text-red-600 cursor-pointer"
+                onClick={() => openDeleteConfirm(row.original)}
+                title="Delete Condition"
+              />
+            )
           )}
         </div>
       ),
 
       enableSorting: false,
     },
-  ];
+  ], [canEdit, canDelete, deletingId]);
 
   const filteredConditions = useMemo(() => {
     return conditions.filter((condition) => {
@@ -374,6 +385,10 @@ const ConditionMasterModule = () => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
+  if (!canView) {
+    return <AccessDenied pageTitle="Conditions Master" />;
+  }
+
   return (
     <Container>
       <div className="p-4 md:p-6">
@@ -397,12 +412,14 @@ const ConditionMasterModule = () => {
             </p>
           </div>
 
-          <div className="flex gap-3">
-            <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
-              <Plus size={16} />
-              Add Condition
-            </button>
-          </div>
+          {canAdd && (
+            <div className="flex gap-3">
+              <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
+                <Plus size={16} />
+                Add Condition
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -460,28 +477,28 @@ const ConditionMasterModule = () => {
 
 
             {/* Status */}
-               <Select
-                                              value={statusInput}
-                                              onValueChange={(value) => setStatusInput(value)}
-                                          >
-                                              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
-                                                  <SelectValue placeholder="All Status" />
-                                              </SelectTrigger>
-              
-                                              <SelectContent>
-                                                  <SelectItem value="All Status">
-                                                      All Status
-                                                  </SelectItem>
-              
-                                                  <SelectItem value="Active">
-                                                      Active
-                                                  </SelectItem>
-              
-                                                  <SelectItem value="Inactive">
-                                                      Inactive
-                                                  </SelectItem>
-                                              </SelectContent>
-                                          </Select>
+            <Select
+              value={statusInput}
+              onValueChange={(value) => setStatusInput(value)}
+            >
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="All Status">
+                  All Status
+                </SelectItem>
+
+                <SelectItem value="Active">
+                  Active
+                </SelectItem>
+
+                <SelectItem value="Inactive">
+                  Inactive
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 

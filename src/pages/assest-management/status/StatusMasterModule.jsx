@@ -31,6 +31,8 @@ import {
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -74,6 +76,8 @@ const normalizeStatusForm = (raw = {}) => ({
 const EMPTY_FORM = { id: null, name: "", description: "", active: true };
 
 const StatusMasterModule = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Status Master');
+
     const [statusData, setStatusData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
@@ -247,7 +251,7 @@ const StatusMasterModule = () => {
     // -------------------------------------------------------------------
     // Table columns
     // -------------------------------------------------------------------
-    const columns = [
+    const columns = useMemo(() => [
         {
             id: "select",
             header: ({ table }) => (
@@ -325,29 +329,36 @@ const StatusMasterModule = () => {
                         size={18}
                         className="text-gray-500 hover:text-green-600 cursor-pointer"
                         onClick={() => openViewModal(row.original.id)}
+                        title="View Status"
                     />
 
-                    <SquarePen
-                        size={18}
-                        className="text-gray-500 hover:text-blue-600 cursor-pointer"
-                        onClick={() => openEditModal(row.original.id)}
-                    />
-
-                    {deletingId === row.original.id ? (
-                        <Loader2 size={16} className="animate-spin text-red-500" />
-                    ) : (
-                        <Trash2
+                    {canEdit && (
+                        <SquarePen
                             size={18}
-                            className="text-red-300 hover:text-red-600 cursor-pointer"
-                            onClick={() => openDeleteConfirm(row.original)}
+                            className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                            onClick={() => openEditModal(row.original.id)}
+                            title="Edit Status"
                         />
+                    )}
+
+                    {canDelete && (
+                        deletingId === row.original.id ? (
+                            <Loader2 size={16} className="animate-spin text-red-500" />
+                        ) : (
+                            <Trash2
+                                size={18}
+                                className="text-red-300 hover:text-red-600 cursor-pointer"
+                                onClick={() => openDeleteConfirm(row.original)}
+                                title="Delete Status"
+                            />
+                        )
                     )}
                 </div>
             ),
 
             enableSorting: false,
         },
-    ];
+    ], [canEdit, canDelete, deletingId]);
 
     const filteredStatusData = useMemo(() => {
         return statusData.filter((status) => {
@@ -382,6 +393,10 @@ const StatusMasterModule = () => {
         getPaginationRowModel: getPaginationRowModel(),
     });
 
+    if (!canView) {
+        return <AccessDenied pageTitle="Status Master" />;
+    }
+
     return (
         <Container>
             <div className='p-4 md:px-6'>
@@ -403,12 +418,14 @@ const StatusMasterModule = () => {
                         </p>
                     </div>
 
-                    <div className="flex gap-3">
-                        <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
-                            <Plus size={16} />
-                            Add Status
-                        </button>
-                    </div>
+                    {canAdd && (
+                        <div className="flex gap-3">
+                            <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
+                                <Plus size={16} />
+                                Add Status
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
                     {STATS.map((item, index) => {

@@ -35,6 +35,8 @@ import AddAssetTypeModal from '../assets-type/AddAssetTypeModal';
 import AddAssetBrandModal from '../asset-brand/AddAssetBrandModal';
 import { getAssetById } from '../../../services/apiServices';
 import { notify } from "@/utils/toast";
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
   Popover,
   PopoverContent,
@@ -419,6 +421,7 @@ const AddAsset = () => {
   const { id: assetIdParam } = useParams();
   const navigate = useNavigate(); 
   const isEditMode = !!assetIdParam;
+  const { canAdd, canEdit, canView } = usePagePermissions('Assets');
 
   const [openSections, setOpenSections] = useState({
     identification: true,
@@ -893,6 +896,10 @@ const AddAsset = () => {
       setSaving(false);
     }
   };
+
+  if (!canView || (isEditMode ? !canEdit : !canAdd)) {
+    return <AccessDenied pageTitle={isEditMode ? 'Edit Asset' : 'Asset Registration'} />;
+  }
 
   return (
     <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">

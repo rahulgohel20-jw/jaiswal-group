@@ -24,6 +24,8 @@ import { getAssetUnits, getAssetUnitById, deleteAssetUnit } from '@/services/api
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -53,6 +55,8 @@ const normalizeUnit = (u) => ({
 });
 
 const AssetUnitList = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Measure of unit Master');
+
     const [units, setUnits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -70,9 +74,9 @@ const AssetUnitList = () => {
     const [showViewUnit, setShowViewUnit] = useState(false);
     const [viewLoading, setViewLoading] = useState(false);
 
-        const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-const [deleteTarget, setDeleteTarget] = useState(null);
-const [deleteSaving, setDeleteSaving] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
 
     const fetchUnits = async () => {
         setLoading(true);
@@ -171,31 +175,33 @@ const [deleteSaving, setDeleteSaving] = useState(false);
             setViewLoading(false);
         }
     };
-        const openDeleteConfirm = (row) => {
-    setDeleteTarget({ id: row.id, itemLabel: row.name });
-    setShowDeleteConfirm(true);
-};
 
-const closeDeleteConfirm = () => {
-    if (deleteSaving) return;
-    setShowDeleteConfirm(false);
-    setDeleteTarget(null);
-};
-const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleteSaving(true);
-    try {
-        await deleteAssetUnit(deleteTarget.id);
-        closeDeleteConfirm();
-        fetchUnits();
-    } catch (err) {
-        console.error(err);
-    } finally {
-        setDeleteSaving(false);
-    }
-};
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
+    };
 
-    const columns = [
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
+        try {
+            await deleteAssetUnit(deleteTarget.id);
+            closeDeleteConfirm();
+            fetchUnits();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeleteSaving(false);
+        }
+    };
+
+    const columns = useMemo(() => [
         {
             id: "select",
             header: ({ table }) => (
@@ -264,21 +270,25 @@ const confirmDelete = async () => {
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button" onClick={() => handleViewClick(row.original)}>
+                    <button type="button" onClick={() => handleViewClick(row.original)} title="View Unit">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
-                    <button type="button" onClick={() => handleEditClick(row.original)}>
-                        <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
-                    </button>
-                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-                        <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
-                    </button>
+                    {canEdit && (
+                        <button type="button" onClick={() => handleEditClick(row.original)} title="Edit Unit">
+                            <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
+                        </button>
+                    )}
+                    {canDelete && (
+                        <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete Unit">
+                            <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
+                        </button>
+                    )}
                 </div>
             ),
             enableSorting: false,
             size: 110,
         },
-    ];
+    ], [canEdit, canDelete]);
 
     const table = useReactTable({
         data: filteredUnits,
@@ -290,6 +300,10 @@ const confirmDelete = async () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Measure of unit Master" />;
+    }
 
     return (
        <Container>
@@ -316,14 +330,16 @@ const confirmDelete = async () => {
                         <Upload size={16} />
                         Export
                     </button>
-                    <button
-                        type="button"
-                        onClick={handleAddClick}
-                        className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                    >
-                        <Plus size={16} />
-                        Add Unit
-                    </button>
+                    {canAdd && (
+                        <button
+                            type="button"
+                            onClick={handleAddClick}
+                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                        >
+                            <Plus size={16} />
+                            Add Unit
+                        </button>
+                    )}
                 </div>
             </div>
 

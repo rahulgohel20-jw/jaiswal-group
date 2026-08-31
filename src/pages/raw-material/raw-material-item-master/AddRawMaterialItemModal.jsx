@@ -54,6 +54,9 @@ const emptyForm = {
   minOrder: '',
   sequence: '',
   weightPer100Pax: '',
+  hsnCode: '',
+  tax: '',
+  cess: '',
   isGeneralFix: false,
   isApplyCal: false,
   file: null,
@@ -166,6 +169,7 @@ const AddRawMaterialItemModal = ({
   isOpen,
   onClose,
   editData = null,
+  isViewOnly = false,
   fetchRawMaterialList,
   fetchStats,
 }) => {
@@ -525,6 +529,9 @@ const AddRawMaterialItemModal = ({
         minOrder: editData.minOrder ?? '',
         sequence: editData.sequence ?? '',
         weightPer100Pax: editData.weightPer100Pax ?? '',
+        hsnCode: editData.hsnCode ?? '',
+        tax: editData.tax ?? '',
+        cess: editData.cess ?? '',
         isGeneralFix: editData.isGeneralFix ?? false,
         isApplyCal: editData.isApplyCal ?? false,
         file: null,
@@ -675,6 +682,16 @@ const AddRawMaterialItemModal = ({
         formData.append('opbStock', Number(form.opbStock));
       }
 
+      if (form.hsnCode !== '') {
+        formData.append('hsnCode', form.hsnCode);
+      }
+      if (form.tax !== '' && form.tax !== null && form.tax !== undefined) {
+        formData.append('tax', Number(form.tax));
+      }
+      if (form.cess !== '' && form.cess !== null && form.cess !== undefined) {
+        formData.append('cess', Number(form.cess));
+      }
+
       formData.append('isGeneralFix', form.isGeneralFix);
       formData.append('isApplyCal', form.isApplyCal);
       formData.append('userId', userId);
@@ -747,13 +764,17 @@ const AddRawMaterialItemModal = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-[#00376C]">
-                {editData
+                {isViewOnly
+                  ? 'View Raw Material Item'
+                  : editData
                   ? 'Edit Raw Material Item'
                   : 'Add New Raw Material Item'}
               </h2>
 
               <p className="text-xs text-gray-500">
-                {editData
+                {isViewOnly
+                  ? 'View material properties and supplier associations'
+                  : editData
                   ? 'Update material properties and supplier associations'
                   : 'Configure material properties and supplier associations'}
               </p>
@@ -1020,6 +1041,46 @@ const AddRawMaterialItemModal = ({
               {errors.minStock && (
                 <p className="text-red-500 text-xs mt-1">{errors.minStock}</p>
               )}
+            </div>
+          </div>
+
+          {/* Row 5 - Tax & HSN Details */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div>
+              <label className="text-sm font-medium">HSN / SAC Code</label>
+              <Input
+                type="text"
+                placeholder="e.g. 1901"
+                className="mt-1"
+                value={form.hsnCode}
+                onChange={(e) => set('hsnCode', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Tax (%)</label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="0 %"
+                className="mt-1"
+                value={form.tax}
+                onWheel={(e) => e.currentTarget.blur()}
+                onChange={(e) => set('tax', e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Cess (%)</label>
+              <Input
+                type="number"
+                min="0"
+                max="100"
+                placeholder="0 %"
+                className="mt-1"
+                value={form.cess}
+                onWheel={(e) => e.currentTarget.blur()}
+                onChange={(e) => set('cess', e.target.value)}
+              />
             </div>
           </div>
 
@@ -1310,20 +1371,22 @@ const AddRawMaterialItemModal = ({
         {/* Footer */}
 
         <div className="border-t p-5 flex justify-end bg-[#EFF4FF] border border-[#C3C6D1] flex-col sm:flex-row gap-4">
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="flex gap-3 justify-end">
             <button
               onClick={handleClose}
-              className="border border-[#00376C] text-[#00376C] px-5 py-2 rounded-lg cursor-pointer"
+              className="border border-[#00376C] text-[#00376C] px-5 py-2 rounded-lg cursor-pointer hover:bg-blue-50"
             >
-              Cancel
+              {isViewOnly ? 'Close' : 'Cancel'}
             </button>
 
-            <button
-              onClick={handleSave}
-              className="bg-[#00376C] text-white px-5 py-2 rounded-lg cursor-pointer"
-            >
-              {editData ? 'Update Material' : 'Save Material'}
-            </button>
+            {!isViewOnly && (
+              <button
+                onClick={handleSave}
+                className="bg-[#00376C] text-white px-5 py-2 rounded-lg cursor-pointer hover:bg-[#002750]"
+              >
+                {editData ? 'Update Material' : 'Save Material'}
+              </button>
+            )}
           </div>
         </div>
       </div>

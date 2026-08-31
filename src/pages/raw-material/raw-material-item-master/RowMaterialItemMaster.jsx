@@ -20,8 +20,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const RowMaterialItemMaster = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Items');
+
     const [itemData, setItemData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
     const [loading, setLoading] = useState(false);
@@ -45,6 +49,7 @@ const RowMaterialItemMaster = () => {
         active: 0,
         inactive: 0,
     });
+    const [isViewOnly, setIsViewOnly] = useState(false);
 
     const fetchStats = useCallback(async () => {
         try {
@@ -74,6 +79,7 @@ const RowMaterialItemMaster = () => {
     }, [fetchStats]);
 
     const openCreateModal = () => {
+        setIsViewOnly(false);
         setSelectedItem(null);
         setShowAddItem(true);
     };
@@ -81,8 +87,8 @@ const RowMaterialItemMaster = () => {
     const closeModal = () => {
         setShowAddItem(false);
         setSelectedItem(null);
+        setIsViewOnly(false);
     };
-
 
     const fetchCategories = useCallback(async () => {
         try {
@@ -100,35 +106,6 @@ const RowMaterialItemMaster = () => {
     useEffect(() => {
         fetchCategories();
     }, [fetchCategories]);
-    const openDeleteConfirm = (row) => {
-        setDeleteTarget({ id: row.id, name: row.nameEnglish });
-        setShowDeleteConfirm(true);
-    };
-
-    const closeDeleteConfirm = () => {
-        if (deleteLoading) return;
-        setShowDeleteConfirm(false);
-        setDeleteTarget(null);
-    };
-
-    const confirmDelete = async () => {
-        if (!deleteTarget) return;
-        try {
-            setDeleteLoading(true);
-
-            await deleteRawMaterialItemById(deleteTarget.id);
-
-            await fetchRawMaterialList();
-            await fetchStats();
-
-            setShowDeleteConfirm(false);
-            setDeleteTarget(null);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setDeleteLoading(false);
-        }
-    };
 
     const fetchRawMaterialList = useCallback(async () => {
         try {
@@ -185,6 +162,9 @@ const RowMaterialItemMaster = () => {
                 minOrder: item.minOrder,
                 sequence: item.sequence,
                 weightPer100Pax: item.weightPer100Pax,
+                hsnCode: item.hsnCode,
+                tax: item.tax,
+                cess: item.cess,
                 isGeneralFix: item.isGeneralFix ?? false,
                 isApplyCal: item.isApplyCal ?? false,
             }});
@@ -199,8 +179,27 @@ const RowMaterialItemMaster = () => {
             setLoading(false);
         }
     }, [searchTerm, statusFilter, typeFilter]);
+
     const handleEdit = async (id) => {
         try {
+            setIsViewOnly(false);
+            const res = await getRawMaterialById(id);
+
+            const item =
+                res?.data?.data?.["Raw Material Details"]?.[0];
+
+            if (!item) return;
+
+            setSelectedItem(item);
+            setShowAddItem(true);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleView = async (id) => {
+        try {
+            setIsViewOnly(true);
             const res = await getRawMaterialById(id);
 
             const item =
@@ -219,171 +218,246 @@ const RowMaterialItemMaster = () => {
         fetchRawMaterialList();
     }, [fetchRawMaterialList]);
 
-    const columns = [
-        {
-            id: "sno",
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="S.NO"
-                    column={column}
-                    className="text-[#43474F] font-semibold py-4 text-sm"
-                />
-            ),
-            cell: ({ row }) => (
-                <span className="text-gray-500 py-2">
-                    {String(row.index + 1).padStart(2, "0")}
-                </span>
-            ),
-            enableSorting: false,
-            size: 70,
-        },
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, name: row.name });
+        setShowDeleteConfirm(true);
+    };
 
-        {
-            accessorKey: "image",
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="IMAGE"
-                    column={column}
-                    className="text-[#43474F] font-semibold py-4 text-sm"
-                />
-            ),
-            cell: ({ row }) => (
-                row.original.image ? (
-                    <img
-                        src={row.original.image}
-                        alt={row.original.name}
-                        className="w-12 h-12 rounded-lg object-cover"
+    const closeDeleteConfirm = () => {
+        if (deleteLoading) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteLoading(true);
+        try {
+            await deleteRawMaterialItemById(deleteTarget.id);
+            closeDeleteConfirm();
+            fetchRawMaterialList();
+            fetchStats();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const openStatusConfirm = (row) => {
+        setStatusTarget({
+            id: row.id,
+            itemLabel: row.name,
+            status: row.status,
+            nextActive: row.status !== "Active",
+            nextStatusLabel: row.status === "Active" ? "Inactive" : "Active",
+        });
+        setShowStatusConfirm(true);
+    };
+
+    const closeStatusConfirm = () => {
+        if (statusSaving) return;
+        setShowStatusConfirm(false);
+        setStatusTarget(null);
+    };
+
+    const confirmStatusChange = async () => {
+        if (!statusTarget) return;
+        setStatusSaving(true);
+        try {
+            await updateRawMaterialItemStatusById(statusTarget.id, statusTarget.nextActive);
+            closeStatusConfirm();
+            fetchRawMaterialList();
+            fetchStats();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setStatusSaving(false);
+        }
+    };
+
+    const columns = useMemo(
+        () => [
+            {
+                id: "sno",
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="S.NO"
+                        column={column}
+                        className="text-[#43474F] font-semibold py-4 text-sm"
                     />
-                ) : (
-                    <div className="w-12 h-12 bg-gray-100 rounded-lg" />
-                )
-            ),
-            size: 100,
-        },
+                ),
+                cell: ({ row }) => (
+                    <span className="text-gray-500 py-2">
+                        {String(row.index + 1).padStart(2, "0")}
+                    </span>
+                ),
+                enableSorting: false,
+                size: 70,
+            },
 
-        {
-            accessorKey: "name",
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="RAW MATERIAL NAME"
-                    column={column}
-                    className="text-[#43474F] font-semibold py-4 text-sm"
-                />
-            ),
-            cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2 capitalize">
-                    {row.original.name}
-                </div>
-            ),
-            size:180
-        },
-
-        {
-            accessorKey: "category",
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="ROW MATERIAL CATEGORY"
-                    column={column}
-                    className="text-[#43474F] font-semibold py-4 text-sm"
-                />
-            ),
-            size: 220,
-        },
-
-        {
-            accessorKey: "unit",
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="UNIT"
-                    column={column}
-                    className="text-[#43474F] font-semibold py-4 text-sm"
-                />
-            ),
-            size: 110,
-        },
-
-        {
-            accessorKey: "rate",
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="RATE"
-                    column={column}
-                    className="text-[#43474F] font-semibold py-4 text-sm"
-                />
-            ),
-            size: 90,
-        },
-
-        {
-            accessorKey: "status",
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="STATUS"
-                    column={column}
-                    className="text-[#43474F] font-semibold py-4 text-sm"
-                />
-            ),
-            cell: ({ row }) => (
-                <label className="relative inline-flex cursor-pointer">
-
-                    <input
-                        type="checkbox"
-                        checked={row.original.status === "Active"}
-                        onChange={() => openStatusConfirm(row.original)}
-                        className="sr-only peer"
+            {
+                accessorKey: "image",
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="IMAGE"
+                        column={column}
+                        className="text-[#43474F] font-semibold py-4 text-sm"
                     />
+                ),
+                cell: ({ row }) => (
+                    row.original.image ? (
+                        <img
+                            src={row.original.image}
+                            alt={row.original.name}
+                            className="w-12 h-12 rounded-lg object-cover"
+                        />
+                    ) : (
+                        <div className="w-12 h-12 bg-gray-100 rounded-lg" />
+                    )
+                ),
+                size: 100,
+            },
 
-                    <div
-                        className="
-                w-11 h-6
-                bg-gray-300
-                rounded-full
-                peer
-                peer-checked:bg-[#084E92]
-                after:absolute
-                after:top-0.5
-                after:left-0.5
-                after:h-5
-                after:w-5
-                after:bg-white
-                after:rounded-full
-                after:transition-all
-                peer-checked:after:translate-x-full
-            "
+            {
+                accessorKey: "name",
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="RAW MATERIAL NAME"
+                        column={column}
+                        className="text-[#43474F] font-semibold py-4 text-sm"
                     />
+                ),
+                cell: ({ row }) => (
+                    <div className="font-semibold text-gray-800 py-2 capitalize">
+                        {row.original.name}
+                    </div>
+                ),
+                size:180
+            },
 
-                </label>
-            ),
-            size:100
-        },
-
-        {
-            id: "actions",
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="ACTIONS"
-                    column={column}
-                    className="text-[#43474F] font-semibold py-4 text-sm"
-                />
-            ),
-
-            cell: ({ row }) => (
-                <div className="flex items-center gap-3">
-                    <SquarePen
-                        size={17}
-                        onClick={() => handleEdit(row.original.id)}
-                        className="text-gray-500 hover:text-blue-600 cursor-pointer"
+            {
+                accessorKey: "category",
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="ROW MATERIAL CATEGORY"
+                        column={column}
+                        className="text-[#43474F] font-semibold py-4 text-sm"
                     />
+                ),
+                size: 220,
+            },
 
-                    <Trash2
-                        size={17}
-                        onClick={() => openDeleteConfirm(row.original)}
-                        className="text-red-300 cursor-pointer hover:text-red-700"
+            {
+                accessorKey: "unit",
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="UNIT"
+                        column={column}
+                        className="text-[#43474F] font-semibold py-4 text-sm"
                     />
-                </div>
-            ),
-        },
-    ];
+                ),
+                size: 110,
+            },
+
+            {
+                accessorKey: "rate",
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="RATE"
+                        column={column}
+                        className="text-[#43474F] font-semibold py-4 text-sm"
+                    />
+                ),
+                size: 90,
+            },
+
+            {
+                accessorKey: "status",
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="STATUS"
+                        column={column}
+                        className="text-[#43474F] font-semibold py-4 text-sm"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <label className={`relative inline-flex ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+
+                        <input
+                            type="checkbox"
+                            checked={row.original.status === "Active"}
+                            disabled={!canEdit}
+                            onChange={() => canEdit && openStatusConfirm(row.original)}
+                            className="sr-only peer"
+                        />
+
+                        <div
+                            className="
+                    w-11 h-6
+                    bg-gray-300
+                    rounded-full
+                    peer
+                    peer-checked:bg-[#084E92]
+                    after:absolute
+                    after:top-0.5
+                    after:left-0.5
+                    after:h-5
+                    after:w-5
+                    after:bg-white
+                    after:rounded-full
+                    after:transition-all
+                    peer-checked:after:translate-x-full
+                "
+                        />
+
+                    </label>
+                ),
+                size:100
+            },
+
+            {
+                id: "actions",
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="ACTIONS"
+                        column={column}
+                        className="text-[#43474F] font-semibold py-4 text-sm"
+                    />
+                ),
+
+                cell: ({ row }) => (
+                    <div className="flex items-center gap-3">
+                        <Eye
+                            size={17}
+                            onClick={() => handleView(row.original.id)}
+                            className="text-gray-500 hover:text-green-600 cursor-pointer"
+                            title="View Details"
+                        />
+
+                        {canEdit && (
+                            <SquarePen
+                                size={17}
+                                onClick={() => handleEdit(row.original.id)}
+                                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                                title="Edit"
+                            />
+                        )}
+
+                        {canDelete && (
+                            <Trash2
+                                size={17}
+                                onClick={() => openDeleteConfirm(row.original)}
+                                className="text-red-300 cursor-pointer hover:text-red-700"
+                                title="Delete"
+                            />
+                        )}
+                    </div>
+                ),
+            },
+        ],
+        [canEdit, canDelete],
+    );
 
     const STATS = [
         {
@@ -420,64 +494,20 @@ const RowMaterialItemMaster = () => {
             color: 'text-[#DC2626]'
         },
     ];
-    const filteredItems = itemData;
-    const openStatusConfirm = (row) => {
-        setStatusTarget({
-            id: row.id,
-            itemLabel: row.name,
-            nextActive: row.status !== "Active",
-            nextStatusLabel: row.status === "Active" ? "Inactive" : "Active",
-        });
 
-        setShowStatusConfirm(true);
-    };
-
-    const closeStatusConfirm = () => {
-        if (statusSaving) return;
-
-        setShowStatusConfirm(false);
-        setStatusTarget(null);
-    };
-
-    const confirmStatusChange = async () => {
-        if (!statusTarget) return;
-
-        setStatusSaving(true);
-
-        try {
-            await updateRawMaterialItemStatusById(
-                statusTarget.id,
-                statusTarget.nextActive
-            );
-            setItemData((prev) =>
-                prev.map((item) =>
-                    item.id === statusTarget.id
-                        ? {
-                            ...item,
-                            status: statusTarget.nextActive
-                                ? "Active"
-                                : "Inactive",
-                        }
-                        : item
-                )
-            );
-
-            await fetchStats();
-            closeStatusConfirm();
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setStatusSaving(false);
-        }
-    };
     const table = useReactTable({
-        data: filteredItems,
+        data: itemData,
         columns,
         state: { pagination },
         onPaginationChange: setPagination,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Raw Material Items" />;
+    }
+
     return (
         <Container>
             <div className='p-4 md:p-6'>
@@ -502,13 +532,15 @@ const RowMaterialItemMaster = () => {
                         </p>
                     </div>
 
-                    <button
-                        onClick={openCreateModal}
-                        className="bg-[#084E92] hover:bg-[#074486] cursor-pointer transition-colors duration-200 text-white rounded-xl px-6 py-3 flex items-center gap-2 shadow-lg"
-                    >
-                        <Plus size={18} />
-                        Add New Item
-                    </button>
+                    {canAdd && (
+                        <button
+                            onClick={openCreateModal}
+                            className="bg-[#084E92] hover:bg-[#074486] cursor-pointer transition-colors duration-200 text-white rounded-xl px-6 py-3 flex items-center gap-2 shadow-lg"
+                        >
+                            <Plus size={18} />
+                            Add New Item
+                        </button>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-8">
@@ -598,7 +630,7 @@ const RowMaterialItemMaster = () => {
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
                     {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                    <DataGrid table={table} recordCount={filteredItems.length} className="rounded-2xl">
+                    <DataGrid table={table} recordCount={itemData.length} className="rounded-2xl">
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>
@@ -617,6 +649,7 @@ const RowMaterialItemMaster = () => {
                     isOpen={showAddItem}
                     onClose={closeModal}
                     editData={selectedItem}
+                    isViewOnly={isViewOnly}
                     fetchRawMaterialList={fetchRawMaterialList}
                     fetchStats={fetchStats}
                 />

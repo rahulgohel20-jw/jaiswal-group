@@ -951,3 +951,7 @@
   export const getActiveVendorPriceConfigsByDate = (payload) => {
     return POST('/raw-material-vendor-price/get-by-date', payload);
   };
+
+  export const getVendorPriceConfigsByVendorId = (id) => {
+    return GET('/raw-material-vendor-price/get-by-id', { id });
+  }

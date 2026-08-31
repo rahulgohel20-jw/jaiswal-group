@@ -40,6 +40,9 @@ import {
 } from '@/components/ui/select';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
+
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
 // result length can at least drive "TOTAL USERS" in the meantime (see below).
@@ -57,6 +60,8 @@ const TruncatedCell = ({
 
 const UserManagementList = () => {
   const navigate = useNavigate();
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Users');
+
   const [userData, setUserData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -326,29 +331,33 @@ const UserManagementList = () => {
             >
               <Eye size={18} />
             </button>
-            <button
-              type="button"
-              onClick={() => handleEdit(row.original)}
-              className="text-gray-500 hover:text-blue-600 cursor-pointer"
-              title="Update user"
-            >
-              <SquarePen size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => openDeleteConfirm(row.original)}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-              title="Delete user"
-            >
-              <Trash2 size={18} />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => handleEdit(row.original)}
+                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                title="Update user"
+              >
+                <SquarePen size={18} />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => openDeleteConfirm(row.original)}
+                className="text-red-300 hover:text-red-600 cursor-pointer"
+                title="Delete user"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         ),
         enableSorting: false,
         size: 100,
       },
     ],
-    [],
+    [canEdit, canDelete],
   );
 
   const table = useReactTable({
@@ -359,6 +368,10 @@ const UserManagementList = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Users" />;
+  }
 
   return (
     <Container>
@@ -372,12 +385,14 @@ const UserManagementList = () => {
             </p>
           </div>
 
-          <Link
-            to="/users/add-user"
-            className="flex items-center justify-center gap-2 bg-[#084E92] px-5 py-3 rounded-lg text-white text-sm font-medium w-full sm:w-max"
-          >
-            <Plus size={15} /> Add New User
-          </Link>
+          {canAdd && (
+            <Link
+              to="/users/add-user"
+              className="flex items-center justify-center gap-2 bg-[#084E92] px-5 py-3 rounded-lg text-white text-sm font-medium w-full sm:w-max"
+            >
+              <Plus size={15} /> Add New User
+            </Link>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mt-8">

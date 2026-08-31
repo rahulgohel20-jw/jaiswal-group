@@ -28,6 +28,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
   assignVendorOutletMapping,
@@ -335,6 +337,8 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
 };
 
 const VendorUnitMapping = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Vendor Unit Mapping');
+
   const [vendors, setVendors] = useState([]);
   const [vendorsLoading, setVendorsLoading] = useState(false);
 
@@ -528,99 +532,106 @@ const VendorUnitMapping = () => {
     }
   };
 
-  const columns = [
-    {
-      id: 'sno',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="SR. NO"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) =>
-        pagination.pageIndex * pagination.pageSize + row.index + 1,
-      enableSorting: false,
-      size: 80,
-    },
-    {
-      id: 'vendor',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="VENDOR NAME"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <span className="font-medium text-[#1B1B1F]">
-          {row.original.vendor?.name}
-        </span>
-      ),
-    },
-    {
-      id: 'gstRegisteredName',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="REGISTERED COMPANY NAME"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <span className="font-medium text-[#1B1B1F]">
-          {row.original.vendor?.gstRegisteredName ?? '—'}
-        </span>
-      ),
-    },
-    {
-      id: 'units',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="UNIT NAME"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1.5">
-          {(row.original.units || []).map((u) => (
-            <span
-              key={u.id}
-              className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full"
-            >
-              {u.name}
-              <X
-                size={12}
-                className="cursor-pointer hover:text-red-500"
-                onClick={() => openRemoveUnitConfirm(row.original.vendor.id, u)}
-              />
-            </span>
-          ))}
-        </div>
-      ),
-      enableSorting: false,
-    },
-    {
-      id: 'actions',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="ACTION"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <Trash2
-          size={18}
-          className="text-red-300 cursor-pointer hover:text-red-700"
-          onClick={() => openDeleteConfirm(row.original)}
-        />
-      ),
-      enableSorting: false,
-      size: 100,
-    },
-  ];
+  const columns = useMemo(
+    () => [
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="SR. NO"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) =>
+          pagination.pageIndex * pagination.pageSize + row.index + 1,
+        enableSorting: false,
+        size: 80,
+      },
+      {
+        id: 'vendor',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="VENDOR NAME"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="font-medium text-[#1B1B1F]">
+            {row.original.vendor?.name}
+          </span>
+        ),
+      },
+      {
+        id: 'gstRegisteredName',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="REGISTERED COMPANY NAME"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="font-medium text-[#1B1B1F]">
+            {row.original.vendor?.gstRegisteredName ?? '—'}
+          </span>
+        ),
+      },
+      {
+        id: 'units',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="UNIT NAME"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1.5">
+            {(row.original.units || []).map((u) => (
+              <span
+                key={u.id}
+                className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full"
+              >
+                {u.name}
+                {canDelete && (
+                  <X
+                    size={12}
+                    className="cursor-pointer hover:text-red-500"
+                    onClick={() => openRemoveUnitConfirm(row.original.vendor.id, u)}
+                  />
+                )}
+              </span>
+            ))}
+          </div>
+        ),
+        enableSorting: false,
+      },
+      {
+        id: 'actions',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="ACTION"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          canDelete ? (
+            <Trash2
+              size={18}
+              className="text-red-300 cursor-pointer hover:text-red-700"
+              onClick={() => openDeleteConfirm(row.original)}
+            />
+          ) : null
+        ),
+        enableSorting: false,
+        size: 100,
+      },
+    ],
+    [canDelete, pagination],
+  );
 
   const table = useReactTable({
     data: filteredMappings,
@@ -630,6 +641,10 @@ const VendorUnitMapping = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Vendor & Unit Mapping" />;
+  }
 
   return (
     <Container>
@@ -656,48 +671,50 @@ const VendorUnitMapping = () => {
         </div>
 
         {/* Vendor Mapping Details */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-          <h2 className="text-base font-semibold text-[#1B1B1F] pb-4 mb-4 border-b-2 border-[#F8FAFC]">
-            Vendor Mapping Details
-          </h2>
+        {(canAdd || canEdit) && (
+          <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
+            <h2 className="text-base font-semibold text-[#1B1B1F] pb-4 mb-4 border-b-2 border-[#F8FAFC]">
+              Vendor Mapping Details
+            </h2>
 
-          {unitsError && (
-            <p className="text-sm text-red-500 mb-3">{unitsError}</p>
-          )}
-          {mappingsError && (
-            <p className="text-sm text-red-500 mb-3">{mappingsError}</p>
-          )}
+            {unitsError && (
+              <p className="text-sm text-red-500 mb-3">{unitsError}</p>
+            )}
+            {mappingsError && (
+              <p className="text-sm text-red-500 mb-3">{mappingsError}</p>
+            )}
 
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
-            <SingleSelectDropdown
-              label="Vendor Name"
-              placeholder="Select a vendor"
-              options={vendors}
-              selected={selectedVendor}
-              onChange={setSelectedVendor}
-              loading={vendorsLoading}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+              <SingleSelectDropdown
+                label="Vendor Name"
+                placeholder="Select a vendor"
+                options={vendors}
+                selected={selectedVendor}
+                onChange={setSelectedVendor}
+                loading={vendorsLoading}
+              />
 
-            <MultiSelectDropdown
-              label="Unit selection"
-              placeholder="Select a Unit"
-              options={units}
-              selected={selectedUnits}
-              onChange={setSelectedUnits}
-              loading={unitsLoading}
-            />
+              <MultiSelectDropdown
+                label="Unit selection"
+                placeholder="Select a Unit"
+                options={units}
+                selected={selectedUnits}
+                onChange={setSelectedUnits}
+                loading={unitsLoading}
+              />
 
-            <button
-              type="button"
-              onClick={handleSaveMapping}
-              disabled={saving || !selectedVendor || selectedUnits.length === 0}
-              className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              <Link2 size={16} />
-              {saving ? 'Saving...' : 'Save Mapping'}
-            </button>
+              <button
+                type="button"
+                onClick={handleSaveMapping}
+                disabled={saving || !selectedVendor || selectedUnits.length === 0}
+                className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                <Link2 size={16} />
+                {saving ? 'Saving...' : 'Save Mapping'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Mapping Records */}
         <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">

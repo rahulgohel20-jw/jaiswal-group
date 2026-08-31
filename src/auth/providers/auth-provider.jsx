@@ -83,6 +83,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     saveAuth(undefined);
     setCurrentUser(undefined);
+    authHelper.removeAuth();
   };
 
   return (

@@ -143,8 +143,9 @@ function RawMaterialPicker({ rawMaterials, alreadyAddedIds, onAdd, loading }) {
 // ---------------------------------------------------------------------------
 export default function ApprovalView({
   requisition,
-  onBack,
   mode = "approve",
+  canEdit = true,
+  onBack,
   onSave,
   onApprove,
   onReject,
@@ -374,7 +375,7 @@ export default function ApprovalView({
       </div>
 
       {/* Add-item row — approve mode only */}
-      {!isReject && (
+      {!isReject && canEdit && (
         <div className="flex items-center gap-3 mb-5">
           <RawMaterialPicker
             rawMaterials={rawMaterials}
@@ -408,7 +409,7 @@ export default function ApprovalView({
                 "Item name",
                 "Unit",
                 "Quantity",
-                ...(isReject ? [] : ["Action"]),
+                ...(isReject || !canEdit ? [] : ["Action"]),
               ].map((h) => (
                 <th
                   key={h}
@@ -423,7 +424,7 @@ export default function ApprovalView({
             {filteredItems.length === 0 && (
               <tr>
                 <td
-                  colSpan={isReject ? 4 : 5}
+                  colSpan={isReject || !canEdit ? 4 : 5}
                   className="px-5 py-14 text-center text-sm text-[#98A2B3]"
                 >
                   {items.length === 0
@@ -446,8 +447,8 @@ export default function ApprovalView({
                 </td>
                 <td className="px-5 py-4 text-[#475467]">{it.unit}</td>
                 <td className="px-5 py-4">
-                  {isReject ? (
-                    <span className="text-[#475467]">{it.quantity.toFixed(2)}</span>
+                  {isReject || !canEdit ? (
+                    <span className="text-[#475467] font-medium">{it.quantity.toFixed(2)}</span>
                   ) : (
                     <input
                       value={it.quantity}
@@ -459,7 +460,7 @@ export default function ApprovalView({
                   )}
                 </td>
 
-                {!isReject && (
+                {!isReject && canEdit && (
                   <td className="px-5 py-4">
                     <button
                       onClick={() => removeItem(it.id ?? it.rawMaterialId)}
@@ -495,14 +496,16 @@ export default function ApprovalView({
           </button>
         ) : (
           <>
-            <button
-              onClick={handleSave}
-              disabled={busy}
-              className="cursor-pointer h-11 px-5 rounded-xl border border-[#E7EAF0] bg-white text-sm font-semibold text-[#344054] hover:bg-[#F9FAFC] transition-colors flex items-center gap-2 disabled:opacity-60"
-            >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : null}
-              Save
-            </button>
+            {canEdit && (
+              <button
+                onClick={handleSave}
+                disabled={busy}
+                className="cursor-pointer h-11 px-5 rounded-xl border border-[#E7EAF0] bg-white text-sm font-semibold text-[#344054] hover:bg-[#F9FAFC] transition-colors flex items-center gap-2 disabled:opacity-60"
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : null}
+                Save
+              </button>
+            )}
 
             <button
               onClick={handleApprove}
@@ -514,7 +517,7 @@ export default function ApprovalView({
               ) : (
                 <CheckCircle2 size={16} />
               )}
-              Save & Approve
+              {canEdit ? 'Save & Approve' : 'Approve'}
             </button>
           </>
         )}

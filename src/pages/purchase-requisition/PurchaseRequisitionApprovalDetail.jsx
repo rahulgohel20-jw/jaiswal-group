@@ -4,11 +4,14 @@ import ApprovalView from "./utils/ApprovalView";
 import { usePurchaseRequisitions } from "./utils/usePurchaseRequisitions";
 import { getUserIdFromToken } from "@/utils/auth";
 import { getUsernameFromToken } from "../../utils/auth";
+import { usePagePermissions } from "@/utils/permissions";
+import { AccessDenied } from "@/components/common/AccessDenied";
 
 export default function PurchaseRequisitionApprovalDetail({ mode = "approve" }) {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { canEdit, canView } = usePagePermissions('Approve Purchase Requisition');
 
   const { saveApprovalProgress, approveWithChanges, reject } =
     usePurchaseRequisitions();
@@ -16,6 +19,10 @@ export default function PurchaseRequisitionApprovalDetail({ mode = "approve" }) 
   const requisition = location.state?.requisition;
 
   const backToList = () => navigate("/approve-purchase-requisition/list");
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Approve Purchase Requisition" />;
+  }
 
   if (!requisition) {
     return (
@@ -77,6 +84,7 @@ export default function PurchaseRequisitionApprovalDetail({ mode = "approve" }) 
     <ApprovalView
       requisition={requisition}
       mode={mode}
+      canEdit={canEdit}
       onBack={() => navigate(-1)}
       onSave={handleSave}
       onApprove={handleApprove}

@@ -3,6 +3,8 @@ import { Container } from "@/components/common/container";
 import { CheckCircle2, ChevronDown, ChevronRight, QrCode, Search, Trash2, X } from 'lucide-react';
 import { getAllAssets, getAssetCategories } from '../../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -96,6 +98,8 @@ const AssetSearchDropdown = ({ label, placeholder, options, onSelect, loading })
 };
 
 const ExportAssetsQR = () => {
+    const { canView } = usePagePermissions('Export Assets QR');
+
     const [categories, setCategories] = useState([]);
     const [assets, setAssets] = useState([]);
     const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -201,6 +205,11 @@ const ExportAssetsQR = () => {
     const qrUrl = assets
         ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(assets.map((a) => a.assetCode).join(','))}`
         : null;
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Export Assets QR" />;
+    }
+
     return (
         <Container>
             <div className='p-4 md:p-6'>

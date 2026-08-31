@@ -5,7 +5,7 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ChevronRight, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
+import { ChevronRight, Eye, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
 import { deleteModuleRight, getModuleRights } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -14,6 +14,9 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddModuleRightModal from './AddModuleRightModal';
 
 // Maps a raw API module-right object (+ its row position) to the shape the table expects.
@@ -43,20 +46,34 @@ const formatDate = (value) => {
 };
 
 const ModuleMaster = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Module Rights');
+
   const [moduleRights, setModuleRights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [showAddModule, setShowAddModule] = useState(false);
   const [editingModule, setEditingModule] = useState(null);
+  const [isViewOnly, setIsViewOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const openViewModal = (row) => {
+    setIsViewOnly(true);
+    setEditingModule(row);
+    setShowAddModule(true);
+  };
 
   const openEditModal = (row) => {
+    setIsViewOnly(false);
     setEditingModule(row);
     setShowAddModule(true);
   };
 
   const openCreateModal = () => {
+    setIsViewOnly(false);
     setEditingModule(null);
     setShowAddModule(true);
   };
@@ -64,6 +81,7 @@ const ModuleMaster = () => {
   const closeModal = () => {
     setShowAddModule(false);
     setEditingModule(null);
+    setIsViewOnly(false);
   };
 
   const fetchModuleRights = async () => {
@@ -88,16 +106,31 @@ const ModuleMaster = () => {
     fetchModuleRights();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this module right? This cannot be undone.'))
-      return;
+  const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, name: row.name });
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteLoading) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteModuleRight(id);
+      setDeleteLoading(true);
+      await deleteModuleRight(deleteTarget.id);
       notify.success('Module right deleted successfully');
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
       fetchModuleRights();
     } catch (err) {
       console.error(err);
       notify.error('Failed to delete module right.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -123,7 +156,7 @@ const ModuleMaster = () => {
           <span className="text-gray-500 py-2">{row.original.srNo}</span>
         ),
         enableSorting: false,
-        size: 80,
+        size: 90,
       },
       {
         id: 'name',
@@ -138,7 +171,7 @@ const ModuleMaster = () => {
         cell: ({ row }) => (
           <button
             type="button"
-            onClick={() => openEditModal(row.original)}
+            onClick={() => (canEdit ? openEditModal(row.original) : openViewModal(row.original))}
             className="text-[#084E92] font-medium hover:underline text-left cursor-pointer"
           >
             {row.original.name}
@@ -191,31 +224,48 @@ const ModuleMaster = () => {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => openEditModal(row.original)}
-              aria-label={`Edit ${row.original.name}`}
+              onClick={() => openViewModal(row.original)}
+              aria-label={`View ${row.original.name}`}
+              title="View Details"
             >
-              <SquarePen
+              <Eye
                 size={17}
-                className="text-[#084E92] hover:text-[#063a6b] cursor-pointer"
+                className="text-gray-500 hover:text-green-600 cursor-pointer"
               />
             </button>
-            <button
-              type="button"
-              onClick={() => handleDelete(row.original.id)}
-              aria-label={`Delete ${row.original.name}`}
-            >
-              <Trash2
-                size={17}
-                className="text-red-500 hover:text-red-700 cursor-pointer"
-              />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => openEditModal(row.original)}
+                aria-label={`Edit ${row.original.name}`}
+                title="Edit"
+              >
+                <SquarePen
+                  size={17}
+                  className="text-[#084E92] hover:text-[#063a6b] cursor-pointer"
+                />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => openDeleteConfirm(row.original)}
+                aria-label={`Delete ${row.original.name}`}
+                title="Delete"
+              >
+                <Trash2
+                  size={17}
+                  className="text-red-500 hover:text-red-700 cursor-pointer"
+                />
+              </button>
+            )}
           </div>
         ),
         enableSorting: false,
-        size: 100,
+        size: 120,
       },
     ],
-    [],
+    [canEdit, canDelete],
   );
 
   const table = useReactTable({
@@ -226,6 +276,10 @@ const ModuleMaster = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Module Rights" />;
+  }
 
   return (
     <Container>
@@ -253,14 +307,16 @@ const ModuleMaster = () => {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition self-end sm:self-auto cursor-pointer"
-          >
-            <Plus size={16} />
-            Add Module Name
-          </button>
+          {canAdd && (
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition self-end sm:self-auto cursor-pointer"
+            >
+              <Plus size={16} />
+              Add Module Name
+            </button>
+          )}
         </div>
 
         {/* Table */}
@@ -295,6 +351,15 @@ const ModuleMaster = () => {
           onClose={closeModal}
           onSaved={fetchModuleRights}
           initialData={editingModule}
+          isViewOnly={isViewOnly}
+        />
+
+        <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={closeDeleteConfirm}
+          onConfirm={confirmDelete}
+          itemLabel={deleteTarget?.name}
+          saving={deleteLoading}
         />
       </div>
     </Container>

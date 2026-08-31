@@ -31,6 +31,8 @@ import {
     updateRawMaterialCategoryTypeStatus,
 } from '@/services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -49,6 +51,7 @@ const mapType = (t) => ({
 });
 
 const RawMaterialTypeListing = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Types');
     const [types, setTypes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -65,9 +68,8 @@ const RawMaterialTypeListing = () => {
 
     // Status toggle confirm modal state
     const [showStatusConfirm, setShowStatusConfirm] = useState(false);
-    const [statusTarget, setStatusTarget] = useState(null); // { id, name, nextActive }
+    const [statusTarget, setStatusTarget] = useState(null); // { id, name, nextActive, nextStatusLabel }
     const [statusSaving, setStatusSaving] = useState(false);
-
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -112,15 +114,6 @@ const RawMaterialTypeListing = () => {
         setViewingType(null);
     };
 
-    const openStatusConfirm = (row) => {
-        setStatusTarget({
-            id: row.id,
-            name: row.nameEnglish,
-            nextActive: row.status !== 'Active',
-        });
-        setShowStatusConfirm(true);
-    };
-
     const closeStatusConfirm = () => {
         if (statusSaving) return;
         setShowStatusConfirm(false);
@@ -142,8 +135,6 @@ const RawMaterialTypeListing = () => {
             setStatusSaving(false);
         }
     };
-
-
 
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, name: row.nameEnglish });
@@ -194,12 +185,13 @@ const RawMaterialTypeListing = () => {
 
     const filteredTypes = useMemo(() => {
         return types.filter((t) => {
-            const matchesSearch = t.nameEnglish?.toLowerCase().includes(searchTerm.trim().toLowerCase());
+            const matchesSearch = (t.nameEnglish || '').toLowerCase().includes(searchTerm.trim().toLowerCase());
             const matchesStatus = statusFilter === 'All Status' || t.status === statusFilter;
             return matchesSearch && matchesStatus;
         });
     }, [types, searchTerm, statusFilter]);
 
+    // Single source of truth for stats — derived from `types`, not duplicated in state
     const stats = useMemo(() => {
         const total = types.length;
         const active = types.filter((t) => t.status === 'Active').length;
@@ -207,80 +199,89 @@ const RawMaterialTypeListing = () => {
         return { total, active, inactive };
     }, [types]);
 
-    const columns = [
-        {
-            id: "sno",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} className="py-4" />
-            ),
-            cell: ({ row }) => (
-                <span className="text-gray-500 py-4">{String(row.index + 1).padStart(2, '0')}</span>
-            ),
-            enableSorting: false,
-            size: 70,
-        },
-        {
-            id: "name",
-            accessorFn: (row) => row.nameEnglish,
-            header: ({ column }) => (
-                <DataGridColumnHeader title="TYPE NAME" column={column} />
-            ),
-            cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2 capitalize">{row.original.nameEnglish}</div>
-            ),
-            size: 260,
-        },
-        {
-            id: "status",
-            accessorFn: (row) => row.status,
-            header: ({ column }) => (
-                <DataGridColumnHeader title="VISIBILITY STATUS" column={column} />
-            ),
-            cell: ({ row }) => (
-                <label className="relative inline-flex cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={row.original.status === "Active"}
-                        className="sr-only peer"
-                        onChange={() => {
-                            setStatusTarget({
-                                id: row.original.id,
-                                itemLabel: row.original.name,
-                                nextActive: row.original.status !== "Active",
-                                nextStatusLabel:
-                                    row.original.status === "Active" ? "Inactive" : "Active",
-                            });
-                            setShowStatusConfirm(true);
-                        }}
-                    />
+    const columns = useMemo(
+        () => [
+            {
+                id: "sno",
+                header: ({ column }) => (
+                    <DataGridColumnHeader title="S.NO" column={column} className="py-4" />
+                ),
+                cell: ({ row }) => (
+                    <span className="text-gray-500 py-4">{String(row.index + 1).padStart(2, '0')}</span>
+                ),
+                enableSorting: false,
+                size: 70,
+            },
+            {
+                id: "name",
+                accessorFn: (row) => row.nameEnglish,
+                header: ({ column }) => (
+                    <DataGridColumnHeader title="TYPE NAME" column={column} />
+                ),
+                cell: ({ row }) => (
+                    <div className="font-semibold text-gray-800 py-2 capitalize">{row.original.nameEnglish}</div>
+                ),
+                size: 260,
+            },
+            {
+                id: "status",
+                accessorFn: (row) => row.status,
+                header: ({ column }) => (
+                    <DataGridColumnHeader title="VISIBILITY STATUS" column={column} />
+                ),
+                cell: ({ row }) => (
+                    <label className={`relative inline-flex ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+                        <input
+                            type="checkbox"
+                            checked={row.original.status === "Active"}
+                            disabled={!canEdit}
+                            className="sr-only peer"
+                            onChange={() => {
+                                if (!canEdit) return;
+                                setStatusTarget({
+                                    id: row.original.id,
+                                    name: row.original.nameEnglish,
+                                    nextActive: row.original.status !== "Active",
+                                    nextStatusLabel:
+                                        row.original.status === "Active" ? "Inactive" : "Active",
+                                });
+                                setShowStatusConfirm(true);
+                            }}
+                        />
 
-                    <div className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
-              after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full " />
-                </label>
-            ),
-            size: 160,
-        },
-        {
-            id: "actions",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
-            ),
-            cell: ({ row }) => (
-                <div className="flex items-center gap-3 py-1">
-                    <button type="button" onClick={() => openViewModal(row.original)}>
-                        <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
-                    </button>
-                    <button type="button" onClick={() => openEditModal(row.original)}>
-                        <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
-                    </button>
-                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-                        <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
-                    </button>
-                </div>
-            ),
-            size: 110,
-        },
-    ];
+                        <div className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
+                  after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full " />
+                    </label>
+                ),
+                size: 160,
+            },
+            {
+                id: "actions",
+                header: ({ column }) => (
+                    <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
+                ),
+                cell: ({ row }) => (
+                    <div className="flex items-center gap-3 py-1">
+                        <button type="button" onClick={() => openViewModal(row.original)} title="View Details">
+                            <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
+                        </button>
+                        {canEdit && (
+                            <button type="button" onClick={() => openEditModal(row.original)} title="Edit">
+                                <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
+                            </button>
+                        )}
+                        {canDelete && (
+                            <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete">
+                                <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
+                            </button>
+                        )}
+                    </div>
+                ),
+                size: 110,
+            },
+        ],
+        [canEdit, canDelete],
+    );
 
     const table = useReactTable({
         data: filteredTypes,
@@ -329,6 +330,10 @@ const RawMaterialTypeListing = () => {
         },
     ];
 
+    if (!canView) {
+        return <AccessDenied pageTitle="Types" />;
+    }
+
     return (
         <Container>
             <div className="p-4 md:p-6">
@@ -354,14 +359,16 @@ const RawMaterialTypeListing = () => {
                             <Upload size={16} />
                             Export
                         </button>
-                        <button
-                            type="button"
-                            onClick={openCreateModal}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                        >
-                            <Plus size={16} />
-                            Add Type
-                        </button>
+                        {canAdd && (
+                            <button
+                                type="button"
+                                onClick={openCreateModal}
+                                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                            >
+                                <Plus size={16} />
+                                Add Type
+                            </button>
+                        )}
                     </div>
                 </div>
 

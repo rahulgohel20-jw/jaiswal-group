@@ -1,6 +1,8 @@
 import { ChevronRight, ScanLine, RotateCcw, ChevronDown } from 'lucide-react';
 import React, { useState } from 'react'
 import { Link } from 'react-router';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Popover,
     PopoverContent,
@@ -183,11 +185,9 @@ const Select = ({
     );
 };
 
-// Pass `transferToEdit` (an existing transfer record) to open the form in edit mode,
-// which reveals the read-only Transfer ID field. Omit it to open in "add new" mode,
-// where the Transfer ID is hidden and gets assigned on save (e.g. by the backend).
 const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => {
     const isEditMode = Boolean(transferToEdit);
+    const { canAdd, canEdit, canView } = usePagePermissions('Asset Transfer');
     const initialForm = isEditMode ? { ...emptyForm, ...transferToEdit } : emptyForm;
 
     const [form, setForm] = useState(initialForm);
@@ -229,6 +229,10 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
             setErrors({});
         }
     };
+
+    if (!canView || (isEditMode ? !canEdit : !canAdd)) {
+        return <AccessDenied pageTitle={isEditMode ? "Edit Asset Transfer" : "Add Asset Transfer"} />;
+    }
 
     return (
         <div className="p-4 md:p-6">

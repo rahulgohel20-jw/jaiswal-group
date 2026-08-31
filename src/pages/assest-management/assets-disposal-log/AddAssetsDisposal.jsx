@@ -12,6 +12,8 @@ import {
 import React, { useState } from "react";
 import { Link } from "react-router";
 import { Container } from "@/components/common/container";
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Popover,
     PopoverContent,
@@ -173,23 +175,35 @@ const Select = ({
     );
 };
 const AddAssetsDisposal = () => {
+    const { canAdd, canView } = usePagePermissions('Asset Disposal');
+
     const [form, setForm] = useState({
         assetId: "AST-2024-0089",
         assetName: "",
         kitchen: "Central Kitchen - Sector 12",
         disposalDate: "",
-        disposalMethod: "",
+        disposalMethod: "Sale",
+        disposalReason: "",
         saleValue: "",
-        reason: "",
-        approvedBy: "Rajesh Kumar (Operations Manager)",
+        purchaserDetails: "",
+        approvedBy: "Marcus Chen",
+        witnessName: "",
+        disposalCertificateId: "CERT-2024-0098",
+        status: "Completed",
+        environmentalCompliance: "certified",
+        dataSanitized: "yes",
     });
 
-    const update = (key, value) => {
+    const set = (key, value) => {
         setForm((prev) => ({
             ...prev,
             [key]: value,
         }));
     };
+
+    if (!canView || !canAdd) {
+        return <AccessDenied pageTitle="Asset Disposal Registration" />;
+    }
 
     const Label = ({ children, required }) => (
         <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-1.5">

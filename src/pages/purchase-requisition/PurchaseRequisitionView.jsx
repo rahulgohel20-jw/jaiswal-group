@@ -14,6 +14,8 @@ import {
 import { Container } from '@/components/common/container';
 import { usePurchaseRequisitions } from './utils/usePurchaseRequisitions';
 import PurchaseRequisitionLog from './PurchaseRequisitionLog';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const SectionCard = ({ children, className = '' }) => (
   <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>{children}</div>
@@ -76,12 +78,17 @@ const AUDIT_MODULE_NAME = 'PURCHASE_REQUISITION';
 const PurchaseRequisitionView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { canView } = usePagePermissions('Purchase Requisition');
   const { current, loading, error, fetchById } = usePurchaseRequisitions();
   const [logOpen, setLogOpen] = useState(false);
 
   useEffect(() => {
     if (id) fetchById(id);
   }, [id, fetchById]);
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Purchase Requisition" />;
+  }
 
   const handleDownloadPdf = () => {
     // TODO: wire to downloadPurchaseRequisitionPdf(id) once that endpoint exists

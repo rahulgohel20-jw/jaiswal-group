@@ -16,14 +16,16 @@ import {
 } from '@/components/ui/accordion-menu';
 import { Badge } from '@/components/ui/badge';
 
+import { filterMenuByPermissions } from '@/utils/permissions';
+import { useAuth } from '@/auth/context/auth-context';
+
 export function SidebarMenu() {
   const { pathname } = useLocation();
+  const { auth, currentUser } = useAuth();
 
-  
-const menuItems = useMemo(() => {
-  const organizationId = getOrgIdFromToken();
-  return MENU_SIDEBAR;
-}, []);
+  const menuItems = useMemo(() => {
+    return filterMenuByPermissions(MENU_SIDEBAR, auth || currentUser);
+  }, [auth, currentUser]);
 
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
