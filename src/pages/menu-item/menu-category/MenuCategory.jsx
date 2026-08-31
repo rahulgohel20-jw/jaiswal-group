@@ -244,25 +244,6 @@ const MenuCategory = () => {
         ),
         size: 220,
       },
-
-      {
-        id: 'price',
-        accessorFn: (row) => row.price,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="PRICE"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
-        ),
-        cell: ({ row }) => (
-          <span className="text-gray-700">
-            {row.original.price != null ? `₹ ${row.original.price}` : '-'}
-          </span>
-        ),
-        size: 120,
-      },
-
       {
         id: 'sequence',
         accessorFn: (row) => row.sequence,

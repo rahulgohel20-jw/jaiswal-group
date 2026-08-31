@@ -231,6 +231,52 @@ const CreateMenuItem = () => {
             }));
             setRawMaterialRows(mappedRawMaterialRows);
 
+            const captainRecipeList = item.menuItemCaptainReceipe || [];
+
+            const mappedCaptainRows = captainRecipeList.map((cr) => ({
+                rowId: captainRowSeq++,
+                id: cr.id,
+
+                captainRecipeId:
+                    cr.captainReceipeMaster?.id ??
+                    cr.captainReceipeId ??
+                    "",
+
+                category:
+                    cr.captainReceipeMaster?.category ??
+                    cr.category ??
+                    "",
+
+                name:
+                    cr.captainReceipeMaster?.name ??
+                    cr.name ??
+                    "",
+
+                weight: cr.weight ?? 0,
+
+                unitId:
+                    cr.unitId ??
+                    cr.captainReceipeMaster?.unitId ??
+                    "",
+
+                unit:
+                    cr.unitName ??
+                    cr.unitHierarchy?.nameEnglish ??
+                    cr.captainReceipeMaster?.unitName ??
+                    "",
+
+                rate:
+                    Number(
+                        cr.rate ??
+                        cr.captainReceipeMaster?.rate ??
+                        0
+                    ),
+
+                venue: cr.venue ?? "At Venue",
+            }));
+
+            setCaptainRows(mappedCaptainRows);
+
         } catch (err) {
             console.error(err);
             notify.error("Failed to load Menu Item");
@@ -698,10 +744,15 @@ const CreateMenuItem = () => {
     };
 
     const filteredRawMaterialRows = useMemo(
-        () =>
-            rawMaterialRows.filter((row) =>
-                row.name?.toLowerCase().includes(rawMaterialTableSearch.trim().toLowerCase())
-            ),
+        () => {
+            const term = rawMaterialTableSearch.trim().toLowerCase();
+            if (!term) return rawMaterialRows;
+            return rawMaterialRows.filter(
+                (row) =>
+                    row.name?.toLowerCase().includes(term) ||
+                    row.category?.toLowerCase().includes(term)
+            )
+        },
         [rawMaterialRows, rawMaterialTableSearch]
     );
     const availableRawMaterials = useMemo(() => {
@@ -942,7 +993,29 @@ const CreateMenuItem = () => {
                 .filter((row) => row.rowId !== editingCaptainRowId)
                 .map((row) => String(row.captainRecipeId))
         );
-        return captainRecipeCatalog.filter((item) => !usedIds.has(String(item.id)));
+
+        const base = captainRecipeCatalog.filter((item) => !usedIds.has(String(item.id)));
+
+        // If editing a row whose captainRecipeId isn't in the catalog, inject it
+        if (editingCaptainRowId) {
+            const editingRow = captainRows.find((r) => r.rowId === editingCaptainRowId);
+            if (editingRow?.captainRecipeId) {
+                const existsInBase = base.some(
+                    (item) => String(item.id) === String(editingRow.captainRecipeId)
+                );
+                if (!existsInBase) {
+                    base.push({
+                        id: editingRow.captainRecipeId,
+                        name: editingRow.name,
+                        category: editingRow.category,
+                        unitId: editingRow.unitId,
+                        rate: editingRow.rate,
+                    });
+                }
+            }
+        }
+
+        return base;
     }, [captainRecipeCatalog, captainRows, editingCaptainRowId]);
 
     const selectedCaptainRecipeData = useMemo(() => {
@@ -1115,6 +1188,7 @@ const CreateMenuItem = () => {
 
             const data =
                 res?.data?.data?.["Captain Receipe Details"] ||
+                res?.data?.data?.menuItemRawMaterials ||
                 res?.data?.data ||
                 [];
 
@@ -1122,7 +1196,7 @@ const CreateMenuItem = () => {
 
             const mappedRows = list.map((item) => {
                 const recipe = captainRecipeCatalog.find(
-                    (r) => String(r.id) === String(item.captainReceipeId ?? item.captainReceipe?.id)
+                    (r) => String(r.id) === String(item.captainReceipeMaster?.id ?? item.captainReceipeId)
                 );
                 const unit = unitCatalog.find(
                     (u) => String(u.id) === String(item.unitId ?? item.unit?.id)
@@ -1131,10 +1205,10 @@ const CreateMenuItem = () => {
                 return {
                     rowId: captainRowSeq++,
                     id: item.id,
-                    captainRecipeId: item.captainReceipeMaster?.id ?? "",
+                    captainRecipeId: item.captainReceipeMaster?.id ?? item.captainReceipeId ?? "",
                     category:
                         item.category ??
-                        item.captainReceipe?.category ??
+                        item.captainReceipeMaster?.category ??
                         recipe?.category ??
                         "",
                     name: item.captainReceipeMaster?.name ?? recipe?.name ?? "",
@@ -1142,6 +1216,8 @@ const CreateMenuItem = () => {
                     unitId: item.unitId ?? item.unit?.id ?? "",
                     unit:
                         item.unit?.nameEnglish ??
+                        item.unitHierarchy?.nameEnglish ??
+                        item.unitName ??
                         unit?.name ??
                         "",
                     rate: Number(item.rate ?? recipe?.rate ?? 0),
@@ -1158,13 +1234,15 @@ const CreateMenuItem = () => {
             setCaptainSyncing(false);
         }
     };
-    const filteredCaptainRows = useMemo(
-        () =>
-            captainRows.filter((row) =>
-                row.name?.toLowerCase().includes(captainTableSearch.trim().toLowerCase())
-            ),
-        [captainRows, captainTableSearch]
-    );
+    const filteredCaptainRows = useMemo(() => {
+        const term = captainTableSearch.trim().toLowerCase();
+        if (!term) return captainRows;
+        return captainRows.filter(
+            (row) =>
+                row.name?.toLowerCase().includes(term) ||
+                row.category?.toLowerCase().includes(term)
+        );
+    }, [captainRows, captainTableSearch]);
 
     const captainColumns = useMemo(
         () => [
@@ -1205,22 +1283,7 @@ const CreateMenuItem = () => {
                 ),
                 enableSorting: false,
                 size: 70,
-            },
-            {
-                id: "category",
-                accessorFn: (row) => row.category,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Category"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <span className="text-gray-700">{row.original.category || "-"}</span>
-                ),
-                size: 130,
-            },
+            },           
             {
                 id: "name",
                 accessorFn: (row) => row.name,
@@ -1941,9 +2004,10 @@ const CreateMenuItem = () => {
                                 <button
                                     type="button"
                                     onClick={handleSyncCaptainRecipe}
+                                    disabled={captainSyncing}
                                     className="flex items-center cursor-pointer gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-white text-sm font-medium"
                                 >
-                                    <RefreshCw size={16} /> Sync Captain Recipe
+                                    <RefreshCw size={16} /> {captainSyncing ? "Syncing..." : "Sync Captain Recipe"}
                                 </button>
                                 <button
                                     type="button"
