@@ -11,7 +11,7 @@ import {
     Trash2,
     Upload,
 } from 'lucide-react'
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -25,6 +25,8 @@ import { getAssetCategories, deleteAssetCategory } from '@/services/apiServices'
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
   Select,
   SelectContent,
@@ -58,6 +60,8 @@ const mapCategory = (c) => ({
 });
 
 const AssetCategory = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Category Master');
+
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -232,21 +236,25 @@ const AssetCategory = () => {
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button" onClick={() => setViewingCategory(row.original)}>
+                    <button type="button" onClick={() => setViewingCategory(row.original)} title="View Category">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
-                    <button type="button" onClick={() => openEditModal(row.original)}>
-                        <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
-                    </button>
-                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-                        <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
-                    </button>
+                    {canEdit && (
+                        <button type="button" onClick={() => openEditModal(row.original)} title="Edit Category">
+                            <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
+                        </button>
+                    )}
+                    {canDelete && (
+                        <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete Category">
+                            <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
+                        </button>
+                    )}
                 </div>
             ),
             enableSorting: false,
             size: 110,
         },
-    ], [])
+    ], [canEdit, canDelete])
 
     const table = useReactTable({
         data: filteredCategories,
@@ -258,6 +266,10 @@ const AssetCategory = () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Category Master" />;
+    }
 
     return (
        <Container>
@@ -280,16 +292,18 @@ const AssetCategory = () => {
                     </p>
                 </div>
 
-                <div className="flex gap-3 self-end">
-                    <button
-                        type="button"
-                        onClick={openCreateModal}
-                        className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                    >
-                        <Plus size={16} />
-                        Add Category
-                    </button>
-                </div>
+                {canAdd && (
+                    <div className="flex gap-3 self-end">
+                        <button
+                            type="button"
+                            onClick={openCreateModal}
+                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                        >
+                            <Plus size={16} />
+                            Add Category
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Stat cards */}

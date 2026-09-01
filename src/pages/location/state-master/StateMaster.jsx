@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Container } from "@/components/common/container";
-import { ChevronRight, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
+import { ChevronRight, Eye, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
 import {
     getCoreRowModel,
     getPaginationRowModel,
@@ -13,10 +13,14 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { getAllStates, deleteStateById } from '../../../services/apiServices';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddStateModel from './AddStateModel';
 
 const StateMaster = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('State');
+
     const [search, setSearch] = useState('');
     const [states, setStates] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -27,6 +31,7 @@ const StateMaster = () => {
     // ---- Modal state ----
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editData, setEditData] = useState(null);
+    const [isViewOnly, setIsViewOnly] = useState(false);
 
     // ---- Delete confirm state ----
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -63,22 +68,30 @@ const StateMaster = () => {
     useEffect(() => {
         fetchStates();
     }, [fetchStates]);
+
     const filteredStates = useMemo(() => {
-        const searchTerm = search.trim().toLowerCase();
-
-        if (!searchTerm) return states;
-
-        return states.filter((state) =>
-            state.name?.toLowerCase().includes(searchTerm)
+        const query = search.trim().toLowerCase();
+        if (!query) return states;
+        return states.filter((item) =>
+            item.name?.toLowerCase().includes(query) ||
+            item.country?.toLowerCase().includes(query)
         );
     }, [states, search]);
 
     const openAddModal = () => {
+        setIsViewOnly(false);
         setEditData(null);
         setIsModalOpen(true);
     };
 
+    const openViewModal = (row) => {
+        setIsViewOnly(true);
+        setEditData(row);
+        setIsModalOpen(true);
+    };
+
     const openEditModal = (row) => {
+        setIsViewOnly(false);
         setEditData(row);
         setIsModalOpen(true);
     };
@@ -86,6 +99,7 @@ const StateMaster = () => {
     const closeModal = () => {
         setIsModalOpen(false);
         setEditData(null);
+        setIsViewOnly(false);
     };
 
     const openDeleteConfirm = (row) => {
@@ -160,25 +174,36 @@ const StateMaster = () => {
                 ),
                 cell: ({ row }) => (
                     <div className="flex items-center gap-3">
-                        <button onClick={() => openEditModal(row.original)}>
-                            <SquarePen
+                        <button onClick={() => openViewModal(row.original)} title="View Details">
+                            <Eye
                                 size={18}
-                                className="text-blue-400 hover:text-blue-800 cursor-pointer"
+                                className="text-gray-500 hover:text-green-600 cursor-pointer"
                             />
                         </button>
 
-                        <button onClick={() => openDeleteConfirm(row.original)}>
-                            <Trash2
-                                size={18}
-                                className="text-red-300 hover:text-red-700 cursor-pointer"
-                            />
-                        </button>
+                        {canEdit && (
+                            <button onClick={() => openEditModal(row.original)} title="Edit">
+                                <SquarePen
+                                    size={18}
+                                    className="text-blue-400 hover:text-blue-800 cursor-pointer"
+                                />
+                            </button>
+                        )}
+
+                        {canDelete && (
+                            <button onClick={() => openDeleteConfirm(row.original)} title="Delete">
+                                <Trash2
+                                    size={18}
+                                    className="text-red-300 hover:text-red-700 cursor-pointer"
+                                />
+                            </button>
+                        )}
                     </div>
                 ),
                 enableSorting: false,
             },
         ],
-        [],
+        [canEdit, canDelete],
     );
 
     const table = useReactTable({
@@ -191,6 +216,10 @@ const StateMaster = () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
+    if (!canView) {
+        return <AccessDenied pageTitle="State" />;
+    }
 
     return (
         <Container>
@@ -211,13 +240,15 @@ const StateMaster = () => {
                     </div>
 
                     <div className="flex gap-3 self-end">
-                        <button
-                            onClick={openAddModal}
-                            className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-                        >
-                            <Plus size={16} />
-                            Add State
-                        </button>
+                        {canAdd && (
+                            <button
+                                onClick={openAddModal}
+                                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
+                            >
+                                <Plus size={16} />
+                                Add State
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -281,6 +312,7 @@ const StateMaster = () => {
                     editData={editData}
                     onClose={closeModal}
                     onSuccess={fetchStates}
+                    isViewOnly={isViewOnly}
                 />
 
                 <DeleteConfirmModal

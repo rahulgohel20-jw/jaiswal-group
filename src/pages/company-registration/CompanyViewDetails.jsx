@@ -1,5 +1,7 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router";
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     ArrowLeft,
     SquarePen,

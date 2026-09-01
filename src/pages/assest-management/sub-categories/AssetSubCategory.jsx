@@ -25,6 +25,8 @@ import { getSubCategories, getAssetCategories, deleteSubCategory } from '@/servi
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -62,6 +64,8 @@ const mapSubCategory = (c, cats) => ({
 });
 
 const AssetSubCategory = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Category Master');
+
     const [subCategories, setSubCategories] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -306,21 +310,25 @@ const confirmDelete = async () => {
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button" onClick={() => setViewingSubCategory(row.original)}>
+                    <button type="button" onClick={() => setViewingSubCategory(row.original)} title="View Sub Category">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
-                    <button type="button" onClick={() => openEditModal(row.original)}>
-                        <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
-                    </button>
-                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-                        <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
-                    </button>
+                    {canEdit && (
+                        <button type="button" onClick={() => openEditModal(row.original)} title="Edit Sub Category">
+                            <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
+                        </button>
+                    )}
+                    {canDelete && (
+                        <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete Sub Category">
+                            <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
+                        </button>
+                    )}
                 </div>
             ),
             enableSorting: false,
             size: 110,
         },
-    ], []
+    ], [canEdit, canDelete]
     )
     const table = useReactTable({
         data: filteredSubCategories,
@@ -332,6 +340,10 @@ const confirmDelete = async () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Sub Category Master" />;
+    }
 
     return (
         <Container>
@@ -354,16 +366,18 @@ const confirmDelete = async () => {
                     </p>
                 </div>
 
-                <div className="flex gap-3 self-end">
-                    <button
-                        type="button"
-                        onClick={openCreateModal}
-                        className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                    >
-                        <Plus size={16} />
-                        Add Sub Category
-                    </button>
-                </div>
+                {canAdd && (
+                    <div className="flex gap-3 self-end">
+                        <button
+                            type="button"
+                            onClick={openCreateModal}
+                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                        >
+                            <Plus size={16} />
+                            Add Sub Category
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Stat cards */}

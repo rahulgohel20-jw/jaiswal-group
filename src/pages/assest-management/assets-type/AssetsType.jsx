@@ -12,6 +12,8 @@ import { getAssetTypes, getAssetTypeById, deleteAssetType } from '@/services/api
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -50,6 +52,8 @@ const mapAssetType = (t) => ({
 });
 
 const AssetsType = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assets Type Master');
+
     const [type, setType] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -197,7 +201,7 @@ const confirmDelete = async () => {
             iconColor: "text-[#F97316]",
         },
     ];
-    const columns = [
+    const columns = useMemo(() => [
         {
             id: "select",
             header: ({ table }) => (
@@ -260,22 +264,29 @@ const confirmDelete = async () => {
                         size={18}
                         className="text-[#64748B] hover:text-green-600 cursor-pointer"
                         onClick={() => handleView(row.original)}
+                        title="View Asset Type"
                     />
-                    <SquarePen
-                        size={18}
-                        className="text-[#64748B] hover:text-blue-600 cursor-pointer"
-                        onClick={() => openEditModal(row.original)}
-                    />
-                    <Trash2
-                        size={18}
-                        className="text-red-300 hover:text-red-600 cursor-pointer"
-                        onClick={() => openDeleteConfirm(row.original)}
-                    />
+                    {canEdit && (
+                        <SquarePen
+                            size={18}
+                            className="text-[#64748B] hover:text-blue-600 cursor-pointer"
+                            onClick={() => openEditModal(row.original)}
+                            title="Edit Asset Type"
+                        />
+                    )}
+                    {canDelete && (
+                        <Trash2
+                            size={18}
+                            className="text-red-300 hover:text-red-600 cursor-pointer"
+                            onClick={() => openDeleteConfirm(row.original)}
+                            title="Delete Asset Type"
+                        />
+                    )}
                 </div>
             ),
             enableSorting: false,
         },
-    ]
+    ], [canEdit, canDelete])
     const table = useReactTable({
         data: filteredTypes,
         columns,
@@ -288,6 +299,11 @@ const confirmDelete = async () => {
     useEffect(() => {
         table.setPageIndex(0);
     }, [searchInput, typeInput, transferInput]);
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Assets Type Master" />;
+    }
+
     return (
         <Container>
             <div className="space-y-6 p-6">
@@ -309,12 +325,14 @@ const confirmDelete = async () => {
                         Configure classification rules and transfer protocols for organizational assets.
                     </p>
                 </div>
-                <div className="flex gap-3">
-                    <button onClick={openCreateModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg hover:bg-[#063b6d] cursor-pointer">
-                        <Plus size={16} />
-                        Add Asset Type
-                    </button>
-                </div>
+                {canAdd && (
+                    <div className="flex gap-3">
+                        <button onClick={openCreateModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg hover:bg-[#063b6d] cursor-pointer">
+                            <Plus size={16} />
+                            Add Asset Type
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Stats Cards — unchanged, still static */}

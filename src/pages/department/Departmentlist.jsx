@@ -27,6 +27,9 @@ import { Input } from '@/components/ui/input';
 import { Container } from '@/components/common/container';
 import AddDepartmentModal from './AddDepartmentModal';
 import DepartmentDetailsModal from './DepartmentDetailsModal';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const PAGE_SIZE = 5;
 
@@ -62,6 +65,8 @@ const mapDepartment = (d) => ({
 });
 
 const Departmentlist = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Departments');
+
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -73,6 +78,11 @@ const Departmentlist = () => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [selectedDepartment, setSelectedDepartment] = useState(null);
   const [editingDepartment, setEditingDepartment] = useState(null); // null = "add" mode
+
+  // Delete confirmation state
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deletingDepartment, setDeletingDepartment] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchDepartments = useCallback(async () => {
     setLoading(true);
@@ -161,15 +171,7 @@ const Departmentlist = () => {
         setIsAddOpen(false);
         setEditingDepartment(null);
       }
-      const serverMsg =
-        err?.response?.data?.errorMessage ||
-        err?.response?.data?.message ||
-        (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
-        'Failed to save role.';
-      setError(serverMsg);
-      notify.error(serverMsg);
-    }
-    catch (err) {
+    } catch (err) {
       console.error(err);
       const serverMsg =
         err?.response?.data?.errorMessage ||
@@ -181,12 +183,32 @@ const Departmentlist = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  // Step 1: user clicks the trash icon -> open the confirm modal
+  const openDeleteConfirm = (dept) => {
+    setDeletingDepartment(dept);
+    setIsDeleteOpen(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleting) return; // don't allow closing mid-request
+    setIsDeleteOpen(false);
+    setDeletingDepartment(null);
+  };
+
+  // Step 2: user confirms inside the modal -> actually delete
+  const handleConfirmDelete = async () => {
+    if (!deletingDepartment) return;
+    const id = deletingDepartment.id;
+
+    setDeleting(true);
     const prev = departments;
     setDepartments((cur) => cur.filter((d) => d.id !== id)); // optimistic
+
     try {
       await deleteRoleMasterById(id);
       notify.success('Role deleted successfully');
+      setIsDeleteOpen(false);
+      setDeletingDepartment(null);
     } catch (err) {
       console.error(err);
       setDepartments(prev); // rollback
@@ -197,6 +219,8 @@ const Departmentlist = () => {
         'Failed to delete role.';
       setError(serverMsg);
       notify.error(serverMsg);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -220,6 +244,10 @@ const Departmentlist = () => {
     setEditingDepartment(dept);
     setIsAddOpen(true);
   };
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Departments" />;
+  }
 
   return (
     <Container>
@@ -245,16 +273,18 @@ const Departmentlist = () => {
               <Download className="h-4 w-4" />
               Export Data
             </Button>
-            <Button
-              onClick={() => {
-                setEditingDepartment(null);
-                setIsAddOpen(true);
-              }}
-              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Create Department
-            </Button>
+            {canAdd && (
+              <Button
+                onClick={() => {
+                  setEditingDepartment(null);
+                  setIsAddOpen(true);
+                }}
+                className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Create Department
+              </Button>
+            )}
           </div>
         </div>
 
@@ -366,22 +396,26 @@ const Departmentlist = () => {
                         >
                           <Eye size={18} />
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => openEdit(dept)}
-                          className="text-gray-500 hover:text-blue-600 cursor-pointer"
-                          aria-label={`Edit ${dept.name}`}
-                        >
-                          <SquarePen size={18} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(dept.id)}
-                          className="text-red-300 hover:text-red-600 cursor-pointer"
-                          aria-label={`Delete ${dept.name}`}
-                        >
-                          <Trash2 size={18} />
-                        </button>
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => openEdit(dept)}
+                            className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                            aria-label={`Edit ${dept.name}`}
+                          >
+                            <SquarePen size={18} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => openDeleteConfirm(dept)}
+                            className="text-red-300 hover:text-red-600 cursor-pointer"
+                            aria-label={`Delete ${dept.name}`}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -444,6 +478,14 @@ const Departmentlist = () => {
           onClose={() => setIsDetailsOpen(false)}
           onEdit={handleEditFromDetails}
           department={selectedDepartment}
+        />
+        <DeleteConfirmModal
+          isOpen={isDeleteOpen}
+          onClose={closeDeleteConfirm}
+          onConfirm={handleConfirmDelete}
+          itemLabel={deletingDepartment?.name}
+          saving={deleting}
+          title="Delete Department"
         />
       </div>
     </Container>

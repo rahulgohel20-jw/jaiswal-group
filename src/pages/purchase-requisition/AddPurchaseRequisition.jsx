@@ -21,6 +21,8 @@ import { PR_STATUS, getStatusLabel } from './utils/prStatus';
 import PurchaseRequisitionLog from './PurchaseRequisitionLog';
 import { getUsernameFromToken } from '../../utils/auth';
 import { getTodayInputDate } from '../../utils/GetCurrentToday';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -165,6 +167,8 @@ const AddPurchaseRequisition = () => {
   const isEditMode = Boolean(id);
   const { state } = useLocation();
   const copyPrId = state?.copyFromId || (state?.isCopy ? state?.id : null);
+
+  const { canAdd, canEdit, canView } = usePagePermissions('Purchase Requisition');
 
   const { fetchById, createDraft, createAndSendForApproval, updateDraft, updateAndSendForApproval } =
     usePurchaseRequisitions();
@@ -452,6 +456,16 @@ const AddPurchaseRequisition = () => {
     );
   }
 
+  if (!canView) {
+    return <AccessDenied pageTitle="Purchase Requisition" />;
+  }
+
+  if (!isEditMode && !canAdd) {
+    return <AccessDenied pageTitle="Purchase Requisition" />;
+  }
+
+  const canPerformEdit = isEditMode ? canEdit : canAdd;
+
   return (
     <Container>
       <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-10">
@@ -553,8 +567,9 @@ const AddPurchaseRequisition = () => {
         type="date"
         value={prRequiredDate}
         min={prDate || getTodayInputDate()}
+        disabled={!canPerformEdit}
         onChange={(e) => setPrRequiredDate(e.target.value)}
-        className={errors.prRequiredDate ? errorInputCls : inputCls}
+        className={`${errors.prRequiredDate ? errorInputCls : inputCls} disabled:bg-gray-50 disabled:text-gray-500`}
       />
       {errors.prRequiredDate && (
         <p className="text-xs text-red-500 mt-1">{errors.prRequiredDate}</p>
@@ -566,22 +581,25 @@ const AddPurchaseRequisition = () => {
     <label className={labelCls}>Remarks</label>
     <textarea
       value={remarks}
+      disabled={!canPerformEdit}
       onChange={(e) => setRemarks(e.target.value)}
       rows={3}
       placeholder="Internal notes for this requisition..."
-      className={`${inputCls} resize-none`}
+      className={`${inputCls} resize-none disabled:bg-gray-50 disabled:text-gray-500`}
     />
   </div>
 </SectionCard>
 
         {/* Raw materials */}
         <SectionCard className="mt-5 p-5 sm:p-6">
-          <RawMaterialPicker
-            rawMaterials={rawMaterials}
-            alreadyAddedIds={alreadyAddedIds}
-            onAdd={handleAddItem}
-            loading={rawMaterialsLoading}
-          />
+          {canPerformEdit && (
+            <RawMaterialPicker
+              rawMaterials={rawMaterials}
+              alreadyAddedIds={alreadyAddedIds}
+              onAdd={handleAddItem}
+              loading={rawMaterialsLoading}
+            />
+          )}
 
           {itemPickError && (
             <p className="text-xs text-red-500 mt-2">{itemPickError}</p>
@@ -599,13 +617,13 @@ const AddPurchaseRequisition = () => {
                   </th>
                   <th className="text-left font-semibold px-4 py-3">Available Stock</th>
                   <th className="text-left font-semibold px-4 py-3 w-32">Quantity</th>
-                  <th className="text-left font-semibold px-4 py-3 w-16">Action</th>
+                  {canPerformEdit && <th className="text-left font-semibold px-4 py-3 w-16">Action</th>}
                 </tr>
               </thead>
               <tbody>
                 {details.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-gray-400">
+                    <td colSpan={canPerformEdit ? 6 : 5} className="px-4 py-10 text-center text-gray-400">
                       No items added yet — search above to add raw materials.
                     </td>
                   </tr>
@@ -646,19 +664,22 @@ const AddPurchaseRequisition = () => {
                             type="number"
                             min="1"
                             value={d.quantity}
+                            disabled={!canPerformEdit}
                             onChange={(e) => updateQuantity(d.rawMaterialId, e.target.value)}
-                            className={`${inputCls} py-1.5`}
+                            className={`${inputCls} py-1.5 disabled:bg-gray-50 disabled:text-gray-500`}
                           />
                         </td>
-                        <td className="px-4 py-4">
-                          <button
-                            type="button"
-                            onClick={() => removeDetail(d.rawMaterialId)}
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 transition cursor-pointer bg-transparent border-0"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
+                        {canPerformEdit && (
+                          <td className="px-4 py-4">
+                            <button
+                              type="button"
+                              onClick={() => removeDetail(d.rawMaterialId)}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 transition cursor-pointer bg-transparent border-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })
@@ -697,30 +718,32 @@ const AddPurchaseRequisition = () => {
         </SectionCard>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-3 mt-5">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={busy}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save
-          </button>
-          <button
-            type="button"
-            onClick={handleSendForApproval}
-            disabled={busy}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition disabled:opacity-60"
-          >
-            {sendingForApproval ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="w-4 h-4" />
-            )}
-            Send For Approval
-          </button>
-        </div>
+        {canPerformEdit && (
+          <div className="flex items-center justify-end gap-3 mt-5">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={busy}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-60"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={handleSendForApproval}
+              disabled={busy}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition disabled:opacity-60"
+            >
+              {sendingForApproval ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="w-4 h-4" />
+              )}
+              Send For Approval
+            </button>
+          </div>
+        )}
       </div>
 
     {isEditMode && loadedPr && (

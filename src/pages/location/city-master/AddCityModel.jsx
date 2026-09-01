@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 
-const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
+const AddCityModel = ({ open, onClose, editData, onSuccess, isViewOnly = false }) => {
   const [states, setStates] = useState([]);
 
   const [form, setForm] = useState({
@@ -59,70 +59,89 @@ const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
     }
   }, [open, editData]);
 
-  // ---------------- SET SELECTED STATE NAME IN SEARCH INPUT ----------------
-  useEffect(() => {
-    if (!editData || states.length === 0) return;
-
-    const stateId =
-      editData.stateId ??
-      editData.state?.id;
-
-    const selectedState = states.find(
-      (state) => String(state.id) === String(stateId)
-    );
-
-    if (selectedState) {
-      setStateSearch(selectedState.name || "");
-    }
-  }, [editData, states]);
-
   // ---------------- FETCH STATES ----------------
   useEffect(() => {
     const fetchStates = async () => {
       try {
         const res = await getAllStates();
+        const payload = res.data;
 
-        const data = res?.data?.data || [];
+        if (payload?.success) {
+          const mapped = (payload.data || []).map((item) => ({
+            id: item.id,
+            name: item.name,
+          }));
 
-        setStates(Array.isArray(data) ? data : []);
+          setStates(mapped);
+        } else {
+          notify.error("Failed to load states.");
+        }
       } catch (err) {
-        console.error("Failed to load states", err);
-        setStates([]);
+        console.error(err);
+        notify.error("Something went wrong while fetching states.");
       }
     };
 
-    fetchStates();
-  }, []);
+    if (open) {
+      fetchStates();
+    }
+  }, [open]);
 
-  // ---------------- SAVE ----------------
+  // ---------------- SYNC STATE SEARCH INPUT ----------------
+  useEffect(() => {
+    if (!editData || states.length === 0) return;
+
+    const matchedState = states.find(
+      (item) =>
+        String(item.id) === String(editData.stateId || editData.state?.id)
+    );
+
+    if (matchedState) {
+      setStateSearch(matchedState.name || "");
+    }
+  }, [editData, states]);
+
+  // ---------------- SAVE / UPDATE ----------------
   const handleSave = async () => {
+    if (!form.stateId) {
+      notify.error("Please select a State.");
+      return;
+    }
+
+    if (!form.name.trim()) {
+      notify.error("City Name is required.");
+      return;
+    }
+
+    const payload = {
+      name: form.name.trim(),
+      stateId: Number(form.stateId),
+    };
+
     try {
-      if (!form.name.trim()) {
-        notify.error("Enter city name");
-        return;
-      }
+      let res;
 
-      if (!form.stateId) {
-        notify.error("Select state");
-        return;
-      }
-
-      const payload = {
-        stateId: Number(form.stateId),
-        name: form.name.trim(),
-      };
-
-      if (editData) {
-        await updateCity(editData.id, payload);
+      if (isEditMode) {
+        res = await updateCity(editData.id, payload);
       } else {
-        await addCity(payload);
+        res = await addCity(payload);
       }
 
-      onSuccess?.();
-      onClose();
+      if (res.data?.success) {
+        notify.success(
+          isEditMode
+            ? "City updated successfully."
+            : "City added successfully."
+        );
+
+        onSuccess?.();
+        onClose();
+      } else {
+        notify.error(res.data?.message || "Operation failed.");
+      }
     } catch (err) {
-      console.error("Failed to save city:", err);
-      notify.error(err, "Failed to save city");
+      console.error(err);
+      notify.error("Something went wrong.");
     }
   };
 
@@ -141,7 +160,9 @@ const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
         {/* Header */}
         <div className="flex justify-between items-center border-b pb-4">
           <h2 className="text-xl font-semibold">
-            {isEditMode
+            {isViewOnly
+              ? "View City Details"
+              : isEditMode
               ? "Update City"
               : "Create New City"}
           </h2>
@@ -163,8 +184,8 @@ const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
             </label>
 
             <Popover
-              open={stateOpen}
-              onOpenChange={setStateOpen}
+              open={!isViewOnly && stateOpen}
+              onOpenChange={!isViewOnly ? setStateOpen : undefined}
               modal={false}
             >
               <PopoverTrigger asChild>
@@ -173,8 +194,12 @@ const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
                     type="text"
                     value={stateSearch}
                     placeholder="Select State"
-                    onClick={() => setStateOpen(true)}
+                    disabled={isViewOnly}
+                    onClick={() => {
+                      if (!isViewOnly) setStateOpen(true);
+                    }}
                     onChange={(e) => {
+                      if (isViewOnly) return;
                       setStateSearch(e.target.value);
                       setStateOpen(true);
 
@@ -257,6 +282,7 @@ const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
             <input
               type="text"
               name="name"
+              disabled={isViewOnly}
               value={form.name}
               onChange={(e) =>
                 setForm((prev) => ({
@@ -265,7 +291,7 @@ const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
                 }))
               }
               placeholder="Enter city name"
-              className="w-full border rounded px-4 py-2 outline-none focus:ring-2 focus:ring-[#084E92]"
+              className="w-full border rounded px-4 py-2 outline-none focus:ring-2 focus:ring-[#084E92] disabled:bg-gray-50"
             />
           </div>
 
@@ -278,15 +304,17 @@ const AddCityModel = ({ open, onClose, editData, onSuccess }) => {
             onClick={onClose}
             className="px-6 py-2 rounded bg-gray-200 cursor-pointer text-sm"
           >
-            Cancel
+            {isViewOnly ? "Close" : "Cancel"}
           </button>
 
-          <button
-            onClick={handleSave}
-            className="px-6 py-2 rounded bg-[#084E92] text-white cursor-pointer text-sm"
-          >
-            {isEditMode ? "Update" : "Save"}
-          </button>
+          {!isViewOnly && (
+            <button
+              onClick={handleSave}
+              className="px-6 py-2 rounded bg-[#084E92] text-white cursor-pointer text-sm"
+            >
+              {isEditMode ? "Update" : "Save"}
+            </button>
+          )}
 
         </div>
 

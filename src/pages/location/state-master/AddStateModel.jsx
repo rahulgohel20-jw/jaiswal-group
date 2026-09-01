@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/popover";
 import { Input } from '@/components/ui/input';
 
-const AddStateModel = ({ open, onClose, editData, onSuccess }) => {
+const AddStateModel = ({ open, onClose, editData, onSuccess, isViewOnly = false }) => {
     const [countries, setCountries] = useState([]);
     const [form, setForm] = useState({
         name: "",
@@ -131,7 +131,7 @@ const AddStateModel = ({ open, onClose, editData, onSuccess }) => {
                 {/* Header */}
                 <div className="flex justify-between items-center border-b pb-4">
                     <h2 className="text-xl font-semibold">
-                        {editData ? "Update State" : "Create New State"}
+                        {isViewOnly ? "View State Details" : editData ? "Update State" : "Create New State"}
                     </h2>
 
                     <X
@@ -150,8 +150,8 @@ const AddStateModel = ({ open, onClose, editData, onSuccess }) => {
                         </label>
 
                         <Popover
-                            open={countryOpen}
-                            onOpenChange={setCountryOpen}
+                            open={!isViewOnly && countryOpen}
+                            onOpenChange={!isViewOnly ? setCountryOpen : undefined}
                             modal={false}
                         >
                             <PopoverTrigger asChild>
@@ -160,8 +160,12 @@ const AddStateModel = ({ open, onClose, editData, onSuccess }) => {
                                         type="text"
                                         value={countrySearch}
                                         placeholder="Select Country"
-                                        onClick={() => setCountryOpen(true)}
+                                        disabled={isViewOnly}
+                                        onClick={() => {
+                                            if (!isViewOnly) setCountryOpen(true);
+                                        }}
                                         onChange={(e) => {
+                                            if (isViewOnly) return;
                                             setCountrySearch(e.target.value);
                                             setCountryOpen(true);
 
@@ -242,6 +246,7 @@ const AddStateModel = ({ open, onClose, editData, onSuccess }) => {
                         <input
                             type="text"
                             name="name"
+                            disabled={isViewOnly}
                             value={form.name}
                             onChange={(e) =>
                                 setForm({
@@ -250,7 +255,7 @@ const AddStateModel = ({ open, onClose, editData, onSuccess }) => {
                                 })
                             }
                             placeholder="Name.."
-                            className="w-full border rounded px-4 py-2 outline-none"
+                            className="w-full border rounded px-4 py-2 outline-none disabled:bg-gray-50"
                         />
                     </div>
 
@@ -263,15 +268,17 @@ const AddStateModel = ({ open, onClose, editData, onSuccess }) => {
                         onClick={onClose}
                         className="px-6 py-2 rounded bg-gray-200 cursor-pointer text-sm"
                     >
-                        Cancel
+                        {isViewOnly ? "Close" : "Cancel"}
                     </button>
 
-                    <button
-                        onClick={handleSave}
-                        className="px-6 py-2 rounded bg-[#084E92] text-white cursor-pointer text-sm"
-                    >
-                        Save
-                    </button>
+                    {!isViewOnly && (
+                        <button
+                            onClick={handleSave}
+                            className="px-6 py-2 rounded bg-[#084E92] text-white cursor-pointer text-sm"
+                        >
+                            Save
+                        </button>
+                    )}
 
                 </div>
 

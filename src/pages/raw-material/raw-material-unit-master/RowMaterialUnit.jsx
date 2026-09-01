@@ -10,6 +10,7 @@ import {
   ChevronRight,
   CircleCheck,
   CircleX,
+  Eye,
   Plus,
   Ruler,
   Search,
@@ -31,6 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
   deleteUnitMasterById,
   getAllRawMaterialUnits,
@@ -41,6 +44,8 @@ import StatusConfirmModal from '../../../utils/StatusConfirmModal';
 import AddRawMaterialUnit from './AddRawMaterialUnit';
 
 const RowMaterialUnit = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Unit Master');
+
   const [units, setUnit] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -51,6 +56,7 @@ const RowMaterialUnit = () => {
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
+  const [isViewOnly, setIsViewOnly] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -102,25 +108,17 @@ const RowMaterialUnit = () => {
   }, []);
 
   const handleAddClick = () => {
+    setIsViewOnly(false);
     setEditingUnit(null);
     setIsUnitModalOpen(true);
   };
 
   const handleEditClick = async (unit) => {
     try {
+      setIsViewOnly(false);
       setLoading(true);
-
       const res = await getRawMaterialUnitById(unit.id);
-
-      const data = res?.data?.data?.['Unit Details']?.[0];
-
-      if (!data) {
-        notify.error('Unit details not found');
-        return;
-      }
-
-      console.log('EDIT UNIT DATA:', data);
-
+      const data = res?.data?.data?.['Unit Details']?.[0] || unit;
       setEditingUnit(data);
       setIsUnitModalOpen(true);
     } catch (err) {
@@ -129,9 +127,26 @@ const RowMaterialUnit = () => {
       setLoading(false);
     }
   };
+
+  const handleViewClick = async (unit) => {
+    try {
+      setIsViewOnly(true);
+      setLoading(true);
+      const res = await getRawMaterialUnitById(unit.id);
+      const data = res?.data?.data?.['Unit Details']?.[0] || unit;
+      setEditingUnit(data);
+      setIsUnitModalOpen(true);
+    } catch (err) {
+      console.error('Failed to fetch unit details:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleModalClose = () => {
     setIsUnitModalOpen(false);
     setEditingUnit(null);
+    setIsViewOnly(false);
   };
 
   const handleUnitSaved = () => {
@@ -143,7 +158,7 @@ const RowMaterialUnit = () => {
     setShowDeleteConfirm(true);
   };
   const openDeleteConfirm = (row) => {
-    setDeleteTarget({ id: row.id, name: row.nameEnglish });
+    setDeleteTarget({ id: row.id, name: row.nameEnglish || row.name });
     setShowDeleteConfirm(true);
   };
 
@@ -237,153 +252,171 @@ const RowMaterialUnit = () => {
     }));
   }, [searchText, statusFilter]);
 
-  const columns = [
-    {
-      id: 'select',
-      header: ({ table }) => (
-        <input
-          type="checkbox"
-          checked={table.getIsAllPageRowsSelected()}
-          onChange={table.getToggleAllPageRowsSelectedHandler()}
-          className="w-4 h-4 cursor-pointer accent-[#005BAC]"
-        />
-      ),
-      cell: ({ row }) => (
-        <input
-          type="checkbox"
-          checked={row.getIsSelected()}
-          onChange={row.getToggleSelectedHandler()}
-          className="w-4 h-4 cursor-pointer accent-[#005BAC]"
-        />
-      ),
-      enableSorting: false,
-      size: 50,
-    },
-    {
-      id: 'sno',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="S.No"
-          column={column}
-          className="text-[#43474F] font-semibold py-4 uppercase text-sm"
-        />
-      ),
-      cell: ({ row }) => row.index + 1,
-      enableSorting: false,
-      size: 80,
-    },
-    {
-      accessorKey: 'name',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="Name"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm"
-        />
-      ),
-      cell: ({ row }) => (
-        <p className="font-semibold text-gray-800 py-2 capitalize">
-          {row.original.name}
-        </p>
-      ),
-    },
-    {
-      accessorKey: 'symbol',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="Symbol"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm"
-        />
-      ),
-      cell: ({ row }) => (
-        <p className="font-semibold text-gray-600 py-2 capitalize">
-          {row.original.symbol}
-        </p>
-      ),
-    },
-    {
-      id: 'status',
-
-      accessorFn: (row) => row.status,
-
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="Status"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm"
-        />
-      ),
-
-      cell: ({ row }) => (
-        <label className="relative inline-flex cursor-pointer">
+  const columns = useMemo(
+    () => [
+      {
+        id: 'select',
+        header: ({ table }) => (
           <input
             type="checkbox"
-            checked={row.original.status === 'Active'}
-            className="sr-only peer uppercase text-sm"
-            onChange={() => {
-              setStatusTarget({
-                id: row.original.id,
-                itemLabel: row.original.name,
-                nextActive: row.original.status !== 'Active',
-                nextStatusLabel:
-                  row.original.status === 'Active' ? 'Inactive' : 'Active',
-              });
-              setShowStatusConfirm(true);
-            }}
+            checked={table.getIsAllPageRowsSelected()}
+            onChange={table.getToggleAllPageRowsSelectedHandler()}
+            className="w-4 h-4 cursor-pointer accent-[#005BAC]"
           />
+        ),
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={row.getIsSelected()}
+            onChange={row.getToggleSelectedHandler()}
+            className="w-4 h-4 cursor-pointer accent-[#005BAC]"
+          />
+        ),
+        enableSorting: false,
+        size: 50,
+      },
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.No"
+            column={column}
+            className="text-[#43474F] font-semibold py-4 uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => row.index + 1,
+        enableSorting: false,
+        size: 80,
+      },
+      {
+        accessorKey: 'name',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Name"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <p className="font-semibold text-gray-800 py-2 capitalize">
+            {row.original.name}
+          </p>
+        ),
+      },
+      {
+        accessorKey: 'symbol',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Symbol"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <p className="font-semibold text-gray-600 py-2 capitalize">
+            {row.original.symbol}
+          </p>
+        ),
+      },
+      {
+        id: 'status',
 
-          <div
-            className="
-                                w-11 h-6 
-                                bg-gray-300 
-                                rounded-full 
-                                peer 
-                                peer-checked:bg-[#084E92]
-                                after:absolute
-                                after:top-0.5
-                                after:left-0.5
-                                after:h-5
-                                after:w-5
-                                after:bg-white
-                                after:rounded-full
-                                after:transition-all
-                                peer-checked:after:translate-x-full
-                                "
-          />
-        </label>
-      ),
+        accessorFn: (row) => row.status,
 
-      size: 120,
-    },
-    {
-      id: 'actions',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="Actions"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm"
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          <SquarePen
-            size={18}
-            className="text-gray-500 hover:text-blue-600 cursor-pointer"
-            onClick={() => handleEditClick(row.original)}
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Status"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
           />
+        ),
 
-          <Trash2
-            size={18}
-            className="text-red-300 cursor-pointer hover:text-red-700"
-            onClick={() => openDeleteConfirm(row.original)}
+        cell: ({ row }) => (
+          <label className={`relative inline-flex ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+            <input
+              type="checkbox"
+              checked={row.original.status === 'Active'}
+              disabled={!canEdit}
+              className="sr-only peer uppercase text-sm"
+              onChange={() => {
+                if (!canEdit) return;
+                setStatusTarget({
+                  id: row.original.id,
+                  itemLabel: row.original.name,
+                  nextActive: row.original.status !== 'Active',
+                  nextStatusLabel:
+                    row.original.status === 'Active' ? 'Inactive' : 'Active',
+                });
+                setShowStatusConfirm(true);
+              }}
+            />
+
+            <div
+              className="
+                                  w-11 h-6 
+                                  bg-gray-300 
+                                  rounded-full 
+                                  peer 
+                                  peer-checked:bg-[#084E92]
+                                  after:absolute
+                                  after:top-0.5
+                                  after:left-0.5
+                                  after:h-5
+                                  after:w-5
+                                  after:bg-white
+                                  after:rounded-full
+                                  after:transition-all
+                                  peer-checked:after:translate-x-full
+                                  "
+            />
+          </label>
+        ),
+
+        size: 120,
+      },
+      {
+        id: 'actions',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Actions"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
           />
-        </div>
-      ),
-      enableSorting: false,
-      size: 100,
-    },
-  ];
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <Eye
+              size={18}
+              className="text-gray-500 hover:text-green-600 cursor-pointer"
+              onClick={() => handleViewClick(row.original)}
+              title="View Details"
+            />
+
+            {canEdit && (
+              <SquarePen
+                size={18}
+                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                onClick={() => handleEditClick(row.original)}
+                title="Edit"
+              />
+            )}
+
+            {canDelete && (
+              <Trash2
+                size={18}
+                className="text-red-300 cursor-pointer hover:text-red-700"
+                onClick={() => openDeleteConfirm(row.original)}
+                title="Delete"
+              />
+            )}
+          </div>
+        ),
+        enableSorting: false,
+        size: 110,
+      },
+    ],
+    [canEdit, canDelete],
+  );
 
   const table = useReactTable({
     data: filteredUnits,
@@ -395,6 +428,10 @@ const RowMaterialUnit = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Raw Material Unit Master" />;
+  }
 
   return (
     <Container>
@@ -429,14 +466,16 @@ const RowMaterialUnit = () => {
               <Upload size={16} />
               Export
             </button>
-            <button
-              type="button"
-              onClick={handleAddClick}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-            >
-              <Plus size={16} />
-              Add Unit
-            </button>
+            {canAdd && (
+              <button
+                type="button"
+                onClick={handleAddClick}
+                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+              >
+                <Plus size={16} />
+                Add Unit
+              </button>
+            )}
           </div>
         </div>
 
@@ -454,60 +493,42 @@ const RowMaterialUnit = () => {
               <h2 className={`text-xl font-bold ${item.color}`}>
                 {item.value}
               </h2>
-              {item.badge && <p className="text-xs mt-1">{item.badge}</p>}
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-            <div className="relative border border-[#C3C6D1] rounded-lg">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-
+        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
-                placeholder="Search Unit Name or Symbol..."
-                className="w-full pl-10 py-2 outline-none rounded-lg"
+                type="text"
+                placeholder="Search unit by name or symbol..."
                 value={searchText}
-                onChange={(e) => {
-                  setSearchText(e.target.value);
-                }}
+                onChange={(e) => setSearchText(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-[#C3C6D1] rounded-lg text-sm focus:outline-none"
               />
             </div>
 
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => setStatusFilter(value)}
-            >
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
-
               <SelectContent>
                 <SelectItem value="All Status">All Status</SelectItem>
-
                 <SelectItem value="Active">Active</SelectItem>
-
                 <SelectItem value="Inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        {error && (
-          <div className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-            {error}
-          </div>
-        )}
-
         {/* Table */}
         <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
           {loading ? (
-            <div className="p-10 text-center text-sm text-gray-500">
-              Loading units...
-            </div>
+            <p className="p-4 text-sm text-gray-500">Loading units...</p>
+          ) : error ? (
+            <p className="p-4 text-sm text-red-600">{error}</p>
           ) : (
             <DataGrid
               table={table}
@@ -534,6 +555,7 @@ const RowMaterialUnit = () => {
           onClose={handleModalClose}
           onSaved={handleUnitSaved}
           initialData={editingUnit}
+          isViewOnly={isViewOnly}
         />
       </div>
       <StatusConfirmModal

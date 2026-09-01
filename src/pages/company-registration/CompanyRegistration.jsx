@@ -20,6 +20,8 @@ import {
   updateCompany,
 } from '../../services/apiServices';
 import { getUserIdFromToken } from '@/utils/auth';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
   validateRequired,
   validateEmail,
@@ -433,6 +435,7 @@ const SECTIONS = {
 const CompanyRegistration = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { canAdd, canEdit, canView } = usePagePermissions('Companies');
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
@@ -815,6 +818,10 @@ const CompanyRegistration = () => {
     'ifsc',
     'upiId',
   ].some((k) => errors[k]);
+
+  if (!canView || (isEditMode ? !canEdit : !canAdd)) {
+    return <AccessDenied pageTitle={isEditMode ? 'Update Company' : 'Register New Company'} />;
+  }
 
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">

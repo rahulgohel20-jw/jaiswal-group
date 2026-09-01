@@ -5,7 +5,7 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ChevronRight, Plus, Search, SquarePen } from 'lucide-react';
+import { ChevronRight, Eye, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
 import { deletePage, getPages } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -14,6 +14,9 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
+import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddPageModal from './AddPageModal';
 
 // Maps a raw API page object (+ its row position) to the shape the table expects
@@ -25,20 +28,34 @@ const mapPage = (p, index) => ({
 });
 
 const PageMaster = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Pages');
+
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [showAddPage, setShowAddPage] = useState(false);
   const [editingPage, setEditingPage] = useState(null);
+  const [isViewOnly, setIsViewOnly] = useState(false);
   const [search, setSearch] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const openViewModal = (row) => {
+    setIsViewOnly(true);
+    setEditingPage(row);
+    setShowAddPage(true);
+  };
 
   const openEditModal = (row) => {
+    setIsViewOnly(false);
     setEditingPage(row);
     setShowAddPage(true);
   };
 
   const openCreateModal = () => {
+    setIsViewOnly(false);
     setEditingPage(null);
     setShowAddPage(true);
   };
@@ -46,6 +63,35 @@ const PageMaster = () => {
   const closeModal = () => {
     setShowAddPage(false);
     setEditingPage(null);
+    setIsViewOnly(false);
+  };
+
+  const openDeleteConfirm = (row) => {
+    setDeleteTarget({ id: row.id, name: row.name });
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deleteLoading) return;
+    setShowDeleteConfirm(false);
+    setDeleteTarget(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      setDeleteLoading(true);
+      await deletePage(deleteTarget.id);
+      notify.success('Page deleted successfully');
+      setShowDeleteConfirm(false);
+      setDeleteTarget(null);
+      fetchPages();
+    } catch (err) {
+      console.error(err);
+      notify.error('Failed to delete page');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   // Flattens the module-wise response into flat rows the table expects
@@ -127,7 +173,7 @@ const PageMaster = () => {
         cell: ({ row }) => (
           <button
             type="button"
-            onClick={() => openEditModal(row.original)}
+            onClick={() => (canEdit ? openEditModal(row.original) : openViewModal(row.original))}
             className="text-[#084E92] font-medium hover:underline text-left cursor-pointer"
           >
             {row.original.name}
@@ -160,20 +206,47 @@ const PageMaster = () => {
           />
         ),
         cell: ({ row }) => (
-          <button
-            type="button"
-            onClick={() => openEditModal(row.original)}
-            className="w-8 h-8 flex items-center justify-center rounded-full border border-[#084E92] text-[#084E92] hover:bg-[#084E92] hover:text-white transition cursor-pointer"
-            aria-label={`Edit ${row.original.name}`}
-          >
-            <SquarePen size={14} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openViewModal(row.original)}
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100 transition cursor-pointer"
+              aria-label={`View ${row.original.name}`}
+              title="View Details"
+            >
+              <Eye size={14} />
+            </button>
+
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => openEditModal(row.original)}
+                className="w-8 h-8 flex items-center justify-center rounded-full border border-[#084E92] text-[#084E92] hover:bg-[#084E92] hover:text-white transition cursor-pointer"
+                aria-label={`Edit ${row.original.name}`}
+                title="Edit"
+              >
+                <SquarePen size={14} />
+              </button>
+            )}
+
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => openDeleteConfirm(row.original)}
+                className="w-8 h-8 flex items-center justify-center rounded-full border border-red-300 text-red-500 hover:bg-red-50 transition cursor-pointer"
+                aria-label={`Delete ${row.original.name}`}
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
         ),
         enableSorting: false,
-        size: 100,
+        size: 130,
       },
     ],
-    [],
+    [canEdit, canDelete],
   );
 
   const table = useReactTable({
@@ -184,6 +257,10 @@ const PageMaster = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Pages" />;
+  }
 
   return (
     <Container>
@@ -209,14 +286,16 @@ const PageMaster = () => {
             />
           </div>
 
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition self-end sm:self-auto cursor-pointer"
-          >
-            <Plus size={16} />
-            Add Page
-          </button>
+          {canAdd && (
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition self-end sm:self-auto cursor-pointer"
+            >
+              <Plus size={16} />
+              Add Page
+            </button>
+          )}
         </div>
 
         {/* Table */}
@@ -249,6 +328,15 @@ const PageMaster = () => {
           onClose={closeModal}
           onSaved={fetchPages}
           initialData={editingPage}
+          isViewOnly={isViewOnly}
+        />
+
+        <DeleteConfirmModal
+          isOpen={showDeleteConfirm}
+          onClose={closeDeleteConfirm}
+          onConfirm={confirmDelete}
+          itemLabel={deleteTarget?.name}
+          saving={deleteLoading}
         />
       </div>
     </Container>

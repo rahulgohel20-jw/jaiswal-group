@@ -28,6 +28,8 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import { usePagePermissions } from "@/utils/permissions";
+import { AccessDenied } from "@/components/common/AccessDenied";
 
 const FONT_IMPORT_URL =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap";
@@ -44,7 +46,7 @@ const ACTIONABLE_STATUSES = [PR_STATUS.SENT_FOR_APPROVAL, PR_STATUS.IN_PROGRESS]
 // "ALL" is a UI-only sentinel — not sent to the API as a real status.
 const ALL_STATUS = "ALL";
 const STATUS_FILTER_OPTIONS = [
-  { value: ALL_STATUS, label: "All statuses" },
+  { value: ALL_STATUS, label: "All status" },
   ...PR_STATUS_LIST.filter((s) => APPROVER_VISIBLE_STATUSES.includes(s.value)),
 ];
 
@@ -120,7 +122,7 @@ const sortByDateDesc = (a, b) => {
 
 // ---- PR fetch hook — driven by BOTH the selected unit and the selected
 // status. Selecting a specific status in the dropdown sends that status
-// straight to getbyoutlet as a single call. "All statuses" is the one case
+// straight to getbyoutlet as a single call. "All status" is the one case
 // that still needs to fan out across all 4 visible statuses and merge,
 // since the endpoint only accepts one status per call.
 function useRequisitions(effectiveOutletId, statusFilter, filterRowsByScope, scopeLoading) {
@@ -509,6 +511,7 @@ function ListView({ onApprove, onReject, onView }) {
 
 export default function PurchaseRequisitionApproval() {
   const navigate = useNavigate();
+  const { canView } = usePagePermissions('Approve Purchase Requisition');
 
   const handleApprove = (req) => {
     navigate(`/approve-purchase-requisition/approve/${req.id}`, {
@@ -527,6 +530,10 @@ export default function PurchaseRequisitionApproval() {
   const handleView = (req) => {
     navigate(`/purchase-requisition/view/${req.id}`);
   };
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Approve Purchase Requisition" />;
+  }
 
   return <ListView onApprove={handleApprove} onReject={handleReject} onView={handleView} />;
 }

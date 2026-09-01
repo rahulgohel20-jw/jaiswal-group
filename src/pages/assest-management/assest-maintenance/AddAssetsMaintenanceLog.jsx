@@ -2,6 +2,8 @@ import { ArrowLeft, Calendar, ChevronDown, ChevronRight, ClipboardList, Info, Ma
 import React, { useState } from 'react'
 import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Popover,
     PopoverContent,
@@ -17,6 +19,7 @@ const selectCls =
     'outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer';
 
 const AddAssetsMaintenanceLog = () => {
+    const { canAdd, canView } = usePagePermissions('Asset Maintenance');
 
     const [form, setForm] = useState({
         assetId: "",
@@ -188,6 +191,10 @@ const AddAssetsMaintenanceLog = () => {
             </Popover>
         );
     };
+
+    if (!canView || !canAdd) {
+        return <AccessDenied pageTitle="Add Maintenance Log" />;
+    }
 
     return (
        <Container>

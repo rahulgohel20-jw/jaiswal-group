@@ -24,6 +24,8 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
   deleteCompany,
   getCompanyById,
@@ -68,6 +70,7 @@ const StatusBadge = ({ status }) => (
 
 const CompanyRegistration = () => {
   const navigate = useNavigate();
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Companies');
   const [companies, setCompanies] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -76,7 +79,7 @@ const CompanyRegistration = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -99,12 +102,10 @@ const CompanyRegistration = () => {
 
       const list = res?.data?.data || res?.data?.content || res?.data || [];
 
-      const companyList = Array.isArray(list) ? list : [];
-
-      setCompanies(companyList.map(normalizeCompany));
+      setCompanies(list.map(normalizeCompany));
     } catch (err) {
       console.error(err);
-      setError('Failed to load companies.');
+      setError('Failed to fetch companies');
     } finally {
       setLoading(false);
     }
@@ -114,35 +115,37 @@ const CompanyRegistration = () => {
     fetchCompanies();
   }, []);
 
-  const handleViewClick = async (company) => {
-    try {
-      const res = await getCompanyById(company.id);
-      navigate('/companies/company-details', {
-        state: {
-          company: res.data.data,
-        },
-      });
-    } catch (error) {
-      console.error(error);
-    }
+  const handleViewClick = (company) => {
+    navigate('/companies/view-company', {
+      state: { companyId: company.id },
+    });
   };
 
-  const filteredCompanies = useMemo(
-    () =>
-      companies.filter((c) => {
-        const matchesSearch =
-          (c.name || '').toLowerCase().includes(search) ||
-          (c.code || '').toLowerCase().includes(search) ||
-          (c.location || '').toLowerCase().includes(search) ||
-          (c.mobile || '').toLowerCase().includes(search);
-        const matchesStatus =
-          statusFilter === 'all' || c.status === statusFilter;
-        return matchesSearch && matchesStatus;
-      }),
-    [companies, search, statusFilter],
-  );
-  const openDeleteConfirm = (row) => {
-    setDeleteTarget({ id: row.id, name: row.name });
+  const handleEdit = (company) => {
+    navigate('/companies/registration', {
+      state: { companyId: company.id, isEdit: true },
+    });
+  };
+
+  const filteredCompanies = useMemo(() => {
+    return companies.filter((c) => {
+      const matchSearch =
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.code.toLowerCase().includes(search.toLowerCase()) ||
+        c.location.toLowerCase().includes(search.toLowerCase());
+
+      const matchStatus =
+        statusFilter === 'all' ? true : c.status === statusFilter;
+
+      return matchSearch && matchStatus;
+    });
+  }, [companies, search, statusFilter]);
+
+  const openDeleteConfirm = (item) => {
+    setDeleteTarget({
+      id: item.id,
+      itemLabel: item.name,
+    });
     setShowDeleteConfirm(true);
   };
 
@@ -154,29 +157,16 @@ const CompanyRegistration = () => {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
+
+    setDeleteLoading(true);
     try {
-      setDeleteLoading(true);
       await deleteCompany(deleteTarget.id);
-      setShowDeleteConfirm(false);
-      setDeleteTarget(null);
+      closeDeleteConfirm();
       fetchCompanies();
     } catch (err) {
-      console.error(err);
+      console.error('Failed to delete company:', err);
     } finally {
       setDeleteLoading(false);
-    }
-  };
-
-  const handleEdit = async (company) => {
-    try {
-      const res = await getCompanyById(company.id);
-      navigate('/companies/update-company', {
-        state: {
-          company: res.data.data,
-        },
-      });
-    } catch (error) {
-      console.error(error);
     }
   };
 
@@ -186,14 +176,18 @@ const CompanyRegistration = () => {
         id: 'name',
         accessorFn: (row) => row.name,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Company Name" column={column} />
+          <DataGridColumnHeader title="Company" column={column} />
         ),
         cell: ({ row }) => (
-          <span className="font-semibold text-gray-800">
-            {row.original.name}
-          </span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+              <Building2 className="w-4 h-4 text-blue-700" />
+            </div>
+            <span className="font-semibold text-gray-800">
+              {row.original.name}
+            </span>
+          </div>
         ),
-        size: 220,
       },
       {
         id: 'code',
@@ -263,28 +257,32 @@ const CompanyRegistration = () => {
             >
               <Eye size={18} />
             </button>
-            <button
-              type="button"
-              onClick={() => handleEdit(row.original)}
-              className="text-gray-500 hover:text-blue-600 cursor-pointer"
-              title="Update company"
-            >
-              <SquarePen size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => openDeleteConfirm(row.original)}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-              title="Delete company"
-            >
-              <Trash2 size={18} />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => handleEdit(row.original)}
+                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                title="Update company"
+              >
+                <SquarePen size={18} />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => openDeleteConfirm(row.original)}
+                className="text-red-300 hover:text-red-600 cursor-pointer"
+                title="Delete company"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         ),
         enableSorting: false,
       },
     ],
-    [],
+    [canEdit, canDelete],
   );
 
   const table = useReactTable({
@@ -303,6 +301,10 @@ const CompanyRegistration = () => {
     { key: 'onboarding', label: 'Onboarding' },
     { key: 'inactive', label: 'Inactive' },
   ];
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Companies" />;
+  }
 
   if (loading) {
     return (
@@ -336,13 +338,15 @@ const CompanyRegistration = () => {
               panel.
             </p>
           </div>
-          <Link
-            to="/companies/registration"
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition whitespace-nowrap shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            Add new company
-          </Link>
+          {canAdd && (
+            <Link
+              to="/companies/registration"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-900 text-white text-sm font-semibold border-0 cursor-pointer transition whitespace-nowrap shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              Add new company
+            </Link>
+          )}
         </div>
 
         <DataGrid table={table} recordCount={filteredCompanies.length}>

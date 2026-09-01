@@ -34,6 +34,8 @@ import { usePurchaseOrders } from './utils/usePurchaseOrders';
 import { OrgTypes } from '@/constants/orgTypes';
 import { PO_STATUS_GROUP, PO_GROUPS, getPoStatusLabel } from './utils/poStatus';
 import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const STAGE = {
   PR_NO_PO: 'PR_NO_PO',
@@ -108,7 +110,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
 }
 
 const PO_STATUS_OPTIONS = [
-  { value: ALL_GROUP, label: 'All Statuses' },
+  { value: ALL_GROUP, label: 'All Status' },
   ...PO_GROUPS.map((g) => ({ value: g.key, label: g.label })),
 ];
 
@@ -190,6 +192,8 @@ const sortByDateDesc = (a, b) => {
 };
 
 const PurchaseOrderRequest = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Purchase Order Requests');
+
   const {
     loading: scopeLoading,
     error: scopeError,
@@ -468,6 +472,9 @@ const PurchaseOrderRequest = () => {
           const isRejecting = rejectingId === original.id;
 
           if (original.stage === STAGE.PR_NO_PO) {
+            if (!canAdd) {
+              return null;
+            }
             return (
               <div className="flex gap-2 whitespace-nowrap">
                 <Link to="/purchase/create-purchase-order-requests" state={{ ...original, isGeneratePo: true }}>
@@ -482,18 +489,29 @@ const PurchaseOrderRequest = () => {
           if (original.group === 'DRAFT') {
             return (
               <div className="flex gap-2 whitespace-nowrap">
-                <Link to={`/purchase/edit-purchase-order/${original.id}`} state={original}>
-                  <button className="bg-[#084E92] text-white px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-[#063d73] transition">
-                    Continue PO
+                {canEdit && (
+                  <Link to={`/purchase/edit-purchase-order/${original.id}`} state={original}>
+                    <button className="bg-[#084E92] text-white px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-[#063d73] transition">
+                      Continue PO
+                    </button>
+                  </Link>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => openDeleteConfirm(original)}
+                    className="border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-red-50 transition"
+                  >
+                    Delete
                   </button>
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => openDeleteConfirm(original)}
-                  className="border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-red-50 transition"
-                >
-                  Delete
-                </button>
+                )}
+                {!canEdit && (
+                  <Link to={`/purchase/purchase-order-detail/${original.id}`} state={original}>
+                    <button className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-gray-50 transition">
+                      View
+                    </button>
+                  </Link>
+                )}
               </div>
             );
           }
@@ -510,7 +528,7 @@ const PurchaseOrderRequest = () => {
       },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rejectingId]);
+  }, [rejectingId, canAdd, canEdit, canDelete]);
 
   const groupCounts = useMemo(() => {
     return {
@@ -555,6 +573,10 @@ const PurchaseOrderRequest = () => {
   const loading = prLoading || poLoading;
   const error = prError || poError;
 
+  if (!canView) {
+    return <AccessDenied pageTitle="Purchase Order Requests" />;
+  }
+
   return (
     <Container>
       <div className="mx-auto py-10 p-6">
@@ -577,15 +599,17 @@ const PurchaseOrderRequest = () => {
           </div>
 
           <div className="flex gap-3 self-end sm:self-auto">
-            <Link to="/purchase/create-purchase-order-requests">
-              <button
-                type="button"
-                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e76] transition"
-              >
-                <Plus size={16} />
-                Create New PO
-              </button>
-            </Link>
+            {canAdd && (
+              <Link to="/purchase/create-purchase-order-requests">
+                <button
+                  type="button"
+                  className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e76] transition"
+                >
+                  <Plus size={16} />
+                  Create New PO
+                </button>
+              </Link>
+            )}
           </div>
         </div>
 

@@ -20,6 +20,8 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
   assignBrandsToCategories,
   deleteRawMaterialCategoryBrandById,
@@ -268,6 +270,8 @@ const SingleSelectSearchDropdown = ({
 };
 
 const RowCategoryBrandMapping = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Category Brand Mapping');
+
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [optionsLoading, setOptionsLoading] = useState(false);
@@ -492,83 +496,91 @@ const RowCategoryBrandMapping = () => {
     }
   };
 
-  const columns = [
-    {
-      id: 'sno',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="SR. NO"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) =>
-        pagination.pageIndex * pagination.pageSize + row.index + 1,
-      enableSorting: false,
-      size: 80,
-    },
-    {
-      id: 'category',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="RAW MATERIAL CATEGORY"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <span className="font-medium text-[#1B1B1F] capitalize">
-          {row.original.category?.name}
-        </span>
-      ),
-    },
-    {
-      id: 'brand',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="RAW MATERIAL BRAND"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-2 py-1">
-          {(row.original.brands || []).map((brand) => (
-            <span
-              key={brand.mappingId}
-              className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-1 rounded-md"
-            >
-              {brand.name}
-              <X
-                size={12}
-                className="cursor-pointer hover:text-red-500"
-                onClick={() => openDeleteConfirm(row.original.category, brand)}
-              />
-            </span>
-          ))}
-        </div>
-      ),
-    },
-    {
-      id: 'actions',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="ACTION"
-          column={column}
-          className="text-[#43474F] font-semibold"
-        />
-      ),
-      cell: ({ row }) => (
-        <Trash2
-          size={18}
-          className="text-red-300 cursor-pointer hover:text-red-700"
-          onClick={() => openRowDeleteConfirm(row.original)}
-        />
-      ),
-      enableSorting: false,
-      size: 100,
-    },
-  ];
+  const columns = useMemo(
+    () => [
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="SR. NO"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) =>
+          pagination.pageIndex * pagination.pageSize + row.index + 1,
+        enableSorting: false,
+        size: 80,
+      },
+      {
+        id: 'category',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="RAW MATERIAL CATEGORY"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="font-medium text-[#1B1B1F] capitalize">
+            {row.original.category?.name}
+          </span>
+        ),
+      },
+      {
+        id: 'brand',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="RAW MATERIAL BRAND"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-2 py-1">
+            {(row.original.brands || []).map((brand) => (
+              <span
+                key={brand.mappingId}
+                className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-1 rounded-md"
+              >
+                {brand.name}
+                {(canDelete || canEdit) && (
+                  <X
+                    size={12}
+                    className="cursor-pointer hover:text-red-500"
+                    onClick={() => openDeleteConfirm(row.original.category, brand)}
+                  />
+                )}
+              </span>
+            ))}
+          </div>
+        ),
+      },
+      {
+        id: 'actions',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="ACTION"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          canDelete ? (
+            <Trash2
+              size={18}
+              className="text-red-300 cursor-pointer hover:text-red-700"
+              onClick={() => openRowDeleteConfirm(row.original)}
+              title="Delete Mapping"
+            />
+          ) : null
+        ),
+        enableSorting: false,
+        size: 100,
+      },
+    ],
+    [canDelete, canEdit, pagination],
+  );
 
   const table = useReactTable({
     data: filteredMappings,
@@ -580,6 +592,10 @@ const RowCategoryBrandMapping = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Category Brand Mapping" />;
+  }
 
   return (
     <Container>
@@ -605,39 +621,41 @@ const RowCategoryBrandMapping = () => {
         </div>
 
         {/* Configure card */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
-            <SingleSelectSearchDropdown
-              label="Raw Material Category"
-              placeholder="Select Category..."
-              options={categories}
-              selected={selectedCategory}
-              onChange={setSelectedCategory}
-              loading={optionsLoading}
-            />
+        {(canAdd || canEdit) && (
+          <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+              <SingleSelectSearchDropdown
+                label="Raw Material Category"
+                placeholder="Select Category..."
+                options={categories}
+                selected={selectedCategory}
+                onChange={setSelectedCategory}
+                loading={optionsLoading}
+              />
 
-            <MultiSelectDropdown
-              label="Raw Material Brand"
-              placeholder="Select Brands..."
-              options={brands}
-              selected={selectedBrands}
-              onChange={setSelectedBrands}
-              loading={brandsLoading}
-            />
+              <MultiSelectDropdown
+                label="Raw Material Brand"
+                placeholder="Select Brands..."
+                options={brands}
+                selected={selectedBrands}
+                onChange={setSelectedBrands}
+                loading={brandsLoading}
+              />
 
-            <button
-              type="button"
-              onClick={handleConfigure}
-              disabled={
-                configuring || !selectedCategory || selectedBrands.length === 0
-              }
-              className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              <Link2 size={16} />
-              {configuring ? 'Configuring...' : 'Configure'}
-            </button>
+              <button
+                type="button"
+                onClick={handleConfigure}
+                disabled={
+                  configuring || !selectedCategory || selectedBrands.length === 0
+                }
+                className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                <Link2 size={16} />
+                {configuring ? 'Configuring...' : 'Configure'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Search + filters card */}
         <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">

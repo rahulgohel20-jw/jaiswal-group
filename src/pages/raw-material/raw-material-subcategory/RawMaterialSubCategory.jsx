@@ -30,6 +30,8 @@ import { Container } from '@/components/common/container';
 import AddRawMaterialSubCategoryModal from './AddRawMaterialSubCategoryModal';
 import RawMaterialSubCategoryDetailsModal from './RawMaterialSubCategoryDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -62,6 +64,8 @@ const unwrapListPayload = (payload) => {
 };
 
 const RowMaterialSubCategory = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Categories');
+
     const [subCategoriesData, setSubCategoriesData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
     const [loading, setLoading] = useState(true);
@@ -275,127 +279,136 @@ const RowMaterialSubCategory = () => {
         return { total, active, inactive };
     }, [subCategoriesData]);
 
-    const columns = [
-        {
-            id: 'sno',
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="S.NO"
-                    column={column}
-                    className="py-4"
-                />
-            ),
-            cell: ({ row }) => (
-                <span className="text-gray-500 py-2">
-                    {String(row.index + 1).padStart(2, '0')}
-                </span>
-            ),
-            enableSorting: false,
-            size: 70,
-        },
-        {
-            id: 'subCategoryName',
-            accessorFn: (row) => row.nameEnglish,
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="SUB CATEGORY NAME"
-                    column={column}
-                />
-            ),
-            cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2 capitalize">
-                    {row.original.nameEnglish}
-                </div>
-            ),
-            size: 220,
-        },
-        {
-            id: 'categoryName',
-            accessorFn: (row) => row.categoryName,
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="CATEGORY NAME"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
-            ),
-            cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2 capitalize">
-                    {row.original.categoryName}
-                </div>
-            ),
-            size: 220,
-        },
-        {
-            id: 'status',
-            accessorFn: (row) => row.status,
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="VISIBILITY STATUS"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
-            ),
-            cell: ({ row }) => (
-                <label className="relative inline-flex cursor-pointer">
-                    <input
-                        type="checkbox"
-                        checked={row.original.status === "Active"}
-                        className="sr-only peer"
-                        onChange={() => {
-                            setStatusTarget({
-                                id: row.original.id,
-                                nameEnglish: row.original.nameEnglish,
-                                rawMaterialCatId: row.original.rawMaterialCatId,
-                                nextActive: row.original.status !== "Active",
-                                nextStatusLabel:
-                                    row.original.status === "Active" ? "Inactive" : "Active",
-                            });
-                            setShowStatusConfirm(true);
-                        }}
+    const columns = useMemo(
+        () => [
+            {
+                id: 'sno',
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="S.NO"
+                        column={column}
+                        className="py-4"
                     />
+                ),
+                cell: ({ row }) => (
+                    <span className="text-gray-500 py-2">
+                        {String(row.index + 1).padStart(2, '0')}
+                    </span>
+                ),
+                enableSorting: false,
+                size: 70,
+            },
+            {
+                id: 'subCategoryName',
+                accessorFn: (row) => row.nameEnglish,
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="SUB CATEGORY NAME"
+                        column={column}
+                    />
+                ),
+                cell: ({ row }) => (
+                    <div className="font-semibold text-gray-800 py-2 capitalize">
+                        {row.original.nameEnglish}
+                    </div>
+                ),
+                size: 220,
+            },
+            {
+                id: 'categoryName',
+                accessorFn: (row) => row.categoryName,
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="CATEGORY NAME"
+                        column={column}
+                        className="text-[#43474F] font-semibold"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <div className="font-semibold text-gray-800 py-2 capitalize">
+                        {row.original.categoryName}
+                    </div>
+                ),
+                size: 220,
+            },
+            {
+                id: 'status',
+                accessorFn: (row) => row.status,
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="VISIBILITY STATUS"
+                        column={column}
+                        className="text-[#43474F] font-semibold"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <label className={`relative inline-flex ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+                        <input
+                            type="checkbox"
+                            checked={row.original.status === "Active"}
+                            disabled={!canEdit}
+                            className="sr-only peer"
+                            onChange={() => {
+                                if (!canEdit) return;
+                                setStatusTarget({
+                                    id: row.original.id,
+                                    nameEnglish: row.original.nameEnglish,
+                                    rawMaterialCatId: row.original.rawMaterialCatId,
+                                    nextActive: row.original.status !== "Active",
+                                    nextStatusLabel:
+                                        row.original.status === "Active" ? "Inactive" : "Active",
+                                });
+                                setShowStatusConfirm(true);
+                            }}
+                        />
 
-                    <div className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
-              after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full " />
-                </label>
-            ),
-            size: 180,
-        },
-        {
-            id: 'actions',
-            header: ({ column }) => (
-                <DataGridColumnHeader
-                    title="ACTIONS"
-                    column={column}
-                    className="text-[#43474F] font-semibold"
-                />
-            ),
-            cell: ({ row }) => (
-                <div className="flex items-center gap-3 py-1">
-                    <button type="button" onClick={() => openViewModal(row.original)}>
-                        <Eye
-                            size={18}
-                            className="text-[#084E92] hover:text-blue-700 cursor-pointer"
-                        />
-                    </button>
-                    <button type="button" onClick={() => openEditModal(row.original)}>
-                        <SquarePen
-                            size={18}
-                            className="text-gray-500 hover:text-green-600 cursor-pointer"
-                        />
-                    </button>
-                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-                        <Trash2
-                            size={18}
-                            className="text-red-300 hover:text-red-600 cursor-pointer"
-                        />
-                    </button>
-                </div>
-            ),
-            enableSorting: false,
-            size: 120,
-        },
-    ];
+                        <div className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
+                  after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full " />
+                    </label>
+                ),
+                size: 180,
+            },
+            {
+                id: 'actions',
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="ACTIONS"
+                        column={column}
+                        className="text-[#43474F] font-semibold"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <div className="flex items-center gap-3 py-1">
+                        <button type="button" onClick={() => openViewModal(row.original)} title="View Details">
+                            <Eye
+                                size={18}
+                                className="text-[#084E92] hover:text-blue-700 cursor-pointer"
+                            />
+                        </button>
+                        {canEdit && (
+                            <button type="button" onClick={() => openEditModal(row.original)} title="Edit">
+                                <SquarePen
+                                    size={18}
+                                    className="text-gray-500 hover:text-green-600 cursor-pointer"
+                                />
+                            </button>
+                        )}
+                        {canDelete && (
+                            <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete">
+                                <Trash2
+                                    size={18}
+                                    className="text-red-300 hover:text-red-600 cursor-pointer"
+                                />
+                            </button>
+                        )}
+                    </div>
+                ),
+                enableSorting: false,
+                size: 110,
+            },
+        ],
+        [canEdit, canDelete],
+    );
 
     const table = useReactTable({
         data: filteredSubCategories,
@@ -408,15 +421,15 @@ const RowMaterialSubCategory = () => {
 
     const STATS = [
         {
-            title: 'Total Sub Category',
-            value: String(stats.total),
+            title: 'Total Sub Categories',
+            value: String(stats.total).padStart(2, '0'),
             icon: (
                 <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />
             ),
             color: 'text-[#1B1B1F]',
         },
         {
-            title: 'Active Sub Category',
+            title: 'Active Sub Categories',
             value: String(stats.active).padStart(2, '0'),
             icon: (
                 <CircleCheck
@@ -427,7 +440,7 @@ const RowMaterialSubCategory = () => {
             color: 'text-[#15803D]',
         },
         {
-            title: 'Inactive Sub Category',
+            title: 'Inactive Sub Categories',
             value: String(stats.inactive).padStart(2, '0'),
             icon: (
                 <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />
@@ -435,6 +448,10 @@ const RowMaterialSubCategory = () => {
             color: 'text-[#1B1B1F]',
         },
     ];
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Sub Categories" />;
+    }
 
     return (
         <Container>
@@ -465,14 +482,16 @@ const RowMaterialSubCategory = () => {
                             <Upload size={16} />
                             Export
                         </button>
-                        <button
-                            type="button"
-                            onClick={openCreateModal}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                        >
-                            <Plus size={16} />
-                            Add Sub Category
-                        </button>
+                        {canAdd && (
+                            <button
+                                type="button"
+                                onClick={openCreateModal}
+                                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                            >
+                                <Plus size={16} />
+                                Add Sub Category
+                            </button>
+                        )}
                     </div>
                 </div>
 

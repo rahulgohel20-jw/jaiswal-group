@@ -24,6 +24,8 @@ import { getAssetBrands, getAssetBrandById, deleteAssetBrand } from '@/services/
 import { notify } from "@/utils/toast";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
     Select,
     SelectContent,
@@ -55,6 +57,8 @@ const mapBrand = (b) => ({
 });
 
 const AssetBrandListing = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Asset Brand Master');
+
     const [brands, setBrands] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -66,9 +70,9 @@ const AssetBrandListing = () => {
     const [viewingBrand, setViewingBrand] = useState(null);
     const [editingBrand, setEditingBrand] = useState(null);
 
-        const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-const [deleteTarget, setDeleteTarget] = useState(null);
-const [deleteSaving, setDeleteSaving] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteSaving, setDeleteSaving] = useState(false);
 
     // Shows the cached row immediately, then refreshes with the authoritative
     // record from getById (the list payload may not carry every detail field).
@@ -84,29 +88,30 @@ const [deleteSaving, setDeleteSaving] = useState(false);
         }
     };
 
-        const openDeleteConfirm = (row) => {
-    setDeleteTarget({ id: row.id, itemLabel: row.name });
-    setShowDeleteConfirm(true);
-};
+    const openDeleteConfirm = (row) => {
+        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setShowDeleteConfirm(true);
+    };
 
-const closeDeleteConfirm = () => {
-    if (deleteSaving) return;
-    setShowDeleteConfirm(false);
-    setDeleteTarget(null);
-};
-const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleteSaving(true);
-    try {
-        await deleteAssetBrand(deleteTarget.id);
-        closeDeleteConfirm();
-        fetchBrands();
-    } catch (err) {
-        console.error(err);
-    } finally {
-        setDeleteSaving(false);
-    }
-};
+    const closeDeleteConfirm = () => {
+        if (deleteSaving) return;
+        setShowDeleteConfirm(false);
+        setDeleteTarget(null);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteSaving(true);
+        try {
+            await deleteAssetBrand(deleteTarget.id);
+            closeDeleteConfirm();
+            fetchBrands();
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setDeleteSaving(false);
+        }
+    };
 
     const openEditModal = async (row) => {
         setEditingBrand(row);
@@ -194,7 +199,7 @@ const confirmDelete = async () => {
         },
     ];
 
-    const columns = [
+    const columns = useMemo(() => [
         {
             id: "select",
             header: ({ table }) => (
@@ -254,21 +259,25 @@ const confirmDelete = async () => {
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
-                    <button type="button" onClick={() => handleViewBrand(row.original)}>
+                    <button type="button" onClick={() => handleViewBrand(row.original)} title="View Brand">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
-                    <button type="button" onClick={() => openEditModal(row.original)}>
-                        <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
-                    </button>
-                    <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-                        <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
-                    </button>
+                    {canEdit && (
+                        <button type="button" onClick={() => openEditModal(row.original)} title="Edit Brand">
+                            <SquarePen size={18} className="text-gray-500 hover:text-green-600 cursor-pointer" />
+                        </button>
+                    )}
+                    {canDelete && (
+                        <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete Brand">
+                            <Trash2 size={18} className="text-red-300 hover:text-red-600 cursor-pointer" />
+                        </button>
+                    )}
                 </div>
             ),
             enableSorting: false,
             size: 110,
         },
-    ];
+    ], [canEdit, canDelete]);
 
     const table = useReactTable({
         data: filteredBrands,
@@ -280,6 +289,10 @@ const confirmDelete = async () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Asset Brand Master" />;
+    }
 
     return (
        <Container>
@@ -302,16 +315,18 @@ const confirmDelete = async () => {
                     </p>
                 </div>
 
-                <div className="flex gap-3 self-end">
-                    <button
-                        type="button"
-                        onClick={openCreateModal}
-                        className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                    >
-                        <Plus size={16} />
-                        Add Brand
-                    </button>
-                </div>
+                {canAdd && (
+                    <div className="flex gap-3 self-end">
+                        <button
+                            type="button"
+                            onClick={openCreateModal}
+                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                        >
+                            <Plus size={16} />
+                            Add Brand
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Stat cards */}

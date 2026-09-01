@@ -6,6 +6,8 @@ import { getApiErrorMessage } from '@/utils/toast';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAllRoleMasterByUserId } from '@/services/apiServices';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import PermissionsModal from './PermissionsModal';
 
 // Backend sends createdAt as "DD/MM/YYYY" (e.g. "06/08/2026" = 06 Aug 2026).
@@ -35,6 +37,8 @@ const mapRole = (row) => ({
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 const UserRights = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('User Rights');
+
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -87,6 +91,10 @@ const UserRights = () => {
     setPermissionsModal({ open: true, mode: 'reportRights', role });
   const closeModal = () =>
     setPermissionsModal({ open: false, mode: null, role: null });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="User Rights" />;
+  }
 
   return (
     <Container>
@@ -155,13 +163,13 @@ const UserRights = () => {
                           onClick={() => openRights(role)}
                           className="px-4 py-1.5 rounded-md bg-[#084E92] text-white text-sm font-medium hover:bg-[#073e77] cursor-pointer"
                         >
-                          Rights
+                          {canEdit ? 'Rights' : 'View Rights'}
                         </button>
                         <button
                           onClick={() => openReportRights(role)}
                           className="px-4 py-1.5 rounded-md bg-[#16A34A] text-white text-sm font-medium hover:bg-[#128a3e] cursor-pointer"
                         >
-                          Report Rights
+                          {canEdit ? 'Report Rights' : 'View Report Rights'}
                         </button>
                       </div>
                     </td>
@@ -222,6 +230,8 @@ const UserRights = () => {
           onClose={closeModal}
           role={permissionsModal.role}
           mode={permissionsModal.mode}
+          canEdit={canEdit}
+          canAdd={canAdd}
         />
       </div>
     </Container>

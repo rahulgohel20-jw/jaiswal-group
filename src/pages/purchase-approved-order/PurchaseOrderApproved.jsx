@@ -35,6 +35,8 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 // Statuses visible to an approver, which of those still allow Approve/Reject,
 // and which are editable (approver can still adjust an in-progress PO).
@@ -49,7 +51,7 @@ const EDITABLE_STATUSES = [];
 
 const ALL_STATUS = 'ALL';
 const STATUS_FILTER_OPTIONS = [
-  { value: ALL_STATUS, label: 'All Statuses' },
+  { value: ALL_STATUS, label: 'All Status' },
   ...APPROVER_VISIBLE_STATUSES.map((status) => ({
     value: status,
     label: getPoStatusLabel(status),
@@ -414,6 +416,8 @@ const PurchaseOrderApproval = () => {
     [],
   );
 
+  const { canView } = usePagePermissions('Approve Purchase Order');
+
   const table = useReactTable({
     data: filtered,
     columns,
@@ -422,6 +426,10 @@ const PurchaseOrderApproval = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Approve Purchase Order" />;
+  }
 
   return (
     <Container>

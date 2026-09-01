@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Container } from "@/components/common/container";
 import {
   ChevronRight,
+  Eye,
   Plus,
   Search,
   SquarePen,
@@ -29,11 +30,15 @@ import {
   deleteCityById,
 } from "../../../services/apiServices";
 
+import { usePagePermissions } from "@/utils/permissions";
+import { AccessDenied } from "@/components/common/AccessDenied";
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import AddCityModel from "./AddCityModel";
 
 
 const CityMaster = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('City');
+
   const [search, setSearch] = useState("");
   const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -49,6 +54,7 @@ const CityMaster = () => {
   // ---------------- MODAL ----------------
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editData, setEditData] = useState(null);
+  const [isViewOnly, setIsViewOnly] = useState(false);
 
   // ---------------- DELETE ----------------
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -88,14 +94,21 @@ const CityMaster = () => {
     fetchCities();
   }, [fetchCities]);
 
-  // ---------------- ADD ----------------
+  // ---------------- MODAL CONTROLS ----------------
   const openAddModal = () => {
+    setIsViewOnly(false);
     setEditData(null);
     setIsModalOpen(true);
   };
 
-  // ---------------- EDIT ----------------
+  const openViewModal = (row) => {
+    setIsViewOnly(true);
+    setEditData(row);
+    setIsModalOpen(true);
+  };
+
   const openEditModal = (row) => {
+    setIsViewOnly(false);
     setEditData(row);
     setIsModalOpen(true);
   };
@@ -104,6 +117,7 @@ const CityMaster = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditData(null);
+    setIsViewOnly(false);
   };
 
   // ---------------- DELETE ----------------
@@ -226,28 +240,44 @@ const CityMaster = () => {
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
             <button
-              onClick={() => openEditModal(row.original)}
+              onClick={() => openViewModal(row.original)}
+              title="View Details"
             >
-              <SquarePen
+              <Eye
                 size={18}
-                className="text-blue-400 hover:text-blue-800 cursor-pointer"
+                className="text-gray-500 hover:text-green-600 cursor-pointer"
               />
             </button>
 
-            <button
-              onClick={() => openDeleteConfirm(row.original)}
-            >
-              <Trash2
-                size={18}
-                className="text-red-300 hover:text-red-700 cursor-pointer"
-              />
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => openEditModal(row.original)}
+                title="Edit"
+              >
+                <SquarePen
+                  size={18}
+                  className="text-blue-400 hover:text-blue-800 cursor-pointer"
+                />
+              </button>
+            )}
+
+            {canDelete && (
+              <button
+                onClick={() => openDeleteConfirm(row.original)}
+                title="Delete"
+              >
+                <Trash2
+                  size={18}
+                  className="text-red-300 hover:text-red-700 cursor-pointer"
+                />
+              </button>
+            )}
           </div>
         ),
         enableSorting: false,
       },
     ],
-    []
+    [canEdit, canDelete]
   );
 
   // ---------------- TABLE ----------------
@@ -264,6 +294,10 @@ const CityMaster = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="City" />;
+  }
 
   return (
     <Container>
@@ -293,13 +327,15 @@ const CityMaster = () => {
           </div>
 
           <div className="flex gap-3 self-end">
-            <button
-              onClick={openAddModal}
-              className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-            >
-              <Plus size={16} />
-              Add City
-            </button>
+            {canAdd && (
+              <button
+                onClick={openAddModal}
+                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
+              >
+                <Plus size={16} />
+                Add City
+              </button>
+            )}
           </div>
         </div>
 
@@ -379,6 +415,7 @@ const CityMaster = () => {
           editData={editData}
           onClose={closeModal}
           onSuccess={fetchCities}
+          isViewOnly={isViewOnly}
         />
 
         {/* DELETE */}

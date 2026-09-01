@@ -34,6 +34,8 @@
   import { OrgTypes } from '@/constants/orgTypes';
   import { PR_STATUS, PR_STATUS_LIST, EDITABLE_STATUSES, getStatusLabel } from './utils/prStatus';
   import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
+  import { usePagePermissions } from '@/utils/permissions';
+  import { AccessDenied } from '@/components/common/AccessDenied';
 
   /* -------------------------------------------------------------------------
   * Shared style tokens & primitives (unchanged)
@@ -189,6 +191,7 @@
 
   const PurchaseRequisitionList = () => {
     const navigate = useNavigate();
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Purchase Requisition');
 
     const {
       loading: scopeLoading,
@@ -378,7 +381,7 @@
                 >
                   <Eye size={18} />
                 </button>
-                {EDITABLE_STATUSES.has(original.rawStatus) && (
+                {canEdit && EDITABLE_STATUSES.has(original.rawStatus) && (
                   <button
                     type="button"
                     onClick={() => handleEdit(original)}
@@ -388,7 +391,7 @@
                     <Pencil size={18} />
                   </button>
                 )}
-                {original.rawStatus === PR_STATUS.PENDING && (
+                {canDelete && original.rawStatus === PR_STATUS.PENDING && (
                   <button
                     type="button"
                     onClick={() => openDeleteConfirm(original)}
@@ -398,7 +401,7 @@
                     <Trash2 size={18} />
                   </button>
                 )}
-                {isRejected && (
+                {canAdd && isRejected && (
                   <button
                     type="button"
                     onClick={() => handleCopyPr(original)}
@@ -416,7 +419,7 @@
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [],
+      [canAdd, canEdit, canDelete],
     );
 
     const table = useReactTable({
@@ -427,6 +430,10 @@
       getCoreRowModel: getCoreRowModel(),
       getPaginationRowModel: getPaginationRowModel(),
     });
+
+    if (!canView) {
+      return <AccessDenied pageTitle="Purchase Requisition" />;
+    }
 
     return (
       <Container>
@@ -449,13 +456,15 @@
               </p>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <Link
-                to="/purchase-requisition/add"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
-              >
-                <Plus className="w-4 h-4" />
-                Create Purchase Requisition
-              </Link>
+              {canAdd && (
+                <Link
+                  to="/purchase-requisition/add"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Purchase Requisition
+                </Link>
+              )}
             </div>
           </div>
 

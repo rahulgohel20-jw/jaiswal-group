@@ -9,6 +9,7 @@ import {
 import {
   ChevronRight,
   CircleCheck,
+  Eye,
   LayoutGrid,
   Plus,
   Search,
@@ -30,6 +31,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import {
   deleteRawMaterialBrandById,
   getAllActiveRawMaterialBrand,
@@ -40,6 +43,8 @@ import {
 import AddRawMaterialBrand from './AddRawMaterialBrand';
 
 const RowMaterialBrandMaster = () => {
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Brand Master');
+
   const [brands, setBrands] = useState([]);
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
@@ -51,6 +56,7 @@ const RowMaterialBrandMaster = () => {
   const [statusSaving, setStatusSaving] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
   const [editingBrand, setEditingBrand] = useState(null);
+  const [isViewOnly, setIsViewOnly] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -84,6 +90,7 @@ const RowMaterialBrandMaster = () => {
   }, []);
 
   const handleAddClick = () => {
+    setIsViewOnly(false);
     setEditingBrand(null);
     setShowBrandModal(true);
   };
@@ -94,6 +101,7 @@ const RowMaterialBrandMaster = () => {
 
   const handleEditClick = async (brand) => {
     try {
+      setIsViewOnly(false);
       const response = await getRawMaterialBrandById(brand.id);
       const brandData = response?.data?.data;
 
@@ -109,9 +117,25 @@ const RowMaterialBrandMaster = () => {
     }
   };
 
+  const handleViewClick = async (brand) => {
+    try {
+      setIsViewOnly(true);
+      const response = await getRawMaterialBrandById(brand.id);
+      const brandData = response?.data?.data || brand;
+
+      setEditingBrand(brandData);
+      setShowBrandModal(true);
+    } catch (error) {
+      console.error('Failed to fetch brand by id:', error);
+      setEditingBrand(brand);
+      setShowBrandModal(true);
+    }
+  };
+
   const closeBrandModal = () => {
     setShowBrandModal(false);
     setEditingBrand(null);
+    setIsViewOnly(false);
   };
 
   const handleBrandSaved = async () => {
@@ -249,106 +273,124 @@ const RowMaterialBrandMaster = () => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [searchText, statusFilter]);
 
-  const columns = [
-    {
-      id: 'sno',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="S.NO"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm py-4"
-        />
-      ),
-      cell: ({ row }) => String(row.index + 1).padStart(2, '0'),
-      enableSorting: false,
-      size: 80,
-    },
-    {
-      accessorKey: 'name',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="NAME"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm"
-        />
-      ),
-      cell: ({ row }) => (
-        <span className="font-medium text-[#1B1B1F] capitalize">
-          {row.original.name}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'description',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="DESCRIPTION"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm"
-        />
-      ),
-      cell: ({ row }) => (
-        <span className="text-[#1B1B1F] capitalize">
-          {row.original.description}
-        </span>
-      ),
-    },
-    {
-      id: 'status',
-      accessorFn: (row) => row.active,
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="STATUS"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm"
-        />
-      ),
-      cell: ({ row }) => (
-        <label className="relative inline-flex cursor-pointer">
-          <input
-            type="checkbox"
-            checked={row.original.active === true}
-            onChange={() => openStatusConfirm(row.original)}
-            className="sr-only peer"
+  const columns = useMemo(
+    () => [
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.NO"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm py-4"
           />
-          <div
-            className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
-              after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full "
+        ),
+        cell: ({ row }) => String(row.index + 1).padStart(2, '0'),
+        enableSorting: false,
+        size: 80,
+      },
+      {
+        accessorKey: 'name',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="NAME"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
           />
-        </label>
-      ),
-      size: 120,
-    },
-    {
-      id: 'actions',
-      header: ({ column }) => (
-        <DataGridColumnHeader
-          title="ACTIONS"
-          column={column}
-          className="text-[#43474F] font-semibold uppercase text-sm"
-        />
-      ),
-      cell: ({ row }) => (
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={() => handleEditClick(row.original)}>
-            <SquarePen
-              size={18}
-              className="text-gray-500 hover:text-blue-600 cursor-pointer"
+        ),
+        cell: ({ row }) => (
+          <span className="font-medium text-[#1B1B1F] capitalize">
+            {row.original.name}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'description',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="DESCRIPTION"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-[#1B1B1F] capitalize">
+            {row.original.description}
+          </span>
+        ),
+      },
+      {
+        id: 'status',
+        accessorFn: (row) => row.active,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="STATUS"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <label className={`relative inline-flex ${canEdit ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'}`}>
+            <input
+              type="checkbox"
+              checked={row.original.active === true}
+              disabled={!canEdit}
+              onChange={() => {
+                if (!canEdit) return;
+                openStatusConfirm(row.original);
+              }}
+              className="sr-only peer"
             />
-          </button>
+            <div
+              className=" w-11 h-6  bg-gray-300 rounded-full peer peer-checked:bg-[#084E92] after:absolute after:top-0.5 after:left-0.5
+                after:h-5 after:w-5  after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-full "
+            />
+          </label>
+        ),
+        size: 120,
+      },
+      {
+        id: 'actions',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="ACTIONS"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-sm"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => handleViewClick(row.original)} title="View Details">
+              <Eye
+                size={18}
+                className="text-gray-500 hover:text-green-600 cursor-pointer"
+              />
+            </button>
 
-          <button type="button" onClick={() => openDeleteConfirm(row.original)}>
-            <Trash2
-              size={18}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-            />
-          </button>
-        </div>
-      ),
-      enableSorting: false,
-      size: 100,
-    },
-  ];
+            {canEdit && (
+              <button type="button" onClick={() => handleEditClick(row.original)} title="Edit">
+                <SquarePen
+                  size={18}
+                  className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                />
+              </button>
+            )}
+
+            {canDelete && (
+              <button type="button" onClick={() => openDeleteConfirm(row.original)} title="Delete">
+                <Trash2
+                  size={18}
+                  className="text-red-300 hover:text-red-600 cursor-pointer"
+                />
+              </button>
+            )}
+          </div>
+        ),
+        enableSorting: false,
+        size: 110,
+      },
+    ],
+    [canEdit, canDelete],
+  );
 
   const table = useReactTable({
     data: filteredBrands,
@@ -360,6 +402,10 @@ const RowMaterialBrandMaster = () => {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Raw Material Brand Master" />;
+  }
 
   return (
     <Container>
@@ -385,14 +431,16 @@ const RowMaterialBrandMaster = () => {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleAddClick}
-            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-          >
-            <Plus size={16} />
-            Create Brand
-          </button>
+          {canAdd && (
+            <button
+              type="button"
+              onClick={handleAddClick}
+              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+            >
+              <Plus size={16} />
+              Create Brand
+            </button>
+          )}
         </div>
 
         {/* Stat cards */}
@@ -482,6 +530,7 @@ const RowMaterialBrandMaster = () => {
         onClose={closeBrandModal}
         onSaved={handleBrandSaved}
         initialData={editingBrand}
+        isViewOnly={isViewOnly}
       />
 
       <DeleteConfirmModal

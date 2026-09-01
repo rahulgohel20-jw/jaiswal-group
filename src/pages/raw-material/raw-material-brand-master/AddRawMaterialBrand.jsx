@@ -9,13 +9,12 @@ import { notify, getApiErrorMessage } from '@/utils/toast';
 
 const emptyForm = { name: '', description: '' };
 
-const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
+const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData, isViewOnly = false }) => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const isEditMode = Boolean(initialData?.id);
-
 
   // Autofill fields when opening in edit mode, reset when opening in create mode
   useEffect(() => {
@@ -59,21 +58,30 @@ const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
       let response;
 
       if (isEditMode) {
-        response = await updateRawMaterialBrand(
-          initialData.id,
-          payload
-        );
+        response = await updateRawMaterialBrand(initialData.id, payload);
       } else {
         response = await createRawMaterialBrand(payload);
       }
 
-      await onSaved?.(response?.data || response);
-      setForm(emptyForm);
-      onClose?.();
+      if (response?.data?.success || response?.status === 200 || response?.status === 201) {
+        notify.success(
+          isEditMode
+            ? 'Raw Material Brand updated successfully'
+            : 'Raw Material Brand created successfully'
+        );
+        onSaved?.();
+        handleClose();
+      } else {
+        const msg = response?.data?.message || 'Something went wrong';
+        setError(msg);
+        notify.error(msg);
+      }
     } catch (err) {
-      console.error('Create Raw Material Brand Error:', err);
-
-      const msg = getApiErrorMessage(err, `Failed to ${isEditMode ? 'update' : 'create'} raw material brand.`);
+      console.error(err);
+      const msg = getApiErrorMessage(
+        err,
+        `Failed to ${isEditMode ? 'update' : 'create'} brand. Please try again.`
+      );
       setError(msg);
       notify.error(msg);
     } finally {
@@ -92,10 +100,10 @@ const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
             </div>
             <div>
               <h3 className="text-lg font-semibold leading-none">
-                Raw Material Brand
+                {isViewOnly ? 'View Brand Details' : isEditMode ? 'Edit Brand' : 'Create Brand'}
               </h3>
               <p className="text-xs text-gray-500 mt-2">
-                Create or update a raw material brand.
+                {isViewOnly ? 'View raw material brand information.' : isEditMode ? 'Update raw material brand.' : 'Create a raw material brand.'}
               </p>
             </div>
           </div>
@@ -122,6 +130,7 @@ const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
             <Input
               placeholder="Enter brand name"
               className="mt-1"
+              disabled={isViewOnly}
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
             />
@@ -132,8 +141,9 @@ const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
               Description
             </label>
             <Input
-              placeholder="e.g., 10"
+              placeholder="e.g., description"
               className="mt-1"
+              disabled={isViewOnly}
               value={form.description}
               onChange={(e) => set('description', e.target.value)}
             />
@@ -143,18 +153,20 @@ const AddRawMaterialBrand = ({ isOpen, onClose, onSaved, initialData }) => {
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-4 border-t bg-gray-50 shrink-0">
           <Button variant="outline" onClick={handleClose} disabled={saving}>
-            Cancel
+            {isViewOnly ? 'Close' : 'Cancel'}
           </Button>
-          <Button
-            onClick={handleSave}
-            disabled={!form.name.trim() || saving}
-            className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-          >
-            <Save className="h-4 w-4" />
-            {
-              isEditMode ? (saving ? 'Updating...' : 'Update') : (saving ? 'Saving...' : 'Save')
-            }
-          </Button>
+          {!isViewOnly && (
+            <Button
+              onClick={handleSave}
+              disabled={!form.name.trim() || saving}
+              className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {
+                isEditMode ? (saving ? 'Updating...' : 'Update') : (saving ? 'Saving...' : 'Save')
+              }
+            </Button>
+          )}
         </div>
       </div>
     </div>

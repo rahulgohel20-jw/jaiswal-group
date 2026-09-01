@@ -7,10 +7,11 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const STATS = [
     {
@@ -108,6 +109,7 @@ const DisposalBadge = ({ type }) => {
     );
 };
 const AssetsDisposalLog = () => {
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Asset Disposal');
     const [disposalData, setDisposalData] = useState(DISPOSAL_DATA);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [rowSelection, setRowSelection] = useState({});
@@ -118,7 +120,10 @@ const AssetsDisposalLog = () => {
     const [deleteSaving, setDeleteSaving] = useState(false);
 
     const openDeleteConfirm = (row) => {
-        setDeleteTarget({ id: row.id, itemLabel: row.name });
+        setDeleteTarget({
+            id: row.assetId,
+            itemLabel: `${row.assetName} (${row.assetId})`,
+        });
         setShowDeleteConfirm(true);
     };
 
@@ -132,7 +137,7 @@ const AssetsDisposalLog = () => {
         if (!deleteTarget) return;
         setDeleteSaving(true);
         try {
-            
+            setDisposalData((prev) => prev.filter((item) => item.assetId !== deleteTarget.id));
             closeDeleteConfirm();
          
         } catch (err) {
@@ -142,23 +147,7 @@ const AssetsDisposalLog = () => {
         }
     };
 
-    const DisposalBadge = ({ type }) => {
-        const styles = {
-            Sale: "bg-green-100 text-green-700",
-            Scrap: "bg-slate-100 text-slate-600",
-            Donation: "bg-blue-100 text-blue-700",
-        };
-
-        return (
-            <span
-                className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase ${styles[type]}`}
-            >
-                {type}
-            </span>
-        );
-    };
-
-    const columns = [
+    const columns = useMemo(() => [
         {
             id: "select",
             header: ({ table }) => (
@@ -166,6 +155,7 @@ const AssetsDisposalLog = () => {
                     type="checkbox"
                     checked={table.getIsAllPageRowsSelected()}
                     onChange={table.getToggleAllPageRowsSelectedHandler()}
+                    className="w-4 h-4 cursor-pointer"
                 />
             ),
             cell: ({ row }) => (
@@ -173,10 +163,11 @@ const AssetsDisposalLog = () => {
                     type="checkbox"
                     checked={row.getIsSelected()}
                     onChange={row.getToggleSelectedHandler()}
+                    className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
                 />
             ),
             enableSorting: false,
-            size: 60,
+            size: 40,
         },
 
         {
@@ -185,7 +176,6 @@ const AssetsDisposalLog = () => {
                 <DataGridColumnHeader
                     title="ASSET ID"
                     column={column}
-                    className="my-4"
                 />
             ),
             cell: ({ row }) => (
@@ -206,30 +196,25 @@ const AssetsDisposalLog = () => {
             ),
             cell: ({ row }) => (
                 <div>
-                    <p className="font-semibold text-[#1F2937]">
+                    <p className="font-semibold text-gray-900 leading-tight">
                         {row.original.assetName}
                     </p>
 
-                    <p className="text-xs text-[#94A3B8] mt-1">
-                        Model: {row.original.model}
+                    <p className="text-xs text-gray-500">
+                        {row.original.model}
                     </p>
                 </div>
             ),
-            size: 190,
+            size: 240,
         },
 
         {
             accessorKey: "kitchen",
             header: ({ column }) => (
                 <DataGridColumnHeader
-                    title="KITCHEN UNIT"
+                    title="KITCHEN"
                     column={column}
                 />
-            ),
-            cell: ({ row }) => (
-                <span className="text-[#475569] font-medium">
-                    {row.original.kitchen}
-                </span>
             ),
             size: 160,
         },
@@ -238,14 +223,9 @@ const AssetsDisposalLog = () => {
             accessorKey: "date",
             header: ({ column }) => (
                 <DataGridColumnHeader
-                    title="DATE"
+                    title="DISPOSAL DATE"
                     column={column}
                 />
-            ),
-            cell: ({ row }) => (
-                <span className="text-[#475569] font-medium">
-                    {row.original.date}
-                </span>
             ),
             size: 120,
         },
@@ -308,29 +288,33 @@ const AssetsDisposalLog = () => {
             ),
             cell: ({row}) => (
                 <div className="flex items-center gap-2">
-                    <button  className="text-gray-500 hover:text-green-600 cursor-pointer" >
+                    <button className="text-gray-500 hover:text-green-600 cursor-pointer" title="View Disposal">
                         <Eye
                            size={18}
                         />
                     </button>
 
-                    <button className="text-gray-500 hover:text-blue-600 cursor-pointer">
-                        <SquarePen
-                           size={18}
-                        />
-                    </button>
+                    {canEdit && (
+                        <button className="text-gray-500 hover:text-blue-600 cursor-pointer" title="Edit Disposal">
+                            <SquarePen
+                               size={18}
+                            />
+                        </button>
+                    )}
 
-                    <button onClick={() => openDeleteConfirm(row.original)}  className="text-red-300 hover:text-red-600 cursor-pointer">
-                        <Trash2
-                           size={18}
-                        />
-                    </button>
+                    {canDelete && (
+                        <button onClick={() => openDeleteConfirm(row.original)} className="text-red-300 hover:text-red-600 cursor-pointer" title="Delete Disposal">
+                            <Trash2
+                               size={18}
+                            />
+                        </button>
+                    )}
                 </div>
             ),
             enableSorting: false,
             size: 120,
         },
-    ];
+    ], [canEdit, canDelete]);
 
     const filteredDisposalData = useMemo(() => {
         return disposalData.filter((item) => {
@@ -363,6 +347,11 @@ const AssetsDisposalLog = () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Asset Disposal" />;
+    }
+
     return (
        <Container>
          <div className='p-4 md:p-6'>
@@ -390,12 +379,14 @@ const AssetsDisposalLog = () => {
                         <Download size={16} />
                         Export
                     </button>
-                    <Link to="/assets/add-disposal">
-                        <button className="flex text-sm cursor-pointer items-center gap-2 px-5 py-3 bg-[#084E92] text-white rounded-xl shadow-md hover:bg-[#084E92]">
-                            <CirclePlus size={18} />
-                            New Disposal Entry
-                        </button>
-                    </Link>
+                    {canAdd && (
+                        <Link to="/assets/add-disposal">
+                            <button className="flex text-sm cursor-pointer items-center gap-2 px-5 py-3 bg-[#084E92] text-white rounded-xl shadow-md hover:bg-[#084E92]">
+                                <CirclePlus size={18} />
+                                New Disposal Entry
+                            </button>
+                        </Link>
+                    )}
                 </div>
             </div>
 

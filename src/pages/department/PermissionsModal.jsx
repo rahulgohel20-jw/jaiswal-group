@@ -63,6 +63,8 @@ const PermissionsModal = ({
   role,
   mode,
   onDepartmentAdded,
+  canEdit = true,
+  canAdd = true,
 }) => {
   const [pagesByModule, setPagesByModule] = useState({});
   const [checks, setChecks] = useState({});
@@ -253,7 +255,7 @@ const PermissionsModal = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {!isReportMode && (
+            {!isReportMode && canAdd && (
               <button
                 onClick={() => setShowAddDept(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#084E92] text-[#084E92] text-xs font-medium hover:bg-blue-50 cursor-pointer"
@@ -286,14 +288,14 @@ const PermissionsModal = ({
             </div>
           ) : Object.keys(pagesByModule).length === 0 ? (
             <div className="text-center py-16 text-sm text-gray-500">
-              No pages available.
+              No permissions found for this role.
             </div>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-[#084E92] text-white sticky top-0">
+              <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB] sticky top-0 z-10">
                 <tr>
-                  <th className="text-left px-4 py-3 font-semibold">
-                    Permission
+                  <th className="text-left px-4 py-3 font-semibold text-[#43474F]">
+                    Page Name
                   </th>
                   <th className="text-center px-4 py-3 font-semibold">
                     <div className="flex flex-col items-center gap-1">
@@ -301,8 +303,9 @@ const PermissionsModal = ({
                       <input
                         type="checkbox"
                         checked={isEverythingChecked}
+                        disabled={!canEdit}
                         onChange={toggleEverything}
-                        className="rounded"
+                        className="rounded disabled:opacity-50"
                         title="Toggle Add/Edit/View/Delete for every page"
                       />
                     </div>
@@ -317,8 +320,9 @@ const PermissionsModal = ({
                         <input
                           type="checkbox"
                           checked={isColumnFullyChecked(a.key)}
+                          disabled={!canEdit}
                           onChange={() => toggleColumn(a.key)}
-                          className="rounded"
+                          className="rounded disabled:opacity-50"
                           title={`Toggle ${a.label} for all`}
                         />
                       </div>
@@ -349,8 +353,9 @@ const PermissionsModal = ({
                           <input
                             type="checkbox"
                             checked={isRowFullyChecked(page.id)}
+                            disabled={!canEdit}
                             onChange={() => toggleRow(page.id)}
-                            className="rounded"
+                            className="rounded disabled:opacity-50"
                             title="Toggle Add/Edit/View/Delete for this row"
                           />
                         </td>
@@ -359,8 +364,9 @@ const PermissionsModal = ({
                             <input
                               type="checkbox"
                               checked={Boolean(checks[page.id]?.[a.key])}
+                              disabled={!canEdit}
                               onChange={() => toggle(page.id, a.key)}
-                              className="rounded"
+                              className="rounded disabled:opacity-50"
                             />
                           </td>
                         ))}
@@ -378,16 +384,18 @@ const PermissionsModal = ({
             onClick={onClose}
             className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-100 cursor-pointer"
           >
-            Cancel
+            {canEdit ? 'Cancel' : 'Close'}
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || loading}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#084E92] text-white text-sm font-medium hover:bg-[#073e77] disabled:opacity-60 cursor-pointer"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : 'Save Permissions'}
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleSave}
+              disabled={saving || loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#084E92] text-white text-sm font-medium hover:bg-[#073e77] disabled:opacity-60 cursor-pointer"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? 'Saving...' : 'Save Permissions'}
+            </button>
+          )}
         </div>
       </div>
 

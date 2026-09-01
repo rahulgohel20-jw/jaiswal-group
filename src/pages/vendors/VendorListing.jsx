@@ -23,6 +23,8 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import { extractList, mapVendorToRow } from './vendorHelper';
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
@@ -61,6 +63,7 @@ const StatCard = ({
 
 const VendorList = () => {
   const navigate = useNavigate();
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Vendors');
 
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -98,10 +101,10 @@ const VendorList = () => {
       vendors.filter((v) => {
         const term = search.toLowerCase();
         return (
-          (v.name ?? '').toLowerCase().includes(term) ||
-          (v.code ?? '').toLowerCase().includes(term) ||
-          (v.email ?? '').toLowerCase().includes(term) ||
-          (v.company ?? '').toLowerCase().includes(term)
+          v.name.toLowerCase().includes(term) ||
+          v.vendorCode.toLowerCase().includes(term) ||
+          v.emailid.toLowerCase().includes(term) ||
+          v.company.toLowerCase().includes(term)
         );
       }),
     [vendors, search],
@@ -112,11 +115,19 @@ const VendorList = () => {
   }, [search]);
 
   const handleEdit = (vendor) => {
-    navigate('/vendors/update-vendor', { state: { vendorId: vendor.id } });
+    navigate('/vendors/add-vendor', {
+      state: {
+        vendorId: vendor.id,
+        isEdit: true,
+      },
+    });
   };
 
-  const openDeleteConfirm = (item) => {
-    setDeleteTarget({ id: item.id, itemLabel: item.name });
+  const openDeleteConfirm = (vendor) => {
+    setDeleteTarget({
+      id: vendor.id,
+      itemLabel: vendor.name,
+    });
     setShowDeleteConfirm(true);
   };
 
@@ -145,35 +156,44 @@ const VendorList = () => {
   const columns = useMemo(
     () => [
       {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.NO"
+            column={column}
+            className="text-gray-500 font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500">
+            {String(row.index + 1).padStart(2, '0')}
+          </span>
+        ),
+        enableSorting: false,
+        size: 70,
+      },
+      {
         id: 'name',
         accessorFn: (row) => row.name,
         header: ({ column }) => (
-          <DataGridColumnHeader title="User Name" column={column} />
+          <DataGridColumnHeader title="Vendor Name" column={column} />
         ),
         cell: ({ row }) => (
-          <div>
-            <p className="font-semibold text-gray-800 leading-none">
-              {row.original.name}
-            </p>
-            <p className="text-[12px] text-gray-400 mt-1">
-              Created on {row.original.createdAt?.split(' ')[0]}
-            </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-blue-100 text-[#084E92] flex items-center justify-center text-xs font-semibold shrink-0">
+              {row.original.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 leading-none truncate">
+                {row.original.name}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {row.original.vendorCode}
+              </p>
+            </div>
           </div>
         ),
-        size: 160,
-      },
-      {
-        id: 'code',
-        accessorFn: (row) => row.code,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Vendor Code" column={column} />
-        ),
-        cell: ({ row }) => (
-          <span className="text-gray-600 whitespace-nowrap">
-            {row.original.code}
-          </span>
-        ),
-        size: 130,
+        size: 200,
       },
       {
         id: 'email',
@@ -237,29 +257,33 @@ const VendorList = () => {
             >
               <Eye size={18} />
             </button>
-            <button
-              type="button"
-              onClick={() => handleEdit(row.original)}
-              className="text-gray-500 hover:text-blue-600 cursor-pointer"
-              title="Update vendor"
-            >
-              <SquarePen size={18} />
-            </button>
-            <button
-              type="button"
-              onClick={() => openDeleteConfirm(row.original)}
-              className="text-red-300 hover:text-red-600 cursor-pointer"
-              title="Delete vendor"
-            >
-              <Trash2 size={18} />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => handleEdit(row.original)}
+                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                title="Update vendor"
+              >
+                <SquarePen size={18} />
+              </button>
+            )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => openDeleteConfirm(row.original)}
+                className="text-red-300 hover:text-red-600 cursor-pointer"
+                title="Delete vendor"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         ),
         enableSorting: false,
         size: 130,
       },
     ],
-    [],
+    [canEdit, canDelete],
   );
 
   const table = useReactTable({
@@ -271,6 +295,10 @@ const VendorList = () => {
     getPaginationRowModel: getPaginationRowModel(),
     columnResizeMode: 'onChange',
   });
+
+  if (!canView) {
+    return <AccessDenied pageTitle="Vendors" />;
+  }
 
   return (
     <Container>
@@ -287,13 +315,15 @@ const VendorList = () => {
               ecosystem.
             </p>
           </div>
-          <Link
-            to="/vendors/add-vendor"
-            className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition"
-          >
-            <Plus className="w-4 h-4" />
-            Add New Vendor
-          </Link>
+          {canAdd && (
+            <Link
+              to="/vendors/add-vendor"
+              className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition"
+            >
+              <Plus className="w-4 h-4" />
+              Add New Vendor
+            </Link>
+          )}
         </div>
 
         {/* Stat cards */}

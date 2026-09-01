@@ -24,6 +24,7 @@ import {
   getAllActiveVendors,
   getAllVendorOutletMappings,
   getActiveVendorPriceConfigsByDate,
+  getVendorPriceConfigsByVendorId,
   getAllRawMaterialItems,
 } from '@/services/apiServices';
 import {
@@ -35,6 +36,8 @@ import { useOrgScope } from '@/hooks/useOrgScope';
 import { OrgTypes } from '@/constants/orgTypes';
 import { getApiErrorMessage } from '@/utils/toast';
 import { PO_STATUS } from './utils/poStatus';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const getTodayForDateInput = () => {
   const d = new Date();
@@ -164,6 +167,9 @@ const CreatePurchaseOrder = () => {
   const { id: routeId } = useParams();
   const navigate = useNavigate();
 
+  const poPerms = usePagePermissions('Purchase Order Requests');
+  const approvalPerms = usePagePermissions('Approve Purchase Order');
+
   const { current: pr, loading: prLoading, error: prError, fetchById } = usePurchaseRequisitions();
   const {
     current: poRecord,
@@ -192,6 +198,7 @@ const CreatePurchaseOrder = () => {
   const [vendorMap, setVendorMap] = useState({});
   const [poQtyMap, setPoQtyMap] = useState({});
   const [priceMap, setPriceMap] = useState({});
+  const [itemRemarksMap, setItemRemarksMap] = useState({});
   const [commonVendorId, setCommonVendorId] = useState('');
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [poDate, setPoDate] = useState(getTodayForDateInput());
@@ -222,19 +229,7 @@ const CreatePurchaseOrder = () => {
     (state?.stage === 'PR_NO_PO' && !state?.isCopyPr && !isEditingExistingPo),
   );
 
-  useEffect(() => {
-    if (!isEditingExistingPo && !isGeneratePo && !selectedOutletId && orgScopeOutletId) {
-      setSelectedOutletId(String(orgScopeOutletId));
-    }
-  }, [isEditingExistingPo, isGeneratePo, selectedOutletId, orgScopeOutletId]);
-
-  useEffect(() => {
-    if (poRecord?.outletId && !selectedOutletId) {
-      setSelectedOutletId(String(poRecord.outletId));
-    }
-  }, [poRecord?.outletId, selectedOutletId]);
-
-  // Set by PurchaseOrderApproval.jsx's navigate() call:
+    // Set by PurchaseOrderApproval.jsx's navigate() call:
   //  - 'approve' -> actionable review, shows an Approve button
   //  - 'reject'  -> actionable review, shows a Reject button, remarks required
   // undefined -> normal create / continue-draft flow (Save Draft / Generate)
@@ -242,10 +237,33 @@ const CreatePurchaseOrder = () => {
   const isApproveMode = reviewMode === 'approve';
   const isRejectMode = reviewMode === 'reject';
   const isReviewMode = isApproveMode || isRejectMode;
+
+  const currentPerms = isReviewMode ? approvalPerms : poPerms;
+  const canView = currentPerms.canView;
+  const canAdd = currentPerms.canAdd;
+  const canEdit = currentPerms.canEdit;
+  const canDelete = currentPerms.canDelete;
+
   const isExistingInProgress =
     poRecord?.rawStatus === PO_STATUS.IN_PROGRESS ||
     state?.rawStatus === PO_STATUS.IN_PROGRESS ||
     state?.status === 'IN_PROGRESS';
+  const canPerformAction = isEditingExistingPo ? canEdit : canAdd;
+  const isReadOnly = isReviewMode ? (!canEdit || isRejectMode) : !canPerformAction;
+
+  useEffect(() => {
+    if (!selectedOutletId && orgScopeOutletId) {
+      setSelectedOutletId(String(orgScopeOutletId));
+    }
+  }, [selectedOutletId, orgScopeOutletId]);
+
+  useEffect(() => {
+    if (poRecord?.outletId && !selectedOutletId) {
+      setSelectedOutletId(String(poRecord.outletId));
+    }
+  }, [poRecord?.outletId, selectedOutletId]);
+
+
 
   useEffect(() => {
     if (isEditingExistingPo && targetPoId) {
@@ -275,6 +293,15 @@ const CreatePurchaseOrder = () => {
       });
       return next;
     });
+    setItemRemarksMap((prev) => {
+      const next = { ...prev };
+      pr.details.forEach((d) => {
+        if (next[d.rawMaterialId] === undefined && d.remarks) {
+          next[d.rawMaterialId] = d.remarks;
+        }
+      });
+      return next;
+    });
   }, [pr, isEditingExistingPo]);
 
   useEffect(() => {
@@ -288,6 +315,7 @@ const CreatePurchaseOrder = () => {
     const qtyNext = {};
     const priceNext = {};
     const vendorNext = {};
+    const remarksNext = {};
     (poRecord.details || []).forEach((d) => {
       // normalizePo renames the API's `orderedQuantity` to `quantity` on
       // the flattened detail object — read `d.quantity`, not
@@ -295,10 +323,12 @@ const CreatePurchaseOrder = () => {
       qtyNext[d.rawMaterialId] = d.quantity;
       priceNext[d.rawMaterialId] = d.unitPrice;
       if (d.vendorId) vendorNext[d.rawMaterialId] = d.vendorId;
+      if (d.remarks) remarksNext[d.rawMaterialId] = d.remarks;
     });
     setPoQtyMap((prev) => ({ ...prev, ...qtyNext }));
     setPriceMap((prev) => ({ ...prev, ...priceNext }));
     setVendorMap((prev) => ({ ...prev, ...vendorNext }));
+    setItemRemarksMap((prev) => ({ ...prev, ...remarksNext }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poRecord, isEditingExistingPo]);
 
@@ -372,21 +402,14 @@ const CreatePurchaseOrder = () => {
   const fetchAndSetPriceForVendor = useCallback(async (rawMaterialId, vendorId) => {
     if (!rawMaterialId || !vendorId) return;
     try {
-      const res = await getActiveVendorPriceConfigsByDate({
-        isNullConsidered: false,
-        organizationId: getOrgIdFromToken(),
-        rawMaterialId: Number(rawMaterialId),
-        targetDate: getTodayForApiDate(),
-      });
+      const res = await getVendorPriceConfigsByVendorId(Number(vendorId));
       const raw = res?.data?.data ?? res?.data ?? res ?? [];
       const configs = Array.isArray(raw) ? raw : [];
-      const matched = configs.find((c) => Number(c.vendorId) === Number(vendorId));
-      if (matched && matched.price != null) {
-        setPriceMap((prev) => ({
-          ...prev,
-          [rawMaterialId]: matched.price,
-        }));
-      }
+      const matched = configs.find((c) => Number(c.rawMaterialId) === Number(rawMaterialId));
+      setPriceMap((prev) => ({
+        ...prev,
+        [rawMaterialId]: matched?.price != null ? matched.price : '',
+      }));
     } catch (err) {
       console.error('Failed to fetch vendor price config', err);
     }
@@ -399,6 +422,11 @@ const CreatePurchaseOrder = () => {
     }));
     if (vendorId) {
       fetchAndSetPriceForVendor(rawMaterialId, vendorId);
+    } else {
+      setPriceMap((prev) => ({
+        ...prev,
+        [rawMaterialId]: '',
+      }));
     }
   };
 
@@ -416,13 +444,15 @@ const CreatePurchaseOrder = () => {
     })();
   }, []);
 
-  const applyCommonVendorToChecked = (vendorId, selection, rows) => {
+  const applyCommonVendorToChecked = async (vendorId, selection, rows) => {
     if (!vendorId) return;
     const selectedIndexes = Object.keys(selection).filter((k) => selection[k]);
-    const targetRows = selectedIndexes.length > 0
-      ? selectedIndexes.map((idx) => rows[Number(idx)]).filter(Boolean)
-      : rows;
+    if (selectedIndexes.length === 0) return;
 
+    const targetRows = selectedIndexes.map((idx) => rows[Number(idx)]).filter(Boolean);
+    if (targetRows.length === 0) return;
+
+    // Set vendor for all checked items
     setVendorMap((prev) => {
       const next = { ...prev };
       targetRows.forEach((item) => {
@@ -431,11 +461,30 @@ const CreatePurchaseOrder = () => {
       return next;
     });
 
-    targetRows.forEach((item) => {
-      if (item?.rawMaterialId) {
-        fetchAndSetPriceForVendor(item.rawMaterialId, vendorId);
-      }
-    });
+    // Fetch all price configs for this vendor and set prices for checked items
+    try {
+      const res = await getVendorPriceConfigsByVendorId(Number(vendorId));
+      const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      const configs = Array.isArray(raw) ? raw : [];
+      const priceLookup = {};
+      configs.forEach((c) => {
+        if (c?.rawMaterialId != null && c.price != null) {
+          priceLookup[Number(c.rawMaterialId)] = c.price;
+        }
+      });
+
+      setPriceMap((prev) => {
+        const next = { ...prev };
+        targetRows.forEach((item) => {
+          if (item?.rawMaterialId) {
+            next[item.rawMaterialId] = priceLookup[Number(item.rawMaterialId)] ?? '';
+          }
+        });
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to fetch vendor price configs for checked items', err);
+    }
   };
 
   const handleAddRawMaterialItem = (item) => {
@@ -508,17 +557,34 @@ const CreatePurchaseOrder = () => {
   };
 
   const openQuotationModal = async (item) => {
-    setQuotationItem(item);
+    const enteredQty = poQtyMap[item.rawMaterialId];
+    const currentQty =
+      enteredQty !== undefined && enteredQty !== ''
+        ? enteredQty
+        : (item.approvedQty ?? item.quantity ?? null);
+
+    setQuotationItem({
+      ...item,
+      quantity: currentQty,
+      approvedQty: currentQty,
+      outletId: activeOutletId ? Number(activeOutletId) : undefined,
+    });
     setQuotations([]);
     setQuotationsLoading(true);
     try {
+      const targetOrgId = activeOutletId ? Number(activeOutletId) : getOrgIdFromToken();
       const res = await getActiveVendorPriceConfigsByDate({
         isNullConsidered: false,
-        organizationId: getOrgIdFromToken(),
+        organizationId: targetOrgId,
         rawMaterialId: item.rawMaterialId,
         targetDate: getTodayForApiDate(),
       });
       const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      const mappedVendorIds = new Set(
+        vendorOutletMappings
+          .filter((m) => String(m.outletId) === String(activeOutletId))
+          .map((m) => Number(m.vendorId)),
+      );
       const list = (Array.isArray(raw) ? raw : []).map((c) => ({
         id: c.id,
         vendorId: c.vendorId,
@@ -526,7 +592,7 @@ const CreatePurchaseOrder = () => {
         vendorCode: c.vendorCode ?? null,
         vendorCompanyName: c.vendorCompanyName ?? null,
         price: c.price ?? 0,
-        isMapped: !!c.isMapped,
+        isMapped: !!c.isMapped || mappedVendorIds.has(Number(c.vendorId)),
       }));
       setQuotations(list);
     } catch (err) {
@@ -553,6 +619,12 @@ const CreatePurchaseOrder = () => {
         [item.rawMaterialId]: quotation.vendorId,
       }));
     }
+    if (quotation.quantity !== undefined && quotation.quantity !== '' && !isNaN(Number(quotation.quantity))) {
+      setPoQtyMap((prev) => ({
+        ...prev,
+        [item.rawMaterialId]: Number(quotation.quantity),
+      }));
+    }
     closeQuotationModal();
   };
 
@@ -567,6 +639,7 @@ const CreatePurchaseOrder = () => {
           uomId: d.uomId,
           uomName: d.uomName,
           approvedQty: d.quantity,
+          remarks: d.remarks || '',
           source: 'pr',
         }))
       : (pr?.details || []).map((d, idx) => ({
@@ -578,6 +651,7 @@ const CreatePurchaseOrder = () => {
           uomId: d.uomId,
           uomName: d.uomName,
           approvedQty: d.quantity ?? d.orderedQuantity,
+          remarks: d.remarks || '',
           source: 'pr',
         }));
     const fromManual = manualItems.map((m, idx) => ({
@@ -589,6 +663,7 @@ const CreatePurchaseOrder = () => {
       uomId: m.uomId,
       uomName: m.uomName,
       approvedQty: null,
+      remarks: m.remarks || '',
       source: 'manual',
     }));
     return [...baseline, ...fromManual]
@@ -646,6 +721,7 @@ const CreatePurchaseOrder = () => {
           receivedQuantity: 0,
           tax: 0,
           prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
+          remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
         };
       })
       .sort((a, b) => (Number(a.vendorId) || 0) - (Number(b.vendorId) || 0));
@@ -832,6 +908,14 @@ const CreatePurchaseOrder = () => {
 
   const isSaving = poSaving || isSubmitting;
 
+  if (!canView) {
+    return <AccessDenied pageTitle={isReviewMode ? "Approve Purchase Order" : "Purchase Order Requests"} />;
+  }
+
+  if (!isEditingExistingPo && !canAdd && !isReviewMode) {
+    return <AccessDenied pageTitle="Purchase Order Requests" />;
+  }
+
   return (
     <Container>
       <div className="p-4 md:p-6">
@@ -1003,7 +1087,7 @@ const CreatePurchaseOrder = () => {
                       value={expectedDeliveryDate}
                       min={poDate || getTodayForDateInput()}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                      disabled={isRejectMode}
+                      disabled={isReadOnly}
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                     />
                   </div>
@@ -1023,7 +1107,7 @@ const CreatePurchaseOrder = () => {
                             setCommonVendorId(v);
                             if (v) applyCommonVendorToChecked(v, rowSelection, purchaseItems);
                           }}
-                          disabled={vendorsLoading || isRejectMode}
+                          disabled={vendorsLoading || isReadOnly}
                           className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                         >
                           <option value="">
@@ -1037,7 +1121,7 @@ const CreatePurchaseOrder = () => {
                         </select>
                         <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                       </div>
-                      {!isRejectMode && (
+                      {!isReadOnly && (
                         <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
                           <Plus size={18} className="text-[#0B5CAD]" />
                         </button>
@@ -1049,15 +1133,15 @@ const CreatePurchaseOrder = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      Outlet <span className="text-red-500">*</span>
-                    </label>
-                    {hasOutletDropdownAccess ? (
+                  {hasOutletDropdownAccess && (
+                    <div>
+                      <label className="text-sm text-[#475569] mb-1 block">
+                        Outlet <span className="text-red-500">*</span>
+                      </label>
                       <select
                         value={selectedOutletId ? String(selectedOutletId) : ''}
                         onChange={(e) => setSelectedOutletId(e.target.value)}
-                        disabled={outletsLoading}
+                        disabled={outletsLoading || isReadOnly}
                         className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                       >
                         <option value="">
@@ -1069,14 +1153,9 @@ const CreatePurchaseOrder = () => {
                           </option>
                         ))}
                       </select>
-                    ) : (
-                      <div className="w-full h-11 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 flex items-center text-sm text-[#1E293B]">
-                        {outletsLoading
-                          ? 'Loading...'
-                          : outlets.find((o) => String(o.id) === String(selectedOutletId))?.name || outlets[0]?.name || '—'}
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="text-sm text-[#475569] mb-1 block">
                       Vendor Name <span className="text-red-500">*</span>
@@ -1090,7 +1169,7 @@ const CreatePurchaseOrder = () => {
                             setCommonVendorId(v);
                             if (v) applyCommonVendorToChecked(v, rowSelection, purchaseItems);
                           }}
-                          disabled={vendorsLoading}
+                          disabled={vendorsLoading || isReadOnly}
                           className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                         >
                           <option value="">
@@ -1104,14 +1183,14 @@ const CreatePurchaseOrder = () => {
                         </select>
                         <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                       </div>
-                      <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
-                        <Plus size={18} className="text-[#0B5CAD]" />
-                      </button>
+                      {!isReadOnly && (
+                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
+                          <Plus size={18} className="text-[#0B5CAD]" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <div>
                     <label className="text-sm text-[#475569] mb-1 block">
                       PO Date <span className="text-red-500">*</span>
@@ -1124,6 +1203,7 @@ const CreatePurchaseOrder = () => {
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
+
                   <div>
                     <label className="text-sm text-[#475569] mb-1 block">
                       Expected Delivery Date <span className="text-red-500">*</span>
@@ -1133,7 +1213,8 @@ const CreatePurchaseOrder = () => {
                       value={expectedDeliveryDate}
                       min={poDate || getTodayForDateInput()}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD]"
+                      disabled={isReadOnly}
+                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                     />
                   </div>
                 </div>
@@ -1159,7 +1240,7 @@ const CreatePurchaseOrder = () => {
                 <p className="text-xs text-gray-500">Select items, assign vendors, and specify quantities</p>
               </div>
             </div>
-            {!isRejectMode && (
+            {!isReadOnly && (
               <div className="w-full md:w-80">
                 <RawMaterialItemPicker
                   rawMaterials={rawMaterials}
@@ -1181,6 +1262,7 @@ const CreatePurchaseOrder = () => {
                   <th className="py-3.5 px-4 w-12 text-center">
                     <input
                       type="checkbox"
+                      disabled={isReadOnly}
                       checked={purchaseItems.length > 0 && purchaseItems.every((_, idx) => !!rowSelection[idx])}
                       onChange={() => {
                         const allSelected = purchaseItems.length > 0 && purchaseItems.every((_, idx) => !!rowSelection[idx]);
@@ -1192,7 +1274,7 @@ const CreatePurchaseOrder = () => {
                           setRowSelection(next);
                         }
                       }}
-                      className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer"
+                      className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
                     />
                   </th>
                   <th className="py-3.5 px-4 text-left">Item Name</th>
@@ -1200,13 +1282,14 @@ const CreatePurchaseOrder = () => {
                   <th className="py-3.5 px-4 text-left min-w-[220px]">Vendor Name</th>
                   <th className="py-3.5 px-4 text-center w-28">Quantity</th>
                   <th className="py-3.5 px-4 text-right w-28">Price (₹)</th>
+                  <th className="py-3.5 px-4 text-left min-w-[150px]">Remarks</th>
                   <th className="py-3.5 px-4 text-center w-16">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
                 {purchaseItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-14 text-center">
+                    <td colSpan={8} className="py-14 text-center">
                       <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                         <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-3">
                           <Package className="w-6 h-6" />
@@ -1224,9 +1307,10 @@ const CreatePurchaseOrder = () => {
                         <td className="py-3.5 px-4 text-center">
                           <input
                             type="checkbox"
+                            disabled={isReadOnly}
                             checked={isSelected}
                             onChange={() => setRowSelection(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                            className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer"
+                            className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
                           />
                         </td>
                         <td className="py-3.5 px-4">
@@ -1254,7 +1338,7 @@ const CreatePurchaseOrder = () => {
                             <select
                               value={vendorMap[item.rawMaterialId] || ''}
                               onChange={(e) => handleVendorChange(item.rawMaterialId, e.target.value)}
-                              disabled={isRejectMode}
+                              disabled={isReadOnly}
                               className="w-full h-9 border border-[#E2E8F0] rounded-lg px-3 pr-8 text-sm text-[#1E293B] appearance-none outline-none bg-white cursor-pointer focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:cursor-not-allowed"
                             >
                               <option value="">Select Vendor</option>
@@ -1278,7 +1362,7 @@ const CreatePurchaseOrder = () => {
                                 [item.rawMaterialId]: e.target.value === '' ? '' : Number(e.target.value),
                               }))
                             }
-                            disabled={isRejectMode}
+                            disabled={isReadOnly}
                             placeholder="0"
                             className="w-20 h-9 border border-[#E2E8F0] rounded-lg text-center font-medium outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:text-[#475467]"
                           />
@@ -1288,8 +1372,23 @@ const CreatePurchaseOrder = () => {
                             ? `₹${Number(priceMap[item.rawMaterialId]).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                             : '—'}
                         </td>
+                        <td className="py-3.5 px-4">
+                          <input
+                            type="text"
+                            value={itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? ''}
+                            onChange={(e) =>
+                              setItemRemarksMap((prev) => ({
+                                ...prev,
+                                [item.rawMaterialId]: e.target.value,
+                              }))
+                            }
+                            disabled={isReadOnly}
+                            placeholder="Remarks..."
+                            className="w-full min-w-[120px] max-w-[200px] h-9 border border-[#E2E8F0] rounded-lg px-2.5 text-xs text-[#1E293B] outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                          />
+                        </td>
                         <td className="py-3.5 px-4 text-center">
-                          {!isRejectMode && (
+                          {!isReadOnly && (
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(item.rawMaterialId)}
@@ -1340,37 +1439,49 @@ const CreatePurchaseOrder = () => {
           </div>
           <div className="p-6">
             <textarea
-              rows={3}
+              rows={4}
               value={remarks}
+              disabled={isReadOnly && !isRejectMode}
               onChange={(e) => {
                 setRemarks(e.target.value);
                 if (remarksError) setRemarksError('');
               }}
               placeholder={
                 isRejectMode
-                  ? 'Explain why this purchase order is being rejected...'
-                  : 'Add specific Remarks/Instructions'
+                  ? 'Please state the reason for rejecting this purchase order...'
+                  : 'Add any specific terms, instructions, or notes for the vendor...'
               }
-              className="w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 resize-none outline-none focus:border-[#0B5CAD] focus:ring-2 focus:ring-[#DBEAFE]"
+              className={`w-full p-4 rounded-xl border ${
+                remarksError ? 'border-red-400 focus:border-red-500' : 'border-[#E2E8F0] focus:border-[#0B5CAD]'
+              } text-sm outline-none resize-none transition disabled:bg-[#F8FAFC]`}
             />
-            {remarksError && <p className="text-xs text-red-500 mt-2">{remarksError}</p>}
+            {remarksError && (
+              <p className="text-xs text-red-500 mt-1.5">{remarksError}</p>
+            )}
           </div>
         </div>
 
-        {(submitError || poSaveError) && (
-          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {submitError || poSaveError}
+        {submitError && (
+          <div className="mt-4 p-4 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
+            {submitError}
           </div>
         )}
 
-        <div className="flex justify-between items-center mt-8 border-t py-5">
+        <div className="flex justify-between items-center mt-6">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-6 py-2.5 border border-[#E2E8F0] rounded-lg text-sm font-medium text-[#475569] hover:bg-gray-50 cursor-pointer"
+          >
+            Cancel
+          </button>
           {isReviewMode || isExistingInProgress ? (
             <div className="flex gap-3 ml-auto">
               {!isRejectMode && (isApproveMode || isExistingInProgress) && (
                 <>
                   <button
                     type="button"
-                    disabled={isSaving}
+                    disabled={isSaving || isReadOnly}
                     onClick={handleSaveInProgress}
                     className="px-6 py-2.5 border border-[#084E92] text-[#084E92] rounded-lg hover:bg-[#EFF6FF] cursor-pointer disabled:opacity-50 font-medium text-sm transition"
                   >
@@ -1378,7 +1489,7 @@ const CreatePurchaseOrder = () => {
                   </button>
                   <button
                     type="button"
-                    disabled={isSaving}
+                    disabled={isSaving || isReadOnly}
                     onClick={handleApprovePO}
                     className="px-6 py-2.5 bg-[#14804A] text-white rounded-lg hover:bg-[#106b3d] cursor-pointer disabled:opacity-50 font-medium text-sm transition"
                   >
@@ -1389,7 +1500,7 @@ const CreatePurchaseOrder = () => {
               {isRejectMode && (
                 <button
                   type="button"
-                  disabled={isSaving}
+                  disabled={isSaving || isReadOnly}
                   onClick={handleOpenRejectConfirm}
                   className="px-6 py-2.5 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 cursor-pointer disabled:opacity-50 font-medium text-sm transition"
                 >
@@ -1397,26 +1508,26 @@ const CreatePurchaseOrder = () => {
                 </button>
               )}
             </div>
-          ) : (
+          ) : canPerformAction ? (
             <div className="flex gap-3">
               <button
                 type="button"
-                disabled={isSaving}
+                disabled={isSaving || isReadOnly}
                 onClick={handleSaveDraft}
-                className="px-6 py-2.5 border border-[#084E92] text-[#084E92] rounded-lg hover:bg-[#EFF6FF] cursor-pointer disabled:opacity-50"
+                className="px-6 py-2.5 border border-[#084E92] text-[#084E92] rounded-lg hover:bg-[#EFF6FF] cursor-pointer disabled:opacity-50 font-medium text-sm transition"
               >
-                {isSaving ? 'Saving...' : 'Save as Draft'}
+                {isSaving ? 'Saving...' : isEditingExistingPo ? 'Save' : 'Generate Purchase Order'}
               </button>
               <button
                 type="button"
-                disabled={isSaving}
-                onClick={handleGenerate}
-                className="px-6 py-2.5 bg-[#084E92] text-white rounded-lg hover:bg-[#063d73] cursor-pointer disabled:opacity-50"
+                disabled={isSaving || isReadOnly}
+                onClick={handleGenerate} 
+                className="px-6 py-2.5 bg-[#084E92] text-white rounded-lg hover:bg-[#063d73] cursor-pointer disabled:opacity-50 font-medium text-sm transition"
               >
-                {isSaving ? 'Saving...' : 'Generate Purchase Order'}
+                {isSaving ? 'Sending...' : 'Sent For Approval'}
               </button>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -1428,7 +1539,12 @@ const CreatePurchaseOrder = () => {
         onClose={closeQuotationModal}
         onSelectPrice={handleSelectPrice}
         outletId={activeOutletId}
-        onVendorMapped={() => loadVendorOutletMappings()}
+        onVendorMapped={async () => {
+          await loadVendorOutletMappings();
+          if (quotationItem) {
+            openQuotationModal(quotationItem);
+          }
+        }}
       />
 
       <DeleteConfirmModal
