@@ -953,5 +953,5 @@
   };
 
   export const getVendorPriceConfigsByVendorId = (id) => {
-    return GET('/raw-material-vendor-price/get-by-id', { id });
+    return GET(`/raw-material-vendor-price/get-by-vendor/${id}`);
   }

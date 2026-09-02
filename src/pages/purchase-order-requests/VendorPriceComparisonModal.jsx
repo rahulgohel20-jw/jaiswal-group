@@ -25,6 +25,7 @@ const VendorPriceComparisonModal = ({
   onSelectPrice,
   outletId,
   onVendorMapped,
+  lockedVendorId = null,
 }) => {
   const [sortOrder, setSortOrder] = useState('desc'); // desc = Highest to Lowest
   const [selectedVendorId, setSelectedVendorId] = useState(null);
@@ -238,6 +239,7 @@ const VendorPriceComparisonModal = ({
                   const qty = quantities[q.id] ?? '';
                   const amount =
                     qty !== '' ? Number(q.price) * Number(qty) : null;
+                  const isVendorDisabled = Boolean(lockedVendorId && String(q.vendorId) !== String(lockedVendorId));
 
                   return (
                     <tr
@@ -246,7 +248,9 @@ const VendorPriceComparisonModal = ({
                         isLowest
                           ? 'bg-[#ECFDF5] hover:bg-[#DCFCE7]'
                           : 'hover:bg-[#F8FAFC]'
-                      } ${isSelected ? 'ring-2 ring-inset ring-[#084E92]' : ''}`}
+                      } ${isSelected ? 'ring-2 ring-inset ring-[#084E92]' : ''} ${
+                        isVendorDisabled ? 'opacity-60 bg-gray-50/50' : ''
+                      }`}
                     >
                       {/* Vendor name + code, side by side */}
                       <td className="px-6 py-4">
@@ -273,7 +277,12 @@ const VendorPriceComparisonModal = ({
                                 {q.vendorCode}
                               </span>
                             )}
-                            {isLowest && (
+                            {isVendorDisabled && (
+                              <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                Different Vendor
+                              </span>
+                            )}
+                            {isLowest && !isVendorDisabled && (
                               <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-[#047857] w-full">
                                 <TrendingDown size={11} />
                                 Lowest Price
@@ -300,9 +309,10 @@ const VendorPriceComparisonModal = ({
                           type="number"
                           min="0"
                           value={qty}
+                          disabled={isVendorDisabled}
                           onChange={(e) => handleQuantityChange(q.id, e.target.value)}
                           placeholder="0"
-                          className="w-20 h-8 px-2 text-right text-sm border border-[#E2E8F0] rounded-md outline-none focus:border-[#0B5CAD]"
+                          className="w-20 h-8 px-2 text-right text-sm border border-[#E2E8F0] rounded-md outline-none focus:border-[#0B5CAD] disabled:bg-gray-100 disabled:text-gray-400"
                         />
                       </td>
 
@@ -337,10 +347,10 @@ const VendorPriceComparisonModal = ({
                               </span>
                               <button
                                 type="button"
-                                disabled={mappingVendorId === q.vendorId || (!outletId && !item?.outletId)}
+                                disabled={isVendorDisabled || mappingVendorId === q.vendorId || (!outletId && !item?.outletId)}
                                 onClick={() => handleMapVendor(q)}
                                 className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-[#084E92] bg-blue-50/90 hover:bg-blue-100/90 border border-blue-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
-                                title="Map vendor to this outlet"
+                                title={isVendorDisabled ? 'Different vendor from this PO' : 'Map vendor to this outlet'}
                               >
                                 {mappingVendorId === q.vendorId ? (
                                   <>
@@ -363,17 +373,25 @@ const VendorPriceComparisonModal = ({
                       <td className="px-6 py-4 text-center">
                         <button
                           type="button"
+                          disabled={isVendorDisabled}
                           onClick={() => {
                             setSelectedVendorId(q.id);
                             onSelectPrice?.({ ...q, quantity: qty, amount }, item);
                           }}
-                          className={`px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer transition-colors shadow-xs ${
-                            isLowest
-                              ? 'bg-[#047857] hover:bg-[#036848]'
-                              : 'bg-[#084E92] hover:bg-[#063d73]'
+                          title={
+                            isVendorDisabled
+                              ? 'This PO is generated for a specific vendor. Only prices from this PO vendor can be selected.'
+                              : 'Select Price'
+                          }
+                          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs ${
+                            isVendorDisabled
+                              ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed'
+                              : isLowest
+                                ? 'bg-[#047857] hover:bg-[#036848] text-white cursor-pointer'
+                                : 'bg-[#084E92] hover:bg-[#063d73] text-white cursor-pointer'
                           }`}
                         >
-                          {isSelected ? 'Selected' : 'Select Price'}
+                          {isVendorDisabled ? 'Different Vendor' : (isSelected ? 'Selected' : 'Select Price')}
                         </button>
                       </td>
                     </tr>
