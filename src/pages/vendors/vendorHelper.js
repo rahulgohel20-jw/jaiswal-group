@@ -76,6 +76,7 @@ export const DEFAULT_FORM = {
 
   // Remarks
   remarks: '',
+  termsAndConditions: '',
 };
 
 const toAddressForm = (a = {}) => ({
@@ -157,6 +158,7 @@ export const mapVendorToForm = (vendor = {}) => {
     paymentTerms: vendor.paymentTerms ?? DEFAULT_FORM.paymentTerms,
     tdsApplicability: vendor.tdsApplicability ?? DEFAULT_FORM.tdsApplicability,
     remarks: vendor.remarks ?? '',
+    termsAndConditions: vendor.termsAndConditions ?? '',
     commonAddress,
     billingAddress,
     shippingAddress,
@@ -254,6 +256,7 @@ export const buildVendorPayload = (form, { isEditMode, editingVendor }) => {
     })),
 
     remarks: form.remarks,
+    termsAndConditions: form.termsAndConditions,
     password: form.password,
   };
 };
