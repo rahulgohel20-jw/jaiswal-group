@@ -179,6 +179,7 @@ import PurchaseRequisitionApprovalDetail from '../pages/purchase-requisition/Pur
 import PurchaseRequisitionView from '../pages/purchase-requisition/PurchaseRequisitionView';
 import PurchaseOrderDetail from '../pages/purchase-order-requests/PurchaseOrderDetail';
 import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
+import UserProfile from '../pages/my-profile/UserProfile';
 
 
 export function AppRoutingSetup() {
@@ -200,6 +201,8 @@ export function AppRoutingSetup() {
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
+
+          <Route path='/my-profile' element={<UserProfile/>}/>
 
           <Route path="/companies" element={<CompaniesListing />} />
           <Route
