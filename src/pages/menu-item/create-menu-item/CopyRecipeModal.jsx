@@ -59,10 +59,12 @@ const CopyRecipeModal = ({
                     res?.data?.ItemDetails ||
                     [];
                 const mappedRecipes = Array.isArray(data)
-                    ? data.map((item) => ({
-                        value: String(item.menuItemId),
-                        label: item.menuName,
-                    }))
+                    ? data
+                        .filter((item) => item.isActive !== false) // only active menu items
+                        .map((item) => ({
+                            value: String(item.menuItemId),
+                            label: item.menuName,
+                        }))
                     : [];
                 setRecipes(mappedRecipes);
             } catch (error) {
@@ -95,10 +97,9 @@ const CopyRecipeModal = ({
 
                     const list = Array.isArray(data) ? data : [];
 
-                    // Show each captain-recipe assignment itself as a row (not its
-                    // nested rawMaterial ingredients).
                     const mappedIngredients = list
                         .filter((entry) => entry.captainReceipeMaster)
+                        .filter((entry) => entry.captainReceipeMaster?.isActive !== false) // only active captain recipes
                         .map((entry) => {
                             const master = entry.captainReceipeMaster;
                             const unitId = entry.unitId ?? master?.unitId ?? "";
@@ -137,19 +138,21 @@ const CopyRecipeModal = ({
 
                     const list = Array.isArray(data) ? data : [];
 
-                    const mappedIngredients = list.map((item) => ({
-                        id: item.rawMaterialId ?? item.rawMaterial?.id,
-                        rawMaterialId: item.rawMaterialId ?? item.rawMaterial?.id,
-                        name: item.rawMaterial?.nameEnglish ?? item.name ?? "",
-                        category:
-                            item.rawMaterial?.rawMaterialCat?.nameEnglish ??
-                            item.category ??
-                            "",
-                        weight: item.weight ?? 0,
-                        unit: item.unit ?? null,
-                        unitId: item.unit?.id ?? "",
-                        rate: Number(item.rate ?? 0),
-                    }));
+                    const mappedIngredients = list
+                        .filter((item) => item.rawMaterial?.isActive !== false) // only active raw materials
+                        .map((item) => ({
+                            id: item.rawMaterialId ?? item.rawMaterial?.id,
+                            rawMaterialId: item.rawMaterialId ?? item.rawMaterial?.id,
+                            name: item.rawMaterial?.nameEnglish ?? item.name ?? "",
+                            category:
+                                item.rawMaterial?.rawMaterialCat?.nameEnglish ??
+                                item.category ??
+                                "",
+                            weight: item.weight ?? 0,
+                            unit: item.unit ?? null,
+                            unitId: item.unit?.id ?? "",
+                            rate: Number(item.rate ?? 0),
+                        }));
 
                     setIngredients(mappedIngredients);
                 }

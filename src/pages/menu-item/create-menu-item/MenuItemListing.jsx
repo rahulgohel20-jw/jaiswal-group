@@ -74,6 +74,8 @@ const MenuItemsListing = ({ onAddNew }) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
+  const [totalCount, setTotalCount] = useState(0);
+
   const userId = getUserIdFromToken();
   const orgId = getOrgIdFromToken();
 
@@ -104,9 +106,11 @@ const MenuItemsListing = ({ onAddNew }) => {
         raw: item,
       }));
       setMenuItems(list);
+      setTotalCount(payload.totalItems ?? rawList.length);
     } catch (err) {
       console.error(err);
       setMenuItems([]);
+      setTotalCount(0);
       setError('Failed to load menu items');
     } finally {
       setLoading(false);
@@ -154,16 +158,24 @@ const categorySelectOptions = useMemo(
   [categoryOptions],
 );
 
-  
-  const totalItems = menuItems.length;
 
-  const activeItems = menuItems.filter(
-    (item) => item.status === 'Active',
-  ).length;
+const totalItems = totalCount;
+const [activeItems, setActiveItems] = useState(0);
+const inactiveItems = totalItems - activeItems;
 
-  const inactiveItems = menuItems.filter(
-    (item) => item.status === 'Inactive',
-  ).length;
+const fetchActiveCount = useCallback(() => {
+  getAllMenuItem({ page: 1, size: 1000 })
+    .then((res) => {
+      const rawList = res?.data?.data?.items ?? [];
+      const active = rawList.filter((item) => item.isActive).length;
+      setActiveItems(active);
+    })
+    .catch(() => setActiveItems(0));
+}, []);
+
+useEffect(() => {
+  fetchActiveCount();
+}, [fetchActiveCount, totalCount]);
 
   const filteredItems = useMemo(() => {
     return menuItems.filter((item) => {
@@ -210,6 +222,7 @@ const categorySelectOptions = useMemo(
 
       closeStatusConfirm();
       fetchMenuItems();
+      fetchActiveCount();
     } catch (err) {
       console.error(err);
       notify.error('Failed to update status');
@@ -238,6 +251,7 @@ const categorySelectOptions = useMemo(
       await deleteMenuItemById(deleteTarget.id);
       closeDeleteConfirm();
       fetchMenuItems();
+      fetchActiveCount();
     } catch (err) {
       console.error(err);
       notify.error('Failed to delete menu item');
@@ -469,6 +483,8 @@ const categorySelectOptions = useMemo(
     onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
+    manualPagination: true,
+    rowCount: totalCount,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
@@ -578,7 +594,7 @@ const categorySelectOptions = useMemo(
 
           <DataGrid
             table={table}
-            recordCount={filteredItems.length}
+            recordCount={totalCount}
             className="rounded-2xl"
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">

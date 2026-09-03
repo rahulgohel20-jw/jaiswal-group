@@ -436,8 +436,22 @@
   }
   export const deleteCaptainRecipeById = (id) => {
     return DELETE(`/captain-receipe-master/deletebyid?id=${id}`)
-  }
-
+}
+export const getAllCaptainRecipeByOrgId = (orgId) => {
+  return GET(`/captain-receipe-master/getallbyorgid?orgId=${orgId}`);
+};
+export const getCaptainRecipeById = (id) => {
+  return GET(`/captain-receipe-master/getbyid?id=${id}`);
+};
+export const addCaptainReceipeMaster = (payload) => {
+  return POST("/captain-receipe-master/add-update", payload);
+}
+export const updateCaptainRecipeStatus = (id, status) => {
+  return PUT(`/captain-receipe-master/updatestatusbyid?id=${id}&status=${status}`)
+}
+export const syncCaptainRecipes = (orgId) => {
+  return GET(`/captain-receipe-master/syncallcaptainreceiperawmaterial?orgId=${orgId}`)
+}
   // ---- Sub-Outlet APIs ----
 
   export const getAllSubOutlets = () => {

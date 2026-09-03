@@ -178,6 +178,9 @@ import RawMaterialSubCategory from '../pages/raw-material/raw-material-subcatego
 import PurchaseRequisitionApprovalDetail from '../pages/purchase-requisition/PurchaseRequisitionApprovalDetail';
 import PurchaseRequisitionView from '../pages/purchase-requisition/PurchaseRequisitionView';
 import PurchaseOrderDetail from '../pages/purchase-order-requests/PurchaseOrderDetail';
+import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
+import UserProfile from '../pages/my-profile/UserProfile';
+
 
 export function AppRoutingSetup() {
   return (
@@ -198,6 +201,8 @@ export function AppRoutingSetup() {
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
+
+          <Route path='/my-profile' element={<UserProfile/>}/>
 
           <Route path="/companies" element={<CompaniesListing />} />
           <Route
@@ -345,7 +350,7 @@ export function AppRoutingSetup() {
             path="/menu-item/edit-menu-item/:id"
             element={<CreateMenuItem />}
           />
-
+         <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList/>}/>
           <Route
             path="/purchase-requisition/list"
             element={<PurchaseRequisitionList />}
