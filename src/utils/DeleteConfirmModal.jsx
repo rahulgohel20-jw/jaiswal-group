@@ -64,6 +64,7 @@ const DeleteConfirmModal = ({
             Cancel
           </Button>
           <Button
+            variant="destructive"
             onClick={onConfirm}
             disabled={saving}
             className="bg-red-600 hover:bg-red-700 text-white cursor-pointer"
