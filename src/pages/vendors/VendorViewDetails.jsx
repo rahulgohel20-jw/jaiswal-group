@@ -9,6 +9,7 @@ import {
   Calendar,
   BadgeCheck,
   Landmark,
+  ClipboardList,
 } from "lucide-react";
 import { getVendorById } from "@/services/apiServices";
 
@@ -376,6 +377,15 @@ const VendorViewDetails = () => {
           </div>
         </SectionCard>
       )}
+
+      {/* Terms & Conditions */}
+      <SectionCard icon={ClipboardList} title="Terms & Conditions">
+        <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+          <p className="text-sm leading-6 text-gray-800 whitespace-pre-wrap">
+            {vendor.termsAndConditions || "—"}
+          </p>
+        </div>
+      </SectionCard>
     </div>
   );
 };
