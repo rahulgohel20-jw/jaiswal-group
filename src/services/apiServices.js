@@ -1029,5 +1029,3 @@ export const syncCaptainRecipes = (orgId) => {
   };
 
   export const getGrnDetailsByStatus = getAllGrnDetailsByStatus;
-
-  }
