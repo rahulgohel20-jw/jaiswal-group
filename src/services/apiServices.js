@@ -968,4 +968,66 @@ export const syncCaptainRecipes = (orgId) => {
 
   export const getVendorPriceConfigsByVendorId = (id) => {
     return GET(`/raw-material-vendor-price/get-by-vendor/${id}`);
+  };
+
+  // ---- GRN (Goods Received Note) APIs ----
+
+  export const createGrn = (payload) => {
+    return POST('/grn/add', payload);
+  };
+
+  export const createGRN = createGrn;
+
+  export const getGrnById = (id) => {
+    return GET(`/grn/${id}`);
+  };
+
+  export const getAllGrns = () => {
+    return GET('/grn/getall');
+  };
+
+  export const getGrnByOutletOrStatus = (outletId, status) => {
+    let params = {};
+    if (typeof outletId === 'object' && outletId !== null) {
+      params = outletId;
+    } else {
+      if (outletId !== undefined && outletId !== 'ALL' && outletId !== null && outletId !== 0) {
+        params.outletId = outletId;
+      }
+      if (status && status !== 'ALL') {
+        params.status = status;
+      }
+    }
+    return GET('/grn/getbyoutletorstatus', params);
+  };
+
+  export const getPOsByOutlet = (outletId, status) => {
+    return getPurchaseOrdersByOutlet(outletId, status);
+  };
+
+  // ---- GRN Detail / Return & Replacement APIs ----
+
+  export const getGrnDetailById = (id) => {
+    return GET(`/grn-details/${id}`);
+  };
+
+  export const getGrnDetailsById = getGrnDetailById;
+
+  export const getAllGrnDetailsByStatus = (status, outletId) => {
+    let params = {};
+    if (typeof status === 'object' && status !== null) {
+      params = status;
+    } else {
+      if (status && status !== 'ALL' && status !== 'All Status') {
+        params.status = status;
+      }
+      if (outletId !== undefined && outletId !== 'ALL' && outletId !== null && outletId !== 0) {
+        params.outletId = outletId;
+      }
+    }
+    return GET('/grn-details/getallbystatus', params);
+  };
+
+  export const getGrnDetailsByStatus = getAllGrnDetailsByStatus;
+
   }
