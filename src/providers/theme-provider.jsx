@@ -8,11 +8,9 @@ export function ThemeProvider({ children }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="system"
+      defaultTheme="light"
       storageKey="vite-theme"
-      enableSystem
       disableTransitionOnChange
-      enableColorScheme
     >
       <TooltipProvider delayDuration={0}>{children}</TooltipProvider>
     </NextThemesProvider>

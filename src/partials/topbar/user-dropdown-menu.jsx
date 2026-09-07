@@ -240,8 +240,15 @@ export function UserDropdownMenu({ trigger }) {
         </DropdownMenuSub> */}
 
         <DropdownMenuSeparator />
+        {/* Profile */}
         <DropdownMenuItem asChild>
-          <Link to="/change-password" className="flex items-center gap-2">
+          <Link to="/my-profile" className="flex items-center gap-2 cursor-pointer" >
+            <UserCircle />
+            My Profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/change-password" className="flex items-center gap-2 cursor-pointer">
             <KeyRound />
             Change Password
           </Link>

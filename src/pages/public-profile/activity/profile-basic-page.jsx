@@ -29,7 +29,7 @@ export function ProfileActivityPage() {
     <Fragment>
       <UserHero
         name="Jenny Klabber"
-        image={image}
+        image={image}        
         info={[
           { label: 'KeenThemes', icon: Zap },
           { label: 'SF, Bay Area', icon: MapPin },

@@ -508,7 +508,8 @@ export const MENU_SIDEBAR = [
     children: [
       { title: 'Categories', path: '/menu-item/categories' },
       { title: 'Sub Category', path: '/menu-item/sub-category' },
-      { title: 'Menu Items', path: '/menu-item/menu-items' }
+      { title: 'Menu Items', path: '/menu-item/menu-items' },
+      { title: 'Captain Recipe', path: '/menu-item/captain-recipe' },
     ],
 },
   // {
@@ -617,7 +618,8 @@ export const MENU_SIDEBAR_ADMIN = [
     children: [
       { title: 'Categories', path: '/menu-item/categories' },
       { title: 'Sub Category', path: '/menu-item/sub-category' },
-      { title: 'Menu Items', path: '/menu-item/menu-items' }
+      { title: 'Menu Items', path: '/menu-item/menu-items' },
+      { title: 'Captain Recipe', path: '/menu-item/captain-recipe' },
     ],
   },
   {

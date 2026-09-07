@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify, getApiErrorMessage } from '@/utils/toast';
 import {
@@ -520,6 +522,7 @@ const VendorRegistration = () => {
   const [mapPickerTarget, setMapPickerTarget] = useState(null); // 'commonAddress' | 'billingAddress' | 'shippingAddress' | null
 
   const [form, setForm] = useState(DEFAULT_FORM);
+  const [savedTermsContent, setSavedTermsContent] = useState('');
 
   // Once the user manually edits Company Name, stop auto-syncing it from
   // Vendor Name.
@@ -537,6 +540,7 @@ const VendorRegistration = () => {
             setEditingVendor(data);
             const mapped = mapVendorToForm(data);
             setForm(mapped);
+            setSavedTermsContent(mapped.termsAndConditions);
             setTradeNameTouched(true);
 
             // Auto-trigger IFSC lookup for loaded banks to populate branch name
@@ -566,6 +570,7 @@ const VendorRegistration = () => {
     } else {
       setEditingVendor(null);
       setForm(DEFAULT_FORM);
+      setSavedTermsContent('');
       setTradeNameTouched(false);
     }
     setErrors({});
@@ -1184,6 +1189,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
       await saveVendor(payload);
       notify.success('Vendor created successfully');
       setForm((f) => ({ ...DEFAULT_FORM, organizationId: f.organizationId }));
+      setSavedTermsContent('');
       setTradeNameTouched(false);
       setErrors({});
       setBankErrors({});
@@ -1924,6 +1930,58 @@ const handleIfscBlur = async (bankId, ifscValue) => {
             />
           </div>
         )}
+      </SectionCard>
+
+      {/* Terms & Conditions */}
+      <SectionCard className="mt-4">
+        <SectionHeader
+          icon={ClipboardList}
+          title="Terms & Conditions"
+          subtitle="Add the terms and conditions applicable to this vendor"
+          open={openSection === 'terms'}
+          onToggle={() => toggleSection('terms')}
+        />
+
+        <div className={openSection === 'terms' ? 'block' : 'hidden'}>
+          <div className="px-6 py-6 space-y-4">
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition focus-within:border-blue-400 focus-within:ring-4 focus-within:ring-blue-50">
+              <div className="flex items-center justify-between border-b border-gray-100 bg-gray-50/80 px-4 py-2.5">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Rich text editor
+                </span>
+                <span className="text-xs text-gray-400">Format your vendor terms</span>
+              </div>
+              <ReactQuill
+                theme="snow"
+                value={form.termsAndConditions}
+                onChange={(value) => setField('termsAndConditions', value)}
+                placeholder="Write the terms and conditions for this vendor..."
+                modules={{
+                  toolbar: [
+                    [{ header: [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ list: 'bullet' }, { list: 'ordered' }],
+                    [{ align: [] }],
+                  ],
+                }}
+                className="text-sm text-gray-800 [&_.ql-toolbar.ql-snow]:border-x-0 [&_.ql-toolbar.ql-snow]:border-t-0 [&_.ql-toolbar.ql-snow]:border-b-gray-200 [&_.ql-toolbar.ql-snow]:bg-white [&_.ql-container.ql-snow]:min-h-48 [&_.ql-container.ql-snow]:border-x-0 [&_.ql-container.ql-snow]:border-b-0 [&_.ql-editor]:min-h-48 [&_.ql-editor]:px-4 [&_.ql-editor]:py-3.5 [&_.ql-editor]:text-sm [&_.ql-editor]:leading-6 [&_.ql-editor]:text-gray-800 [&_.ql-editor.ql-blank::before]:not-italic [&_.ql-editor.ql-blank::before]:text-gray-400"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-gray-100 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setField('termsAndConditions', savedTermsContent);
+                  toggleSection('terms');
+                }}
+                className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       </SectionCard>
 
       {/* Footer actions */}
