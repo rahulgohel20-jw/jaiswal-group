@@ -294,7 +294,7 @@ export function AppRoutingSetup() {
             path="/assets/add-maintenance-log"
             element={<AddAssetsMaintenanceLog />}
           />
-
+          <Route path="/assets/edit-maintenance-log/:id" element={<AddAssetsMaintenanceLog />} />
           <Route path="/material/types" element={<RawMaterialTypeListing />} />
           <Route
             path="/material/categories"
@@ -326,6 +326,7 @@ export function AppRoutingSetup() {
             element={<AssetsDisposalLog />}
           />
           <Route path="/assets/add-disposal" element={<AddAssetsDisposal />} />
+          <Route path="/assets/edit-disposal/:id" element={<AddAssetsDisposal />} />
 
           <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
 
