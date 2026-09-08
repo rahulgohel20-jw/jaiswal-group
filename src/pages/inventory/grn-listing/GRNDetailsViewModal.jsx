@@ -11,8 +11,11 @@ import {
   Eye,
   CornerDownRight,
   FileCheck,
+  Loader2,
 } from 'lucide-react';
 import { Link } from 'react-router';
+import { useExportReport } from '@/hooks/useExportReport';
+import { toast } from 'sonner';
 
 const InfoCard = ({ label, children, className = '' }) => (
   <div className={`border border-gray-200 rounded-xl px-4 py-3 bg-[#FDFDFE] shadow-2xs ${className}`}>
@@ -66,15 +69,43 @@ const handleDownloadFile = (url, fileName) => {
   document.body.removeChild(link);
 };
 
-const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, acknowledging, loading }) => {
+const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, acknowledging, loading, exporting: parentExporting }) => {
   if (!isOpen) return null;
+
+  const { exporting: localExporting, exportReport } = useExportReport();
+  const isExporting = parentExporting || localExporting;
 
   const items = grn?.items || [];
   const images = Array.isArray(grn?.images) ? grn.images : [];
 
   const handleClose = () => {
-    if (acknowledging) return;
+    if (acknowledging || isExporting) return;
     onClose?.();
+  };
+
+  const handlePrint = async () => {
+    if (typeof onPrint === 'function') {
+      onPrint(grn);
+      return;
+    }
+
+    const grnId = grn?.id;
+    if (!grnId) {
+      toast.error('GRN ID not found.');
+      return;
+    }
+
+    await exportReport(
+      {
+        type: 'GRN Type 1',
+        id: Number(grnId),
+      },
+      {
+        fileName: `GRN_Report_${grn?.grnCode || grnId}.pdf`,
+        successMessage: 'GRN report downloaded successfully.',
+        errorMessage: 'Failed to export GRN report.',
+      }
+    );
   };
 
   const raisedByInitials = (grn?.raisedBy || 'Admin')
@@ -345,16 +376,28 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
           <button
             type="button"
             onClick={handleClose}
-            className="px-5 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer"
+            disabled={isExporting || acknowledging}
+            className="px-5 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
           >
             Close
           </button>
           <button
             type="button"
-            onClick={onPrint}
-            className="px-5 py-2 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs"
+            onClick={handlePrint}
+            disabled={isExporting || acknowledging || loading}
+            className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs disabled:opacity-60"
           >
-            Print GRN
+            {isExporting ? (
+              <>
+                <Loader2 size={13} className="animate-spin" />
+                <span>Exporting...</span>
+              </>
+            ) : (
+              <>
+                <Download size={13} />
+                <span>Print Report</span>
+              </>
+            )}
           </button>
         </div>
       </div>

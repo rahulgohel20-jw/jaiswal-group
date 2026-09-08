@@ -23,6 +23,8 @@ import {
   Receipt,
   Truck,
   Info,
+  Download,
+  Loader2,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { usePurchaseOrders } from './utils/usePurchaseOrders';
@@ -31,6 +33,8 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { checkIsInterState, numberToWords, formatCurrency } from './utils/taxUtils';
 import { getVendorById, getCompanyById } from '@/services/apiServices';
+import { useExportReport } from '@/hooks/useExportReport';
+import { toast } from 'sonner';
 
 const SectionCard = ({ children, className = '' }) => (
   <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm ${className}`}>{children}</div>
@@ -103,8 +107,34 @@ const PurchaseOrderDetail = () => {
   const { canView } = usePagePermissions('Purchase Order Requests');
   const { current: po, loading, error, fetchById } = usePurchaseOrders();
   const [logOpen, setLogOpen] = useState(false);
+  const { exporting, exportReport } = useExportReport();
   const [fetchedBillTo, setFetchedBillTo] = useState(null);
   const [fetchedShipTo, setFetchedShipTo] = useState(null);
+
+  const handleExportReport = () => {
+    if (!po?.id) {
+      toast.error('Purchase Order ID not found.');
+      return;
+    }
+
+    const rawStatus = String(po?.status || po?.rawStatus || '').toUpperCase().trim();
+    if (rawStatus === 'AWAITING_PO' || rawStatus === 'PR_NO_PO' || rawStatus === 'TO BE GENERATED') {
+      toast.error('Export report is not available while awaiting PO creation.');
+      return;
+    }
+
+    exportReport(
+      {
+        id: Number(po.id),
+        type: 'purchase type 1',
+      },
+      {
+        fileName: `PO_Report_${po.poCode || po.id}.pdf`,
+        successMessage: 'Purchase Order report downloaded successfully.',
+        errorMessage: 'Failed to export Purchase Order report.',
+      }
+    );
+  };
 
   useEffect(() => {
     if (id) fetchById(id);
@@ -335,8 +365,26 @@ const PurchaseOrderDetail = () => {
               <p className="text-blue-100/80 text-xs mt-0.5">Purchase order details, addresses, and line items</p>
             </div>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <StatusBadge status={displayStatus} size="lg" />
+            <button
+              type="button"
+              onClick={handleExportReport}
+              disabled={exporting}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white/95 text-sm font-semibold text-[#084E92] hover:bg-white transition cursor-pointer border-0 shadow-sm disabled:opacity-60"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Exporting...</span>
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  <span>Export Report</span>
+                </>
+              )}
+            </button>
             <button
               type="button"
               onClick={() => setLogOpen(true)}

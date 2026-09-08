@@ -34,6 +34,7 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { getAllGrns, getGrnById, getGrnByOutletOrStatus } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
+import { useExportReport } from '@/hooks/useExportReport';
 import { toast } from 'sonner';
 import GRNDetailsViewModal from './GRNDetailsViewModal';
 
@@ -179,6 +180,7 @@ const GRNListing = () => {
   const [grnTarget, setGrnTarget] = useState(null);
   const [viewLoading, setViewLoading] = useState(false);
   const [acknowledging, setAcknowledging] = useState(false);
+  const { exporting: exportingGrn, exportReport: exportGrnReport } = useExportReport();
 
   const loadData = useCallback(async () => {
     if (scopeLoading) return;
@@ -307,8 +309,25 @@ const GRNListing = () => {
     setGrnTarget(null);
   };
 
-  const handlePrintGrn = () => {
-    window.print();
+  const handlePrintGrn = (targetGrn) => {
+    const activeGrn = targetGrn || grnTarget;
+    const grnId = activeGrn?.id;
+    if (!grnId) {
+      toast.error('GRN ID not found.');
+      return;
+    }
+
+    exportGrnReport(
+      {
+        type: 'GRN Type 1',
+        id: Number(grnId),
+      },
+      {
+        fileName: `GRN_Report_${activeGrn?.grnCode || grnId}.pdf`,
+        successMessage: 'GRN report downloaded successfully.',
+        errorMessage: 'Failed to export GRN report.',
+      }
+    );
   };
 
   const handleAcknowledgeGrn = async () => {
@@ -637,6 +656,7 @@ const GRNListing = () => {
           onAcknowledge={handleAcknowledgeGrn}
           acknowledging={acknowledging}
           loading={viewLoading}
+          exporting={exportingGrn}
         />
       </div>
     </Container>

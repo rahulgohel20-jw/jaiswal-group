@@ -9,7 +9,6 @@ import {
   Loader2,
   CheckCircle2,
   Building2,
-  Store,
   MapPin,
   ScrollText,
   Upload,
@@ -624,6 +623,25 @@ const GenerateGRNDetail = () => {
             </div>
 
             <div>
+              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Raised By</label>
+              <div className="w-full h-11 border border-gray-200 rounded-xl px-3.5 flex items-center gap-2.5 bg-white">
+                <span className="w-6 h-6 rounded-full bg-blue-100 text-[#084E92] text-xs font-bold flex items-center justify-center shrink-0">
+                  {raisedByName.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'AD'}
+                </span>
+                <span className="text-sm font-medium text-gray-800 truncate">{raisedByName}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Outlet Name</label>
+              <div className="w-full h-11 border border-gray-200 rounded-xl px-3.5 flex items-center bg-white">
+                <span className="text-sm font-medium text-gray-800 truncate">{po.outletName || po.outlet || `Outlet #${po.outletId}`}</span>
+              </div>
+            </div>
+
+            <div>
               <label className="text-xs font-medium text-gray-600 mb-1.5 block">
                 Sub-outlet / Sublet <span className="text-gray-400 font-normal">(Optional)</span>
               </label>
@@ -640,26 +658,6 @@ const GenerateGRNDetail = () => {
                   </option>
                 ))}
               </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Raised By</label>
-              <div className="w-full h-11 border border-gray-200 rounded-xl px-3.5 flex items-center gap-2.5 bg-white">
-                <span className="w-6 h-6 rounded-full bg-blue-100 text-[#084E92] text-xs font-bold flex items-center justify-center shrink-0">
-                  {raisedByName.split(' ').map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || 'AD'}
-                </span>
-                <span className="text-sm font-medium text-gray-800 truncate">{raisedByName}</span>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Outlet Name</label>
-              <div className="w-full h-11 border border-gray-200 rounded-xl px-3.5 flex items-center gap-2.5 bg-white">
-                <Store size={18} className="text-gray-500 shrink-0" />
-                <span className="text-sm font-medium text-gray-800 truncate">{po.outletName || po.outlet || `Outlet #${po.outletId}`}</span>
-              </div>
             </div>
 
             <div>

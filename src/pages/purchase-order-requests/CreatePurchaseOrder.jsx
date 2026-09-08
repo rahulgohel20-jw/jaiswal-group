@@ -26,6 +26,7 @@ import {
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
+import SearchableSelect from '@/utils/SearchableSelect';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import VendorPriceComparisonModal from './VendorPriceComparisonModal';
 import VendorChangeConfirmModal from './VendorChangeConfirmModal';
@@ -215,6 +216,7 @@ const CreatePurchaseOrder = () => {
 
   const [vendorMap, setVendorMap] = useState({});
   const [poQtyMap, setPoQtyMap] = useState({});
+  const [uomMap, setUomMap] = useState({});
   const [priceMap, setPriceMap] = useState({});
   const [hsnMap, setHsnMap] = useState({});
   const [cgstMap, setCgstMap] = useState({});
@@ -420,6 +422,15 @@ const CreatePurchaseOrder = () => {
       });
       return next;
     });
+    setUomMap((prev) => {
+      const next = { ...prev };
+      pr.details.forEach((d) => {
+        if (next[d.rawMaterialId] === undefined && (d.uomId || d.uomName)) {
+          next[d.rawMaterialId] = { uomId: d.uomId, uomName: d.uomName };
+        }
+      });
+      return next;
+    });
     setItemRemarksMap((prev) => {
       const next = { ...prev };
       pr.details.forEach((d) => {
@@ -440,6 +451,7 @@ const CreatePurchaseOrder = () => {
     if (poRecord.remarks) setRemarks(poRecord.remarks);
 
     const qtyNext = {};
+    const uomNext = {};
     const priceNext = {};
     const vendorNext = {};
     const remarksNext = {};
@@ -454,6 +466,9 @@ const CreatePurchaseOrder = () => {
       // the flattened detail object — read `d.quantity`, not
       // `d.orderedQuantity` (which is always undefined).
       qtyNext[d.rawMaterialId] = d.quantity;
+      if (d.uomId || d.uomName) {
+        uomNext[d.rawMaterialId] = { uomId: d.uomId, uomName: d.uomName };
+      }
       priceNext[d.rawMaterialId] = d.unitPrice;
       if (d.vendorId) vendorNext[d.rawMaterialId] = d.vendorId;
       if (d.remarks) remarksNext[d.rawMaterialId] = d.remarks;
@@ -478,6 +493,7 @@ const CreatePurchaseOrder = () => {
       else if (hasTax) igstNext[d.rawMaterialId] = Number(d.tax);
     });
     setPoQtyMap((prev) => ({ ...prev, ...qtyNext }));
+    setUomMap((prev) => ({ ...prev, ...uomNext }));
     setPriceMap((prev) => ({ ...prev, ...priceNext }));
     setVendorMap((prev) => ({ ...prev, ...vendorNext }));
     setItemRemarksMap((prev) => ({ ...prev, ...remarksNext }));
@@ -802,7 +818,7 @@ const CreatePurchaseOrder = () => {
 
   const handleAddRawMaterialItem = async (item) => {
     const uomId = item.unitId ?? item.unit?.id ?? 0;
-    const uomName = item.unit?.nameEnglish || item.unitName || '';
+    const uomName = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || '';
 
     if (!uomId || !uomName) {
       setItemPickError(
@@ -811,6 +827,11 @@ const CreatePurchaseOrder = () => {
       return;
     }
     setItemPickError('');
+
+    setUomMap((prev) => ({
+      ...prev,
+      [item.id]: { uomId, uomName },
+    }));
 
     // If single-vendor PO, assign the PO's vendor to this new item if supplied
     const targetVendor = isSingleVendorPo
@@ -879,6 +900,26 @@ const CreatePurchaseOrder = () => {
     setCessMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? (item.cess != null && item.cess !== '' ? Number(item.cess) : 0) }));
   };
 
+  const handleUnitChange = (rawMaterialId, selectedUnitId) => {
+    const rm = rawMaterials.find((r) => r.id === rawMaterialId);
+    const allowedList = Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
+      ? rm.allowedUnits
+      : (rm?.unit ? [rm.unit] : []);
+    const selected = allowedList.find((u) => String(u.id) === String(selectedUnitId));
+    if (selected) {
+      const uName = selected.nameEnglish || selected.symbolEnglish || `Unit #${selected.id}`;
+      setUomMap((prev) => ({
+        ...prev,
+        [rawMaterialId]: { uomId: Number(selected.id), uomName: uName },
+      }));
+    } else if (selectedUnitId) {
+      setUomMap((prev) => ({
+        ...prev,
+        [rawMaterialId]: { uomId: Number(selectedUnitId), uomName: prev[rawMaterialId]?.uomName || '' },
+      }));
+    }
+  };
+
   const handleRemoveItem = (rawMaterialId) => {
     setDeletedRawMaterialIds((prev) => {
       const next = new Set(prev);
@@ -887,6 +928,11 @@ const CreatePurchaseOrder = () => {
     });
     setManualItems((prev) => prev.filter((m) => String(m.rawMaterialId) !== String(rawMaterialId)));
     setPoQtyMap((prev) => {
+      const next = { ...prev };
+      delete next[rawMaterialId];
+      return next;
+    });
+    setUomMap((prev) => {
       const next = { ...prev };
       delete next[rawMaterialId];
       return next;
@@ -1252,12 +1298,13 @@ const CreatePurchaseOrder = () => {
         const vendorObj = vendors.find((v) => String(v.id) === String(itemVendorId));
         const qty = Number(poQtyMap[item.rawMaterialId]) || 0;
         const unitPrice = Number(priceMap[item.rawMaterialId]) || 0;
+        const currentUom = uomMap[item.rawMaterialId] || { uomId: item.uomId, uomName: item.uomName || item.unit };
 
         // If initial Create PO / isGeneratePo: NO GST, NO HSN, NO tax fields
         if (isGeneratePo) {
           return {
-            uomId: item.uomId,
-            uomName: item.uomName,
+            uomId: currentUom.uomId,
+            uomName: currentUom.uomName,
             rawMaterialId: item.rawMaterialId,
             rawMaterialName: item.itemName,
             quantity: qty,
@@ -1307,8 +1354,8 @@ const CreatePurchaseOrder = () => {
         }
 
         return {
-          uomId: item.uomId,
-          uomName: item.uomName,
+          uomId: currentUom.uomId,
+          uomName: currentUom.uomName,
           rawMaterialId: item.rawMaterialId,
           rawMaterialName: item.itemName,
           quantity: qty,
@@ -2075,7 +2122,7 @@ const CreatePurchaseOrder = () => {
                     />
                   </th>
                   <th className="py-3 px-2 text-left w-52">Item Description</th>
-                  <th className="py-3 px-2 text-center w-20">Unit</th>
+                  <th className="py-3 px-2 text-left w-36">Unit</th>
                   <th className="py-3 px-2 text-left w-52">Vendor Name</th>
                   <th className="py-3 px-2 text-center w-16">Qty</th>
                   <th className="py-3 px-2 text-right w-20">Rate (₹)</th>
@@ -2197,10 +2244,51 @@ const CreatePurchaseOrder = () => {
                             ) : null}
                           </div>
                         </td>
-                        <td className="py-2.5 px-2 text-center text-gray-600 text-xs align-top pt-3.5 w-20">
-                          <span className="inline-block bg-gray-100 px-1.5 py-0.5 rounded font-medium text-[11px]">
-                            {item.unit || item.uomName || '—'}
-                          </span>
+                        <td className="py-2.5 px-2 align-top pt-2.5 w-36">
+                          {(() => {
+                            const currentUom = uomMap[item.rawMaterialId] || {
+                              uomId: item.uomId,
+                              uomName: item.uomName || item.unit || '—',
+                            };
+                            const rm = rawMaterials.find((r) => r.id === item.rawMaterialId);
+                            const allowedList = Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
+                              ? rm.allowedUnits
+                              : (rm?.unit ? [rm.unit] : []);
+
+                            let options = allowedList.map((u) => ({
+                              value: String(u.id),
+                              label: u.nameEnglish || u.symbolEnglish || `Unit #${u.id}`,
+                            }));
+
+                            if (currentUom.uomId && !options.some((opt) => String(opt.value) === String(currentUom.uomId))) {
+                              options = [
+                                { value: String(currentUom.uomId), label: currentUom.uomName || `Unit #${currentUom.uomId}` },
+                                ...options,
+                              ];
+                            }
+
+                            if (isReadOnly) {
+                              return (
+                                <span className="inline-block bg-gray-100 px-1.5 py-0.5 rounded font-medium text-[11px] text-gray-700">
+                                  {currentUom.uomName || '—'}
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <div className="min-w-[110px] max-w-[150px]">
+                                <SearchableSelect
+                                  name={`unit-${item.rawMaterialId}`}
+                                  value={currentUom.uomId ? String(currentUom.uomId) : ''}
+                                  onChange={(e) => handleUnitChange(item.rawMaterialId, e.target.value)}
+                                  options={options}
+                                  placeholder="Select unit"
+                                  disabled={isReadOnly}
+                                  hasError={!currentUom.uomId || !currentUom.uomName}
+                                />
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="py-2.5 px-2 align-top pt-3 w-52">
                           <div className="relative">

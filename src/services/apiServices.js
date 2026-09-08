@@ -1029,3 +1029,11 @@ export const syncCaptainRecipes = (orgId) => {
   };
 
   export const getGrnDetailsByStatus = getAllGrnDetailsByStatus;
+
+  // ---- Report Export APIs ----
+
+  export const exportReport = (payload) => {
+    return POST('/reports/export', payload, {
+      skipGlobalToast: true,
+    });
+  };
