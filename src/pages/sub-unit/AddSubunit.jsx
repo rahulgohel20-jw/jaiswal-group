@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
+  ArrowLeft,
   ChevronDown,
   Check,
   Info,
@@ -246,21 +247,31 @@ const emptyForm = {
 };
 
 // Maps the row shape used by the sub-unit list/details page onto the full form shape.
-const mapSubUnitToForm = (subUnit) => ({
-  ...emptyForm,
-  id: subUnit.id,
-  outletId: subUnit.organizationId ? String(subUnit.organizationId) : "",
-  subOutletName: subUnit.subOutletName || "",
-  contactPerson: subUnit.contactPerson || "",
-  contactNumber: subUnit.contactNumber || "",
-  email: subUnit.email || "",
-  addressLine1: subUnit.address || "",
-  addressLine2: subUnit.addressline2 || "",
-  pincode: subUnit.pincode || "",
-  latitude: subUnit.latitude || "",
-  longitude: subUnit.longitude || "",
-  isActive: subUnit.isActive ?? true,
-});
+const mapSubUnitToForm = (subUnit) => {
+  if (!subUnit) return emptyForm;
+  const raw = subUnit.originalData || subUnit;
+  return {
+    ...emptyForm,
+    id: raw.id,
+    outletId: raw.organizationId
+      ? String(raw.organizationId)
+      : raw.parentId
+      ? String(raw.parentId)
+      : raw.outletId
+      ? String(raw.outletId)
+      : "",
+    subOutletName: raw.subOutletName || raw.name || "",
+    contactPerson: raw.contactPerson || "",
+    contactNumber: raw.contactNumber || raw.mobile || raw.mobilenumber || "",
+    email: raw.email || raw.emailid || "",
+    addressLine1: raw.address || raw.addressEnglish || raw.addressLine1 || "",
+    addressLine2: raw.addressline2 || raw.addressLine2 || "",
+    pincode: raw.pincode ? String(raw.pincode) : "",
+    latitude: raw.latitude ? String(raw.latitude) : "",
+    longitude: raw.longitude ? String(raw.longitude) : "",
+    isActive: raw.isActive ?? true,
+  };
+};
 
 const AddSubUnit = () => {
   const location = useLocation();
@@ -298,6 +309,52 @@ const AddSubUnit = () => {
 
   const selectedOutlet = outlets.find((o) => o.id === Number(form.outletId));
 
+  const rawSubUnit = editingSubUnit?.originalData || editingSubUnit;
+
+  const outletOptions = useMemo(() => {
+    const opts = outlets.map((o) => ({ value: String(o.id), label: getOrgLabel(o) }));
+    if (form.outletId && !opts.some((o) => String(o.value) === String(form.outletId))) {
+      const fallbackName =
+        rawSubUnit?.organizationName ||
+        rawSubUnit?.parentOrganizationName ||
+        rawSubUnit?.parentName ||
+        rawSubUnit?.outletName ||
+        `Outlet #${form.outletId}`;
+      opts.unshift({ value: String(form.outletId), label: fallbackName });
+    }
+    return opts;
+  }, [outlets, form.outletId, rawSubUnit]);
+
+  const countryOptions = useMemo(() => {
+    const opts = (countries || []).map((c) => ({ value: String(c.id), label: c.name }));
+    if (selectedCountry && !opts.some((c) => String(c.value) === String(selectedCountry))) {
+      if (rawSubUnit?.countryName) {
+        opts.unshift({ value: String(selectedCountry), label: rawSubUnit.countryName });
+      }
+    }
+    return opts;
+  }, [countries, selectedCountry, rawSubUnit]);
+
+  const stateOptions = useMemo(() => {
+    const opts = (states || []).map((s) => ({ value: String(s.id), label: s.name }));
+    if (selectedState && !opts.some((s) => String(s.value) === String(selectedState))) {
+      if (rawSubUnit?.stateName) {
+        opts.unshift({ value: String(selectedState), label: rawSubUnit.stateName });
+      }
+    }
+    return opts;
+  }, [states, selectedState, rawSubUnit]);
+
+  const cityOptions = useMemo(() => {
+    const opts = (cities || []).map((c) => ({ value: String(c.id), label: c.name || c.cityName }));
+    if (selectedCity && !opts.some((c) => String(c.value) === String(selectedCity))) {
+      if (rawSubUnit?.cityName) {
+        opts.unshift({ value: String(selectedCity), label: rawSubUnit.cityName });
+      }
+    }
+    return opts;
+  }, [cities, selectedCity, rawSubUnit]);
+
   const set = (key, val) => {
     if (["addressLine1", "addressLine2", "pincode", "latitude", "longitude"].includes(key)) {
       setLocationTouched(true);
@@ -322,27 +379,34 @@ const AddSubUnit = () => {
   }, []);
 
   useEffect(() => {
-    if (!isEditMode) return;
+    if (!editingSubUnit) return;
 
-    setSelectedCountry(editingSubUnit.countryId?.toString() || "");
-    setSelectedState(editingSubUnit.stateId?.toString() || "");
-    setSelectedCity(editingSubUnit.cityId?.toString() || "");
+    const raw = editingSubUnit.originalData || editingSubUnit;
+    setForm(mapSubUnitToForm(editingSubUnit));
+
+    const countryVal = raw.countryId ? String(raw.countryId) : "";
+    const stateVal = raw.stateId ? String(raw.stateId) : "";
+    const cityVal = raw.cityId ? String(raw.cityId) : "";
+
+    setSelectedCountry(countryVal);
+    setSelectedState(stateVal);
+    setSelectedCity(cityVal);
 
     (async () => {
       try {
-        if (editingSubUnit.countryId) {
-          const stateRes = await getStateByCountry(editingSubUnit.countryId);
-          setStates(stateRes.data.data);
+        if (raw.countryId) {
+          const stateRes = await getStateByCountry(raw.countryId);
+          setStates(stateRes?.data?.data || []);
         }
-        if (editingSubUnit.stateId) {
-          const cityRes = await getCityByState(editingSubUnit.stateId);
-          setCities(cityRes.data.data["City Details"] || []);
+        if (raw.stateId) {
+          const cityRes = await getCityByState(raw.stateId);
+          setCities(cityRes?.data?.data?.["City Details"] || cityRes?.data?.data || []);
         }
       } catch (err) {
-        console.log(err);
+        console.log("Edit location load error:", err);
       }
     })();
-  }, [isEditMode, editingSubUnit]);
+  }, [editingSubUnit]);
 
   const handleCountryChange = async (e) => {
     const countryId = e.target.value;
@@ -383,9 +447,10 @@ const AddSubUnit = () => {
 
 
   // Auto-fill address/location from the selected outlet. Only runs once per
-  // outlet selection, and only if the user hasn't started editing location
+  // outlet selection in add mode, and only if the user hasn't started editing location
   // fields themselves.
   useEffect(() => {
+    if (isEditMode) return;
     if (!selectedOutlet || locationTouched) return;
 
     setForm((f) => ({
@@ -431,7 +496,7 @@ const AddSubUnit = () => {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOutlet]);
+  }, [selectedOutlet, isEditMode]);
 
   const handleOutletChange = (e) => {
     setLocationTouched(false);
@@ -514,6 +579,14 @@ const AddSubUnit = () => {
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
       <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => navigate('/sub-units')}
+          className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] mb-2 cursor-pointer bg-transparent border-0 p-0 self-start"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Sub Units
+        </button>
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
           {isEditMode ? "Update Sub Unit" : "Register Sub Unit"}
         </h1>
@@ -534,35 +607,22 @@ const AddSubUnit = () => {
         />
         {openSections.outlet && (
           <div className="px-6 py-6">
-            <div className={`grid gap-4 ${isEditMode ? "grid-cols-2" : "grid-cols-1"}`}>
-              <div>
-                <Label required>Outlet</Label>
-                <SearchableSelect
-                  name="outletId"
-                  value={form.outletId}
-                  onChange={(e) => handleOutletChange({ target: { value: e.target.value } })}
-                  options={outlets.map((o) => ({ value: o.id, label: getOrgLabel(o) }))}
-                  placeholder={loadingOutlets ? "Loading outlets..." : "Select Outlet"}
-                  disabled={loadingOutlets}
-                  hasError={!!errors.outletId}
-                />
-                <ErrorText error={errors.outletId} />
-                {selectedOutlet && (
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    {selectedOutlet.companyCode} · {selectedOutlet.cityName}, {selectedOutlet.stateName}
-                  </p>
-                )}
-              </div>
-
-              {isEditMode && (
-                <div>
-                  <Label>Sub Unit Code</Label>
-                  <input
-                    value={nextSubUnitCode(selectedOutlet && selectedOutlet.companyCode)}
-                    disabled
-                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                  />
-                </div>
+            <div>
+              <Label required>Outlet</Label>
+              <SearchableSelect
+                name="outletId"
+                value={form.outletId}
+                onChange={(e) => handleOutletChange({ target: { value: e.target.value } })}
+                options={outletOptions}
+                placeholder={loadingOutlets ? "Loading outlets..." : "Select Outlet"}
+                disabled={loadingOutlets}
+                hasError={!!errors.outletId}
+              />
+              <ErrorText error={errors.outletId} />
+              {selectedOutlet && (
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {selectedOutlet.companyCode} · {selectedOutlet.cityName}, {selectedOutlet.stateName}
+                </p>
               )}
             </div>
           </div>
@@ -686,7 +746,7 @@ const AddSubUnit = () => {
                   name="country"
                   value={selectedCountry}
                   onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
-                  options={countries.map((country) => ({ value: country.id, label: country.name }))}
+                  options={countryOptions}
                   placeholder="Select Country"
                   hasError={!!errors.country}
                 />
@@ -698,7 +758,7 @@ const AddSubUnit = () => {
                   name="state"
                   value={selectedState}
                   onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
-                  options={states.map((state) => ({ value: state.id, label: state.name }))}
+                  options={stateOptions}
                   placeholder={selectedCountry ? "Select State" : "Select country first"}
                   disabled={!selectedCountry}
                   hasError={!!errors.state}
@@ -715,7 +775,7 @@ const AddSubUnit = () => {
                     setSelectedCity(e.target.value);
                     setErrorFor("city", validateRequired(e.target.value, "City"));
                   }}
-                  options={cities?.map((city) => ({ value: city.id, label: city.name })) || []}
+                  options={cityOptions}
                   placeholder={selectedState ? "Select City" : "Select state first"}
                   disabled={!selectedState}
                   hasError={!!errors.city}
