@@ -112,7 +112,8 @@ axiosInstance.interceptors.response.use(
     updateLoader(-1, response.config);
     const method = response.config?.method?.toUpperCase();
     const skipToast = response.config?.skipGlobalToast;
-    if (method && method !== 'GET' && !skipToast) {
+    const isBlob = response.config?.responseType === 'blob' || (typeof Blob !== 'undefined' && response.data instanceof Blob);
+    if (method && method !== 'GET' && !skipToast && !isBlob) {
       const msg = response.data?.message || response.data?.msg || "Operation completed successfully.";
       toast.success(msg);
     }
@@ -184,10 +185,10 @@ axiosInstance.interceptors.response.use(
 );
 
 // === Helpers ===
-export const POST = (url, data) => axiosInstance.post(url, data);
-export const GET = (url, params) => axiosInstance.get(url, { params });
-export const PUT = (url, data, params) => axiosInstance.put(url, data, { params });
-export const DELETE = (url, params) => axiosInstance.delete(url, { params });
+export const POST = (url, data, config = {}) => axiosInstance.post(url, data, config);
+export const GET = (url, params, config = {}) => axiosInstance.get(url, { params, ...config });
+export const PUT = (url, data, params, config = {}) => axiosInstance.put(url, data, { params, ...config });
+export const DELETE = (url, params, config = {}) => axiosInstance.delete(url, { params, ...config });
 export const UPLOAD = (url, formData, config = {}) =>
   axiosInstance.post(url, formData, config);
 

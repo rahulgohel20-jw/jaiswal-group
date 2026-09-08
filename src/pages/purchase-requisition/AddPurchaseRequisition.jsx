@@ -23,6 +23,7 @@ import { getUsernameFromToken } from '../../utils/auth';
 import { getTodayInputDate } from '../../utils/GetCurrentToday';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import SearchableSelect from '@/utils/SearchableSelect';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -294,7 +295,10 @@ const AddPurchaseRequisition = () => {
 
   const handleAddItem = (item) => {
     const uomId = item.unitId ?? item.unit?.id ?? 0;
-    const uomName = item.unit?.nameEnglish || item.unitName || '';
+    const uomName = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || '';
+    const allowedUnits = Array.isArray(item.allowedUnits) && item.allowedUnits.length > 0
+      ? item.allowedUnits
+      : (item.unit ? [item.unit] : []);
 
     if (!uomId || !uomName) {
       setItemPickError(`"${item.nameEnglish}" has no unit configured and can't be added. Set a unit on the item first.`);
@@ -310,6 +314,7 @@ const AddPurchaseRequisition = () => {
         rawMaterialName: item.nameEnglish,
         uomId,
         uomName,
+        allowedUnits,
         category: item.rawMaterialCat?.nameEnglish || item.rawMaterialCategoryName || '',
         availableStock: getAvailableStock(item),
         minStock: item.minStock,
@@ -317,6 +322,29 @@ const AddPurchaseRequisition = () => {
       },
     ]);
     setDetailsPage(Math.floor(details.length / DETAILS_PAGE_SIZE));
+  };
+
+  const updateUnit = (rawMaterialId, selectedUnitId) => {
+    setDetails((prev) =>
+      prev.map((d) => {
+        if (d.rawMaterialId === rawMaterialId) {
+          const rm = rawMaterials.find((r) => r.id === rawMaterialId);
+          const unitsList = d.allowedUnits?.length
+            ? d.allowedUnits
+            : (Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
+                ? rm.allowedUnits
+                : (rm?.unit ? [rm.unit] : []));
+          const selected = unitsList.find((u) => String(u.id) === String(selectedUnitId));
+          const uName = selected?.nameEnglish || selected?.symbolEnglish || d.uomName;
+          return {
+            ...d,
+            uomId: selectedUnitId ? Number(selectedUnitId) : d.uomId,
+            uomName: selectedUnitId ? uName : d.uomName,
+          };
+        }
+        return d;
+      }),
+    );
   };
 
   const updateQuantity = (rawMaterialId, quantity) => {
@@ -644,9 +672,44 @@ const AddPurchaseRequisition = () => {
                             </p>
                           )}
                         </td>
-                        <td className="px-4 py-4">
+                        <td className="px-4 py-4 min-w-[160px]">
                           {missingUnit ? (
                             <span className="text-xs font-medium text-red-500">Missing unit</span>
+                          ) : canPerformEdit ? (
+                            (() => {
+                              const rm = rawMaterials.find((r) => r.id === d.rawMaterialId);
+                              const allowedList = d.allowedUnits?.length
+                                ? d.allowedUnits
+                                : (Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
+                                    ? rm.allowedUnits
+                                    : (rm?.unit ? [rm.unit] : []));
+
+                              let options = allowedList.map((u) => ({
+                                value: String(u.id),
+                                label: u.nameEnglish || u.symbolEnglish || `Unit #${u.id}`,
+                              }));
+
+                              if (d.uomId && !options.some((opt) => String(opt.value) === String(d.uomId))) {
+                                options = [
+                                  { value: String(d.uomId), label: d.uomName || `Unit #${d.uomId}` },
+                                  ...options,
+                                ];
+                              }
+
+                              return (
+                                <div className="min-w-[130px] max-w-[190px]">
+                                  <SearchableSelect
+                                    name={`unit-${d.rawMaterialId}`}
+                                    value={d.uomId ? String(d.uomId) : ''}
+                                    onChange={(e) => updateUnit(d.rawMaterialId, e.target.value)}
+                                    options={options}
+                                    placeholder="Select unit"
+                                    disabled={!canPerformEdit}
+                                    hasError={!d.uomId || !d.uomName}
+                                  />
+                                </div>
+                              );
+                            })()
                           ) : (
                             <span className="text-gray-600">{d.uomName}</span>
                           )}
