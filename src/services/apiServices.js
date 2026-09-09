@@ -487,7 +487,7 @@ export const syncCaptainRecipes = (orgId) => {
   };
 
   export const deleteSubOutletById = (id) => {
-    return DELETE(`/sub-outlet/delete/${id}`);
+    return DELETE(`/sub-outlet/delete`, { id });
   };
 
   export const getAllRawMaterialCategoryType = () => {
