@@ -164,6 +164,7 @@ const AssetsMaintenance = () => {
             await deleteAssetMaintenanceById(deleteTarget.id);
             closeDeleteConfirm();
             fetchMaintenanceData(); // refresh current page
+            fetchStatsData(); //refresh stat data
         } catch (err) {
             console.error(err);
         } finally {
