@@ -550,8 +550,9 @@ const UserProfile = () => {
                                         }`}
                                 >
                                     <span className={`h-1.5 w-1.5 rounded-full ${raw?.isActive ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                                    {raw?.isActive ? 'Active' : 'Inactive'}
+                                    {raw?.isActive ? 'Active' : 'Inactive'} 
                                 </span>
+                                 <span className="text-blue-600  bg-blue-100 rounded-full px-2.5 py-0.5 text-xs font-medium mx-2">{raw.userCode}</span>
                             </div>
                         </div>
 
@@ -658,7 +659,9 @@ const UserProfile = () => {
                         </section>
 
                         {/* Work Information */}
-                        <section>
+                       {
+                        !editing && (
+                             <section>
                             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
                                 Work Information
                             </p>
@@ -683,82 +686,12 @@ const UserProfile = () => {
                                     onChange={(e) => set('userCode', e.target.value)}
                                     placeholder="e.g., JG-2026-0001"
                                 />
-
-                                {editing ? (
-                                    <>
-                                        <div>
-                                            <Label required>Group</Label>
-                                            <SearchableSelect
-                                                name="groupId"
-                                                value={form.groupId}
-                                                onChange={(e) => handleGroupChange(e.target.value)}
-                                                placeholder={loadingGroups ? 'Loading...' : 'Select Group'}
-                                                options={groups.map((g) => ({ value: g.id, label: g.name }))}
-                                                hasError={!!errors.groupId}
-                                                disabled={loadingGroups}
-                                            />
-                                            <ErrorText message={errors.groupId} />
-                                        </div>
-                                        <div>
-                                            <Label>Sub Company</Label>
-                                            <SearchableSelect
-                                                name="companyId"
-                                                value={form.companyId}
-                                                onChange={(e) => handleCompanyChange(e.target.value)}
-                                                placeholder={
-                                                    loadingOrgs
-                                                        ? 'Loading...'
-                                                        : form.groupId
-                                                            ? 'Select Sub Company (optional)'
-                                                            : 'Select group first'
-                                                }
-                                                options={subCompanies.map((c) => ({ value: c.id, label: c.name }))}
-                                                disabled={!form.groupId || loadingOrgs}
-                                            />
-                                            <p className="text-xs text-gray-400 mt-1">Leave blank to register under the Group.</p>
-                                        </div>
-                                        <div>
-                                            <Label>Unit</Label>
-                                            <SearchableSelect
-                                                name="outletId"
-                                                value={form.outletId}
-                                                onChange={(e) => handleUnitChange(e.target.value)}
-                                                placeholder={
-                                                    loadingOrgs
-                                                        ? 'Loading...'
-                                                        : form.companyId
-                                                            ? 'Select Unit (optional)'
-                                                            : 'Select sub company first'
-                                                }
-                                                options={outlets.map((u) => ({ value: u.id, label: u.name }))}
-                                                disabled={!form.companyId || loadingOrgs}
-                                            />
-                                            <p className="text-xs text-gray-400 mt-1">Leave blank to register under the Sub Company.</p>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <ViewField label="Organization" icon={Building2} value={orgViewValue} />
-                                )}
-
-                                {editing ? (
-                                    <div>
-                                        <Label required>Role</Label>
-                                        <SearchableSelect
-                                            name="departmentId"
-                                            value={form.departmentId}
-                                            onChange={(e) => handleRoleChange(e.target.value)}
-                                            placeholder={loadingRoles ? 'Loading...' : 'Select Role'}
-                                            options={roles.map((r) => ({ value: r.id, label: r.name }))}
-                                            hasError={!!errors.departmentId}
-                                            disabled={loadingRoles}
-                                        />
-                                        <ErrorText message={errors.departmentId} />
-                                    </div>
-                                ) : (
-                                    <ViewField label="Role" icon={BadgeCheck} value={formatRole(raw?.roleName)} />
-                                )}
+                                <ViewField label="Organization" icon={Building2} value={orgViewValue} />
+                                <ViewField label="Role" icon={BadgeCheck} value={formatRole(raw?.roleName)} />
                             </div>
                         </section>
+                        )
+                       }
 
                         {/* Address */}
                         <section>

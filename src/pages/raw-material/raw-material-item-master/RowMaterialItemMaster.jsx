@@ -134,7 +134,7 @@ const RowMaterialItemMaster = () => {
 
             const mapped = list.map((item) => {
                 const latestImage = [...(item.images || [])]
-                    .filter(img => img.isActive && img.path)
+                    .filter(img => img.path)
                     .sort((a, b) => b.id - a.id)[0];
                 return {
                 id: item.id,

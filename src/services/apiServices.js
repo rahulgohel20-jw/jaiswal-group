@@ -1037,3 +1037,47 @@ export const syncCaptainRecipes = (orgId) => {
       skipGlobalToast: true,
     });
   };
+  
+
+//Assets-Maintenance APIs
+export const getAllAssetsMaintenance = () => {
+  return GET('/asset-maintenance/getall');
+}
+export const getAssetMaintenanceById = (id) => {
+  return GET(`/asset-maintenance/get?id=${id}`)
+}
+export const createAssetMaintenance = (payload) => {
+  return POST('/asset-maintenance/create', payload);
+}
+export const updateAssetMaintenance = (id, payload) => {
+  return PUT(`/asset-maintenance/update?id=${id}`, payload);
+}
+export const deleteAssetMaintenanceById = (id) => {
+  return DELETE(`/asset-maintenance/delete?id=${id}`);
+}
+export const getAllAssetsMaintenancePaginated = (page = 0, size = 10) => {
+  return GET(`/asset-maintenance/getall/page?page=${page}&size=${size}`);
+};
+export const getAssetsMaintenanceByStatus = (status) => {
+  return GET(`/asset-maintenance/getbystatus?status=${status}`);
+}
+export const getByMaintenanceDateRangeAndStatus = (fromDate, toDate, status) =>{
+  return GET( `/asset-maintenance/getbymaintenancedaterangeandstatus?fromDate=${fromDate}&toDate=${toDate}${status && status !== "All Records" ? `&status=${status}` : ""}`);
+}
+
+//Assets - Disposal APIs
+export const getAllAssetsDisposal = (page = 0, size = 10) => {
+  return GET(`/asset-disposal/getall/page?page=${page}&size=${size}`);
+}
+export const getAssetDisposalById = (id) => {
+  return GET(`/asset-disposal/get?id=${id}`);
+}
+export const createAssetDisposal = (payload) => {
+  return POST('/asset-disposal/create', payload);
+}
+export const updateAssetDisposal = (id, payload) => {
+  return PUT(`/asset-disposal/update?id=${id}`, payload);
+}
+export const deleteAssetDisposalById = (id) => {
+  return DELETE(`/asset-disposal/delete?id=${id}`);
+}
