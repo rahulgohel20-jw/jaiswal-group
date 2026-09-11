@@ -16,6 +16,7 @@ export const PO_STATUS = {
   IN_PROGRESS: 'IN_PROGRESS',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
+  CLOSED: 'CLOSED',
 };
 
 export const PO_STATUS_LIST = Object.values(PO_STATUS);
@@ -27,6 +28,7 @@ const PO_STATUS_LABELS = {
   [PO_STATUS.IN_PROGRESS]: 'In Progress',
   [PO_STATUS.APPROVED]: 'Approved',
   [PO_STATUS.REJECTED]: 'Rejected',
+  [PO_STATUS.CLOSED]: 'Closed',
 };
 
 export const getPoStatusLabel = (status) => PO_STATUS_LABELS[status] || status || '';
@@ -40,6 +42,7 @@ export const PO_STATUS_GROUP = {
   [PO_STATUS.IN_PROGRESS]: 'IN_PROGRESS',
   [PO_STATUS.APPROVED]: 'APPROVED',
   [PO_STATUS.REJECTED]: 'REJECTED',
+  [PO_STATUS.CLOSED]: 'CLOSED',
 };
 
 // Group definitions for the Purchase Order Request list page, in display order.
@@ -49,5 +52,6 @@ export const PO_GROUPS = [
   { key: 'PENDING_APPROVAL', label: 'Sent for Approval' },
   { key: 'IN_PROGRESS', label: 'In Progress' },
   { key: 'APPROVED', label: 'Approved' },
+  { key: 'CLOSED', label: 'Closed' },
   { key: 'REJECTED', label: 'Rejected' },
 ];

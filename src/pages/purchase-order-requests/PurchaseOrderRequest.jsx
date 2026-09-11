@@ -72,6 +72,7 @@ const STATUS_BADGE_STYLES = {
   'In Progress': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
   Approved: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
   Rejected: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' },
+  Closed: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-400' },
 };
 
 const StatusBadge = ({ status }) => {
@@ -252,7 +253,7 @@ const PurchaseOrderRequest = () => {
       fetchApprovedRequestsByOutlet(currentUnitId);
     }
     if (!isAwaitingPoOnly) {
-      const statuses = GROUP_TO_STATUSES[activeGroup] || [];
+      const statuses = isAllGroups ? ALL_PO_STATUSES : (GROUP_TO_STATUSES[activeGroup] || []);
       if (statuses.length > 0) {
         fetchByOutletandStatus(currentUnitId, statuses);
       }
@@ -271,10 +272,10 @@ const PurchaseOrderRequest = () => {
   useEffect(() => {
     if (scopeLoading) return;
     if (isAwaitingPoOnly) return;
-    const statuses = GROUP_TO_STATUSES[activeGroup] || [];
+    const statuses = isAllGroups ? ALL_PO_STATUSES : (GROUP_TO_STATUSES[activeGroup] || []);
     if (statuses.length === 0) return;
     fetchByOutletandStatus(currentUnitId, statuses);
-  }, [scopeLoading, currentUnitId, activeGroup, isAwaitingPoOnly, fetchByOutletandStatus]);
+  }, [scopeLoading, currentUnitId, activeGroup, isAwaitingPoOnly, isAllGroups, fetchByOutletandStatus]);
 
   // Merge freshly-fetched POs into the per-group cache
   useEffect(() => {
@@ -537,6 +538,7 @@ const PurchaseOrderRequest = () => {
       PENDING_APPROVAL: (poCache.PENDING_APPROVAL || []).length,
       IN_PROGRESS: (poCache.IN_PROGRESS || []).length,
       APPROVED: (poCache.APPROVED || []).length,
+      CLOSED: (poCache.CLOSED || []).length,
       REJECTED: (poCache.REJECTED || []).length,
     };
   }, [prList, poCache]);

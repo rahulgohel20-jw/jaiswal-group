@@ -39,7 +39,6 @@ const STATUS_STYLES = {
   'In Progress': 'bg-blue-50 text-blue-600',
   Approved: 'bg-emerald-50 text-emerald-600',
   Rejected: 'bg-rose-50 text-rose-600',
-  Cancelled: 'bg-gray-100 text-gray-500',
 };
 const STATUS_DOT = {
   Pending: 'bg-red-500',
@@ -47,7 +46,6 @@ const STATUS_DOT = {
   'In Progress': 'bg-blue-500',
   Approved: 'bg-emerald-500',
   Rejected: 'bg-rose-500',
-  Cancelled: 'bg-gray-400',
 };
 
 const StatusBadge = ({ status, size = 'md' }) => (

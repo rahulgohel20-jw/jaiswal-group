@@ -23,7 +23,6 @@ import {
   getAllSubOutletsByOrganization,
   getGrnById,
   getGrnDetailById,
-  getAllGrnDetailsByStatus,
 } from '@/services/apiServices';
 import { getUserIdFromToken, getUsernameFromToken } from '@/utils/auth';
 import { getTodayInputDate } from '@/utils/GetCurrentToday';
@@ -142,26 +141,6 @@ const GenerateGRNDetail = () => {
         } catch (detailErr) {
           console.warn('Could not fetch return GRN detail by ID:', detailErr);
         }
-      }
-
-      // Also query all status details for matching PO / GRN
-      try {
-        const allStatusRes = await getAllGrnDetailsByStatus();
-        const allStatusList = allStatusRes?.data?.data ?? allStatusRes?.data ?? allStatusRes ?? [];
-        if (Array.isArray(allStatusList)) {
-          allStatusList.forEach((item) => {
-            const isMatch =
-              (dynamicGrnCode && item.grnCode === dynamicGrnCode) ||
-              (item.purchaseOrderId && Number(item.purchaseOrderId) === Number(id)) ||
-              (item.poCode && rawPo.poCode && item.poCode === rawPo.poCode);
-            if (isMatch) {
-              if (item.purchaseOrderDetailId) prevGrnDetailsMap[item.purchaseOrderDetailId] = item;
-              if (item.rawMaterialId) prevGrnDetailsMap[`rm_${item.rawMaterialId}`] = item;
-            }
-          });
-        }
-      } catch (statusErr) {
-        console.warn('Could not fetch all GRN details by status:', statusErr);
       }
 
       setResolvedGrnCode(dynamicGrnCode || '');
