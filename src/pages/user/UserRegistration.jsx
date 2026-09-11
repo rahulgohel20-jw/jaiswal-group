@@ -707,14 +707,7 @@ const UserRegistration = () => {
     if (!form.departmentId) e.departmentId = 'Department is required';
     if (!form.designation.trim()) e.designation = 'Designation is required';
 
-    if (!form.addressLine1.trim())
-      e.addressLine1 = 'Address line 1 is required';
-    if (!form.countryId) e.countryId = 'Country is required';
-    if (!form.stateId) e.stateId = 'State is required';
-    if (!form.cityId) e.cityId = 'City is required';
-
-    if (!form.pincode.trim()) e.pincode = 'Pincode is required';
-    else if (!PINCODE_REGEX.test(form.pincode))
+    if (form.pincode.trim() && !PINCODE_REGEX.test(form.pincode))
       e.pincode = 'Enter a valid 6-digit pincode';
 
     return e;
@@ -737,17 +730,15 @@ const UserRegistration = () => {
     }
 
     const payload = buildEmployeePayload(form, { isEditMode });
-    console.log('payload', payload);
+    // console.log('payload', payload);
     setSubmitting(true);
     setSubmitError('');
 
     try {
       if (isEditMode) {
         await updateEmployee(payload);
-        notify.success('User Updated Successfully');
       } else {
         await saveEmployee(payload);
-        notify.success('User Created Successfully');
       }
       navigate('/users');
     } catch (err) {
@@ -1088,15 +1079,14 @@ const UserRegistration = () => {
               <div className="px-6 py-6 space-y-5">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label required>Address Line 1</Label>
+                    <Label>Address Line 1</Label>
                     <input
                       name="addressLine1"
                       value={form.addressLine1}
                       onChange={(e) => set('addressLine1', e.target.value)}
                       placeholder="Building, Street Name"
-                      className={errors.addressLine1 ? errorInputCls : inputCls}
+                      className={inputCls}
                     />
-                    <ErrorText message={errors.addressLine1} />
                   </div>
                   <div>
                     <Label>Address Line 2</Label>
@@ -1111,20 +1101,18 @@ const UserRegistration = () => {
 
                 <div className="grid grid-cols-4 gap-4">
                   <div>
-                    <Label required>Country</Label>
+                    <Label>Country</Label>
                     <SearchableSelect
                       name="countryId"
                       value={form.countryId}
                       onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
                       placeholder={loadingCountries ? 'Loading...' : 'Select Country'}
                       options={countries.map((c) => ({ value: c.id, label: c.name }))}
-                      hasError={!!errors.countryId}
                       disabled={loadingCountries}
                     />
-                    <ErrorText message={errors.countryId} />
                   </div>
                   <div>
-                    <Label required>State</Label>
+                    <Label>State</Label>
                     <SearchableSelect
                       name="stateId"
                       value={form.stateId}
@@ -1137,13 +1125,11 @@ const UserRegistration = () => {
                           : 'Select country first'
                       }
                       options={states.map((s) => ({ value: s.id, label: s.name }))}
-                      hasError={!!errors.stateId}
                       disabled={!form.countryId || loadingStates}
                     />
-                    <ErrorText message={errors.stateId} />
                   </div>
                   <div>
-                    <Label required>City</Label>
+                    <Label>City</Label>
                     <SearchableSelect
                       name="cityId"
                       value={form.cityId}
@@ -1156,13 +1142,11 @@ const UserRegistration = () => {
                           : 'Select state first'
                       }
                       options={cities.map((c) => ({ value: c.id, label: c.name }))}
-                      hasError={!!errors.cityId}
                       disabled={!form.stateId || loadingCities}
                     />
-                    <ErrorText message={errors.cityId} />
                   </div>
                   <div>
-                    <Label required>Pincode</Label>
+                    <Label>Pincode</Label>
                     <input
                       name="pincode"
                       value={form.pincode}
