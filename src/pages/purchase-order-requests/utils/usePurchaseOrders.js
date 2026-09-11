@@ -55,7 +55,16 @@ const normalizePo = (po) => {
     vendorId: po.vendorId,
     vendorName: po.vendorName ?? '',
     billTo: po.billTo ?? null,
-    shipTo: po.shipTo ?? null,
+    isGstApplicable:
+      po.isGstApplicable !== undefined && po.isGstApplicable !== null
+        ? Boolean(po.isGstApplicable)
+        : po.vendor?.isGstApplicable !== undefined && po.vendor?.isGstApplicable !== null
+        ? Boolean(po.vendor.isGstApplicable)
+        : po.billTo?.isGstApplicable !== undefined && po.billTo?.isGstApplicable !== null
+        ? Boolean(po.billTo.isGstApplicable)
+        : false,
+    otherCosts: Array.isArray(po.otherCosts) ? po.otherCosts : [],
+    totalOtherCosts: po.totalOtherCosts != null ? Number(po.totalOtherCosts) : 0,
     createdBy: po.createdBy,
     createdByName: po.createdByName,
     updatedBy: po.updatedBy,

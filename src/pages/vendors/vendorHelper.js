@@ -52,6 +52,7 @@ export const DEFAULT_FORM = {
   roleId: '',
 
   // Business details
+  isGstApplicable: false,
   gstin: '', // -> gstNumber
   gstCompanyName: '', // -> gstRegisteredName
   registeredName: '', // kept in form only — no matching backend field
@@ -144,6 +145,10 @@ export const mapVendorToForm = (vendor = {}) => {
     altMobile: vendor.alternateMobile ?? '',
     organizationId: vendor.organizationId ?? '',
     roleId: vendor.roleId ?? '',
+    isGstApplicable:
+      vendor.isGstApplicable !== undefined && vendor.isGstApplicable !== null
+        ? !!vendor.isGstApplicable
+        : !!vendor.gstNumber,
     gstin: vendor.gstNumber ?? '',
     gstCompanyName: vendor.gstRegisteredName ?? '',
     registeredName: '',
@@ -204,8 +209,9 @@ export const buildVendorPayload = (form, { isEditMode, editingVendor }) => {
     organizationId: form.organizationId,
     roleId: form.roleId,
 
-    gstNumber: form.gstin,
-    gstRegisteredName: form.gstCompanyName,
+    isGstApplicable: !!form.isGstApplicable,
+    gstNumber: form.isGstApplicable ? (form.gstin || '') : '',
+    gstRegisteredName: form.isGstApplicable ? (form.gstCompanyName || '') : '',
     isMsmeRegistered: form.msmeRegistered,
     msmeRegistrationType: form.msmeRegistered ? form.msmeType : '',
     msmeRegistrationNumber: form.msmeRegistered ? form.msmeNumber : '',
@@ -282,6 +288,7 @@ export const mapVendorToRow = (vendor = {}) => {
     category: vendor.category ?? '',
     organizationId: vendor.organizationId ?? '',
     roleId: vendor.roleId ?? '',
+    isGstApplicable: vendor.isGstApplicable ?? false,
     gstin: vendor.gstNumber ?? '',
     gstCompanyName: vendor.gstRegisteredName ?? '',
     registeredName: '',

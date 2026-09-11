@@ -9,7 +9,6 @@ export const PR_STATUS = {
   IN_PROGRESS: 'IN_PROGRESS',             // edited & saved by the approver
   APPROVED: 'APPROVED',                   // approver approved the PR
   REJECTED: 'REJECTED',                   // approver rejected the PR
-  CANCELLED: 'CANCELLED',                 // requisition cancelled
 };
 
 export const PR_STATUS_LIST = [
@@ -18,7 +17,6 @@ export const PR_STATUS_LIST = [
   { value: PR_STATUS.IN_PROGRESS, label: 'In Progress', description: 'Edited by approver' },
   { value: PR_STATUS.APPROVED, label: 'Approved', description: 'Approved by approver' },
   { value: PR_STATUS.REJECTED, label: 'Rejected', description: 'Rejected by approver' },
-  { value: PR_STATUS.CANCELLED, label: 'Cancelled', description: 'Requisition cancelled' },
 ];
 
 export const getStatusLabel = (statusValue) => {

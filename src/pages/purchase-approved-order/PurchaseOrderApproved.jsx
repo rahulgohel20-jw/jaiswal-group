@@ -16,6 +16,8 @@ import {
   Eye,
   Pencil,
   Clock3,
+  Package,
+  FileText,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
@@ -26,10 +28,8 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
-import { OrgTypes } from '@/constants/orgTypes';
 import { usePurchaseOrders } from '../purchase-order-requests/utils/usePurchaseOrders';
-import { PO_STATUS, PO_STATUS_LIST, getPoStatusLabel } from '../purchase-order-requests/utils/poStatus';
-import { getUsernameFromToken } from '../../utils/auth';
+import { PO_STATUS, getPoStatusLabel } from '../purchase-order-requests/utils/poStatus';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -44,6 +44,7 @@ const APPROVER_VISIBLE_STATUSES = [
   PO_STATUS.SENT_FOR_APPROVAL,
   PO_STATUS.IN_PROGRESS,
   PO_STATUS.APPROVED,
+  PO_STATUS.CLOSED,
   PO_STATUS.REJECTED,
 ];
 const ACTIONABLE_STATUSES = [PO_STATUS.SENT_FOR_APPROVAL, PO_STATUS.IN_PROGRESS];
@@ -62,6 +63,7 @@ const STATUS_META = {
   [PO_STATUS.SENT_FOR_APPROVAL]: { bg: '#EEF2FE', fg: '#2952E3' },
   [PO_STATUS.IN_PROGRESS]: { bg: '#FEF6E7', fg: '#B7791F' },
   [PO_STATUS.APPROVED]: { bg: '#E7F7EE', fg: '#14804A' },
+  [PO_STATUS.CLOSED]: { bg: '#F2F4F7', fg: '#667085' },
   [PO_STATUS.REJECTED]: { bg: '#FBEAEC', fg: '#C0293D' },
 };
 
@@ -178,7 +180,7 @@ const PAGE_SIZE = 10;
 const PurchaseOrderApproval = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState(PO_STATUS.SENT_FOR_APPROVAL);
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const {
@@ -207,8 +209,7 @@ const PurchaseOrderApproval = () => {
   const currentUnitId = effectiveOutletId;
 
   const targetStatus = useMemo(() => {
-    if (!statusFilter) return PO_STATUS.SENT_FOR_APPROVAL;
-    if (statusFilter === ALL_STATUS) return APPROVER_VISIBLE_STATUSES;
+    if (!statusFilter || statusFilter === ALL_STATUS) return APPROVER_VISIBLE_STATUSES;
     return statusFilter;
   }, [statusFilter]);
 
@@ -459,11 +460,12 @@ const PurchaseOrderApproval = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-7">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-7">
           <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Sent for approval" value={counts[PO_STATUS.SENT_FOR_APPROVAL] ?? 0} />
           <StatCard icon={<Clock3 size={18} />} iconBg="#FEF6E7" iconFg="#B7791F" label="In progress" value={counts[PO_STATUS.IN_PROGRESS] ?? 0} />
           <StatCard icon={<CheckCircle2 size={18} />} iconBg="#E7F7EE" iconFg="#14804A" label="Approved" value={counts[PO_STATUS.APPROVED] ?? 0} />
           <StatCard icon={<XCircle size={18} />} iconBg="#FBEAEC" iconFg="#C0293D" label="Rejected" value={counts[PO_STATUS.REJECTED] ?? 0} />
+          <StatCard icon={<Package size={18} />} iconBg="#F2F4F7" iconFg="#667085" label="Closed" value={counts[PO_STATUS.CLOSED] ?? 0} />
         </div>
 
         <div className="flex items-center gap-3 mb-5 flex-wrap">

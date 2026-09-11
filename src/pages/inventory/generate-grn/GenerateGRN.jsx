@@ -99,8 +99,6 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
 const PO_STATUS_FILTER_OPTIONS = [
   { value: 'ALL', label: 'All Status' },
   { value: 'APPROVED', label: 'Approved' },
-  { value: 'IN_PROGRESS', label: 'In Progress' },
-  { value: 'PARTIALLY_RECEIVED', label: 'Partially Received' },
   { value: 'CLOSED', label: 'Closed' },
 ];
 
@@ -173,56 +171,82 @@ const GenerateGRN = () => {
     setPoError(null);
     try {
       const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
-      const statusParam = statusFilter === 'ALL' ? 'APPROVED' : statusFilter;
 
-      let response;
-      try {
-        response = await getPOsByOutlet(outletId, statusParam);
-      } catch (apiErr) {
-        response = await getPurchaseOrdersByOutlet(outletId, statusParam);
+      let rawList = [];
+      if (statusFilter === 'ALL') {
+        const [appRes, closedRes] = await Promise.all([
+          getPurchaseOrdersByOutlet(outletId, 'APPROVED').catch(() => ({ data: [] })),
+          getPurchaseOrdersByOutlet(outletId, 'CLOSED').catch(() => ({ data: [] })),
+        ]);
+        const appData = appRes?.data?.data ?? appRes?.data ?? [];
+        const closedData = closedRes?.data?.data ?? closedRes?.data ?? [];
+        rawList = [
+          ...(Array.isArray(appData) ? appData : []),
+          ...(Array.isArray(closedData) ? closedData : []),
+        ];
+      } else {
+        let response;
+        try {
+          response = await getPOsByOutlet(outletId, statusFilter);
+        } catch (apiErr) {
+          response = await getPurchaseOrdersByOutlet(outletId, statusFilter);
+        }
+        const raw = response?.data?.data ?? response?.data ?? response ?? [];
+        rawList = Array.isArray(raw) ? raw : [];
       }
 
-      const raw = response?.data?.data ?? response?.data ?? response ?? [];
-      const rawList = Array.isArray(raw) ? raw : [];
+      const normalized = rawList
+        .filter((item) => {
+          const s = String(item.status || 'APPROVED').toUpperCase();
+          return s === 'APPROVED' || s === 'CLOSED';
+        })
+        .map((item) => {
+          const prCode =
+            item.prcode ||
+            item.prCode ||
+            item.purchaseRequisitionCode ||
+            item.details?.[0]?.prcode ||
+            item.details?.[0]?.prCode ||
+            item.prPoMapping?.[0]?.prcode ||
+            '—';
 
-      const normalized = rawList.map((item) => {
-        const prCode =
-          item.prcode ||
-          item.prCode ||
-          item.purchaseRequisitionCode ||
-          item.details?.[0]?.prcode ||
-          item.details?.[0]?.prCode ||
-          item.prPoMapping?.[0]?.prcode ||
-          '—';
+          const deliveryDateRaw =
+            item.expectedDeliveryDate ||
+            item.deliveryDate ||
+            item.targetDeliveryDate ||
+            item.deliveryScheduleDate ||
+            '';
 
-        const deliveryDateRaw =
-          item.expectedDeliveryDate ||
-          item.deliveryDate ||
-          item.targetDeliveryDate ||
-          item.deliveryScheduleDate ||
-          '';
+          const vendorName =
+            item.vendorName ||
+            item.vendor?.name ||
+            item.vendor?.companyName ||
+            item.vendor?.tradeName ||
+            item.details?.[0]?.vendorName ||
+            item.poVendorName ||
+            (item.vendorId ? `Vendor #${item.vendorId}` : '—');
 
-        return {
-          id: item.id,
-          prCode: prCode,
-          poCode: item.purchaseOrderCode || item.poCode || `PO-${item.id}`,
-          date: formatDate(item.poDate || item.date || item.createdAt),
-          rawDate: item.poDate || item.date || item.createdAt,
-          deliveryDate: formatDate(deliveryDateRaw),
-          outlet: item.organizationName || item.outletName || item.outlet || (item.outletId ? `Outlet #${item.outletId}` : '—'),
-          outletId: item.outletId || item.orgId,
-          raisedBy: item.createdByName || item.raisedBy || item.createdBy || '—',
-          status: item.status || 'APPROVED',
-          rawStatus: item.status || 'APPROVED',
-          vendorName: item.vendorName,
-          details: item.details || [],
-        };
-      });
+          return {
+            id: item.id,
+            prCode: prCode,
+            poCode: item.purchaseOrderCode || item.poCode || `PO-${item.id}`,
+            date: formatDate(item.poDate || item.date || item.createdAt),
+            rawDate: item.poDate || item.date || item.createdAt,
+            deliveryDate: formatDate(deliveryDateRaw),
+            outlet: item.organizationName || item.outletName || item.outlet || (item.outletId ? `Outlet #${item.outletId}` : '—'),
+            outletId: item.outletId || item.orgId,
+            raisedBy: item.createdByName || item.raisedBy || item.createdBy || '—',
+            status: item.status || 'APPROVED',
+            rawStatus: item.status || 'APPROVED',
+            vendorName: vendorName,
+            details: item.details || [],
+          };
+        });
 
       const scopedRows = filterRowsByScope(normalized);
       setList(scopedRows);
     } catch (err) {
-      setPoError(err?.message || 'Failed to load approved purchase orders.');
+      setPoError(err?.message || 'Failed to load purchase orders.');
     } finally {
       setLoading(false);
     }
@@ -328,6 +352,19 @@ const GenerateGRN = () => {
         size: 190,
       },
       {
+        id: 'vendorName',
+        accessorFn: (row) => row.vendorName,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="VENDOR NAME" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-xs text-gray-800 font-medium whitespace-nowrap" title={row.original.vendorName}>
+            {row.original.vendorName || '—'}
+          </span>
+        ),
+        size: 180,
+      },
+      {
         id: 'raisedBy',
         accessorFn: (row) => row.raisedBy,
         header: ({ column }) => (
@@ -356,20 +393,8 @@ const GenerateGRN = () => {
         ),
         cell: ({ row }) => {
           const original = row.original;
-          const isClosed = String(original.rawStatus).toUpperCase() === 'CLOSED';
-          if (isClosed) {
-            return (
-              <button
-                type="button"
-                onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1.5 rounded-lg hover:bg-gray-100 transition"
-                title="View Order"
-              >
-                <Eye size={18} />
-              </button>
-            );
-          }
-          if (!canAdd) {
+          const isApproved = String(original.rawStatus).toUpperCase() === 'APPROVED';
+          if (!isApproved || !canAdd) {
             return (
               <button
                 type="button"

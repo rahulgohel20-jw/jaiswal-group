@@ -128,20 +128,30 @@ export function useOrgScope() {
   const filterRowsByScope = useCallback(
     (rows) => {
       if (!Array.isArray(rows)) return [];
+      const orgId = Number(getOrgIdFromToken());
       if (isOutletUser) {
-        const myId = Number(units[0]?.id ?? getOrgIdFromToken());
-        return rows.filter((r) => Number(r.outletId) === myId);
+        const myId = Number(units[0]?.id ?? orgId);
+        return rows.filter((r) => {
+          if (r.outletId == null) return true;
+          return Number(r.outletId) === myId;
+        });
       }
       if (isCompanyUser && !selectedUnitId) {
         const validIds = new Set(units.map((u) => Number(u.id)));
-        return rows.filter((r) => validIds.has(Number(r.outletId)));
+        if (orgId) validIds.add(orgId);
+        if (selfOrg?.id) validIds.add(Number(selfOrg.id));
+        if (validIds.size === 0) return rows;
+        return rows.filter((r) => {
+          if (r.outletId == null) return true;
+          return validIds.has(Number(r.outletId));
+        });
       }
       if (selectedUnitId) {
         return rows.filter((r) => Number(r.outletId) === Number(selectedUnitId));
       }
       return rows;
     },
-    [isOutletUser, isCompanyUser, units, selectedUnitId]
+    [isOutletUser, isCompanyUser, units, selectedUnitId, selfOrg]
   );
 
   return {
