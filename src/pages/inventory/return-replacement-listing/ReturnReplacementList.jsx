@@ -361,6 +361,8 @@ const ReturnReplacementList = () => {
     // Navigate to Generate GRN passing returnGrnDetailId
     navigate(`/inventory/generate-grn/generate/${poId}?returnGrnDetailId=${returnGrnDetailId}`, {
       state: {
+        poIds: [Number(poId)],
+        poId: Number(poId),
         returnGrnDetailId: returnGrnDetailId,
         returnItem: row,
       },

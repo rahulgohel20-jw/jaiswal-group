@@ -204,22 +204,35 @@ const GRNListing = () => {
       const raw = res?.data?.data ?? res?.data ?? res ?? [];
       const rawList = Array.isArray(raw) ? raw : [];
 
-      const normalized = rawList.map((g) => ({
-        id: g.id,
-        grnCode: g.grnCode || g.code || `GRN-${g.id}`,
-        poCode: g.purchaseOrderCode || g.poCode || (g.purchaseOrderId ? `PO-${g.purchaseOrderId}` : '—'),
-        purchaseOrderId: g.purchaseOrderId,
-        grnDate: formatDateShort(g.grnDate || g.date || g.createdAt),
-        rawDate: g.grnDate || g.date || g.createdAt,
-        raisedBy: g.createdByName || g.raisedBy || g.userName || g.createdBy || '—',
-        outlet: g.organizationName || g.outletName || g.orgName || (g.orgId ? `Outlet #${g.orgId}` : '—'),
-        outletId: g.orgId || g.outletId,
-        vendorName: g.vendorName || (g.vendorId ? `Vendor #${g.vendorId}` : '—'),
-        itemsReceived: Array.isArray(g.details) ? g.details.length : g.itemsReceived ?? 0,
-        status: g.status || 'Verified',
-        rawStatus: g.status || 'Verified',
-        details: g.details || [],
-      }));
+      const normalized = rawList.map((g) => {
+        const poCodesList = Array.isArray(g.purchaseOrderCodes) && g.purchaseOrderCodes.length > 0
+          ? g.purchaseOrderCodes.filter(Boolean)
+          : (g.purchaseOrderCode ? [g.purchaseOrderCode] : (g.poCode ? [g.poCode] : (g.purchaseOrderId ? [`PO-${g.purchaseOrderId}`] : [])));
+        const poIdsList = Array.isArray(g.purchaseOrderIds) && g.purchaseOrderIds.length > 0
+          ? g.purchaseOrderIds.filter(Boolean)
+          : (g.purchaseOrderId ? [g.purchaseOrderId] : []);
+        const poCodeDisplay = poCodesList.length > 0 ? poCodesList.join(', ') : '—';
+
+        return {
+          id: g.id,
+          grnCode: g.grnCode || g.code || `GRN-${g.id}`,
+          poCode: poCodeDisplay,
+          poCodes: poCodesList,
+          purchaseOrderId: g.purchaseOrderId || poIdsList[0] || null,
+          purchaseOrderIds: poIdsList,
+          purchaseOrderCodes: poCodesList,
+          grnDate: formatDateShort(g.grnDate || g.date || g.createdAt),
+          rawDate: g.grnDate || g.date || g.createdAt,
+          raisedBy: g.createdByName || g.raisedBy || g.userName || g.createdBy || '—',
+          outlet: g.organizationName || g.outletName || g.orgName || (g.orgId ? `Outlet #${g.orgId}` : '—'),
+          outletId: g.orgId || g.outletId,
+          vendorName: g.vendorName || (g.vendorId ? `Vendor #${g.vendorId}` : '—'),
+          itemsReceived: Array.isArray(g.details) ? g.details.length : g.itemsReceived ?? 0,
+          status: g.status || 'Verified',
+          rawStatus: g.status || 'Verified',
+          details: g.details || [],
+        };
+      });
 
       const scopedRows = filterRowsByScope(normalized);
       setList(scopedRows);
@@ -242,6 +255,13 @@ const GRNListing = () => {
       const res = await getGrnById(row.id);
       const detailed = res?.data?.data ?? res?.data ?? res ?? row;
 
+      const poCodesList = Array.isArray(detailed.purchaseOrderCodes) && detailed.purchaseOrderCodes.length > 0
+        ? detailed.purchaseOrderCodes.filter(Boolean)
+        : (detailed.purchaseOrderCode ? [detailed.purchaseOrderCode] : (detailed.poCode ? [detailed.poCode] : (row.poCodes || [])));
+      const poIdsList = Array.isArray(detailed.purchaseOrderIds) && detailed.purchaseOrderIds.length > 0
+        ? detailed.purchaseOrderIds.filter(Boolean)
+        : (detailed.purchaseOrderId ? [detailed.purchaseOrderId] : (row.purchaseOrderIds || []));
+
       const items = (detailed.details || row.details || []).map((d, index) => ({
         id: d.id || index + 1,
         name: d.rawMaterialName || d.itemName || `Item #${d.rawMaterialId || d.purchaseOrderDetailId || index + 1}`,
@@ -253,13 +273,19 @@ const GRNListing = () => {
         returnReplacementStatus: d.returnReplacementStatus || null,
         remarks: d.remarks || '',
         status: d.status || (Number(d.returnQuantity || d.rejectedQuantity) > 0 ? 'Partial' : 'Received'),
+        poCode: d.poCode || d.purchaseOrderCode || null,
+        prCode: d.prCode || d.purchaseRequisitionCode || null,
+        isPoDetailClosed: Boolean(d.isPoDetailClosed),
       }));
 
       setGrnTarget({
         id: detailed.id || row.id,
         grnCode: detailed.grnCode || row.grnCode,
-        poCode: detailed.purchaseOrderCode || detailed.poCode || row.poCode,
-        purchaseOrderId: detailed.purchaseOrderId || row.purchaseOrderId,
+        poCode: poCodesList.length > 0 ? poCodesList.join(', ') : (detailed.purchaseOrderCode || detailed.poCode || row.poCode),
+        poCodes: poCodesList,
+        purchaseOrderId: detailed.purchaseOrderId || poIdsList[0] || row.purchaseOrderId,
+        purchaseOrderIds: poIdsList,
+        purchaseOrderCodes: poCodesList,
         date: formatDateShort(detailed.grnDate || detailed.date || row.rawDate),
         outletName: detailed.organizationName || detailed.outletName || row.outlet,
         subOutletName: detailed.subOutletName || detailed.subOutlet?.subOutletName || null,
@@ -276,7 +302,10 @@ const GRNListing = () => {
         id: row.id,
         grnCode: row.grnCode,
         poCode: row.poCode,
+        poCodes: row.poCodes || [],
         purchaseOrderId: row.purchaseOrderId,
+        purchaseOrderIds: row.purchaseOrderIds || [],
+        purchaseOrderCodes: row.purchaseOrderCodes || [],
         date: row.grnDate,
         outletName: row.outlet,
         subOutletName: null,
@@ -296,6 +325,9 @@ const GRNListing = () => {
           returnReplacementStatus: d.returnReplacementStatus || null,
           remarks: d.remarks || '',
           status: 'Received',
+          poCode: d.poCode || d.purchaseOrderCode || null,
+          prCode: d.prCode || d.purchaseRequisitionCode || null,
+          isPoDetailClosed: Boolean(d.isPoDetailClosed),
         })),
       });
     } finally {
@@ -355,6 +387,7 @@ const GRNListing = () => {
         !q ||
         (item.grnCode || '').toLowerCase().includes(q) ||
         (item.poCode || '').toLowerCase().includes(q) ||
+        (item.poCodes || []).some((code) => String(code).toLowerCase().includes(q)) ||
         (item.raisedBy || '').toLowerCase().includes(q) ||
         (item.vendorName || '').toLowerCase().includes(q) ||
         (item.outlet || '').toLowerCase().includes(q);
@@ -400,14 +433,34 @@ const GRNListing = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.poCode}
-            widthClass="max-w-[170px]"
-            className="font-semibold text-gray-800"
-          />
-        ),
-        size: 180,
+        cell: ({ row }) => {
+          const poCodes = row.original.poCodes || (row.original.poCode && row.original.poCode !== '—' ? [row.original.poCode] : []);
+          if (poCodes.length === 0 || row.original.poCode === '—') {
+            return <span className="text-gray-400 text-xs">—</span>;
+          }
+          if (poCodes.length === 1) {
+            return (
+              <TruncatedCell
+                value={poCodes[0]}
+                widthClass="max-w-[170px]"
+                className="font-semibold text-gray-800"
+              />
+            );
+          }
+          return (
+            <div className="flex flex-wrap gap-1 max-w-[200px]" title={poCodes.join(', ')}>
+              {poCodes.map((code, idx) => (
+                <span
+                  key={idx}
+                  className="inline-block font-mono text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded"
+                >
+                  {code}
+                </span>
+              ))}
+            </div>
+          );
+        },
+        size: 190,
       },
       {
         id: 'grnDate',

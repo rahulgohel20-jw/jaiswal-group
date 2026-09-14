@@ -929,6 +929,28 @@ export const syncCaptainRecipes = (orgId) => {
     return GET('/purchase-orders/getbyid', { id });
   };
 
+  export const getPOByIdAndOpenItem = (payload) => {
+    let raw = payload;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.ids !== undefined) {
+      raw = raw.ids;
+    } else if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.id !== undefined) {
+      raw = raw.id;
+    }
+
+    const ids = Array.isArray(raw)
+      ? raw.map(Number).filter((n) => !isNaN(n))
+      : (typeof raw === 'string' && raw.includes(',')
+        ? raw.split(',').map((s) => Number(s.trim())).filter((n) => !isNaN(n))
+        : (raw !== undefined && raw !== null && raw !== '' ? [Number(raw)].filter((n) => !isNaN(n)) : []));
+
+    return POST('/purchase-orders/getbyidopenitems', ids, {
+      skipGlobalToast: true,
+    });
+  };
+
+  export const getPOByIdAndOpenItems = getPOByIdAndOpenItem;
+  export const getPOByidandopenitems = getPOByIdAndOpenItem;
+
   export const getPurchaseOrdersByOutlet = (outletId, status) => {
   return GET('/purchase-orders/getbyoutlet', { outletId, status });
 };
@@ -959,6 +981,12 @@ export const syncCaptainRecipes = (orgId) => {
       payload
     );
   };
+
+  export const closePurchaseOrder = (id, payload) => {
+    return POST(`/purchase-orders/close/${id}`, payload);
+  };
+
+  export const closePO = closePurchaseOrder;
 
   // ---- Raw Material Vendor Price Configuration APIs ----
 
