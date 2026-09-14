@@ -225,7 +225,7 @@
     return GET(`/organization/get/${id}`);
   };
   export const createCompany = (formData) => {
-    return POST('/organization/saveOrganization', formData);
+    return POST('/organization/save', formData);
   };
   export const saveOrganization = createCompany;
 
