@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  Archive,
   ArrowLeft,
   ArrowLeftRight,
   Award,
@@ -476,6 +477,16 @@ export const MENU_SIDEBAR = [
     ],
   },
   {
+    title: 'Inventory',
+    icon: Archive,
+    children: [
+      { title: 'Generate GRN', path: '/inventory/generate-grn' },
+      { title: 'GRN', path: '/inventory/grn-listing' },
+      { title: 'Return and Replacement', path: '/inventory/return-replacement' },
+      { title: 'Stock Transfer', path: '/inventory/stock-transfer' },
+    ],
+  },
+  {
     title: 'Raw Material',
     icon: ShoppingCart,
     children: [
@@ -498,8 +509,9 @@ export const MENU_SIDEBAR = [
       { title: 'Categories', path: '/menu-item/categories' },
       { title: 'Sub Category', path: '/menu-item/sub-category' },
       { title: 'Menu Items', path: '/menu-item/menu-items' },
+      { title: 'Captain Recipe', path: '/menu-item/captain-recipe' },
     ],
-  },
+},
   // {
   //   title: 'Manage Stock',
   //   icon: FolderClosed,
@@ -576,6 +588,16 @@ export const MENU_SIDEBAR_ADMIN = [
     ],
   },
   {
+    title: 'Inventory',
+    icon: Archive,
+    children: [
+      { title: 'Generate GRN', path: '/inventory/generate-grn' },
+      { title: 'GRN', path: '/inventory/grn-listing' },
+      { title: 'Return and Replacement', path: '/inventory/return-replacement' },
+      { title: 'Stock Transfer', path: '/inventory/stock-transfer' },
+    ],
+  },
+  {
     title: 'Raw Material',
     icon: ShoppingCart,
     children: [
@@ -597,6 +619,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Categories', path: '/menu-item/categories' },
       { title: 'Sub Category', path: '/menu-item/sub-category' },
       { title: 'Menu Items', path: '/menu-item/menu-items' },
+      { title: 'Captain Recipe', path: '/menu-item/captain-recipe' },
     ],
   },
   {

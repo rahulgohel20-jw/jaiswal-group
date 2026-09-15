@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { notify } from '@/utils/toast';
 import {
+  ArrowLeft,
   Building2,
   Check,
   ChevronDown,
@@ -826,6 +827,14 @@ const CompanyRegistration = () => {
   return (
     <div className="mx-4 min-h-screen p-4 md:p-6">
       <div className="flex flex-col gap-1">
+        <button
+          type="button"
+          onClick={() => navigate('/companies')}
+          className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] mb-2 cursor-pointer bg-transparent border-0 p-0 self-start"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Companies
+        </button>
         <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
           {isEditMode ? 'Update Company' : 'Register New Company'}
         </h1>

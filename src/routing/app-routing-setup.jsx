@@ -178,6 +178,14 @@ import RawMaterialSubCategory from '../pages/raw-material/raw-material-subcatego
 import PurchaseRequisitionApprovalDetail from '../pages/purchase-requisition/PurchaseRequisitionApprovalDetail';
 import PurchaseRequisitionView from '../pages/purchase-requisition/PurchaseRequisitionView';
 import PurchaseOrderDetail from '../pages/purchase-order-requests/PurchaseOrderDetail';
+import GenerateGRN from '../pages/inventory/generate-grn/GenerateGRN';
+import GenerateGRNDetail from '../pages/inventory/generate-grn/GenerateGRNDetail';
+import GRNListing from '../pages/inventory/grn-listing/GRNListing';
+import ReturnReplacementList from '../pages/inventory/return-replacement-listing/ReturnReplacementList';
+import StockTransfer from '../pages/inventory/stock-transfer/StockTransfer';
+import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
+import UserProfile from '../pages/my-profile/UserProfile';
+
 
 export function AppRoutingSetup() {
   return (
@@ -198,6 +206,8 @@ export function AppRoutingSetup() {
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
+
+          <Route path='/my-profile' element={<UserProfile/>}/>
 
           <Route path="/companies" element={<CompaniesListing />} />
           <Route
@@ -284,7 +294,7 @@ export function AppRoutingSetup() {
             path="/assets/add-maintenance-log"
             element={<AddAssetsMaintenanceLog />}
           />
-
+          <Route path="/assets/edit-maintenance-log/:id" element={<AddAssetsMaintenanceLog />} />
           <Route path="/material/types" element={<RawMaterialTypeListing />} />
           <Route
             path="/material/categories"
@@ -316,6 +326,7 @@ export function AppRoutingSetup() {
             element={<AssetsDisposalLog />}
           />
           <Route path="/assets/add-disposal" element={<AddAssetsDisposal />} />
+          <Route path="/assets/edit-disposal/:id" element={<AddAssetsDisposal />} />
 
           <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
 
@@ -345,7 +356,7 @@ export function AppRoutingSetup() {
             path="/menu-item/edit-menu-item/:id"
             element={<CreateMenuItem />}
           />
-
+         <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList/>}/>
           <Route
             path="/purchase-requisition/list"
             element={<PurchaseRequisitionList />}
@@ -408,6 +419,13 @@ export function AppRoutingSetup() {
             path="/purchase/add-purchase-return"
             element={<AddPurchaseReturn />}
           />
+
+          <Route path="/inventory/generate-grn" element={<GenerateGRN/>} /> 
+          <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />
+          <Route path="/inventory/generate-grn/generate/:id" element={<GenerateGRNDetail />} />
+          <Route path='/inventory/grn-listing' element={<GRNListing/>}/>
+          <Route path='/inventory/return-replacement' element={<ReturnReplacementList/>}/>
+          <Route path='/inventory/stock-transfer' element={<StockTransfer/>}/>
 
           <Route
             path="/stocks/available-stocks"

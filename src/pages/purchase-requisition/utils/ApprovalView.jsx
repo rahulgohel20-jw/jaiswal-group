@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { getAllRawMaterialItems } from "@/services/apiServices";
+import SearchableSelect from "@/utils/SearchableSelect";
 
 const FONT_IMPORT_URL =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap";
@@ -198,7 +199,10 @@ export default function ApprovalView({
 
   const handleAddItem = (raw) => {
     const uomId = raw.unitId ?? raw.unit?.id ?? 0;
-    const uomName = raw.unit?.nameEnglish || raw.unitName || "";
+    const uomName = raw.unit?.nameEnglish || raw.unit?.symbolEnglish || raw.unitName || "";
+    const allowedUnits = Array.isArray(raw.allowedUnits) && raw.allowedUnits.length > 0
+      ? raw.allowedUnits
+      : (raw.unit ? [raw.unit] : []);
 
     if (!uomId || !uomName) {
       setAddItemError(
@@ -215,9 +219,33 @@ export default function ApprovalView({
         name: raw.nameEnglish,
         uomId,
         unit: uomName,
+        allowedUnits,
         quantity: 1,
       },
     ]);
+  };
+
+  const updateUnit = (id, selectedUnitId) => {
+    setItems((prev) =>
+      prev.map((it) => {
+        if ((it.id && it.id === id) || (it.rawMaterialId && it.rawMaterialId === id)) {
+          const rm = rawMaterials.find((r) => r.id === it.rawMaterialId);
+          const unitsList = it.allowedUnits?.length
+            ? it.allowedUnits
+            : (Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
+                ? rm.allowedUnits
+                : (rm?.unit ? [rm.unit] : []));
+          const selected = unitsList.find((u) => String(u.id) === String(selectedUnitId));
+          const uName = selected?.nameEnglish || selected?.symbolEnglish || it.unit;
+          return {
+            ...it,
+            uomId: selectedUnitId ? Number(selectedUnitId) : it.uomId,
+            unit: selectedUnitId ? uName : it.unit,
+          };
+        }
+        return it;
+      })
+    );
   };
 
   const updateQty = (id, value) => {
@@ -445,7 +473,45 @@ export default function ApprovalView({
                 <td className="px-5 py-4">
                   <div className="text-[#101828] font-semibold">{it.name}</div>
                 </td>
-                <td className="px-5 py-4 text-[#475467]">{it.unit}</td>
+                <td className="px-5 py-4 min-w-[150px]">
+                  {isReject || !canEdit ? (
+                    <span className="text-[#475467]">{it.unit || "—"}</span>
+                  ) : (
+                    (() => {
+                      const rm = rawMaterials.find((r) => r.id === it.rawMaterialId);
+                      const allowedList = it.allowedUnits?.length
+                        ? it.allowedUnits
+                        : (Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
+                            ? rm.allowedUnits
+                            : (rm?.unit ? [rm.unit] : []));
+
+                      let options = allowedList.map((u) => ({
+                        value: String(u.id),
+                        label: u.nameEnglish || u.symbolEnglish || `Unit #${u.id}`,
+                      }));
+
+                      if (it.uomId && !options.some((opt) => String(opt.value) === String(it.uomId))) {
+                        options = [
+                          { value: String(it.uomId), label: it.unit || `Unit #${it.uomId}` },
+                          ...options,
+                        ];
+                      }
+
+                      return (
+                        <div className="min-w-[120px] max-w-[170px]">
+                          <SearchableSelect
+                            name={`unit-${it.rawMaterialId || it.id}`}
+                            value={it.uomId ? String(it.uomId) : ""}
+                            onChange={(e) => updateUnit(it.id ?? it.rawMaterialId, e.target.value)}
+                            options={options}
+                            placeholder="Select unit"
+                            disabled={isReject || !canEdit}
+                          />
+                        </div>
+                      );
+                    })()
+                  )}
+                </td>
                 <td className="px-5 py-4">
                   {isReject || !canEdit ? (
                     <span className="text-[#475467] font-medium">{it.quantity.toFixed(2)}</span>

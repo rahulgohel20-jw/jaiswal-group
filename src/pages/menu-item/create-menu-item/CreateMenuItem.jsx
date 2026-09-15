@@ -119,11 +119,27 @@ const CreateMenuItem = () => {
     const [deleteSaving, setDeleteSaving] = useState(false);
     const [rawMaterialSyncing, setRawMaterialSyncing] = useState(false);
     const [captainSyncing, setCaptainSyncing] = useState(false);
+
+    const [urlError, setUrlError] = useState("");
+    const [urlEditMode, setUrlEditMode] = useState(true);
     const { id } = useParams();
     const isEdit = !!id;
 
     const navigate = useNavigate();
+    const urlPattern = /^(https?:\/\/)?([\w-]+\.)+[a-zA-Z]{2,}(\/[^\s]*)?$/i;
+    const handleUrlChange = (e) => {
+        const { value } = e.target;
+        setForm((prev) => ({ ...prev, url: value }));
 
+        if (!value) {
+            setUrlError(""); 
+        } else if (!isValidUrl(value)) {
+            setUrlError("Please enter a valid URL");
+        } else {
+            setUrlError("");
+        }
+    };
+    const isValidUrl = (value) => urlPattern.test(value.trim());
     const [openSections, setOpenSections] = useState({
         basic: true,
         category: true,
@@ -181,6 +197,11 @@ const CreateMenuItem = () => {
                 res?.data?.data ||
                 res?.data;
             if (!item) return;
+            if (item.url && isValidUrl(item.url)) {
+                setUrlEditMode(false);
+            } else {
+                setUrlEditMode(true);
+            }
             setForm({
                 nameEnglish: item.nameEnglish || "",
                 nameHindi: item.nameHindi || "",
@@ -614,12 +635,25 @@ const CreateMenuItem = () => {
         }
         if (isCaptainRecipe) {
             // ---- Captain Recipe branch ----
-            const newCaptainRows = copiedIngredients.map((ingredient) => {
+            const existingIds = new Set(captainRows.map((r) => String(r.captainRecipeId)));
+            const seenIds = new Set();
+            let duplicateCount = 0;
+
+            const newCaptainRows = copiedIngredients.reduce((acc, ingredient) => {
                 const captainRecipeId =
                     ingredient.captainReceipeId ??
                     ingredient.captainRecipeId ??
                     ingredient.captainReceipe?.id ??
                     ingredient.id;
+
+                const key = String(captainRecipeId);
+
+                if (existingIds.has(key) || seenIds.has(key)) {
+                    duplicateCount++;
+                    return acc;
+                }
+                seenIds.add(key);
+
                 const recipe = captainRecipeCatalog.find(
                     (item) => String(item.id) === String(captainRecipeId)
                 );
@@ -629,7 +663,7 @@ const CreateMenuItem = () => {
                 const unit = unitCatalog.find(
                     (item) => String(item.id) === String(unitId)
                 );
-                return {
+                acc.push({
                     rowId: captainRowSeq++,
                     captainRecipeId: captainRecipeId,
                     category:
@@ -658,21 +692,46 @@ const CreateMenuItem = () => {
                         Number(ingredient.rate ?? recipe?.rate ?? 0),
                     venue:
                         ingredient.venue ?? "At Venue",
-                };
-            });
+                });
+                return acc;
+            }, []);
 
-            setCaptainRows((prev) => [...prev, ...newCaptainRows]);
+            if (newCaptainRows.length > 0) {
+                setCaptainRows((prev) => [...prev, ...newCaptainRows]);
+            }
             setCopyRecipeOpen(false);
-            notify.success(`${newCaptainRows.length} ingredient(s) copied successfully`);
+
+            if (newCaptainRows.length === 0) {
+                notify.error("All selected items already exist");
+            } else if (duplicateCount > 0) {
+                notify.success(
+                    `${newCaptainRows.length} ingredient(s) copied, ${duplicateCount} duplicate(s) skipped`
+                );
+            } else {
+                notify.success(`${newCaptainRows.length} ingredient(s) copied successfully`);
+            }
             return;
         }
 
-        // ---- Raw Material branch (unchanged) ----
-        const newRows = copiedIngredients.map((ingredient) => {
+        // ---- Raw Material branch ----
+        const existingRawIds = new Set(rawMaterialRows.map((r) => String(r.rawMaterialId)));
+        const seenRawIds = new Set();
+        let rawDuplicateCount = 0;
+
+        const newRows = copiedIngredients.reduce((acc, ingredient) => {
             const rawMaterialId =
                 ingredient.rawMaterialId ??
                 ingredient.rawMaterial?.id ??
                 ingredient.id;
+
+            const key = String(rawMaterialId);
+
+            if (existingRawIds.has(key) || seenRawIds.has(key)) {
+                rawDuplicateCount++;
+                return acc;
+            }
+            seenRawIds.add(key);
+
             const rawMaterial = rawMaterialCatalog.find(
                 (item) => String(item.id) === String(rawMaterialId)
             );
@@ -683,7 +742,7 @@ const CreateMenuItem = () => {
             const unit = unitCatalog.find(
                 (item) => String(item.id) === String(unitId)
             );
-            return {
+            acc.push({
                 rowId: rawMaterialRowSeq++,
                 rawMaterialId: rawMaterialId,
                 categoryId:
@@ -735,12 +794,24 @@ const CreateMenuItem = () => {
                     "At Venue",
                 visible:
                     ingredient.visible ?? true,
-            };
-        });
+            });
+            return acc;
+        }, []);
 
-        setRawMaterialRows((prev) => [...prev, ...newRows]);
+        if (newRows.length > 0) {
+            setRawMaterialRows((prev) => [...prev, ...newRows]);
+        }
         setCopyRecipeOpen(false);
-        notify.success(`${newRows.length} ingredient(s) copied successfully`);
+
+        if (newRows.length === 0) {
+            notify.error("All selected items already exist");
+        } else if (rawDuplicateCount > 0) {
+            notify.success(
+                `${newRows.length} ingredient(s) copied, ${rawDuplicateCount} duplicate(s) skipped`
+            );
+        } else {
+            notify.success(`${newRows.length} ingredient(s) copied successfully`);
+        }
     };
 
     const filteredRawMaterialRows = useMemo(
@@ -880,7 +951,7 @@ const CreateMenuItem = () => {
                     <DataGridColumnHeader
                         title="Venue"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-sm hidden"
                     />
                 ),
                 cell: ({ row }) => (
@@ -889,11 +960,11 @@ const CreateMenuItem = () => {
                         onChange={(e) =>
                             handleRawMaterialVenueChange(row.original.rowId, e.target.value)
                         }
-                        className="border border-gray-200 rounded-md px-2 py-1.5 text-sm w-28 outline-none"
+                        className="border border-gray-200 rounded-md px-2 py-1.5 text-sm w-28 outline-none hidden"
                     />
                 ),
                 enableSorting: false,
-                size: 140,
+                size: 10,
             },
             {
                 id: "visible",
@@ -1283,7 +1354,7 @@ const CreateMenuItem = () => {
                 ),
                 enableSorting: false,
                 size: 70,
-            },           
+            },
             {
                 id: "name",
                 accessorFn: (row) => row.name,
@@ -1344,18 +1415,18 @@ const CreateMenuItem = () => {
                     <DataGridColumnHeader
                         title="Venue"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-sm hidden"
                     />
                 ),
                 cell: ({ row }) => (
                     <input
                         value={row.original.venue}
                         onChange={(e) => handleCaptainVenueChange(row.original.rowId, e.target.value)}
-                        className="border border-gray-200 rounded-md px-2 py-1.5 text-sm w-28 outline-none"
+                        className="border border-gray-200 rounded-md px-2 py-1.5 text-sm w-28 outline-none hidden"
                     />
                 ),
                 enableSorting: false,
-                size: 140,
+                size: 10
             },
             {
                 id: "actions",
@@ -1720,13 +1791,40 @@ const CreateMenuItem = () => {
                             </div>
                             <div>
                                 <Label>URL</Label>
-                                <input
-                                    name="url"
-                                    value={form.url}
-                                    onChange={handleChange}
-                                    placeholder="Insert URL"
-                                    className={inputCls}
-                                />
+
+                                {!urlEditMode && form.url ? (
+                                    <div className="flex items-center gap-2">
+                                        <a
+                                            href={/^https?:\/\//i.test(form.url) ? form.url : `https://${form.url}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex-1 border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-blue-600 underline truncate bg-white hover:bg-gray-50 transition"
+                                        >
+                                            {form.url}
+                                        </a>
+                                        <button
+                                            type="button"
+                                            onClick={() => setUrlEditMode(true)}
+                                            className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition shrink-0"
+                                        >
+                                            <SquarePen className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <input
+                                            name="url"
+                                            value={form.url}
+                                            onChange={handleUrlChange}
+                                            placeholder="Insert URL"
+                                            className={urlError ? errorInputCls : inputCls}
+                                        />
+                                        {urlError && (
+                                            <p className="text-xs text-red-500 mt-1">{urlError}</p>
+                                        )}
+                                    </>
+                                )}
+
                             </div>
                             <div>
                                 <Label>Remarks</Label>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { notify } from '@/utils/toast';
 import {
   getCoreRowModel,
@@ -6,19 +6,13 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import {
-  AlertTriangle,
-  Check,
-  ChevronDown,
-  Download,
   Eye,
-  FileSpreadsheet,
-  FileText,
+  Filter,
+  Loader2,
   Plus,
   Search,
-  SlidersHorizontal,
   SquarePen,
   Trash2,
-  X,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
@@ -33,100 +27,83 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
   deleteCompany,
+  getCompanyById,
   getOrganizationByType,
-  getRegisteredCompany,
 } from '../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
+/* -----------------------------------------------------------------------
+ * Status badge — rounded-full pill style matching PurchaseRequisitionList
+ * -------------------------------------------------------------------- */
 const STATUS_STYLES = {
-  active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  pending: 'bg-amber-50 text-amber-700 ring-amber-200',
-  maintenance: 'bg-orange-50 text-orange-700 ring-orange-200',
+  active:      'bg-emerald-50 text-emerald-700',
+  pending:     'bg-amber-50 text-amber-600',
+  maintenance: 'bg-orange-50 text-orange-700',
+  inactive:    'bg-gray-100 text-gray-500',
+};
+
+const STATUS_DOT = {
+  active:      'bg-emerald-500',
+  pending:     'bg-amber-500',
+  maintenance: 'bg-orange-500',
+  inactive:    'bg-gray-400',
 };
 
 const STATUS_LABELS = {
-  active: 'Active',
-  pending: 'Pending',
+  active:      'Active',
+  pending:     'Pending',
   maintenance: 'Maintenance',
+  inactive:    'Inactive',
 };
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset ${STATUS_STYLES[status]}`}
+    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${
+      STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'
+    }`}
   >
-    <span
-      className={`w-1.5 h-1.5 rounded-full ${
-        status === 'active'
-          ? 'bg-emerald-500'
-          : status === 'pending'
-            ? 'bg-amber-500'
-            : 'bg-orange-500'
-      }`}
-    />
-    {STATUS_LABELS[status]}
+    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
+    {STATUS_LABELS[status] || status}
   </span>
 );
 
-// Generic dropdown used for the filters and export menus
-const Dropdown = ({ label, icon: Icon, children, widthClass = 'w-48' }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 transition cursor-pointer"
-      >
-        <Icon className="w-4 h-4 text-gray-400" />
-        {label}
-        <ChevronDown
-          className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
-      {open && (
-        <div
-          className={`absolute right-0 mt-2 ${widthClass} bg-white rounded-xl border border-gray-100 shadow-lg z-20 py-1.5 overflow-hidden`}
-        >
-          {typeof children === 'function'
-            ? children(() => setOpen(false))
-            : children}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const DropdownItem = ({ label, active, onClick }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className="w-full flex items-center justify-between px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition cursor-pointer border-0 bg-transparent text-left"
-  >
-    <span className={active ? 'font-semibold text-gray-900' : ''}>{label}</span>
-    {active && <Check className="w-3.5 h-3.5 text-blue-600" />}
-  </button>
-);
-
-// Truncates long text within a fixed-width box, revealing the full value on hover
+// Truncates long text, reveals full value on hover
 const TruncatedCell = ({
   value,
   widthClass = 'max-w-[180px]',
   className = 'text-gray-600',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
-    {value}
+    {value || '—'}
   </span>
 );
+
+const STATUS_OPTIONS = [
+  { value: 'all',         label: 'All Status' },
+  { value: 'active',      label: 'Active' },
+  { value: 'pending',     label: 'Pending' },
+  { value: 'maintenance', label: 'Maintenance' },
+  { value: 'inactive',    label: 'Inactive' },
+];
+
+function StatusDropdown({ value, onChange }) {
+  return (
+    <div className="relative min-w-[190px]">
+      <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+      >
+        {STATUS_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 const UnitListing = () => {
   const navigate = useNavigate();
@@ -148,8 +125,11 @@ const UnitListing = () => {
     name: item.companyNameEnglish || '',
     code: item.companyCode || '',
     location: item.cityName || '',
-    email: item.email || '',
+    email: item.emailid || item.email || '',
     mobile: item.mobilenumber || '',
+    address: [item.addressEnglish, item.addressline2].filter(Boolean).join(', ') || item.addressEnglish || '',
+    parentName: item.parentName || '',
+    shortCode: item.shortCode || '',
     status: item.isActive ? 'active' : 'inactive',
     originalData: item,
   });
@@ -160,11 +140,8 @@ const UnitListing = () => {
 
     try {
       const res = await getOrganizationByType(OrgTypes.OUTLET);
-
       const list = res?.data?.data || res?.data?.content || res?.data || [];
-
       const outlets = Array.isArray(list) ? list : [];
-
       setUnits(outlets.map(normalizeUnit));
     } catch (err) {
       console.error(err);
@@ -198,10 +175,31 @@ const UnitListing = () => {
     [units, search, statusFilter],
   );
 
-  const handleEdit = (unit) => {
-    navigate('/units/add-unit', {
-      state: { unitId: unit.id, isEdit: true },
-    });
+  const handleViewClick = async (unit) => {
+    try {
+      const res = await getCompanyById(unit.id);
+      const rawData = res?.data?.data || res?.data || unit.originalData || unit;
+      const fullUnit = normalizeUnit(rawData);
+      navigate('/units/view-unit', {
+        state: { unit: fullUnit },
+      });
+    } catch (err) {
+      console.error('Failed to fetch unit details:', err);
+      notify.error('Failed to load unit details');
+    }
+  };
+
+  const handleEdit = async (unit) => {
+    try {
+      const res = await getCompanyById(unit.id);
+      const fullUnit = res?.data?.data || res?.data || null;
+      navigate('/units/add-unit', {
+        state: { unit: fullUnit },
+      });
+    } catch (err) {
+      console.error('Failed to fetch unit for edit:', err);
+      notify.error('Failed to load unit details');
+    }
   };
 
   const openDeleteConfirm = (item) => {
@@ -233,11 +231,9 @@ const UnitListing = () => {
     }
   };
 
-  const handleExport = (format) => {
-    alert(
-      `Exporting ${filteredUnits.length} Unit(s) as ${format.toUpperCase()}`,
-    );
-  };
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [search, statusFilter]);
 
   const columns = useMemo(
     () => [
@@ -245,49 +241,47 @@ const UnitListing = () => {
         id: 'name',
         accessorFn: (row) => row.name,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Unit Name" column={column} />
+          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[160px]"
-            className="font-semibold text-gray-800"
+            widthClass="max-w-[190px]"
+            className="font-semibold text-[#084E92]"
           />
         ),
-        size: 180,
+        size: 200,
       },
       {
         id: 'code',
         accessorFn: (row) => row.code,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Unit Code" column={column} />
+          <DataGridColumnHeader title="UNIT CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-600 whitespace-nowrap">
-            {row.original.code}
-          </span>
+          <TruncatedCell value={row.original.code} widthClass="max-w-[130px]" />
         ),
-        size: 120,
+        size: 140,
       },
       {
         id: 'location',
         accessorFn: (row) => row.location,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Location" column={column} />
+          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.location}
-            widthClass="max-w-[120px]"
+            widthClass="max-w-[130px]"
           />
         ),
-        size: 130,
+        size: 140,
       },
       {
         id: 'email',
         accessorFn: (row) => row.email,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Contact Email" column={column} />
+          <DataGridColumnHeader title="CONTACT EMAIL" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
@@ -295,46 +289,38 @@ const UnitListing = () => {
             widthClass="max-w-[190px]"
           />
         ),
-        size: 210,
+        size: 200,
       },
       {
         id: 'mobile',
         accessorFn: (row) => row.mobile,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Mobile Number" column={column} />
+          <DataGridColumnHeader title="MOBILE NUMBER" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-600 whitespace-nowrap">
-            {row.original.mobile}
-          </span>
+          <TruncatedCell value={row.original.mobile} widthClass="max-w-[140px]" />
         ),
-        size: 160,
+        size: 150,
       },
       {
         id: 'status',
         accessorFn: (row) => row.status,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Status" column={column} />
+          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 130,
+        size: 120,
       },
       {
         id: 'actions',
-        header: () => (
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Actions
-          </span>
+        header: ({ column }) => (
+          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <div className="flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
-              onClick={() =>
-                navigate('/units/view-unit', {
-                  state: { unit: row.original.originalData },
-                })
-              }
+              onClick={() => handleViewClick(row.original)}
               className="text-gray-500 hover:text-green-600 cursor-pointer"
               title="View Unit"
             >
@@ -363,7 +349,7 @@ const UnitListing = () => {
           </div>
         ),
         enableSorting: false,
-        size: 130,
+        size: 110,
       },
     ],
     [canEdit, canDelete],
@@ -376,55 +362,33 @@ const UnitListing = () => {
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    columnResizeMode: 'onChange',
   });
-
-  const STATUS_OPTIONS = [
-    { key: 'all', label: 'All status' },
-    { key: 'active', label: 'Active' },
-    { key: 'pending', label: 'Pending' },
-    { key: 'maintenance', label: 'Maintenance' },
-  ];
 
   if (!canView) {
     return <AccessDenied pageTitle="Units" />;
   }
 
-  if (loading) {
-    return (
-      <Container>
-        <div className="text-center py-10">Loading outlets...</div>
-      </Container>
-    );
-  }
-
-  if (error) {
-    return (
-      <Container>
-        <div className="text-red-500 text-center py-10">{error}</div>
-      </Container>
-    );
-  }
-
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="mx-auto py-10 p-6">
         {/* Page header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 leading-none">
+        <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
+          <div className="flex flex-col gap-1">
+            <h1
+              className="text-[28px] font-bold text-[#101828]"
+              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+            >
               Registered Units
             </h1>
-            <p className="text-sm text-gray-400 mt-2.5 max-w-2xl">
+            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
               Manage and monitor all Units and restaurants registered within the
-              Jaiswal Group ecosystem through our centralized administration
-              panel.
+              Jaiswal Group ecosystem.
             </p>
           </div>
           {canAdd && (
             <Link
               to="/units/add-unit"
-              className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition whitespace-nowrap shrink-0"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
             >
               <Plus className="w-4 h-4" />
               Add New Unit
@@ -432,91 +396,69 @@ const UnitListing = () => {
           )}
         </div>
 
-        <DataGrid table={table} recordCount={filteredUnits.length}>
-          {/* Toolbar */}
-          <div className="flex items-center justify-between px-4 py-3 bg-white rounded-t-2xl border border-b-0 border-gray-100 gap-4 flex-wrap">
-            {/* Search - left side */}
-            <div className="relative sm:w-[50%] w-full border border-gray-200 rounded-xl text-sm text-gray-600 bg-gray-50 ">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search companies..."
-                className="pl-9 pr-4 py-2 outline-none focus:ring-1 focus:ring-emerald-100 focus:border-emerald-300 w-56 transition placeholder-gray-400"
-              />
-            </div>
-
-            {/* Filters + Export - right side */}
-            <div className="flex items-center gap-2.5">
-              <Dropdown label="Status" icon={SlidersHorizontal}>
-                {(close) => (
-                  <>
-                    {STATUS_OPTIONS.map((opt) => (
-                      <DropdownItem
-                        key={opt.key}
-                        label={opt.label}
-                        active={statusFilter === opt.key}
-                        onClick={() => {
-                          setStatusFilter(opt.key);
-                          close();
-                        }}
-                      />
-                    ))}
-                  </>
-                )}
-              </Dropdown>
-
-              <Dropdown label="Export" icon={Download} widthClass="w-44">
-                {(close) => (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleExport('csv');
-                        close();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition cursor-pointer border-0 bg-transparent text-left"
-                    >
-                      <FileSpreadsheet className="w-4 h-4 text-gray-400" />
-                      Export as CSV
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleExport('pdf');
-                        close();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-600 hover:bg-gray-50 transition cursor-pointer border-0 bg-transparent text-left"
-                    >
-                      <FileText className="w-4 h-4 text-gray-400" />
-                      Export as PDF
-                    </button>
-                  </>
-                )}
-              </Dropdown>
-            </div>
+        {/* Search + status filter */}
+        <div className="flex items-center gap-3 mb-5 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search units..."
+              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+            />
           </div>
 
-          {/* Table Card */}
-          <Card className="rounded-t-none border-t-0 shadow-none border">
-            <CardTable>
-              <ScrollArea>
-                <DataGridTable />
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </CardTable>
-            <CardFooter>
-              <DataGridPagination />
-            </CardFooter>
-          </Card>
-        </DataGrid>
+          <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
+        </div>
+
+        {/* Table Card */}
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
+              <Loader2 size={16} className="animate-spin" />
+              Loading units…
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center gap-3 py-16 text-sm text-red-500">
+              <span>{error}</span>
+              <button
+                type="button"
+                onClick={fetchUnits}
+                className="font-semibold underline cursor-pointer bg-transparent border-0"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <DataGrid
+              table={table}
+              recordCount={filteredUnits.length}
+              className="rounded-2xl"
+            >
+              <Card className="rounded-t-none border-t-0 rounded-2xl">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
+          )}
+        </div>
       </div>
 
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
         onClose={closeDeleteConfirm}
         onConfirm={confirmDelete}
-        itemLabel={deleteTarget?.name}
+        itemLabel={deleteTarget?.itemLabel}
         saving={deleteLoading}
       />
     </Container>
@@ -524,3 +466,4 @@ const UnitListing = () => {
 };
 
 export default UnitListing;
+

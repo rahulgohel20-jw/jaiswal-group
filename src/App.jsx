@@ -30,6 +30,7 @@ export function App() {
                     <LoadingBarContainer>
                       <BrowserRouter basename="/">
                         <Toaster
+                          theme="light"
                           richColors
                           position="top-right"
                           closeButton

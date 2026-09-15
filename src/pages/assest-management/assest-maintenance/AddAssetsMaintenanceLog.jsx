@@ -1,46 +1,283 @@
-import { ArrowLeft, Calendar, ChevronDown, ChevronRight, ClipboardList, Info, MapPin, Save, TriangleAlert, Wallet, Wrench, CircleDollarSign, Timer } from 'lucide-react';
-import React, { useState } from 'react'
-import { Link } from 'react-router';
+import { ArrowLeft, Building2, ChevronRight, ClipboardList, Info, MapPin, Save, Store, Users, Wrench } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams, useLocation } from 'react-router';
 import { Container } from "@/components/common/container";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import SearchableSelect from '../../../utils/SearchableSelect';
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
+    getAllAssets,
+    getRegisteredCompany,
+    createAssetMaintenance,
+    updateAssetMaintenance,
+    getAllAssetsMaintenance,
+    getAssetMaintenanceById,
+} from '../../../services/apiServices';
+import { getUserIdFromToken } from '../../../utils/auth';
 
 const inputCls =
-    'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-[#F8F9FF] ' +
+    'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 ' +
     'placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300';
 
-const selectCls =
-    'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-[#F8F9FF] ' +
-    'outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer';
+const STATUS_OPTIONS = [
+    { value: 'COMPLETED', label: 'Completed' },
+    { value: 'PENDING', label: 'Pending' },
+    { value: 'IN_PROGRESS', label: 'In Progress' },
+];
+
+// Org type -> friendly badge label, shown next to the "Company" label
+// once something is picked (mirrors AddAssignAsset's Companies field).
+const ORG_TYPE_META = {
+    GROUP: { label: 'Group', icon: Users },
+    SUB_COMPANY: { label: 'Company', icon: Building2 },
+    OUTLET: { label: 'Outlet', icon: Store },
+};
+const orgTypeLabel = (orgType) => ORG_TYPE_META[orgType]?.label ?? '—';
+
+// yyyy-MM-dd (native date input) -> dd/MM/yyyy (API format)
+const toApiDate = (isoDate) => {
+    if (!isoDate) return '';
+    const [year, month, day] = isoDate.split('-');
+    return `${day}/${month}/${year}`;
+};
+
+// dd/MM/yyyy (API format) -> yyyy-MM-dd (native date input)
+const toInputDate = (apiDate) => {
+    if (!apiDate) return '';
+    const [day, month, year] = apiDate.split('/');
+    if (!day || !month || !year) return '';
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
+const unwrapList = (response) => response?.data?.data ?? response?.data ?? [];
+
+const mapAssetToOption = (asset) => ({
+    value: String(asset.id),
+    label: asset.assetCode ? `${asset.assetCode} — ${asset.itemName}` : (asset.itemName ?? `Asset ${asset.id}`),
+});
+
+
+const mapMaintenanceToForm = (record) => ({
+    assetId: record.assetId != null ? String(record.assetId) : "",
+    company: "", // resolved separately once `organizations` has loaded
+    unit: "",
+    maintenanceDate: toInputDate(record.maintenanceDate),
+    engineerName: record.engineerName ?? "",
+    complaint: record.complaint ?? "",
+    actionTaken: record.actionTaken ?? "",
+    maintenanceCost: record.cost != null ? String(record.cost) : "",
+    downtime: record.downtimeHours != null ? String(record.downtimeHours) : "",
+    status: record.status ?? "",
+    nextServiceDate: toInputDate(record.nextServiceDate),
+});
+
+const initialForm = {
+    assetId: "",
+    company: "", // Companies dropdown: holds a GROUP or SUB_COMPANY id
+    unit: "", // Unit dropdown: holds an OUTLET id, scoped under `company`
+    maintenanceDate: "",
+    engineerName: "",
+    complaint: "",
+    actionTaken: "",
+    maintenanceCost: "",
+    downtime: "",
+    status: "",
+    nextServiceDate: "",
+};
+
+
 
 const AddAssetsMaintenanceLog = () => {
     const { canAdd, canView } = usePagePermissions('Asset Maintenance');
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { id } = useParams();
+    const isEditMode = Boolean(id);
 
-    const [form, setForm] = useState({
-        assetId: "",
-        assetName: "",
-        kitchen: "",
-        engineerName: "",
-        complaint: "",
+    const [form, setForm] = useState(initialForm);
+    const [errors, setErrors] = useState({});
+    const [submitting, setSubmitting] = useState(false);
 
-        actionTaken: "",
-        maintenanceCost: "",
-        downtime: "",
-        status: "",
-        nextServiceDate: "",
-    });
+    const [assets, setAssets] = useState([]);
+    const [loadingAssets, setLoadingAssets] = useState(false);
+
+    const [organizations, setOrganizations] = useState([]);
+    const [loadingOrganizations, setLoadingOrganizations] = useState(false);
+
+    const [fetchedRecord, setFetchedRecord] = useState( null);
+    const [loadingRecord, setLoadingRecord] = useState(false);
+
+    // Load asset list once
+    useEffect(() => {
+        const loadAssets = async () => {
+            setLoadingAssets(true);
+
+            try {
+                const response = await getAllAssets();
+                setAssets(unwrapList(response));
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoadingAssets(false);
+            }
+        };
+
+        loadAssets();
+    }, []);
+
+    // Load the full Group/Company/Outlet org list once
+    useEffect(() => {
+        const loadOrganizations = async () => {
+            setLoadingOrganizations(true);
+
+            try {
+                const response = await getRegisteredCompany();
+                setOrganizations(unwrapList(response));
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoadingOrganizations(false);
+            }
+        };
+
+        loadOrganizations();
+    }, []);
+
+
+    useEffect(() => {
+        if (!isEditMode || fetchedRecord) return;
+
+        const loadRecord = async () => {
+            setLoadingRecord(true);
+
+            try {
+                const response = await getAssetMaintenanceById(id);
+                const record = response?.data?.data ?? response?.data ?? null;
+
+                if (record) setFetchedRecord(record);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoadingRecord(false);
+            }
+        };
+
+        loadRecord();
+    }, [isEditMode, id, fetchedRecord]);
+    // Populate simple fields as soon as we have the record.
+    useEffect(() => {
+        if (!fetchedRecord) return;
+
+        setForm((prev) => ({ ...prev, ...mapMaintenanceToForm(fetchedRecord) }));
+    }, [fetchedRecord]);
+
+    // Populate company/unit once organizations are loaded (need org list to
+    // know whether organizationId refers to a Group, Company, or Outlet).
+    useEffect(() => {
+        if (!fetchedRecord || organizations.length === 0) return;
+
+        const orgId = fetchedRecord.orgId ;
+        const org = (organizations ?? []).find((o) => String(o.id) === String(orgId));
+
+        if (!org) return;
+
+        if (org.orgType === 'OUTLET') {
+            setForm((prev) => ({
+                ...prev,
+                company: org.parentId != null ? String(org.parentId) : "",
+                unit: String(org.id),
+            }));
+        } else {
+            // GROUP or SUB_COMPANY was selected directly, with no Unit.
+            setForm((prev) => ({
+                ...prev,
+                company: String(org.id),
+                unit: "",
+            }));
+        }
+    }, [fetchedRecord, organizations]);
+
+    const assetOptions = useMemo(
+        () => (assets ?? []).map(mapAssetToOption),
+        [assets],
+    );
+
+    // "Company" dropdown = Group + Company (SUB_COMPANY) orgs only.
+    const companyOptions = useMemo(
+        () =>
+            (organizations ?? [])
+                .filter((o) => o.orgType === 'GROUP' || o.orgType === 'SUB_COMPANY')
+                .map((o) => ({ value: String(o.id), label: o.companyNameEnglish || orgTypeLabel(o.orgType) })),
+        [organizations],
+    );
+
+
+    const selectedCompanyOrg = useMemo(() => {
+        if (!form.company) return null;
+        return (organizations ?? []).find((o) => String(o.id) === String(form.company)) ?? null;
+    }, [organizations, form.company]);
+
+    const unitOptions = useMemo(() => {
+        if (!selectedCompanyOrg) return [];
+
+        if (selectedCompanyOrg.orgType === 'SUB_COMPANY') {
+            return (organizations ?? [])
+                .filter((o) => o.orgType === 'OUTLET' && o.parentId === selectedCompanyOrg.id)
+                .map((o) => ({ value: String(o.id), label: o.companyNameEnglish }));
+        }
+
+        // GROUP: outlets belonging to any company under this group.
+        const companyIds = new Set(
+            (organizations ?? [])
+                .filter((o) => o.orgType === 'SUB_COMPANY' && o.parentId === selectedCompanyOrg.id)
+                .map((o) => o.id),
+        );
+
+        return (organizations ?? [])
+            .filter((o) => o.orgType === 'OUTLET' && companyIds.has(o.parentId))
+            .map((o) => ({ value: String(o.id), label: o.companyNameEnglish }));
+    }, [organizations, selectedCompanyOrg]);
 
     const set = (key, value) => {
         setForm((prev) => ({
             ...prev,
             [key]: value,
         }));
+        setErrors((prev) => ({ ...prev, [key]: undefined }));
     };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        set(name, value);
+    };
+
+    const handleAssetChange = (e) => {
+        set('assetId', e.target.value);
+    };
+
+    // Switching Company resets Unit, since Unit is scoped under Company.
+    const handleCompanyChange = (e) => {
+        const newCompanyId = e.target.value;
+        setForm((prev) => ({ ...prev, company: newCompanyId, unit: '' }));
+        setErrors((prev) => ({ ...prev, company: undefined }));
+    };
+
+    const handleUnitChange = (e) => {
+        set('unit', e.target.value);
+    };
+
+    const handleSelectChange = (e) => {
+        const { name, value } = e.target;
+        set(name, value);
+    };
+    const handleNumericChange = (e) => {
+    const { name, value } = e.target;
+
+    if (value === "" || /^\d*\.?\d*$/.test(value)) {
+        set(name, value);
+    }
+};
+
     const Label = ({ children, required, hint }) => (
         <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-1.5">
             {children}
@@ -53,148 +290,79 @@ const AddAssetsMaintenanceLog = () => {
         </label>
     );
 
-    const Select = ({
-        value,
-        onChange,
-        options = [],
-        placeholder = "Select...",
-        name,
-    }) => {
-        const [open, setOpen] = useState(false);
-        const [search, setSearch] = useState("");
+    if (!canView || !canAdd) {
+        return <AccessDenied pageTitle={isEditMode ? "Edit Maintenance Log" : "Add Maintenance Log"} />;
+    }
 
-        const selectedOption = options.find(
-            (option) => String(option.value ?? option) === String(value)
-        );
+    const validate = () => {
+        const nextErrors = {};
 
-        const selectedLabel = selectedOption
-            ? String(selectedOption.label ?? selectedOption)
-            : "";
+        if (!form.assetId) nextErrors.assetId = "Asset is required";
+        if (!form.company) nextErrors.company = "Company is required";
 
-        React.useEffect(() => {
-            if (!open) {
-                setSearch(selectedLabel);
-            }
-        }, [open, selectedLabel]);
+        setErrors(nextErrors);
 
-        const filteredOptions = options.filter((option) => {
-            const label = String(option.label ?? option);
-
-            return label
-                .toLowerCase()
-                .includes(search.trim().toLowerCase());
-        });
-
-        const handleSelect = (option) => {
-            const optionValue = option.value ?? option;
-            const optionLabel = option.label ?? option;
-
-            onChange({
-                target: {
-                    name,
-                    value: String(optionValue),
-                },
-            });
-
-            setSearch(String(optionLabel));
-            setOpen(false);
-        };
-
-        const handleInputChange = (e) => {
-            const inputValue = e.target.value;
-
-            setSearch(inputValue);
-            setOpen(true);
-
-            // Clear old selected value when user starts searching
-            if (String(inputValue) !== String(selectedLabel)) {
-                onChange({
-                    target: {
-                        name,
-                        value: "",
-                    },
-                });
-            }
-        };
-
-        return (
-            <Popover
-                open={open}
-                onOpenChange={(nextOpen) => {
-                    setOpen(nextOpen);
-
-                    if (nextOpen) {
-                        setSearch(selectedLabel);
-                    }
-                }}
-                modal={false}
-            >
-                <PopoverTrigger asChild>
-                    <div className="relative w-full">
-                        <input
-                            name={name}
-                            value={search}
-                            placeholder={placeholder}
-                            onClick={() => {
-                                setOpen(true);
-                                setSearch(selectedLabel);
-                            }}
-                            onChange={handleInputChange}
-                            className={`${inputCls} pr-10 cursor-text`}
-                        />
-
-                        <ChevronDown
-                            size={16}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-                        />
-                    </div>
-                </PopoverTrigger>
-
-                <PopoverContent
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
-                >
-                    <div className="max-h-52 overflow-y-auto">
-                        {filteredOptions.length > 0 ? (
-                            filteredOptions.map((option) => {
-                                const optionValue = option.value ?? option;
-                                const optionLabel = option.label ?? option;
-
-                                const isSelected =
-                                    String(value) === String(optionValue);
-
-                                return (
-                                    <button
-                                        key={String(optionValue)}
-                                        type="button"
-                                        onMouseDown={(e) => e.preventDefault()}
-                                        onClick={() => handleSelect(option)}
-                                        className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${isSelected
-                                                ? "bg-blue-50 text-primary font-medium"
-                                                : "text-gray-700"
-                                            }`}
-                                    >
-                                        {optionLabel}
-                                    </button>
-                                );
-                            })
-                        ) : (
-                            <div className="px-3 py-3 text-sm text-gray-500">
-                                No options found
-                            </div>
-                        )}
-                    </div>
-                </PopoverContent>
-            </Popover>
-        );
+        return Object.keys(nextErrors).length === 0;
     };
 
-    if (!canView || !canAdd) {
-        return <AccessDenied pageTitle="Add Maintenance Log" />;
-    }
+    const buildPayload = () => {
+        const createdBy = getUserIdFromToken() || 0;
+        const orgId  = Number(form.unit || form.company) || 0;
+
+        return {
+            actionTaken: form.actionTaken,
+            assetId: Number(form.assetId) || 0,
+            complaint: form.complaint,
+            cost: Number(form.maintenanceCost) || 0,
+            createdBy,
+            downtimeHours: Number(form.downtime) || 0,
+            engineerName: form.engineerName,
+            maintenanceDate: toApiDate(form.maintenanceDate),
+            nextServiceDate: toApiDate(form.nextServiceDate),
+            status: form.status || "PENDING",
+            orgId ,
+        };
+    };
+
+    const handleSave = async (addAnother = false) => {
+        if (!validate()) return;
+
+        setSubmitting(true);
+
+        try {
+            const payload = buildPayload();
+
+            if (isEditMode) {
+                await updateAssetMaintenance(Number(id), payload);
+                navigate('/assets/asset-maintenance');
+            } else {
+                await createAssetMaintenance(payload);
+
+                if (addAnother) {
+                    setForm(initialForm);
+                } else {
+                    navigate('/assets/asset-maintenance');
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const handleReset = () => {
+        if (isEditMode && fetchedRecord) {
+            setForm((prev) => ({ ...prev, ...mapMaintenanceToForm(fetchedRecord) }));
+        } else {
+            setForm(initialForm);
+        }
+        setErrors({});
+    };
+
+    const saveLabel = isEditMode
+        ? (submitting ? 'Updating...' : 'Update Maintenance Log')
+        : (submitting ? 'Saving...' : 'Save Maintenance Log');
 
     return (
        <Container>
@@ -204,18 +372,21 @@ const AddAssetsMaintenanceLog = () => {
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
-                <span className="text-[#002246] font-medium">Add Maintenance Log</span>
+                <span className="text-[#002246] font-medium">
+                    {isEditMode ? 'Edit Maintenance Log' : 'Add Maintenance Log'}
+                </span>
             </div>
             {/* Header */}
             <div className="flex items-start justify-between flex-wrap gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">
-                        Maintenance Log Registration
+                        {isEditMode ? 'Update Maintenance Log' : 'Maintenance Log Registration'}
                     </h1>
 
                     <p className="text-sm text-gray-500 mt-1">
-                        Record maintenance activities performed on assets for tracking and
-                        service history.
+                        {isEditMode
+                            ? 'Update the details of this maintenance record.'
+                            : 'Record maintenance activities performed on assets for tracking and service history.'}
                     </p>
                 </div>
 
@@ -232,15 +403,23 @@ const AddAssetsMaintenanceLog = () => {
 
                     <button
                         type="button"
-                        className="flex items-center cursor-pointer gap-2 px-5 py-2.5 rounded-lg bg-[#084E92] text-white font-medium hover:bg-[#073e77] transition"
+                        disabled={submitting || loadingRecord}
+                        onClick={() => handleSave(false)}
+                        className="flex items-center cursor-pointer gap-2 px-5 py-2.5 rounded-lg bg-[#084E92] text-white font-medium hover:bg-[#073e77] transition disabled:opacity-60"
                     >
                         <Save className="w-4 h-4" />
-                        Save Maintenance Log
+                        {saveLabel}
                     </button>
                 </div>
             </div>
 
-            <div className="mt-5 border rounded-2xl shadow-2xs flex flex-col border-t-5 border-indigo-200">
+            <div className="mt-5 border rounded-2xl shadow-2xs flex flex-col">
+                {loadingRecord && (
+                    <div className="px-6 pt-6 text-sm text-gray-500">
+                        Loading maintenance record...
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
 
                     <div>
@@ -256,71 +435,91 @@ const AddAssetsMaintenanceLog = () => {
 
                         <div className="space-y-4">
 
-                            {/* Asset ID */}
+                            {/* Asset */}
                             <div>
-                                <Label required>Asset ID</Label>
-                                <input
-                                    className={inputCls}
-                                    placeholder="e.g. AST-2023-001"
+                                <Label required>Asset</Label>
+
+                                <SearchableSelect
+                                    name="assetId"
+                                    value={form.assetId}
+                                    onChange={handleAssetChange}
+                                    placeholder={loadingAssets ? "Loading assets..." : "Select Asset..."}
+                                    options={assetOptions}
+                                    disabled={loadingAssets}
+                                    hasError={!!errors.assetId}
                                 />
+                                {errors.assetId && (
+                                    <p className="text-xs text-red-500 mt-1">{errors.assetId}</p>
+                                )}
                             </div>
 
-                            {/* Asset Name */}
-                            <div>
-                                <Label required>Asset Name</Label>
+                            {/* Company + Unit */}
+                            <div className="grid sm:grid-cols-2 gap-4 items-center">
 
-                                <Select
-                                    value={form.assetName}
-                                    onChange={(e) => set("assetName", e.target.value)}
-                                    placeholder="Select Asset..."
-                                    options={[
-                                        "Deep Freezer",
-                                        "Oven",
-                                        "Air Conditioner",
-                                        "Mixer Grinder"
-                                    ]}
-                                />
-                            </div>
+                                <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <Label required>Company</Label>
+                                        {selectedCompanyOrg && (
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-blue-50 text-[#084E92] border border-blue-100">
+                                                {orgTypeLabel(selectedCompanyOrg.orgType)}
+                                            </span>
+                                        )}
+                                    </div>
 
-                            {/* Unit */}
-                            <div>
-                                <Label>Unit Name</Label>
+                                    <div className="relative">
+                                        <SearchableSelect
+                                            name="company"
+                                            value={form.company}
+                                            onChange={handleCompanyChange}
+                                            placeholder={loadingOrganizations ? "Loading..." : "Search Group or Company..."}
+                                            options={companyOptions}
+                                            disabled={loadingOrganizations}
+                                            hasError={!!errors.company}
+                                        />
 
-                                <div className="relative">
-                                    <Select
-                                        value={form.kitchen}
-                                        onChange={(e) => set("kitchen", e.target.value)}
-                                        placeholder="Select Location..."
-                                        options={[
-                                            "Central Unit",
-                                            "Unit A",
-                                            "Unit B"
-                                        ]}
-                                    />
-
-                                    <MapPin className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                        {/* <MapPin className="absolute right-10 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" /> */}
+                                    </div>
+                                    {errors.company && (
+                                        <p className="text-xs text-red-500 mt-1">{errors.company}</p>
+                                    )}
                                 </div>
+
+                                <div className='h-full flex flex-col gap-1.5'>
+                                    <Label>Unit</Label>
+
+                                    <SearchableSelect
+                                        name="unit"
+                                        value={form.unit}
+                                        onChange={handleUnitChange}
+                                        placeholder={!form.company ? "Select company first" : "Select Unit (Optional)..."}
+                                        options={unitOptions}
+                                        disabled={!form.company}
+                                    />
+                                </div>
+
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid sm:grid-cols-2 gap-4">
 
                                 <div>
                                     <Label>Date</Label>
 
-                                    <div className="relative">
-                                        <input
-                                            type="date"
-                                            className={inputCls}
-                                        />
-
-                                        {/* <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /> */}
-                                    </div>
+                                    <input
+                                        type="date"
+                                        name="maintenanceDate"
+                                        value={form.maintenanceDate}
+                                        onChange={handleInputChange}
+                                        className={inputCls}
+                                    />
                                 </div>
 
                                 <div>
                                     <Label>Engineer Name</Label>
 
                                     <input
+                                        name="engineerName"
+                                        value={form.engineerName}
+                                        onChange={handleInputChange}
                                         className={inputCls}
                                         placeholder="John Doe"
                                     />
@@ -333,6 +532,9 @@ const AddAssetsMaintenanceLog = () => {
                                 <Label>Complaint Description</Label>
 
                                 <textarea
+                                    name="complaint"
+                                    value={form.complaint}
+                                    onChange={handleInputChange}
                                     rows={5}
                                     placeholder="Describe the issue reported..."
                                     className={`${inputCls} resize-none`}
@@ -363,6 +565,9 @@ const AddAssetsMaintenanceLog = () => {
                                 <Label>Action Taken</Label>
 
                                 <textarea
+                                    name="actionTaken"
+                                    value={form.actionTaken}
+                                    onChange={handleInputChange}
                                     rows={4}
                                     className={`${inputCls} resize-none`}
                                     placeholder="Detail the repairs performed..."
@@ -371,7 +576,7 @@ const AddAssetsMaintenanceLog = () => {
 
                             {/* Cost + Downtime */}
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid sm:grid-cols-2 gap-4">
 
                                 <div>
                                     <Label>Maintenance Cost</Label>
@@ -382,6 +587,9 @@ const AddAssetsMaintenanceLog = () => {
                                         </span>
 
                                         <input
+                                            name="maintenanceCost"
+                                            value={form.maintenanceCost}
+                                            onChange={handleNumericChange}
                                             className={`${inputCls} pl-7`}
                                             placeholder="0.00"
                                         />
@@ -393,6 +601,9 @@ const AddAssetsMaintenanceLog = () => {
 
                                     <div className="relative">
                                         <input
+                                            name="downtime"
+                                            value={form.downtime}
+                                           onChange={handleNumericChange}
                                             className={`${inputCls} pr-12`}
                                             placeholder="e.g. 4.5"
                                         />
@@ -407,20 +618,17 @@ const AddAssetsMaintenanceLog = () => {
 
                             {/* Status + Next Service */}
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid sm:grid-cols-2 gap-4">
 
                                 <div>
                                     <Label>Status</Label>
 
-                                    <Select
+                                    <SearchableSelect
+                                        name="status"
                                         value={form.status}
-                                        onChange={(e) => set("status", e.target.value)}
-                                        placeholder="Completed"
-                                        options={[
-                                            "Completed",
-                                            "Pending",
-                                            "In Progress"
-                                        ]}
+                                        onChange={handleSelectChange}
+                                        placeholder="Select Status..."
+                                        options={STATUS_OPTIONS}
                                     />
                                 </div>
 
@@ -429,6 +637,9 @@ const AddAssetsMaintenanceLog = () => {
 
                                     <input
                                         type="date"
+                                        name="nextServiceDate"
+                                        value={form.nextServiceDate}
+                                        onChange={handleInputChange}
                                         className={inputCls}
                                     />
                                 </div>
@@ -456,42 +667,29 @@ const AddAssetsMaintenanceLog = () => {
                 </div>
                 {/* Footer Actions */}
                 <div className="border-t border-[#DCE5EF] mt-8 p-6 mx-6">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
-
-                        {/* Left Side */}
-                        <div className="flex items-center gap-6">
-                           <Link to="/assets/asset-maintenance">
-                            <button
-                                type="button"
-                                className="text-gray-600 cursor-pointer font-medium hover:text-gray-800 transition"
-                            >
-                                Cancel
-                            </button>
-                           </Link>
-
-                            <button
-                                type="button"
-                                className="text-red-500 cursor-pointer font-medium hover:text-red-600 transition"
-                            >
-                                Reset
-                            </button>
-                        </div>
+                    <div className="flex items-center justify-end flex-wrap gap-4">
 
                         {/* Right Side */}
                         <div className="flex items-center gap-3 flex-col md:flex-row">
 
-                            <button
-                                type="button"
-                                className="px-6 py-2.5 cursor-pointer rounded-lg text-sm  border border-[#084E92] text-[#084E92] font-semibold hover:bg-blue-50 transition"
-                            >
-                                Save & Add Another
-                            </button>
+                            {!isEditMode && (
+                                <button
+                                    type="button"
+                                    disabled={submitting}
+                                    onClick={() => handleSave(true)}
+                                    className="px-6 py-2.5 cursor-pointer rounded-lg text-sm border border-[#084E92] text-[#084E92] font-semibold hover:bg-blue-50 transition disabled:opacity-60"
+                                >
+                                    Save & Add Another
+                                </button>
+                            )}
 
                             <button
                                 type="button"
-                                className="px-6 py-2.5 cursor-pointer rounded-lg text-sm bg-[#084E92] text-white font-semibold hover:bg-[#073e77] transition"
+                                disabled={submitting || loadingRecord}
+                                onClick={() => handleSave(false)}
+                                className="px-6 py-2.5 cursor-pointer rounded-lg text-sm bg-[#084E92] text-white font-semibold hover:bg-[#073e77] transition disabled:opacity-60"
                             >
-                                Save Maintenance Log
+                                {saveLabel}
                             </button>
 
                         </div>
@@ -505,5 +703,4 @@ const AddAssetsMaintenanceLog = () => {
     )
 }
 
-export default AddAssetsMaintenanceLog;   
-
+export default AddAssetsMaintenanceLog;

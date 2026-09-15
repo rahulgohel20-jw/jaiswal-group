@@ -15,15 +15,15 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css?family=Inter:300,400,500,600,700"
     />
-    <style>
+    <!-- <style>
       .dark body {
         background-color: hsl(240 10% 4%);
       }
-    </style>
-    <script>
+    </style> -->
+    <!-- <script>
       (function () {
         try {
-          const theme = localStorage.getItem('theme') || 'system';
+          const theme = localStorage.getItem('theme') || 'light';
           const prefersDark = window.matchMedia(
             '(prefers-color-scheme: dark)',
           ).matches;
@@ -32,7 +32,7 @@
           if (isDarkMode) document.documentElement.classList.add('dark');
         } catch (e) {}
       })();
-    </script>
+    </script> -->
   </head>
   <body class="text-foreground bg-background flex h-full text-base antialiased">
     <div class="flex grow" id="root"></div>
