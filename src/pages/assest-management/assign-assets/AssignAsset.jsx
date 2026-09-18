@@ -323,20 +323,26 @@ const AssignAssets = () => {
           : null,
         assignType: record.assetType,
         assignedTo: employee?.fullName ?? org?.companyNameEnglish ?? '—',
-        location: org?.companyNameEnglish ?? '—',
-        city: org?.cityName ?? '—',
-        state: org?.stateName ?? '—',
+        companiesId: record.companiesId ?? null,
+        companiesName: record.companiesName ?? org?.companyNameEnglish ?? '—',
+
+        // Sub Unit
+        subOutletId: record.subOutletId ?? null,
+        subOutletName: record.suboutletname ?? '-',
+        location: org?.companyNameEnglish ?? '-',
+        city: org?.cityName ?? '-',
+        state: org?.stateName ?? '-',
         qty: record.quantity ?? 0,
         active: record.active,
         // NOTE: no status enum confirmed on the API record — derived from
         // `active` until/unless the API returns a real status field.
         status: record.active ? 'Assigned' : 'Returned',
         createdAt: record.createdAt ?? null,
+        assignedDate: record.createdAt ? record.createdAt.split(' ')[0] : '-',
       };
     });
   }, [assignments, assets, employees, organizations]);
 
-  // Dynamic filter options built from real data instead of hardcoded values.
   const outletOptions = useMemo(
     () =>
       Array.from(
@@ -351,7 +357,6 @@ const AssignAssets = () => {
       ),
     [organizations],
   );
-
   const categoryOptions = useMemo(
     () =>
       Array.from(
@@ -606,16 +611,13 @@ const AssignAssets = () => {
           <p className="font-semibold text-gray-800 leading-tight">
             {row.original.assignedTo}
           </p>
-          <p className="text-xs text-gray-400">
-            {row.original.assigneeRole} · {row.original.assigneeDept}
-          </p>
         </div>
       ),
       size: 170,
     },
     {
       id: 'outlet',
-      accessorFn: (row) => row.outlet,
+      accessorFn: (row) => row.companiesName,
       header: ({ column }) => (
         <DataGridColumnHeader
           title="OUTLET"
@@ -624,7 +626,22 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 py-1">{row.original.outlet}</span>
+        <span className="text-gray-700 py-1">{row.original.companiesName}</span>
+      ),
+      size: 140,
+    },
+    {
+      id: 'subOutlet',
+      accessorFn: (row) => row.subOutletName,
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="SUB OUTLET"
+          column={column}
+          className="text-[#43474F] font-semibold"
+        />
+      ),
+      cell: ({ row }) => (
+        <span className="text-gray-700 py-1">{row.original.subOutletName}</span>
       ),
       size: 140,
     },
@@ -735,14 +752,14 @@ const AssignAssets = () => {
   return (
     <Container>
       <div className="p-4 md:p-6">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
           <span>Dashboard</span>
           <ChevronRight size={12} />
           <span>Asset Management</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Assign Assets</span>
         </div>
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+        <div className="flex justify-between lg:items-center flex-col lg:flex-row gap-4">
           <div>
             <h1 className="text-2xl font-bold">Assign Assets</h1>
             <p className="text-[#737781] mt-1 text-sm">
@@ -751,10 +768,10 @@ const AssignAssets = () => {
             </p>
           </div>
 
-          <div className="flex gap-3 self-end">
+          <div className="flex gap-3 lg:self-end">
             <button
               type="button"
-              className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white"
+              className="px-4 py-2 border border-[#C3C6D1] w-max rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white"
             >
               <Upload size={16} />
               Export Assignments
@@ -763,7 +780,7 @@ const AssignAssets = () => {
               <Link to="/assets/assign-asset">
                 <button
                   type="button"
-                  className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                  className="px-4 py-2 bg-[#084E92] text-white rounded-lg w-max flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                 >
                   <Plus size={16} />
                   Assign Asset
