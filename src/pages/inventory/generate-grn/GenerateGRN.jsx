@@ -17,6 +17,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -99,8 +100,6 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
 const PO_STATUS_FILTER_OPTIONS = [
   { value: 'ALL', label: 'All Status' },
   { value: 'APPROVED', label: 'Approved' },
-  { value: 'IN_PROGRESS', label: 'In Progress' },
-  { value: 'PARTIALLY_RECEIVED', label: 'Partially Received' },
   { value: 'CLOSED', label: 'Closed' },
 ];
 
@@ -160,6 +159,7 @@ const GenerateGRN = () => {
   } = useOrgScope();
 
   const [list, setList] = useState([]);
+  const [selectedPos, setSelectedPos] = useState([]);
   const [loading, setLoading] = useState(false);
   const [poError, setPoError] = useState(null);
 
@@ -173,56 +173,83 @@ const GenerateGRN = () => {
     setPoError(null);
     try {
       const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
-      const statusParam = statusFilter === 'ALL' ? 'APPROVED' : statusFilter;
 
-      let response;
-      try {
-        response = await getPOsByOutlet(outletId, statusParam);
-      } catch (apiErr) {
-        response = await getPurchaseOrdersByOutlet(outletId, statusParam);
+      let rawList = [];
+      if (statusFilter === 'ALL') {
+        const [appRes, closedRes] = await Promise.all([
+          getPurchaseOrdersByOutlet(outletId, 'APPROVED').catch(() => ({ data: [] })),
+          getPurchaseOrdersByOutlet(outletId, 'CLOSED').catch(() => ({ data: [] })),
+        ]);
+        const appData = appRes?.data?.data ?? appRes?.data ?? [];
+        const closedData = closedRes?.data?.data ?? closedRes?.data ?? [];
+        rawList = [
+          ...(Array.isArray(appData) ? appData : []),
+          ...(Array.isArray(closedData) ? closedData : []),
+        ];
+      } else {
+        let response;
+        try {
+          response = await getPOsByOutlet(outletId, statusFilter);
+        } catch (apiErr) {
+          response = await getPurchaseOrdersByOutlet(outletId, statusFilter);
+        }
+        const raw = response?.data?.data ?? response?.data ?? response ?? [];
+        rawList = Array.isArray(raw) ? raw : [];
       }
 
-      const raw = response?.data?.data ?? response?.data ?? response ?? [];
-      const rawList = Array.isArray(raw) ? raw : [];
+      const normalized = rawList
+        .filter((item) => {
+          const s = String(item.status || 'APPROVED').toUpperCase();
+          return s === 'APPROVED' || s === 'CLOSED';
+        })
+        .map((item) => {
+          const prCode =
+            item.prcode ||
+            item.prCode ||
+            item.purchaseRequisitionCode ||
+            item.details?.[0]?.prcode ||
+            item.details?.[0]?.prCode ||
+            item.prPoMapping?.[0]?.prcode ||
+            '—';
 
-      const normalized = rawList.map((item) => {
-        const prCode =
-          item.prcode ||
-          item.prCode ||
-          item.purchaseRequisitionCode ||
-          item.details?.[0]?.prcode ||
-          item.details?.[0]?.prCode ||
-          item.prPoMapping?.[0]?.prcode ||
-          '—';
+          const deliveryDateRaw =
+            item.expectedDeliveryDate ||
+            item.deliveryDate ||
+            item.targetDeliveryDate ||
+            item.deliveryScheduleDate ||
+            '';
 
-        const deliveryDateRaw =
-          item.expectedDeliveryDate ||
-          item.deliveryDate ||
-          item.targetDeliveryDate ||
-          item.deliveryScheduleDate ||
-          '';
+          const vendorName =
+            item.vendorName ||
+            item.vendor?.name ||
+            item.vendor?.companyName ||
+            item.vendor?.tradeName ||
+            item.details?.[0]?.vendorName ||
+            item.poVendorName ||
+            (item.vendorId ? `Vendor #${item.vendorId}` : '—');
 
-        return {
-          id: item.id,
-          prCode: prCode,
-          poCode: item.purchaseOrderCode || item.poCode || `PO-${item.id}`,
-          date: formatDate(item.poDate || item.date || item.createdAt),
-          rawDate: item.poDate || item.date || item.createdAt,
-          deliveryDate: formatDate(deliveryDateRaw),
-          outlet: item.organizationName || item.outletName || item.outlet || (item.outletId ? `Outlet #${item.outletId}` : '—'),
-          outletId: item.outletId || item.orgId,
-          raisedBy: item.createdByName || item.raisedBy || item.createdBy || '—',
-          status: item.status || 'APPROVED',
-          rawStatus: item.status || 'APPROVED',
-          vendorName: item.vendorName,
-          details: item.details || [],
-        };
-      });
+          return {
+            id: item.id,
+            prCode: prCode,
+            poCode: item.purchaseOrderCode || item.poCode || `PO-${item.id}`,
+            date: formatDate(item.poDate || item.date || item.createdAt),
+            rawDate: item.poDate || item.date || item.createdAt,
+            deliveryDate: formatDate(deliveryDateRaw),
+            outlet: item.organizationName || item.outletName || item.outlet || (item.outletId ? `Outlet #${item.outletId}` : '—'),
+            outletId: item.outletId || item.orgId,
+            raisedBy: item.createdByName || item.raisedBy || item.createdBy || '—',
+            status: item.status || 'APPROVED',
+            rawStatus: item.status || 'APPROVED',
+            vendorId: item.vendorId || item.vendor?.id || item.details?.[0]?.vendorId,
+            vendorName: vendorName,
+            details: item.details || [],
+          };
+        });
 
       const scopedRows = filterRowsByScope(normalized);
       setList(scopedRows);
     } catch (err) {
-      setPoError(err?.message || 'Failed to load approved purchase orders.');
+      setPoError(err?.message || 'Failed to load purchase orders.');
     } finally {
       setLoading(false);
     }
@@ -253,12 +280,112 @@ const GenerateGRN = () => {
     return rows;
   }, [list, statusFilter, searchQuery]);
 
+  const selectableRows = useMemo(() => {
+    return filteredRows.filter((r) => String(r.rawStatus).toUpperCase() === 'APPROVED');
+  }, [filteredRows]);
+
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [searchQuery, statusFilter, selectedUnitId]);
 
-  const columns = useMemo(
-    () => [
+  const toggleSelectPo = useCallback((item) => {
+    setSelectedPos((prev) => {
+      const exists = prev.some((p) => p.id === item.id);
+      if (exists) {
+        return prev.filter((p) => p.id !== item.id);
+      }
+      if (prev.length > 0) {
+        const first = prev[0];
+        const outletMatch = item.outletId && first.outletId ? item.outletId === first.outletId : item.outlet === first.outlet;
+        const vendorMatch = item.vendorId && first.vendorId ? item.vendorId === first.vendorId : item.vendorName === first.vendorName;
+        if (!outletMatch || !vendorMatch) {
+          toast.error('Only Purchase Orders from the same Outlet and Vendor can be combined into a single GRN.');
+          return prev;
+        }
+      }
+      return [...prev, item];
+    });
+  }, []);
+
+  const handleBulkGenerateGRN = () => {
+    if (selectedPos.length === 0) {
+      toast.error('Please select at least one Purchase Order.');
+      return;
+    }
+    const ids = selectedPos.map((p) => p.id);
+    navigate('/inventory/generate-grn/generate', {
+      state: { poIds: ids, pos: selectedPos },
+    });
+  };
+
+  const columns = useMemo(() => {
+    const isAllApprovedSelected =
+      selectableRows.length > 0 &&
+      selectableRows.every((r) => selectedPos.some((p) => p.id === r.id));
+    const isSomeSelected = selectedPos.length > 0 && !isAllApprovedSelected;
+    const firstSelected = selectedPos[0];
+
+    return [
+      {
+        id: 'select',
+        header: () => (
+          <div className="flex items-center justify-center px-1">
+            <input
+              type="checkbox"
+              checked={isAllApprovedSelected}
+              ref={(input) => {
+                if (input) input.indeterminate = isSomeSelected;
+              }}
+              onChange={() => {
+                if (isAllApprovedSelected) {
+                  setSelectedPos([]);
+                } else {
+                  if (selectableRows.length === 0) return;
+                  const first = selectableRows[0];
+                  const matching = selectableRows.filter(
+                    (r) =>
+                      (r.outletId && first.outletId ? r.outletId === first.outletId : r.outlet === first.outlet) &&
+                      (r.vendorId && first.vendorId ? r.vendorId === first.vendorId : r.vendorName === first.vendorName)
+                  );
+                  setSelectedPos(matching);
+                }
+              }}
+              className="w-4 h-4 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 cursor-pointer"
+              title="Select all matching Approved Purchase Orders"
+            />
+          </div>
+        ),
+        cell: ({ row }) => {
+          const item = row.original;
+          const isApproved = String(item.rawStatus).toUpperCase() === 'APPROVED';
+          if (!isApproved) return <span className="text-gray-300 text-center block">—</span>;
+
+          const isSelected = selectedPos.some((p) => p.id === item.id);
+          const isMismatch =
+            firstSelected &&
+            ((item.outletId && firstSelected.outletId ? item.outletId !== firstSelected.outletId : item.outlet !== firstSelected.outlet) ||
+             (item.vendorId && firstSelected.vendorId ? item.vendorId !== firstSelected.vendorId : item.vendorName !== firstSelected.vendorName));
+
+          return (
+            <div
+              className="flex items-center justify-center px-1"
+              title={isMismatch ? "Cannot combine POs with different Outlet or Vendor" : "Select PO for GRN generation"}
+            >
+              <input
+                type="checkbox"
+                checked={isSelected}
+                disabled={isMismatch}
+                onChange={() => toggleSelectPo(item)}
+                className={`w-4 h-4 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 ${
+                  isMismatch ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
+                }`}
+              />
+            </div>
+          );
+        },
+        size: 45,
+        enableSorting: false,
+      },
       {
         id: 'poCode',
         accessorFn: (row) => row.poCode,
@@ -328,6 +455,19 @@ const GenerateGRN = () => {
         size: 190,
       },
       {
+        id: 'vendorName',
+        accessorFn: (row) => row.vendorName,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="VENDOR NAME" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-xs text-gray-800 font-medium whitespace-nowrap" title={row.original.vendorName}>
+            {row.original.vendorName || '—'}
+          </span>
+        ),
+        size: 180,
+      },
+      {
         id: 'raisedBy',
         accessorFn: (row) => row.raisedBy,
         header: ({ column }) => (
@@ -356,20 +496,8 @@ const GenerateGRN = () => {
         ),
         cell: ({ row }) => {
           const original = row.original;
-          const isClosed = String(original.rawStatus).toUpperCase() === 'CLOSED';
-          if (isClosed) {
-            return (
-              <button
-                type="button"
-                onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1.5 rounded-lg hover:bg-gray-100 transition"
-                title="View Order"
-              >
-                <Eye size={18} />
-              </button>
-            );
-          }
-          if (!canAdd) {
+          const isApproved = String(original.rawStatus).toUpperCase() === 'APPROVED';
+          if (!isApproved || !canAdd) {
             return (
               <button
                 type="button"
@@ -384,7 +512,11 @@ const GenerateGRN = () => {
           return (
             <button
               type="button"
-              onClick={() => navigate(`/inventory/generate-grn/generate/${original.id}`)}
+              onClick={() =>
+                navigate('/inventory/generate-grn/generate', {
+                  state: { poIds: [original.id], pos: [original] },
+                })
+              }
               className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-white bg-[#084E92] text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs whitespace-nowrap"
             >
               <FileText className="w-3.5 h-3.5" />
@@ -395,9 +527,8 @@ const GenerateGRN = () => {
         enableSorting: false,
         size: 160,
       },
-    ],
-    [navigate, canAdd]
-  );
+    ];
+  }, [navigate, canAdd, selectableRows, selectedPos, toggleSelectPo]);
 
   const table = useReactTable({
     data: filteredRows,
@@ -430,7 +561,46 @@ const GenerateGRN = () => {
               List of approved Purchase Orders ready for Goods Received Note generation.
             </p>
           </div>
+
+          {canAdd && (
+            <button
+              type="button"
+              onClick={handleBulkGenerateGRN}
+              disabled={selectedPos.length === 0}
+              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm ${
+                selectedPos.length > 0
+                  ? 'bg-[#084E92] text-white hover:bg-[#073e77] cursor-pointer'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>
+                {selectedPos.length > 0
+                  ? `Generate GRN (${selectedPos.length} Selected)`
+                  : 'Generate GRN'}
+              </span>
+            </button>
+          )}
         </div>
+
+        {/* Selected POs Info Banner */}
+        {selectedPos.length > 0 && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-xs text-[#084E92] font-medium animate-in fade-in duration-200">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#084E92]" />
+              <span>
+                <strong>{selectedPos.length}</strong> Purchase Order{selectedPos.length > 1 ? 's' : ''} selected ({selectedPos[0].outlet} &bull; {selectedPos[0].vendorName})
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedPos([])}
+              className="text-blue-700 hover:text-blue-900 font-semibold underline cursor-pointer bg-transparent border-0"
+            >
+              Clear Selection
+            </button>
+          </div>
+        )}
 
         {scopeError && (
           <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">

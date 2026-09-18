@@ -11,6 +11,7 @@ import {
   Info,
   Package,
   Plus,
+  PlusCircle,
   Search,
   Trash2,
   Building2,
@@ -22,6 +23,7 @@ import {
   Pencil,
   AlertTriangle,
   Loader2,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -30,6 +32,7 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import VendorPriceComparisonModal from './VendorPriceComparisonModal';
 import VendorChangeConfirmModal from './VendorChangeConfirmModal';
+import { GenerateStockTransferModal } from './GenerateStockTransferModal';
 import { usePurchaseRequisitions } from '../purchase-requisition/utils/usePurchaseRequisitions';
 import { usePurchaseOrders } from './utils/usePurchaseOrders';
 import {
@@ -202,7 +205,6 @@ const CreatePurchaseOrder = () => {
   const [vendors, setVendors] = useState([]);
   const [vendorsLoading, setVendorsLoading] = useState(false);
 
-  const [rowSelection, setRowSelection] = useState({});
   const [quotationItem, setQuotationItem] = useState(null);
 
   const [quotations, setQuotations] = useState([]);
@@ -219,9 +221,7 @@ const CreatePurchaseOrder = () => {
   const [uomMap, setUomMap] = useState({});
   const [priceMap, setPriceMap] = useState({});
   const [hsnMap, setHsnMap] = useState({});
-  const [cgstMap, setCgstMap] = useState({});
-  const [sgstMap, setSgstMap] = useState({});
-  const [igstMap, setIgstMap] = useState({});
+  const [gstMap, setGstMap] = useState({});
   const [cessMap, setCessMap] = useState({});
   const [itemRemarksMap, setItemRemarksMap] = useState({});
   const [openRemarksMap, setOpenRemarksMap] = useState({});
@@ -238,6 +238,46 @@ const CreatePurchaseOrder = () => {
   const [showVendorChangeModal, setShowVendorChangeModal] = useState(false);
   const [isSwitchingVendor, setIsSwitchingVendor] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [rowSelection, setRowSelection] = useState({});
+  const [showStockTransferModal, setShowStockTransferModal] = useState(false);
+
+  const [otherCosts, setOtherCosts] = useState(() => {
+    const initial = poRecord?.otherCosts || state?.otherCosts;
+    if (Array.isArray(initial) && initial.length > 0) {
+      return initial.map((c, i) => ({
+        id: c.id || Date.now() + i,
+        label: c.label || '',
+        cost: c.cost !== undefined && c.cost !== null ? String(c.cost) : '',
+      }));
+    }
+    return [{ id: Date.now(), label: '', cost: '' }];
+  });
+
+  const handleAddOtherCost = () => {
+    setOtherCosts((prev) => [...prev, { id: Date.now() + Math.random(), label: '', cost: '' }]);
+  };
+
+  const handleRemoveOtherCost = (id) => {
+    setOtherCosts((prev) => {
+      if (prev.length <= 1) {
+        return [{ id: Date.now(), label: '', cost: '' }];
+      }
+      return prev.filter((item) => item.id !== id);
+    });
+  };
+
+  const handleOtherCostChange = (id, field, value) => {
+    setOtherCosts((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const totalOtherCosts = useMemo(() => {
+    return otherCosts.reduce((sum, item) => {
+      const val = Number(item.cost);
+      return sum + (!isNaN(val) && val > 0 ? val : 0);
+    }, 0);
+  }, [otherCosts]);
 
   const {
     loading: outletsLoading,
@@ -297,6 +337,10 @@ const CreatePurchaseOrder = () => {
           setFetchedBillTo({
             vendorId: v.id,
             vendorName: v.name || v.vendorName,
+            isGstApplicable:
+              v.isGstApplicable !== undefined && v.isGstApplicable !== null
+                ? Boolean(v.isGstApplicable)
+                : false,
             addressLine1: v.addressLine1 || v.address,
             addressLine2: v.addressLine2,
             cityName: v.cityName || v.city,
@@ -456,9 +500,7 @@ const CreatePurchaseOrder = () => {
     const vendorNext = {};
     const remarksNext = {};
     const hsnNext = {};
-    const cgstNext = {};
-    const sgstNext = {};
-    const igstNext = {};
+    const gstNext = {};
     const cessNext = {};
 
     (poRecord.details || []).forEach((d) => {
@@ -480,17 +522,11 @@ const CreatePurchaseOrder = () => {
       const hasIgst = d.igst != null && Number(d.igst) > 0;
       const hasTax = d.tax != null && Number(d.tax) > 0;
 
-      if (hasCgst) cgstNext[d.rawMaterialId] = Number(d.cgst);
-      else if (hasTax) cgstNext[d.rawMaterialId] = Number(d.tax) / 2;
-      else if (hasIgst) cgstNext[d.rawMaterialId] = Number(d.igst) / 2;
-
-      if (hasSgst) sgstNext[d.rawMaterialId] = Number(d.sgst);
-      else if (hasTax) sgstNext[d.rawMaterialId] = Number(d.tax) / 2;
-      else if (hasIgst) sgstNext[d.rawMaterialId] = Number(d.igst) / 2;
-
-      if (hasIgst) igstNext[d.rawMaterialId] = Number(d.igst);
-      else if (hasCgst && hasSgst) igstNext[d.rawMaterialId] = Number(d.cgst) + Number(d.sgst);
-      else if (hasTax) igstNext[d.rawMaterialId] = Number(d.tax);
+      if (hasIgst) gstNext[d.rawMaterialId] = Number(d.igst);
+      else if (hasCgst && hasSgst) gstNext[d.rawMaterialId] = Number(d.cgst) + Number(d.sgst);
+      else if (hasCgst) gstNext[d.rawMaterialId] = Number(d.cgst) * 2;
+      else if (hasTax) gstNext[d.rawMaterialId] = Number(d.tax);
+      else gstNext[d.rawMaterialId] = 18;
     });
     setPoQtyMap((prev) => ({ ...prev, ...qtyNext }));
     setUomMap((prev) => ({ ...prev, ...uomNext }));
@@ -498,10 +534,17 @@ const CreatePurchaseOrder = () => {
     setVendorMap((prev) => ({ ...prev, ...vendorNext }));
     setItemRemarksMap((prev) => ({ ...prev, ...remarksNext }));
     setHsnMap((prev) => ({ ...prev, ...hsnNext }));
-    setCgstMap((prev) => ({ ...prev, ...cgstNext }));
-    setSgstMap((prev) => ({ ...prev, ...sgstNext }));
-    setIgstMap((prev) => ({ ...prev, ...igstNext }));
+    setGstMap((prev) => ({ ...prev, ...gstNext }));
     setCessMap((prev) => ({ ...prev, ...cessNext }));
+    if (poRecord.otherCosts && Array.isArray(poRecord.otherCosts) && poRecord.otherCosts.length > 0) {
+      setOtherCosts(
+        poRecord.otherCosts.map((c, i) => ({
+          id: c.id || Date.now() + i,
+          label: c.label || '',
+          cost: c.cost !== undefined && c.cost !== null ? String(c.cost) : '',
+        }))
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poRecord, isEditingExistingPo]);
 
@@ -543,6 +586,12 @@ const CreatePurchaseOrder = () => {
             name: displayName,
             personName,
             companyName,
+            isGstApplicable:
+              v.isGstApplicable !== undefined && v.isGstApplicable !== null
+                ? Boolean(v.isGstApplicable)
+                : false,
+            gstNumber: v.gstNumber || v.gstin || '',
+            rawVendor: v,
           };
         });
         setVendors(list);
@@ -564,6 +613,36 @@ const CreatePurchaseOrder = () => {
     const filtered = vendors.filter((v) => mappedVendorIds.has(Number(v.id)));
     return filtered.length > 0 ? filtered : vendors;
   }, [vendors, vendorOutletMappings, activeOutletId]);
+
+  const activeVendorObj = useMemo(() => {
+    const targetId =
+      commonVendorId ||
+      poRecord?.vendorId ||
+      state?.vendorId ||
+      billTo?.vendorId ||
+      Object.values(vendorMap).find(Boolean);
+    if (!targetId) return null;
+    return vendors.find((v) => String(v.id) === String(targetId)) || null;
+  }, [vendors, commonVendorId, poRecord?.vendorId, state?.vendorId, billTo?.vendorId, vendorMap]);
+
+  const isGstApplicable = useMemo(() => {
+    // 1. From matched active vendor in getAllActiveVendors()
+    if (activeVendorObj && activeVendorObj.isGstApplicable !== undefined && activeVendorObj.isGstApplicable !== null) {
+      return Boolean(activeVendorObj.isGstApplicable);
+    }
+    // 2. Directly from getbyid response (poRecord.isGstApplicable)
+    if (poRecord && poRecord.isGstApplicable !== undefined && poRecord.isGstApplicable !== null) {
+      return Boolean(poRecord.isGstApplicable);
+    }
+    // 3. From billTo or route state
+    if (billTo && billTo.isGstApplicable !== undefined && billTo.isGstApplicable !== null) {
+      return Boolean(billTo.isGstApplicable);
+    }
+    if (state && state.isGstApplicable !== undefined && state.isGstApplicable !== null) {
+      return Boolean(state.isGstApplicable);
+    }
+    return false;
+  }, [activeVendorObj, poRecord, billTo, state]);
 
   const handleVendorChange = async (rawMaterialId, vendorId) => {
     if (!vendorId) {
@@ -707,6 +786,10 @@ const CreatePurchaseOrder = () => {
         const newBillTo = {
           vendorId: v.id,
           vendorName: v.name || v.vendorName,
+          isGstApplicable:
+            v.isGstApplicable !== undefined && v.isGstApplicable !== null
+              ? Boolean(v.isGstApplicable)
+              : false,
           addressLine1: v.addressLine1 || v.address,
           addressLine2: v.addressLine2,
           cityName: v.cityName || v.city,
@@ -744,15 +827,7 @@ const CreatePurchaseOrder = () => {
         // Update tax fields accordingly:
         purchaseItems.forEach((item) => {
           const defaultTax = item.tax != null && Number(item.tax) > 0 ? Number(item.tax) : 18;
-          if (isNewInterState) {
-            setIgstMap((prev) => ({ ...prev, [item.rawMaterialId]: defaultTax }));
-            setCgstMap((prev) => ({ ...prev, [item.rawMaterialId]: 0 }));
-            setSgstMap((prev) => ({ ...prev, [item.rawMaterialId]: 0 }));
-          } else {
-            setCgstMap((prev) => ({ ...prev, [item.rawMaterialId]: defaultTax / 2 }));
-            setSgstMap((prev) => ({ ...prev, [item.rawMaterialId]: defaultTax / 2 }));
-            setIgstMap((prev) => ({ ...prev, [item.rawMaterialId]: 0 }));
-          }
+          setGstMap((prev) => ({ ...prev, [item.rawMaterialId]: prev[item.rawMaterialId] ?? defaultTax }));
         });
 
         toast.success(`Vendor switched to ${vendorName}. Prices and tax rates recalculated.`);
@@ -894,9 +969,7 @@ const CreatePurchaseOrder = () => {
       setHsnMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? item.hsnCode }));
     }
     const itemTax = item.tax != null && item.tax !== '' ? Number(item.tax) : 18;
-    setCgstMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? itemTax / 2 }));
-    setSgstMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? itemTax / 2 }));
-    setIgstMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? itemTax }));
+    setGstMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? itemTax }));
     setCessMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? (item.cess != null && item.cess !== '' ? Number(item.cess) : 0) }));
   };
 
@@ -952,17 +1025,7 @@ const CreatePurchaseOrder = () => {
       delete next[rawMaterialId];
       return next;
     });
-    setCgstMap((prev) => {
-      const next = { ...prev };
-      delete next[rawMaterialId];
-      return next;
-    });
-    setSgstMap((prev) => {
-      const next = { ...prev };
-      delete next[rawMaterialId];
-      return next;
-    });
-    setIgstMap((prev) => {
+    setGstMap((prev) => {
       const next = { ...prev };
       delete next[rawMaterialId];
       return next;
@@ -1122,31 +1185,7 @@ const CreatePurchaseOrder = () => {
       return next;
     });
 
-    setCgstMap((prev) => {
-      const next = { ...prev };
-      purchaseItems.forEach((item) => {
-        if (next[item.rawMaterialId] === undefined) {
-          const rm = rmMap[item.rawMaterialId];
-          const rmTax = rm?.tax != null && rm.tax !== '' ? Number(rm.tax) : 18;
-          next[item.rawMaterialId] = rmTax / 2;
-        }
-      });
-      return next;
-    });
-
-    setSgstMap((prev) => {
-      const next = { ...prev };
-      purchaseItems.forEach((item) => {
-        if (next[item.rawMaterialId] === undefined) {
-          const rm = rmMap[item.rawMaterialId];
-          const rmTax = rm?.tax != null && rm.tax !== '' ? Number(rm.tax) : 18;
-          next[item.rawMaterialId] = rmTax / 2;
-        }
-      });
-      return next;
-    });
-
-    setIgstMap((prev) => {
+    setGstMap((prev) => {
       const next = { ...prev };
       purchaseItems.forEach((item) => {
         if (next[item.rawMaterialId] === undefined) {
@@ -1163,6 +1202,52 @@ const CreatePurchaseOrder = () => {
     () => new Set(purchaseItems.map((item) => String(item.rawMaterialId))),
     [purchaseItems],
   );
+
+  const selectedItemsForTransfer = useMemo(() => {
+    return purchaseItems
+      .filter((_, idx) => Boolean(rowSelection[idx]))
+      .map((item) => {
+        const uom = uomMap[item.rawMaterialId] || {
+          uomId: item.uomId,
+          uomName: item.uomName || item.unit || 'Unit',
+        };
+        const vId =
+          vendorMap[item.rawMaterialId] ||
+          (isSingleVendorPo ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '') : '') ||
+          commonVendorId ||
+          '';
+        const vObj = mappedVendors.find((v) => String(v.id) === String(vId));
+        const vName = vObj?.name || item.vendorName || (vId ? `Vendor #${vId}` : 'No vendor assigned');
+        const remarks = itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '';
+        const currentQty = Number(poQtyMap[item.rawMaterialId]) || 1;
+
+        return {
+          id: item.rawMaterialId,
+          rawMaterialId: item.rawMaterialId,
+          itemName: item.itemName,
+          source: item.source,
+          uomId: uom.uomId,
+          uomName: uom.uomName,
+          vendorId: vId,
+          vendorName: vName,
+          remarks: remarks,
+          orderedQty: currentQty,
+          transferQuantity: currentQty,
+        };
+      });
+  }, [
+    purchaseItems,
+    rowSelection,
+    uomMap,
+    vendorMap,
+    isSingleVendorPo,
+    commonVendorId,
+    poRecord?.vendorId,
+    state?.vendorId,
+    mappedVendors,
+    itemRemarksMap,
+    poQtyMap,
+  ]);
 
   const includedItems = purchaseItems.filter(
     (item) => poQtyMap[item.rawMaterialId] !== undefined && poQtyMap[item.rawMaterialId] !== '',
@@ -1187,6 +1272,7 @@ const CreatePurchaseOrder = () => {
     let totalCESS = 0;
 
     const itemCalculations = {};
+    const taxRateGroups = {};
 
     includedItems.forEach((item) => {
       const qty = Number(poQtyMap[item.rawMaterialId]) || 0;
@@ -1195,11 +1281,16 @@ const CreatePurchaseOrder = () => {
       totalTaxable += taxable;
 
       const cessPct =
-        cessMap[item.rawMaterialId] !== undefined && cessMap[item.rawMaterialId] !== ''
+        isGstApplicable && cessMap[item.rawMaterialId] !== undefined && cessMap[item.rawMaterialId] !== ''
           ? Number(cessMap[item.rawMaterialId])
           : 0;
       const cessAmt = (taxable * cessPct) / 100;
       totalCESS += cessAmt;
+
+      const gstPct =
+        isGstApplicable && gstMap[item.rawMaterialId] !== undefined && gstMap[item.rawMaterialId] !== ''
+          ? Number(gstMap[item.rawMaterialId])
+          : (isGstApplicable ? 18 : 0);
 
       let itemTax = 0;
       let cgstPct = 0;
@@ -1208,35 +1299,24 @@ const CreatePurchaseOrder = () => {
       let cgstAmt = 0;
       let sgstAmt = 0;
       let igstAmt = 0;
+      let gstAmt = 0;
 
-      if (isInterState) {
-        igstPct =
-          igstMap[item.rawMaterialId] !== undefined && igstMap[item.rawMaterialId] !== ''
-            ? Number(igstMap[item.rawMaterialId])
-            : (cgstMap[item.rawMaterialId] != null && sgstMap[item.rawMaterialId] != null && (Number(cgstMap[item.rawMaterialId]) + Number(sgstMap[item.rawMaterialId]) > 0))
-              ? Number(cgstMap[item.rawMaterialId]) + Number(sgstMap[item.rawMaterialId])
-              : 18;
-        igstAmt = (taxable * igstPct) / 100;
-        totalIGST += igstAmt;
-        itemTax = igstAmt + cessAmt;
-      } else {
-        cgstPct =
-          cgstMap[item.rawMaterialId] !== undefined && cgstMap[item.rawMaterialId] !== ''
-            ? Number(cgstMap[item.rawMaterialId])
-            : (igstMap[item.rawMaterialId] != null && Number(igstMap[item.rawMaterialId]) > 0)
-              ? Number(igstMap[item.rawMaterialId]) / 2
-              : 9;
-        sgstPct =
-          sgstMap[item.rawMaterialId] !== undefined && sgstMap[item.rawMaterialId] !== ''
-            ? Number(sgstMap[item.rawMaterialId])
-            : (igstMap[item.rawMaterialId] != null && Number(igstMap[item.rawMaterialId]) > 0)
-              ? Number(igstMap[item.rawMaterialId]) / 2
-              : 9;
-        cgstAmt = (taxable * cgstPct) / 100;
-        sgstAmt = (taxable * sgstPct) / 100;
-        totalCGST += cgstAmt;
-        totalSGST += sgstAmt;
-        itemTax = cgstAmt + sgstAmt + cessAmt;
+      if (isGstApplicable) {
+        if (isInterState) {
+          igstPct = gstPct;
+          igstAmt = (taxable * igstPct) / 100;
+          gstAmt = igstAmt;
+          totalIGST += igstAmt;
+        } else {
+          cgstPct = gstPct / 2;
+          sgstPct = gstPct / 2;
+          cgstAmt = (taxable * cgstPct) / 100;
+          sgstAmt = (taxable * sgstPct) / 100;
+          gstAmt = cgstAmt + sgstAmt;
+          totalCGST += cgstAmt;
+          totalSGST += sgstAmt;
+        }
+        itemTax = gstAmt + cessAmt;
       }
 
       const itemTotal = taxable + itemTax;
@@ -1245,6 +1325,8 @@ const CreatePurchaseOrder = () => {
         qty,
         price,
         taxable,
+        gstPct,
+        gstAmt,
         cgstPct,
         sgstPct,
         igstPct,
@@ -1256,17 +1338,45 @@ const CreatePurchaseOrder = () => {
         itemTax,
         itemTotal,
       };
+
+      if (isGstApplicable) {
+        const rateKey = `${gstPct}_${cessPct}`;
+        if (!taxRateGroups[rateKey]) {
+          taxRateGroups[rateKey] = {
+            gstPct,
+            cessPct,
+            cgstPct,
+            sgstPct,
+            igstPct,
+            taxable: 0,
+            cgstAmt: 0,
+            sgstAmt: 0,
+            igstAmt: 0,
+            gstAmt: 0,
+            cessAmt: 0,
+          };
+        }
+        taxRateGroups[rateKey].taxable += taxable;
+        taxRateGroups[rateKey].cgstAmt += cgstAmt;
+        taxRateGroups[rateKey].sgstAmt += sgstAmt;
+        taxRateGroups[rateKey].igstAmt += igstAmt;
+        taxRateGroups[rateKey].gstAmt += gstAmt;
+        taxRateGroups[rateKey].cessAmt += cessAmt;
+      }
     });
 
+    const taxBreakdowns = Object.values(taxRateGroups).sort((a, b) => b.gstPct - a.gstPct || b.cessPct - a.cessPct);
+
     const totalGST = isInterState ? totalIGST : totalCGST + totalSGST;
-    const totalTax = totalGST + totalCESS;
-    const rawNet = totalTaxable + totalTax;
+    const totalTax = isGstApplicable ? totalGST + totalCESS : 0;
+    const rawNet = totalTaxable + totalTax + totalOtherCosts;
     const roundedNet = Math.round(rawNet);
     const roundOff = Number((roundedNet - rawNet).toFixed(2));
     const netAmount = roundedNet;
 
     return {
       itemCalculations,
+      taxBreakdowns,
       totalTaxable,
       totalCGST,
       totalSGST,
@@ -1274,13 +1384,14 @@ const CreatePurchaseOrder = () => {
       totalGST,
       totalCESS,
       totalTax,
+      totalOtherCosts,
       rawNet,
       netAmount,
       roundedNet,
       roundOff,
       amountInWords: numberToWords(netAmount),
     };
-  }, [includedItems, poQtyMap, priceMap, cgstMap, sgstMap, igstMap, cessMap, isInterState]);
+  }, [includedItems, poQtyMap, priceMap, gstMap, cessMap, isInterState, isGstApplicable, totalOtherCosts]);
 
   const buildSinglePayload = (status) => {
     const reqId = getPurchaseRequisitionId();
@@ -1291,6 +1402,14 @@ const CreatePurchaseOrder = () => {
     const actionBy = getUsernameFromToken();
     const firstVendorId = Object.values(vendorMap).find(Boolean) || commonVendorId || poRecord?.vendorId;
 
+    const otherCostsPayload = otherCosts
+      .filter((c) => (c.label && c.label.trim()) || (c.cost !== '' && !isNaN(Number(c.cost))))
+      .map((c) => ({
+        ...(c.id && typeof c.id === 'number' && c.id < 1000000000 ? { id: c.id } : {}),
+        label: (c.label || '').trim(),
+        cost: Number(c.cost) || 0,
+      }));
+
     // Line items inserted vendor-wise (ordered by vendorId)
     const details = [...includedItems]
       .map((item) => {
@@ -1300,8 +1419,8 @@ const CreatePurchaseOrder = () => {
         const unitPrice = Number(priceMap[item.rawMaterialId]) || 0;
         const currentUom = uomMap[item.rawMaterialId] || { uomId: item.uomId, uomName: item.uomName || item.unit };
 
-        // If initial Create PO / isGeneratePo: NO GST, NO HSN, NO tax fields
-        if (isGeneratePo) {
+        // If initial Create PO / isGeneratePo OR Non-GST vendor: NO GST, NO HSN, NO tax fields
+        if (isGeneratePo || !isGstApplicable) {
           return {
             uomId: currentUom.uomId,
             uomName: currentUom.uomName,
@@ -1313,13 +1432,24 @@ const CreatePurchaseOrder = () => {
             vendorName: vendorObj?.name ?? item.vendorName ?? '',
             orderedQuantity: qty,
             receivedQuantity: 0,
+            tax: 0,
+            taxAmount: 0,
             totalPrice: Number((qty * unitPrice).toFixed(2)),
+            hsnCode: '',
+            cess: 0,
+            cessAmount: 0,
+            cgst: 0,
+            cgstAmount: 0,
+            sgst: 0,
+            sgstAmount: 0,
+            igst: 0,
+            igstAmount: 0,
             prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
             remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
           };
         }
 
-        // Otherwise (Update PO / Continue PO): Include configured GST, HSN, Tax amounts, CESS
+        // Otherwise (GST-applicable vendor): Include configured GST, HSN, Tax amounts, CESS
         const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {};
         const hsn = hsnMap[item.rawMaterialId] || '';
         const cess = calc.cessPct ?? 0;
@@ -1390,11 +1520,13 @@ const CreatePurchaseOrder = () => {
         poDate: formattedPoDate,
         expectedDeliveryDate: formattedExpectedDate,
         remarks,
-        totalAmount: Number(calculatedTotals.totalTaxable.toFixed(2)),
+        totalAmount: Number(calculatedTotals.netAmount.toFixed(2)),
         vendorId: firstVendorId ? Number(firstVendorId) : undefined,
         status,
         userId,
         actionBy,
+        otherCosts: otherCostsPayload,
+        totalOtherCosts: Number(totalOtherCosts.toFixed(2)),
         details,
       };
     }
@@ -1412,6 +1544,8 @@ const CreatePurchaseOrder = () => {
       status,
       userId,
       actionBy,
+      otherCosts: otherCostsPayload,
+      totalOtherCosts: Number(totalOtherCosts.toFixed(2)),
       details,
     };
   };
@@ -1456,24 +1590,11 @@ const CreatePurchaseOrder = () => {
         setSubmitError(`Please enter a valid price for "${item.itemName}".`);
         return false;
       }
-      if (!isGeneratePo) {
-        if (isInterState) {
-          const igst = igstMap[item.rawMaterialId];
-          if (igst !== '' && igst !== undefined && (isNaN(Number(igst)) || Number(igst) < 0 || Number(igst) > 100)) {
-            setSubmitError(`Please enter a valid IGST percentage (0-100) for "${item.itemName}".`);
-            return false;
-          }
-        } else {
-          const cgst = cgstMap[item.rawMaterialId];
-          if (cgst !== '' && cgst !== undefined && (isNaN(Number(cgst)) || Number(cgst) < 0 || Number(cgst) > 100)) {
-            setSubmitError(`Please enter a valid CGST percentage (0-100) for "${item.itemName}".`);
-            return false;
-          }
-          const sgst = sgstMap[item.rawMaterialId];
-          if (sgst !== '' && sgst !== undefined && (isNaN(Number(sgst)) || Number(sgst) < 0 || Number(sgst) > 100)) {
-            setSubmitError(`Please enter a valid SGST percentage (0-100) for "${item.itemName}".`);
-            return false;
-          }
+      if (!isGeneratePo && isGstApplicable) {
+        const gst = gstMap[item.rawMaterialId];
+        if (gst !== '' && gst !== undefined && (isNaN(Number(gst)) || Number(gst) < 0 || Number(gst) > 100)) {
+          setSubmitError(`Please enter a valid GST percentage (0-100) for "${item.itemName}".`);
+          return false;
         }
         const cess = cessMap[item.rawMaterialId];
         if (cess !== '' && cess !== undefined && (isNaN(Number(cess)) || Number(cess) < 0 || Number(cess) > 100)) {
@@ -1931,18 +2052,25 @@ const CreatePurchaseOrder = () => {
                 <h2 className="text-base font-semibold text-[#1E293B]">Address & Tax Configuration</h2>
               </div>
               <div className="flex items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                    isInterState
-                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                  {isInterState
-                    ? 'Inter-State Supply (IGST 18%)'
-                    : 'Intra-State Supply (CGST 9% + SGST 9%)'}
-                </span>
+                {isGstApplicable ? (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                      isInterState
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                    {isInterState
+                      ? 'Inter-State Supply (IGST 18%)'
+                      : 'Intra-State Supply (CGST 9% + SGST 9%)'}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                    Non-GST Supply
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1975,7 +2103,7 @@ const CreatePurchaseOrder = () => {
                           {billTo.phoneNumber}
                         </span>
                       )}
-                      {billTo.gstNumber && (
+                      {isGstApplicable && billTo.gstNumber && (
                         <span>
                           <strong className="text-gray-700">GSTIN:</strong> {billTo.gstNumber}
                         </span>
@@ -2072,7 +2200,7 @@ const CreatePurchaseOrder = () => {
               Loading purchase items...
             </div>
           )}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-5 border-b border-[#E2E8F0] bg-white">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 border-b border-[#E2E8F0] bg-white">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#084E92] shrink-0">
                 <ClipboardList className="w-5 h-5" />
@@ -2085,16 +2213,42 @@ const CreatePurchaseOrder = () => {
               </div>
             </div>
             {!isReadOnly && (
-              <div className="w-full md:w-80">
-                <RawMaterialItemPicker
-                  rawMaterials={rawMaterials}
-                  alreadyAddedIds={alreadyAddedIds}
-                  onAdd={handleAddRawMaterialItem}
-                  loading={rawMaterialsLoading}
-                />
-                {itemPickError && (
-                  <p className="text-xs text-red-500 mt-1.5">{itemPickError}</p>
-                )}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="w-full sm:w-72 md:w-80">
+                  <RawMaterialItemPicker
+                    rawMaterials={rawMaterials}
+                    alreadyAddedIds={alreadyAddedIds}
+                    onAdd={handleAddRawMaterialItem}
+                    loading={rawMaterialsLoading}
+                  />
+                  {itemPickError && (
+                    <p className="text-xs text-red-500 mt-1.5">{itemPickError}</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={selectedItemsForTransfer.length === 0}
+                  onClick={() => setShowStockTransferModal(true)}
+                  className={`inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                    selectedItemsForTransfer.length > 0
+                      ? 'bg-[#084E92] text-white hover:bg-blue-800 shadow-sm active:scale-[0.98]'
+                      : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
+                  }`}
+                  title={
+                    selectedItemsForTransfer.length === 0
+                      ? 'Select at least one item from the table below to generate stock transfer'
+                      : `Generate Stock Transfer for ${selectedItemsForTransfer.length} selected item(s)`
+                  }
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  <span>Generate Stock Transfer</span>
+                  {selectedItemsForTransfer.length > 0 && (
+                    <span className="inline-flex items-center justify-center bg-white/25 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                      {selectedItemsForTransfer.length}
+                    </span>
+                  )}
+                </button>
               </div>
             )}
           </div>
@@ -2126,28 +2280,26 @@ const CreatePurchaseOrder = () => {
                   <th className="py-3 px-2 text-left w-52">Vendor Name</th>
                   <th className="py-3 px-2 text-center w-16">Qty</th>
                   <th className="py-3 px-2 text-right w-20">Rate (₹)</th>
-                  {!isGeneratePo && (
+                  {!isGeneratePo && isGstApplicable && (
                     <>
                       <th className="py-3 px-2 text-center w-20">HSN/SAC</th>
-                      {!isInterState ? (
-                        <>
-                          <th className="py-3 px-1 text-center w-14">CGST (%)</th>
-                          <th className="py-3 px-1 text-center w-14">SGST (%)</th>
-                        </>
-                      ) : (
-                        <th className="py-3 px-1 text-center w-14">IGST (%)</th>
-                      )}
+                      <th className="py-3 px-1 text-center w-14">GST (%)</th>
                       <th className="py-3 px-1 text-center w-14">CESS (%)</th>
+                      <th className="py-3 px-2 text-right w-24">Amount w/o Tax (₹)</th>
+                      <th className="py-3 px-2 text-right w-20">Tax Applied (₹)</th>
+                      <th className="py-3 px-3 text-right w-28">Total Amount (₹)</th>
                     </>
                   )}
-                  <th className="py-3 px-4 text-right w-auto min-w-[130px]">Amount (₹)</th>
+                  {(isGeneratePo || !isGstApplicable) && (
+                    <th className="py-3 px-4 text-right w-auto min-w-[130px]">Amount (₹)</th>
+                  )}
                   <th className="py-3 px-2 text-center w-12">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
                 {purchaseItems.length === 0 ? (
                   <tr>
-                    <td colSpan={isGeneratePo ? 8 : (!isInterState ? 11 : 10)} className="py-14 text-center">
+                    <td colSpan={(!isGeneratePo && isGstApplicable) ? 12 : 8} className="py-14 text-center">
                       <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                         <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-3">
                           <Package className="w-6 h-6" />
@@ -2164,6 +2316,8 @@ const CreatePurchaseOrder = () => {
                       qty: Number(poQtyMap[item.rawMaterialId]) || 0,
                       price: Number(priceMap[item.rawMaterialId]) || 0,
                       taxable: 0,
+                      gstPct: 18,
+                      gstAmt: 0,
                       cgstPct: 9,
                       sgstPct: 9,
                       igstPct: 18,
@@ -2354,7 +2508,7 @@ const CreatePurchaseOrder = () => {
                             className="w-18 h-8 border border-[#E2E8F0] rounded-lg text-right px-1.5 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                           />
                         </td>
-                        {!isGeneratePo && (
+                        {!isGeneratePo && isGstApplicable ? (
                           <>
                             <td className="py-2.5 px-2 text-center align-top pt-3 w-20">
                               <input
@@ -2371,70 +2525,25 @@ const CreatePurchaseOrder = () => {
                                 className="w-18 h-8 border border-[#E2E8F0] rounded-lg px-1.5 text-center text-xs font-mono outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                               />
                             </td>
-                            {!isInterState ? (
-                              <>
-                                <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
-                                    value={cgstMap[item.rawMaterialId] ?? 9}
-                                    onKeyDown={(e) => {
-                                      if (e.key === '-' || e.key === 'e') e.preventDefault();
-                                    }}
-                                    onChange={(e) => {
-                                      const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
-                                      setCgstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
-                                      setSgstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
-                                    }}
-                                    disabled={isReadOnly}
-                                    placeholder="9"
-                                    className="w-12 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
-                                  />
-                                </td>
-                                <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    max="100"
-                                    step="0.01"
-                                    value={sgstMap[item.rawMaterialId] ?? 9}
-                                    onKeyDown={(e) => {
-                                      if (e.key === '-' || e.key === 'e') e.preventDefault();
-                                    }}
-                                    onChange={(e) => {
-                                      const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
-                                      setCgstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
-                                      setSgstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
-                                    }}
-                                    disabled={isReadOnly}
-                                    placeholder="9"
-                                    className="w-12 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
-                                  />
-                                </td>
-                              </>
-                            ) : (
-                              <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.01"
-                                  value={igstMap[item.rawMaterialId] ?? 18}
-                                  onKeyDown={(e) => {
-                                    if (e.key === '-' || e.key === 'e') e.preventDefault();
-                                  }}
-                                  onChange={(e) => {
-                                    const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
-                                    setIgstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
-                                  }}
-                                  disabled={isReadOnly}
-                                  placeholder="18"
-                                  className="w-13 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
-                                />
-                              </td>
-                            )}
+                            <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={gstMap[item.rawMaterialId] ?? 18}
+                                onKeyDown={(e) => {
+                                  if (e.key === '-' || e.key === 'e') e.preventDefault();
+                                }}
+                                onChange={(e) => {
+                                  const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                                  setGstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
+                                }}
+                                disabled={isReadOnly}
+                                placeholder="18"
+                                className="w-13 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                              />
+                            </td>
                             <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
                               <input
                                 type="number"
@@ -2454,11 +2563,21 @@ const CreatePurchaseOrder = () => {
                                 className="w-12 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                               />
                             </td>
+                            <td className="py-2.5 px-2 text-right font-medium text-xs text-gray-700 font-mono align-top pt-3.5 w-24 whitespace-nowrap">
+                              ₹{calc.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2.5 px-2 text-right font-medium text-xs text-amber-700 font-mono align-top pt-3.5 w-20 whitespace-nowrap">
+                              ₹{calc.itemTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-bold text-xs text-gray-900 font-mono align-top pt-3.5 w-28 whitespace-nowrap">
+                              ₹{calc.itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
                           </>
+                        ) : (
+                          <td className="py-2.5 px-4 text-right font-bold text-xs text-gray-900 font-mono align-top pt-3.5 w-auto min-w-[130px] whitespace-nowrap">
+                            ₹{((Number(poQtyMap[item.rawMaterialId]) || 0) * (Number(priceMap[item.rawMaterialId]) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
                         )}
-                        <td className="py-2.5 px-4 text-right font-bold text-xs text-gray-900 font-mono align-top pt-3.5 w-auto min-w-[130px] whitespace-nowrap">
-                          ₹{(isGeneratePo ? (Number(poQtyMap[item.rawMaterialId]) || 0) * (Number(priceMap[item.rawMaterialId]) || 0) : calc.itemTotal).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </td>
                         <td className="py-2.5 px-2 text-center align-top pt-3 w-12">
                           {!isReadOnly && (
                             <button
@@ -2494,80 +2613,328 @@ const CreatePurchaseOrder = () => {
             </div>
           ) : (
             <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                {/* Left Column: Tax Breakdown */}
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92] mb-3 flex items-center gap-1.5">
-                    <Receipt className="w-4 h-4" />
-                    Tax Breakdown ({isInterState ? 'Inter-State IGST' : 'Intra-State CGST + SGST'})
-                  </h3>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between py-1 border-b border-gray-100 items-center">
-                      <div className="flex items-center gap-1.5 group relative">
-                        <span className="text-gray-500">Taxable Amount:</span>
-                        <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#084E92] transition-colors cursor-pointer" />
-                        
-                        {/* Tooltip showing item-wise quantity * rate */}
-                        <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-30 bg-gray-900 text-white rounded-lg p-3 shadow-xl text-xs w-72 pointer-events-none">
-                          <p className="font-semibold border-b border-gray-700 pb-1 mb-1.5 text-gray-200">Item-wise Taxable Breakdown</p>
-                          <div className="space-y-1 max-h-48 overflow-y-auto">
-                            {includedItems.map((item) => {
-                              const qty = Number(poQtyMap[item.rawMaterialId]) || 0;
-                              const price = Number(priceMap[item.rawMaterialId]) || 0;
-                              const taxable = qty * price;
-                              return (
-                                <div key={item.rawMaterialId} className="flex justify-between gap-2 text-[11px]">
-                                  <span className="truncate text-gray-300 max-w-[140px]" title={item.itemName}>{item.itemName}:</span>
-                                  <span className="font-mono text-gray-100 shrink-0">{qty} × ₹{price.toFixed(2)} = ₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                      <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTaxable)}</span>
+              {/* If GST is applicable, show Other Costing on top across full width, then 2-col Tax Breakdown + Summary */}
+              {isGstApplicable && (
+                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mb-6">
+                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
+                    <div className="flex items-center gap-2">
+                      <PlusCircle size={16} className="text-[#084E92]" />
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        Other Costing / Charges (Transportation, Handling, etc.)
+                      </h3>
                     </div>
-                    {!isInterState ? (
-                      <>
-                        <div className="flex justify-between py-1 border-b border-gray-100">
-                          <span className="text-gray-500">CGST Amount:</span>
-                          <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalCGST)}</span>
-                        </div>
-                        <div className="flex justify-between py-1 border-b border-gray-100">
-                          <span className="text-gray-500">SGST Amount:</span>
-                          <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalSGST)}</span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex justify-between py-1 border-b border-gray-100">
-                        <span className="text-gray-500">IGST Amount:</span>
-                        <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalIGST)}</span>
-                      </div>
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        onClick={handleAddOtherCost}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#084E92] bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition cursor-pointer"
+                      >
+                        <Plus size={13} />
+                        Add Cost
+                      </button>
                     )}
-                    {calculatedTotals.totalCESS > 0 && (
-                      <div className="flex justify-between py-1 border-b border-gray-100">
-                        <span className="text-gray-500">CESS Amount:</span>
-                        <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalCESS)}</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    {otherCosts.map((costItem, index) => (
+                      <div key={costItem.id || index} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={costItem.label}
+                          onChange={(e) => handleOtherCostChange(costItem.id, 'label', e.target.value)}
+                          disabled={isReadOnly}
+                          placeholder="e.g. Delivery Charge, Packaging, Freight..."
+                          className="w-64 sm:w-80 md:w-96 max-w-full h-9 border border-[#E2E8F0] rounded-lg px-2.5 text-xs text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
+                        />
+                        <div className="w-36 relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-medium">₹</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={costItem.cost}
+                            onKeyDown={(e) => {
+                              if (e.key === '-' || e.key === 'e') e.preventDefault();
+                            }}
+                            onChange={(e) => handleOtherCostChange(costItem.id, 'cost', e.target.value)}
+                            disabled={isReadOnly}
+                            placeholder="0.00"
+                            className="w-full h-9 border border-[#E2E8F0] rounded-lg pl-6 pr-2 text-right text-xs font-mono text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
+                          />
+                        </div>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveOtherCost(costItem.id)}
+                            disabled={otherCosts.length === 1 && !costItem.label && !costItem.cost}
+                            className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 flex items-center justify-center transition cursor-pointer disabled:opacity-40 shrink-0"
+                            title="Remove cost"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
-                    )}
-                    <div className="flex justify-between py-1.5 font-bold text-gray-900 border-t border-gray-200">
-                      <span>Total Tax (GST + CESS):</span>
-                      <span className="text-[#084E92] font-mono">{formatCurrency(calculatedTotals.totalTax)}</span>
+                    ))}
+                  </div>
+                  {totalOtherCosts > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-gray-100 flex justify-start items-center gap-2 text-xs">
+                      <span className="font-semibold text-gray-500 uppercase tracking-wider">Total Other Costs:</span>
+                      <span className="font-bold text-gray-900 font-mono">
+                        ₹{totalOtherCosts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+                {/* Left Column: If GST is applicable -> Tax Breakdown. If GST NOT applicable -> Other Costing / Charges */}
+                {isGstApplicable ? (
+                  <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-gray-100">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92] flex items-center gap-1.5">
+                        <Receipt className="w-4 h-4" />
+                        Tax Breakdown {isInterState ? '(Inter-State IGST)' : '(Intra-State CGST + SGST)'}
+                      </h3>
+                      <span className="text-[10px] font-semibold bg-blue-50 text-[#084E92] px-2.5 py-0.5 rounded-full border border-blue-100">
+                        GST Rate Breakdown
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead>
+                          <tr className="border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px]">
+                            <th className="pb-2.5 px-2 text-left whitespace-nowrap">TAX RATE</th>
+                            <th className="pb-2.5 px-2 text-right whitespace-nowrap">TAXABLE AMT</th>
+                            {!isInterState ? (
+                              <>
+                                <th className="pb-2.5 px-2 text-right whitespace-nowrap">SGST</th>
+                                <th className="pb-2.5 w-6 text-center"></th>
+                                <th className="pb-2.5 px-2 text-right whitespace-nowrap">CGST</th>
+                              </>
+                            ) : (
+                              <th className="pb-2.5 px-2 text-right whitespace-nowrap">IGST</th>
+                            )}
+                            {calculatedTotals.totalCESS > 0 && (
+                              <>
+                                <th className="pb-2.5 w-6 text-center"></th>
+                                <th className="pb-2.5 px-2 text-right whitespace-nowrap">CESS</th>
+                              </>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 font-mono">
+                          {calculatedTotals.taxBreakdowns && calculatedTotals.taxBreakdowns.length > 0 ? (
+                            calculatedTotals.taxBreakdowns.map((rate, idx) => (
+                              <tr key={`${rate.gstPct}_${rate.cessPct || 0}_${idx}`} className="hover:bg-gray-50/60 transition-colors">
+                                <td className="py-2.5 px-2 font-sans whitespace-nowrap">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-[#084E92] border border-blue-100">
+                                    {Number(rate.gstPct).toFixed(2)}% GST
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-2 text-right whitespace-nowrap">
+                                  <div className="inline-flex items-center justify-end gap-1.5 font-mono">
+                                    <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-sans">
+                                      of
+                                    </span>
+                                    <span className="font-semibold text-gray-800">
+                                      ₹{Number(rate.taxable).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                    <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-gray-100/90 text-gray-500 font-bold text-[11px] font-sans">
+                                      =
+                                    </span>
+                                  </div>
+                                </td>
+                                {!isInterState ? (
+                                  <>
+                                    <td className="py-2.5 px-2 text-right whitespace-nowrap font-mono font-semibold text-gray-800">
+                                      ₹{Number(rate.sgstAmt).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                    <td className="py-2.5 w-6 px-0.5 text-center">
+                                      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-blue-50 text-[#084E92] font-bold text-[11px] font-sans border border-blue-100">
+                                        +
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-2 text-right whitespace-nowrap font-mono font-semibold text-gray-800">
+                                      ₹{Number(rate.cgstAmt).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                  </>
+                                ) : (
+                                  <td className="py-2.5 px-2 text-right whitespace-nowrap font-mono font-semibold text-gray-800">
+                                    ₹{Number(rate.igstAmt).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                )}
+                                {calculatedTotals.totalCESS > 0 && (
+                                  <>
+                                    <td className="py-2.5 w-6 px-0.5 text-center">
+                                      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-blue-50 text-[#084E92] font-bold text-[11px] font-sans border border-blue-100">
+                                        +
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-2 text-right whitespace-nowrap font-mono font-semibold text-gray-800">
+                                      <div className="inline-flex items-center justify-end gap-1.5 font-mono">
+                                        <span>
+                                          ₹{Number(rate.cessAmt || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                        {Number(rate.cessPct || 0) > 0 ? (
+                                          <span className="text-[10px] font-sans font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                            ({Number(rate.cessPct)}% CESS)
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </td>
+                                  </>
+                                )}
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={!isInterState ? (calculatedTotals.totalCESS > 0 ? 7 : 5) : (calculatedTotals.totalCESS > 0 ? 5 : 3)} className="py-4 text-center text-gray-400 italic">
+                                No taxable line items
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                        <tfoot>
+                          <tr className="border-t-2 border-dashed border-gray-300 font-bold text-gray-900 font-mono">
+                            <td className="pt-3 px-2 font-sans uppercase tracking-wider text-xs whitespace-nowrap">TOTAL</td>
+                            <td className="pt-3 px-2 text-right whitespace-nowrap">
+                              ₹{Number(calculatedTotals.totalTaxable).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            {!isInterState ? (
+                              <>
+                                <td className="pt-3 px-2 text-right text-[#084E92] whitespace-nowrap">
+                                  ₹{Number(calculatedTotals.totalSGST).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className="pt-3 w-6 px-0.5"></td>
+                                <td className="pt-3 px-2 text-right text-[#084E92] whitespace-nowrap">
+                                  ₹{Number(calculatedTotals.totalCGST).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </>
+                            ) : (
+                              <td className="pt-3 px-2 text-right text-[#084E92] whitespace-nowrap">
+                                ₹{Number(calculatedTotals.totalIGST).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            )}
+                            {calculatedTotals.totalCESS > 0 && (
+                              <>
+                                <td className="pt-3 w-6 px-0.5"></td>
+                                <td className="pt-3 px-2 text-right text-[#084E92] whitespace-nowrap">
+                                  ₹{Number(calculatedTotals.totalCESS).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        </tfoot>
+                      </table>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  /* Non-GST View: Left column is Other Costing / Charges */
+                  <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <PlusCircle size={16} className="text-[#084E92]" />
+                          <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                            Other Costing / Charges
+                          </h3>
+                        </div>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            onClick={handleAddOtherCost}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-[#084E92] bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition cursor-pointer"
+                          >
+                            <Plus size={13} />
+                            Add Cost
+                          </button>
+                        )}
+                      </div>
+                      <div className="space-y-2.5">
+                        {otherCosts.map((costItem, index) => (
+                          <div key={costItem.id || index} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={costItem.label}
+                              onChange={(e) => handleOtherCostChange(costItem.id, 'label', e.target.value)}
+                              disabled={isReadOnly}
+                              placeholder="e.g. Delivery, Packaging, Handling..."
+                              className="flex-1 h-9 border border-[#E2E8F0] rounded-lg px-2.5 text-xs text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
+                            />
+                            <div className="w-32 relative">
+                              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-xs font-medium">₹</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={costItem.cost}
+                                onKeyDown={(e) => {
+                                  if (e.key === '-' || e.key === 'e') e.preventDefault();
+                                }}
+                                onChange={(e) => handleOtherCostChange(costItem.id, 'cost', e.target.value)}
+                                disabled={isReadOnly}
+                                placeholder="0.00"
+                                className="w-full h-9 border border-[#E2E8F0] rounded-lg pl-6 pr-2 text-right text-xs font-mono text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
+                              />
+                            </div>
+                            {!isReadOnly && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveOtherCost(costItem.id)}
+                                disabled={otherCosts.length === 1 && !costItem.label && !costItem.cost}
+                                className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 flex items-center justify-center transition cursor-pointer disabled:opacity-40 shrink-0"
+                                title="Remove cost"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {totalOtherCosts > 0 && (
+                      <div className="mt-3 pt-2.5 border-t border-gray-100 flex justify-between items-center text-xs">
+                        <span className="font-semibold text-gray-500 uppercase tracking-wider">Total Other Costs:</span>
+                        <span className="font-bold text-gray-900 font-mono">
+                          ₹{totalOtherCosts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Right Column: Grand Total & Amount In Words */}
-                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col justify-between">
+                <div className="xl:col-span-5 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between py-1 border-b border-gray-100">
-                      <span className="text-gray-500">Sub Total (Taxable):</span>
+                      <span className="text-gray-500">{isGstApplicable ? 'Sub Total (Taxable):' : 'Sub Total:'}</span>
                       <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTaxable)}</span>
                     </div>
-                    <div className="flex justify-between py-1 border-b border-gray-100">
-                      <span className="text-gray-500">Total Tax:</span>
-                      <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTax)}</span>
-                    </div>
+                    {isGstApplicable && (
+                      <div className="flex justify-between py-1 border-b border-gray-100">
+                        <span className="text-gray-500">Total Tax:</span>
+                        <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTax)}</span>
+                      </div>
+                    )}
+                    {totalOtherCosts > 0 && (() => {
+                      const labels = otherCosts
+                        .map((c) => (c.label || '').trim())
+                        .filter(Boolean);
+                      const displayTitle = labels.length > 0
+                        ? `Other Costs (${labels.join(', ')}):`
+                        : 'Other Costs:';
+                      return (
+                        <div className="flex justify-between py-1 border-b border-gray-100">
+                          <span className="text-gray-500 truncate max-w-[220px]" title={displayTitle}>
+                            {displayTitle}
+                          </span>
+                          <span className="font-semibold text-gray-800 font-mono">
+                            +{formatCurrency(totalOtherCosts)}
+                          </span>
+                        </div>
+                      );
+                    })()}
                     <div className="flex justify-between py-1 border-b border-gray-100">
                       <span className="text-gray-500">Round Off:</span>
                       <span className="font-semibold text-gray-600 font-mono">
@@ -2765,6 +3132,17 @@ const CreatePurchaseOrder = () => {
         onConfirm={handleConfirmVendorChange}
         vendorName={vendors.find((v) => String(v.id) === String(pendingVendorId))?.name || 'Selected Vendor'}
         loading={isSwitchingVendor}
+      />
+
+      {/* Generate Stock Transfer Modal */}
+      <GenerateStockTransferModal
+        isOpen={showStockTransferModal}
+        onClose={() => setShowStockTransferModal(false)}
+        initialItems={selectedItemsForTransfer}
+        currentOutletId={activeOutletId}
+        onSuccess={() => {
+          setRowSelection({});
+        }}
       />
     </Container>
   );

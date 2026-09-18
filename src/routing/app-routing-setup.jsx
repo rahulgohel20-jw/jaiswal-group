@@ -429,6 +429,7 @@ export function AppRoutingSetup() {
           <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/>
 
           <Route path="/inventory/generate-grn" element={<GenerateGRN/>} /> 
+          <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />
           <Route path="/inventory/generate-grn/generate/:id" element={<GenerateGRNDetail />} />
           <Route path='/inventory/grn-listing' element={<GRNListing/>}/>
           <Route path='/inventory/return-replacement' element={<ReturnReplacementList/>}/>

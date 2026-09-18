@@ -25,6 +25,7 @@ import {
   Info,
   Download,
   Loader2,
+  PlusCircle,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { usePurchaseOrders } from './utils/usePurchaseOrders';
@@ -213,12 +214,23 @@ const PurchaseOrderDetail = () => {
   const shipTo = po?.shipTo || fetchedShipTo || null;
   const isInterState = useMemo(() => checkIsInterState(billTo, shipTo), [billTo, shipTo]);
 
+  const isGstApplicable = useMemo(() => {
+    if (po?.isGstApplicable !== undefined && po?.isGstApplicable !== null) {
+      return Boolean(po.isGstApplicable);
+    }
+    if (billTo?.isGstApplicable !== undefined && billTo?.isGstApplicable !== null) {
+      return Boolean(billTo.isGstApplicable);
+    }
+    return false;
+  }, [po?.isGstApplicable, billTo?.isGstApplicable]);
+
   const calculatedTotals = useMemo(() => {
     let totalTaxable = 0;
     let totalCGST = 0;
     let totalSGST = 0;
     let totalIGST = 0;
     let totalCESS = 0;
+    const taxRateGroups = {};
 
     const items = (po?.details || []).map((item) => {
       const qty = Number(item.quantity ?? item.orderedQuantity) || 0;
@@ -226,7 +238,7 @@ const PurchaseOrderDetail = () => {
       const taxable = qty * unitPrice;
       totalTaxable += taxable;
 
-      const cessPct = Number(item.cess) || 0;
+      const cessPct = isGstApplicable ? (Number(item.cess) || 0) : 0;
       const cessAmt = (taxable * cessPct) / 100;
       totalCESS += cessAmt;
 
@@ -236,29 +248,56 @@ const PurchaseOrderDetail = () => {
       let cgstAmt = 0;
       let sgstAmt = 0;
       let igstAmt = 0;
+      let gstPct = 0;
       let itemTax = 0;
 
-      if (isInterState) {
-        igstPct = item.igst != null && Number(item.igst) > 0 
-          ? Number(item.igst) 
-          : ((item.cgst != null && item.sgst != null && Number(item.cgst) + Number(item.sgst) > 0)
-            ? Number(item.cgst) + Number(item.sgst)
-            : (item.tax != null && Number(item.tax) > 0 ? Number(item.tax) : 18));
-        igstAmt = (taxable * igstPct) / 100;
-        totalIGST += igstAmt;
-        itemTax = igstAmt + cessAmt;
-      } else {
-        cgstPct = item.cgst != null && Number(item.cgst) > 0
-          ? Number(item.cgst)
-          : (item.tax != null && Number(item.tax) > 0 ? Number(item.tax) / 2 : 9);
-        sgstPct = item.sgst != null && Number(item.sgst) > 0
-          ? Number(item.sgst)
-          : (item.tax != null && Number(item.tax) > 0 ? Number(item.tax) / 2 : 9);
-        cgstAmt = (taxable * cgstPct) / 100;
-        sgstAmt = (taxable * sgstPct) / 100;
-        totalCGST += cgstAmt;
-        totalSGST += sgstAmt;
-        itemTax = cgstAmt + sgstAmt + cessAmt;
+      if (isGstApplicable) {
+        if (isInterState) {
+          igstPct = item.igst != null && Number(item.igst) > 0 
+            ? Number(item.igst) 
+            : ((item.cgst != null && item.sgst != null && Number(item.cgst) + Number(item.sgst) > 0)
+              ? Number(item.cgst) + Number(item.sgst)
+              : (item.tax != null && Number(item.tax) > 0 ? Number(item.tax) : 18));
+          gstPct = igstPct;
+          igstAmt = (taxable * igstPct) / 100;
+          totalIGST += igstAmt;
+          itemTax = igstAmt + cessAmt;
+        } else {
+          cgstPct = item.cgst != null && Number(item.cgst) > 0
+            ? Number(item.cgst)
+            : (item.tax != null && Number(item.tax) > 0 ? Number(item.tax) / 2 : 9);
+          sgstPct = item.sgst != null && Number(item.sgst) > 0
+            ? Number(item.sgst)
+            : (item.tax != null && Number(item.tax) > 0 ? Number(item.tax) / 2 : 9);
+          gstPct = cgstPct + sgstPct;
+          cgstAmt = (taxable * cgstPct) / 100;
+          sgstAmt = (taxable * sgstPct) / 100;
+          totalCGST += cgstAmt;
+          totalSGST += sgstAmt;
+          itemTax = cgstAmt + sgstAmt + cessAmt;
+        }
+
+        const rateKey = `${gstPct}_${cessPct}`;
+        if (!taxRateGroups[rateKey]) {
+          taxRateGroups[rateKey] = {
+            gstPct,
+            cessPct,
+            cgstPct,
+            sgstPct,
+            igstPct,
+            taxable: 0,
+            cgstAmt: 0,
+            sgstAmt: 0,
+            igstAmt: 0,
+            gstAmt: 0,
+            cessAmt: 0,
+          };
+        }
+        taxRateGroups[rateKey].taxable += taxable;
+        taxRateGroups[rateKey].cgstAmt += cgstAmt;
+        taxRateGroups[rateKey].sgstAmt += sgstAmt;
+        taxRateGroups[rateKey].igstAmt += igstAmt;
+        taxRateGroups[rateKey].cessAmt = (taxRateGroups[rateKey].cessAmt || 0) + cessAmt;
       }
 
       const itemTotal = taxable + itemTax;
@@ -268,6 +307,7 @@ const PurchaseOrderDetail = () => {
         qty,
         unitPrice,
         taxable,
+        gstPct,
         cgstPct,
         sgstPct,
         igstPct,
@@ -281,15 +321,27 @@ const PurchaseOrderDetail = () => {
       };
     });
 
-    const totalGST = isInterState ? totalIGST : totalCGST + totalSGST;
-    const totalTax = totalGST + totalCESS;
-    const rawNet = totalTaxable + totalTax;
+    const taxBreakdowns = Object.values(taxRateGroups).sort((a, b) => b.gstPct - a.gstPct || b.cessPct - a.cessPct);
+
+    const totalOtherCosts = Number(po?.totalOtherCosts) || (
+      Array.isArray(po?.otherCosts)
+        ? po.otherCosts.reduce((sum, item) => {
+            const val = Number(item.cost);
+            return sum + (!isNaN(val) && val > 0 ? val : 0);
+          }, 0)
+        : 0
+    );
+
+    const totalGST = isGstApplicable ? (isInterState ? totalIGST : totalCGST + totalSGST) : 0;
+    const totalTax = isGstApplicable ? totalGST + totalCESS : 0;
+    const rawNet = totalTaxable + totalTax + totalOtherCosts;
     const roundOff = po?.roundOff != null ? Number(po.roundOff) : Number((Math.round(rawNet) - rawNet).toFixed(2));
     const netAmount = Number((rawNet + roundOff).toFixed(2));
     const roundedNet = Math.round(netAmount);
 
     return {
       items,
+      taxBreakdowns,
       totalTaxable,
       totalCGST,
       totalSGST,
@@ -297,13 +349,14 @@ const PurchaseOrderDetail = () => {
       totalGST,
       totalCESS,
       totalTax,
+      totalOtherCosts,
       rawNet,
       netAmount,
       roundedNet,
       roundOff,
-      amountInWords: numberToWords(netAmount),
+      amountInWords: numberToWords(roundedNet),
     };
-  }, [po, isInterState]);
+  }, [po, isInterState, isGstApplicable]);
 
   if (!canView) {
     return <AccessDenied pageTitle="Purchase Order Requests" />;
@@ -425,18 +478,25 @@ const PurchaseOrderDetail = () => {
             icon={MapPin}
             title="Address & Tax Configuration"
             trailing={
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                  isInterState
-                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                {isInterState
-                  ? 'Inter-State Supply (IGST 18%)'
-                  : 'Intra-State Supply (CGST 9% + SGST 9%)'}
-              </span>
+              isGstApplicable ? (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                    isInterState
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                  {isInterState
+                    ? 'Inter-State Supply (IGST 18%)'
+                    : 'Intra-State Supply (CGST 9% + SGST 9%)'}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                  Non-GST Supply
+                </span>
+              )
             }
           />
           <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-gray-100">
@@ -468,7 +528,7 @@ const PurchaseOrderDetail = () => {
                         {billTo.phoneNumber}
                       </span>
                     )}
-                    {billTo.gstNumber && (
+                    {isGstApplicable && billTo.gstNumber && (
                       <span>
                         <strong className="text-gray-700">GSTIN:</strong> {billTo.gstNumber}
                       </span>
@@ -573,29 +633,32 @@ const PurchaseOrderDetail = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                  <th className="text-left font-semibold px-2 py-3 w-52">Item Description</th>
+                  <th className="text-left font-semibold px-2 py-3 w-48">Item Description</th>
                   <th className="text-center font-semibold px-2 py-3 w-20">Unit</th>
-                  <th className="text-left font-semibold px-2 py-3 w-52">Vendor</th>
+                  <th className="text-left font-semibold px-2 py-3 w-44">Vendor</th>
                   <th className="text-center font-semibold px-2 py-3 w-16">Ordered</th>
                   <th className="text-center font-semibold px-2 py-3 w-16">Received</th>
                   <th className="text-right font-semibold px-2 py-3 w-20">Rate (₹)</th>
-                  <th className="text-center font-semibold px-2 py-3 w-20">HSN/SAC</th>
-                  {!isInterState ? (
+                  {isGstApplicable ? (
                     <>
-                      <th className="text-center font-semibold px-1 py-3 w-14">CGST (%)</th>
-                      <th className="text-center font-semibold px-1 py-3 w-14">SGST (%)</th>
+                      <th className="text-center font-semibold px-2 py-3 w-20">HSN/SAC</th>
+                      <th className="text-center font-semibold px-1 py-3 w-14">GST (%)</th>
+                      <th className="text-center font-semibold px-1 py-3 w-14">CESS (%)</th>
+                      <th className="text-right font-semibold px-2 py-3 w-24">Amount w/o Tax (₹)</th>
+                      <th className="text-right font-semibold px-2 py-3 w-20">Tax Applied (₹)</th>
+                      <th className="text-right font-semibold px-3 py-3 w-28">Total Amount (₹)</th>
                     </>
                   ) : (
-                    <th className="text-center font-semibold px-1 py-3 w-14">IGST (%)</th>
+                    <th className="text-right font-semibold px-4 py-3 w-auto min-w-[130px]">
+                      Amount (₹)
+                    </th>
                   )}
-                  <th className="text-center font-semibold px-1 py-3 w-14">CESS (%)</th>
-                  <th className="text-right font-semibold px-4 py-3 w-auto min-w-[130px]">Total Amount (₹)</th>
                 </tr>
               </thead>
               <tbody>
                 {itemCount === 0 ? (
                   <tr>
-                    <td colSpan={!isInterState ? 10 : 9} className="px-5 py-14 text-center text-gray-400">
+                    <td colSpan={isGstApplicable ? 12 : 7} className="px-5 py-14 text-center text-gray-400">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="w-6 h-6 text-gray-300" />
                         No items on this purchase order.
@@ -605,7 +668,7 @@ const PurchaseOrderDetail = () => {
                 ) : (
                   calculatedTotals.items.map((item) => (
                     <tr key={item.id ?? item.rawMaterialId} className="border-t border-gray-100 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-2 py-3 text-gray-800 font-medium text-xs align-top w-52">
+                      <td className="px-2 py-3 text-gray-800 font-medium text-xs align-top w-48">
                         <p className="font-semibold text-gray-900">{item.rawMaterialName}</p>
                         {item.remarks && (
                           <p className="text-[11px] text-gray-500 mt-0.5 italic">
@@ -618,27 +681,38 @@ const PurchaseOrderDetail = () => {
                           {item.uomName}
                         </span>
                       </td>
-                      <td className="px-2 py-3 text-gray-600 text-xs truncate max-w-[180px] align-top w-52" title={item.vendorName || ''}>
+                      <td className="px-2 py-3 text-gray-600 text-xs truncate max-w-[160px] align-top w-44" title={item.vendorName || ''}>
                         {item.vendorName || '—'}
                       </td>
                       <td className="px-2 py-3 text-center font-medium text-gray-700 text-xs align-top w-16">{item.qty}</td>
                       <td className="px-2 py-3 text-center text-gray-600 text-xs align-top w-16">{item.receivedQuantity ?? 0}</td>
                       <td className="px-2 py-3 text-right text-gray-600 text-xs font-mono align-top w-20">₹{item.unitPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                      <td className="px-2 py-3 text-center font-mono text-xs text-gray-600 align-top w-20">
-                        {item.hsnCode || '—'}
-                      </td>
-                      {!isInterState ? (
+                      {isGstApplicable ? (
                         <>
-                          <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">{item.cgstPct}%</td>
-                          <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">{item.sgstPct}%</td>
+                          <td className="px-2 py-3 text-center font-mono text-xs text-gray-600 align-top w-20">
+                            {item.hsnCode || '—'}
+                          </td>
+                          <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">
+                            {item.gstPct}%
+                          </td>
+                          <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">
+                            {item.cessPct > 0 ? `${item.cessPct}%` : '0%'}
+                          </td>
+                          <td className="px-2 py-3 text-right font-medium text-xs text-gray-700 font-mono align-top w-24 whitespace-nowrap">
+                            ₹{item.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-2 py-3 text-right font-medium text-xs text-amber-700 font-mono align-top w-20 whitespace-nowrap">
+                            ₹{item.itemTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-3 py-3 text-right font-bold text-gray-900 text-xs font-mono align-top w-28 whitespace-nowrap">
+                            ₹{item.itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
                         </>
                       ) : (
-                        <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">{item.igstPct}%</td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-900 text-xs font-mono align-top w-auto min-w-[130px] whitespace-nowrap">
+                          ₹{item.itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
                       )}
-                      <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">{item.cessPct > 0 ? `${item.cessPct}%` : '0%'}</td>
-                      <td className="px-4 py-3 text-right font-bold text-gray-900 text-xs font-mono align-top w-auto min-w-[130px] whitespace-nowrap">
-                        ₹{item.itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </td>
                     </tr>
                   ))
                 )}
@@ -646,82 +720,244 @@ const PurchaseOrderDetail = () => {
             </table>
           </div>
 
-          {/* Tax Breakdown & Invoice Footer */}
+          {/* Summary / Tax / Other Costs Footer */}
           <div className="border-t border-gray-100 bg-[#F8FAFC] p-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-              {/* Left: Tax Details */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4">
+            {/* If GST is applicable and there are other costs, show them at the top */}
+            {isGstApplicable && Array.isArray(po?.otherCosts) && po.otherCosts.length > 0 && (
+              <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mb-5">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92] mb-3 flex items-center gap-1.5">
-                  <Receipt className="w-4 h-4" />
-                  Tax Breakdown
+                  <PlusCircle className="w-4 h-4" />
+                  Other Costing / Charges (Transportation, Handling, etc.)
                 </h3>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between py-1 border-b border-gray-100 items-center">
-                    <div className="flex items-center gap-1.5 group relative">
-                      <span className="text-gray-500">Taxable Amount:</span>
-                      <Info className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#084E92] transition-colors cursor-pointer" />
-                      
-                      {/* Tooltip showing item-wise quantity * rate */}
-                      <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-30 bg-gray-900 text-white rounded-lg p-3 shadow-xl text-xs w-72 pointer-events-none">
-                        <p className="font-semibold border-b border-gray-700 pb-1 mb-1.5 text-gray-200">Item-wise Taxable Breakdown</p>
-                        <div className="space-y-1 max-h-48 overflow-y-auto">
-                          {(calculatedTotals.items || []).map((item) => {
-                            const qty = item.qty || 0;
-                            const price = item.unitPrice || 0;
-                            const taxable = item.taxable || (qty * price);
-                            return (
-                              <div key={item.id ?? item.rawMaterialId} className="flex justify-between gap-2 text-[11px]">
-                                <span className="truncate text-gray-300 max-w-[140px]" title={item.rawMaterialName}>{item.rawMaterialName}:</span>
-                                <span className="font-mono text-gray-100 shrink-0">{qty} × ₹{price.toFixed(2)} = ₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                <div className="space-y-2">
+                  {po.otherCosts.map((c, i) => (
+                    <div key={i} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg text-xs">
+                      <span className="font-medium text-gray-800">{c.label || 'Other Charge'}</span>
+                      <span className="font-bold text-gray-900 font-mono">
+                        ₹{Number(c.cost || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
                     </div>
-                    <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTaxable)}</span>
+                  ))}
+                </div>
+                {calculatedTotals.totalOtherCosts > 0 && (
+                  <div className="mt-3 pt-2 border-t border-gray-100 flex justify-start items-center gap-2 text-xs">
+                    <span className="font-semibold text-gray-500 uppercase tracking-wider">Total Other Costs:</span>
+                    <span className="font-bold text-gray-900 font-mono">
+                      ₹{calculatedTotals.totalOtherCosts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                   </div>
-                  {!isInterState ? (
-                    <>
-                      <div className="flex justify-between py-1 border-b border-gray-100">
-                        <span className="text-gray-500">CGST Amount:</span>
-                        <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalCGST)}</span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-gray-100">
-                        <span className="text-gray-500">SGST Amount:</span>
-                        <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalSGST)}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex justify-between py-1 border-b border-gray-100">
-                      <span className="text-gray-500">IGST Amount:</span>
-                      <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalIGST)}</span>
-                    </div>
-                  )}
-                  {calculatedTotals.totalCESS > 0 && (
-                    <div className="flex justify-between py-1 border-b border-gray-100">
-                      <span className="text-gray-500">CESS Amount:</span>
-                      <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalCESS)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between py-1.5 font-bold text-gray-900 border-t border-gray-200">
-                    <span>Total Tax (GST + CESS):</span>
-                    <span className="text-[#084E92] font-mono">{formatCurrency(calculatedTotals.totalTax)}</span>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+              {/* Left Column: If GST is applicable -> Tax Breakdown. If GST NOT applicable -> Other Costing / Charges */}
+              {isGstApplicable ? (
+                <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-gray-100">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92] flex items-center gap-1.5">
+                      <Receipt className="w-4 h-4" />
+                      Tax Breakdown {isInterState ? '(Inter-State IGST)' : '(Intra-State CGST + SGST)'}
+                    </h3>
+                    <span className="text-[10px] font-semibold bg-blue-50 text-[#084E92] px-2.5 py-0.5 rounded-full border border-blue-100">
+                      GST Rate Breakdown
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="border-b border-gray-200 text-gray-500 font-bold uppercase text-[11px]">
+                          <th className="pb-2.5 px-2 text-left whitespace-nowrap">TAX RATE</th>
+                          <th className="pb-2.5 px-2 text-right whitespace-nowrap">TAXABLE AMT</th>
+                          {!isInterState ? (
+                            <>
+                              <th className="pb-2.5 px-2 text-right whitespace-nowrap">SGST</th>
+                              <th className="pb-2.5 w-6 text-center"></th>
+                              <th className="pb-2.5 px-2 text-right whitespace-nowrap">CGST</th>
+                            </>
+                          ) : (
+                            <th className="pb-2.5 px-2 text-right whitespace-nowrap">IGST</th>
+                          )}
+                          {calculatedTotals.totalCESS > 0 && (
+                            <>
+                              <th className="pb-2.5 w-6 text-center"></th>
+                              <th className="pb-2.5 px-2 text-right whitespace-nowrap">CESS</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 font-mono">
+                        {calculatedTotals.taxBreakdowns && calculatedTotals.taxBreakdowns.length > 0 ? (
+                          calculatedTotals.taxBreakdowns.map((rate, idx) => (
+                            <tr key={`${rate.gstPct}_${rate.cessPct || 0}_${idx}`} className="hover:bg-gray-50/60 transition-colors">
+                              <td className="py-2.5 px-2 font-sans whitespace-nowrap">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold bg-blue-50 text-[#084E92] border border-blue-100">
+                                  {Number(rate.gstPct).toFixed(2)}% GST
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-2 text-right whitespace-nowrap">
+                                <div className="inline-flex items-center justify-end gap-1.5 font-mono">
+                                  <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-sans">
+                                    of
+                                  </span>
+                                  <span className="font-semibold text-gray-800">
+                                    ₹{Number(rate.taxable).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                  <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-gray-100/90 text-gray-500 font-bold text-[11px] font-sans">
+                                    =
+                                  </span>
+                                </div>
+                              </td>
+                              {!isInterState ? (
+                                <>
+                                  <td className="py-2.5 px-2 text-right whitespace-nowrap font-mono font-semibold text-gray-800">
+                                    ₹{Number(rate.sgstAmt).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2.5 w-6 px-0.5 text-center">
+                                    <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-blue-50 text-[#084E92] font-bold text-[11px] font-sans border border-blue-100">
+                                      +
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-2 text-right whitespace-nowrap font-mono font-semibold text-gray-800">
+                                    ₹{Number(rate.cgstAmt).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                </>
+                              ) : (
+                                <td className="py-2.5 px-2 text-right whitespace-nowrap font-mono font-semibold text-gray-800">
+                                  ₹{Number(rate.igstAmt).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                              )}
+                              {calculatedTotals.totalCESS > 0 && (
+                                <>
+                                  <td className="py-2.5 w-6 px-0.5 text-center">
+                                    <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-blue-50 text-[#084E92] font-bold text-[11px] font-sans border border-blue-100">
+                                      +
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-2 text-right whitespace-nowrap font-mono font-semibold text-gray-800">
+                                    <div className="inline-flex items-center justify-end gap-1.5 font-mono">
+                                      <span>
+                                        ₹{Number(rate.cessAmt || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                      {Number(rate.cessPct || 0) > 0 ? (
+                                        <span className="text-[10px] font-sans font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                          ({Number(rate.cessPct)}% CESS)
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </td>
+                                </>
+                              )}
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={!isInterState ? (calculatedTotals.totalCESS > 0 ? 7 : 5) : (calculatedTotals.totalCESS > 0 ? 5 : 3)} className="py-4 text-center text-gray-400 italic">
+                              No taxable line items
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-dashed border-gray-300 font-bold text-gray-900 font-mono">
+                          <td className="pt-3 px-2 font-sans uppercase tracking-wider text-xs whitespace-nowrap">TOTAL</td>
+                          <td className="pt-3 px-2 text-right whitespace-nowrap">
+                            ₹{Number(calculatedTotals.totalTaxable).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          {!isInterState ? (
+                            <>
+                              <td className="pt-3 px-2 text-right text-[#084E92] whitespace-nowrap">
+                                ₹{Number(calculatedTotals.totalSGST).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="pt-3 w-6 px-0.5"></td>
+                              <td className="pt-3 px-2 text-right text-[#084E92] whitespace-nowrap">
+                                ₹{Number(calculatedTotals.totalCGST).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </>
+                          ) : (
+                            <td className="pt-3 px-2 text-right text-[#084E92] whitespace-nowrap">
+                              ₹{Number(calculatedTotals.totalIGST).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                          )}
+                          {calculatedTotals.totalCESS > 0 && (
+                            <>
+                              <td className="pt-3 w-6 px-0.5"></td>
+                              <td className="pt-3 px-2 text-right text-[#084E92] whitespace-nowrap">
+                                ₹{Number(calculatedTotals.totalCESS).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      </tfoot>
+                    </table>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* Non-GST View: Left column is Other Costing / Charges */
+                <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col justify-between">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92] mb-3 flex items-center gap-1.5">
+                      <PlusCircle className="w-4 h-4" />
+                      Other Costing / Charges
+                    </h3>
+                    {Array.isArray(po?.otherCosts) && po.otherCosts.length > 0 ? (
+                      <div className="space-y-2">
+                        {po.otherCosts.map((c, i) => (
+                          <div key={i} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded-lg text-xs">
+                            <span className="font-medium text-gray-800">{c.label || 'Other Charge'}</span>
+                            <span className="font-bold text-gray-900 font-mono">
+                              ₹{Number(c.cost || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 italic py-3">No additional charges attached to this purchase order.</p>
+                    )}
+                  </div>
+                  {calculatedTotals.totalOtherCosts > 0 && (
+                    <div className="mt-3 pt-2 border-t border-gray-100 flex justify-between items-center text-xs">
+                      <span className="font-semibold text-gray-500 uppercase tracking-wider">Total Other Costs:</span>
+                      <span className="font-bold text-gray-900 font-mono">
+                        ₹{calculatedTotals.totalOtherCosts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Right: Net Total & In words */}
-              <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col justify-between">
+              <div className="xl:col-span-5 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 flex flex-col justify-between shadow-sm">
                 <div className="space-y-1.5 text-xs">
                   <div className="flex justify-between py-1 border-b border-gray-100">
-                    <span className="text-gray-500">Sub Total:</span>
+                    <span className="text-gray-500">{isGstApplicable ? 'Sub Total (Taxable):' : 'Sub Total:'}</span>
                     <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTaxable)}</span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-gray-100">
-                    <span className="text-gray-500">Total Tax:</span>
-                    <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTax)}</span>
-                  </div>
+                  {isGstApplicable && (
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Total Tax:</span>
+                      <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTax)}</span>
+                    </div>
+                  )}
+                  {calculatedTotals.totalOtherCosts > 0 && (() => {
+                    const labels = (Array.isArray(po?.otherCosts) ? po.otherCosts : [])
+                      .map((c) => (c.label || '').trim())
+                      .filter(Boolean);
+                    const displayTitle = labels.length > 0
+                      ? `Other Costs (${labels.join(', ')}):`
+                      : 'Other Costs:';
+                    return (
+                      <div className="flex justify-between py-1 border-b border-gray-100">
+                        <span className="text-gray-500 truncate max-w-[220px]" title={displayTitle}>
+                          {displayTitle}
+                        </span>
+                        <span className="font-semibold text-gray-800 font-mono">
+                          +{formatCurrency(calculatedTotals.totalOtherCosts)}
+                        </span>
+                      </div>
+                    );
+                  })()}
                   <div className="flex justify-between py-1 border-b border-gray-100">
                     <span className="text-gray-500">Round Off:</span>
                     <span className="font-semibold text-gray-600 font-mono">

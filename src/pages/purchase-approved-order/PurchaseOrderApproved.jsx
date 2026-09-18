@@ -16,7 +16,11 @@ import {
   Eye,
   Pencil,
   Clock3,
+  Package,
+  FileText,
+  X,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -26,10 +30,10 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
-import { OrgTypes } from '@/constants/orgTypes';
 import { usePurchaseOrders } from '../purchase-order-requests/utils/usePurchaseOrders';
-import { PO_STATUS, PO_STATUS_LIST, getPoStatusLabel } from '../purchase-order-requests/utils/poStatus';
-import { getUsernameFromToken } from '../../utils/auth';
+import { PO_STATUS, getPoStatusLabel } from '../purchase-order-requests/utils/poStatus';
+import { closePurchaseOrder } from '@/services/apiServices';
+import { getUserIdFromToken, getUsernameFromToken } from '@/utils/auth';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -44,6 +48,7 @@ const APPROVER_VISIBLE_STATUSES = [
   PO_STATUS.SENT_FOR_APPROVAL,
   PO_STATUS.IN_PROGRESS,
   PO_STATUS.APPROVED,
+  PO_STATUS.CLOSED,
   PO_STATUS.REJECTED,
 ];
 const ACTIONABLE_STATUSES = [PO_STATUS.SENT_FOR_APPROVAL, PO_STATUS.IN_PROGRESS];
@@ -62,6 +67,7 @@ const STATUS_META = {
   [PO_STATUS.SENT_FOR_APPROVAL]: { bg: '#EEF2FE', fg: '#2952E3' },
   [PO_STATUS.IN_PROGRESS]: { bg: '#FEF6E7', fg: '#B7791F' },
   [PO_STATUS.APPROVED]: { bg: '#E7F7EE', fg: '#14804A' },
+  [PO_STATUS.CLOSED]: { bg: '#F2F4F7', fg: '#667085' },
   [PO_STATUS.REJECTED]: { bg: '#FBEAEC', fg: '#C0293D' },
 };
 
@@ -178,8 +184,15 @@ const PAGE_SIZE = 10;
 const PurchaseOrderApproval = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState(PO_STATUS.SENT_FOR_APPROVAL);
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+
+  // Close PO modal state
+  const [closeModalOpen, setCloseModalOpen] = useState(false);
+  const [selectedPoToClose, setSelectedPoToClose] = useState(null);
+  const [closeReason, setCloseReason] = useState('');
+  const [closingPo, setClosingPo] = useState(false);
+  const [closeError, setCloseError] = useState('');
 
   const {
     loading: scopeLoading,
@@ -207,8 +220,7 @@ const PurchaseOrderApproval = () => {
   const currentUnitId = effectiveOutletId;
 
   const targetStatus = useMemo(() => {
-    if (!statusFilter) return PO_STATUS.SENT_FOR_APPROVAL;
-    if (statusFilter === ALL_STATUS) return APPROVER_VISIBLE_STATUSES;
+    if (!statusFilter || statusFilter === ALL_STATUS) return APPROVER_VISIBLE_STATUSES;
     return statusFilter;
   }, [statusFilter]);
 
@@ -290,6 +302,69 @@ const PurchaseOrderApproval = () => {
     });
   };
 
+  const handleOpenCloseModal = (po) => {
+    setSelectedPoToClose(po);
+    setCloseReason('');
+    setCloseError('');
+    setCloseModalOpen(true);
+  };
+
+  const handleCloseModalClose = () => {
+    if (closingPo) return;
+    setCloseModalOpen(false);
+    setSelectedPoToClose(null);
+    setCloseReason('');
+    setCloseError('');
+  };
+
+  const handleConfirmClosePO = async () => {
+    if (!closeReason.trim()) {
+      setCloseError('Please enter a reason to close this Purchase Order.');
+      return;
+    }
+    if (!selectedPoToClose?.id) return;
+
+    try {
+      setClosingPo(true);
+      setCloseError('');
+      const userId = getUserIdFromToken() || 0;
+      const actionBy = getUsernameFromToken() || '';
+      const payload = {
+        actionBy: String(actionBy),
+        poids: [Number(selectedPoToClose.id)],
+        reason: closeReason.trim(),
+        userId: Number(userId),
+      };
+
+      const res = await closePurchaseOrder(selectedPoToClose.id, payload);
+      if (
+        res?.data?.success ||
+        res?.status === 200 ||
+        res?.data?.code === 200 ||
+        res?.data?.status === 'SUCCESS' ||
+        res?.data?.status === 200
+      ) {
+        toast.success(res?.data?.message || res?.data?.msg || 'Purchase Order closed successfully');
+        handleCloseModalClose();
+        loadData();
+      } else {
+        const errorMsg = res?.data?.message || res?.data?.msg || 'Failed to close Purchase Order';
+        setCloseError(errorMsg);
+        toast.error(errorMsg);
+      }
+    } catch (err) {
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.msg ||
+        err?.message ||
+        'Failed to close Purchase Order';
+      setCloseError(errMsg);
+      toast.error(errMsg);
+    } finally {
+      setClosingPo(false);
+    }
+  };
+
   const columns = useMemo(
     () => [
       {
@@ -367,6 +442,7 @@ const PurchaseOrderApproval = () => {
           const po = row.original;
           const actionable = ACTIONABLE_STATUSES.includes(po.rawStatus);
           const editable = EDITABLE_STATUSES.includes(po.rawStatus);
+          const isApproved = po.rawStatus === PO_STATUS.APPROVED || po.rawStatus === 'APPROVED';
 
           if (actionable) {
             return (
@@ -399,6 +475,27 @@ const PurchaseOrderApproval = () => {
             );
           }
 
+          if (isApproved) {
+            return (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleView(po)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E7EAF0] text-[#475467] text-xs font-semibold hover:bg-[#F9FAFC] transition-colors"
+                >
+                  <Eye size={13} />
+                  View
+                </button>
+                <button
+                  onClick={() => handleOpenCloseModal(po)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                >
+                  <XCircle size={13} />
+                  Close PO
+                </button>
+              </div>
+            );
+          }
+
           return (
             <button
               onClick={() => handleView(po)}
@@ -410,7 +507,7 @@ const PurchaseOrderApproval = () => {
           );
         },
         enableSorting: false,
-        size: 200,
+        size: 220,
       },
     ],
     [],
@@ -459,11 +556,12 @@ const PurchaseOrderApproval = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-7">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-7">
           <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Sent for approval" value={counts[PO_STATUS.SENT_FOR_APPROVAL] ?? 0} />
           <StatCard icon={<Clock3 size={18} />} iconBg="#FEF6E7" iconFg="#B7791F" label="In progress" value={counts[PO_STATUS.IN_PROGRESS] ?? 0} />
           <StatCard icon={<CheckCircle2 size={18} />} iconBg="#E7F7EE" iconFg="#14804A" label="Approved" value={counts[PO_STATUS.APPROVED] ?? 0} />
           <StatCard icon={<XCircle size={18} />} iconBg="#FBEAEC" iconFg="#C0293D" label="Rejected" value={counts[PO_STATUS.REJECTED] ?? 0} />
+          <StatCard icon={<Package size={18} />} iconBg="#F2F4F7" iconFg="#667085" label="Closed" value={counts[PO_STATUS.CLOSED] ?? 0} />
         </div>
 
         <div className="flex items-center gap-3 mb-5 flex-wrap">
@@ -521,6 +619,91 @@ const PurchaseOrderApproval = () => {
             </DataGrid>
           )}
         </div>
+
+        {/* Close PO Confirmation & Reason Modal */}
+        {closeModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              <div className="flex items-start justify-between gap-3 p-5 border-b border-[#E7EAF0]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#FBEAEC] flex items-center justify-center text-[#C0293D] shrink-0">
+                    <AlertTriangle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-[#101828]">Close Purchase Order</h3>
+                    <p className="text-xs text-[#667085] mt-0.5">
+                      PO: <span className="font-semibold text-[#2952E3] font-mono">{selectedPoToClose?.poCode}</span>
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseModalClose}
+                  disabled={closingPo}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {selectedPoToClose?.outlet && (
+                  <div className="bg-[#F9FAFC] border border-[#E7EAF0] rounded-xl px-3.5 py-2.5 text-xs text-[#475467]">
+                    <span className="text-[#98A2B3] font-medium">Outlet: </span>
+                    <span className="font-semibold text-[#101828]">{selectedPoToClose.outlet}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#344054] mb-1.5">
+                    Reason for Closing <span className="text-[#C0293D]">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={closeReason}
+                    onChange={(e) => {
+                      setCloseReason(e.target.value);
+                      if (closeError) setCloseError('');
+                    }}
+                    placeholder="Enter reason for closing this PO manually..."
+                    className="w-full px-3.5 py-2.5 text-sm border border-[#E7EAF0] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#C0293D]/20 focus:border-[#C0293D] resize-none placeholder:text-[#98A2B3]"
+                  />
+                  {closeError && (
+                    <p className="text-xs text-[#C0293D] mt-1 flex items-center gap-1">
+                      <AlertTriangle size={12} />
+                      {closeError}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 p-4 border-t border-[#E7EAF0] bg-[#F9FAFC]">
+                <button
+                  type="button"
+                  onClick={handleCloseModalClose}
+                  disabled={closingPo}
+                  className="px-4 py-2 rounded-xl border border-[#E7EAF0] text-xs font-semibold text-[#344054] hover:bg-white transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmClosePO}
+                  disabled={closingPo || !closeReason.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C0293D] text-white text-xs font-semibold hover:bg-[#a62334] transition-colors disabled:opacity-50"
+                >
+                  {closingPo ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      Closing...
+                    </>
+                  ) : (
+                    'Confirm Close'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Container>
   );

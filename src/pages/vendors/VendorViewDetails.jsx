@@ -174,6 +174,11 @@ const VendorViewDetails = () => {
             >
               {vendor.isActive ? "Active" : "Inactive"}
             </span>
+            {vendor.isGstApplicable && (
+              <span className="bg-blue-50 text-[#084E92] text-xs font-medium px-3 py-1 rounded-full">
+                GST Enabled
+              </span>
+            )}
             {vendor.gstVerified && (
               <span className="bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1 rounded-full">
                 GST Verified
@@ -227,11 +232,19 @@ const VendorViewDetails = () => {
       {/* Tax & payment info */}
       <SectionCard icon={BadgeCheck} title="Tax & Payment Information">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <InfoCard label="GST Number" value={vendor.gstNumber} />
           <InfoCard
-            label="GST Registered Name"
-            value={vendor.gstRegisteredName}
+            label="GST Applicable"
+            value={vendor.isGstApplicable ? "Yes" : "No"}
           />
+          {vendor.isGstApplicable && (
+            <>
+              <InfoCard label="GST Number" value={vendor.gstNumber} />
+              <InfoCard
+                label="GST Registered Name"
+                value={vendor.gstRegisteredName}
+              />
+            </>
+          )}
           <InfoCard
             label="MSME Registered"
             value={vendor.isMsmeRegistered ? "Yes" : "No"}
