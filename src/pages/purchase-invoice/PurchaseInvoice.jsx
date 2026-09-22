@@ -23,10 +23,9 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
     getOrganizationByType,
-    getGrnByOutletOrStatus,
 } from '@/services/apiServices';
 import { toast } from 'sonner';
-import { getAllVendorOutletMappings } from '../../services/apiServices';
+import { getAllActiveVendors, getEligibleGrnDetails, getEligibleGrns } from '../../services/apiServices';
 import { useNavigate } from 'react-router';
 
 const STATUS_STYLES = {
@@ -114,8 +113,8 @@ const PurchaseInvoice = () => {
     const [selectedOutletId, setSelectedOutletId] = useState(null);
 
     /* ---------------- Vendor dropdown (via vendor-outlet-mapping/get-all) ---------------- */
-    const [vendorMappings, setVendorMappings] = useState([]);
-    const [mappingsLoading, setMappingsLoading] = useState(false);
+    const [vendors, setVendors] = useState([]);
+    const [vendorsLoading, setVendorsLoading] = useState(false);
     const [selectedVendorId, setSelectedVendorId] = useState(null);
 
     /* ---------------- GRN listing ---------------- */
@@ -128,6 +127,8 @@ const PurchaseInvoice = () => {
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
     const [selectedGrnIds, setSelectedGrnIds] = useState([]);
+    const [grnDetails, setGrnDetails] = useState({});
+    const [detailsLoadingIds, setDetailsLoadingIds] = useState([]);
 
     /* ---------------- Fetch outlets ---------------- */
     useEffect(() => {
@@ -153,117 +154,125 @@ const PurchaseInvoice = () => {
         fetchOutlets();
     }, []);
 
-    /* ---------------- Fetch vendor-outlet mappings once ---------------- */
+    /* ---------------- Fetch vendor ---------------- */
 
     useEffect(() => {
-        const fetchMappings = async () => {
-            setMappingsLoading(true);
+        const fetchVendors = async () => {
+            setVendorsLoading(true);
             try {
-                const res = await getAllVendorOutletMappings();
+                const res = await getAllActiveVendors();
                 const raw = res?.data?.data || res?.data || [];
-                setVendorMappings(Array.isArray(raw) ? raw : []);
+                setVendors(Array.isArray(raw) ? raw : []);
             } catch (err) {
-                console.error('Failed to load vendor-outlet mappings:', err);
+                console.error('Failed to load vendor', err);
                 toast.error('Failed to load vendors.');
             } finally {
-                setMappingsLoading(false);
+                setVendorsLoading(false);
             }
         };
-        fetchMappings();
+        fetchVendors();
     }, []);
-
-    /* Vendors available for the currently selected outlet, deduped by vendorId */
-    const vendorOptions = useMemo(() => {
-        if (!selectedOutletId) return [];
-        const seen = new Map();
-        vendorMappings
-            .filter((m) => String(m.organizationId) === String(selectedOutletId))
-            .forEach((m) => {
-                if (!seen.has(m.vendorId)) {
-                    seen.set(m.vendorId, {
-                        value: String(m.vendorId),
-                        label: m.vendorCompanyName || m.vendorName || `Vendor #${m.vendorId}`,
-                    });
-                }
-            });
-        return Array.from(seen.values());
-    }, [vendorMappings, selectedOutletId]);
-
-    // Reset the vendor selection whenever the outlet changes
-    useEffect(() => {
-        setSelectedVendorId(null);
-    }, [selectedOutletId]);
 
     /* ---------------- Search GRN ---------------- */
 
-    const handleSearchGrn = useCallback(async () => {
-        if (!selectedOutletId || !selectedVendorId) {
-            toast.error('Please select outlet and vendor.');
-            return;
-        }
+   const handleSearchGrn = useCallback(async () => {
+    if (!selectedOutletId || !selectedVendorId) {
+        toast.error('Please select outlet and vendor.');
+        return;
+    }
 
-        setLoading(true);
-        setGrnError(null);
-        setSelectedGrnIds([]);
-        try {
-            const res = await getGrnByOutletOrStatus({
-                outletId: Number(selectedOutletId),
-                status: [], // [] = all statuses (OPEN, CLOSED, CANCELLED)
-                page: 0,
-                size: 1000, // pull everything for the outlet; table paginates client-side
-                sortBy: 'createdAt',
-                direction: 'DESC',
-            });
+    setLoading(true);
+    setGrnError(null);
+    setSelectedGrnIds([]);
+    setGrnDetails({});
 
-            const raw = res?.data?.data ?? res?.data ?? [];
-            const rawList = Array.isArray(raw) ? raw : [];
+    try {
+        const res = await getEligibleGrns({
+            outletId: Number(selectedOutletId),
+            vendorId: Number(selectedVendorId),
+        });
 
-            const normalized = rawList
-                .map((g) => ({
-                    id: g.id,
-                    grnCode: g.grnCode || `GRN-${g.id}`,
-                    poCode:
-                        (Array.isArray(g.purchaseOrderCodes) && g.purchaseOrderCodes.length
-                            ? g.purchaseOrderCodes.join(', ')
-                            : g.purchaseOrderCode) || '—',
-                    grnDate: formatDateShort(g.grnDate),
-                    rawDate: g.grnDate,
-                    raisedBy: g.createdByName || '—',
-                    outlet: g.organizationName || (g.orgId ? `Outlet #${g.orgId}` : '—'),
-                    outletId: g.orgId,
-                    vendorId: g.vendorId,
-                    vendorName: g.vendorName || (g.vendorId ? `Vendor #${g.vendorId}` : '—'),
-                    itemsReceived: Array.isArray(g.details) ? g.details.length : 0,
-                    details: Array.isArray(g.details) ? g.details : [],   // ← this line is missing in your file
-                    status: g.status || 'CLOSED',
-                }))
-                .filter(
-                    (g) =>
-                        String(g.outletId) === String(selectedOutletId) &&
-                        String(g.vendorId) === String(selectedVendorId)
-                );
+        const raw = res?.data?.data ?? res?.data ?? [];
+        const rawList = Array.isArray(raw) ? raw : [];
 
-            setList(normalized);
-            setSearched(true);
-            setPagination((p) => ({ ...p, pageIndex: 0 }));
-        } catch (err) {
-            console.error('Failed to load GRN listing:', err);
-            setGrnError(err?.message || 'Failed to load GRN list.');
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedOutletId, selectedVendorId]);
+        const normalized = rawList.map((g) => {
+            const details = Array.isArray(g.eligibleGrnDetailResponseDtos)
+                ? g.eligibleGrnDetailResponseDtos
+                : [];
 
-    /* ---------------- Row filter (search box within listing card) ---------------- */
+            return {
+                id: g.grnId,
+                grnId: g.grnId,
+
+                grnCode: g.grnCode || `GRN-${g.grnId}`,
+
+                poCode: Array.isArray(g.poCode)
+                    ? g.poCode.join(', ')
+                    : (g.poCode || '—'),
+
+                grnDate: formatDateShort(g.grnDate),
+                rawDate: g.grnDate,
+
+                createdBy: g.createdBy || '—',
+
+                vendorId: g.vendorId,
+                vendorName: g.vendorName || '—',
+
+                organizationId: g.organizationId,
+                organizationName: g.organizationName || '—',
+
+                status: g.status || 'OPEN',
+
+                // Already coming from first API
+                details,
+
+                // Number of eligible GRN detail items
+                itemsReceived: details.length,
+            };
+        });
+
+        setList(normalized);
+
+        // Store all details immediately
+        const detailsMap = {};
+
+        normalized.forEach((grn) => {
+            detailsMap[grn.id] = grn.details;
+        });
+
+        setGrnDetails(detailsMap);
+
+        setSearched(true);
+        setPagination((p) => ({
+            ...p,
+            pageIndex: 0,
+        }));
+    } catch (err) {
+        console.error('Failed to load GRN listing:', err);
+
+        setGrnError(
+            err?.response?.data?.msg ||
+            err?.response?.data?.message ||
+            err?.message ||
+            'Failed to load GRN list.'
+        );
+
+        setList([]);
+        setGrnDetails({});
+        setSearched(true);
+    } finally {
+        setLoading(false);
+    }
+}, [selectedOutletId, selectedVendorId]);
+
+    /* ---------------- search filter (search box within listing card) ---------------- */
     const filteredRows = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         if (!q) return list;
+
         return list.filter(
             (item) =>
-                (item.grnCode || '').toLowerCase().includes(q) ||
-                (item.poCode || '').toLowerCase().includes(q) ||
-                (item.raisedBy || '').toLowerCase().includes(q) ||
-                (item.outlet || '').toLowerCase().includes(q)
+                (item.grnCode || '').toLowerCase().includes(q)
         );
     }, [list, searchQuery]);
 
@@ -276,36 +285,208 @@ const PurchaseInvoice = () => {
         filteredRows.length > 0 && filteredRows.every((row) => selectedGrnIds.includes(row.id));
     const someVisibleSelected = filteredRows.some((row) => selectedGrnIds.includes(row.id));
 
-    const toggleRow = (id) => {
-        setSelectedGrnIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-        );
-    };
+    const toggleRow = async (id) => {
+        const alreadySelected = selectedGrnIds.includes(id);
 
-    const toggleAllVisible = () => {
+        // Unselect
+        if (alreadySelected) {
+            setSelectedGrnIds((prev) =>
+                prev.filter((x) => x !== id)
+            );
+
+            return;
+        }
+
+        // Select immediately
+        setSelectedGrnIds((prev) => [...prev, id]);
+
+        // Don't call API again if details are already loaded
+        if (grnDetails[id]) {
+            return;
+        }
+
+        try {
+            setDetailsLoadingIds((prev) => [...prev, id]);
+
+            const res = await getEligibleGrnDetails(id);
+            const details = res?.data?.data ?? [];
+            setGrnDetails((prev) => ({
+                ...prev,
+                [id]: Array.isArray(details) ? details : [],
+            }));
+
+            // Update list row with detail information
+            setList((prev) =>
+                prev.map((grn) =>
+                    grn.id === id
+                        ? {
+                            ...grn,
+                            details: Array.isArray(details)
+                                ? details
+                                : [],
+                            poCode:
+                                details?.[0]?.poCode || '—',
+                            itemsReceived:
+                                Array.isArray(details)
+                                    ? details.length
+                                    : 0,
+                        }
+                        : grn
+                )
+            );
+        } catch (err) {
+            console.error(
+                `Failed to load details for GRN ${id}:`,
+                err
+            );
+
+            toast.error(
+                err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                'Failed to load GRN details.'
+            );
+
+            // If API failed, remove selection
+            setSelectedGrnIds((prev) =>
+                prev.filter((x) => x !== id)
+            );
+        } finally {
+            setDetailsLoadingIds((prev) =>
+                prev.filter((x) => x !== id)
+            );
+        }
+    };
+    const toggleAllVisible = async () => {
         if (allVisibleSelected) {
             const visibleIds = filteredRows.map((r) => r.id);
-            setSelectedGrnIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
-        } else {
-            const visibleIds = filteredRows.map((r) => r.id);
-            setSelectedGrnIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+
+            setSelectedGrnIds((prev) =>
+                prev.filter((id) => !visibleIds.includes(id))
+            );
+
+            return;
+        }
+
+        const visibleIds = filteredRows.map((r) => r.id);
+
+        setSelectedGrnIds((prev) =>
+            Array.from(new Set([...prev, ...visibleIds]))
+        );
+
+        const idsToFetch = visibleIds.filter(
+            (id) => !grnDetails[id]
+        );
+
+        if (!idsToFetch.length) return;
+
+        try {
+            setDetailsLoadingIds((prev) => [
+                ...prev,
+                ...idsToFetch,
+            ]);
+
+            const responses = await Promise.all(
+                idsToFetch.map(async (id) => {
+                    const res = await getEligibleGrnDetails(id);
+
+                    return {
+                        id,
+                        details: res?.data?.data ?? [],
+                    };
+                })
+            );
+
+            const detailsMap = {};
+
+            responses.forEach(({ id, details }) => {
+                detailsMap[id] = Array.isArray(details)
+                    ? details
+                    : [];
+            });
+
+            setGrnDetails((prev) => ({
+                ...prev,
+                ...detailsMap,
+            }));
+
+            setList((prev) =>
+                prev.map((grn) => {
+                    const details = detailsMap[grn.id];
+
+                    if (!details) return grn;
+
+                    return {
+                        ...grn,
+                        details,
+                        poCode: details?.[0]?.poCode || '—',
+                        itemsReceived: details.length,
+                    };
+                })
+            );
+        } catch (err) {
+            console.error(
+                'Failed to load selected GRN details:',
+                err
+            );
+
+            toast.error(
+                'Failed to load details for one or more GRNs.'
+            );
+        } finally {
+            setDetailsLoadingIds((prev) =>
+                prev.filter((id) => !idsToFetch.includes(id))
+            );
         }
     };
 
 
-    const handleGenerateGrnInvoice = () => {
+    const handleGenerateGrnInvoice = async () => {
         if (selectedGrnIds.length === 0) {
             toast.error('Select at least one GRN to generate an invoice.');
             return;
         }
-        const selectedGrns = list.filter((g) => selectedGrnIds.includes(g.id));
-        navigate('/purchase/purchase-invoice/generate-grn-invoice', { state: { selectedGrns } });
-    };
 
-    const handlePrint = () => {
-        window.print();
-    };
+        try {
+            setLoading(true);
 
+            const selectedGrns = list.filter((g) =>
+                selectedGrnIds.includes(g.id)
+            );
+
+            const detailedGrns = await Promise.all(
+                selectedGrns.map(async (grn) => {
+                    const res = await getEligibleGrnDetails(grn.grnId);
+
+                    const details = res?.data?.data ?? [];
+
+                    return {
+                        ...grn, // IMPORTANT: keeps organizationId/vendorId/etc.
+
+                        details: Array.isArray(details)
+                            ? details
+                            : [],
+                    };
+                })
+            );
+
+            navigate('/purchase/purchase-invoice/generate-grn-invoice', {
+                state: {
+                    selectedGrns: detailedGrns,
+                },
+            });
+        } catch (err) {
+            console.error('Failed to load GRN details:', err);
+
+            toast.error(
+                err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                'Failed to load selected GRN details.'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+ 
     /* ---------------- Columns ---------------- */
     const columns = useMemo(
         () => [
@@ -316,8 +497,8 @@ const PurchaseInvoice = () => {
                         type="button"
                         onClick={toggleAllVisible}
                         className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${allVisibleSelected || someVisibleSelected
-                                ? 'bg-[#084E92] border-[#084E92]'
-                                : 'bg-white border-gray-300'
+                            ? 'bg-[#084E92] border-[#084E92]'
+                            : 'bg-white border-gray-300'
                             }`}
                         title={allVisibleSelected ? 'Deselect all' : 'Select all'}
                     >
@@ -380,21 +561,21 @@ const PurchaseInvoice = () => {
                 size: 130,
             },
             {
-                id: 'outlet',
-                accessorFn: (row) => row.outlet,
+                id: 'organizationName',
+                accessorFn: (row) => row.organizationName,
                 header: ({ column }) => (
                     <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
                 ),
-                cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
+                cell: ({ row }) => <TruncatedCell value={row.original.organizationName} widthClass="max-w-[180px]" />,
                 size: 160,
             },
             {
-                id: 'raisedBy',
-                accessorFn: (row) => row.raisedBy,
+                id: 'createdBy',
+                accessorFn: (row) => row.createdBy,
                 header: ({ column }) => (
                     <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
                 ),
-                cell: ({ row }) => <TruncatedCell value={row.original.raisedBy} widthClass="max-w-[140px]" />,
+                cell: ({ row }) => <TruncatedCell value={row.original.createdBy} widthClass="max-w-[140px]" />,
                 size: 150,
             },
             {
@@ -431,13 +612,14 @@ const PurchaseInvoice = () => {
     });
 
     const outletOptions = outlets.map((o) => ({ value: String(o.id), label: o.name }));
+    const vendorOptions = vendors.map((v) => ({ value: String(v.id), label: v.fullName }));
 
     return (
         <Container>
-            <div className="mx-auto p-4">
+            <div className="mx-auto px-4">
                 {/* Breadcrumbs */}
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <span>Dashboard</span>
+                    <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
                     <span>Purchase</span>
                     <ChevronRight size={12} />
@@ -445,7 +627,7 @@ const PurchaseInvoice = () => {
                 </div>
 
                 {/* Page header */}
-                <div className="flex items-start justify-between gap-4 flex-wrap mb-2">
+                <div className="flex items-start justify-between gap-4 flex-wrap my-2">
                     <h1
                         className="text-[28px] font-bold text-[#101828]"
                         style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
@@ -453,14 +635,6 @@ const PurchaseInvoice = () => {
                         Purchase Invoice
                     </h1>
 
-                    <button
-                        type="button"
-                        onClick={handlePrint}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#E7EAF0] bg-white text-sm font-semibold text-[#101828] hover:bg-gray-50 transition"
-                    >
-                        <Printer size={16} />
-                        Print
-                    </button>
                 </div>
 
                 {/* Search GRN card */}
@@ -501,30 +675,27 @@ const PurchaseInvoice = () => {
                                 }
                                 options={vendorOptions}
                                 placeholder={
-                                    !selectedOutletId
-                                        ? 'Select outlet first'
-                                        : mappingsLoading
-                                            ? 'Loading vendors...'
-                                            : vendorOptions.length
-                                                ? 'Select vendor'
-                                                : 'No vendors mapped to this outlet'
+                                    vendorsLoading
+                                        ? 'Loading vendors...'
+                                        : vendorOptions.length
+                                            ? 'Select vendor'
+                                            : 'No vendors'
                                 }
-                                disabled={!selectedOutletId || mappingsLoading}
                             />
                         </div>
 
-                         <button
-                        type="button"
-                        onClick={handleSearchGrn}
-                        disabled={loading}
-                        className="flex items-center h-max lg:w-full shrink-0 w-max self-end gap-2 px-4 py-3 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition disabled:opacity-60"
-                    >
-                        {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                        Search GRN
-                    </button>
+                        <button
+                            type="button"
+                            onClick={handleSearchGrn}
+                            disabled={loading}
+                            className="flex items-center h-max lg:w-full shrink-0 w-max self-end gap-2 px-4 py-3 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition disabled:opacity-60"
+                        >
+                            {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                            Search GRN
+                        </button>
                     </div>
 
-                   
+
                 </div>
 
                 {/* GRN Listing card */}
@@ -542,7 +713,7 @@ const PurchaseInvoice = () => {
                             <input
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search raw material by name or code..."
+                                placeholder="Search GRN code..."
                                 className="w-full h-10.5 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
                             />
                         </div>
@@ -556,7 +727,7 @@ const PurchaseInvoice = () => {
                         <button
                             type="button"
                             onClick={handleGenerateGrnInvoice}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer border border-[#E7EAF0] bg-white text-sm font-semibold text-[#101828] hover:bg-gray-100 transition"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer border border-[#E7EAF0] bg-gray-100 text-sm font-semibold text-[#101828] hover:bg-gray-200 transition"
                         >
                             <FileText size={16} />
                             Generate GRN Invoice
@@ -598,12 +769,6 @@ const PurchaseInvoice = () => {
                             table={table}
                             recordCount={filteredRows.length}
                             className="rounded-2xl"
-                            tableLayout={{
-                                width: 'fixed',
-                                cellBorder: true,
-                                headerBorder: true,
-                                rowBorder: true,
-                            }}
                         >
                             <Card className="rounded-t-none border-t-0 rounded-2xl">
                                 <CardTable>

@@ -189,6 +189,7 @@ import PurchaseInvoice from '../pages/purchase-invoice/PurchaseInvoice';
 import GenerateGrnInvoice from '../pages/purchase-invoice/GenerateGrnInvoice';
 import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceListing';
 import ApproveInvoice from '../pages/purchase-invoice/ApproveInvoice';
+import PurchaseInvoiceDetailsModal from '../pages/purchase-invoice/PurchaseInvoiceDetailsModal';
 
 
 export function AppRoutingSetup() {
@@ -425,8 +426,10 @@ export function AppRoutingSetup() {
           />
           <Route path='/purchase/purchase-invoice' element={<PurchaseInvoice/>} />
           <Route path='/purchase/purchase-invoice/generate-grn-invoice' element={<GenerateGrnInvoice/>}/>
+          <Route path='/purchase/purchase-invoice/generate-grn/:id' element={<GenerateGrnInvoice/>}/>  
           <Route path='/purchase/invoice-listing' element={<PurchaseInvoiceListing/>}/>
-          <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/>
+          {/* <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/> */}
+          <Route path='/purchase/purchase-invoice-details/:id' element={<PurchaseInvoiceDetailsModal />}/>
 
           <Route path="/inventory/generate-grn" element={<GenerateGRN/>} /> 
           <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />
