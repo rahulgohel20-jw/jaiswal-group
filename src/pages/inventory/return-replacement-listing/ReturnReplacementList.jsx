@@ -38,10 +38,11 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
-import { getAllGrnDetailsByStatus } from '@/services/apiServices';
+import { getAllGrnDetailsByStatus, getPOByIdAndOpenItem } from '@/services/apiServices';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const formatDate = (val) => {
   if (!val) return '—';
@@ -80,33 +81,30 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
   );
 }
 
-const StatCard = ({ label, value, trend, trendLabel, trendType = 'up', badge }) => (
-  <div className="bg-white border border-[#E2E8F0] rounded-2xl px-5 py-4 flex-1 min-w-40 shadow-2xs">
-    <p className="text-[11px] font-semibold tracking-wide text-gray-400 uppercase">{label}</p>
-    <div className="flex flex-col justify-between mt-2 gap-2">
-      <span className="text-2xl font-bold text-[#0F172A]">{value}</span>
-
-      {trend && (
-        <span
-          className={`flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full w-max ${
-            trendType === 'up'
-              ? 'bg-amber-50 text-amber-600'
-              : trendType === 'down'
-                ? 'bg-blue-50 text-blue-600'
-                : trendType === 'ok'
-                  ? 'bg-emerald-50 text-emerald-600'
-                  : 'bg-gray-100 text-gray-600'
-          }`}
-        >
-          {trendType === 'up' && <ArrowUpRight size={13} />}
-          {trendType === 'down' && <RotateCcw size={13} />}
-          {trendType === 'ok' && <CircleCheck size={13} />}
-          {trendLabel}
-        </span>
-      )}
-
-      {badge}
+const StatCard = ({ label, value, trend, trendLabel, trendType = 'up' }) => (
+  <div className="bg-white border border-[#E2E8F0] rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 shadow-2xs">
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase truncate">{label}</p>
+      <span className="text-base md:text-lg font-bold text-[#0F172A] leading-tight">{value}</span>
     </div>
+    {trend && (
+      <span
+        className={`flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+          trendType === 'up'
+            ? 'bg-amber-50 text-amber-600'
+            : trendType === 'down'
+              ? 'bg-blue-50 text-blue-600'
+              : trendType === 'ok'
+                ? 'bg-emerald-50 text-emerald-600'
+                : 'bg-gray-100 text-gray-600'
+        }`}
+      >
+        {trendType === 'up' && <ArrowUpRight size={11} />}
+        {trendType === 'down' && <RotateCcw size={11} />}
+        {trendType === 'ok' && <CircleCheck size={11} />}
+        {trendLabel}
+      </span>
+    )}
   </div>
 );
 
@@ -344,7 +342,9 @@ const ReturnReplacementList = () => {
     return rows;
   }, [scopedRecords, search, statusFilter]);
 
-  const handleAcceptReturn = (row) => {
+  const [checkingPoId, setCheckingPoId] = useState(null);
+
+  const handleAcceptReturn = async (row) => {
     const poId =
       row.purchaseOrderId ||
       row.poId ||
@@ -356,17 +356,51 @@ const ReturnReplacementList = () => {
       return;
     }
 
-    const returnGrnDetailId = row.grnDetailId || row.id;
+    setCheckingPoId(row.id);
+    try {
+      const res = await getPOByIdAndOpenItem([Number(poId)]);
+      const rawData = res?.data?.data ?? res?.data;
+      if (!rawData || (Array.isArray(rawData) && rawData.length === 0)) {
+        const msg = res?.data?.message || res?.data?.msg || 'Purchase Order has no open items or is closed.';
+        toast.error(msg);
+        return;
+      }
 
-    // Navigate to Generate GRN passing returnGrnDetailId
-    navigate(`/inventory/generate-grn/generate/${poId}?returnGrnDetailId=${returnGrnDetailId}`, {
-      state: {
-        poIds: [Number(poId)],
-        poId: Number(poId),
-        returnGrnDetailId: returnGrnDetailId,
-        returnItem: row,
-      },
-    });
+      const returnGrnDetailId = row.grnDetailId || row.id;
+      const queryParams = new URLSearchParams({
+        returnGrnDetailId: String(returnGrnDetailId),
+        ...(row.purchaseOrderDetailId ? { purchaseOrderDetailId: String(row.purchaseOrderDetailId) } : {}),
+        ...(row.rawMaterialId ? { rawMaterialId: String(row.rawMaterialId) } : {}),
+        ...(row.returnQuantity !== undefined && row.returnQuantity !== null ? { returnQty: String(row.returnQuantity) } : {}),
+        ...(row.grnCode && row.grnCode !== '—' ? { grnCode: String(row.grnCode) } : {}),
+        ...(row.grnId ? { oldGrnId: String(row.grnId) } : {}),
+      });
+
+      // Navigate to Generate GRN passing return item parameters
+      navigate(`/inventory/generate-grn/generate/${poId}?${queryParams.toString()}`, {
+        state: {
+          poIds: [Number(poId)],
+          poId: Number(poId),
+          returnGrnDetailId: returnGrnDetailId,
+          purchaseOrderDetailId: row.purchaseOrderDetailId,
+          rawMaterialId: row.rawMaterialId,
+          returnQty: row.returnQuantity,
+          grnCode: row.grnCode,
+          oldGrnId: row.grnId,
+          returnItem: row,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to verify PO open items:', err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.msg ||
+        err?.message ||
+        'Purchase order is closed or has no open items.';
+      toast.error(msg);
+    } finally {
+      setCheckingPoId(null);
+    }
   };
 
   const columns = useMemo(
@@ -581,9 +615,14 @@ const ReturnReplacementList = () => {
                 <button
                   type="button"
                   onClick={() => handleAcceptReturn(row.original)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs whitespace-nowrap"
+                  disabled={checkingPoId === row.original.id}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs whitespace-nowrap disabled:opacity-50"
                 >
-                  <FileText size={13} />
+                  {checkingPoId === row.original.id ? (
+                    <Loader2 size={13} className="animate-spin" />
+                  ) : (
+                    <FileText size={13} />
+                  )}
                   Accept Return
                 </button>
               </div>
@@ -604,7 +643,7 @@ const ReturnReplacementList = () => {
         size: 160,
       },
     ],
-    [navigate, canAdd, canEdit, canGenerateGrn]
+    [navigate, canAdd, canEdit, canGenerateGrn, checkingPoId]
   );
 
   const table = useReactTable({
@@ -619,30 +658,34 @@ const ReturnReplacementList = () => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
+  if (!canView) {
+    return <AccessDenied pageTitle="Return and Replacement" />;
+  }
+
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="py-1 md:py-1.5 pb-2 space-y-2.5">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
           <span>Dashboard</span>
-          <ChevronRight size={12} />
+          <ChevronRight size={11} />
           <span>Inventory</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Return and Replacement</span>
+          <ChevronRight size={11} />
+          <span className="text-[#084E92] font-semibold">Return and Replacement</span>
         </div>
 
         <div>
-          <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+          <h1 className="text-lg md:text-xl font-bold text-[#0F172A] text-start leading-tight">
             Return &amp; Replacement Listing
           </h1>
-          <p className="text-[#53565b] text-sm mt-1">
+          <p className="text-[#53565b] text-xs mt-0.5">
             Manage and track returned inventory and generate replacement GRNs
           </p>
         </div>
 
         {scopeError && (
-          <div className="mt-4 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-[#C0293D]">{scopeError}</span>
+          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2 flex items-center justify-between">
+            <span className="text-xs text-[#C0293D]">{scopeError}</span>
             <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0 cursor-pointer">
               Retry
             </button>
@@ -650,82 +693,80 @@ const ReturnReplacementList = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <StatCard
             label="Total Returns"
             value={summary.totalReturns}
             trend
             trendType="up"
-            trendLabel="All Records"
+            trendLabel="All"
           />
           <StatCard
             label="Return Requested"
             value={summary.returnReq}
             trend
             trendType="warn"
-            trendLabel="Action Req."
+            trendLabel="Action"
           />
           <StatCard
             label="Replacement Requested"
             value={summary.replacementReq}
             trend
             trendType="down"
-            trendLabel="Pending GRN"
+            trendLabel="Pending"
           />
           <StatCard
             label="Completed"
             value={summary.completed}
             trend
             trendType="ok"
-            trendLabel="Resolved"
+            trendLabel="Done"
           />
         </div>
 
         {/* Search + Filters */}
-        <div className="bg-white py-4 border border-[#E2E8F0] rounded-2xl my-6 px-4 shadow-2xs">
-          <div className="flex flex-col md:flex-row items-center gap-3 justify-between flex-wrap">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search
-                size={18}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                placeholder="Search by Item, PR, PO, GRN, or Outlet..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full h-10 border border-gray-200 rounded-xl pl-10 pr-4 text-sm text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition"
-              />
-            </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Search by Item, PR, PO, GRN, or Outlet..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-9 border border-gray-200 rounded-xl pl-9 pr-3 text-xs text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition"
+            />
+          </div>
 
-            <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
-              {showUnitDropdown && (
-                <UnitDropdown
-                  units={units}
-                  selectedUnitId={selectedUnitId}
-                  onChange={setSelectedUnitId}
-                />
-              )}
+          <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+            {showUnitDropdown && (
+              <UnitDropdown
+                units={units}
+                selectedUnitId={selectedUnitId}
+                onChange={setSelectedUnitId}
+              />
+            )}
 
-              <div className="relative min-w-[200px]">
-                <Filter size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-10 w-full pl-9 pr-8 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer"
-                >
-                  <option value="ALL">All Status</option>
-                  <option value="RETURN_REPLACEMENT_REQUESTED">Replacement Requested</option>
-                  <option value="RETURN_REQUESTED">Return Requested</option>
-                  <option value="RETURN_REPLACEMENT_COMPLETED">Completed</option>
-                </select>
-              </div>
+            <div className="relative min-w-[180px]">
+              <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 w-full pl-8 pr-7 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer"
+              >
+                <option value="ALL">All Status</option>
+                <option value="RETURN_REPLACEMENT_REQUESTED">Replacement Requested</option>
+                <option value="RETURN_REQUESTED">Return Requested</option>
+                <option value="RETURN_REPLACEMENT_COMPLETED">Completed</option>
+              </select>
             </div>
           </div>
         </div>
 
         {/* Table */}
-        <div className="w-full my-2 bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden shadow-2xs">
+        <div className="w-full bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden shadow-2xs">
           {loading && (
             <div className="p-8 text-center flex items-center justify-center gap-2 text-sm text-gray-500">
               <Loader2 className="w-4 h-4 animate-spin text-[#084E92]" />
@@ -748,12 +789,12 @@ const ReturnReplacementList = () => {
             >
               <Card className="rounded-2xl border-0 shadow-none bg-transparent">
                 <CardTable>
-                  <ScrollArea>
+                  <ScrollArea className="max-h-[60vh] w-full">
                     <DataGridTable />
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </CardTable>
-                <CardFooter className="bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-2xl">
+                <CardFooter className="bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-2xl py-2">
                   <DataGridPagination />
                 </CardFooter>
               </Card>

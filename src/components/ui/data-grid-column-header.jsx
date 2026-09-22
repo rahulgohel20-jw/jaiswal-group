@@ -72,12 +72,12 @@ function DataGridColumnHeader({
     return (
       <div
         className={cn(
-          'text-[#43474F] font-semibold text-xs! opacity-100!  inline-flex h-full items-center gap-1.5 text-[0.8125rem] leading-[calc(1.125/0.8125)] [&_svg]:size-3.5 [&_svg]:opacity-80',
+          'text-[#43474F] font-bold text-xs opacity-100 inline-flex items-center gap-1.5 h-7 whitespace-nowrap [&_svg]:size-3.5 [&_svg]:opacity-80',
           className,
         )}
       >
         {icon && icon}
-        {title}
+        <span>{title}</span>
       </div>
     );
   };
@@ -87,7 +87,7 @@ function DataGridColumnHeader({
       <Button
         variant="ghost"
         className={cn(
-          'text-[#43474F] opacity-100! text-xs! font-semibold rounded-md -ms-2 px-2 h-7 hover:bg-secondary data-[state=open]:bg-secondary hover:text-foreground data-[state=open]:text-foreground',
+          'text-[#43474F] opacity-100! text-xs! font-bold rounded-md -ms-2 px-2 h-7 hover:bg-secondary data-[state=open]:bg-secondary hover:text-foreground data-[state=open]:text-foreground inline-flex items-center gap-1.5 whitespace-nowrap',
           className,
         )}
         disabled={isLoading || recordCount === 0}
@@ -103,15 +103,15 @@ function DataGridColumnHeader({
         }}
       >
         {icon && icon}
-        {title}
+        <span>{title}</span>
 
         {column.getCanSort() &&
           (column.getIsSorted() === 'desc' ? (
-            <ArrowDown className="size-[0.7rem]! mt-px" />
+            <ArrowDown className="size-3.5! mt-px shrink-0" />
           ) : column.getIsSorted() === 'asc' ? (
-            <ArrowUp className="size-[0.7rem]! mt-px" />
+            <ArrowUp className="size-3.5! mt-px shrink-0" />
           ) : (
-            <ChevronsUpDown className="size-[0.7rem]! mt-px" />
+            <ChevronsUpDown className="size-3.5! mt-px shrink-0 opacity-60" />
           ))}
       </Button>
     );
@@ -303,7 +303,7 @@ function DataGridColumnHeader({
     return <div className="flex items-center h-full">{headerButton()}</div>;
   }
 
-  return headerLabel();
+  return <div className="flex items-center h-full">{headerLabel()}</div>;
 }
 
 export { DataGridColumnHeader };

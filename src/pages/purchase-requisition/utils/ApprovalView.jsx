@@ -10,11 +10,21 @@ import {
   ArrowLeft,
   Loader2,
 } from "lucide-react";
-import { getAllRawMaterialItems } from "@/services/apiServices";
+import { getAllRawMaterialItems, getCurrentStockListGet } from "@/services/apiServices";
 import SearchableSelect from "@/utils/SearchableSelect";
 
 const FONT_IMPORT_URL =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap";
+
+const getAvailableStock = (item) => {
+  if (typeof item?.currentStock === 'object' && item?.currentStock !== null) {
+    return item.currentStock.currentStock ?? 0;
+  }
+  if (typeof item?.currentStock === 'number') {
+    return item.currentStock;
+  }
+  return item?.availableStock != null ? item.availableStock : (item?.closingStock ?? item?.opbStock ?? 0);
+};
 
 // Normalises one `pr.details[]` entry into what the table expects.
 // Only ONE quantity now — no separate requested vs approved split.
@@ -25,6 +35,7 @@ function mapItem(detail, idx) {
     rawMaterialId: detail.rawMaterialId,
     uomId: detail.uomId,
     unit: detail.uomName ?? "",
+    availableStock: detail.availableStock ?? null,
     quantity: Number(detail.quantity ?? 0),
   };
 }
@@ -112,21 +123,34 @@ function RawMaterialPicker({ rawMaterials, alreadyAddedIds, onAdd, loading }) {
 
       {open && matches.length > 0 && (
         <div className="absolute z-20 mt-1.5 w-full max-h-64 overflow-y-auto bg-white border border-[#E7EAF0] rounded-xl shadow-lg">
-          {matches.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleSelect(item)}
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-[#EFF1F5] last:border-b-0"
-            >
-              <span className="text-sm font-semibold text-[#2952E3] truncate">
-                {item.nameEnglish}
-              </span>
-              <span className="text-xs text-[#475467] shrink-0">
-                {item.unit?.nameEnglish || item.unitName || "—"}
-              </span>
-            </button>
-          ))}
+          {matches.map((item) => {
+            const availStock = getAvailableStock(item);
+            const unitText = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || "";
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleSelect(item)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-[#EFF1F5] last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-[#2952E3] truncate">
+                    {item.nameEnglish}
+                  </div>
+                  {(item.itemCode || item.code) && (
+                    <div className="text-[11px] text-gray-400 font-mono">
+                      Code: {item.itemCode || item.code}
+                    </div>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs font-semibold text-gray-700">
+                    Stock: {Number(availStock).toFixed(2)} {unitText}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -176,20 +200,72 @@ export default function ApprovalView({
   const busy = saving || approving || rejecting;
 
   useEffect(() => {
-    if (isReject) return;
     const load = async () => {
       setRmLoading(true);
       try {
-        const res = await getAllRawMaterialItems(0, 0, true, "", "", "");
-        setRawMaterials(res?.data?.data?.["Raw Material Details"] || []);
-      } catch {
-        // non-fatal — picker just stays empty
+        const orgId = requisition?.outletId || '';
+        const res = await getAllRawMaterialItems(0, 0, true, "", "", "", orgId, "");
+        const rawItems = res?.data?.data?.["Raw Material Details"] || [];
+        setRawMaterials(rawItems);
+
+        // Fetch current stock for existing items
+        const itemIds = (requisition?.details ?? []).map((d) => d.rawMaterialId).filter(Boolean);
+        let stockList = [];
+        if (orgId && itemIds.length > 0) {
+          try {
+            const stockRes = await getCurrentStockListGet({
+              itemIds,
+              itemType: 'RAW_MATERIAL',
+              organizationId: Number(orgId),
+            });
+            const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
+            stockList = Array.isArray(stockData)
+              ? stockData
+              : Array.isArray(stockData?.content)
+              ? stockData.content
+              : Array.isArray(stockData?.list)
+              ? stockData.list
+              : [];
+          } catch (stockErr) {
+            console.error('Failed to fetch stock list in approval view', stockErr);
+          }
+        }
+
+        setItems((prev) =>
+          prev.map((it) => {
+            const matchedStock = stockList.find(
+              (s) => Number(s.itemId || s.id) === Number(it.rawMaterialId)
+            );
+            const matchedRaw = rawItems.find((r) => Number(r.id) === Number(it.rawMaterialId));
+            const availStock =
+              matchedStock != null
+                ? Number(matchedStock.currentStock ?? 0)
+                : matchedRaw
+                ? getAvailableStock(matchedRaw)
+                : it.availableStock;
+
+            const allowedUnits =
+              Array.isArray(matchedRaw?.allowedUnits) && matchedRaw.allowedUnits.length > 0
+                ? matchedRaw.allowedUnits
+                : matchedRaw?.unit
+                ? [matchedRaw.unit]
+                : it.allowedUnits || [];
+
+            return {
+              ...it,
+              availableStock: availStock,
+              allowedUnits,
+            };
+          })
+        );
+      } catch (err) {
+        console.error('Failed to load raw materials in approval view', err);
       } finally {
         setRmLoading(false);
       }
     };
     load();
-  }, [isReject]);
+  }, [requisition?.outletId, requisition?.details]);
 
   // ---- Item mutations ----
   const alreadyAddedIds = useMemo(
@@ -220,6 +296,7 @@ export default function ApprovalView({
         uomId,
         unit: uomName,
         allowedUnits,
+        availableStock: getAvailableStock(raw),
         quantity: 1,
       },
     ]);
@@ -436,6 +513,7 @@ export default function ApprovalView({
                 "Sr. no.",
                 "Item name",
                 "Unit",
+                "Available Stock",
                 "Quantity",
                 ...(isReject || !canEdit ? [] : ["Action"]),
               ].map((h) => (
@@ -452,7 +530,7 @@ export default function ApprovalView({
             {filteredItems.length === 0 && (
               <tr>
                 <td
-                  colSpan={isReject || !canEdit ? 4 : 5}
+                  colSpan={isReject || !canEdit ? 5 : 6}
                   className="px-5 py-14 text-center text-sm text-[#98A2B3]"
                 >
                   {items.length === 0
@@ -511,6 +589,11 @@ export default function ApprovalView({
                       );
                     })()
                   )}
+                </td>
+                <td className="px-5 py-4">
+                  <span className="text-[#475467] font-medium">
+                    {it.availableStock != null ? Number(it.availableStock).toFixed(2) : '—'}
+                  </span>
                 </td>
                 <td className="px-5 py-4">
                   {isReject || !canEdit ? (
