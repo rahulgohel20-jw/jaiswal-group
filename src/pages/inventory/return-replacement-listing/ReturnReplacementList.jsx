@@ -82,14 +82,14 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
 }
 
 const StatCard = ({ label, value, trend, trendLabel, trendType = 'up' }) => (
-  <div className="bg-white border border-[#E2E8F0] rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 shadow-2xs">
+  <div className="bg-white border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 shadow-xs">
     <div className="min-w-0">
       <p className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase truncate">{label}</p>
-      <span className="text-base md:text-lg font-bold text-[#0F172A] leading-tight">{value}</span>
+      <span className="text-base md:text-lg font-bold text-[#0F172A] leading-tight mt-0.5 block">{value}</span>
     </div>
     {trend && (
       <span
-        className={`flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${
+        className={`flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
           trendType === 'up'
             ? 'bg-amber-50 text-amber-600'
             : trendType === 'down'
@@ -664,7 +664,7 @@ const ReturnReplacementList = () => {
 
   return (
     <Container>
-      <div className="py-1 md:py-1.5 pb-2 space-y-2.5">
+      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
           <span>Dashboard</span>
@@ -675,16 +675,16 @@ const ReturnReplacementList = () => {
         </div>
 
         <div>
-          <h1 className="text-lg md:text-xl font-bold text-[#0F172A] text-start leading-tight">
+          <h1 className="text-xl md:text-2xl font-bold text-[#0F172A] text-start leading-tight">
             Return &amp; Replacement Listing
           </h1>
-          <p className="text-[#53565b] text-xs mt-0.5">
+          <p className="text-[#53565b] text-xs mt-1">
             Manage and track returned inventory and generate replacement GRNs
           </p>
         </div>
 
         {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2 flex items-center justify-between">
+          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 flex items-center justify-between">
             <span className="text-xs text-[#C0293D]">{scopeError}</span>
             <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0 cursor-pointer">
               Retry
@@ -693,7 +693,7 @@ const ReturnReplacementList = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard
             label="Total Returns"
             value={summary.totalReturns}
@@ -725,7 +725,7 @@ const ReturnReplacementList = () => {
         </div>
 
         {/* Search + Filters */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
             <Search
               size={15}
@@ -736,11 +736,11 @@ const ReturnReplacementList = () => {
               placeholder="Search by Item, PR, PO, GRN, or Outlet..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-9 border border-gray-200 rounded-xl pl-9 pr-3 text-xs text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition"
+              className="w-full h-9.5 border border-gray-200 rounded-xl pl-9 pr-3 text-xs text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition"
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
+          <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
             {showUnitDropdown && (
               <UnitDropdown
                 units={units}
@@ -754,7 +754,7 @@ const ReturnReplacementList = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-9 w-full pl-8 pr-7 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer"
+                className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer"
               >
                 <option value="ALL">All Status</option>
                 <option value="RETURN_REPLACEMENT_REQUESTED">Replacement Requested</option>
@@ -766,7 +766,7 @@ const ReturnReplacementList = () => {
         </div>
 
         {/* Table */}
-        <div className="w-full bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden shadow-2xs">
+        <div className="w-full bg-white rounded-2xl border border-[#E2E8F0] overflow-hidden shadow-xs">
           {loading && (
             <div className="p-8 text-center flex items-center justify-center gap-2 text-sm text-gray-500">
               <Loader2 className="w-4 h-4 animate-spin text-[#084E92]" />
@@ -794,7 +794,7 @@ const ReturnReplacementList = () => {
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </CardTable>
-                <CardFooter className="bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-2xl py-2">
+                <CardFooter className="bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-2xl py-2.5">
                   <DataGridPagination />
                 </CardFooter>
               </Card>

@@ -106,12 +106,12 @@ const PO_STATUS_FILTER_OPTIONS = [
 
 function StatusDropdown({ value, onChange }) {
   return (
-    <div className="relative min-w-[190px]">
-      <Filter size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
+    <div className="relative min-w-[170px]">
+      <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full pl-9 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] font-semibold appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
       >
         {PO_STATUS_FILTER_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -565,7 +565,7 @@ const GenerateGRN = () => {
 
   return (
     <Container>
-      <div className="py-1 md:py-1.5 pb-2 space-y-2.5">
+      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
         {/* Breadcrumbs */}
         <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
           <span>Dashboard</span>
@@ -576,9 +576,9 @@ const GenerateGRN = () => {
         </div>
 
         {/* Page header */}
-        <div className="flex items-start justify-between gap-2 flex-wrap">
-          <div className="flex flex-col gap-0.5">
-            <h1 className="text-lg md:text-xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-xl md:text-2xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Generate GRN
             </h1>
             <p className="text-[#667085] text-xs max-w-xl">
@@ -591,7 +591,7 @@ const GenerateGRN = () => {
               type="button"
               onClick={handleBulkGenerateGRN}
               disabled={selectedPos.length === 0}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-2xs ${
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition shadow-2xs ${
                 selectedPos.length > 0
                   ? 'bg-[#084E92] text-white hover:bg-[#073e77] cursor-pointer'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
@@ -609,7 +609,7 @@ const GenerateGRN = () => {
 
         {/* Selected POs Info Banner */}
         {selectedPos.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 text-xs text-[#084E92] font-medium animate-in fade-in duration-200">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3.5 py-2 flex items-center justify-between gap-2 text-xs text-[#084E92] font-medium animate-in fade-in duration-200">
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-2 h-2 rounded-full bg-[#084E92] shrink-0" />
               <span className="truncate">
@@ -627,7 +627,7 @@ const GenerateGRN = () => {
         )}
 
         {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2 flex items-center justify-between">
+          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 flex items-center justify-between">
             <span className="text-xs text-[#C0293D]">{scopeError}</span>
             <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
               Retry
@@ -636,14 +636,14 @@ const GenerateGRN = () => {
         )}
 
         {/* Search + unit dropdown + status dropdown */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search PO Code, Outlet, Raised By..."
-              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 
@@ -655,7 +655,7 @@ const GenerateGRN = () => {
         </div>
 
         {poError && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2 text-xs text-[#C0293D]">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 text-xs text-[#C0293D]">
             <span>{poError}</span>
             <button
               type="button"
@@ -668,7 +668,7 @@ const GenerateGRN = () => {
         )}
 
         {/* Table card (Maximized height for comfortable viewing) */}
-        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
           {loading || scopeLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
@@ -693,7 +693,7 @@ const GenerateGRN = () => {
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </CardTable>
-                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2">
+                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />
                 </CardFooter>
               </Card>

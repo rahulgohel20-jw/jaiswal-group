@@ -113,16 +113,16 @@ const TruncatedCell = ({ value, widthClass = 'max-w-[170px]', className = 'text-
 
 function StatCard({ label, value, icon: Icon, iconBg, iconColor }) {
   return (
-    <div className="bg-white rounded-xl border border-[#E7EAF0] px-3 py-1.5 flex items-center gap-2.5 shadow-2xs">
+    <div className="bg-white rounded-xl border border-[#E7EAF0] px-3.5 py-2.5 flex items-center gap-3 shadow-xs">
       <div
-        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
         style={{ background: iconBg, color: iconColor }}
       >
-        <Icon size={14} />
+        <Icon size={16} />
       </div>
       <div className="min-w-0">
         <div className="text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wider truncate">{label}</div>
-        <div className="text-base font-bold text-[#101828] font-sans leading-tight">{value}</div>
+        <div className="text-base md:text-lg font-bold text-[#101828] font-sans leading-tight mt-0.5">{value}</div>
       </div>
     </div>
   );
@@ -751,7 +751,7 @@ const StockTransfer = () => {
 
   return (
     <Container>
-      <div className="py-1 md:py-1.5 pb-2 space-y-2.5">
+      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
           <span>Dashboard</span>
@@ -762,17 +762,17 @@ const StockTransfer = () => {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-lg md:text-xl font-bold text-[#101828] font-sans leading-tight">Stock Transfer</h1>
-            <p className="text-[#667085] text-xs mt-0.5">
+            <h1 className="text-xl md:text-2xl font-bold text-[#101828] font-sans leading-tight">Stock Transfer</h1>
+            <p className="text-[#667085] text-xs mt-1">
               Manage, dispatch, and track internal stock transfers across outlets.
             </p>
           </div>
           {canAdd && (
             <div className="flex items-center gap-2">
               <Link to="/inventory/stock-transfer-request">
-                <button className="flex text-xs font-semibold cursor-pointer items-center gap-1.5 px-3 py-1.5 bg-[#084E92] text-white rounded-lg shadow-2xs hover:bg-[#073e77] transition">
+                <button className="flex text-xs font-semibold cursor-pointer items-center gap-1.5 px-3.5 py-2 bg-[#084E92] text-white rounded-lg shadow-2xs hover:bg-[#073e77] transition">
                   <Plus size={14} />
                   New Transfer Request
                 </button>
@@ -782,7 +782,7 @@ const StockTransfer = () => {
         </div>
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard
             label="Total Transfers"
             value={stats.total}
@@ -814,16 +814,16 @@ const StockTransfer = () => {
         </div>
 
         {/* Filter Bar */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           {/* Row 1: Search Bar & Status Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <div className="relative flex-1">
               <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search transfer code, item, outlet, vehicle..."
-                className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs font-medium text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+                className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs font-medium text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
               />
             </div>
             <div className="w-[160px] shrink-0">
@@ -832,7 +832,7 @@ const StockTransfer = () => {
           </div>
 
           {/* Row 2: Location Filters (From Outlet, From Sub-Outlet, To Outlet, To Sub-Outlet) */}
-          <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2`}>
+          <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
             {/* 1. From Outlet: only for Company & Group Users */}
             {!isOutletUser && (
               <SearchableSelect
@@ -882,7 +882,7 @@ const StockTransfer = () => {
         </div>
 
         {/* Table Card (Maximized height for comfortable viewing) */}
-        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
           {loading || scopeLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={18} className="animate-spin text-[#084E92]" />
@@ -908,7 +908,7 @@ const StockTransfer = () => {
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </CardTable>
-                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2">
+                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />
                 </CardFooter>
               </Card>

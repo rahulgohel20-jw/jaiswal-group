@@ -909,7 +909,7 @@ const ManualAdjustmentScreenListing = () => {
 
   return (
     <Container>
-      <div className="py-1 md:py-1.5 pb-2 space-y-2.5">
+      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
         {/* Breadcrumbs */}
         <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
           <span>Dashboard</span>
@@ -920,10 +920,10 @@ const ManualAdjustmentScreenListing = () => {
         </div>
 
         {/* Header Title + Action Button */}
-        <div className="flex items-start justify-between gap-2 flex-wrap">
-          <div className="flex flex-col gap-0.5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex flex-col gap-1">
             <h1
-              className="text-lg md:text-xl font-bold text-[#101828] leading-tight"
+              className="text-xl md:text-2xl font-bold text-[#101828] leading-tight"
               style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
             >
               Manual Adjustment List
@@ -936,7 +936,7 @@ const ManualAdjustmentScreenListing = () => {
             <div className="flex items-center gap-2 shrink-0">
               <Link
                 to="/inventory/manual-adjustment/create"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white bg-[#084E92] text-xs font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shadow-2xs"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white bg-[#084E92] text-xs font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shadow-2xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Create Adjustment
@@ -946,7 +946,7 @@ const ManualAdjustmentScreenListing = () => {
         </div>
 
         {/* Filter Toolbar (Aligned in single row like PurchaseRequisitionList) */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search
               size={15}
@@ -956,7 +956,7 @@ const ManualAdjustmentScreenListing = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search item, remarks, code..."
-              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 
@@ -1004,7 +1004,7 @@ const ManualAdjustmentScreenListing = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 w-full pl-8 pr-7 rounded-xl border border-[#E7EAF0] bg-white text-xs font-semibold text-[#101828] appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-[#E7EAF0] bg-white text-xs font-semibold text-[#101828] appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             >
               <option value="ALL">All Status</option>
               <option value="DRAFT">Draft</option>
@@ -1026,7 +1026,7 @@ const ManualAdjustmentScreenListing = () => {
 
         {/* Bulk Actions Banner */}
         {selectedRowIds.length > 0 && (
-          <div className="flex items-center justify-between bg-blue-50/90 border border-blue-200 rounded-xl px-3.5 py-2 shadow-2xs flex-wrap gap-2">
+          <div className="flex items-center justify-between bg-blue-50/90 border border-blue-200 rounded-xl px-4 py-2.5 shadow-2xs flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-md bg-[#084E92] text-white flex items-center justify-center font-bold text-[11px]">
                 {selectedRowIds.length}
@@ -1042,7 +1042,7 @@ const ManualAdjustmentScreenListing = () => {
               <button
                 type="button"
                 onClick={() => setSelectedRowIds([])}
-                className="px-3 py-1 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer shadow-2xs"
+                className="px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition cursor-pointer shadow-2xs"
               >
                 Deselect
               </button>
@@ -1050,7 +1050,7 @@ const ManualAdjustmentScreenListing = () => {
                 type="button"
                 onClick={handleBulkPost}
                 disabled={bulkPosting}
-                className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-white bg-[#084E92] hover:bg-[#073e77] rounded-lg transition shadow-2xs cursor-pointer disabled:opacity-60"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-[#084E92] hover:bg-[#073e77] rounded-lg transition shadow-2xs cursor-pointer disabled:opacity-60"
               >
                 {bulkPosting ? <Loader2 size={13} className="animate-spin" /> : <Layers size={13} />}
                 Post Bulk ({selectedRowIds.length})
@@ -1060,7 +1060,7 @@ const ManualAdjustmentScreenListing = () => {
         )}
 
         {/* Data Grid Table (Maximized height for comfortable viewing) */}
-        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-sm">
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
           {loading || scopeLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
@@ -1097,7 +1097,7 @@ const ManualAdjustmentScreenListing = () => {
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </CardTable>
-                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2">
+                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />
                 </CardFooter>
               </Card>
