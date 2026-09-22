@@ -186,6 +186,10 @@ import StockTransfer from '../pages/inventory/stock-transfer/StockTransfer';
 import StockTransferDetail from '../pages/inventory/stock-transfer/StockTransferDetail';
 import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
 import UserProfile from '../pages/my-profile/UserProfile';
+import PurchaseInvoice from '../pages/purchase-invoice/PurchaseInvoice';
+import GenerateGrnInvoice from '../pages/purchase-invoice/GenerateGrnInvoice';
+import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceListing';
+import ApproveInvoice from '../pages/purchase-invoice/ApproveInvoice';
 import StockTransferRequest from '../pages/inventory/stock-transfer/StockTransferRequest';
 import StockTransferReqReceiveList from '../pages/inventory/stock-transfer-request-listing/StockTransferReqReceiveList';
 import OpbStockCreateRequestListing from '../pages/inventory/opb-stock/OpbStockCreateRequestListing';
@@ -428,6 +432,10 @@ export function AppRoutingSetup() {
             path="/purchase/add-purchase-return"
             element={<AddPurchaseReturn />}
           />
+          <Route path='/purchase/purchase-invoice' element={<PurchaseInvoice/>} />
+          <Route path='/purchase/purchase-invoice/generate-grn-invoice' element={<GenerateGrnInvoice/>}/>
+          <Route path='/purchase/invoice-listing' element={<PurchaseInvoiceListing/>}/>
+          <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/>
 
           <Route path="/inventory/generate-grn" element={<GenerateGRN/>} /> 
           <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />

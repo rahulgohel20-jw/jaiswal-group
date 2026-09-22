@@ -874,6 +874,12 @@ export const syncCaptainRecipes = (orgId) => {
   export const deleteAssignAsset = (id) => {
     return DELETE('/assign-assets/delete', { id });
   };
+  export const getAssignedAssetsByOrgAndSubOutlet = (orgId, subOutletId = 0) => {
+    return GET(`/assets/assigned-by-location?organizationId=${orgId}&subOutletId=${subOutletId}`);
+  }
+  export const getAssignmentsByAssetId = (id) => {
+    return GET(`/assets/assignments?assetId=${id}`);
+  }
 
 
   // ---- Purchase Requisition APIs ----

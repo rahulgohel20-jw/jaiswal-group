@@ -472,6 +472,8 @@ export const MENU_SIDEBAR = [
         path: '/purchase-order-request/purchase',
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
+      { title: 'Purchase Invoice', path: '/purchase/purchase-invoice'},
+      { title: 'Invoice Listing', path: '/purchase/invoice-listing'},
     ],
   },
   {
@@ -587,6 +589,8 @@ export const MENU_SIDEBAR_ADMIN = [
         path: '/purchase-order-request/purchase',
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
+      { title: 'Purchase Invoice', path: '/purchase/purchase-invoice'},
+      { title: 'Invoice Listing', path: '/purchase/invoice-listing'},
     ],
   },
   {

@@ -37,12 +37,8 @@ import { getAssetById } from '../../../services/apiServices';
 import { notify } from "@/utils/toast";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import SearchableSelect from '../../../utils/SearchableSelect';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -52,13 +48,12 @@ const errorInputCls =
   'w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
   'placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300';
 
-const selectCls =
-  'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300 appearance-none cursor-pointer';
-
-const errorSelectCls =
-  'w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
-  'outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300 appearance-none cursor-pointer';
+const frequencyOptions = [
+  { value: "DAILY", label: "Daily" },
+  { value: "WEEKLY", label: "Weekly" },
+  { value: "MONTHLY", label: "Monthly" },
+  { value: "YEARLY", label: "Yearly" },
+];
 
 const Label = ({ children, required, hint }) => (
   <label className="flex items-center gap-1 text-sm font-medium text-gray-700 mb-1.5">
@@ -140,148 +135,6 @@ const SubHeading = ({ icon: Icon, title }) => (
   </div>
 );
 
-const Select = ({
-  value,
-  onChange,
-  options = [],
-  placeholder = "Select...",
-  disabled = false,
-  hasError = false,
-  name,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const selectedOption = options.find(
-    (option) => String(option.value) === String(value)
-  );
-
-  const selectedLabel = selectedOption?.label || "";
-
-  useEffect(() => {
-    if (!open) {
-      setSearch(selectedLabel);
-    }
-  }, [open, selectedLabel]);
-
-  const filteredOptions = options.filter((option) =>
-    String(option.label || "")
-      .toLowerCase()
-      .includes(search.trim().toLowerCase())
-  );
-
-  const handleSelect = (option) => {
-    onChange({
-      target: {
-        name,
-        value: String(option.value),
-      },
-    });
-
-    setSearch(option.label || "");
-    setOpen(false);
-  };
-
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-
-    setSearch(value);
-    setOpen(true);
-
-    // User starts typing/searching -> don't keep old selection
-    if (String(value) !== String(selectedLabel)) {
-      onChange({
-        target: {
-          name,
-          value: "",
-        },
-      });
-    }
-  };
-
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (disabled) return;
-
-        setOpen(nextOpen);
-
-        if (nextOpen) {
-          setSearch(selectedLabel);
-        }
-      }}
-      modal={false}
-    >
-      <PopoverTrigger asChild>
-        <div className="relative w-full">
-          <Input
-            name={name}
-            value={search}
-            disabled={disabled}
-            placeholder={placeholder}
-            onClick={() => {
-              if (!disabled) {
-                setOpen(true);
-                setSearch(selectedLabel);
-              }
-            }}
-            onChange={handleInputChange}
-            className={
-              hasError
-                ? `${errorInputCls} pr-10 h-10.5`
-                : `${inputCls} pr-10 h-10.5`
-            }
-          />
-
-          <ChevronDown
-            size={16}
-            className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${
-              disabled ? "text-gray-300" : "text-gray-400"
-            }`}
-          />
-        </div>
-      </PopoverTrigger>
-
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={4}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
-      >
-        <div className="max-h-52 overflow-y-auto">
-          {filteredOptions.length > 0 ? (
-            filteredOptions.map((option) => {
-              const isSelected =
-                String(value) === String(option.value);
-
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => handleSelect(option)}
-                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${
-                    isSelected
-                      ? "bg-blue-50 text-primary font-medium"
-                      : "text-gray-700"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              );
-            })
-          ) : (
-            <div className="px-3 py-3 text-sm text-gray-500">
-              No options found
-            </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
 
 const CodeBox = ({ label, icon: Icon, actions, qrUrl }) => (
   <div>
@@ -416,7 +269,11 @@ const toMMDDYYYY = (dateStr) => {
   if (!year || !month || !day) return null;
   return `${month}/${day}/${year}`;
 };
-
+const handleQuantityKeyDown = (e) => {
+  if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
+    e.preventDefault();
+  }
+};
 const AddAsset = () => {
   const { id: assetIdParam } = useParams();
   const navigate = useNavigate(); 
@@ -434,7 +291,7 @@ const AddAsset = () => {
   const [saving, setSaving] = useState(false);
 
   // ---- Validation ----
-  const [errors, setErrors] = useState({});
+  const [ errors, setErrors] = useState({});
 
   // ---- Dynamic dropdown data ----
   const [categories, setCategories] = useState([]);
@@ -812,10 +669,102 @@ const AddAsset = () => {
     conditionId: form.condition || null,
     statusId: form.status || null,
     totalQuantity: form.totalQty ? Number(form.totalQty) : null,
-    availableQuantity: form.availableQty ? Number(form.availableQty) : null,
-    reservedQuantity: form.reservedQty ? Number(form.reservedQty) : null,
+    availableQuantity: form.availableQty !== "" ? Number(form.availableQty) : null,
+    reservedQuantity: form.reservedQty !== ""  ? Number(form.reservedQty) : null,
   });
+  const handleQuantityChange = (key, value) => {
+    setForm((prev) => {
+      const updated = {
+        ...prev,
+        [key]: value,
+      };
 
+      const total = Number(updated.totalQty || 0);
+      const available = Number(updated.availableQty || 0);
+
+      if (key === "availableQty" && value !== "" && available > total) {
+        return prev;
+      }
+
+      updated.reservedQty = String(
+        Math.max(total - available, 0)
+      );
+
+      return updated;
+    });
+
+    setErrors((prev) =>
+      prev[key] ? { ...prev, [key]: undefined } : prev
+    );
+  };
+
+
+  const calculateCurrentValue = (purchaseDate, purchaseCost, depreciation) => {
+    if (!purchaseDate || !purchaseCost || !depreciation) {
+      return '';
+    }
+
+    const purchase = new Date(purchaseDate);
+    const today = new Date();
+
+    if (Number.isNaN(purchase.getTime())) {
+      return '';
+    }
+
+    const cost = Number(purchaseCost);
+    const depreciationRate = Number(depreciation);
+
+    if (cost <= 0 || depreciationRate < 0) {
+      return '';
+    }
+
+    // Calculate completed years
+    let years = today.getFullYear() - purchase.getFullYear();
+
+    const anniversaryNotReached =
+      today.getMonth() < purchase.getMonth() ||
+      (
+        today.getMonth() === purchase.getMonth() &&
+        today.getDate() < purchase.getDate()
+      );
+
+    if (anniversaryNotReached) {
+      years--;
+    }
+
+    years = Math.max(years, 0);
+
+    const accumulatedDepreciation =
+      cost * (depreciationRate / 100) * years;
+
+    const currentValue = Math.max(
+      cost - accumulatedDepreciation,
+      0
+    );
+
+    return currentValue.toFixed(2);
+  };
+
+  const handleAssetValueChange = (key, value) => {
+    setForm((prev) => {
+      const updated = {
+        ...prev,
+        [key]: value,
+      };
+
+      updated.currentValue = calculateCurrentValue(
+        updated.purchaseDate,
+        updated.purchaseCost,
+        updated.depreciation
+      );
+
+      return updated;
+    });
+
+    setErrors((prev) =>
+      prev[key] ? { ...prev, [key]: undefined } : prev
+    );
+  };
   // Central validation — required fields + basic numeric sanity checks.
   const validate = () => {
     const e = {};
@@ -823,25 +772,16 @@ const AddAsset = () => {
     if (!form.category) e.category = 'Category is required';
     if (!form.subCategory) e.subCategory = 'Sub category is required';
     if (!form.assetType) e.assetType = 'Asset type is required';
+    if (!form.condition) e.condition = 'Condition is required';
+    if (!form.status) e.status = 'Status is required';
 
     if (!form.itemName.trim()) e.itemName = 'Item name is required';
     if (!form.brand) e.brand = 'Brand is required';
 
-    if (form.purchaseCost && (isNaN(Number(form.purchaseCost)) || Number(form.purchaseCost) <= 0))
-      e.purchaseCost = 'Purchase cost must be Positive';
-    if (form.currentValue && (isNaN(Number(form.currentValue)) || Number(form.currentValue) <= 0))
-      e.currentValue = 'Current value must be Positive';
-    if (form.depreciation && (isNaN(Number(form.depreciation)) || Number(form.depreciation) <= 0))
-      e.depreciation = 'Depreciation must be Positive';
-    if (form.maintenanceCost && (isNaN(Number(form.maintenanceCost)) || Number(form.maintenanceCost) <= 0))
-      e.maintenanceCost = 'Maintenance cost must be Positive';
-
-    if (form.totalQty === '' || isNaN(Number(form.totalQty)) || Number(form.totalQty) <= 0)
+    if (form.totalQty === '' || isNaN(Number(form.totalQty)) || Number(form.totalQty) < 0)
       e.totalQty = 'Total quantity must be positive';
-    if (form.availableQty === '' || isNaN(Number(form.availableQty)) || Number(form.availableQty) <= 0)
+    if (form.availableQty === '' || isNaN(Number(form.availableQty)) || Number(form.availableQty) < 0)
       e.availableQty = 'Available quantity must be positive';
-    if (form.reservedQty === '' || isNaN(Number(form.reservedQty)) || Number(form.reservedQty) <= 0)
-      e.reservedQty = 'Reserved quantity must be Positive';
 
     if (amcActive && !form.amcExpiry) e.amcExpiry = 'AMC expiry date is required when AMC is active';
 
@@ -938,7 +878,7 @@ const AddAsset = () => {
         {openSections.identification && (
           <div className="px-6 py-6 space-y-5">
             {isEditMode && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <Label>Asset ID</Label>
                   <div className="relative">
@@ -966,7 +906,7 @@ const AddAsset = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid sm:grid-cols-3 gap-4">
               <div className="flex flex-col justify-end">
                 <div className="flex gap-2 justify-between mb-3">
                   <Label required>Category</Label>
@@ -974,7 +914,7 @@ const AddAsset = () => {
                     <CirclePlus />
                   </Button>
                 </div>
-                <Select
+                <SearchableSelect
                   name="category"
                   value={form.category}
                   onChange={handleCategoryChange}
@@ -993,7 +933,7 @@ const AddAsset = () => {
                     <CirclePlus />
                   </Button>
                 </div>
-                <Select
+                <SearchableSelect
                   name="subCategory"
                   value={form.subCategory}
                   onChange={(e) => set('subCategory', e.target.value)}
@@ -1012,7 +952,7 @@ const AddAsset = () => {
                     <CirclePlus />
                   </Button>
                 </div>
-                <Select
+                <SearchableSelect
                   name="assetType"
                   value={form.assetType}
                   onChange={(e) => set('assetType', e.target.value)}
@@ -1039,7 +979,7 @@ const AddAsset = () => {
         />
         {openSections.product && (
           <div className="px-6 py-6 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid sm:grid-cols-2 gap-4">
   <div>
     <div className="flex items-center justify-between gap-2 mb-3">
       <Label required>Item Name</Label>
@@ -1060,7 +1000,7 @@ const AddAsset = () => {
         <CirclePlus />
       </Button>
     </div>
-    <Select
+    <SearchableSelect
       name="brand"
       value={form.brand}
       onChange={(e) => set('brand', e.target.value)}
@@ -1073,7 +1013,7 @@ const AddAsset = () => {
   </div>
 </div>
 
-<div className="grid grid-cols-2 gap-4">
+<div className="grid sm:grid-cols-2 gap-4">
   <div>
     <Label>Model Number</Label>
     <input
@@ -1106,23 +1046,14 @@ const AddAsset = () => {
 
             <div className="border-t border-gray-100 pt-5 space-y-5">
               <SubHeading icon={Landmark} title="Purchase Information" />
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Purchase Date</Label>
                   <input
                     type="date"
                     value={form.purchaseDate}
-                    onChange={(e) => set('purchaseDate', e.target.value)}
+                    onChange={(e) => handleAssetValueChange("purchaseDate", e.target.value) }
                     className={inputCls}
-                  />
-                </div>
-                <div>
-                  <Label>Vendor</Label>
-                  <Select
-                    value={form.vendor}
-                    onChange={(e) => set('vendor', e.target.value)}
-                    placeholder="Select vendor"
-                    options={['Ashirwad Traders', 'Sharma Kitchen Supplies', 'National Equipment Co.']}
                   />
                 </div>
                 <div>
@@ -1136,42 +1067,41 @@ const AddAsset = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Purchase Cost (₹)</Label>
                   <input
+                    type='number'
                     name="purchaseCost"
                     value={form.purchaseCost}
-                    onChange={(e) => set('purchaseCost', e.target.value)}
+                    onChange={(e) => handleAssetValueChange("purchaseCost", e.target.value) }
                     placeholder="55000"
                     onWheel={(e) => e.currentTarget.blur()}
-                    className={errors.purchaseCost ? errorInputCls : inputCls}
+                    className={inputCls}
                   />
-                  <ErrorText message={errors.purchaseCost} />
                 </div>
                 <div>
                   <Label>Current Value (₹)</Label>
                   <input
+                    type='number'
                     name="currentValue"
                     value={form.currentValue}
-                    onChange={(e) => set('currentValue', e.target.value)}
+                    readOnly
                     placeholder="48500"
-                    onWheel={(e) => e.currentTarget.blur()}
-                    className={errors.currentValue ? errorInputCls : inputCls}
+                    className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`}
                   />
-                  <ErrorText message={errors.currentValue} />
                 </div>
                 <div>
                   <Label>Depreciation % (p.a.)</Label>
                   <input
+                    type='number'
                     name="depreciation"
                     value={form.depreciation}
                     onWheel={(e) => e.currentTarget.blur()}
-                    onChange={(e) => set('depreciation', e.target.value)}
+                    onChange={(e) => handleAssetValueChange("depreciation", e.target.value) }
                     placeholder="10"
-                    className={errors.depreciation ? errorInputCls : inputCls}
+                    className={inputCls}
                   />
-                  <ErrorText message={errors.depreciation} />
                 </div>
               </div>
 
@@ -1189,13 +1119,13 @@ const AddAsset = () => {
             <div className="border-t border-gray-100 pt-5 space-y-4">
               <SubHeading icon={ShieldCheck} title="Warranty & AMC" />
 
-              <div className="border border-gray-200 rounded-xl px-6 py-5 grid grid-cols-2 gap-x-10 gap-y-5">
+              <div className="border border-gray-200 rounded-xl px-6 py-5 grid sm:grid-cols-2 gap-x-10 gap-y-5">
                 {/* Manufacturer warranty */}
                 <div className="space-y-3">
                   <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
                     Manufacturer Warranty
                   </h4>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <MiniLabel>Start Date</MiniLabel>
                       <input
@@ -1232,7 +1162,7 @@ const AddAsset = () => {
                   </div>
 
                   {amcActive ? (
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
                       <div>
                         <MiniLabel>AMC Expiry</MiniLabel>
                         <input
@@ -1263,7 +1193,7 @@ const AddAsset = () => {
 
             <div className="border-t border-gray-100 pt-5 space-y-5">
               <SubHeading icon={Wrench} title="Maintenance Info" />
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <Label>Last Maintenance</Label>
                   <input
@@ -1284,21 +1214,24 @@ const AddAsset = () => {
                 </div>
                 <div>
                   <Label>Frequency</Label>
-                  <Select
+                  <SearchableSelect
+                    name="frequency"
                     value={form.frequency}
                     onChange={(e) => set('frequency', e.target.value)}
                     placeholder="Select frequency"
-                    options={['Weekly', 'Monthly', 'Quarterly', 'Half-Yearly', 'Yearly']}
+                    options={frequencyOptions}
                   />
                 </div>
                 <div>
                   <Label>Maintenance Cost (₹)</Label>
                   <input
+                    type='number'
                     name="maintenanceCost"
                     value={form.maintenanceCost}
                     onChange={(e) => set('maintenanceCost', e.target.value)}
                     placeholder="2500"
                     onWheel={(e) => e.currentTarget.blur()}
+                    onKeyDown={handleQuantityKeyDown}
                     className={errors.maintenanceCost ? errorInputCls : inputCls}
                   />
                   <ErrorText message={errors.maintenanceCost} />
@@ -1319,33 +1252,41 @@ const AddAsset = () => {
         />
         {openSections.status && (
           <div className="px-6 py-6">
-            <div className="grid grid-cols-5 gap-4">
+            <div className="grid lg:grid-cols-5 md:grid-cols-3 gap-4">
               <div>
-                <Label>Condition</Label>
-                <Select
+                <Label required>Condition</Label>
+                <SearchableSelect
                   value={form.condition}
                   onChange={(e) => set('condition', e.target.value)}
                   placeholder={conditionsLoading ? 'Loading conditions...' : 'Select condition'}
                   options={conditionOptions}
                   disabled={conditionsLoading}
+                  hasError={!!errors.condition}
                 />
+                 <ErrorText message={errors.condition} />
               </div>
               <div>
-                <Label>Status</Label>
-                <Select
+                <Label required>Status</Label>
+                <SearchableSelect
                   value={form.status}
                   onChange={(e) => set('status', e.target.value)}
                   placeholder={statusesLoading ? 'Loading statuses...' : 'Select status'}
                   options={statusOptions}
                   disabled={statusesLoading}
+                  hasError={!!errors.status}
                 />
+                 <ErrorText message={errors.status} />
               </div>
               <div>
                 <Label>Total Quantity</Label>
                 <input
+                  type='number'
                   name="totalQty"
+                  min="1"
+                  step="1"
                   value={form.totalQty}
-                  onChange={(e) => set('totalQty', e.target.value)}
+                  onChange={(e) => handleQuantityChange("totalQty", e.target.value)}
+                  onKeyDown={handleQuantityKeyDown}
                   onWheel={(e) => e.currentTarget.blur()}
                   className={errors.totalQty ? errorInputCls : inputCls}
                 />
@@ -1354,10 +1295,14 @@ const AddAsset = () => {
               <div>
                 <Label>Available Qty</Label>
                 <input
+                  type='number'
                   name="availableQty"
+                  min="0"
+                  step="1"
                   value={form.availableQty}
-                  onChange={(e) => set('availableQty', e.target.value)}
+                  onChange={(e) => handleQuantityChange("availableQty", e.target.value) }
                   onWheel={(e) => e.currentTarget.blur()}
+                  onKeyDown={handleQuantityKeyDown}
                   className={`${errors.availableQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
                 />
                 <ErrorText message={errors.availableQty} />
@@ -1365,13 +1310,13 @@ const AddAsset = () => {
               <div>
                 <Label>Reserved Qty</Label>
                 <input
+                  type='number'
                   name="reservedQty"
                   value={form.reservedQty}
-                  onChange={(e) => set('reservedQty', e.target.value)}
+                  readOnly
+                  className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
                   onWheel={(e) => e.currentTarget.blur()}
-                  className={`${errors.reservedQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
                 />
-                <ErrorText message={errors.reservedQty} />
               </div>
             </div>
           </div>
