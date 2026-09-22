@@ -487,7 +487,7 @@ export const syncCaptainRecipes = (orgId) => {
   };
 
   export const deleteSubOutletById = (id) => {
-    return DELETE(`/sub-outlet/delete`, { id });
+    return DELETE(`/sub-outlet/delete/${id}`);
   };
 
   export const getAllRawMaterialCategoryType = () => {
@@ -1246,4 +1246,26 @@ export const getOpbList = ({ itemType = '', organizationId = '', pageNo = 1, pag
 };
 export const getOpbById = (id) => {
     return GET(`/stock-opb/${id}`);
-};
+};//Purchase Invoice API
+export const getEligibleGrns = ({outletId, vendorId}) => {
+  return  GET(`/purchase-invoice/eligible-grns?outletId=${outletId}&vendorId=${vendorId}`);
+}
+export const getEligibleGrnDetails = (id) => {
+  return GET(`/purchase-invoice/eligible-grns/${id}`);
+}
+export const createPurchaseInvoice = (payload) => {
+  return POST('/purchase-invoice/create', payload);
+}
+export const getPurchaseInvoices = (params) => {
+  return  GET('/purchase-invoice/getall', params);
+}
+export const getInvoiceById = (id) => {
+  return GET(`/purchase-invoice/${id}`);
+} 
+export const updatePurchaseInvoice = (id, payload) => {
+  return PUT(`/purchase-invoice/update/${id}`, payload);
+}
+export const updatePurchaseInvoiceStatus = (id, status, userId) => {
+  return POST(`/purchase-invoice/status/${id}`, null, { params: { status, userId } });
+}
+  
