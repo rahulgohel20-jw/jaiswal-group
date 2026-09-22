@@ -28,6 +28,7 @@ import { getUserIdFromToken } from '@/utils/auth';
 import { getTodayInputDate } from '@/utils/GetCurrentToday';
 import { toast } from 'sonner';
 import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -106,6 +107,14 @@ const GenerateGRNDetail = () => {
     try {
       const res = await getPOByIdAndOpenItem(poIds);
       const rawPo = res?.data?.data ?? res?.data ?? res;
+
+      if (!rawPo || (Array.isArray(rawPo) && rawPo.length === 0)) {
+        const errMsg =
+          res?.data?.message ||
+          res?.data?.msg ||
+          'Purchase Order has no open items or is closed.';
+        throw new Error(errMsg);
+      }
 
       let normalizedPo = null;
       let combinedDetails = [];
@@ -258,7 +267,10 @@ const GenerateGRNDetail = () => {
         const isReturnCompleted =
           isReturnOnly && alreadyReceivedQty + prevReturnQty >= orderedQty;
 
-        const isCompleted = isFullyReceived || isReturnCompleted || String(d.status).toUpperCase() === 'CLOSED';
+        const isCompleted =
+          !isDirectTarget &&
+          !(prevDetail && prevStatus === 'RETURN_REPLACEMENT_REQUESTED') &&
+          (isFullyReceived || isReturnCompleted || String(d.status).toUpperCase() === 'CLOSED');
 
         let initialApproved = 0;
         let initialReturn = 0;
@@ -324,7 +336,12 @@ const GenerateGRNDetail = () => {
       setItems(mappedItems);
     } catch (err) {
       console.error('Failed to load PO for GRN generation:', err);
-      setError(err?.message || 'Failed to load purchase order.');
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.msg ||
+        err?.message ||
+        'Failed to load purchase order.';
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
@@ -567,6 +584,10 @@ const GenerateGRNDetail = () => {
     }
   };
 
+  if (!canView || !canAdd) {
+    return <AccessDenied pageTitle="Generate GRN" />;
+  }
+
   if (loading) {
     return (
       <Container>
@@ -600,7 +621,7 @@ const GenerateGRNDetail = () => {
     <Container>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 min-h-screen pb-10">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 mt-3">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 mt-1">
           <span>Dashboard</span>
           <ChevronRight size={12} />
           <span>Inventory</span>

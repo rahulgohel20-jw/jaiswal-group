@@ -29,6 +29,7 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { getPOsByOutlet, getPurchaseOrdersByOutlet } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const STATUS_STYLES = {
   Approved: 'bg-emerald-50 text-emerald-600',
@@ -106,11 +107,11 @@ const PO_STATUS_FILTER_OPTIONS = [
 function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative min-w-[190px]">
-      <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
+      <Filter size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        className="h-9 w-full pl-9 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
       >
         {PO_STATUS_FILTER_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -164,7 +165,7 @@ const GenerateGRN = () => {
   const [poError, setPoError] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('APPROVED');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const loadData = useCallback(async () => {
@@ -176,16 +177,26 @@ const GenerateGRN = () => {
 
       let rawList = [];
       if (statusFilter === 'ALL') {
-        const [appRes, closedRes] = await Promise.all([
-          getPurchaseOrdersByOutlet(outletId, 'APPROVED').catch(() => ({ data: [] })),
-          getPurchaseOrdersByOutlet(outletId, 'CLOSED').catch(() => ({ data: [] })),
-        ]);
-        const appData = appRes?.data?.data ?? appRes?.data ?? [];
-        const closedData = closedRes?.data?.data ?? closedRes?.data ?? [];
-        rawList = [
-          ...(Array.isArray(appData) ? appData : []),
-          ...(Array.isArray(closedData) ? closedData : []),
-        ];
+        try {
+          const res = await getPurchaseOrdersByOutlet(outletId, '');
+          const data = res?.data?.data ?? res?.data ?? [];
+          if (Array.isArray(data) && data.length > 0) {
+            rawList = data;
+          } else {
+            throw new Error('Fallback to parallel');
+          }
+        } catch {
+          const [appRes, closedRes] = await Promise.all([
+            getPurchaseOrdersByOutlet(outletId, 'APPROVED').catch(() => ({ data: [] })),
+            getPurchaseOrdersByOutlet(outletId, 'CLOSED').catch(() => ({ data: [] })),
+          ]);
+          const appData = appRes?.data?.data ?? appRes?.data ?? [];
+          const closedData = closedRes?.data?.data ?? closedRes?.data ?? [];
+          rawList = [
+            ...(Array.isArray(appData) ? appData : []),
+            ...(Array.isArray(closedData) ? closedData : []),
+          ];
+        }
       } else {
         let response;
         try {
@@ -199,8 +210,9 @@ const GenerateGRN = () => {
 
       const normalized = rawList
         .filter((item) => {
+          if (statusFilter === 'ALL') return true;
           const s = String(item.status || 'APPROVED').toUpperCase();
-          return s === 'APPROVED' || s === 'CLOSED';
+          return s === statusFilter.toUpperCase();
         })
         .map((item) => {
           const prCode =
@@ -325,8 +337,9 @@ const GenerateGRN = () => {
     const isSomeSelected = selectedPos.length > 0 && !isAllApprovedSelected;
     const firstSelected = selectedPos[0];
 
-    return [
-      {
+    const cols = [];
+    if (canAdd) {
+      cols.push({
         id: 'select',
         header: () => (
           <div className="flex items-center justify-center px-1">
@@ -367,15 +380,17 @@ const GenerateGRN = () => {
              (item.vendorId && firstSelected.vendorId ? item.vendorId !== firstSelected.vendorId : item.vendorName !== firstSelected.vendorName));
 
           return (
-            <div
-              className="flex items-center justify-center px-1"
-              title={isMismatch ? "Cannot combine POs with different Outlet or Vendor" : "Select PO for GRN generation"}
-            >
+            <div className="flex items-center justify-center px-1">
               <input
                 type="checkbox"
                 checked={isSelected}
-                disabled={isMismatch}
+                disabled={Boolean(isMismatch)}
                 onChange={() => toggleSelectPo(item)}
+                title={
+                  isMismatch
+                    ? 'Only Purchase Orders from the same Outlet and Vendor can be merged into a single GRN'
+                    : 'Select for combined GRN'
+                }
                 className={`w-4 h-4 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 ${
                   isMismatch ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
                 }`}
@@ -385,7 +400,10 @@ const GenerateGRN = () => {
         },
         size: 45,
         enableSorting: false,
-      },
+      });
+    }
+
+    cols.push(
       {
         id: 'poCode',
         accessorFn: (row) => row.poCode,
@@ -445,7 +463,7 @@ const GenerateGRN = () => {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="OUTLET" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
         ),
         cell: ({ row }) => (
           <span className="text-xs text-gray-800 font-medium whitespace-nowrap" title={row.original.outlet}>
@@ -526,8 +544,10 @@ const GenerateGRN = () => {
         },
         enableSorting: false,
         size: 160,
-      },
-    ];
+      }
+    );
+
+    return cols;
   }, [navigate, canAdd, selectableRows, selectedPos, toggleSelectPo]);
 
   const table = useReactTable({
@@ -539,25 +559,29 @@ const GenerateGRN = () => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
+  if (!canView) {
+    return <AccessDenied pageTitle="Generate GRN" />;
+  }
+
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
+      <div className="py-1 md:py-1.5 pb-2 space-y-2.5">
         {/* Breadcrumbs */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
           <span>Dashboard</span>
-          <ChevronRight size={12} />
+          <ChevronRight size={11} />
           <span>Inventory</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Generate GRN</span>
+          <ChevronRight size={11} />
+          <span className="text-[#084E92] font-semibold">Generate GRN</span>
         </div>
 
         {/* Page header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-3 mb-6">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-lg md:text-xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Generate GRN
             </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
+            <p className="text-[#667085] text-xs max-w-xl">
               List of approved Purchase Orders ready for Goods Received Note generation.
             </p>
           </div>
@@ -567,16 +591,16 @@ const GenerateGRN = () => {
               type="button"
               onClick={handleBulkGenerateGRN}
               disabled={selectedPos.length === 0}
-              className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-2xs ${
                 selectedPos.length > 0
                   ? 'bg-[#084E92] text-white hover:bg-[#073e77] cursor-pointer'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
               }`}
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-3.5 h-3.5" />
               <span>
                 {selectedPos.length > 0
-                  ? `Generate GRN (${selectedPos.length} Selected)`
+                  ? `Generate GRN (${selectedPos.length})`
                   : 'Generate GRN'}
               </span>
             </button>
@@ -585,26 +609,26 @@ const GenerateGRN = () => {
 
         {/* Selected POs Info Banner */}
         {selectedPos.length > 0 && (
-          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 text-xs text-[#084E92] font-medium animate-in fade-in duration-200">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#084E92]" />
-              <span>
-                <strong>{selectedPos.length}</strong> Purchase Order{selectedPos.length > 1 ? 's' : ''} selected ({selectedPos[0].outlet} &bull; {selectedPos[0].vendorName})
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2 text-xs text-[#084E92] font-medium animate-in fade-in duration-200">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-[#084E92] shrink-0" />
+              <span className="truncate">
+                <strong>{selectedPos.length}</strong> PO{selectedPos.length > 1 ? 's' : ''} selected ({selectedPos[0].outlet} &bull; {selectedPos[0].vendorName})
               </span>
             </div>
             <button
               type="button"
               onClick={() => setSelectedPos([])}
-              className="text-blue-700 hover:text-blue-900 font-semibold underline cursor-pointer bg-transparent border-0"
+              className="text-blue-700 hover:text-blue-900 font-semibold underline cursor-pointer bg-transparent border-0 text-xs shrink-0"
             >
-              Clear Selection
+              Clear
             </button>
           </div>
         )}
 
         {scopeError && (
-          <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-[#C0293D]">{scopeError}</span>
+          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2 flex items-center justify-between">
+            <span className="text-xs text-[#C0293D]">{scopeError}</span>
             <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
               Retry
             </button>
@@ -612,14 +636,14 @@ const GenerateGRN = () => {
         )}
 
         {/* Search + unit dropdown + status dropdown */}
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search PO Code, Outlet, Raised By..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 
@@ -631,7 +655,7 @@ const GenerateGRN = () => {
         </div>
 
         {poError && (
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2 text-xs text-[#C0293D]">
             <span>{poError}</span>
             <button
               type="button"
@@ -643,8 +667,8 @@ const GenerateGRN = () => {
           </div>
         )}
 
-        {/* Table card */}
-        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
+        {/* Table card (Maximized height for comfortable viewing) */}
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-sm">
           {loading || scopeLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
@@ -662,14 +686,14 @@ const GenerateGRN = () => {
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
                 <CardTable>
-                  <ScrollArea>
+                  <ScrollArea className="max-h-[60vh] w-full">
                     <DataGridTable />
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </CardTable>
-                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
+                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2">
                   <DataGridPagination />
                 </CardFooter>
               </Card>
