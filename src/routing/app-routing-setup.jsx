@@ -183,12 +183,21 @@ import GenerateGRNDetail from '../pages/inventory/generate-grn/GenerateGRNDetail
 import GRNListing from '../pages/inventory/grn-listing/GRNListing';
 import ReturnReplacementList from '../pages/inventory/return-replacement-listing/ReturnReplacementList';
 import StockTransfer from '../pages/inventory/stock-transfer/StockTransfer';
+import StockTransferDetail from '../pages/inventory/stock-transfer/StockTransferDetail';
 import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
 import UserProfile from '../pages/my-profile/UserProfile';
 import PurchaseInvoice from '../pages/purchase-invoice/PurchaseInvoice';
 import GenerateGrnInvoice from '../pages/purchase-invoice/GenerateGrnInvoice';
 import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceListing';
 import ApproveInvoice from '../pages/purchase-invoice/ApproveInvoice';
+import StockTransferRequest from '../pages/inventory/stock-transfer/StockTransferRequest';
+import StockTransferReqReceiveList from '../pages/inventory/stock-transfer-request-listing/StockTransferReqReceiveList';
+import OpbStockCreateRequestListing from '../pages/inventory/opb-stock/OpbStockCreateRequestListing';
+import OpbStockCreateRequest from '../pages/inventory/opb-stock/OpbStockCreateRequest';
+import ManualAdjustmentScreenListing from '../pages/inventory/manual-adjustment/ManualAdjustmentScreenListing';
+import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateManualAdjustment';
+import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
+// import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
 
 
 export function AppRoutingSetup() {
@@ -429,10 +438,25 @@ export function AppRoutingSetup() {
           <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/>
 
           <Route path="/inventory/generate-grn" element={<GenerateGRN/>} /> 
+          <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />
           <Route path="/inventory/generate-grn/generate/:id" element={<GenerateGRNDetail />} />
           <Route path='/inventory/grn-listing' element={<GRNListing/>}/>
           <Route path='/inventory/return-replacement' element={<ReturnReplacementList/>}/>
+          
           <Route path='/inventory/stock-transfer' element={<StockTransfer/>}/>
+          <Route path='/inventory/stock-transfer-detail/:id' element={<StockTransferDetail/>}/>
+          <Route path='/inventory/stock-transfer-request' element={<StockTransferRequest/>}/>
+          <Route path='/inventory/transfer-receive-requests' element={<StockTransferReqReceiveList/>}/>
+          <Route path='/inventory/stock-transfer-request-receive' element={<StockTransferReqReceiveList/>}/>
+         
+          <Route path='/inventory/opb-stock-create-request-list' element={<OpbStockCreateRequestListing/>}/>
+          <Route path='/inventory/opb-stock-create-request' element={<OpbStockCreateRequest/>}/>
+          
+          <Route path='/inventory/manual-adjustment-listing' element={<ManualAdjustmentScreenListing/>}/>
+          <Route path='/inventory/manual-adjustment/create' element={<CreateManualAdjustment/>}/>
+          <Route path='/inventory/manual-adjustment/view/:id' element={<ViewManualAdjustment/>}/>
+          <Route path='/inventory/manual-adjustment-detail/:id' element={<ViewManualAdjustment/>}/>
+          {/* <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger/>}/> */}
 
           <Route
             path="/stocks/available-stocks"
@@ -517,7 +541,7 @@ export function AppRoutingSetup() {
           <Route path="/public-profile/works" element={<ProfileWorksPage />} />
           <Route path="/public-profile/teams" element={<ProfileTeamsPage />} />
           <Route
-            path="/public-profile/network"
+            path="/public-profile/networkP"
             element={<ProfileNetworkPage />}
           />
 

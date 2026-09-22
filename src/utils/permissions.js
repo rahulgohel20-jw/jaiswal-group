@@ -131,24 +131,50 @@ export const getUserPermissions = (userOrAuth) => {
     });
   }
 
+const PAGE_ALIASES = {
+  'stock transfer request received': ['str received', 'stock transfer request received', 'stock transfer receive', 'str receive', 'transfer receive requests'],
+  'str received': ['str received', 'stock transfer request received', 'stock transfer receive', 'str receive', 'transfer receive requests'],
+  'stock transfer request': ['stock transfer request', 'stock transfer', 'str request', 'str'],
+  'stock transfer': ['stock transfer request', 'stock transfer', 'str request', 'str'],
+  'generate grn': ['generate grn', 'generate goods received note'],
+  'grn': ['grn', 'grn listing', 'goods received note'],
+  'return and replacement': ['return and replacement', 'return replacement', 'return & replacement'],
+  'opening balance stock': ['opening balance stock', 'opb stock', 'opb stock create request'],
+  'manual stock adjustment': ['manual stock adjustment', 'manual adjustment', 'manual adjustment screen'],
+};
+
   const getPageRights = (pageName) => {
     if (!pageName) {
       return { view: false, add: false, edit: false, delete: false, hasAccess: false };
     }
 
-    const rawKey = String(pageName).trim();
-    const lowerKey = rawKey.toLowerCase();
-    const rights = rightsMap[rawKey] || rightsMap[lowerKey];
+    const rawList = Array.isArray(pageName) ? pageName : [pageName];
+    const checkList = [];
+    rawList.forEach((item) => {
+      if (!item) return;
+      checkList.push(item);
+      const aliases = PAGE_ALIASES[String(item).trim().toLowerCase()];
+      if (Array.isArray(aliases)) {
+        aliases.forEach((a) => {
+          if (!checkList.includes(a)) checkList.push(a);
+        });
+      }
+    });
 
-    // Explicit page rights always take priority
-    if (rights) {
-      return {
-        view: toBool(rights.view),
-        add: toBool(rights.add),
-        edit: toBool(rights.edit),
-        delete: toBool(rights.delete),
-        hasAccess: toBool(rights.view),
-      };
+    for (const name of checkList) {
+      const rawKey = String(name).trim();
+      const lowerKey = rawKey.toLowerCase();
+      const rights = rightsMap[rawKey] || rightsMap[lowerKey];
+
+      if (rights) {
+        return {
+          view: toBool(rights.view),
+          add: toBool(rights.add),
+          edit: toBool(rights.edit),
+          delete: toBool(rights.delete),
+          hasAccess: toBool(rights.view),
+        };
+      }
     }
 
     // If no explicit rights and user is Admin, grant full access
@@ -222,6 +248,7 @@ export const filterMenuByPermissions = (menuItems, userOrAuth) => {
  * const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Types');
  */
 export const usePagePermissions = (pageName) => {
+  const depKey = Array.isArray(pageName) ? pageName.join('|') : String(pageName || '');
   return useMemo(() => {
     const auth = getStoredAuthOrUser();
     const { isAdmin, getPageRights } = getUserPermissions(auth);
@@ -236,7 +263,7 @@ export const usePagePermissions = (pageName) => {
       isAdmin,
       rights,
     };
-  }, [pageName]);
+  }, [depKey]);
 };
 
 /**

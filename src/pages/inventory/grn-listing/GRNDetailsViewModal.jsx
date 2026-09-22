@@ -158,8 +158,32 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                 <p className="text-sm font-medium text-gray-800">{grn?.date || '—'}</p>
               </InfoCard>
 
-              <InfoCard label="PO Code">
-                {grn?.purchaseOrderId ? (
+              <InfoCard label={grn?.poCodes && grn.poCodes.length > 1 ? "PO Codes" : "PO Code"}>
+                {grn?.poCodes && grn.poCodes.length > 1 ? (
+                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                    {grn.poCodes.map((code, idx) => {
+                      const poId = grn.purchaseOrderIds?.[idx];
+                      return poId ? (
+                        <Link
+                          key={idx}
+                          to={`/purchase/purchase-order-detail/${poId}`}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#084E92] bg-blue-50 border border-blue-200 hover:bg-blue-100 px-2 py-0.5 rounded transition"
+                          title={`View PO ${code}`}
+                        >
+                          <span>{code}</span>
+                          <ExternalLink size={11} />
+                        </Link>
+                      ) : (
+                        <span
+                          key={idx}
+                          className="inline-block text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded font-mono"
+                        >
+                          {code}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : grn?.purchaseOrderId ? (
                   <Link
                     to={`/purchase/purchase-order-detail/${grn.purchaseOrderId}`}
                     className="flex items-center gap-1.5 text-sm font-bold text-[#084E92] hover:underline"
@@ -316,6 +340,20 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                           <td className="px-4 py-3 font-semibold text-gray-900">
                             <div>
                               <p>{item.name}</p>
+                              {(item.poCode || item.prCode) && (
+                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                  {item.poCode && (
+                                    <span className="text-[10px] font-mono font-medium text-[#084E92] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                      {item.poCode}
+                                    </span>
+                                  )}
+                                  {item.prCode && (
+                                    <span className="text-[10px] font-mono font-medium text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                      {item.prCode}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                               {item.remarks && (
                                 <p className="text-[10px] text-gray-500 italic mt-0.5">{item.remarks}</p>
                               )}

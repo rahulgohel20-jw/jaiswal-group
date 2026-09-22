@@ -13,7 +13,9 @@ import {
   Map,
   MapPin,
   Plus,
+  Receipt,
   RefreshCw,
+  ShieldCheck,
   User,
   X,
 } from 'lucide-react';
@@ -72,21 +74,40 @@ const Label = ({ children, required }) => (
 const ErrorText = ({ error }) =>
   error ? <p className="text-xs text-red-500 mt-1">{error}</p> : null;
 
-const Toggle = ({ checked, onChange }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    onClick={() => onChange(!checked)}
-    className="relative inline-flex w-9 h-5 rounded-full transition-colors duration-200 shrink-0 cursor-pointer border-0 p-0"
-    style={{ backgroundColor: checked ? '#084E92' : '#D1D5DB' }}
-  >
-    <span
-      className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${checked ? 'translate-x-4' : 'translate-x-0'
+const Toggle = ({ checked, onChange, disabled = false, size = 'md' }) => {
+  const isSm = size === 'sm';
+  const widthCls = isSm ? 'w-9 h-5' : 'w-11 h-6';
+  const knobCls = isSm ? 'w-3.5 h-3.5 top-[3px] left-[3px]' : 'w-4.5 h-4.5 top-[3px] left-[3px]';
+  const translateCls = isSm ? 'translate-x-4' : 'translate-x-5';
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onChange(!checked);
+      }}
+      className={`relative inline-flex ${widthCls} rounded-full transition-all duration-300 ease-in-out shrink-0 cursor-pointer border-2 border-transparent focus:outline-none focus:ring-2 focus:ring-[#084E92]/30 p-0 ${
+        disabled ? 'opacity-50 cursor-not-allowed' : ''
+      }`}
+      style={{
+        backgroundColor: checked ? '#084E92' : '#E5E7EB',
+        boxShadow: checked ? '0 2px 6px -1px rgba(8, 78, 146, 0.35)' : 'none',
+      }}
+    >
+      <span
+        className={`absolute ${knobCls} rounded-full bg-white shadow-md transform transition-transform duration-300 ease-in-out flex items-center justify-center ${
+          checked ? translateCls : 'translate-x-0'
         }`}
-    />
-  </button>
-);
+      >
+        {checked && <span className="w-1.5 h-1.5 rounded-full bg-[#084E92]" />}
+      </span>
+    </button>
+  );
+};
 
 const SectionCard = ({ children, className = '' }) => (
   <div
@@ -617,17 +638,19 @@ const VendorRegistration = () => {
     });
 
   const handleVendorNameChange = (val) => {
+    const cleaned = val.replace(/[^a-zA-Z\s]/g, '');
     setForm((f) => ({
       ...f,
-      vendorName: val,
-      tradeName: tradeNameTouched ? f.tradeName : val,
+      vendorName: cleaned,
+      tradeName: tradeNameTouched ? f.tradeName : cleaned,
     }));
-    setErrorFor('vendorName', validateRequired(val, 'Vendor Name'));
+    setErrorFor('vendorName', validateRequired(cleaned, 'Vendor Name'));
   };
 
   const handleTradeNameChange = (val) => {
     setTradeNameTouched(true);
-    setField('tradeName', val);
+    const cleaned = val.replace(/[^a-zA-Z\s]/g, '');
+    setField('tradeName', cleaned);
   };
 
   const addBank = () =>
@@ -1074,14 +1097,16 @@ const handleIfscBlur = async (bankId, ifscValue) => {
       formErrors[`commonAddress.${k}`] = v;
     });
 
-    const gstinErr = validateGSTIN(form.gstin);
-    if (gstinErr) formErrors.gstin = gstinErr;
+    if (form.isGstApplicable) {
+      const gstinErr = validateGSTIN(form.gstin);
+      if (gstinErr) formErrors.gstin = gstinErr;
 
-    const gstCompanyNameErr = validateRequired(
-      form.gstCompanyName,
-      'Company Name (as per GST)',
-    );
-    if (gstCompanyNameErr) formErrors.gstCompanyName = gstCompanyNameErr;
+      const gstCompanyNameErr = validateRequired(
+        form.gstCompanyName,
+        'Company Name (as per GST)',
+      );
+      if (gstCompanyNameErr) formErrors.gstCompanyName = gstCompanyNameErr;
+    }
 
     if (form.msmeRegistered) {
       const msmeTypeErr = validateMSMEType(form.msmeType, true);
@@ -1215,9 +1240,10 @@ const handleIfscBlur = async (bankId, ifscValue) => {
   const commonSectionHasError = Object.keys(errors).some((k) =>
     k.startsWith('commonAddress.'),
   );
-  const businessSectionHasError = ['gstin', 'gstCompanyName', 'msmeType', 'msmeNumber'].some(
-    (k) => errors[k],
-  );
+  const businessSectionHasError = [
+    ...(form.isGstApplicable ? ['gstin', 'gstCompanyName'] : []),
+    ...(form.msmeRegistered ? ['msmeType', 'msmeNumber'] : []),
+  ].some((k) => errors[k]);
   const addressSectionHasError = Object.keys(errors).some(
     (k) => k.startsWith('billingAddress.') || k.startsWith('shippingAddress.'),
   );
@@ -1287,7 +1313,10 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                 <input
                   value={form.contactPersonName}
                   onChange={(e) =>
-                    setField('contactPersonName', e.target.value)
+                    setField(
+                      'contactPersonName',
+                      e.target.value.replace(/[^a-zA-Z\s]/g, '')
+                    )
                   }
                   placeholder="Enter contact person name"
                   className={inputCls}
@@ -1449,102 +1478,241 @@ const handleIfscBlur = async (bankId, ifscValue) => {
 
         {openSection === SECTIONS.BUSINESS && (
           <div className="px-6 py-6 space-y-6">
-            <div className="space-y-4">
-              <SubHeading icon={RefreshCw} title="GST Information" />
+            <div className="space-y-5">
+              {/* Registration Toggles (Side-by-side Interactive Cards) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* GST Toggle Card */}
+                <div
+                  onClick={() => {
+                    const next = !form.isGstApplicable;
+                    setField('isGstApplicable', next);
+                    if (!next) {
+                      setErrorFor('gstin', '');
+                      setErrorFor('gstCompanyName', '');
+                    }
+                  }}
+                  className={`group relative flex items-center justify-between border-2 rounded-2xl p-4.5 transition-all duration-300 cursor-pointer select-none ${
+                    form.isGstApplicable
+                      ? 'border-[#084E92]/40 bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30 shadow-sm ring-2 ring-[#084E92]/10'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs'
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                        form.isGstApplicable
+                          ? 'bg-gradient-to-tr from-[#084E92] to-[#0A66C2] text-white shadow-sm scale-105'
+                          : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200/70 group-hover:text-gray-600'
+                      }`}
+                    >
+                      <Receipt size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-bold text-gray-900">
+                          GST Registered Vendor
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
+                            form.isGstApplicable
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-gray-100 text-gray-500 border-gray-200'
+                          }`}
+                        >
+                          {form.isGstApplicable ? 'GST Active' : 'Non-GST'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">
+                        Enable GSTIN, tax invoices & GST rate calculation
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pl-3">
+                    <Toggle
+                      checked={form.isGstApplicable}
+                      onChange={(v) => {
+                        setField('isGstApplicable', v);
+                        if (!v) {
+                          setErrorFor('gstin', '');
+                          setErrorFor('gstCompanyName', '');
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label required>GSTIN / UIN</Label>
-                  <input
-                    value={form.gstin}
-                    onChange={(e) => {
-                      const val = e.target.value.toUpperCase();
-                      setField('gstin', val);
-                      setErrorFor('gstin', validateGSTIN(val));
-                    }}
-                    placeholder="22AAAAA0000A1Z5"
-                    className={`${inputCls} ${errors.gstin ? errorInputCls : ''}`}
-                  />
-                  <ErrorText error={errors.gstin} />
-                </div>
-                <div>
-                  <Label required>Company Name (as per GST)</Label>
-                  <input
-                    value={form.gstCompanyName}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setField('gstCompanyName', val);
-                      setErrorFor(
-                        'gstCompanyName',
-                        validateRequired(val, 'Company Name (as per GST)'),
-                      );
-                    }}
-                    placeholder="Company Name"
-                    className={`${inputCls} ${errors.gstCompanyName ? errorInputCls : ''}`}
-                  />
-                  <ErrorText error={errors.gstCompanyName} />
-                </div>
-                <div>
-                  <Label>Registered Name</Label>
-                  <input
-                    value={form.registeredName}
-                    onChange={(e) => setField('registeredName', e.target.value)}
-                    placeholder="Registration Name"
-                    className={inputCls}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center max-w-1/3 justify-between border border-gray-200 rounded-lg px-4 py-3">
-                <span className="text-sm font-medium text-gray-700">
-                  This vendor is MSME Registered
-                </span>
-                <Toggle
-                  checked={form.msmeRegistered}
-                  onChange={(v) => {
-                    setField('msmeRegistered', v);
-                    if (!v) {
+                {/* MSME Toggle Card */}
+                <div
+                  onClick={() => {
+                    const next = !form.msmeRegistered;
+                    setField('msmeRegistered', next);
+                    if (!next) {
                       setErrorFor('msmeType', '');
                       setErrorFor('msmeNumber', '');
                     }
                   }}
-                />
+                  className={`group relative flex items-center justify-between border-2 rounded-2xl p-4.5 transition-all duration-300 cursor-pointer select-none ${
+                    form.msmeRegistered
+                      ? 'border-[#084E92]/40 bg-gradient-to-br from-blue-50/60 via-white to-blue-50/30 shadow-sm ring-2 ring-[#084E92]/10'
+                      : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs'
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
+                        form.msmeRegistered
+                          ? 'bg-gradient-to-tr from-[#084E92] to-[#0A66C2] text-white shadow-sm scale-105'
+                          : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200/70 group-hover:text-gray-600'
+                      }`}
+                    >
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-bold text-gray-900">
+                          MSME / Udyam Registered
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
+                            form.msmeRegistered
+                              ? 'bg-blue-50 text-blue-700 border-blue-200'
+                              : 'bg-gray-100 text-gray-500 border-gray-200'
+                          }`}
+                        >
+                          {form.msmeRegistered ? 'MSME Active' : 'Not Applicable'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 leading-relaxed">
+                        Enable MSME classification & Udyam certificate
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pl-3">
+                    <Toggle
+                      checked={form.msmeRegistered}
+                      onChange={(v) => {
+                        setField('msmeRegistered', v);
+                        if (!v) {
+                          setErrorFor('msmeType', '');
+                          setErrorFor('msmeNumber', '');
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
 
-              {form.msmeRegistered && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label required>MSME/Udyam Registration Type</Label>
-                    <SearchableSelect
-                      name="msmeType"
-                      value={form.msmeType}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setField('msmeType', value);
-                        setErrorFor('msmeType', validateMSMEType(value, true));
-                      }}
-                      options={['Micro', 'Small', 'Medium'].map((v) => ({
-                        value: v,
-                        label: v,
-                      }))}
-                      placeholder="Select the Registration type"
-                      error={!!errors.msmeType}
-                    />
-                    <ErrorText error={errors.msmeType} />
+              {/* GST Fields (Expanded) */}
+              {form.isGstApplicable && (
+                <div className="p-5 rounded-2xl border border-blue-100/90 bg-gradient-to-b from-blue-50/40 to-slate-50/20 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-blue-100/70 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-md bg-[#084E92]/10 flex items-center justify-center text-[#084E92]">
+                        <Receipt className="w-3.5 h-3.5" />
+                      </span>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        GST Registration Information
+                      </h4>
+                    </div>
+                    <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                      GST Invoice Applicable
+                    </span>
                   </div>
-                  <div>
-                    <Label required>MSME/Udyam Registration Number</Label>
-                    <input
-                      value={form.msmeNumber}
-                      onChange={(e) => {
-                        const val = e.target.value.toUpperCase();
-                        setField('msmeNumber', val);
-                        setErrorFor('msmeNumber', validateMSMENumber(val, true));
-                      }}
-                      placeholder="UDYAM-GJ-01-1234567"
-                      className={`${inputCls} ${errors.msmeNumber ? errorInputCls : ''}`}
-                    />
-                    <ErrorText error={errors.msmeNumber} />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label required>GSTIN / UIN</Label>
+                      <input
+                        value={form.gstin}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          setField('gstin', val);
+                          setErrorFor('gstin', validateGSTIN(val));
+                        }}
+                        placeholder="22AAAAA0000A1Z5"
+                        className={`${inputCls} ${errors.gstin ? errorInputCls : ''}`}
+                      />
+                      <ErrorText error={errors.gstin} />
+                    </div>
+                    <div>
+                      <Label required>Company Name (as per GST)</Label>
+                      <input
+                        value={form.gstCompanyName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setField('gstCompanyName', val);
+                          setErrorFor(
+                            'gstCompanyName',
+                            validateRequired(val, 'Company Name (as per GST)'),
+                          );
+                        }}
+                        placeholder="Company Name"
+                        className={`${inputCls} ${errors.gstCompanyName ? errorInputCls : ''}`}
+                      />
+                      <ErrorText error={errors.gstCompanyName} />
+                    </div>
+                    <div>
+                      <Label>Registered Name</Label>
+                      <input
+                        value={form.registeredName}
+                        onChange={(e) => setField('registeredName', e.target.value)}
+                        placeholder="Registration Name"
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* MSME Fields (Expanded) */}
+              {form.msmeRegistered && (
+                <div className="p-5 rounded-2xl border border-blue-100/90 bg-gradient-to-b from-blue-50/40 to-slate-50/20 shadow-2xs space-y-4">
+                  <div className="flex items-center justify-between border-b border-blue-100/70 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-md bg-[#084E92]/10 flex items-center justify-center text-[#084E92]">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                      </span>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        MSME / Udyam Details
+                      </h4>
+                    </div>
+                    <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                      MSME Benefits Linked
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label required>MSME/Udyam Registration Type</Label>
+                      <SearchableSelect
+                        name="msmeType"
+                        value={form.msmeType}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setField('msmeType', value);
+                          setErrorFor('msmeType', validateMSMEType(value, true));
+                        }}
+                        options={['Micro', 'Small', 'Medium'].map((v) => ({
+                          value: v,
+                          label: v,
+                        }))}
+                        placeholder="Select the Registration type"
+                        error={!!errors.msmeType}
+                      />
+                      <ErrorText error={errors.msmeType} />
+                    </div>
+                    <div>
+                      <Label required>MSME/Udyam Registration Number</Label>
+                      <input
+                        value={form.msmeNumber}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          setField('msmeNumber', val);
+                          setErrorFor('msmeNumber', validateMSMENumber(val, true));
+                        }}
+                        placeholder="UDYAM-GJ-01-1234567"
+                        className={`${inputCls} ${errors.msmeNumber ? errorInputCls : ''}`}
+                      />
+                      <ErrorText error={errors.msmeNumber} />
+                    </div>
                   </div>
                 </div>
               )}

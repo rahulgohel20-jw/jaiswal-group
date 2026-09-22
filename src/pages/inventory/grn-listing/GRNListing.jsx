@@ -34,6 +34,7 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { getAllGrns, getGrnById, getGrnByOutletOrStatus } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 import { useExportReport } from '@/hooks/useExportReport';
 import { toast } from 'sonner';
 import GRNDetailsViewModal from './GRNDetailsViewModal';
@@ -204,22 +205,35 @@ const GRNListing = () => {
       const raw = res?.data?.data ?? res?.data ?? res ?? [];
       const rawList = Array.isArray(raw) ? raw : [];
 
-      const normalized = rawList.map((g) => ({
-        id: g.id,
-        grnCode: g.grnCode || g.code || `GRN-${g.id}`,
-        poCode: g.purchaseOrderCode || g.poCode || (g.purchaseOrderId ? `PO-${g.purchaseOrderId}` : '—'),
-        purchaseOrderId: g.purchaseOrderId,
-        grnDate: formatDateShort(g.grnDate || g.date || g.createdAt),
-        rawDate: g.grnDate || g.date || g.createdAt,
-        raisedBy: g.createdByName || g.raisedBy || g.userName || g.createdBy || '—',
-        outlet: g.organizationName || g.outletName || g.orgName || (g.orgId ? `Outlet #${g.orgId}` : '—'),
-        outletId: g.orgId || g.outletId,
-        vendorName: g.vendorName || (g.vendorId ? `Vendor #${g.vendorId}` : '—'),
-        itemsReceived: Array.isArray(g.details) ? g.details.length : g.itemsReceived ?? 0,
-        status: g.status || 'Verified',
-        rawStatus: g.status || 'Verified',
-        details: g.details || [],
-      }));
+      const normalized = rawList.map((g) => {
+        const poCodesList = Array.isArray(g.purchaseOrderCodes) && g.purchaseOrderCodes.length > 0
+          ? g.purchaseOrderCodes.filter(Boolean)
+          : (g.purchaseOrderCode ? [g.purchaseOrderCode] : (g.poCode ? [g.poCode] : (g.purchaseOrderId ? [`PO-${g.purchaseOrderId}`] : [])));
+        const poIdsList = Array.isArray(g.purchaseOrderIds) && g.purchaseOrderIds.length > 0
+          ? g.purchaseOrderIds.filter(Boolean)
+          : (g.purchaseOrderId ? [g.purchaseOrderId] : []);
+        const poCodeDisplay = poCodesList.length > 0 ? poCodesList.join(', ') : '—';
+
+        return {
+          id: g.id,
+          grnCode: g.grnCode || g.code || `GRN-${g.id}`,
+          poCode: poCodeDisplay,
+          poCodes: poCodesList,
+          purchaseOrderId: g.purchaseOrderId || poIdsList[0] || null,
+          purchaseOrderIds: poIdsList,
+          purchaseOrderCodes: poCodesList,
+          grnDate: formatDateShort(g.grnDate || g.date || g.createdAt),
+          rawDate: g.grnDate || g.date || g.createdAt,
+          raisedBy: g.createdByName || g.raisedBy || g.userName || g.createdBy || '—',
+          outlet: g.organizationName || g.outletName || g.orgName || (g.orgId ? `Outlet #${g.orgId}` : '—'),
+          outletId: g.orgId || g.outletId,
+          vendorName: g.vendorName || (g.vendorId ? `Vendor #${g.vendorId}` : '—'),
+          itemsReceived: Array.isArray(g.details) ? g.details.length : g.itemsReceived ?? 0,
+          status: g.status || 'Verified',
+          rawStatus: g.status || 'Verified',
+          details: g.details || [],
+        };
+      });
 
       const scopedRows = filterRowsByScope(normalized);
       setList(scopedRows);
@@ -242,6 +256,13 @@ const GRNListing = () => {
       const res = await getGrnById(row.id);
       const detailed = res?.data?.data ?? res?.data ?? res ?? row;
 
+      const poCodesList = Array.isArray(detailed.purchaseOrderCodes) && detailed.purchaseOrderCodes.length > 0
+        ? detailed.purchaseOrderCodes.filter(Boolean)
+        : (detailed.purchaseOrderCode ? [detailed.purchaseOrderCode] : (detailed.poCode ? [detailed.poCode] : (row.poCodes || [])));
+      const poIdsList = Array.isArray(detailed.purchaseOrderIds) && detailed.purchaseOrderIds.length > 0
+        ? detailed.purchaseOrderIds.filter(Boolean)
+        : (detailed.purchaseOrderId ? [detailed.purchaseOrderId] : (row.purchaseOrderIds || []));
+
       const items = (detailed.details || row.details || []).map((d, index) => ({
         id: d.id || index + 1,
         name: d.rawMaterialName || d.itemName || `Item #${d.rawMaterialId || d.purchaseOrderDetailId || index + 1}`,
@@ -253,13 +274,19 @@ const GRNListing = () => {
         returnReplacementStatus: d.returnReplacementStatus || null,
         remarks: d.remarks || '',
         status: d.status || (Number(d.returnQuantity || d.rejectedQuantity) > 0 ? 'Partial' : 'Received'),
+        poCode: d.poCode || d.purchaseOrderCode || null,
+        prCode: d.prCode || d.purchaseRequisitionCode || null,
+        isPoDetailClosed: Boolean(d.isPoDetailClosed),
       }));
 
       setGrnTarget({
         id: detailed.id || row.id,
         grnCode: detailed.grnCode || row.grnCode,
-        poCode: detailed.purchaseOrderCode || detailed.poCode || row.poCode,
-        purchaseOrderId: detailed.purchaseOrderId || row.purchaseOrderId,
+        poCode: poCodesList.length > 0 ? poCodesList.join(', ') : (detailed.purchaseOrderCode || detailed.poCode || row.poCode),
+        poCodes: poCodesList,
+        purchaseOrderId: detailed.purchaseOrderId || poIdsList[0] || row.purchaseOrderId,
+        purchaseOrderIds: poIdsList,
+        purchaseOrderCodes: poCodesList,
         date: formatDateShort(detailed.grnDate || detailed.date || row.rawDate),
         outletName: detailed.organizationName || detailed.outletName || row.outlet,
         subOutletName: detailed.subOutletName || detailed.subOutlet?.subOutletName || null,
@@ -276,7 +303,10 @@ const GRNListing = () => {
         id: row.id,
         grnCode: row.grnCode,
         poCode: row.poCode,
+        poCodes: row.poCodes || [],
         purchaseOrderId: row.purchaseOrderId,
+        purchaseOrderIds: row.purchaseOrderIds || [],
+        purchaseOrderCodes: row.purchaseOrderCodes || [],
         date: row.grnDate,
         outletName: row.outlet,
         subOutletName: null,
@@ -296,6 +326,9 @@ const GRNListing = () => {
           returnReplacementStatus: d.returnReplacementStatus || null,
           remarks: d.remarks || '',
           status: 'Received',
+          poCode: d.poCode || d.purchaseOrderCode || null,
+          prCode: d.prCode || d.purchaseRequisitionCode || null,
+          isPoDetailClosed: Boolean(d.isPoDetailClosed),
         })),
       });
     } finally {
@@ -355,6 +388,7 @@ const GRNListing = () => {
         !q ||
         (item.grnCode || '').toLowerCase().includes(q) ||
         (item.poCode || '').toLowerCase().includes(q) ||
+        (item.poCodes || []).some((code) => String(code).toLowerCase().includes(q)) ||
         (item.raisedBy || '').toLowerCase().includes(q) ||
         (item.vendorName || '').toLowerCase().includes(q) ||
         (item.outlet || '').toLowerCase().includes(q);
@@ -400,14 +434,34 @@ const GRNListing = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.poCode}
-            widthClass="max-w-[170px]"
-            className="font-semibold text-gray-800"
-          />
-        ),
-        size: 180,
+        cell: ({ row }) => {
+          const poCodes = row.original.poCodes || (row.original.poCode && row.original.poCode !== '—' ? [row.original.poCode] : []);
+          if (poCodes.length === 0 || row.original.poCode === '—') {
+            return <span className="text-gray-400 text-xs">—</span>;
+          }
+          if (poCodes.length === 1) {
+            return (
+              <TruncatedCell
+                value={poCodes[0]}
+                widthClass="max-w-[170px]"
+                className="font-semibold text-gray-800"
+              />
+            );
+          }
+          return (
+            <div className="flex flex-wrap gap-1 max-w-[200px]" title={poCodes.join(', ')}>
+              {poCodes.map((code, idx) => (
+                <span
+                  key={idx}
+                  className="inline-block font-mono text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded"
+                >
+                  {code}
+                </span>
+              ))}
+            </div>
+          );
+        },
+        size: 190,
       },
       {
         id: 'grnDate',
@@ -487,36 +541,40 @@ const GRNListing = () => {
     getPaginationRowModel: getPaginationRowModel(),
   });
 
+  if (!canView) {
+    return <AccessDenied pageTitle="GRN" />;
+  }
+
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
+      <div className="py-1 md:py-1.5 pb-2 space-y-2.5">
         {/* Breadcrumbs */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
           <span>Dashboard</span>
-          <ChevronRight size={12} />
+          <ChevronRight size={11} />
           <span>Inventory</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">GRN Listing</span>
+          <ChevronRight size={11} />
+          <span className="text-[#084E92] font-semibold">GRN Listing</span>
         </div>
 
         {/* Page header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-3 mb-6">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <div className="flex flex-col gap-0.5">
+            <h1 className="text-lg md:text-xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               GRN Listing
             </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
+            <p className="text-[#667085] text-xs max-w-xl">
               View and track all Goods Received Notes across outlets.
             </p>
           </div>
 
           {(canGenerateGrn || canAdd) && (
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <Link
                 to="/inventory/generate-grn"
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white bg-[#084E92] text-xs font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shadow-2xs"
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
                 Generate GRN
               </Link>
             </div>
@@ -524,8 +582,8 @@ const GRNListing = () => {
         </div>
 
         {scopeError && (
-          <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-[#C0293D]">{scopeError}</span>
+          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2 flex items-center justify-between">
+            <span className="text-xs text-[#C0293D]">{scopeError}</span>
             <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
               Retry
             </button>
@@ -533,14 +591,14 @@ const GRNListing = () => {
         )}
 
         {/* Search + unit dropdown + status dropdown + date range */}
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search GRN Code, PO Code, Outlet..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              className="w-full h-9 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 
@@ -554,9 +612,9 @@ const GRNListing = () => {
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="h-11 flex items-center justify-center gap-2 border border-[#E7EAF0] bg-white text-[#101828] px-4 text-sm rounded-xl font-medium hover:bg-gray-50 whitespace-nowrap cursor-pointer"
+                className="h-9 flex items-center justify-center gap-2 border border-[#E7EAF0] bg-white text-[#101828] px-3 text-xs rounded-xl font-medium hover:bg-gray-50 whitespace-nowrap cursor-pointer"
               >
-                <CalendarRange size={16} className="text-[#98A2B3]" />
+                <CalendarRange size={14} className="text-[#98A2B3]" />
                 {dateRange.from || dateRange.to
                   ? `${formatDateShort(dateRange.from) || '...'} - ${formatDateShort(dateRange.to) || '...'}`
                   : 'Date Range'}
@@ -569,7 +627,7 @@ const GRNListing = () => {
                   type="date"
                   value={dateRange.from}
                   onChange={(e) => setDateRange((prev) => ({ ...prev, from: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none"
                 />
               </div>
               <div>
@@ -578,21 +636,21 @@ const GRNListing = () => {
                   type="date"
                   value={dateRange.to}
                   onChange={(e) => setDateRange((prev) => ({ ...prev, to: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none"
                 />
               </div>
               <div className="flex items-center justify-between pt-1">
                 <button
                   type="button"
                   onClick={() => setDateRange({ from: '', to: '' })}
-                  className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
+                  className="text-xs text-gray-500 hover:text-gray-700 cursor-pointer"
                 >
                   Clear
                 </button>
                 <button
                   type="button"
                   onClick={() => setDateRangeOpen(false)}
-                  className="bg-[#084E92] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-[#063d73] cursor-pointer"
+                  className="bg-[#084E92] text-white text-xs font-medium px-3.5 py-1.5 rounded-lg hover:bg-[#063d73] cursor-pointer"
                 >
                   Apply
                 </button>
@@ -602,7 +660,7 @@ const GRNListing = () => {
         </div>
 
         {grnError && (
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2 text-xs text-[#C0293D]">
             <span>{grnError}</span>
             <button
               type="button"
@@ -614,8 +672,8 @@ const GRNListing = () => {
           </div>
         )}
 
-        {/* Table card */}
-        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
+        {/* Table card (Maximized height for comfortable viewing) */}
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-sm">
           {loading || scopeLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
@@ -633,14 +691,14 @@ const GRNListing = () => {
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
                 <CardTable>
-                  <ScrollArea>
+                  <ScrollArea className="max-h-[60vh] w-full">
                     <DataGridTable />
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
                 </CardTable>
-                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
+                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2">
                   <DataGridPagination />
                 </CardFooter>
               </Card>
