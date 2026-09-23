@@ -623,7 +623,7 @@ const PurchaseOrderApproval = () => {
             {/* Button 2: Pending GRN */}
             <button
               type="button"
-              onClick={() => handleOpenExportModal("Pending GRNs")}
+              onClick={() => handleOpenExportModal("Pending GRN")}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
             >
               <FileText size={14} className="text-[#084E92]" />
