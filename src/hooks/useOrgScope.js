@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { jwtDecode } from "jwt-decode";
+import { getAuth } from "@/auth/lib/helpers";
 import { getCompanyById, getChildrenByParentId } from "@/services/apiServices";
 import { getOrgIdFromToken } from "@/utils/auth";
 import { OrgTypes } from "@/constants/orgTypes";
@@ -10,8 +12,8 @@ function normalizeType(t) {
 function mapToUnit(child) {
   return {
     id: child.id,
-    name: child.companyNameEnglish ?? child.organizationName ?? `Outlet #${child.id}`,
-    code: child.code ?? child.shortCode ?? null,
+    name: child.companyNameEnglish ?? child.organizationName ?? child.name ?? `Outlet #${child.id}`,
+    code: child.companyCode ?? child.code ?? child.shortCode ?? null,
   };
 }
 
@@ -48,10 +50,23 @@ async function fetchAllDescendantOutlets(parentId) {
   return outlets;
 }
 
+function getInitialOrgType() {
+  try {
+    const auth = getAuth();
+    let ut = auth?.userType || auth?.user?.userType || auth?.data?.userType || auth?.user?.orgType || auth?.data?.orgType;
+    if (!ut && auth?.token) {
+      const decoded = jwtDecode(auth.token);
+      ut = decoded?.userType || decoded?.orgType || decoded?.organizationType;
+    }
+    if (ut) return normalizeType(ut);
+  } catch { }
+  return null;
+}
+
 export function useOrgScope() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [orgType, setOrgType] = useState(null);
+  const [orgType, setOrgType] = useState(getInitialOrgType);
   const [units, setUnits] = useState([]);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [selfOrg, setSelfOrg] = useState(null);
@@ -70,30 +85,42 @@ export function useOrgScope() {
       const type = normalizeType(org?.orgType ?? org?.organizationType);
       setSelfOrg(org);
 
-      if (type === OrgTypes.GROUP) {
-        setOrgType(type);
+      if (type === OrgTypes.GROUP || type === 'GROUP') {
+        setOrgType(OrgTypes.GROUP);
         // GROUP user: recurse down GROUP -> SUB_COMPANY -> OUTLET to collect all outlets
         const allOutlets = await fetchAllDescendantOutlets(organizationId);
         setUnits(allOutlets);
         setSelectedUnitId(null);
-      } else if (type === OrgTypes.SUB_COMPANY) {
-        setOrgType(type);
-        // SUB_COMPANY user: only get direct child outlets belonging to this company
-        const res = await getChildrenByParentId(organizationId);
-        const children = res?.data?.data ?? res?.data ?? res ?? [];
-        const directOutlets = (Array.isArray(children) ? children : [])
-          .filter((c) => normalizeType(c?.orgType ?? c?.organizationType) === OrgTypes.OUTLET)
-          .map(mapToUnit);
-        setUnits(directOutlets);
+      } else if (type === OrgTypes.SUB_COMPANY || type === 'SUB_COMPANY' || type === 'COMPANY') {
+        setOrgType(OrgTypes.SUB_COMPANY);
+        // SUB_COMPANY / COMPANY user: get all descendant outlets belonging to this company
+        const companyOutlets = await fetchAllDescendantOutlets(organizationId);
+        setUnits(companyOutlets);
         setSelectedUnitId(null);
       } else {
+        // Outlet User: fetch sibling outlets sharing the same parent company
         setOrgType(OrgTypes.OUTLET);
         const self = {
           id: organizationId,
-          name: org?.name ?? org?.organizationName ?? "My outlet",
-          code: org?.code ?? org?.shortCode ?? null,
+          name: org?.companyNameEnglish ?? org?.name ?? org?.organizationName ?? "My outlet",
+          code: org?.companyCode ?? org?.code ?? org?.shortCode ?? null,
         };
-        setUnits([self]);
+
+        const parentId = org?.parentId ?? org?.parentOrganizationId ?? org?.parentCompanyId;
+        let siblingUnits = [];
+        if (parentId) {
+          try {
+            siblingUnits = await fetchAllDescendantOutlets(parentId);
+          } catch (err) {
+            console.error("Failed to load sibling outlets for parentId", parentId, err);
+          }
+        }
+
+        if (siblingUnits.length === 0) {
+          siblingUnits = [self];
+        }
+
+        setUnits(siblingUnits);
         setSelectedUnitId(organizationId);
       }
     } catch (err) {
@@ -107,9 +134,16 @@ export function useOrgScope() {
     resolveScope();
   }, [resolveScope]);
 
-  const isOutletUser = orgType === OrgTypes.OUTLET;
-  const isCompanyUser = orgType === OrgTypes.SUB_COMPANY;
-  const isGroupUser = orgType === OrgTypes.GROUP;
+  const isCompanyUser = orgType === OrgTypes.SUB_COMPANY || orgType === 'SUBCOMPANY' || orgType === 'COMPANY';
+  const isGroupUser = orgType === OrgTypes.GROUP || orgType === 'GROUP';
+  const isOutletUser = Boolean(
+    orgType === OrgTypes.OUTLET ||
+    orgType === 'OUTLET' ||
+    orgType === 'OUTLETS' ||
+    orgType === 'OUTLET_USER' ||
+    orgType === 'OUTLETUSER' ||
+    (orgType && !isCompanyUser && !isGroupUser)
+  );
   const showUnitDropdown = isGroupUser || isCompanyUser;
 
   const allowedOutletIds = useMemo(
@@ -118,11 +152,13 @@ export function useOrgScope() {
   );
 
   const effectiveOutletId = useMemo(() => {
+    const tokenOrgId = getOrgIdFromToken();
     if (isOutletUser) {
-      return units[0]?.id ?? getOrgIdFromToken() ?? 0;
+      return tokenOrgId ?? units[0]?.id ?? 0;
     }
+    if (isGroupUser) return Number(0);
     if (selectedUnitId) return Number(selectedUnitId);
-    return 0;
+    return tokenOrgId ?? 0;
   }, [isOutletUser, units, selectedUnitId]);
 
   const filterRowsByScope = useCallback(

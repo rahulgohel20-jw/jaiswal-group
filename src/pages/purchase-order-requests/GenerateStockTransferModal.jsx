@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeftRight,
   GitFork,
@@ -12,9 +12,13 @@ import {
 import {
   getOrganizationByType,
   getAllSubOutletsByOrganization,
+  saveTransfer,
+  getCurrentStockListGet,
 } from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { notify } from '@/utils/toast';
+import { useOrgScope } from '@/hooks/useOrgScope';
+import { getOrgIdFromToken } from '@/utils/auth';
 
 export const GenerateStockTransferModal = ({
   isOpen,
@@ -23,6 +27,15 @@ export const GenerateStockTransferModal = ({
   currentOutletId = '',
   onSuccess,
 }) => {
+  const {
+    isOutletUser,
+    isCompanyUser,
+    isGroupUser,
+    units: scopedUnits,
+    effectiveOutletId,
+    loading: scopeLoading,
+  } = useOrgScope();
+
   const [items, setItems] = useState([]);
   const [outlets, setOutlets] = useState([]);
   const [loadingOutlets, setLoadingOutlets] = useState(false);
@@ -32,16 +45,32 @@ export const GenerateStockTransferModal = ({
   const [toOutletId, setToOutletId] = useState('');
   const [fromSubOutletId, setFromSubOutletId] = useState('');
   const [toSubOutletId, setToSubOutletId] = useState('');
-
   const [fromSubOutlets, setFromSubOutlets] = useState([]);
   const [toSubOutlets, setToSubOutlets] = useState([]);
   const [loadingFromSubs, setLoadingFromSubs] = useState(false);
   const [loadingToSubs, setLoadingToSubs] = useState(false);
 
+  // Stock map & status states
+  const [stockMap, setStockMap] = useState({});
+  const [loadingStock, setLoadingStock] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Sync initial items when modal opens
+  // Available "From Outlets":
+  // - Company user: only outlets belonging to this parent company (scopedUnits)
+  // - Group user: all outlets
+  // - Outlet user: automatically fixed to user's outlet (no dropdown)
+  const availableFromOutlets = useMemo(() => {
+    if (isCompanyUser) {
+      return (scopedUnits || []).map((u) => ({
+        id: String(u.id),
+        name: u.name || `Outlet #${u.id}`,
+      }));
+    }
+    return outlets;
+  }, [isCompanyUser, scopedUnits, outlets]);
+
+  // Sync initial items and toOutletId when modal opens
   useEffect(() => {
     if (isOpen) {
       setItems(
@@ -51,13 +80,13 @@ export const GenerateStockTransferModal = ({
         }))
       );
       setErrors({});
-      if (currentOutletId && !fromOutletId) {
-        setFromOutletId(String(currentOutletId));
+      if (currentOutletId) {
+        setToOutletId(String(currentOutletId));
       }
     }
   }, [isOpen, initialItems, currentOutletId]);
 
-  // Load all outlets
+  // Load all outlets (for Group user or destination outlet selection)
   useEffect(() => {
     if (!isOpen) return;
     let isCancelled = false;
@@ -78,11 +107,6 @@ export const GenerateStockTransferModal = ({
           name: o.companyNameEnglish || o.name || o.companyName || `Outlet #${o.id}`,
         }));
         setOutlets(mapped);
-        if (!fromOutletId && currentOutletId) {
-          setFromOutletId(String(currentOutletId));
-        } else if (!fromOutletId && mapped.length > 0) {
-          setFromOutletId(mapped[0].id);
-        }
       })
       .catch((err) => {
         console.error('Failed to load outlets for stock transfer:', err);
@@ -94,7 +118,53 @@ export const GenerateStockTransferModal = ({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, currentOutletId]);
+  }, [isOpen]);
+
+  // Default fromOutletId based on user role and available outlets
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (isOutletUser) {
+      const myOutletId = String(
+        effectiveOutletId || currentOutletId || getOrgIdFromToken() || scopedUnits[0]?.id || ''
+      );
+      if (myOutletId) {
+        setFromOutletId(myOutletId);
+      }
+      return;
+    }
+
+    if (isCompanyUser && availableFromOutlets.length > 0) {
+      if (!fromOutletId || !availableFromOutlets.some((o) => String(o.id) === String(fromOutletId))) {
+        const differentOutlet = availableFromOutlets.find(
+          (o) => String(o.id) !== String(toOutletId || currentOutletId)
+        );
+        setFromOutletId(differentOutlet ? String(differentOutlet.id) : String(availableFromOutlets[0].id));
+      }
+      return;
+    }
+
+    if (isGroupUser && outlets.length > 0) {
+      if (!fromOutletId || !outlets.some((o) => String(o.id) === String(fromOutletId))) {
+        const differentOutlet = outlets.find(
+          (o) => String(o.id) !== String(toOutletId || currentOutletId)
+        );
+        setFromOutletId(differentOutlet ? String(differentOutlet.id) : String(outlets[0].id));
+      }
+    }
+  }, [
+    isOpen,
+    isOutletUser,
+    isCompanyUser,
+    isGroupUser,
+    effectiveOutletId,
+    currentOutletId,
+    scopedUnits,
+    availableFromOutlets,
+    outlets,
+    toOutletId,
+    fromOutletId,
+  ]);
 
   // Load sub-outlets for "From Outlet"
   useEffect(() => {
@@ -168,6 +238,59 @@ export const GenerateStockTransferModal = ({
     };
   }, [isOpen, toOutletId]);
 
+  // Fetch available stock for items at the source ("From Outlet")
+  useEffect(() => {
+    if (!isOpen || !fromOutletId || items.length === 0) {
+      setStockMap({});
+      return;
+    }
+    const itemIds = items.map((it) => it.rawMaterialId || it.itemId || it.id).filter(Boolean);
+    if (itemIds.length === 0) return;
+
+    let isCancelled = false;
+    setLoadingStock(true);
+    const params = {
+      itemIds,
+      itemType: 'RAW_MATERIAL',
+      organizationId: Number(fromOutletId),
+    };
+    if (fromSubOutletId) {
+      params.subOutletId = Number(fromSubOutletId);
+    }
+
+    getCurrentStockListGet(params)
+      .then((res) => {
+        if (isCancelled) return;
+        const stockData = res?.data?.data ?? res?.data ?? [];
+        const list = Array.isArray(stockData)
+          ? stockData
+          : Array.isArray(stockData?.content)
+          ? stockData.content
+          : Array.isArray(stockData?.list)
+          ? stockData.list
+          : [];
+
+        const map = {};
+        list.forEach((s) => {
+          const id = s.itemId || s.id;
+          if (id != null) {
+            map[id] = s.currentStock ?? 0;
+          }
+        });
+        setStockMap(map);
+      })
+      .catch((err) => {
+        console.warn('Failed to load stock list in GenerateStockTransferModal:', err);
+      })
+      .finally(() => {
+        if (!isCancelled) setLoadingStock(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, fromOutletId, fromSubOutletId, items]);
+
   const handleQtyChange = (itemId, val) => {
     setItems((prev) =>
       prev.map((it) => (it.id === itemId ? { ...it, transferQuantity: val } : it))
@@ -213,27 +336,60 @@ export const GenerateStockTransferModal = ({
 
     setIsSubmitting(true);
     try {
-      // Create transfer payload
+      const today = new Date();
+      const dd = String(today.getDate()).padStart(2, '0');
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const yyyy = today.getFullYear();
+      const formattedDate = `${dd}/${mm}/${yyyy}`;
+
       const payload = {
-        fromOutletId: Number(fromOutletId),
-        toOutletId: Number(toOutletId),
+        fromOrganizationId: Number(fromOutletId),
         fromSubOutletId: fromSubOutletId ? Number(fromSubOutletId) : null,
+        toOrganizationId: Number(toOutletId),
         toSubOutletId: toSubOutletId ? Number(toSubOutletId) : null,
-        items: items.map((it) => ({
-          rawMaterialId: Number(it.rawMaterialId || it.id),
-          transferQuantity: Number(it.transferQuantity),
-          uomId: it.uomId ? Number(it.uomId) : undefined,
-          vendorId: it.vendorId ? Number(it.vendorId) : undefined,
-          remarks: it.remarks || '',
-        })),
+        vehicleNumber: '',
+        driverName: '',
+        driverContact: '',
+        remarks: 'Generated from Purchase Order',
+        transferDate: formattedDate,
+        isDraft: false,
+        items: items.map((it) => {
+          const rawItemId = Number(it.rawMaterialId || it.itemId || it.id || 0);
+          return {
+            id: rawItemId,
+            itemId: rawItemId,
+            itemType: 'RAW_MATERIAL',
+            unitId: Number(it.uomId || it.unitId || 0),
+            requestedQuantity: Number(it.transferQuantity || it.orderedQty || 0),
+            batchNumber: it.batchNumber || '',
+            expiryDate: it.expiryDate || '',
+            remarks: it.remarks || '',
+          };
+        }),
       };
 
-      notify.success(`Stock Transfer of ${items.length} item(s) generated successfully!`);
-      onSuccess?.(payload);
+      const res = await saveTransfer(payload);
+      const resData = res?.data?.data ?? res?.data;
+      const transferCode = resData?.transferCode || resData?.code || '';
+      const fromOutletName =
+        availableFromOutlets.find((o) => String(o.id) === String(fromOutletId))?.name ||
+        outlets.find((o) => String(o.id) === String(fromOutletId))?.name ||
+        `Outlet #${fromOutletId}`;
+      const toOutletName =
+        outlets.find((o) => String(o.id) === String(toOutletId))?.name || `Outlet #${toOutletId}`;
+
+      notify.success(
+        `Stock Transfer ${transferCode ? `(${transferCode}) ` : ''}created from "${fromOutletName}" to "${toOutletName}" successfully!`
+      );
+      onSuccess?.(resData || payload);
       onClose();
     } catch (err) {
       console.error('Failed to submit stock transfer:', err);
-      notify.error('Failed to create stock transfer. Please try again.');
+      const errMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.msg ||
+        'Failed to create stock transfer. Please try again.';
+      notify.error(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -285,46 +441,49 @@ export const GenerateStockTransferModal = ({
             <div className="px-5 py-3.5 bg-blue-50/40 border-b border-blue-50 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#084E92]">
                 <GitFork className="w-4 h-4 text-[#084E92]" />
-                OUTLET & ROUTE CONFIGURATION
+                OUTLET & SUBOUTLET CONFIGURATION
               </div>
-              <span className="text-[11px] font-semibold text-red-500">
-                * Mandatory routing paths
-              </span>
             </div>
 
-            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* From Outlet */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  From Outlet <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={fromOutletId}
-                    onChange={(e) => {
-                      setFromOutletId(e.target.value);
-                      if (errors.fromOutletId) {
-                        setErrors((prev) => ({ ...prev, fromOutletId: undefined }));
-                      }
-                    }}
-                    disabled={loadingOutlets}
-                    className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 ${
-                      errors.fromOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
-                    }`}
-                  >
-                    <option value="">Select From Outlet</option>
-                    {outlets.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <div
+              className={`p-5 grid grid-cols-1 ${
+                isOutletUser ? 'md:grid-cols-3' : 'md:grid-cols-2'
+              } gap-4`}
+            >
+              {/* From Outlet - Hidden for Outlet User */}
+              {!isOutletUser && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    From Outlet <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={fromOutletId}
+                      onChange={(e) => {
+                        setFromOutletId(e.target.value);
+                        if (errors.fromOutletId) {
+                          setErrors((prev) => ({ ...prev, fromOutletId: undefined }));
+                        }
+                      }}
+                      disabled={loadingOutlets || scopeLoading}
+                      className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 ${
+                        errors.fromOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
+                      }`}
+                    >
+                      <option value="">Select From Outlet</option>
+                      {availableFromOutlets.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  {errors.fromOutletId && (
+                    <p className="text-[11px] text-red-500 mt-1">{errors.fromOutletId}</p>
+                  )}
                 </div>
-                {errors.fromOutletId && (
-                  <p className="text-[11px] text-red-500 mt-1">{errors.fromOutletId}</p>
-                )}
-              </div>
+              )}
 
               {/* To Outlet */}
               <div>
@@ -340,7 +499,7 @@ export const GenerateStockTransferModal = ({
                         setErrors((prev) => ({ ...prev, toOutletId: undefined }));
                       }
                     }}
-                    disabled={loadingOutlets}
+                    disabled={loadingOutlets || scopeLoading}
                     className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 ${
                       errors.toOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
                     }`}
@@ -430,9 +589,7 @@ export const GenerateStockTransferModal = ({
                   {items.length} {items.length === 1 ? 'item' : 'items'}
                 </span>
               </div>
-              <span className="text-xs text-gray-400 hidden sm:inline">
-                Adjust transfer quantities accordingly
-              </span>
+            
             </div>
 
             {items.length === 0 ? (
@@ -471,16 +628,30 @@ export const GenerateStockTransferModal = ({
                           <span className="inline-flex items-center bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md text-[11px] font-medium text-gray-600">
                             Unit:{' '}
                             <strong className="text-gray-800 ml-1">
-                              {item.uomName || '—'}
+                              {item.unitName || '—'}
                             </strong>
                           </span>
-                          <span
-                            className="inline-flex items-center bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md text-[11px] font-medium text-gray-600 truncate max-w-[200px]"
-                            title={item.vendorName || ''}
-                          >
-                            Vendor:{' '}
-                            <strong className="text-gray-800 ml-1 truncate">
-                              {item.vendorName || '—'}
+                          <span className="inline-flex items-center bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md text-[11px] font-medium text-gray-600">
+                            Avail Stock:{' '}
+                            <strong
+                              className={`ml-1 ${
+                                Number(
+                                  stockMap[item.rawMaterialId || item.itemId || item.id] ??
+                                  item.currentstock ??
+                                  0
+                                ) > 0
+                                  ? 'text-emerald-700'
+                                  : 'text-amber-700'
+                              }`}
+                            >
+                              {loadingStock
+                                ? '...'
+                                : stockMap[item.rawMaterialId || item.itemId || item.id] !== undefined
+                                ? Number(stockMap[item.rawMaterialId || item.itemId || item.id]).toFixed(2)
+                                : item.availableStock != null
+                                ? Number(item.availableStock).toFixed(2)
+                                : '0.00'}{' '}
+                              {item.uomName || item.unit || ''}
                             </strong>
                           </span>
                         </div>

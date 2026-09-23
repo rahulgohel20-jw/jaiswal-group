@@ -1,5 +1,5 @@
 import { useNavigate, useParams, useLocation } from 'react-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   ChevronRight,
   Search,
@@ -9,10 +9,9 @@ import {
   Loader2,
   ChevronLeft,
   ScrollText,
-  Link,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
-import { getAllRawMaterialItems } from '@/services/apiServices';
+import { getAllRawMaterialItems, getCurrentStockListGet } from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { getUserIdFromToken } from '@/utils/auth';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -24,6 +23,7 @@ import { getTodayInputDate } from '../../utils/GetCurrentToday';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import SearchableSelect from '@/utils/SearchableSelect';
+import OutletChangeConfirmModal from '@/utils/OutletChangeConfirmModal';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -41,8 +41,15 @@ const SectionCard = ({ children, className = '' }) => (
   </div>
 );
 
-const getAvailableStock = (item) =>
-  item?.availableStock != null ? item.availableStock : item?.opbStock;
+const getAvailableStock = (item) => {
+  if (typeof item?.currentStock === 'object' && item?.currentStock !== null) {
+    return item.currentStock.currentStock ?? 0;
+  }
+  if (typeof item?.currentStock === 'number') {
+    return item.currentStock;
+  }
+  return item?.availableStock != null ? item.availableStock : (item?.closingStock ?? item?.opbStock ?? 0);
+};
 
 const getStockTone = (stock, minStock) => {
   if (stock == null) return { dot: 'bg-gray-300', text: 'text-gray-400' };
@@ -136,21 +143,37 @@ const RawMaterialPicker = ({ rawMaterials, alreadyAddedIds, onAdd, loading }) =>
               No matching items found.
             </div>
           ) : (
-            matches.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleSelect(item)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-gray-50 last:border-b-0"
-              >
-                <span className="text-sm font-semibold text-[#084E92] truncate">
-                  {item.nameEnglish}
-                </span>
-                <span className="text-xs font-semibold text-gray-600 shrink-0">
-                  {item.supplierRate != null ? `₹${item.supplierRate}` : '—'}
-                </span>
-              </button>
-            ))
+            matches.map((item) => {
+              const stock = getAvailableStock(item);
+              const unitStr = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || '';
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleSelect(item)}
+                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-gray-50 last:border-b-0"
+                >
+                  <div className="min-w-0">
+                    <span className="text-sm font-semibold text-[#084E92] truncate block">
+                      {item.nameEnglish}
+                    </span>
+                    {(item.itemCode || item.code) && (
+                      <span className="text-[11px] text-gray-400 font-mono">
+                        Code: {item.itemCode || item.code}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0 flex flex-col items-end">
+                    <span className="text-xs font-semibold text-gray-700">
+                      Stock: {Number(stock).toFixed(2)} {unitStr}
+                    </span>
+                    {item.supplierRate != null && (
+                      <span className="text-[11px] text-gray-500 font-medium">₹{item.supplierRate}</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
       )}
@@ -207,6 +230,11 @@ const AddPurchaseRequisition = () => {
   const [notEditable, setNotEditable] = useState(false);
   const [showLog, setShowLog] = useState(false);
 
+  // ---- Outlet change confirmation modal state ----
+  const [pendingOutletChange, setPendingOutletChange] = useState(null);
+  const [isOutletConfirmOpen, setIsOutletConfirmOpen] = useState(false);
+  const [outletChangeLoading, setOutletChangeLoading] = useState(false);
+
   // Sync outletId for OUTLET users in create mode
   useEffect(() => {
     if (!isEditMode && !copyPrId && !outletId && orgScopeOutletId) {
@@ -214,21 +242,35 @@ const AddPurchaseRequisition = () => {
     }
   }, [isEditMode, copyPrId, outletId, orgScopeOutletId]);
 
-  /* ---- Load raw materials ---- */
-  useEffect(() => {
-    const fetchRawMaterials = async () => {
+  /* ---- Load raw materials with organization scope ---- */
+  const fetchRawMaterials = useCallback(
+    async (targetOrgId) => {
       setRawMaterialsLoading(true);
       try {
-        const res = await getAllRawMaterialItems(0, 0, true, '', '', '');
-        setRawMaterials(res?.data?.data?.['Raw Material Details'] || []);
+        const orgId = targetOrgId !== undefined ? targetOrgId : (outletId || orgScopeOutletId || '');
+        const res = await getAllRawMaterialItems(0, 0, true, '', '', '', orgId, '');
+        const list = res?.data?.data?.['Raw Material Details'] || res?.data?.['Raw Material Details'] || [];
+        const rawItems = Array.isArray(list) ? list : [];
+        setRawMaterials(rawItems);
+        return rawItems;
       } catch (err) {
         console.error('Failed to load raw materials', err);
+        setRawMaterials([]);
+        return [];
       } finally {
         setRawMaterialsLoading(false);
       }
-    };
-    fetchRawMaterials();
-  }, []);
+    },
+    [outletId, orgScopeOutletId],
+  );
+
+  /* ---- Initial load of raw materials in create mode ---- */
+  useEffect(() => {
+    if (!isEditMode && !copyPrId) {
+      const initialOrg = outletId || orgScopeOutletId || '';
+      fetchRawMaterials(initialOrg);
+    }
+  }, [isEditMode, copyPrId, orgScopeOutletId, fetchRawMaterials]);
 
   /* ---- Edit mode or Copy mode: load the existing PR and pre-fill ---- */
   useEffect(() => {
@@ -248,24 +290,76 @@ const AddPurchaseRequisition = () => {
           return;
         }
 
-        if (pr.outletId != null) {
-          setOutletId(String(pr.outletId));
+        const effectiveOrgId = pr.outletId != null ? String(pr.outletId) : '';
+        if (effectiveOrgId) {
+          setOutletId(effectiveOrgId);
         }
         setPrDate(isEditMode ? apiDateToInputDate(pr.date) : getTodayInputDate());
         setPrRequiredDate(apiDateToInputDate(pr.requiredDate));
         setRemarks(pr.remarks || '');
+
+        // Fetch raw materials for this outlet
+        const updatedRMs = await fetchRawMaterials(effectiveOrgId);
+
+        // Fetch current stock for existing items
+        let stockList = [];
+        const itemIds = (pr.details || []).map((d) => d.rawMaterialId).filter(Boolean);
+        if (effectiveOrgId && itemIds.length > 0) {
+          try {
+            const stockRes = await getCurrentStockListGet({
+              itemIds,
+              itemType: 'RAW_MATERIAL',
+              organizationId: Number(effectiveOrgId),
+            });
+            const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
+            stockList = Array.isArray(stockData)
+              ? stockData
+              : Array.isArray(stockData?.content)
+              ? stockData.content
+              : Array.isArray(stockData?.list)
+              ? stockData.list
+              : [];
+          } catch (stockErr) {
+            console.error('Failed to fetch stock list in edit mode', stockErr);
+          }
+        }
+
         setDetails(
-          (pr.details || []).map((d) => ({
-            id: isEditMode ? (d.id ?? 0) : 0,
-            rawMaterialId: d.rawMaterialId,
-            rawMaterialName: d.rawMaterialName,
-            uomId: d.uomId,
-            uomName: d.uomName || '',
-            category: '',
-            availableStock: null,
-            minStock: null,
-            quantity: d.quantity,
-          })),
+          (pr.details || []).map((d) => {
+            const matchedStock = stockList.find(
+              (s) => Number(s.itemId || s.id) === Number(d.rawMaterialId),
+            );
+            const matchedRaw = updatedRMs.find((r) => Number(r.id) === Number(d.rawMaterialId));
+            const availStock =
+              matchedStock != null
+                ? Number(matchedStock.currentStock ?? 0)
+                : matchedRaw
+                ? getAvailableStock(matchedRaw)
+                : (d.availableStock ?? 0);
+
+            const allowedUnits =
+              Array.isArray(matchedRaw?.allowedUnits) && matchedRaw.allowedUnits.length > 0
+                ? matchedRaw.allowedUnits
+                : matchedRaw?.unit
+                ? [matchedRaw.unit]
+                : [];
+
+            return {
+              id: isEditMode ? (d.id ?? 0) : 0,
+              rawMaterialId: d.rawMaterialId,
+              rawMaterialName: d.rawMaterialName,
+              uomId: d.uomId,
+              uomName: d.uomName || '',
+              allowedUnits,
+              category:
+                matchedRaw?.rawMaterialCat?.nameEnglish ||
+                matchedRaw?.rawMaterialCategoryName ||
+                '',
+              availableStock: availStock,
+              minStock: matchedRaw?.minStock ?? null,
+              quantity: d.quantity,
+            };
+          }),
         );
       } catch (err) {
         console.error('Failed to load purchase requisition', err);
@@ -277,7 +371,84 @@ const AddPurchaseRequisition = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, isEditMode, copyPrId]);
 
+  const handleApplyOutletChange = async (newOrgId) => {
+    setOutletId(newOrgId ? String(newOrgId) : '');
+    const updatedRMs = await fetchRawMaterials(newOrgId);
+
+    if (details.length > 0 && newOrgId) {
+      const itemIds = details.map((d) => d.rawMaterialId).filter(Boolean);
+      let stockList = [];
+      try {
+        const stockRes = await getCurrentStockListGet({
+          itemIds,
+          itemType: 'RAW_MATERIAL',
+          organizationId: Number(newOrgId),
+        });
+        const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
+        stockList = Array.isArray(stockData)
+          ? stockData
+          : Array.isArray(stockData?.content)
+          ? stockData.content
+          : Array.isArray(stockData?.list)
+          ? stockData.list
+          : [];
+      } catch (stockErr) {
+        console.error('Failed to fetch stock list on outlet change', stockErr);
+      }
+
+      setDetails((prev) =>
+        prev.map((d) => {
+          const matchedStock = stockList.find(
+            (s) => Number(s.itemId || s.id) === Number(d.rawMaterialId),
+          );
+          const matchedRaw = updatedRMs.find((r) => Number(r.id) === Number(d.rawMaterialId));
+          const availStock =
+            matchedStock != null
+              ? Number(matchedStock.currentStock ?? 0)
+              : matchedRaw
+              ? getAvailableStock(matchedRaw)
+              : 0;
+
+          return {
+            ...d,
+            availableStock: availStock,
+          };
+        }),
+      );
+    }
+  };
+
+  const handleOutletSelectChange = (e) => {
+    const newOrgId = e.target.value;
+    if (newOrgId === outletId) return;
+
+    if (details.length > 0) {
+      setPendingOutletChange(newOrgId);
+      setIsOutletConfirmOpen(true);
+    } else {
+      handleApplyOutletChange(newOrgId);
+    }
+  };
+
+  const handleConfirmOutletChange = async () => {
+    setOutletChangeLoading(true);
+    try {
+      await handleApplyOutletChange(pendingOutletChange);
+    } finally {
+      setOutletChangeLoading(false);
+      setIsOutletConfirmOpen(false);
+      setPendingOutletChange(null);
+    }
+  };
+
+  const handleCancelOutletChange = () => {
+    setIsOutletConfirmOpen(false);
+    setPendingOutletChange(null);
+  };
+
   const selectedOutlet = outlets.find((o) => String(o.id) === String(outletId));
+  const pendingOutletObj = outlets.find((o) => String(o.id) === String(pendingOutletChange));
+  const pendingOutletName = pendingOutletObj?.name || 'the selected outlet';
 
   // Outlet field is editable for GROUP/SUB_COMPANY users, but only while
   // the PR is still PENDING (draft, not yet sent for approval). Once it's
@@ -546,7 +717,7 @@ const AddPurchaseRequisition = () => {
         {outletFieldIsEditable ? (
           <select
             value={outletId ? String(outletId) : ''}
-            onChange={(e) => setOutletId(e.target.value)}
+            onChange={handleOutletSelectChange}
             disabled={outletsLoading}
             className={errors.outletId ? errorInputCls : inputCls}
           >
@@ -810,14 +981,23 @@ const AddPurchaseRequisition = () => {
       </div>
 
     {isEditMode && loadedPr && (
-  <PurchaseRequisitionLog
-    open={showLog}
-    onClose={() => setShowLog(false)}
-    prCode={loadedPr.prCode}
-    moduleId={loadedPr.id}
-    moduleName="PURCHASE_REQUISITION"
-  />
-)}
+      <PurchaseRequisitionLog
+        open={showLog}
+        onClose={() => setShowLog(false)}
+        prCode={loadedPr.prCode}
+        moduleId={loadedPr.id}
+        moduleName="PURCHASE_REQUISITION"
+      />
+    )}
+
+    <OutletChangeConfirmModal
+      isOpen={isOutletConfirmOpen}
+      onClose={handleCancelOutletChange}
+      onConfirm={handleConfirmOutletChange}
+      outletName={pendingOutletName}
+      itemCount={details.length}
+      loading={outletChangeLoading}
+    />
     </Container>
   );
 };

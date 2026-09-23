@@ -582,10 +582,24 @@ export const syncCaptainRecipes = (orgId) => {
   };
 
   //Raw Material Item APIs
-  export const getAllRawMaterialItems = (rawMateriaCatlId, unitid, isActive = "", rawMaterialName = "", pageNo = "", pageSize = "") => {
-    return GET(
-      `/rawmaterial/getall?rawMateriaCatlId=${rawMateriaCatlId}&unitid=${unitid}&isActive=${isActive}&pageNo=${pageNo}&pageSize=${pageSize}&rawMaterialName=${encodeURIComponent(rawMaterialName)}`
-    );
+  export const getAllRawMaterialItems = (
+    rawMateriaCatlId = 0,
+    unitid = 0,
+    isActive = "",
+    rawMaterialName = "",
+    pageNo = "",
+    pageSize = "",
+    organizationId = "",
+    subOutletId = ""
+  ) => {
+    let url = `/rawmaterial/getall?rawMateriaCatlId=${rawMateriaCatlId}&unitid=${unitid}&isActive=${isActive}&pageNo=${pageNo}&pageSize=${pageSize}&rawMaterialName=${encodeURIComponent(rawMaterialName)}`;
+    if (organizationId) {
+      url += `&organizationId=${organizationId}`;
+    }
+    if (subOutletId) {
+      url += `&subOutletId=${subOutletId}`;
+    }
+    return GET(url);
   };
   export const addRawMaterialItem = (formData) => {
     return POST("/rawmaterial/add", formData);
@@ -1109,3 +1123,121 @@ export const updateAssetDisposal = (id, payload) => {
 export const deleteAssetDisposalById = (id) => {
   return DELETE(`/asset-disposal/delete?id=${id}`);
 }
+
+// ---- Stock Transfer APIs ----
+export const getTransferById = (id) => {
+  return GET(`/stock-transfer/${id}`);
+};
+
+export const getBatchFlow = (params) => {
+  return GET('/stock-transfer/batch-flow', params);
+};
+
+export const getTransferItemBatchFlow = (transferItemId) => {
+  return GET(`/stock-transfer/batch-flow/${transferItemId}`);
+};
+
+export const getBatchLayers = (itemId) => {
+  return GET(`/stock-transfer/batch-layers/${itemId}`);
+};
+
+export const dispatchTransfer = (id, payload = {}) => {
+  return POST(`/stock-transfer/dispatch/${id}`, payload);
+};
+
+export const deleteDraftTransfer = (id) => {
+  return DELETE(`/stock-transfer/draft/${id}`);
+};
+
+export const getTransferList = (params) => {
+  return GET('/stock-transfer/list', params);
+};
+
+export const previewFifoTransfer = (params) => {
+  if (typeof params === 'number' || typeof params === 'string') {
+    return GET('/stock-transfer/preview-fifo', { itemId: Number(params) });
+  }
+  return GET('/stock-transfer/preview-fifo', params);
+};
+
+export const receiveTransfer = (id, payload) => {
+  return POST(`/stock-transfer/receive/${id}`, payload);
+};
+
+export const rejectTransfer = (id, payload = {}) => {
+  const body =
+    typeof payload === 'object' && payload !== null
+      ? { id: Number(id), ...payload }
+      : { id: Number(id), reason: payload };
+  return POST(`/stock-transfer/reject/${id}`, body);
+};
+
+export const saveTransfer = (payload) => {
+  return POST('/stock-transfer/save', payload);
+};
+
+export const updateDraftTransfer = (id, payload) => {
+  return PUT(`/stock-transfer/update/${id}`, payload);
+};
+
+// ---- Stock Adjustment APIs ----
+export const getAdjustmentById = (id) => {
+  return GET(`/stock-adjustment/${id}`);
+};
+
+export const cancelAdjustment = (id, params = {}) => {
+  const queryParams = typeof params === 'object' ? params : params ? { userId: params } : {};
+  const data = typeof params === 'object' ? params : null;
+  return POST(`/stock-adjustment/cancel/${id}`, data, { params: queryParams });
+};
+
+export const getAdjustmentList = (params = {}) => {
+  return GET('/stock-adjustment/list', params);
+};
+
+export const postBulkAdjustment = (payload) => {
+  return POST('/stock-adjustment/post-bulk', payload);
+};
+
+export const postAdjustment = (id, userId) => {
+  const params = typeof userId === 'object' ? userId : userId ? { userId } : {};
+  return POST(`/stock-adjustment/post/${id}`, null, { params });
+};
+
+export const saveAdjustment = (payload) => {
+  return POST('/stock-adjustment/save', payload);
+};
+
+// ---- Current Stock APIs ----
+export const getCurrentStockListGet = (params = {}) => {
+  const queryParams = { ...params };
+  if (Array.isArray(queryParams.itemIds)) {
+    queryParams.itemIds = queryParams.itemIds.join(',');
+  }
+  Object.keys(queryParams).forEach((key) => {
+    if (queryParams[key] === undefined || queryParams[key] === null || queryParams[key] === '') {
+      delete queryParams[key];
+    }
+  });
+  return GET('/current-stock/list', queryParams);
+};
+
+
+// ---- OPB Stock Api's ----
+export const saveOpb = (payload, userId) => {
+  return POST(`/stock-opb/save?userId=${userId}`, payload);
+}
+export const getOpbList = ({ itemType = '', organizationId = '', pageNo = 1, pageSize = 10, search = '',  status = '', subOutletId = '',} = {}) => {
+    return GET('/stock-opb/list', {
+        itemType,
+        organizationId,
+        pageNo,
+        pageSize,
+        search,
+        status,
+        subOutletId,
+    });
+};
+export const getOpbById = (id) => {
+    return GET(`/stock-opb/${id}`);
+};

@@ -17,13 +17,15 @@ const Label = ({ children, required }) => (
 );
 
 const TransferModal = ({ isOpen, onClose, onConfirm, item, saving }) => {
-  const [transferQuantity, setTransferQuantity] = useState('');
+  const [notAcceptedQuantity, setNotAcceptedQuantity] = useState('');
+  const [acceptedQuantity, setAcceptedQuantity] = useState('');
   const [remarks, setRemarks] = useState('');
   const [quantityError, setQuantityError] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      setTransferQuantity('');
+      setNotAcceptedQuantity('');
+      setAcceptedQuantity('');
       setRemarks('');
       setQuantityError('');
     }
@@ -37,15 +39,15 @@ const TransferModal = ({ isOpen, onClose, onConfirm, item, saving }) => {
   };
 
   const handleAccept = () => {
-    if (!transferQuantity || Number(transferQuantity) <= 0) {
-      setQuantityError('Please enter transfer quantity');
+    if (!acceptedQuantity || Number(acceptedQuantity) <= 0) {
+      setQuantityError('Please enter Accepted quantity');
       return;
     }
     setQuantityError('');
 
     onConfirm?.({
       id: item?.id,
-      transferQuantity,
+      acceptedQuantity,
       remarks,
     });
   };
@@ -70,7 +72,7 @@ const TransferModal = ({ isOpen, onClose, onConfirm, item, saving }) => {
           {/* Item details card */}
           <div className="bg-[#F5F7FB] rounded-xl px-4 py-4">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold tracking-wide text-gray-400 uppercase">
+              <p className="text-[11px] font-normal tracking-wide text-gray-800 uppercase">
                 Item Details
               </p>
               {item?.transferCode && (
@@ -86,23 +88,40 @@ const TransferModal = ({ isOpen, onClose, onConfirm, item, saving }) => {
             </p>
           </div>
 
-          {/* Transfer Quantity */}
+          {/* Accepted Quantity */}
           <div>
-            <Label>Transfer Quantity</Label>
+            <Label>Accepted Quantity</Label>
             <input
               type="number"
               onWheel={(e) => e.currentTarget.blur()}
-              value={transferQuantity}
+              value={acceptedQuantity}
               onChange={(e) => {
-                setTransferQuantity(e.target.value);
+                setAcceptedQuantity(e.target.value);
                 if (e.target.value) setQuantityError('');
               }}
-              placeholder="Enter transfer quantity"
+              placeholder="Enter transfer Quantity"
               className={quantityError ? errorInputCls : inputCls}
             />
             {quantityError && (
               <p className="text-xs text-red-500 mt-1">{quantityError}</p>
             )}
+          </div>
+
+          {/* Not Accepted Quantity */}
+          <div>
+            <Label>Not Accepted Quantity</Label>
+            <input
+              type="number"
+              onWheel={(e) => e.currentTarget.blur()}
+              value={notAcceptedQuantity}
+              onChange={(e) => {
+                setNotAcceptedQuantity(e.target.value);
+                if (e.target.value) setQuantityError('');
+              }}
+              placeholder="Enter Not Accepted Quantity"
+              className={inputCls}
+            />
+            
           </div>
 
           {/* Remarks */}
