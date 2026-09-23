@@ -366,31 +366,33 @@ const AddAssetsMaintenanceLog = () => {
 
     return (
        <Container>
-         <div className='p-4 md:p-6'>
+         <div className='p-4 mx-auto'>
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
+                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
-                <span className="text-[#002246] font-medium">
+                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate(-1)}>Asset Maintenance</span>
+                <ChevronRight size={12} />
+                <span className="text-[#084E92] font-medium">
                     {isEditMode ? 'Edit Maintenance Log' : 'Add Maintenance Log'}
                 </span>
             </div>
             {/* Header */}
             <div className="flex items-start justify-between flex-wrap gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">
+                    <h1 className="font-bold text-[#101828] text-[28px] ">
                         {isEditMode ? 'Update Maintenance Log' : 'Maintenance Log Registration'}
                     </h1>
 
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
                         {isEditMode
                             ? 'Update the details of this maintenance record.'
                             : 'Record maintenance activities performed on assets for tracking and service history.'}
                     </p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 self-end">
                     <Link to="/assets/asset-maintenance">
                         <button
                             type="button"
@@ -413,7 +415,7 @@ const AddAssetsMaintenanceLog = () => {
                 </div>
             </div>
 
-            <div className="mt-5 border rounded-2xl shadow-2xs flex flex-col">
+            <div className="mt-8 border rounded-2xl shadow-2xs flex flex-col">
                 {loadingRecord && (
                     <div className="px-6 pt-6 text-sm text-gray-500">
                         Loading maintenance record...

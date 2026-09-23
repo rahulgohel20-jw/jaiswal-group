@@ -26,7 +26,7 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import {
   deleteAssignAsset,
   getActiveCompany,
@@ -270,6 +270,7 @@ const AssignAssets = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
+  const navigate = useNavigate();
   const loadAll = async () => {
     try {
       setLoading(true);
@@ -751,9 +752,9 @@ const AssignAssets = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-          <span>Dashboard</span>
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
           <span>Asset Management</span>
           <ChevronRight size={12} />
@@ -761,8 +762,8 @@ const AssignAssets = () => {
         </div>
         <div className="flex justify-between lg:items-center flex-col lg:flex-row gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Assign Assets</h1>
-            <p className="text-[#737781] mt-1 text-sm">
+            <h1 className="font-bold text-[#101828] text-[28px] ">Assign Assets</h1>
+            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
               Assign registered assets to kitchens, outlets, departments, or
               users while maintaining complete inventory tracking.
             </p>
@@ -813,7 +814,7 @@ const AssignAssets = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1]">
+        <div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-end">
             {/* Search */}
             <div className="relative">
@@ -825,7 +826,7 @@ const AssignAssets = () => {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Search by ID, Name, Kitchen..."
-                className="w-full border border-[#C3C6D1] rounded-lg pl-10 pr-3 py-2 outline-none focus:border-[#084E92]"
+                className="w-full border border-[#C3C6D1] rounded-xl pl-10 pr-3 py-2 outline-none focus:border-[#084E92]"
               />
             </div>
 

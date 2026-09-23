@@ -15,13 +15,14 @@ import {
 } from "lucide-react";
 import { getSubOutletById, deleteSubOutletById } from "@/services/apiServices";
 import { notify } from "@/utils/toast";
+import { Container } from '@/components/common/container';
 
 const InfoCard = ({ label, value }) => (
   <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
     <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">
       {label}
     </p>
-    <p className="text-sm font-semibold text-gray-800 mt-1 break-words">
+    <p className="text-sm font-semibold text-gray-800 mt-1 wrap-break-word">
       {value || "—"}
     </p>
   </div>
@@ -178,7 +179,8 @@ const SubUnitDetails = () => {
   const statusLabel = isActive ? "Active" : "Inactive";
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+     <Container>
+    <div className="mx-auto p-4">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
         <div>
@@ -189,7 +191,7 @@ const SubUnitDetails = () => {
           >
             <ArrowLeft className="w-4 h-4" /> Back to Sub Units
           </button>
-          <h1 className="text-3xl md:text-4xl font-bold text-[#084E92]">
+          <h1 className="font-bold text-[#101828] text-[28px] capitalize">
             {subOutletName}
           </h1>
           <p className="text-[#737781] mt-1 text-sm">
@@ -209,13 +211,13 @@ const SubUnitDetails = () => {
       </div>
 
       {/* Profile Banner */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+      <div className="bg-white rounded-3xl my-6 border border-gray-100 shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
         <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center overflow-hidden border border-gray-200 shrink-0">
           <Store className="w-10 h-10 text-[#084E92]" />
         </div>
 
         <div className="text-center sm:text-left flex-1">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold text-gray-900 capitalize">
             {subOutletName}
           </h2>
 
@@ -281,6 +283,7 @@ const SubUnitDetails = () => {
         </SectionCard>
       </div>
     </div>
+    </Container>
   );
 };
 

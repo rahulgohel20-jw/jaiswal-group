@@ -1585,14 +1585,23 @@ const CreateMenuItem = () => {
 
     return (
         <Container>
-            <div className="mx-4 min-h-screen p-2">
-
+            <div className="mx-auto p-4">
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
+                          <ChevronRight size={12} />
+                          <span>Menu Item</span>
+                          <ChevronRight size={12} />
+                          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate(-1)}>Menu Items</span>
+                          <ChevronRight size={12} />
+                          <span className="text-[#084E92] font-medium">{isEdit ? "Update Menu Item" : "Create Menu Item"}</span>
+                        </div>
+                
                 {/* Page Header */}
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-semibold">
                         {isEdit ? "Update Menu Item & Recipe" : "Create Menu Item & Recipe"}
                     </h1>
-                    <p className="text-[#43474F]">
+                    <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
                         {isEdit ? "Update menu item details." : "Create a new menu item for your organization."}
                     </p>
                 </div>

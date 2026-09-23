@@ -11,6 +11,7 @@ import {
   Mail,
   Phone,
 } from "lucide-react";
+import { Container } from '@/components/common/container';
 
 const InfoCard = ({ label, value }) => (
   <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
@@ -99,7 +100,8 @@ const UnitViewDetails = () => {
       : null);
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+     <Container>
+    <div className="mx-auto p-4">
 
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
@@ -113,7 +115,7 @@ const UnitViewDetails = () => {
             Back to Units
           </button>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-[#084E92]">
+          <h1 className="font-bold text-[#101828] text-[28px] capitalize">
             {name}
           </h1>
 
@@ -139,7 +141,7 @@ const UnitViewDetails = () => {
       </div>
 
       {/* Profile Banner */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm my-4 p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
         <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center overflow-hidden border border-gray-200 shrink-0">
           {logoUrl ? (
             <img
@@ -153,7 +155,7 @@ const UnitViewDetails = () => {
         </div>
 
         <div className="text-center sm:text-left flex-1">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold text-gray-900 capitalize">
             {name}
           </h2>
 
@@ -250,6 +252,7 @@ const UnitViewDetails = () => {
       </div>
 
     </div>
+    </Container>
   );
 };
 

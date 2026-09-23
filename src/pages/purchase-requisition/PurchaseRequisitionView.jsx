@@ -116,7 +116,7 @@ const PurchaseRequisitionView = () => {
 
   return (
     <Container>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-12">
+      <div className="mx-auto px-4">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3 mt-4">
           <span>Dashboard</span>

@@ -243,11 +243,11 @@ const PurchaseReturnList = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="px-4 mx-auto">
         {/* Page header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-lg font-bold text-gray-900 leading-none">Purchase Return List</h1>
-          <div className="flex items-center gap-2.5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+          <h1 className="font-bold text-[#101828] text-[28px] mb-2">Purchase Return List</h1>
+          <div className="flex flex-col md:flex-row md:items-center gap-2.5">
             <button
               type="button"
               onClick={() => alert("Export purchases")}
@@ -265,7 +265,7 @@ const PurchaseReturnList = () => {
               Scan &amp; Purchase
             </button>
             <Link
-              to="/purchase/add-purchase"
+              to="/purchase/add-purchase-return"
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-800 text-white text-sm font-semibold border-0 cursor-pointer transition"
             >
               <Plus className="w-4 h-4" />
@@ -284,7 +284,7 @@ const PurchaseReturnList = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 mb-6">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-4 gap-4">
             <div>
               <FilterLabel dot>Start Date</FilterLabel>
               <input
@@ -327,7 +327,7 @@ const PurchaseReturnList = () => {
           </div>
 
           {showMoreFilters && (
-            <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
+            <div className="grid sm:grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
               <div>
                 <FilterLabel>Payment</FilterLabel>
                 <select
@@ -373,7 +373,7 @@ const PurchaseReturnList = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3 mt-5 pt-4 border-t border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-end gap-3 mt-5 pt-4 border-t border-gray-100">
             <button
               type="button"
               onClick={() => setShowMoreFilters((v) => !v)}

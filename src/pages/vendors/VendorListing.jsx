@@ -6,6 +6,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import {
+  ChevronRight,
   Eye,
   Handshake,
   Plus,
@@ -46,15 +47,15 @@ const StatCard = ({
   value,
   valueColor = 'text-gray-900',
 }) => (
-  <div className="bg-white rounded-2xl border border-gray-200 px-5 py-4">
+  <div className="border border-[#C3C6D1] rounded-2xl p-4">
     <div
       className={`w-7 h-7 rounded mb-1 flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}
     >
       <Icon className="w-5 h-5" />
     </div>
     <div>
-      <p className="text-xs text-[#737781]">{label}</p>
-      <p className={`text-lg font-bold leading-none mt-1 ${valueColor}`}>
+      <p className="text-xs text-[#737781] uppercase my-1">{label}</p>
+      <p className={`text-lg font-bold leading-none ${valueColor}`}>
         {value}
       </p>
     </div>
@@ -299,17 +300,25 @@ const VendorList = () => {
   if (!canView) {
     return <AccessDenied pageTitle="Vendors" />;
   }
-
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="mx-auto p-4">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Vendors</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">
+            Vendor List
+          </span>
+        </div>
         {/* Page header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 leading-none">
+            <h1 className="text-[28px] font-bold text-[#101828]">
               Vendor Management List
             </h1>
-            <p className="text-md text-gray-400 mt-2.5">
+            <p className="text-[#667085] text-sm mt-2 max-w-xl">
               View and manage all registered enterprise vendors across the
               Jaiswal Group <br />
               ecosystem.
@@ -318,7 +327,7 @@ const VendorList = () => {
           {canAdd && (
             <Link
               to="/vendors/add-vendor"
-              className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition"
+              className="flex items-center bg-[#084E92] self-end gap-1.5 px-4 py-2.5 rounded-lg text-white text-sm font-semibold border-0 cursor-pointer transition"
             >
               <Plus className="w-4 h-4" />
               Add New Vendor
@@ -327,7 +336,7 @@ const VendorList = () => {
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <StatCard
             icon={Handshake}
             iconBg="bg-blue-50"
@@ -346,8 +355,8 @@ const VendorList = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mb-6">
-          <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="relative w-full border border-[#C3C6D1] rounded-xl">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               size={18}
@@ -361,7 +370,8 @@ const VendorList = () => {
             />
           </div>
         </div>
-
+          
+      <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
         {loading && (
           <p className="text-sm text-gray-400 mb-4">Loading vendors...</p>
@@ -380,8 +390,8 @@ const VendorList = () => {
             </CardFooter>
           </Card>
         </DataGrid>
+        </div>
       </div>
-
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
         onClose={closeDeleteConfirm}

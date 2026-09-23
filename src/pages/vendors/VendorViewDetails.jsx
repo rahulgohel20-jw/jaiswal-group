@@ -11,6 +11,7 @@ import {
   Landmark,
 } from "lucide-react";
 import { getVendorById } from "@/services/apiServices";
+import { Container } from '@/components/common/container';
 
 const SectionCard = ({ title, icon: Icon, children }) => (
   <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -116,7 +117,8 @@ const VendorViewDetails = () => {
   );
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+    <Container>
+    <div className="mx-auto p-4">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -128,11 +130,11 @@ const VendorViewDetails = () => {
             Back to Vendors
           </button>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-[#084E92]">
+          <h1 className="text-[28px] font-bold text-[#101828]">
             {vendor.fullName}
           </h1>
 
-          <p className="text-[#737781] mt-1">
+          <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
             Complete vendor profile and company information.
           </p>
         </div>
@@ -390,6 +392,7 @@ const VendorViewDetails = () => {
         </SectionCard>
       )}
     </div>
+    </Container>
   );
 };
 

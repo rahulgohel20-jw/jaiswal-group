@@ -36,6 +36,13 @@
   import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
   import { usePagePermissions } from '@/utils/permissions';
   import { AccessDenied } from '@/components/common/AccessDenied';
+  import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
   /* -------------------------------------------------------------------------
   * Shared style tokens & primitives (unchanged)
@@ -100,19 +107,23 @@
 
   function StatusDropdown({ value, onChange }) {
     return (
-      <div className="relative min-w-[190px]">
+      <div className="relative min-w-47.5">
         <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
         >
+          <SelectValue />
+        </SelectTrigger>
+
+        <SelectContent>
           {PR_STATUS_LIST.map((opt) => (
-            <option key={opt.value} value={opt.value}>
+            <SelectItem key={opt.value} value={opt.value}>
               {opt.label}
-            </option>
+            </SelectItem>
           ))}
-        </select>
+        </SelectContent>
+      </Select>
       </div>
     );
   }
@@ -435,29 +446,29 @@
 
     return (
       <Container>
-        <div className="mx-auto py-10 p-6">
+        <div className="mx-auto p-4">
           <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-            <span>Dashboard</span>
+            <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
             <ChevronRight size={12} />
             <span>Purchase</span>
             <ChevronRight size={12} />
             <span className="text-[#084E92] font-medium">Purchase Requisition List</span>
           </div>
 
-          <div className="flex items-start justify-between gap-4 flex-wrap mt-3 mb-6">
+          <div className="flex items-start justify-between gap-4 flex-wrap mt-2 mb-6">
             <div className="flex flex-col gap-1">
               <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
                 Purchase Requisition List
               </h1>
-              <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
+              <p className="text-[#667085] text-sm mt-1 max-w-xl">
                 View and manage all purchase requisitions across enterprise departments.
               </p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0 self-end">
               {canAdd && (
                 <Link
                   to="/purchase-requisition/add"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
+                  className="flex items-center gap-2  px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
                 >
                   <Plus className="w-4 h-4" />
                   Create Purchase Requisition

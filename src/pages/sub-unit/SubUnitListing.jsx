@@ -7,6 +7,7 @@ import {
   Search,
   Filter,
   Loader2,
+  ChevronRight,
 } from "lucide-react";
 import {
   getCoreRowModel,
@@ -27,33 +28,42 @@ import {
   getAllSubOutlets,
   getSubOutletById,
   deleteSubOutletById,
+  getOrganizationByType,
 } from "../../services/apiServices";
 import { notify } from "@/utils/toast";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { OrgTypes } from "../../constants/orgTypes";
+import SearchableSelect from "../../utils/SearchableSelect";
 
 /* -----------------------------------------------------------------------
  * Status badge — rounded-full pill style matching PurchaseRequisitionList
  * -------------------------------------------------------------------- */
 const STATUS_STYLES = {
-  active:   "bg-emerald-50 text-emerald-700",
+  active: "bg-emerald-50 text-emerald-700",
   inactive: "bg-gray-100 text-gray-500",
 };
 
 const STATUS_DOT = {
-  active:   "bg-emerald-500",
+  active: "bg-emerald-500",
   inactive: "bg-gray-400",
 };
 
 const STATUS_LABELS = {
-  active:   "Active",
+  active: "Active",
   inactive: "Inactive",
 };
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${
-      STATUS_STYLES[status] || "bg-gray-100 text-gray-500"
-    }`}
+    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${STATUS_STYLES[status] || "bg-gray-100 text-gray-500"
+      }`}
   >
     <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || "bg-gray-400"}`} />
     {STATUS_LABELS[status] || status}
@@ -72,8 +82,8 @@ const TruncatedCell = ({
 );
 
 const STATUS_OPTIONS = [
-  { value: "all",      label: "All Status" },
-  { value: "active",   label: "Active" },
+  { value: "all", label: "All Status" },
+  { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
 ];
 
@@ -81,17 +91,19 @@ function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative min-w-[190px]">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-      >
-        {STATUS_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]">
+          <SelectValue placeholder="All Status" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {STATUS_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -110,6 +122,29 @@ const SubUnitListing = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [unitFilter, setUnitFilter] = useState("");
+  const [units, setUnits] = useState([]);
+
+  useEffect(() => {
+    const fetchUnits = async () => {
+      try {
+        const res = await getOrganizationByType(OrgTypes.OUTLET);
+
+        const list =
+          res?.data?.data ||
+          res?.data?.content ||
+          res?.data ||
+          [];
+
+        setUnits(Array.isArray(list) ? list : []);
+      } catch (error) {
+        console.error("Failed to load units:", error);
+      }
+    };
+
+    fetchUnits();
+  }, []);
+
   const normalizeSubUnit = (item) => ({
     id: item.id,
     name: item.subOutletName || "",
@@ -117,6 +152,7 @@ const SubUnitListing = () => {
     location: item.cityName || "",
     email: item.email || "",
     mobile: item.contactNumber || "",
+    organizationId: item.organizationId || item.orgId || "",
     contactPerson: item.contactPerson || "",
     status: item.isActive ? "active" : "inactive",
     originalData: item,
@@ -206,25 +242,30 @@ const SubUnitListing = () => {
   const filteredSubUnits = useMemo(
     () =>
       subUnits.filter((item) => {
+        const searchText = search.toLowerCase();
+
         const matchSearch =
-          (item.name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.code || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.location || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.mobile || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.contactPerson || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.email || "").toLowerCase().includes(search.toLowerCase());
+          (item.name || "").toLowerCase().includes(searchText) ||
+          (item.code || "").toLowerCase().includes(searchText) ||
+          (item.location || "").toLowerCase().includes(searchText) ||
+          (item.mobile || "").toLowerCase().includes(searchText) ||
+          (item.contactPerson || "").toLowerCase().includes(searchText) ||
+          (item.email || "").toLowerCase().includes(searchText);
 
         const matchStatus =
-          statusFilter === "all" ? true : item.status === statusFilter;
+          statusFilter === "all" || item.status === statusFilter;
 
-        return matchSearch && matchStatus;
+        const matchUnit =
+          !unitFilter ||
+          String(item.organizationId) === String(unitFilter);
+
+        return matchSearch && matchStatus && matchUnit;
       }),
-    [subUnits, search, statusFilter],
+    [subUnits, search, statusFilter, unitFilter],
   );
-
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [search, statusFilter]);
+  }, [search, statusFilter, unitFilter]);
 
   const columns = useMemo(
     () => [
@@ -355,7 +396,14 @@ const SubUnitListing = () => {
 
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
+      <div className="mx-auto p-4">
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">
+            Sub Units
+          </span>
+        </div>
         {/* Page header */}
         <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
           <div className="flex flex-col gap-1">
@@ -365,14 +413,14 @@ const SubUnitListing = () => {
             >
               Registered Sub Units
             </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
+            <p className="text-[#667085] text-sm mt-1 max-w-xl">
               Manage and monitor all sub units registered within the Jaiswal Group ecosystem.
             </p>
           </div>
           {canAdd && (
             <Link
               to="/sub-units/add"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
+              className="flex items-center gap-2 px-5 py-2.5 self-end rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
             >
               <Plus className="w-4 h-4" />
               Add New Sub Unit
@@ -380,13 +428,15 @@ const SubUnitListing = () => {
           )}
         </div>
 
-        {/* Search + status filter */}
+        {/* Search + Unit + Status filter */}
         <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
+          {/* Search */}
+          <div className="relative flex-1 min-w-55">
             <Search
               size={16}
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
             />
+
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -395,9 +445,30 @@ const SubUnitListing = () => {
             />
           </div>
 
-          <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
-        </div>
+          {/* Unit Filter */}
+          <div className="w-55 shrink-0">
+            <SearchableSelect
+              name="unit"
+              value={unitFilter}
+              onChange={(e) => {
+                setUnitFilter(e.target.value);
+              }}
+              options={units.map((unit) => ({
+                value: String(unit.id),
+                label: unit.companyNameEnglish,
+              }))}
+              placeholder="Select Unit"
+            />
+          </div>
 
+          {/* Status Filter */}
+          <div className="w-47.5 shrink-0">
+            <StatusDropdown
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+          </div>
+        </div>
         {/* Table Card */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
           {loading ? (

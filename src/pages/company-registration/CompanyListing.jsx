@@ -7,6 +7,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import {
+  ChevronRight,
   Eye,
   Filter,
   Loader2,
@@ -31,6 +32,13 @@ import {
   getOrganizationByType,
 } from '../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 /* -----------------------------------------------------------------------
  * Status badge
@@ -90,17 +98,19 @@ function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative min-w-[190px]">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-      >
-        {STATUS_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]">
+          <SelectValue placeholder="All Status" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {STATUS_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -342,8 +352,14 @@ const CompanyListing = () => {
 
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
-
+      <div className="mx-auto p-4">
+        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
+          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">
+             Comapanies  
+          </span>
+        </div>
         {/* Page header */}
         <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
           <div className="flex flex-col gap-1">
@@ -360,7 +376,7 @@ const CompanyListing = () => {
           {canAdd && (
             <Link
               to="/companies/registration"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
+              className="flex items-center gap-2 px-5 py-2.5 self-end rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
             >
               <Plus className="w-4 h-4" />
               Add New Company

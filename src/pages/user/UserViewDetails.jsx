@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getEmployeeById } from '@/services/apiServices';
 import { extractItem, mapEmployeeToForm } from './utils/Employeemappers';
+import { Container } from '@/components/common/container';
 
 const InfoCard = ({ label, value }) => (
   <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
@@ -120,7 +121,8 @@ const UserViewDetails = () => {
     : userRef?.name;
 
   return (
-    <div className="p-4 md:p-6">
+     <Container>
+    <div className="mx-auto p-4">
       {/* Header */}
 
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -134,11 +136,11 @@ const UserViewDetails = () => {
             Back to Users
           </button>
 
-          <h1 className="text-3xl md:text-4xl font-bold">
+          <h1 className="text-[28px] font-bold text-[#101828]">
             User Details
           </h1>
 
-          <p className="text-[#737781] mt-1">
+          <p className="text-[#667085] text-sm mt-2">
             Full account, contact and address information.
           </p>
         </div>
@@ -155,7 +157,7 @@ const UserViewDetails = () => {
                 },
               })
             }
-            className="bg-[#084E92] text-white px-5 py-3 rounded-xl flex items-center gap-2 font-medium cursor-pointer"
+            className="bg-[#084E92] text-white w-max px-5 py-3 rounded-xl flex items-center gap-2 font-medium cursor-pointer"
           >
             <SquarePen className="w-4 h-4" />
             Edit User
@@ -315,6 +317,7 @@ const UserViewDetails = () => {
         </>
       ) : null}
     </div>
+    </Container>
   );
 };
 

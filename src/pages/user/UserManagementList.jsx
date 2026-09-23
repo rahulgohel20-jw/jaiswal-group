@@ -9,6 +9,7 @@ import {
 import {
   AlertTriangle,
   Building2,
+  ChevronRight,
   Eye,
   Plus,
   Search,
@@ -375,11 +376,18 @@ const UserManagementList = () => {
 
   return (
     <Container>
-      <div className="w-full p-4 sm:p-5 lg:p-6 max-w-[1600px] mx-auto">
+      <div className="mx-auto p-4">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+                  <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
+                  <ChevronRight size={12} />
+                  <span className="text-[#084E92] font-medium">
+                    Users
+                  </span>
+                </div>
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
           <div>
-            <h1 className="text-2xl font-bold">User Management List</h1>
-            <p className="pt-2 text-md text-gray-400">
+            <h1 className="text-[28px] font-bold text-[#101828]">User Management List</h1>
+            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
               Manage enterprise-wide user access, organizational roles, and
               compliance verification status from a centralized console.
             </p>
@@ -388,14 +396,14 @@ const UserManagementList = () => {
           {canAdd && (
             <Link
               to="/users/add-user"
-              className="flex items-center justify-center gap-2 bg-[#084E92] px-5 py-3 rounded-lg text-white text-sm font-medium w-full sm:w-max"
+              className="flex items-center w-max self-end justify-center gap-2 bg-[#084E92] px-5 py-3 rounded-lg text-white text-sm font-medium"
             >
               <Plus size={15} /> Add New User
             </Link>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-8">
           {DATA.map((item) => (
             <div
               key={item.label}
@@ -416,10 +424,10 @@ const UserManagementList = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 my-6">
+        <div className="flex flex-col gap-4 my-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
             {/* Search Section - Left */}
-            <div className="relative flex-1 min-w-[240px] border border-[#C3C6D1] rounded-lg">
+            <div className="relative flex-1 border border-[#C3C6D1] rounded-xl">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 size={18}
@@ -435,12 +443,12 @@ const UserManagementList = () => {
             </div>
 
             {/* Department Filter - Right */}
-            <div className="w-full sm:w-64">
+            <div>
               <Select
                 value={departmentFilter}
                 onValueChange={setDepartmentFilter}
               >
-                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
 

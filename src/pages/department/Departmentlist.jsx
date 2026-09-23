@@ -30,6 +30,7 @@ import DepartmentDetailsModal from './DepartmentDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { useNavigate } from 'react-router';
 
 const PAGE_SIZE = 5;
 
@@ -65,6 +66,7 @@ const mapDepartment = (d) => ({
 });
 
 const Departmentlist = () => {
+  const navigate = useNavigate();
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Departments');
 
   const [departments, setDepartments] = useState([]);
@@ -251,24 +253,24 @@ const Departmentlist = () => {
 
   return (
     <Container>
-      <div className="min-h-screen px-6 py-6">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+      <div className="mx-auto p-4">
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Asset Management</span>
+          <span>Department</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Department Master</span>
+          <span className="text-[#084E92] font-medium">Departments</span>
         </div>
 
         <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Department Master</h1>
-            <p className="text-sm text-[#737781] mt-1">
+            <h1 className="text-[28px] font-bold text-[#101828]">Department Master</h1>
+            <p className="text-sm text-[#737781] mt-2">
               Manage all organizational departments for efficient asset
               allocation.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-end">
             <Button variant="outline" className="flex items-center gap-2">
               <Download className="h-4 w-4" />
               Export Data
@@ -313,7 +315,7 @@ const Departmentlist = () => {
           />
         </div>
 
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 mb-4">
+        <div className="bg-white mb-6">
           {/* Search */}
           <div className="relative">
             <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />

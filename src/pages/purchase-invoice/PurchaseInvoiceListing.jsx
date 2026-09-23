@@ -324,7 +324,7 @@ const PurchaseInvoiceListing = () => {
 
     return (
         <Container>
-            <div className="mx-auto px-4">
+            <div className="mx-auto p-4">
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
                     <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
@@ -346,7 +346,7 @@ const PurchaseInvoiceListing = () => {
                     </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-[#E7EAF0] p-4 mb-6">
+                <div className="my-6">
                     <div className="grid lg:grid-cols-5 gap-3 md:grid-cols-3">
                         <div className="relative flex-1 col-span-2">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />

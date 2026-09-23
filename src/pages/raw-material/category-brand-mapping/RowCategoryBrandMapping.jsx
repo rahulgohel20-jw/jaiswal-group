@@ -30,6 +30,8 @@ import {
   getAllRawMaterialCategoryBrands,
 } from '../../../services/apiServices';
 import { getUserIdFromToken } from '../../../utils/auth';
+import { useNavigate } from 'react-router';
+import SearchableSelect from '../../../utils/SearchableSelect';
 
 // ---- Multi-select combobox: type directly in the field, no need to open first ----
 const MultiSelectDropdown = ({
@@ -271,7 +273,7 @@ const SingleSelectSearchDropdown = ({
 
 const RowCategoryBrandMapping = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Category Brand Mapping');
-
+  const navigate = useNavigate();
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [optionsLoading, setOptionsLoading] = useState(false);
@@ -599,12 +601,12 @@ const RowCategoryBrandMapping = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Masters</span>
+          <span>Raw Material</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">
             Raw Material Category Brand Mapping
@@ -612,17 +614,17 @@ const RowCategoryBrandMapping = () => {
         </div>
 
         <div>
-          <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+          <h1 className="font-bold text-[#101828] text-[28px] text-start">
             Raw Material Category Brand Mapping
           </h1>
-          <p className="text-sm text-gray-400 mt-1 max-w-xl">
+          <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
             Map raw material categories with their respective brands.
           </p>
         </div>
 
         {/* Configure card */}
         {(canAdd || canEdit) && (
-          <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
+          <div className="mt-6">
             <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
               <SingleSelectSearchDropdown
                 label="Raw Material Category"
@@ -658,7 +660,7 @@ const RowCategoryBrandMapping = () => {
         )}
 
         {/* Search + filters card */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
+        <div className="flex flex-col gap-4 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative border border-[#C3C6D1] rounded-lg">
               <Search
@@ -673,35 +675,27 @@ const RowCategoryBrandMapping = () => {
               />
             </div>
 
-            <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-              <select
-                className="outline-none w-full bg-transparent"
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-              >
-                <option value="">Filter by Raw Material Category</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </p>
+            <SearchableSelect
+              name="categoryFilter"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              options={categories.map((c) => ({
+                value: String(c.id),
+                label: c.name,
+              }))}
+              placeholder="Filter by Raw Material Category"
+            />
 
-            <p className="border border-[#C3C6D1] rounded-lg px-3 py-2">
-              <select
-                className="outline-none w-full bg-transparent"
-                value={brandFilter}
-                onChange={(e) => setBrandFilter(e.target.value)}
-              >
-                <option value="">Filter by Raw Material Brand</option>
-                {brands.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </p>
+            <SearchableSelect
+              name="brandFilter"
+              value={brandFilter}
+              onChange={(e) => setBrandFilter(e.target.value)}
+              options={brands.map((b) => ({
+                value: String(b.id),
+                label: b.name,
+              }))}
+              placeholder="Filter by Raw Material Brand"
+            />
           </div>
         </div>
 

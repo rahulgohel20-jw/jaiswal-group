@@ -591,7 +591,7 @@ const GenerateGrnInvoice = () => {
 
   return (
     <Container>
-      <div className="w-full max-w-full min-w-0 overflow-x-hidden px-2 sm:px-4">
+      <div className="mx-auto p-4">
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mb-3 min-w-0">
           <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} className="shrink-0" />
@@ -600,7 +600,7 @@ const GenerateGrnInvoice = () => {
           <span className="text-[#084E92] font-medium truncate">{isEditMode ? 'Edit GRN Invoice' : 'Generate GRN Invoice'}</span>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 min-w-0">
           <div className="flex items-start sm:items-center gap-3 min-w-0">
             <button
               type="button"

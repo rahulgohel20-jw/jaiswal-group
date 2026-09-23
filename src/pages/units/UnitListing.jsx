@@ -6,6 +6,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import {
+  ChevronRight,
   Eye,
   Filter,
   Loader2,
@@ -27,40 +28,48 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
   deleteCompany,
+  getActiveCompany,
   getCompanyById,
   getOrganizationByType,
 } from '../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import SearchableSelect from '../../utils/SearchableSelect';
 
 /* -----------------------------------------------------------------------
  * Status badge — rounded-full pill style matching PurchaseRequisitionList
  * -------------------------------------------------------------------- */
 const STATUS_STYLES = {
-  active:      'bg-emerald-50 text-emerald-700',
-  pending:     'bg-amber-50 text-amber-600',
+  active: 'bg-emerald-50 text-emerald-700',
+  pending: 'bg-amber-50 text-amber-600',
   maintenance: 'bg-orange-50 text-orange-700',
-  inactive:    'bg-gray-100 text-gray-500',
+  inactive: 'bg-gray-100 text-gray-500',
 };
 
 const STATUS_DOT = {
-  active:      'bg-emerald-500',
-  pending:     'bg-amber-500',
+  active: 'bg-emerald-500',
+  pending: 'bg-amber-500',
   maintenance: 'bg-orange-500',
-  inactive:    'bg-gray-400',
+  inactive: 'bg-gray-400',
 };
 
 const STATUS_LABELS = {
-  active:      'Active',
-  pending:     'Pending',
+  active: 'Active',
+  pending: 'Pending',
   maintenance: 'Maintenance',
-  inactive:    'Inactive',
+  inactive: 'Inactive',
 };
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${
-      STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'
-    }`}
+    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'
+      }`}
   >
     <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
     {STATUS_LABELS[status] || status}
@@ -79,28 +88,30 @@ const TruncatedCell = ({
 );
 
 const STATUS_OPTIONS = [
-  { value: 'all',         label: 'All Status' },
-  { value: 'active',      label: 'Active' },
-  { value: 'pending',     label: 'Pending' },
+  { value: 'all', label: 'All Status' },
+  { value: 'active', label: 'Active' },
+  { value: 'pending', label: 'Pending' },
   { value: 'maintenance', label: 'Maintenance' },
-  { value: 'inactive',    label: 'Inactive' },
+  { value: 'inactive', label: 'Inactive' },
 ];
 
 function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative min-w-[190px]">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-      >
-        {STATUS_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]">
+          <SelectValue placeholder="All Status" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {STATUS_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -115,10 +126,31 @@ const UnitListing = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [companies, setCompanies] = useState([]);
+  const [companyFilter, setCompanyFilter] = useState('');
+
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const res = await getActiveCompany();
+        const list = res?.data?.data || [];
+
+        const subCompanies = list.filter(
+          (item) => item.orgType === 'SUB_COMPANY',
+        );
+
+        setCompanies(subCompanies);
+      } catch (error) {
+        console.error('Failed to load companies:', error);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
 
   const normalizeUnit = (item) => ({
     id: item.id,
@@ -129,6 +161,7 @@ const UnitListing = () => {
     mobile: item.mobilenumber || '',
     address: [item.addressEnglish, item.addressline2].filter(Boolean).join(', ') || item.addressEnglish || '',
     parentName: item.parentName || '',
+    parentId: item.parentId || item.parentCompanyId || item.companyId || '',
     shortCode: item.shortCode || '',
     status: item.isActive ? 'active' : 'inactive',
     originalData: item,
@@ -170,9 +203,12 @@ const UnitListing = () => {
         const matchesStatus =
           statusFilter === 'all' || u.status === statusFilter;
 
-        return matchesSearch && matchesStatus;
+        const matchesCompany =
+          !companyFilter ||
+          String(u.parentId) === String(companyFilter);
+        return matchesSearch && matchesStatus && matchesCompany;
       }),
-    [units, search, statusFilter],
+    [units, search, statusFilter, companyFilter],
   );
 
   const handleViewClick = async (unit) => {
@@ -233,7 +269,7 @@ const UnitListing = () => {
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [search, statusFilter]);
+  }, [search, statusFilter, companyFilter]);
 
   const columns = useMemo(
     () => [
@@ -370,7 +406,14 @@ const UnitListing = () => {
 
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
+      <div className="mx-auto p-4">
+        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
+          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">
+            Units
+          </span>
+        </div>
         {/* Page header */}
         <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
           <div className="flex flex-col gap-1">
@@ -380,7 +423,7 @@ const UnitListing = () => {
             >
               Registered Units
             </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
+            <p className="text-[#667085] text-sm mt-1 max-w-xl">
               Manage and monitor all Units and restaurants registered within the
               Jaiswal Group ecosystem.
             </p>
@@ -388,7 +431,7 @@ const UnitListing = () => {
           {canAdd && (
             <Link
               to="/units/add-unit"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
+              className="flex items-center gap-2 px-5 py-2.5 self-end rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
             >
               <Plus className="w-4 h-4" />
               Add New Unit
@@ -396,13 +439,14 @@ const UnitListing = () => {
           )}
         </div>
 
-        {/* Search + status filter */}
+        {/* Search + company + status filter */}
         <div className="flex items-center gap-3 mb-5 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
             <Search
               size={16}
               className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
             />
+
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -411,7 +455,27 @@ const UnitListing = () => {
             />
           </div>
 
-          <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
+          <div className="w-55 shrink-0">
+            <SearchableSelect
+              name="company"
+              value={companyFilter}
+              onChange={(e) => {
+                setCompanyFilter(e.target.value);
+              }}
+              options={companies.map((company) => ({
+                value: String(company.id),
+                label: company.companyNameEnglish,
+              }))}
+              placeholder="Select Company"
+            />
+          </div>
+
+          <div className="w-47.5 shrink-0">
+            <StatusDropdown
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+          </div>
         </div>
 
         {/* Table Card */}

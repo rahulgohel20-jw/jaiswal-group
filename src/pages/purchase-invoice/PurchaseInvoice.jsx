@@ -616,7 +616,7 @@ const PurchaseInvoice = () => {
 
     return (
         <Container>
-            <div className="mx-auto px-4">
+            <div className="mx-auto p-4">
                 {/* Breadcrumbs */}
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
                     <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>

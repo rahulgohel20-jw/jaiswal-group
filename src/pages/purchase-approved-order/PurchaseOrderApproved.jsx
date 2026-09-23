@@ -43,6 +43,13 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { ExportReportModal } from './ExportReportModal';
 import { ClosePurchaseOrderModal } from './ClosePurchaseOrderModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Statuses visible to an approver, which of those still allow Approve/Reject,
 // and which are editable (approver can still adjust an in-progress PO).
@@ -97,8 +104,8 @@ function StatusPill({ status }) {
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex items-center gap-3.5">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
+    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex flex-col gap-2.5">
+      <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
         {icon}
       </div>
       <div>
@@ -132,17 +139,21 @@ function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3] min-w-[190px]"
-      >
-        {STATUS_FILTER_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+     <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className="h-11 pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        >
+          <SelectValue />
+        </SelectTrigger>
+
+        <SelectContent>
+          {STATUS_FILTER_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -584,10 +595,9 @@ const PurchaseOrderApproval = () => {
 
   return (
     <Container>
-      <div className="py-1 md:py-2 pb-6 space-y-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <span>Dashboard</span>
+      <div className="mx-auto p-4">
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
@@ -600,16 +610,16 @@ const PurchaseOrderApproval = () => {
             <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Purchase Order Approval
             </h1>
-            <p className="text-[#667085] text-sm mt-0.5 max-w-xl">
+            <p className="text-[#667085] text-sm mt-2 max-w-xl">
               Manage and review purchase orders awaiting your review.
             </p>
           </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap self-end">
             {/* Button 1: Short Item Received */}
             <button
               type="button"
               onClick={() => handleOpenExportModal('Short Item Received')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition-colors shadow-sm cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition-colors shadow-sm cursor-pointer"
             >
               <Download size={14} />
               Short Item Received
@@ -624,7 +634,7 @@ const PurchaseOrderApproval = () => {
             <button
               type="button"
               onClick={() => handleOpenExportModal("Pending GRN")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
             >
               <FileText size={14} className="text-[#084E92]" />
               Pending GRN
@@ -641,7 +651,7 @@ const PurchaseOrderApproval = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 my-7">
           <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Sent for approval" value={counts[PO_STATUS.SENT_FOR_APPROVAL] ?? 0} />
           <StatCard icon={<Clock3 size={18} />} iconBg="#FEF6E7" iconFg="#B7791F" label="In progress" value={counts[PO_STATUS.IN_PROGRESS] ?? 0} />
           <StatCard icon={<CheckCircle2 size={18} />} iconBg="#E7F7EE" iconFg="#14804A" label="Approved" value={counts[PO_STATUS.APPROVED] ?? 0} />
@@ -649,7 +659,7 @@ const PurchaseOrderApproval = () => {
           <StatCard icon={<Package size={18} />} iconBg="#F2F4F7" iconFg="#667085" label="Closed" value={counts[PO_STATUS.CLOSED] ?? 0} />
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap mb-7">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
             <input

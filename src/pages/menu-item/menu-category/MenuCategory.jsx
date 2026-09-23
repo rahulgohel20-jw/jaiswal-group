@@ -28,6 +28,7 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import CreateMenuCategory from './CreateMenuCategory';
+import { useNavigate } from 'react-router';
 
 const MenuCategory = () => {
   const [search, setSearch] = useState('');
@@ -46,7 +47,7 @@ const MenuCategory = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
-
+  const navigate = useNavigate();
   const openDeleteConfirm = (row) => {
     setDeleteTarget({ id: row.id, itemLabel: row.name });
     setShowDeleteConfirm(true);
@@ -347,31 +348,31 @@ const MenuCategory = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
           <span>Menu Item</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Category</span>
         </div>
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+        <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+            <h1 className="font-bold text-[#101828] text-[28px] text-start">
               Menu Category Master
             </h1>
           </div>
 
-          <div className="flex gap-3 self-end">
+          <div className="flex gap-3 sm:self-end">
             <button
               type="button"
               onClick={() => {
                 setEditData(null);
                 setOpenCategory(true);
               }}
-              className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
+              className="px-4 py-2 bg-[#084E92] w-max border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
             >
               <Plus size={16} />
               Create New
@@ -379,9 +380,9 @@ const MenuCategory = () => {
           </div>
         </div>
 
-        <div className="bg-white py-5">
+        <div className="bg-white mt-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="relative w-full md:w-96">
+            <div className="relative w-full md:w-100">
               <Search
                 size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -391,7 +392,7 @@ const MenuCategory = () => {
                 placeholder="Search Category..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
+                className="w-full border rounded-lg pl-10 pr-4 py-2 outline-none focus:ring-2 focus:ring-[#084E92]"
               />
             </div>
 

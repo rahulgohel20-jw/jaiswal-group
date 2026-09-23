@@ -33,6 +33,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -73,6 +74,7 @@ const AssetBrandListing = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const navigate = useNavigate();
 
     // Shows the cached row immediately, then refreshes with the authoritative
     // record from getById (the list payload may not carry every detail field).
@@ -296,19 +298,19 @@ const AssetBrandListing = () => {
 
     return (
        <Container>
-         <div className="p-4 md:p-6">
+         <div className="p-4 mx-auto">
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
+                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
                 <span className="text-[#084E92] font-medium">Brand Master</span>
             </div>
 
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+            <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Asset Brands</h1>
+                    <h1 className="font-bold text-[#101828] text-[28px] ">Asset Brands</h1>
                     <p className="text-[#737781] mt-1 text-sm">
                         Create and manage manufacturer/brand records used across the organization for asset
                         classification and reporting.
@@ -316,11 +318,11 @@ const AssetBrandListing = () => {
                 </div>
 
                 {canAdd && (
-                    <div className="flex gap-3 self-end">
+                    <div className="flex gap-3 sm:self-end">
                         <button
                             type="button"
                             onClick={openCreateModal}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                            className="px-4 py-2 bg-[#084E92] text-white w-max rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                         >
                             <Plus size={16} />
                             Add Brand
@@ -343,13 +345,13 @@ const AssetBrandListing = () => {
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <div className="relative col-span-1 min-w-0 border border-[#C3C6D1] rounded-lg md:col-span-2">
+                    <div className="relative col-span-1 min-w-0 border border-[#C3C6D1] rounded-xl md:col-span-2">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                         <input
                             placeholder="Search by brand name..."
-                            className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg"
+                            className="w-full min-w-0 pl-10 py-2 outline-none rounded-xl"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -359,7 +361,7 @@ const AssetBrandListing = () => {
                             value={statusFilter}
                             onValueChange={(value) => setStatusFilter(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                 <SelectValue placeholder="All Status" />
                             </SelectTrigger>
 

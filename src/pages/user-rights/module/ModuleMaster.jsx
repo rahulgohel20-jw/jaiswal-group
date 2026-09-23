@@ -18,6 +18,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddModuleRightModal from './AddModuleRightModal';
+import { useNavigate } from 'react-router';
 
 // Maps a raw API module-right object (+ its row position) to the shape the table expects.
 // Adjust the ?? fallbacks once you confirm the exact field names getModuleRights returns.
@@ -59,7 +60,7 @@ const ModuleMaster = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
+  const navigate = useNavigate();
   const openViewModal = (row) => {
     setIsViewOnly(true);
     setEditingModule(row);
@@ -283,10 +284,17 @@ const ModuleMaster = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
+        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Users Rights Master</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">Module Rights</span>
+        </div>
         {/* Header row: title left, breadcrumb + primary action right */}
         <div className="flex justify-between items-start flex-col sm:flex-row gap-4 mb-6">
-          <h1 className="text-2xl font-bold text-[#1B1B1F]">
+          <h1 className="font-bold text-[#101828] text-[28px]">
             Module Right Name Master
           </h1>
         </div>
@@ -311,7 +319,7 @@ const ModuleMaster = () => {
             <button
               type="button"
               onClick={openCreateModal}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition self-end sm:self-auto cursor-pointer"
+              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition sm:self-end  w-max cursor-pointer"
             >
               <Plus size={16} />
               Add Module Name

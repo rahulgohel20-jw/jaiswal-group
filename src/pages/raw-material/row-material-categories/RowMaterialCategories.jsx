@@ -43,6 +43,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useNavigate } from 'react-router';
 
 // Maps raw API row into the shape the table/UI expects.
 // Handles the nested `rawMaterialCatType` object the backend returns.
@@ -77,6 +78,7 @@ const unwrapListPayload = (payload) => {
 
 const RowMaterialCategories = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Categories');
+  const navigate = useNavigate();
 
   // NOTE: RawMaterialCategoryDetailsModal.jsx also needs its
   // `category.rawMaterialCategoryTypeName || category.typeName` field
@@ -438,26 +440,26 @@ const RowMaterialCategories = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Master Data</span>
+          <span>Raw Material</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">
             Raw Material Categories
           </span>
         </div>
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+        <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="font-bold text-[#101828] text-[28px]">
               Raw Material Category Master
             </h1>
           </div>
 
-          <div className="flex gap-3 self-end">
+          <div className="flex gap-3 sm:self-end">
             <button
               type="button"
               className="px-4 py-2 border border-[#C3C6D1] text-[#43474F] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-gray-50 transition"
@@ -496,7 +498,7 @@ const RowMaterialCategories = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 xl:grid-cols-4 sm:grid-col-2 gap-4">
             <div className="relative md:col-span-2">
               <Search
@@ -508,7 +510,7 @@ const RowMaterialCategories = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by category name..."
-                className="w-full pl-10 py-2 border rounded-lg outline-none"
+                className="w-full pl-10 py-2 border rounded-xl outline-none border-[#C3C6D1] "
               />
             </div>
 
@@ -516,7 +518,7 @@ const RowMaterialCategories = () => {
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value)}
             >
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
 
@@ -539,7 +541,7 @@ const RowMaterialCategories = () => {
               value={typeFilterId}
               onValueChange={(value) => setTypeFilterId(value)}
             >
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                 <SelectValue placeholder="Category Type" />
               </SelectTrigger>
 

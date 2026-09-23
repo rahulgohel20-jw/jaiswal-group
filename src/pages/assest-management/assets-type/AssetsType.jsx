@@ -21,6 +21,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
 
 
 const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
@@ -53,7 +54,7 @@ const mapAssetType = (t) => ({
 
 const AssetsType = () => {
     const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assets Type Master');
-
+    const navigate = useNavigate();
     const [type, setType] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -306,11 +307,11 @@ const confirmDelete = async () => {
 
     return (
         <Container>
-            <div className="space-y-6 p-6">
+            <div className="p-4 mx-auto">
 
             {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
@@ -320,14 +321,14 @@ const confirmDelete = async () => {
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Assign Asset Types</h1>
-                    <p className="text-[#5F6368] mt-2 max-w-3xl text-sm">
+                    <h1 className="font-bold text-[#101828] text-[28px]">Assign Asset Types</h1>
+                    <p className="text-[#667085] text-sm mt-1.5 max-w-2xl">
                         Configure classification rules and transfer protocols for organizational assets.
                     </p>
                 </div>
                 {canAdd && (
-                    <div className="flex gap-3">
-                        <button onClick={openCreateModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg hover:bg-[#063b6d] cursor-pointer">
+                    <div className="flex gap-3 self-end">
+                        <button onClick={openCreateModal} className="flex w-max items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg hover:bg-[#063b6d] cursor-pointer">
                             <Plus size={16} />
                             Add Asset Type
                         </button>
@@ -336,7 +337,7 @@ const confirmDelete = async () => {
             </div>
 
             {/* Stats Cards — unchanged, still static */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-2 my-4">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
@@ -365,10 +366,10 @@ const confirmDelete = async () => {
                 })}
             </div>
             {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
-                    <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+                    <div className="relative w-full border border-[#C3C6D1] rounded-xl">
                         <Search
                             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                             size={18}
@@ -378,14 +379,14 @@ const confirmDelete = async () => {
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             placeholder="Search by type, description..."
-                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
+                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-xl text-sm"
                         />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                         {/* Asset Type */}
-                            <div className="border border-[#C3C6D1] rounded-lg py-0.5 my-auto">
+                            <div className="border border-[#C3C6D1] rounded-xl py-0.5 my-auto">
                                 <Select
                                     value={typeInput}
                                     onValueChange={(value) => setTypeInput(value)}
@@ -411,7 +412,7 @@ const confirmDelete = async () => {
 
 
                             {/* Transfer Allowed */}
-                            <div className="border border-[#C3C6D1] rounded-lg py-0.5 my-auto">
+                            <div className="border border-[#C3C6D1] rounded-xl py-0.5 my-auto">
                                 <Select
                                     value={transferInput}
                                     onValueChange={(value) => setTransferInput(value)}

@@ -61,6 +61,17 @@ import { PO_STATUS } from './utils/poStatus';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 
+const htmlToPlainText = (html = '') => {
+  if (!html) return '';
+
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+
+  return (temp.textContent || temp.innerText || '')
+    .replace(/\u00a0/g, ' ')
+    .trim();
+};
+
 const getTodayForDateInput = () => {
   const d = new Date();
   const year = d.getFullYear();
@@ -402,7 +413,7 @@ const CreatePurchaseOrder = () => {
     };
   }, [poRecord?.shipTo, state?.shipTo, activeOutletId, selectedOutletId, poRecord?.outletId, state?.outletId, pr?.outletId]);
 
-    // Set by PurchaseOrderApproval.jsx's navigate() call:
+  // Set by PurchaseOrderApproval.jsx's navigate() call:
   //  - 'approve' -> actionable review, shows an Approve button
   //  - 'reject'  -> actionable review, shows a Reject button, remarks required
   // undefined -> normal create / continue-draft flow (Save Draft / Generate)
@@ -704,7 +715,7 @@ const CreatePurchaseOrder = () => {
     })();
   }, []);
 
-  const handleGlobalVendorChange = (vendorId) => {
+  const handleGlobalVendorChange = async (vendorId) => {
     if (!vendorId) {
       setCommonVendorId('');
       return;
@@ -719,6 +730,15 @@ const CreatePurchaseOrder = () => {
     } else {
       // In pre-generation multi-vendor mode, apply directly to checked items
       setCommonVendorId(vendorId);
+      const selectedVendor = vendors.find(
+        (vendor) => String(vendor.id) === String(vendorId)
+      );
+
+      if (selectedVendor?.rawVendor?.termsAndConditions) {
+        setRemarks(htmlToPlainText(selectedVendor.rawVendor.termsAndConditions));
+      } else {
+        setRemarks('');
+      }
       applyCommonVendorToChecked(vendorId, rowSelection, purchaseItems);
     }
   };
@@ -728,6 +748,17 @@ const CreatePurchaseOrder = () => {
     setIsSwitchingVendor(true);
     try {
       await applyVendorSwitch(pendingVendorId);
+      // Get selected vendor
+      const selectedVendor = vendors.find(
+        (vendor) => String(vendor.id) === String(pendingVendorId)
+      );
+
+      // Set vendor terms in textarea
+      if (selectedVendor?.rawVendor?.termsAndConditions) {
+        setRemarks(htmlToPlainText(selectedVendor.rawVendor.termsAndConditions));
+      } else {
+        setRemarks('');
+      }
       setShowVendorChangeModal(false);
       setPendingVendorId(null);
     } finally {
@@ -1112,29 +1143,29 @@ const CreatePurchaseOrder = () => {
   const purchaseItems = useMemo(() => {
     const baseline = isEditingExistingPo
       ? (poRecord?.details || []).map((d, idx) => ({
-          rawMaterialId: d.rawMaterialId,
-          prDetailId: d.prDetailId != null ? Number(d.prDetailId) : (d.id != null ? Number(d.id) : null),
-          srNo: String(idx + 1).padStart(2, '0'),
-          itemName: d.rawMaterialName,
-          unit: d.uomName,
-          uomId: d.uomId,
-          uomName: d.uomName,
-          approvedQty: d.quantity,
-          remarks: d.remarks || '',
-          source: 'pr',
-        }))
+        rawMaterialId: d.rawMaterialId,
+        prDetailId: d.prDetailId != null ? Number(d.prDetailId) : (d.id != null ? Number(d.id) : null),
+        srNo: String(idx + 1).padStart(2, '0'),
+        itemName: d.rawMaterialName,
+        unit: d.uomName,
+        uomId: d.uomId,
+        uomName: d.uomName,
+        approvedQty: d.quantity,
+        remarks: d.remarks || '',
+        source: 'pr',
+      }))
       : (pr?.details || []).map((d, idx) => ({
-          rawMaterialId: d.rawMaterialId,
-          prDetailId: d.id != null ? Number(d.id) : (d.prDetailId != null ? Number(d.prDetailId) : null),
-          srNo: String(idx + 1).padStart(2, '0'),
-          itemName: d.rawMaterialName,
-          unit: d.uomName,
-          uomId: d.uomId,
-          uomName: d.uomName,
-          approvedQty: d.quantity ?? d.orderedQuantity,
-          remarks: d.remarks || '',
-          source: 'pr',
-        }));
+        rawMaterialId: d.rawMaterialId,
+        prDetailId: d.id != null ? Number(d.id) : (d.prDetailId != null ? Number(d.prDetailId) : null),
+        srNo: String(idx + 1).padStart(2, '0'),
+        itemName: d.rawMaterialName,
+        unit: d.uomName,
+        uomId: d.uomId,
+        uomName: d.uomName,
+        approvedQty: d.quantity ?? d.orderedQuantity,
+        remarks: d.remarks || '',
+        source: 'pr',
+      }));
     const fromManual = manualItems.map((m, idx) => ({
       rawMaterialId: m.rawMaterialId,
       prDetailId: null,
@@ -1744,11 +1775,11 @@ const CreatePurchaseOrder = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Purchase Order Request</span>
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate(-1)}>Purchase Order Request</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">
             {isRejectMode
@@ -1761,8 +1792,8 @@ const CreatePurchaseOrder = () => {
           </span>
         </div>
 
-        <div className="my-6">
-          <h1 className="text-3xl font-bold text-[#0F172A]">
+        <div className="my-2">
+          <h1 className="font-bold text-[#101828] text-[28px]">
             {isRejectMode
               ? 'Reject Purchase Order'
               : isApproveMode && !isExistingInProgress
@@ -1788,7 +1819,7 @@ const CreatePurchaseOrder = () => {
           </div>
         )}
 
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm">
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm mt-6">
           <div className="px-6 py-5 border-b border-[#E2E8F0]">
             <div className="flex items-center gap-2">
               <Info size={18} className="text-[#0B5CAD]" />
@@ -1851,22 +1882,17 @@ const CreatePurchaseOrder = () => {
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <select
+                        <SearchableSelect
+                          name="vendorId"
                           value={commonVendorId}
                           onChange={(e) => handleGlobalVendorChange(e.target.value)}
+                          options={mappedVendors.map((v) => ({
+                            value: String(v.id),
+                            label: v.name,
+                          }))}
+                          placeholder={vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
                           disabled={vendorsLoading || isRejectMode}
-                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                        >
-                          <option value="">
-                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
-                          </option>
-                          {mappedVendors.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                        />
                       </div>
                       {!isRejectMode && (
                         <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
@@ -1922,25 +1948,20 @@ const CreatePurchaseOrder = () => {
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <select
+                        <SearchableSelect
+                          name="vendorId"
                           value={commonVendorId}
                           onChange={(e) => handleGlobalVendorChange(e.target.value)}
+                          options={mappedVendors.map((v) => ({
+                            value: String(v.id),
+                            label: v.name,
+                          }))}
+                          placeholder={vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
                           disabled={vendorsLoading || isReadOnly || isSwitchingVendor}
-                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                        >
-                          <option value="">
-                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
-                          </option>
-                          {mappedVendors.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
+                        />
                         {isSwitchingVendor ? (
                           <Loader2 size={16} className="absolute right-8 top-1/2 -translate-y-1/2 text-[#084E92] animate-spin pointer-events-none" />
                         ) : null}
-                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                       </div>
                       {!isReadOnly && (
                         <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
@@ -1959,21 +1980,17 @@ const CreatePurchaseOrder = () => {
                       <label className="text-sm text-[#475569] mb-1 block">
                         Outlet <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <SearchableSelect
+                        name="outletId"
                         value={selectedOutletId ? String(selectedOutletId) : ''}
                         onChange={(e) => setSelectedOutletId(e.target.value)}
+                        options={outlets.map((o) => ({
+                          value: String(o.id),
+                          label: `${o.name}${o.code ? ` (${o.code})` : ''}`,
+                        }))}
+                        placeholder={outletsLoading ? 'Loading outlets...' : 'Select outlet...'}
                         disabled={outletsLoading || isReadOnly || isSwitchingVendor}
-                        className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                      >
-                        <option value="">
-                          {outletsLoading ? 'Loading outlets...' : 'Select outlet...'}
-                        </option>
-                        {outlets.map((o) => (
-                          <option key={o.id} value={String(o.id)}>
-                            {o.name} {o.code ? `(${o.code})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                   )}
 
@@ -1983,25 +2000,20 @@ const CreatePurchaseOrder = () => {
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <select
+                        <SearchableSelect
+                          name="vendorId"
                           value={commonVendorId}
                           onChange={(e) => handleGlobalVendorChange(e.target.value)}
-                          disabled={vendorsLoading || isReadOnly || isSwitchingVendor}
-                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                        >
-                          <option value="">
-                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
-                          </option>
-                          {mappedVendors.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
+                          options={mappedVendors.map((v) => ({
+                            value: String(v.id),
+                            label: v.name,
+                          }))}
+                          placeholder={vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
+                          disabled={vendorsLoading || isRejectMode}
+                        />
                         {isSwitchingVendor ? (
                           <Loader2 size={16} className="absolute right-8 top-1/2 -translate-y-1/2 text-[#084E92] animate-spin pointer-events-none" />
                         ) : null}
-                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                       </div>
                       {!isReadOnly && (
                         <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
@@ -2054,11 +2066,10 @@ const CreatePurchaseOrder = () => {
               <div className="flex items-center gap-2">
                 {isGstApplicable ? (
                   <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                      isInterState
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isInterState
                         ? 'bg-amber-50 text-amber-700 border border-amber-200'
                         : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    }`}
+                      }`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                     {isInterState
@@ -2230,11 +2241,10 @@ const CreatePurchaseOrder = () => {
                   type="button"
                   disabled={selectedItemsForTransfer.length === 0}
                   onClick={() => setShowStockTransferModal(true)}
-                  className={`inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                    selectedItemsForTransfer.length > 0
+                  className={`inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${selectedItemsForTransfer.length > 0
                       ? 'bg-[#084E92] text-white hover:bg-blue-800 shadow-sm active:scale-[0.98]'
                       : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
-                  }`}
+                    }`}
                   title={
                     selectedItemsForTransfer.length === 0
                       ? 'Select at least one item from the table below to generate stock transfer'
@@ -2360,9 +2370,8 @@ const CreatePurchaseOrder = () => {
                                   type="button"
                                   onClick={() => toggleItemRemarks(item.rawMaterialId)}
                                   title={isRemarksOpen ? 'Close remarks' : 'Add/Edit remarks'}
-                                  className={`p-0.5 rounded hover:bg-blue-50 transition cursor-pointer shrink-0 ${
-                                    itemRemarks ? 'text-[#084E92]' : 'text-gray-400 hover:text-gray-600'
-                                  }`}
+                                  className={`p-0.5 rounded hover:bg-blue-50 transition cursor-pointer shrink-0 ${itemRemarks ? 'text-[#084E92]' : 'text-gray-400 hover:text-gray-600'
+                                    }`}
                                 >
                                   <Pencil size={11} />
                                 </button>
@@ -2446,27 +2455,24 @@ const CreatePurchaseOrder = () => {
                         </td>
                         <td className="py-2.5 px-2 align-top pt-3 w-52">
                           <div className="relative">
-                            <select
-                              value={vendorMap[item.rawMaterialId] || (isSingleVendorPo ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '') : '')}
-                              onChange={(e) => handleVendorChange(item.rawMaterialId, e.target.value)}
+                            <SearchableSelect
+                              name={`vendor-${item.rawMaterialId}`}
+                              value={
+                                vendorMap[item.rawMaterialId] ||
+                                (isSingleVendorPo
+                                  ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '')
+                                  : '')
+                              }
+                              onChange={(e) =>
+                                handleVendorChange(item.rawMaterialId, e.target.value)
+                              }
+                              options={mappedVendors.map((v) => ({
+                                value: String(v.id),
+                                label: v.name,
+                              }))}
+                              placeholder="Select Vendor"
                               disabled={isReadOnly || isSingleVendorPo}
-                              title={isSingleVendorPo ? 'Vendor is fixed per PO. Change vendor globally from PO Information above.' : 'Select Vendor'}
-                              className={`w-full h-8 border border-[#E2E8F0] rounded-lg px-2 pr-5 text-xs text-[#1E293B] appearance-none outline-none ${
-                                isSingleVendorPo
-                                  ? 'bg-[#F8FAFC] text-gray-500 cursor-not-allowed border-dashed'
-                                  : 'bg-white cursor-pointer focus:border-[#084E92]'
-                              } disabled:bg-[#F8FAFC] disabled:cursor-not-allowed truncate`}
-                            >
-                              <option value="">Select Vendor</option>
-                              {mappedVendors.map((v) => (
-                                <option key={v.id} value={v.id}>
-                                  {v.name}
-                                </option>
-                              ))}
-                            </select>
-                            {!isSingleVendorPo && (
-                              <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                            )}
+                            />
                           </div>
                         </td>
                         <td className="py-2.5 px-2 text-center align-top pt-3 w-16">
@@ -2484,6 +2490,9 @@ const CreatePurchaseOrder = () => {
                               }))
                             }
                             disabled={isReadOnly}
+                            onWheel={(e) => {
+                              e.currentTarget.blur();
+                            }}
                             placeholder="0"
                             className="w-14 h-8 border border-[#E2E8F0] rounded-lg text-center font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:text-[#475467]"
                           />
@@ -2504,6 +2513,9 @@ const CreatePurchaseOrder = () => {
                               }))
                             }
                             disabled={isReadOnly}
+                            onWheel={(e) => {
+                              e.currentTarget.blur();
+                            }}
                             placeholder="0.00"
                             className="w-18 h-8 border border-[#E2E8F0] rounded-lg text-right px-1.5 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                           />
@@ -2539,6 +2551,7 @@ const CreatePurchaseOrder = () => {
                                   const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
                                   setGstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
                                 }}
+                                onWheel={e => e.currentTarget.blur()}
                                 disabled={isReadOnly}
                                 placeholder="18"
                                 className="w-13 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
@@ -2558,6 +2571,7 @@ const CreatePurchaseOrder = () => {
                                   const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
                                   setCessMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
                                 }}
+                                onWheel={e => e.currentTarget.blur()}
                                 disabled={isReadOnly}
                                 placeholder="0"
                                 className="w-12 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
@@ -2658,6 +2672,7 @@ const CreatePurchaseOrder = () => {
                             onChange={(e) => handleOtherCostChange(costItem.id, 'cost', e.target.value)}
                             disabled={isReadOnly}
                             placeholder="0.00"
+                            onWheel={e => e.currentTarget.blur()}
                             className="w-full h-9 border border-[#E2E8F0] rounded-lg pl-6 pr-2 text-right text-xs font-mono text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
                           />
                         </div>
@@ -2874,6 +2889,7 @@ const CreatePurchaseOrder = () => {
                                 }}
                                 onChange={(e) => handleOtherCostChange(costItem.id, 'cost', e.target.value)}
                                 disabled={isReadOnly}
+                                onWheel={e => e.currentTarget.blur()}
                                 placeholder="0.00"
                                 className="w-full h-9 border border-[#E2E8F0] rounded-lg pl-6 pr-2 text-right text-xs font-mono text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
                               />
@@ -2986,9 +3002,8 @@ const CreatePurchaseOrder = () => {
                   ? 'Please state the reason for rejecting this purchase order...'
                   : 'Add any specific terms, instructions, or notes for the vendor...'
               }
-              className={`w-full p-4 rounded-xl border ${
-                remarksError ? 'border-red-400 focus:border-red-500' : 'border-[#E2E8F0] focus:border-[#0B5CAD]'
-              } text-sm outline-none resize-none transition disabled:bg-[#F8FAFC]`}
+              className={`w-full p-4 rounded-xl border ${remarksError ? 'border-red-400 focus:border-red-500' : 'border-[#E2E8F0] focus:border-[#0B5CAD]'
+                } text-sm outline-none resize-none transition disabled:bg-[#F8FAFC]`}
             />
             {remarksError && (
               <p className="text-xs text-red-500 mt-1.5">{remarksError}</p>
