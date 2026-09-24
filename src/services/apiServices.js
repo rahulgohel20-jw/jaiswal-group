@@ -1109,3 +1109,50 @@ export const updateAssetDisposal = (id, payload) => {
 export const deleteAssetDisposalById = (id) => {
   return DELETE(`/asset-disposal/delete?id=${id}`);
 }
+
+// ---- Event APIs ----
+export const getAllEvents = (userId, params = {}) => {
+  const query = {
+    userId: userId || undefined,
+    ...params,
+  };
+  return GET('/eventmaster/getallbyuserid', query);
+};
+
+export const getEventById = (eventId) => {
+  return GET(`/eventmaster/getbyid?eventId=${eventId}`);
+};
+
+export const createEvent = (payload) => {
+  return POST('/eventmaster/add', payload);
+};
+
+export const updateEvent = (eventId, payload) => {
+  return PUT(`/eventmaster/update?id=${eventId}`, payload);
+};
+
+export const deleteEventById = (eventId) => {
+  return DELETE(`/eventmaster/deleteeventbyid?eventId=${eventId}`);
+};
+
+export const updateEventStatus = (eventId, statusId) => {
+  return PUT(`/eventmaster/updatestatus?id=${eventId}&statusId=${statusId}`);
+};
+
+// ---- Event Type APIs ----
+export const getAllEventTypes = (userId) => {
+  return GET(userId ? `/eventtype/getallbyuserid?userId=${userId}` : '/eventtype/getall');
+};
+
+export const createEventType = (payload) => {
+  return POST('/eventtype/add', payload);
+};
+
+export const updateEventType = (id, payload) => {
+  return PUT(`/eventtype/update?id=${id}`, payload);
+};
+
+export const deleteEventType = (id) => {
+  return DELETE(`/eventtype/deletebyid?id=${id}`);
+};
+

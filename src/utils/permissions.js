@@ -53,13 +53,24 @@ export const getUserPermissions = (userOrAuth) => {
   const auth = userOrAuth || getStoredAuthOrUser() || {};
   const user = auth?.user || auth?.data || auth || {};
 
+  const userTypeStr = String(
+    user?.userType ||
+    auth?.userType ||
+    user?.role ||
+    auth?.role ||
+    user?.user_type ||
+    ''
+  ).toUpperCase().trim();
+
   const isAdmin =
-    user?.userType === 'ADMIN' ||
-    user?.userType === 'SUPER_ADMIN' ||
+    userTypeStr === 'ADMIN' ||
+    userTypeStr === 'SUPER_ADMIN' ||
+    userTypeStr === 'SUPERADMIN' ||
+    userTypeStr.includes('ADMIN') ||
     user?.is_admin === true ||
     user?.isAdmin === true ||
-    auth?.userType === 'ADMIN' ||
-    auth?.userType === 'SUPER_ADMIN';
+    auth?.is_admin === true ||
+    auth?.isAdmin === true;
 
   let rawUserRights =
     user?.userRights ||
@@ -151,6 +162,18 @@ export const getUserPermissions = (userOrAuth) => {
       };
     }
 
+    // Default permissions for new modules (Events) not yet present in database rightsMap
+    if (
+      lowerKey.includes('event') ||
+      lowerKey === 'events' ||
+      lowerKey === 'events list' ||
+      lowerKey === 'create event' ||
+      lowerKey === 'event types' ||
+      lowerKey === 'event management'
+    ) {
+      return { view: true, add: true, edit: true, delete: true, hasAccess: true };
+    }
+
     // If no explicit rights and user is Admin, grant full access
     if (isAdmin) {
       return { view: true, add: true, edit: true, delete: true, hasAccess: true };
@@ -158,6 +181,7 @@ export const getUserPermissions = (userOrAuth) => {
 
     return { view: false, add: false, edit: false, delete: false, hasAccess: false };
   };
+
 
   const hasPermission = (pageName, action = 'view') => {
     const rights = getPageRights(pageName);

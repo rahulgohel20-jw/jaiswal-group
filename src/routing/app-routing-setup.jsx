@@ -185,6 +185,13 @@ import ReturnReplacementList from '../pages/inventory/return-replacement-listing
 import StockTransfer from '../pages/inventory/stock-transfer/StockTransfer';
 import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
 import UserProfile from '../pages/my-profile/UserProfile';
+import {
+  EventListing,
+  AddEvent,
+  EventViewDetails,
+  EventTypeMaster,
+} from '../pages/event';
+
 
 
 export function AppRoutingSetup() {
@@ -209,7 +216,15 @@ export function AppRoutingSetup() {
 
           <Route path='/my-profile' element={<UserProfile/>}/>
 
+          {/* Event Module Routes */}
+          <Route path="/events" element={<EventListing />} />
+          <Route path="/events/add" element={<AddEvent />} />
+          <Route path="/events/edit/:id" element={<AddEvent />} />
+          <Route path="/events/view/:id" element={<EventViewDetails />} />
+          <Route path="/events/types" element={<EventTypeMaster />} />
+
           <Route path="/companies" element={<CompaniesListing />} />
+
           <Route
             path="/companies/registration"
             element={<CompanyRegistration />}
