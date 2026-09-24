@@ -23,11 +23,9 @@ import {
 } from '@/services/apiServices.js';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import SearchableSelect from '../../../utils/SearchableSelect';
+import { getAllActiveSubOutlets } from '../../../services/apiServices';
+
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -105,140 +103,6 @@ const Label = ({ children, required }) => (
   </label>
 );
 
-const Select = ({
-  value,
-  onChange,
-  options = [],
-  placeholder = 'Select...',
-  name,
-  disabled = false,
-  icon: Icon = ChevronDown,
-}) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-
-  const selectedOption = options.find(
-    (option) => String(option.value ?? option) === String(value),
-  );
-
-  const selectedLabel = selectedOption
-    ? String(selectedOption.label ?? selectedOption)
-    : '';
-
-  React.useEffect(() => {
-    if (!open) {
-      setSearch(selectedLabel);
-    }
-  }, [open, selectedLabel]);
-
-  const filteredOptions = options.filter((option) => {
-    const label = String(option.label ?? option);
-    return label.toLowerCase().includes(search.trim().toLowerCase());
-  });
-
-  const handleSelect = (option) => {
-    const optionValue = option.value ?? option;
-    const optionLabel = option.label ?? option;
-
-    onChange({
-      target: {
-        name,
-        value: String(optionValue),
-      },
-    });
-
-    setSearch(String(optionLabel));
-    setOpen(false);
-  };
-
-  const handleInputChange = (e) => {
-    const inputValue = e.target.value;
-
-    setSearch(inputValue);
-    setOpen(true);
-
-    if (String(inputValue) !== String(selectedLabel)) {
-      onChange({
-        target: {
-          name,
-          value: '',
-        },
-      });
-    }
-  };
-
-  return (
-    <Popover
-      open={disabled ? false : open}
-      onOpenChange={(nextOpen) => {
-        if (disabled) return;
-        setOpen(nextOpen);
-        if (nextOpen) setSearch(selectedLabel);
-      }}
-      modal={false}
-    >
-      <PopoverTrigger asChild>
-        <div className="relative w-full">
-          <input
-            name={name}
-            value={search}
-            placeholder={placeholder}
-            disabled={disabled}
-            onClick={() => {
-              if (disabled) return;
-              setOpen(true);
-              setSearch(selectedLabel);
-            }}
-            onChange={handleInputChange}
-            className={`${inputCls} pr-10 cursor-text`}
-          />
-          <Icon
-            size={16}
-            className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400"
-          />
-        </div>
-      </PopoverTrigger>
-
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={4}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
-      >
-        <div className="max-h-52 overflow-y-auto">
-          {filteredOptions.length > 0 ? (
-            filteredOptions.map((option) => {
-              const optionValue = option.value ?? option;
-              const optionLabel = option.label ?? option;
-              const isSelected = String(value) === String(optionValue);
-
-              return (
-                <button
-                  key={String(optionValue)}
-                  type="button"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => handleSelect(option)}
-                  className={`w-full text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${
-                    isSelected
-                      ? 'bg-blue-50 text-primary font-medium'
-                      : 'text-gray-700'
-                  }`}
-                >
-                  {optionLabel}
-                </button>
-              );
-            })
-          ) : (
-            <div className="px-3 py-3 text-sm text-gray-500">
-              No options found
-            </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
 
 const SectionCard = ({ children, className = '' }) => (
   <div
@@ -272,6 +136,7 @@ const AddAssignAsset = () => {
     assignedTo: '',
     company: '', // Companies dropdown: holds a GROUP or SUB_COMPANY id
     unit: '', // Unit dropdown: holds an OUTLET id, scoped under `company`
+    subOutletId: '',
     quantity: '', // string while editing; sanitized on change
     assignmentDate: todayInputDate(), // defaults to today
     remarks: '',
@@ -293,6 +158,9 @@ const AddAssignAsset = () => {
   const navigate = useNavigate();
   const [loadingRecord, setLoadingRecord] = useState(isEditMode);
 
+  const [subOutlets, setSubOutlets] = useState([]);
+  const [loadingSubOutlets, setLoadingSubOutlets] = useState(false);
+  const [originalAssignmentQty, setOriginalAssignmentQty] = useState(0);
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -302,7 +170,10 @@ const AddAssignAsset = () => {
         setLoadingRecord(true);
         const res = await getAssignAssetById(id);
         const record = res?.data?.data ?? res?.data ?? res;
+       
         if (!cancelled && record) {
+          const existingQty = Number(record.quantity) || 0;
+          setOriginalAssignmentQty(existingQty);
           setForm((f) => ({
             ...f,
             assetId: record.assetId ? String(record.assetId) : '',
@@ -313,6 +184,10 @@ const AddAssignAsset = () => {
             // becomes `unit` with its parent as `company`; a GROUP or
             // SUB_COMPANY's companiesId becomes `company` directly).
             _pendingCompaniesId: record.companiesId ?? null,
+            subOutletId: record.subOutletId != null
+              ? String(record.subOutletId)
+              : '',
+            remarks: record.remarks,
             quantity: record.quantity != null ? String(record.quantity) : '',
             assignmentDate: record.assignmentDate
               ? toInputDate(record.assignmentDate)
@@ -414,6 +289,40 @@ const AddAssignAsset = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSubOutlets = async () => {
+      try {
+        setLoadingSubOutlets(true);
+
+        const res = await getAllActiveSubOutlets();
+
+        if (!cancelled) {
+          setSubOutlets(extractArray(res));
+        }
+      } catch (err) {
+        console.error('Failed to load sub outlets:', err);
+
+        if (!cancelled) {
+          setFetchError(
+            (prev) => prev || 'Failed to load sub outlets.'
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingSubOutlets(false);
+        }
+      }
+    };
+
+    loadSubOutlets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const selectedAsset = useMemo(() => {
     if (!form.assetId) return null;
     const raw = (assets ?? []).find(
@@ -473,6 +382,25 @@ const AddAssignAsset = () => {
       .map((o) => ({ value: o.id, label: o.companyNameEnglish }));
   }, [organizations, selectedCompanyOrg]);
 
+  const subOutletOptions = useMemo(
+    () =>
+      (subOutlets ?? [])
+        .filter((subOutlet) => {
+          if (!form.unit) return true;
+
+          return (
+            String(subOutlet.organizationId) ===
+            String(form.unit)
+          );
+        })
+        .map((subOutlet) => ({
+          value: String(subOutlet.id),
+          label:
+            subOutlet.subOutletName ??
+            `Sub Unit ${subOutlet.id}`,
+        })),
+    [subOutlets, form.unit]
+  );
   // Builds the set of org ids that fall "under" a given org — itself, plus
   // (for a Group) every Company under it and every Outlet under those
   // companies, or (for a Company) every Outlet under it. This lets the
@@ -519,11 +447,11 @@ const AddAssignAsset = () => {
     if (!effectiveId) {
       return isIndividual
         ? (employees ?? []).map((e) => ({
-            value: e.id,
-            label: e.designation
-              ? `${e.fullName} — ${e.designation}`
-              : e.fullName,
-          }))
+          value: e.id,
+          label: e.designation
+            ? `${e.fullName} — ${e.designation}`
+            : e.fullName,
+        }))
         : [];
     }
 
@@ -552,16 +480,18 @@ const AddAssignAsset = () => {
 
   const handleCompanyChange = (e) => {
     const newCompanyId = e.target.value;
-    setForm((f) => ({ ...f, company: newCompanyId, unit: '', assignedTo: '' }));
+    setForm((f) => ({ ...f, company: newCompanyId, unit: '', subOutletId: '', assignedTo: '' }));
   };
 
   const handleUnitChange = (e) => {
     const newUnitId = e.target.value;
-    setForm((f) => ({ ...f, unit: newUnitId, assignedTo: '' }));
+    setForm((f) => ({ ...f, unit: newUnitId, subOutletId: '', assignedTo: '' }));
   };
 
   const availableStock = selectedAsset?.availableQuantity ?? 0;
   const totalStock = selectedAsset?.totalQuantity ?? 0;
+  const maxAssignableQty =
+  availableStock + (isEditMode ? originalAssignmentQty : 0);
 
   // Sanitizes quantity input as the user types:
   // - strips anything non-numeric
@@ -580,7 +510,7 @@ const AddAssignAsset = () => {
 
     let num = Number(raw);
     if (num < 0) num = 0;
-    if (num > availableStock) num = availableStock;
+    if (num > availableStock) num = maxAssignableQty;
 
     set('quantity', String(num));
   };
@@ -591,10 +521,9 @@ const AddAssignAsset = () => {
   // Payload for createAssignAsset: { active, assetId, assignToId, companiesId, quantity, assignmentDate, remarks }
   const buildPayload = () => {
     // Unit (Outlet) wins over Companies (Group/Company) when both are set.
-    const companiesId =
-      !isIndividual && (form.unit || form.company)
-        ? Number(form.unit || form.company)
-        : null;
+    const companiesId = form.unit || form.company
+      ? Number(form.unit || form.company)
+      : 0;
 
     return {
       active: true,
@@ -602,6 +531,9 @@ const AddAssignAsset = () => {
       assetType: form.assetType,
       assignToId: form.assignedTo ? Number(form.assignedTo) : null,
       companiesId,
+      subOutletId: form.subOutletId
+        ? Number(form.subOutletId)
+        : null,
       quantity: qtyNum,
       assignmentDate: toDDMMYYYY(form.assignmentDate),
       remarks: form.remarks || null,
@@ -630,7 +562,7 @@ const AddAssignAsset = () => {
       setSaveError('Quantity must be at least 1.');
       return;
     }
-    if (qtyNum > availableStock) {
+    if (qtyNum > maxAssignableQty) {
       setSaveError(
         `Quantity cannot exceed the available stock (${availableStock}).`,
       );
@@ -653,10 +585,10 @@ const AddAssignAsset = () => {
       const data = err?.response?.data;
       setSaveError(
         data?.errorMessage ||
-          data?.message ||
-          (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
-          err?.message ||
-          'Failed to save assignment.',
+        data?.message ||
+        (data?.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+        err?.message ||
+        'Failed to save assignment.',
       );
     } finally {
       setSaving(false);
@@ -701,7 +633,8 @@ const AddAssignAsset = () => {
           {/* Asset picker — always visible, at the top */}
           <div>
             <Label required>Search Asset</Label>
-            <Select
+            <SearchableSelect
+              name="assetId"
               value={form.assetId}
               onChange={handleAssetChange}
               placeholder={
@@ -710,7 +643,6 @@ const AddAssignAsset = () => {
                   : 'Search by asset ID or name...'
               }
               options={assetOptions}
-              icon={Search}
               disabled={loadingAssets}
             />
           </div>
@@ -796,21 +728,21 @@ const AddAssignAsset = () => {
           <div className="border-t border-gray-100 pt-6 space-y-4">
             <SubHeading icon={MapPin} title="Deployment Destination" />
 
-            <div>
-              <Label required>Assign To Type</Label>
-              <div className="sm:w-1/2">
-                <Select
-                  value={form.assetType}
-                  onChange={handleAssetTypeChange}
-                  placeholder="Select asset type"
-                  options={ASSET_TYPE_OPTIONS}
-                />
+            <div className='grid sm:grid-cols-2 gap-3'>
+              <div className='w-full'>
+                <Label required>Assign To Type</Label>
+                <div className="">
+                  <SearchableSelect
+                    name="assetType"
+                    value={form.assetType}
+                    onChange={handleAssetTypeChange}
+                    placeholder="Select asset type"
+                    options={ASSET_TYPE_OPTIONS}
+                  />
+                </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
               <div className="w-full">
-                <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center justify-between">
                   <Label required={!isIndividual}>Companies</Label>
                   {selectedCompanyOrg && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-blue-50 text-[#084E92] border border-blue-100">
@@ -818,53 +750,84 @@ const AddAssignAsset = () => {
                     </span>
                   )}
                 </div>
-                <Select
+                <SearchableSelect
+                  name="company"
                   value={form.company}
                   onChange={handleCompanyChange}
                   placeholder={
-                    loadingOrgs ? 'Loading...' : 'Search Group or Company...'
+                    loadingOrgs
+                      ? 'Loading...'
+                      : 'Search Group or Company...'
                   }
                   options={companyOptions}
                   disabled={loadingOrgs}
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+
 
               <div className="w-full">
                 <Label>Unit</Label>
-                <Select
+                <SearchableSelect
+                  name="unit"
                   value={form.unit}
                   onChange={handleUnitChange}
                   placeholder={
-                    form.company ? 'Select unit' : 'Select company first'
+                    form.company
+                      ? 'Search unit'
+                      : 'Select company first'
                   }
                   options={unitOptions}
                   disabled={!form.company}
                 />
               </div>
 
+
+              <div className='w-full'>
+                <Label>Sub Unit</Label>
+                <SearchableSelect
+                  name="subOutletId"
+                  value={form.subOutletId}
+                  onChange={(e) => set('subOutletId', e.target.value)}
+                  placeholder={
+                    loadingSubOutlets
+                      ? 'Loading sub units...'
+                      : !form.unit
+                        ? 'Select unit first'
+                        : 'Search sub unit...'
+                  }
+                  options={subOutletOptions}
+                  disabled={loadingSubOutlets || !form.unit}
+                />
+              </div>
+
               <div className="w-full">
                 <Label required={isIndividual}>Assigned To</Label>
-                <Select
+                <SearchableSelect
+                  name="assignedTo"
                   value={form.assignedTo}
                   onChange={(e) => set('assignedTo', e.target.value)}
                   placeholder={
-                    isIndividual
-                      ? 'Select employee'
-                      : 'Select employee (optional)'
+                    form.company || form.unit
+                      ? 'Search employee'
+                      : 'Select company first'
                   }
                   options={employeeOptions}
-                  disabled={!form.company && !form.unit && !isIndividual}
+                  disabled={!form.company && !form.unit}
                 />
               </div>
+
             </div>
           </div>
 
           <div className="border-t border-gray-100 pt-6">
             <div className="bg-blue-50/60 border border-blue-100 rounded-xl px-5 py-5 space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <p className="text-sm font-bold text-gray-800">
+                <Label required className="text-sm font-bold text-gray-800">
                   Quantity Distribution
-                </p>
+                </Label>
                 <div className="flex items-center gap-5 text-right">
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
@@ -922,9 +885,8 @@ const AddAssignAsset = () => {
                   type="date"
                   value={form.assignmentDate}
                   onChange={(e) => set('assignmentDate', e.target.value)}
-                  className={`${inputCls} pr-9`}
+                  className={`${inputCls} pr-3`}
                 />
-                <CalendarDays className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
 

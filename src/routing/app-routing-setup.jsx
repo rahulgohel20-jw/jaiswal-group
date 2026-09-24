@@ -183,15 +183,22 @@ import GenerateGRNDetail from '../pages/inventory/generate-grn/GenerateGRNDetail
 import GRNListing from '../pages/inventory/grn-listing/GRNListing';
 import ReturnReplacementList from '../pages/inventory/return-replacement-listing/ReturnReplacementList';
 import StockTransfer from '../pages/inventory/stock-transfer/StockTransfer';
+import StockTransferDetail from '../pages/inventory/stock-transfer/StockTransferDetail';
 import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
 import UserProfile from '../pages/my-profile/UserProfile';
-import {
-  EventListing,
-  AddEvent,
-  EventViewDetails,
-  EventTypeMaster,
-} from '../pages/event';
-
+import PurchaseInvoice from '../pages/purchase-invoice/PurchaseInvoice';
+import GenerateGrnInvoice from '../pages/purchase-invoice/GenerateGrnInvoice';
+import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceListing';
+import ApproveInvoice from '../pages/purchase-invoice/ApproveInvoice';
+import PurchaseInvoiceDetailsModal from '../pages/purchase-invoice/PurchaseInvoiceDetailsModal';
+import StockTransferRequest from '../pages/inventory/stock-transfer/StockTransferRequest';
+import StockTransferReqReceiveList from '../pages/inventory/stock-transfer-request-listing/StockTransferReqReceiveList';
+import OpbStockCreateRequestListing from '../pages/inventory/opb-stock/OpbStockCreateRequestListing';
+import OpbStockCreateRequest from '../pages/inventory/opb-stock/OpbStockCreateRequest';
+import ManualAdjustmentScreenListing from '../pages/inventory/manual-adjustment/ManualAdjustmentScreenListing';
+import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateManualAdjustment';
+import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
+// import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
 
 
 export function AppRoutingSetup() {
@@ -214,7 +221,7 @@ export function AppRoutingSetup() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
 
-          <Route path='/my-profile' element={<UserProfile/>}/>
+          <Route path='/my-profile' element={<UserProfile />} />
 
           {/* Event Module Routes */}
           <Route path="/events" element={<EventListing />} />
@@ -281,7 +288,7 @@ export function AppRoutingSetup() {
 
           <Route path="/assigned-assets" element={<AssignAssets />} />
           <Route path="/assets/assign-asset" element={<AddAssignAsset />} />
-          
+
           <Route
             path="/assets/assign-asset/edit/:id"
             element={<AddAssignAsset />}
@@ -315,7 +322,7 @@ export function AppRoutingSetup() {
             path="/material/categories"
             element={<RowMaterialCategories />}
           />
-          <Route path='/material/sub-categories' element={<RawMaterialSubCategory/>} />
+          <Route path='/material/sub-categories' element={<RawMaterialSubCategory />} />
           <Route path="/material/items" element={<RowMaterialItemMaster />} />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
           <Route
@@ -371,7 +378,7 @@ export function AppRoutingSetup() {
             path="/menu-item/edit-menu-item/:id"
             element={<CreateMenuItem />}
           />
-         <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList/>}/>
+          <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList />} />
           <Route
             path="/purchase-requisition/list"
             element={<PurchaseRequisitionList />}
@@ -382,15 +389,15 @@ export function AppRoutingSetup() {
           />
           <Route path="/purchase-requisition/edit/:id" element={<AddPurchaseRequisition />} />
           <Route
-              path="/approve-purchase-requisition/approve/:id"
-              element={<PurchaseRequisitionApprovalDetail mode="approve" />}
-            />
-            <Route
-              path="/approve-purchase-requisition/reject/:id"
-              element={<PurchaseRequisitionApprovalDetail mode="reject" />}
-            />
+            path="/approve-purchase-requisition/approve/:id"
+            element={<PurchaseRequisitionApprovalDetail mode="approve" />}
+          />
+          <Route
+            path="/approve-purchase-requisition/reject/:id"
+            element={<PurchaseRequisitionApprovalDetail mode="reject" />}
+          />
 
-            <Route path="/purchase-requisition/view/:id" element={<PurchaseRequisitionView />} />
+          <Route path="/purchase-requisition/view/:id" element={<PurchaseRequisitionView />} />
           <Route
             path="/approve-purchase-requisition/list"
             element={<PurchaseRequisitionApproval />}
@@ -434,13 +441,33 @@ export function AppRoutingSetup() {
             path="/purchase/add-purchase-return"
             element={<AddPurchaseReturn />}
           />
+          <Route path='/purchase/purchase-invoice' element={<PurchaseInvoice />} />
+          <Route path='/purchase/purchase-invoice/generate-grn-invoice' element={<GenerateGrnInvoice />} />
+          <Route path='/purchase/purchase-invoice/generate-grn/:id' element={<GenerateGrnInvoice />} />
+          <Route path='/purchase/invoice-listing' element={<PurchaseInvoiceListing />} />
+          {/* <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/> */}
+          <Route path='/purchase/purchase-invoice-details/:id' element={<PurchaseInvoiceDetailsModal />} />
 
-          <Route path="/inventory/generate-grn" element={<GenerateGRN/>} /> 
+          <Route path="/inventory/generate-grn" element={<GenerateGRN />} />
           <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />
           <Route path="/inventory/generate-grn/generate/:id" element={<GenerateGRNDetail />} />
-          <Route path='/inventory/grn-listing' element={<GRNListing/>}/>
-          <Route path='/inventory/return-replacement' element={<ReturnReplacementList/>}/>
-          <Route path='/inventory/stock-transfer' element={<StockTransfer/>}/>
+          <Route path='/inventory/grn-listing' element={<GRNListing />} />
+          <Route path='/inventory/return-replacement' element={<ReturnReplacementList />} />
+
+          <Route path='/inventory/stock-transfer' element={<StockTransfer />} />
+          <Route path='/inventory/stock-transfer-detail/:id' element={<StockTransferDetail />} />
+          <Route path='/inventory/stock-transfer-request' element={<StockTransferRequest />} />
+          <Route path='/inventory/transfer-receive-requests' element={<StockTransferReqReceiveList />} />
+          <Route path='/inventory/stock-transfer-request-receive' element={<StockTransferReqReceiveList />} />
+
+          <Route path='/inventory/opb-stock-create-request-list' element={<OpbStockCreateRequestListing />} />
+          <Route path='/inventory/opb-stock-create-request' element={<OpbStockCreateRequest />} />
+
+          <Route path='/inventory/manual-adjustment-listing' element={<ManualAdjustmentScreenListing />} />
+          <Route path='/inventory/manual-adjustment/create' element={<CreateManualAdjustment />} />
+          <Route path='/inventory/manual-adjustment/view/:id' element={<ViewManualAdjustment />} />
+          <Route path='/inventory/manual-adjustment-detail/:id' element={<ViewManualAdjustment />} />
+          {/* <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger/>}/> */}
 
           <Route
             path="/stocks/available-stocks"
@@ -525,7 +552,7 @@ export function AppRoutingSetup() {
           <Route path="/public-profile/works" element={<ProfileWorksPage />} />
           <Route path="/public-profile/teams" element={<ProfileTeamsPage />} />
           <Route
-            path="/public-profile/network"
+            path="/public-profile/networkP"
             element={<ProfileNetworkPage />}
           />
 

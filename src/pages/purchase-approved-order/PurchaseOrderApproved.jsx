@@ -18,7 +18,7 @@ import {
   Clock3,
   Package,
   FileText,
-  X,
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
@@ -41,6 +41,8 @@ import {
 } from '@tanstack/react-table';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { ExportReportModal } from './ExportReportModal';
+import { ClosePurchaseOrderModal } from './ClosePurchaseOrderModal';
 
 // Statuses visible to an approver, which of those still allow Approve/Reject,
 // and which are editable (approver can still adjust an in-progress PO).
@@ -194,6 +196,13 @@ const PurchaseOrderApproval = () => {
   const [closingPo, setClosingPo] = useState(false);
   const [closeError, setCloseError] = useState('');
 
+  // Selected PO ID on main table for Short Item report
+  const [selectedPoId, setSelectedPoId] = useState('');
+
+  // Export Report modal state
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [reportType, setReportType] = useState('Short Item Received');
+
   const {
     loading: scopeLoading,
     error: scopeError,
@@ -246,6 +255,25 @@ const PurchaseOrderApproval = () => {
     const visible = allPos.filter((p) => APPROVER_VISIBLE_STATUSES.includes(p.rawStatus));
     return filterRowsByScope(visible);
   }, [allPos, filterRowsByScope]);
+
+  // Selected PO object for display
+  const selectedPoObject = useMemo(() => {
+    if (!selectedPoId) return null;
+    return approverPos.find((p) => String(p.id) === String(selectedPoId)) || null;
+  }, [approverPos, selectedPoId]);
+
+  // Single PO toggle handler
+  const handleTogglePo = (id) => {
+    setSelectedPoId((prev) => (String(prev) === String(id) ? '' : String(id)));
+  };
+
+  // Open modal for a specific report type
+  const handleOpenExportModal = (type) => {
+    setReportType(type);
+    setExportModalOpen(true);
+  };
+
+
 
   const counts = useMemo(() => {
     const c = {};
@@ -367,6 +395,32 @@ const PurchaseOrderApproval = () => {
 
   const columns = useMemo(
     () => [
+      {
+        id: 'select',
+        header: () => (
+          <div className="flex items-center justify-center p-1">
+            <span className="text-[10px] uppercase font-bold text-gray-400">Select</span>
+          </div>
+        ),
+        cell: ({ row }) => {
+          const po = row.original;
+          const isSelected = String(selectedPoId) === String(po.id);
+
+          return (
+            <div className="flex items-center justify-center p-1" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => handleTogglePo(po.id)}
+                className="w-4 h-4 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 cursor-pointer"
+                title={isSelected ? 'Unselect this PO' : 'Select this PO for Short Item report'}
+              />
+            </div>
+          );
+        },
+        enableSorting: false,
+        size: 55,
+      },
       {
         id: 'poCode',
         accessorFn: (row) => row.poCode,
@@ -510,7 +564,7 @@ const PurchaseOrderApproval = () => {
         size: 220,
       },
     ],
-    [],
+    [selectedPoId],
   );
 
   const { canView } = usePagePermissions('Approve Purchase Order');
@@ -530,33 +584,64 @@ const PurchaseOrderApproval = () => {
 
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+      <div className="py-1 md:py-2 pb-6 space-y-4">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-xs text-gray-400">
           <span>Dashboard</span>
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Purchase Order Approval</span>
         </div>
-        <div className="mb-8">
-          <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            Purchase Order Approval
-          </h1>
-          <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-            Manage and review purchase orders awaiting your review.
-          </p>
+
+        {/* Header with Separate Report Export Buttons */}
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              Purchase Order Approval
+            </h1>
+            <p className="text-[#667085] text-sm mt-0.5 max-w-xl">
+              Manage and review purchase orders awaiting your review.
+            </p>
+          </div>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Button 1: Short Item Received */}
+            <button
+              type="button"
+              onClick={() => handleOpenExportModal('Short Item Received')}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition-colors shadow-sm cursor-pointer"
+            >
+              <Download size={14} />
+              Short Item Received
+              {selectedPoId && (
+                <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">
+                  1 PO Selected
+                </span>
+              )}
+            </button>
+
+            {/* Button 2: Pending GRN */}
+            <button
+              type="button"
+              onClick={() => handleOpenExportModal("Pending GRN")}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+            >
+              <FileText size={14} className="text-[#084E92]" />
+              Pending GRN
+            </button>
+          </div>
         </div>
 
         {scopeError && (
-          <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
+          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
             <span className="text-sm text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
+            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0 cursor-pointer">
               Retry
             </button>
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-7">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
           <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Sent for approval" value={counts[PO_STATUS.SENT_FOR_APPROVAL] ?? 0} />
           <StatCard icon={<Clock3 size={18} />} iconBg="#FEF6E7" iconFg="#B7791F" label="In progress" value={counts[PO_STATUS.IN_PROGRESS] ?? 0} />
           <StatCard icon={<CheckCircle2 size={18} />} iconBg="#E7F7EE" iconFg="#14804A" label="Approved" value={counts[PO_STATUS.APPROVED] ?? 0} />
@@ -564,7 +649,7 @@ const PurchaseOrderApproval = () => {
           <StatCard icon={<Package size={18} />} iconBg="#F2F4F7" iconFg="#667085" label="Closed" value={counts[PO_STATUS.CLOSED] ?? 0} />
         </div>
 
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
             <input
@@ -581,13 +666,13 @@ const PurchaseOrderApproval = () => {
         </div>
 
         {poError && !scopeLoading && !poLoading && (
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{poError}</span>
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-sm">
           {scopeLoading || poLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
@@ -605,7 +690,7 @@ const PurchaseOrderApproval = () => {
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
                 <CardTable>
                   <ScrollArea>
                     <DataGridTable />
@@ -620,90 +705,30 @@ const PurchaseOrderApproval = () => {
           )}
         </div>
 
+        {/* Export Report Date Selection Modal */}
+        <ExportReportModal
+          isOpen={exportModalOpen}
+          onClose={() => setExportModalOpen(false)}
+          reportType={reportType}
+          selectedPoId={selectedPoId}
+          selectedPoObject={selectedPoObject}
+          onClearPoSelection={() => setSelectedPoId('')}
+        />
+
         {/* Close PO Confirmation & Reason Modal */}
-        {closeModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-              <div className="flex items-start justify-between gap-3 p-5 border-b border-[#E7EAF0]">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#FBEAEC] flex items-center justify-center text-[#C0293D] shrink-0">
-                    <AlertTriangle className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-[#101828]">Close Purchase Order</h3>
-                    <p className="text-xs text-[#667085] mt-0.5">
-                      PO: <span className="font-semibold text-[#2952E3] font-mono">{selectedPoToClose?.poCode}</span>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={handleCloseModalClose}
-                  disabled={closingPo}
-                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div className="p-5 space-y-4">
-                {selectedPoToClose?.outlet && (
-                  <div className="bg-[#F9FAFC] border border-[#E7EAF0] rounded-xl px-3.5 py-2.5 text-xs text-[#475467]">
-                    <span className="text-[#98A2B3] font-medium">Outlet: </span>
-                    <span className="font-semibold text-[#101828]">{selectedPoToClose.outlet}</span>
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-xs font-semibold text-[#344054] mb-1.5">
-                    Reason for Closing <span className="text-[#C0293D]">*</span>
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={closeReason}
-                    onChange={(e) => {
-                      setCloseReason(e.target.value);
-                      if (closeError) setCloseError('');
-                    }}
-                    placeholder="Enter reason for closing this PO manually..."
-                    className="w-full px-3.5 py-2.5 text-sm border border-[#E7EAF0] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#C0293D]/20 focus:border-[#C0293D] resize-none placeholder:text-[#98A2B3]"
-                  />
-                  {closeError && (
-                    <p className="text-xs text-[#C0293D] mt-1 flex items-center gap-1">
-                      <AlertTriangle size={12} />
-                      {closeError}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 p-4 border-t border-[#E7EAF0] bg-[#F9FAFC]">
-                <button
-                  type="button"
-                  onClick={handleCloseModalClose}
-                  disabled={closingPo}
-                  className="px-4 py-2 rounded-xl border border-[#E7EAF0] text-xs font-semibold text-[#344054] hover:bg-white transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmClosePO}
-                  disabled={closingPo || !closeReason.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#C0293D] text-white text-xs font-semibold hover:bg-[#a62334] transition-colors disabled:opacity-50"
-                >
-                  {closingPo ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin" />
-                      Closing...
-                    </>
-                  ) : (
-                    'Confirm Close'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ClosePurchaseOrderModal
+          isOpen={closeModalOpen}
+          onClose={handleCloseModalClose}
+          po={selectedPoToClose}
+          reason={closeReason}
+          onReasonChange={(val) => {
+            setCloseReason(val);
+            if (closeError) setCloseError('');
+          }}
+          error={closeError}
+          loading={closingPo}
+          onConfirm={handleConfirmClosePO}
+        />
       </div>
     </Container>
   );

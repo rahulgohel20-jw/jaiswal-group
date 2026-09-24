@@ -7,23 +7,18 @@ import {
 } from '@tanstack/react-table';
 import {
   Search,
-  Eye,
-  Pencil,
-  Trash2,
-  Download,
-  ArrowLeftRight,
-  ClipboardList,
   CheckCircle2,
-  Send,
-  Plus,
   ChevronRight,
   Filter,
   Loader2,
+  Layers,
+  ArrowDownLeft,
+  Truck,
   AlertTriangle,
-  Boxes,
+  FileCheck,
+  Eye,
 } from 'lucide-react';
-import { toast } from 'sonner';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -32,26 +27,17 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import SearchableSelect from '@/utils/SearchableSelect';
-import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { useOrgScope } from '@/hooks/useOrgScope';
+import { getTransferList, getAllSubOutlets, getOrganizationByType } from '@/services/apiServices';
+import { OrgTypes } from '@/constants/orgTypes';
+import FifoBatchVisualizerModal from '../stock-transfer/FifoBatchVisualizerModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import {
-  getTransferList,
-  deleteDraftTransfer,
-  dispatchTransfer,
-  getAllSubOutlets,
-  getOrganizationByType,
-} from '@/services/apiServices';
-import FifoBatchVisualizerModal from './FifoBatchVisualizerModal';
-import { OrgTypes } from '@/constants/orgTypes';
 
 /* -------------------------------------------------------------------------
- * Status Styling Tokens (DRAFT, IN_TRANSIT, REJECTED, CLOSED)
+ * Status Styling Tokens (IN_TRANSIT, REJECTED, CLOSED)
  * ---------------------------------------------------------------------- */
 const STATUS_STYLES = {
-  DRAFT: 'bg-gray-100 text-gray-700 border-gray-200',
-  Draft: 'bg-gray-100 text-gray-700 border-gray-200',
   IN_TRANSIT: 'bg-blue-50 text-blue-700 border-blue-200',
   'In Transit': 'bg-blue-50 text-blue-700 border-blue-200',
   REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
@@ -60,13 +46,13 @@ const STATUS_STYLES = {
   Closed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   RECEIVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   Received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
-  Pending: 'bg-amber-50 text-amber-700 border-amber-200',
+  RECIEVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Recieved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  PARTIALLY_ACCEPTED: 'bg-purple-50 text-purple-700 border-purple-200',
+  'Partially Accepted': 'bg-purple-50 text-purple-700 border-purple-200',
 };
 
 const STATUS_DOT = {
-  DRAFT: 'bg-gray-400',
-  Draft: 'bg-gray-400',
   IN_TRANSIT: 'bg-blue-500',
   'In Transit': 'bg-blue-500',
   REJECTED: 'bg-rose-500',
@@ -75,22 +61,23 @@ const STATUS_DOT = {
   Closed: 'bg-emerald-500',
   RECEIVED: 'bg-emerald-500',
   Received: 'bg-emerald-500',
-  PENDING: 'bg-amber-500',
-  Pending: 'bg-amber-500',
+  RECIEVED: 'bg-emerald-500',
+  Recieved: 'bg-emerald-500',
+  PARTIALLY_ACCEPTED: 'bg-purple-500',
+  'Partially Accepted': 'bg-purple-500',
 };
 
 const formatStatusLabel = (status) => {
-  if (!status) return 'Draft';
+  if (!status) return 'In Transit';
   const s = String(status).toUpperCase().replace(/[\s_]/g, '');
-  if (s === 'DRAFT') return 'Draft';
   if (s === 'INTRANSIT') return 'In Transit';
   if (s === 'REJECTED') return 'Rejected';
   if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
-  if (s === 'PENDING') return 'Pending';
+  if (s === 'PARTIALLYACCEPTED') return 'Partially Accepted';
   return status;
 };
 
-const StatusBadge = ({ status = 'Draft' }) => {
+const StatusBadge = ({ status = 'In Transit' }) => {
   const label = formatStatusLabel(status);
   const key = String(status).toUpperCase();
   return (
@@ -105,7 +92,7 @@ const StatusBadge = ({ status = 'Draft' }) => {
   );
 };
 
-const TruncatedCell = ({ value, widthClass = 'max-w-[170px]', className = 'text-gray-700' }) => (
+const TruncatedCell = ({ value, widthClass = 'max-w-[160px]', className = 'text-gray-700' }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value || '—'}
   </span>
@@ -131,7 +118,6 @@ function StatCard({ label, value, icon: Icon, iconBg, iconColor }) {
 function StatusDropdown({ value, onChange }) {
   const options = [
     { value: 'ALL', label: 'All Status' },
-    { value: 'DRAFT', label: 'Draft' },
     { value: 'IN_TRANSIT', label: 'In Transit' },
     { value: 'REJECTED', label: 'Rejected' },
     { value: 'CLOSED', label: 'Closed' },
@@ -155,6 +141,21 @@ function StatusDropdown({ value, onChange }) {
   );
 }
 
+const VarianceCell = ({ variance, unit = '' }) => {
+  if (variance === null || variance === undefined) {
+    return <span className="text-gray-400 text-xs">—</span>;
+  }
+  const val = Number(variance);
+  if (val === 0) {
+    return <span className="text-gray-500 font-semibold text-xs">0 {unit}</span>;
+  }
+  return (
+    <span className={`text-xs font-bold ${val < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+      {val > 0 ? `+${val}` : val} {unit}
+    </span>
+  );
+};
+
 const PAGE_SIZE = 10;
 
 /* Date timestamp parser for accurate ascending/descending date sorting */
@@ -168,7 +169,7 @@ const parseDateToTimestamp = (dateStr) => {
   return isNaN(t) ? 0 : t;
 };
 
-const StockTransfer = () => {
+const StockTransferReqReceiveList = () => {
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -176,15 +177,6 @@ const StockTransfer = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
   const [sorting, setSorting] = useState([]);
-
-  // Delete modal state
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [targetDeleteTransfer, setTargetDeleteTransfer] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-
-  // FIFO visualizer modal state
-  const [visualizerOpen, setVisualizerOpen] = useState(false);
-  const [selectedVisualizerItem, setSelectedVisualizerItem] = useState(null);
 
   // Outlets, Sub-units & Filter states
   const [allOutlets, setAllOutlets] = useState([]);
@@ -194,20 +186,26 @@ const StockTransfer = () => {
   const [selectedToOutletId, setSelectedToOutletId] = useState('');
   const [selectedToSubOutletId, setSelectedToSubOutletId] = useState('');
 
-  // Permissions hook
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Stock Transfer Request');
+  // Visualizer modal state
+  const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
+  const [selectedVisualizerItem, setSelectedVisualizerItem] = useState(null);
+
+  // Permission hooks
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions([
+    'STR Received',
+    'Stock Transfer Request Received',
+    'Stock Transfer Receive',
+    'STR Receive',
+    'Stock Transfer Request',
+  ]);
 
   // Scope hooks
   const {
     loading: scopeLoading,
-    orgType,
     isOutletUser,
     isCompanyUser,
-    isGroupUser,
-    showUnitDropdown,
     units,
-    selectedUnitId,
-    setSelectedUnitId,
+    selectedUnitId ,
     effectiveOutletId,
   } = useOrgScope();
 
@@ -224,13 +222,13 @@ const StockTransfer = () => {
         }));
         setAllOutlets(mapped);
       } catch (err) {
-        console.error('Failed to load outlets in StockTransfer:', err);
+        console.error('Failed to load outlets in Receive list:', err);
       }
     };
     fetchOutlets();
   }, []);
 
-  // Fetch Sub-units
+  // Load Sub-units
   useEffect(() => {
     const loadSubUnits = async () => {
       try {
@@ -238,7 +236,7 @@ const StockTransfer = () => {
         const raw = res?.data?.data || res?.data || [];
         setSubUnits(Array.isArray(raw) ? raw : []);
       } catch (err) {
-        console.error('Failed to load sub-units in StockTransfer:', err);
+        console.error('Failed to load sub-units in Receive list:', err);
       }
     };
     loadSubUnits();
@@ -255,15 +253,26 @@ const StockTransfer = () => {
     return allOutlets.map((o) => ({ value: String(o.id), label: `${o.name}${o.code ? ` (${o.code})` : ''}` }));
   }, [isCompanyUser, isOutletUser, units, allOutlets]);
 
-  const toOutletOptions = useMemo(() => {
+  const fromOutletOptions = useMemo(() => {
     return displayOutletOptions.filter(
       (opt) => !isOutletUser || (effectiveOutletId && String(opt.value) !== String(effectiveOutletId))
     );
   }, [displayOutletOptions, isOutletUser, effectiveOutletId]);
 
-  // From Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedFromOutletId
+  // From Sub-outlet options (dependent on selectedFromOutletId)
   const fromSubOutletOptions = useMemo(() => {
-    const targetId = isOutletUser ? effectiveOutletId : selectedFromOutletId;
+    if (!selectedFromOutletId) return [];
+    return subUnits
+      .filter((s) => String(s.organizationId) === String(selectedFromOutletId))
+      .map((s) => ({
+        value: String(s.id),
+        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+      }));
+  }, [subUnits, selectedFromOutletId]);
+
+  // To Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedToOutletId
+  const toSubOutletOptions = useMemo(() => {
+    const targetId = isOutletUser ? effectiveOutletId : selectedToOutletId;
     if (!targetId) return [];
     return subUnits
       .filter((s) => String(s.organizationId) === String(targetId))
@@ -271,37 +280,38 @@ const StockTransfer = () => {
         value: String(s.id),
         label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
       }));
-  }, [subUnits, isOutletUser, effectiveOutletId, selectedFromOutletId]);
+  }, [subUnits, isOutletUser, effectiveOutletId, selectedToOutletId]);
 
-  // To Sub-outlet options: based on selectedToOutletId
-  const toSubOutletOptions = useMemo(() => {
-    if (!selectedToOutletId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(selectedToOutletId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, selectedToOutletId]);
-
-  // Fetch Transfers from API
-  const fetchTransfers = useCallback(async () => {
+  // Fetch Receive Transfers from API
+  const fetchReceiveTransfers = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
+      // For outlet users: limited to transfers incoming to their outlet (toOrganizationId)
       if (isOutletUser && effectiveOutletId) {
-        params.fromOrganizationId = Number(effectiveOutletId);
-      } else if (selectedFromOutletId) {
-        params.fromOrganizationId = Number(selectedFromOutletId);
+        params.toOrganizationId = Number(effectiveOutletId);
+      } else if (selectedToOutletId) {
+        params.toOrganizationId = Number(selectedToOutletId);
       } else if (selectedUnitId) {
-        params.fromOrganizationId = Number(selectedUnitId);
+        params.toOrganizationId = Number(selectedUnitId);
+      }
+
+      if (selectedFromOutletId) {
+        params.fromOrganizationId = Number(selectedFromOutletId);
       }
 
       const res = await getTransferList(params);
       const rawList = res?.data?.data || res?.data?.content || res?.data || [];
       const list = Array.isArray(rawList) ? rawList : [];
 
-      const normalized = list.map((item) => {
+      // Filter: only dispatched records (status != DRAFT and isDraft != true)
+      const dispatchedList = list.filter((item) => {
+        if (item.isDraft) return false;
+        const s = String(item.status || '').toUpperCase().replace(/[\s_]/g, '');
+        return s !== 'DRAFT';
+      });
+
+      const normalized = dispatchedList.map((item) => {
         const itemsArr = Array.isArray(item.items)
           ? item.items
           : Array.isArray(item.transferItems)
@@ -325,6 +335,7 @@ const StockTransfer = () => {
             ),
           0
         );
+        const variance = totalAccQty > 0 ? totalAccQty - totalReqQty : null;
 
         return {
           id: item.id,
@@ -347,15 +358,13 @@ const StockTransfer = () => {
               : !item.toSubOutletId
               ? ''
               : item.toSubOutletName || item.toSubOutlet || '',
-          status: item.status || (item.isDraft ? 'Draft' : 'Pending'),
-          isDraft: Boolean(item.isDraft),
+          status: item.status || 'In Transit',
           transferDate: item.transferDate || item.createdAt || '—',
-          createdAt: item.createdAt || item.transferDate || '—',
           vehicleNumber: item.vehicleNumber || '—',
           driverName: item.driverName || '—',
           driverContact: item.driverContact || '—',
           itemsCount: itemsArr.length || 1,
-          primaryItemName: itemsArr[0]?.itemName || itemsArr[0]?.rawMaterialName || 'Multiple Items',
+          primaryItemName: itemsArr[0]?.itemName || itemsArr[0]?.rawMaterialName || 'Raw Material Item',
           primaryItemId: itemsArr[0]?.itemId || itemsArr[0]?.rawMaterialId || itemsArr[0]?.id,
           transferItemId: itemsArr[0]?.id || itemsArr[0]?.transferItemId,
           totalRequestedQuantity: totalReqQty || item.totalQuantity || item.transferQuantity || 0,
@@ -369,6 +378,7 @@ const StockTransfer = () => {
                   item.totalAcceptedQuantity ??
                   0
                 ),
+          variance,
           unit: itemsArr[0]?.unitName || itemsArr[0]?.unit || 'Units',
           raw: item,
         };
@@ -376,21 +386,20 @@ const StockTransfer = () => {
 
       setTransfers(normalized);
     } catch (err) {
-      console.error('Failed to fetch stock transfers:', err);
-      // Fallback empty list if error
+      console.error('Failed to fetch incoming stock transfers:', err);
       setTransfers([]);
     } finally {
       setLoading(false);
     }
-  }, [isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId]);
+  }, [isOutletUser, effectiveOutletId, selectedToOutletId, selectedFromOutletId, selectedUnitId]);
 
   useEffect(() => {
     if (!scopeLoading) {
-      fetchTransfers();
+      fetchReceiveTransfers();
     }
-  }, [fetchTransfers, scopeLoading]);
+  }, [fetchReceiveTransfers, scopeLoading]);
 
-  // Counts for stat cards
+  // Stat counts (IN_TRANSIT, CLOSED, REJECTED)
   const stats = useMemo(() => {
     const total = transfers.length;
     const inTransit = transfers.filter((t) => {
@@ -401,45 +410,45 @@ const StockTransfer = () => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
       return s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED';
     }).length;
-    const drafts = transfers.filter((t) => {
+    const rejected = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
-      return s === 'DRAFT' || Boolean(t.isDraft);
+      return s === 'REJECTED';
     }).length;
-    return { total, inTransit, closed, drafts };
+    return { total, inTransit, closed, rejected };
   }, [transfers]);
 
   // Filtered rows
   const filteredTransfers = useMemo(() => {
     let rows = transfers;
 
-    // 1. Outlet user locked to From Outlet = effectiveOutletId
+    // 1. Outlet user locked to Destination Outlet = effectiveOutletId
     if (isOutletUser && effectiveOutletId) {
       rows = rows.filter(
-        (r) => !r.fromOrganizationId || Number(r.fromOrganizationId) === Number(effectiveOutletId)
+        (r) => !r.toOrganizationId || Number(r.toOrganizationId) === Number(effectiveOutletId)
       );
-    } else if (selectedFromOutletId) {
+    } else if (selectedToOutletId) {
       rows = rows.filter(
-        (r) => !r.fromOrganizationId || Number(r.fromOrganizationId) === Number(selectedFromOutletId)
+        (r) => !r.toOrganizationId || Number(r.toOrganizationId) === Number(selectedToOutletId)
       );
     } else if (selectedUnitId) {
       rows = rows.filter(
-        (r) => !r.fromOrganizationId || Number(r.fromOrganizationId) === Number(selectedUnitId)
+        (r) => !r.toOrganizationId || Number(r.toOrganizationId) === Number(selectedUnitId)
       );
     }
 
-    // 2. From Sub-Outlet filter
+    // 2. From Outlet filter
+    if (selectedFromOutletId) {
+      rows = rows.filter(
+        (r) => !r.fromOrganizationId || Number(r.fromOrganizationId) === Number(selectedFromOutletId)
+      );
+    }
+
+    // 3. From Sub-Outlet filter
     if (selectedFromSubOutletId) {
       rows = rows.filter(
         (r) =>
           String(r.fromSubOutletId) === String(selectedFromSubOutletId) ||
           r.raw?.fromSubOutletId === Number(selectedFromSubOutletId)
-      );
-    }
-
-    // 3. To Outlet filter
-    if (selectedToOutletId) {
-      rows = rows.filter(
-        (r) => !r.toOrganizationId || Number(r.toOrganizationId) === Number(selectedToOutletId)
       );
     }
 
@@ -459,9 +468,6 @@ const StockTransfer = () => {
         const itemStatus = String(r.status || '').toUpperCase().replace(/[\s_]/g, '');
         if (target === 'CLOSED') {
           return itemStatus === 'CLOSED' || itemStatus === 'RECEIVED' || itemStatus === 'RECIEVED';
-        }
-        if (target === 'DRAFT') {
-          return itemStatus === 'DRAFT' || Boolean(r.isDraft);
         }
         if (target === 'INTRANSIT') {
           return itemStatus === 'INTRANSIT' || itemStatus === 'PENDING';
@@ -489,47 +495,43 @@ const StockTransfer = () => {
     transfers,
     isOutletUser,
     effectiveOutletId,
-    selectedFromOutletId,
-    selectedFromSubOutletId,
     selectedToOutletId,
     selectedToSubOutletId,
+    selectedFromOutletId,
+    selectedFromSubOutletId,
     selectedUnitId,
     statusFilter,
     search,
   ]);
 
-  // Actions
-  const handleEdit = (row) => {
-    navigate(`/inventory/stock-transfer-request?id=${row.id}&mode=edit`, { state: row.raw || row });
+  // Transfer Accept Action -> Redirect to StockTransferRequest in receive mode
+  const handleTransferAccept = (row) => {
+    navigate(`/inventory/stock-transfer-request?id=${row.id}&mode=receive`, {
+      state: {
+        id: row.id,
+        transferId: row.id,
+        mode: 'receive',
+        transfer: row.raw || row,
+      },
+    });
   };
 
-  const handleDispatch = (row) => {
-    navigate(`/inventory/stock-transfer-request?id=${row.id}&mode=dispatch`, { state: row.raw || row });
+  // Open FIFO Visualizer on Item Click
+  const handleOpenVisualizer = (row) => {
+    setSelectedVisualizerItem({
+      transferItemId: row.transferItemId || row.id,
+      itemId: row.primaryItemId,
+      itemName: row.primaryItemName,
+      fromOutletName: row.fromOutlet,
+      toOutletName: row.toOutlet,
+      transferQty: row.totalRequestedQuantity || 60,
+      unit: row.unit || 'kg',
+    });
+    setVisualizerModalOpen(true);
   };
 
-  const handleView = (row) => {
-    navigate(`/inventory/stock-transfer-detail/${row.id}`, { state: row.raw || row });
-  };
-
-  const handleDeleteDraft = async () => {
-    if (!targetDeleteTransfer?.id) return;
-    setDeleting(true);
-    try {
-      await deleteDraftTransfer(targetDeleteTransfer.id);
-      toast.success('Draft transfer deleted successfully');
-      setDeleteModalOpen(false);
-      setTargetDeleteTransfer(null);
-      fetchTransfers();
-    } catch (err) {
-      const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to delete draft transfer';
-      toast.error(errMsg);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const columns = useMemo(
-    () => [
+  const columns = useMemo(() => {
+    const cols = [
       {
         id: 'transferCode',
         accessorFn: (row) => row.transferCode,
@@ -545,7 +547,7 @@ const StockTransfer = () => {
           </Link>
         ),
         enableSorting: false,
-        size: 150,
+        size: 140,
       },
       {
         id: 'dateAndTime',
@@ -559,7 +561,7 @@ const StockTransfer = () => {
           <DataGridColumnHeader title="DATE & TIME" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.transferDate} widthClass="max-w-[120px]" />,
-        size: 125,
+        size: 120,
       },
       {
         id: 'fromOutlet',
@@ -577,7 +579,11 @@ const StockTransfer = () => {
         ),
         size: 160,
       },
-      {
+    ];
+
+    // Show TO OUTLET column only for company and group users (not visible for outlet users)
+    if (!isOutletUser) {
+      cols.push({
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
@@ -592,54 +598,30 @@ const StockTransfer = () => {
           </div>
         ),
         size: 160,
-      },
+      });
+    }
+
+    cols.push(
       {
-        id: 'items',
+        id: 'itemName',
         accessorFn: (row) => row.primaryItemName,
         header: ({ column }) => (
-          <DataGridColumnHeader title="ITEMS" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="ITEM DESCRIPTION" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                const qty = Number(row.original.totalRequestedQuantity || 0);
-                if (!qty || qty <= 0) {
-                  toast.info('Transfer quantity must be greater than 0 to view FIFO batch flow');
-                  return;
-                }
-                setSelectedVisualizerItem({
-                  itemId: row.original.primaryItemId,
-                  itemType: row.original.primaryItemType || 'RAW_MATERIAL',
-                  unitId: row.original.primaryUnitId,
-                  transferItemId: row.original.transferItemId,
-                  itemName: row.original.primaryItemName,
-                  fromOutletName: row.original.fromOutlet,
-                  toOutletName: row.original.toOutlet,
-                  fromOrganizationId: row.original.fromOrganizationId,
-                  fromSubOutletId: row.original.fromSubOutletId,
-                  toOrganizationId: row.original.toOrganizationId,
-                  toSubOutletId: row.original.toSubOutletId,
-                  transferQty: qty,
-                  unit: row.original.unit,
-                });
-                setVisualizerOpen(true);
-              }}
-              className="text-left font-semibold text-xs text-gray-800 hover:text-[#084E92] hover:underline truncate max-w-[130px] cursor-pointer"
-              title="Click to view FIFO batch flow"
-            >
+          <div>
+            <span className="text-xs font-bold text-[#0F172A] block truncate max-w-[200px]">
               {row.original.primaryItemName}
-            </button>
+            </span>
             {row.original.itemsCount > 1 && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">
-                +{row.original.itemsCount - 1}
+              <span className="text-[10px] text-gray-400 font-medium">
+                +{row.original.itemsCount - 1} more items
               </span>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 150,
+        size: 200,
       },
       {
         id: 'quantity',
@@ -652,7 +634,22 @@ const StockTransfer = () => {
             {row.original.totalRequestedQuantity} {row.original.unit}
           </span>
         ),
-        size: 120,
+        size: 130,
+      },
+      {
+        id: 'acceptedQuantity',
+        accessorFn: (row) => Number(row.totalAcceptedQuantity || 0),
+        header: ({ column }) => (
+          <DataGridColumnHeader title="ACCEPTED QTY" column={column} className="text-xs font-bold" />
+        ),
+        cell: ({ row }) => (
+          <span className="font-bold text-xs text-emerald-700">
+            {row.original.totalAcceptedQuantity > 0
+              ? `${row.original.totalAcceptedQuantity} ${row.original.unit}`
+              : '—'}
+          </span>
+        ),
+        size: 130,
       },
       {
         id: 'status',
@@ -670,69 +667,51 @@ const StockTransfer = () => {
           <DataGridColumnHeader title="ACTIONS" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => {
-          const item = row.original;
-          const rawStatus = (item.status || '').toString().trim().toUpperCase();
-          const isDraft = rawStatus === 'DRAFT' || Boolean(item.isDraft);
+          const s = String(row.original.status || '').toUpperCase().replace(/[\s_-]/g, '');
+          const isFinished =
+            s === 'CLOSED' ||
+            s === 'RECEIVED' ||
+            s === 'RECIEVED' ||
+            s === 'PARTIALLYACCEPTED' ||
+            s === 'ACCEPTED' ||
+            s === 'REJECTED' ||
+            s === 'DRAFT';
 
           return (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
               <button
                 type="button"
-                onClick={() => handleView(item)}
+                onClick={() =>
+                  navigate(`/inventory/stock-transfer-detail/${row.original.id}`, {
+                    state: row.original.raw || row.original,
+                  })
+                }
                 className="p-1.5 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
                 title="View Transfer Details"
               >
-                <Eye size={15} />
+                <Eye size={16} />
               </button>
 
-              {isDraft && (
-                <>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(item)}
-                      className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition cursor-pointer"
-                      title="Edit Transfer Request"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                  )}
-
-                  {(canEdit || canAdd) && (
-                    <button
-                      type="button"
-                      onClick={() => handleDispatch(item)}
-                      className="p-1.5 text-[#084E92] hover:text-[#063b6f] hover:bg-blue-50 rounded-lg transition cursor-pointer"
-                      title="Dispatch Transfer"
-                    >
-                      <Send size={15} />
-                    </button>
-                  )}
-
-                  {canDelete && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTargetDeleteTransfer(item);
-                        setDeleteModalOpen(true);
-                      }}
-                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                      title="Delete Draft"
-                    >
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </>
+              {!isFinished && (canEdit || canAdd) && (
+                <button
+                  type="button"
+                  onClick={() => handleTransferAccept(row.original)}
+                  className="p-1.5 text-[#084E92] hover:text-[#073e77] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                  title="Transfer Accept"
+                >
+                  <CheckCircle2 size={16} />
+                </button>
               )}
             </div>
           );
         },
         enableSorting: false,
-        size: 150,
-      },
-    ],
-    [canAdd, canEdit, canDelete, canView]
-  );
+        size: 90,
+      }
+    );
+
+    return cols;
+  }, [isOutletUser, canEdit, canAdd]);
 
   const table = useReactTable({
     data: filteredTransfers,
@@ -746,7 +725,7 @@ const StockTransfer = () => {
   });
 
   if (!canView) {
-    return <AccessDenied pageTitle="Stock Transfer Request" />;
+    return <AccessDenied pageTitle="Stock Transfer Request Received" />;
   }
 
   return (
@@ -758,58 +737,50 @@ const StockTransfer = () => {
           <ChevronRight size={11} />
           <span>Inventory</span>
           <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">Stock Transfer</span>
+          <span className="text-[#084E92] font-semibold">Stock Transfer Request Receive</span>
         </div>
 
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-[#101828] font-sans leading-tight">Stock Transfer</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-[#101828] font-sans leading-tight">
+              Stock Transfer Request Receive Listing
+            </h1>
             <p className="text-[#667085] text-xs mt-1">
-              Manage, dispatch, and track internal stock transfers across outlets.
+              Verify incoming shipments, view FIFO batch layer valuation, and accept or reject transfers.
             </p>
           </div>
-          {canAdd && (
-            <div className="flex items-center gap-2">
-              <Link to="/inventory/stock-transfer-request">
-                <button className="flex text-xs font-semibold cursor-pointer items-center gap-1.5 px-3.5 py-2 bg-[#084E92] text-white rounded-lg shadow-2xs hover:bg-[#073e77] transition">
-                  <Plus size={14} />
-                  New Transfer Request
-                </button>
-              </Link>
-            </div>
-          )}
         </div>
 
         {/* Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard
-            label="Total Transfers"
+            label="Incoming Transfers"
             value={stats.total}
-            icon={ArrowLeftRight}
+            icon={ArrowDownLeft}
             iconBg="#EEF2FE"
             iconColor="#2952E3"
           />
           <StatCard
             label="In Transit"
             value={stats.inTransit}
-            icon={ClipboardList}
+            icon={Truck}
             iconBg="#FEF6E7"
             iconColor="#B7791F"
           />
           <StatCard
             label="Closed"
             value={stats.closed}
-            icon={CheckCircle2}
+            icon={FileCheck}
             iconBg="#E7F7EE"
             iconColor="#14804A"
           />
           <StatCard
-            label="Draft Requests"
-            value={stats.drafts}
-            icon={Boxes}
-            iconBg="#F2F4F7"
-            iconColor="#667085"
+            label="Rejected"
+            value={stats.rejected}
+            icon={AlertTriangle}
+            iconBg="#FBEAEC"
+            iconColor="#C0293D"
           />
         </div>
 
@@ -822,7 +793,7 @@ const StockTransfer = () => {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search transfer code, item, outlet, vehicle..."
+                placeholder="Search by transfer code, item, outlet, vehicle..."
                 className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs font-medium text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
               />
             </div>
@@ -831,52 +802,52 @@ const StockTransfer = () => {
             </div>
           </div>
 
-          {/* Row 2: Location Filters (From Outlet, From Sub-Outlet, To Outlet, To Sub-Outlet) */}
+          {/* Row 2: Location Filters */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
-            {/* 1. From Outlet: only for Company & Group Users */}
-            {!isOutletUser && (
-              <SearchableSelect
-                name="fromOutlet"
-                value={selectedFromOutletId}
-                onChange={(e) => {
-                  setSelectedFromOutletId(e.target.value);
-                  setSelectedFromSubOutletId('');
-                }}
-                options={displayOutletOptions}
-                placeholder="From Outlet..."
-              />
-            )}
+            {/* 1. From Outlet Dropdown: for all users (shows sibling outlets for outlet user, descendant outlets for company/group) */}
+            <SearchableSelect
+              name="fromOutlet"
+              value={selectedFromOutletId}
+              onChange={(e) => {
+                setSelectedFromOutletId(e.target.value);
+                setSelectedFromSubOutletId('');
+              }}
+              options={fromOutletOptions}
+              placeholder="From Outlet..."
+            />
 
-            {/* 2. From Sub-Outlet: based on From Outlet */}
+            {/* 2. From Sub-Outlet: based on selected From Outlet */}
             <SearchableSelect
               name="fromSubOutlet"
               value={selectedFromSubOutletId}
               onChange={(e) => setSelectedFromSubOutletId(e.target.value)}
               options={fromSubOutletOptions}
-              disabled={!isOutletUser && !selectedFromOutletId}
-              placeholder={!isOutletUser && !selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
+              disabled={!selectedFromOutletId}
+              placeholder={!selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
             />
 
-            {/* 3. To Outlet: for all users */}
-            <SearchableSelect
-              name="toOutlet"
-              value={selectedToOutletId}
-              onChange={(e) => {
-                setSelectedToOutletId(e.target.value);
-                setSelectedToSubOutletId('');
-              }}
-              options={toOutletOptions}
-              placeholder="To Outlet..."
-            />
+            {/* 3. To Outlet Dropdown: only for Company & Group Users (Hidden for Outlet User) */}
+            {!isOutletUser && (
+              <SearchableSelect
+                name="toOutlet"
+                value={selectedToOutletId}
+                onChange={(e) => {
+                  setSelectedToOutletId(e.target.value);
+                  setSelectedToSubOutletId('');
+                }}
+                options={displayOutletOptions}
+                placeholder="To Outlet..."
+              />
+            )}
 
-            {/* 4. To Sub-Outlet: based on To Outlet */}
+            {/* 4. To Sub-Outlet: based on effectiveOutletId for outlet users, or selectedToOutletId for others */}
             <SearchableSelect
               name="toSubOutlet"
               value={selectedToSubOutletId}
               onChange={(e) => setSelectedToSubOutletId(e.target.value)}
               options={toSubOutletOptions}
-              disabled={!selectedToOutletId}
-              placeholder={!selectedToOutletId ? 'Select To Outlet' : 'To Sub-Outlet...'}
+              disabled={!isOutletUser && !selectedToOutletId}
+              placeholder={!isOutletUser && !selectedToOutletId ? 'Select To Outlet' : 'To Sub-Outlet...'}
             />
           </div>
         </div>
@@ -886,7 +857,7 @@ const StockTransfer = () => {
           {loading || scopeLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={18} className="animate-spin text-[#084E92]" />
-              Loading stock transfers…
+              Loading incoming stock transfers…
             </div>
           ) : (
             <DataGrid
@@ -902,7 +873,7 @@ const StockTransfer = () => {
               <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
                 <CardTable>
                   <ScrollArea className="max-h-[60vh] w-full">
-                    <div className="min-w-[1100px]">
+                    <div className="min-w-[1250px]">
                       <DataGridTable />
                     </div>
                     <ScrollBar orientation="horizontal" />
@@ -916,24 +887,12 @@ const StockTransfer = () => {
           )}
         </div>
 
-        {/* Delete Draft Confirm Modal */}
-        <DeleteConfirmModal
-          isOpen={deleteModalOpen}
-          onClose={() => {
-            setDeleteModalOpen(false);
-            setTargetDeleteTransfer(null);
-          }}
-          onConfirm={handleDeleteDraft}
-          itemName={targetDeleteTransfer?.transferCode || 'this draft transfer'}
-          saving={deleting}
-        />
-
         {/* FIFO Batch Flow Visualizer Modal */}
         {selectedVisualizerItem && (
           <FifoBatchVisualizerModal
-            isOpen={visualizerOpen}
+            isOpen={visualizerModalOpen}
             onClose={() => {
-              setVisualizerOpen(false);
+              setVisualizerModalOpen(false);
               setSelectedVisualizerItem(null);
             }}
             transferItemId={selectedVisualizerItem.transferItemId}
@@ -956,4 +915,4 @@ const StockTransfer = () => {
   );
 };
 
-export default StockTransfer;
+export default StockTransferReqReceiveList;

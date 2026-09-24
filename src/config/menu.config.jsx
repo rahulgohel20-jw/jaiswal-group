@@ -1,8 +1,6 @@
 import {
   AlertCircle,
   Archive,
-  ArrowLeft,
-  ArrowLeftRight,
   Award,
   Badge,
   BadgeCheck,
@@ -485,6 +483,8 @@ export const MENU_SIDEBAR = [
         path: '/purchase-order-request/purchase',
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
+      { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
+      { title: 'Purchase Invoice', path: '/purchase/invoice-listing'},
     ],
   },
   {
@@ -494,7 +494,11 @@ export const MENU_SIDEBAR = [
       { title: 'Generate GRN', path: '/inventory/generate-grn' },
       { title: 'GRN', path: '/inventory/grn-listing' },
       { title: 'Return and Replacement', path: '/inventory/return-replacement' },
-      { title: 'Stock Transfer', path: '/inventory/stock-transfer' },
+      { title: 'Stock Transfer Request', path: '/inventory/stock-transfer' },
+      { title: 'STR Received', path: '/inventory/transfer-receive-requests' },
+      { title: 'OPB Stock', path: '/inventory/opb-stock-create-request-list' },
+      { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'},
+      { title: 'General Stock Ledger', path: '/inventory/general-stock-ledger'},
     ],
   },
   {
@@ -607,6 +611,8 @@ export const MENU_SIDEBAR_ADMIN = [
         path: '/purchase-order-request/purchase',
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
+      { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
+      { title: 'Purchase Invoice', path: '/purchase/invoice-listing'},
     ],
   },
   {
@@ -616,7 +622,10 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Generate GRN', path: '/inventory/generate-grn' },
       { title: 'GRN', path: '/inventory/grn-listing' },
       { title: 'Return and Replacement', path: '/inventory/return-replacement' },
-      { title: 'Stock Transfer', path: '/inventory/stock-transfer' },
+      { title: 'Stock Transfer Request', path: '/inventory/stock-transfer' },
+      { title: 'STR Received', path: '/inventory/stock-transfer-receive-requests' },
+      { title: 'OPB Stock', path: '/inventory/opb-stock-create-request-list' },
+      { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'}
     ],
   },
   {
