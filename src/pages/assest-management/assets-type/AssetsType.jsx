@@ -58,7 +58,6 @@ const AssetsType = () => {
     const [type, setType] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [rowSelection, setRowSelection] = useState({});
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingType, setEditingType] = useState(null);
     const [viewingType, setViewingType] = useState(null);
@@ -204,27 +203,6 @@ const confirmDelete = async () => {
     ];
     const columns = useMemo(() => [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className="mx-6"
-                />
-            ),
-            cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="mx-6"
-                />
-            ),
-            enableSorting: false,
-            size: 100,
-        },
-        {
             accessorKey: "assetType",
             header: ({ column }) => (
                 <DataGridColumnHeader title="ASSET TYPE" column={column} className="text-[#43474F] font-semibold" />
@@ -291,9 +269,6 @@ const confirmDelete = async () => {
     const table = useReactTable({
         data: filteredTypes,
         columns,
-        state: { rowSelection },
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

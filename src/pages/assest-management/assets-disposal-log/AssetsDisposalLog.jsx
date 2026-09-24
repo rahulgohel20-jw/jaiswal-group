@@ -80,7 +80,6 @@ const AssetsDisposalLog = () => {
     const [loading, setLoading] = useState(false);
 
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
     const [searchText, setSearchText] = useState("");
     const [dateFilter, setDateFilter] = useState("");
 
@@ -156,28 +155,6 @@ const AssetsDisposalLog = () => {
 
     const columns = useMemo(
         () => [
-            {
-                id: "select",
-                header: ({ table }) => (
-                    <input
-                        type="checkbox"
-                        checked={table.getIsAllPageRowsSelected()}
-                        onChange={table.getToggleAllPageRowsSelectedHandler()}
-                        className="w-4 h-4 cursor-pointer my-5"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <input
-                        type="checkbox"
-                        checked={row.getIsSelected()}
-                        onChange={row.getToggleSelectedHandler()}
-                        className="h-4 w-4 rounded border-gray-300 my-2 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-                    />
-                ),
-                enableSorting: false,
-                size: 40,
-            },
-
             {
                 accessorKey: "assetId",
                 header: ({ column }) => <DataGridColumnHeader title="ASSET ID" column={column} />,
@@ -387,10 +364,8 @@ const AssetsDisposalLog = () => {
     const table = useReactTable({
         data: filteredDisposalData,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

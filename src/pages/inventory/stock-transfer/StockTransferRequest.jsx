@@ -35,6 +35,7 @@ import {
   rejectTransfer,
   dispatchTransfer,
   getCurrentStockListGet,
+  getCompanyById,
 } from '@/services/apiServices';
 import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
 import { OrgTypes } from '@/constants/orgTypes';
@@ -65,6 +66,14 @@ const formatStatusLabel = (status) => {
   return status;
 };
 
+const normalizeCompany = (item) => ({
+  id: item.id,
+  name: item.companyNameEnglish || item.name || `Company #${item.id}`,
+  code: item.companyCode || item.code || '',
+  status: item.isActive !== false ? 'active' : 'inactive',
+  originalData: item,
+});
+
 const normalizeUnit = (item) => ({
   id: item.id,
   name: item.companyNameEnglish || item.name || '',
@@ -72,6 +81,14 @@ const normalizeUnit = (item) => ({
   location: item.cityName || '',
   email: item.email || '',
   mobile: item.mobilenumber || '',
+  parentId:
+    item.parentId ??
+    item.parentOrganizationId ??
+    item.parentCompanyId ??
+    item.companyId ??
+    item.parent?.id ??
+    item.organization?.id ??
+    null,
   status: item.isActive !== false ? 'active' : 'inactive',
   originalData: item,
 });
@@ -200,6 +217,9 @@ const StockTransferRequest = () => {
   }, []);
 
   // Auxiliary data
+  const [companies, setCompanies] = useState([]);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState('');
   const [units, setUnits] = useState([]);
   const [subUnits, setSubUnits] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
@@ -208,7 +228,7 @@ const StockTransferRequest = () => {
   const [itemsLoading, setItemsLoading] = useState(false);
   const [itemSelectValue, setItemSelectValue] = useState('');
 
-  // Confirmation modal state for changing source organization when manifest has items
+  // Confirmation modal state for changing source organization / company when manifest has items
   const [pendingOrgChange, setPendingOrgChange] = useState(null);
 
   // Submission / Loading states
@@ -223,7 +243,22 @@ const StockTransferRequest = () => {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // 1. Fetch Outlets and Sub-Outlets
+  // 1. Fetch Companies, Outlets and Sub-Outlets
+  const fetchCompanies = async () => {
+    setCompaniesLoading(true);
+    try {
+      const res = await getOrganizationByType(OrgTypes.SUB_COMPANY);
+      const list = res?.data?.data || res?.data?.content || res?.data || [];
+      const compList = Array.isArray(list) ? list : [];
+      setCompanies(compList.map(normalizeCompany));
+    } catch (err) {
+      console.error('Failed to load companies:', err);
+      setCompanies([]);
+    } finally {
+      setCompaniesLoading(false);
+    }
+  };
+
   const fetchUnits = async () => {
     setUnitsLoading(true);
     try {
@@ -368,6 +403,27 @@ const StockTransferRequest = () => {
     }
   };
 
+  const handleCompanyChange = (newCompany) => {
+    if (String(newCompany) === String(selectedCompany)) return;
+    const compObj = companies.find((c) => String(c.id) === String(newCompany));
+    const targetName = compObj?.name || (newCompany ? 'selected company' : 'all companies');
+
+    if (manifestItems.length > 0) {
+      setPendingOrgChange({
+        type: 'company',
+        targetCompanyId: newCompany,
+        targetName,
+      });
+    } else {
+      setSelectedCompany(newCompany);
+      setFromOutlet('');
+      setFromSubOutlet('');
+      setToOutlet('');
+      setToSubOutlet('');
+      setItems([]);
+    }
+  };
+
   const handleFromOutletChange = (newFrom) => {
     if (String(newFrom) === String(fromOutlet)) return;
     const unitObj = effectiveUnits.find((u) => String(u.id) === String(newFrom));
@@ -414,18 +470,28 @@ const StockTransferRequest = () => {
 
   const handleConfirmOrgChange = async () => {
     if (!pendingOrgChange) return;
-    const { type, targetOrgId, targetSubOutletId } = pendingOrgChange;
-    if (type === 'outlet') {
+    const { type, targetOrgId, targetSubOutletId, targetCompanyId } = pendingOrgChange;
+    if (type === 'company') {
+      setSelectedCompany(targetCompanyId);
+      setFromOutlet('');
+      setFromSubOutlet('');
+      setToOutlet('');
+      setToSubOutlet('');
+      setManifestItems([]);
+      setItems([]);
+    } else if (type === 'outlet') {
       setFromOutlet(targetOrgId);
       setFromSubOutlet('');
     } else if (type === 'subOutlet') {
       setFromSubOutlet(targetSubOutletId);
     }
     setPendingOrgChange(null);
-    if (targetOrgId) {
-      await handleSourceOrgChange(targetOrgId, targetSubOutletId);
-    } else {
-      setItems([]);
+    if (type !== 'company') {
+      if (targetOrgId) {
+        await handleSourceOrgChange(targetOrgId, targetSubOutletId);
+      } else {
+        setItems([]);
+      }
     }
   };
 
@@ -434,6 +500,7 @@ const StockTransferRequest = () => {
   };
 
   useEffect(() => {
+    fetchCompanies();
     fetchUnits();
     fetchSubUnits();
   }, []);
@@ -478,7 +545,30 @@ const StockTransferRequest = () => {
             ''
           );
 
-          if (fromOrg) setFromOutlet(fromOrg);
+          if (fromOrg) {
+            setFromOutlet(fromOrg);
+            if (isGroupUser) {
+              const matched = units.find((u) => String(u.id) === String(fromOrg));
+              const compId = matched?.parentId;
+              if (compId) {
+                setSelectedCompany(String(compId));
+              } else {
+                getCompanyById(fromOrg)
+                  .then((orgRes) => {
+                    const orgData = orgRes?.data?.data ?? orgRes?.data ?? orgRes;
+                    const parentId =
+                      orgData?.parentId ??
+                      orgData?.parentOrganizationId ??
+                      orgData?.parentCompanyId ??
+                      orgData?.companyId;
+                    if (parentId) {
+                      setSelectedCompany(String(parentId));
+                    }
+                  })
+                  .catch((e) => console.warn('Failed to resolve company for fromOrg:', e));
+              }
+            }
+          }
           if (fromSub) setFromSubOutlet(fromSub);
           if (data.toOrganizationId || data.toOutletId) {
             setToOutlet(String(data.toOrganizationId || data.toOutletId));
@@ -663,7 +753,17 @@ const StockTransferRequest = () => {
     };
 
     loadTransferDetails();
-  }, [transferIdParam, isReceiveMode, isOutletUser, effectiveOutletId, location.state]);
+  }, [transferIdParam, isReceiveMode, isOutletUser, isGroupUser, effectiveOutletId, location.state, units]);
+
+  // Synchronize company for Group user if fromOutlet exists but selectedCompany is not set
+  useEffect(() => {
+    if (isGroupUser && fromOutlet && !selectedCompany && units.length > 0) {
+      const matched = units.find((u) => String(u.id) === String(fromOutlet));
+      if (matched?.parentId) {
+        setSelectedCompany(String(matched.parentId));
+      }
+    }
+  }, [isGroupUser, fromOutlet, selectedCompany, units]);
 
   // Synchronize manifest item details & available currentStock when raw material items finish fetching
   useEffect(() => {
@@ -689,9 +789,19 @@ const StockTransferRequest = () => {
     }
   }, [items]);
 
-  // Options - Scope based outlets
-  // Options - Scope based outlets (strictly company outlets for company user, same parent company for outlet user)
+  // Options - Scope based outlets (strictly company outlets for company user, company-filtered for group user, same parent company for outlet user)
+  const companyOptions = useMemo(() => {
+    return companies.map((c) => ({
+      value: String(c.id),
+      label: `${c.name}${c.code ? ` (${c.code})` : ''}`,
+    }));
+  }, [companies]);
+
   const effectiveUnits = useMemo(() => {
+    if (isGroupUser) {
+      if (!selectedCompany) return [];
+      return units.filter((u) => String(u.parentId) === String(selectedCompany));
+    }
     if (isCompanyUser || isOutletUser) {
       return (scopeUnits || []).map((u) => ({
         id: u.id,
@@ -707,7 +817,7 @@ const StockTransferRequest = () => {
       }));
     }
     return units;
-  }, [isCompanyUser, isOutletUser, scopeUnits, units]);
+  }, [isGroupUser, selectedCompany, isCompanyUser, isOutletUser, scopeUnits, units]);
 
   const outletOptions = useMemo(() => {
     return effectiveUnits.map((unit) => ({
@@ -717,10 +827,16 @@ const StockTransferRequest = () => {
   }, [effectiveUnits]);
 
   const toOutletOptions = useMemo(() => {
-    return outletOptions.filter(
-      (opt) => !isOutletUser || (effectiveOutletId && String(opt.value) !== String(effectiveOutletId))
-    );
-  }, [outletOptions, isOutletUser, effectiveOutletId]);
+    return outletOptions.filter((opt) => {
+      if (isOutletUser && effectiveOutletId && String(opt.value) === String(effectiveOutletId)) {
+        return false;
+      }
+      if (fromOutlet && String(opt.value) === String(fromOutlet)) {
+        return false;
+      }
+      return true;
+    });
+  }, [outletOptions, isOutletUser, effectiveOutletId, fromOutlet]);
   const fromSubOutletOptions = useMemo(() => {
     const targetFromId = fromOutlet || (isOutletUser ? effectiveOutletId : null);
     if (!targetFromId) return [];
@@ -903,6 +1019,10 @@ const StockTransferRequest = () => {
 
   // Validation
   const validateForm = () => {
+    if (isGroupUser && !selectedCompany) {
+      toast.error('Please select Company');
+      return false;
+    }
     const actualFromOutlet = fromOutlet || (isOutletUser ? String(effectiveOutletId) : '');
     if (!actualFromOutlet) {
       toast.error('Please select From Outlet');
@@ -1608,9 +1728,30 @@ const StockTransferRequest = () => {
               {/* Row 1: Outlets and Status */}
               <div
                 className={`grid grid-cols-1 sm:grid-cols-2 ${
-                  isOutletUser ? 'lg:grid-cols-4' : 'lg:grid-cols-5'
+                  isGroupUser
+                    ? 'lg:grid-cols-3 xl:grid-cols-6'
+                    : isOutletUser
+                    ? 'lg:grid-cols-4'
+                    : 'lg:grid-cols-5'
                 } gap-4`}
               >
+                {/* Company: only rendered for Group users */}
+                {isGroupUser && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700">
+                      Company <span className="text-red-500">*</span>
+                    </label>
+                    <SearchableSelect
+                      className="mt-1.5"
+                      options={companyOptions}
+                      value={selectedCompany}
+                      onChange={(e) => handleCompanyChange(e.target.value)}
+                      disabled={isReceiveMode || isDispatchMode || companiesLoading}
+                      placeholder={companiesLoading ? 'Loading companies...' : 'Select company'}
+                    />
+                  </div>
+                )}
+
                 {/* From Outlet: only rendered for non-outlet users */}
                 {!isOutletUser && (
                   <div>
@@ -1622,8 +1763,14 @@ const StockTransferRequest = () => {
                       options={outletOptions}
                       value={fromOutlet}
                       onChange={(e) => handleFromOutletChange(e.target.value)}
-                      disabled={isReceiveMode || isDispatchMode}
-                      placeholder={unitsLoading ? 'Loading outlets...' : 'Select outlet'}
+                      disabled={isReceiveMode || isDispatchMode || (isGroupUser && !selectedCompany)}
+                      placeholder={
+                        isGroupUser && !selectedCompany
+                          ? 'Select company first'
+                          : unitsLoading
+                          ? 'Loading outlets...'
+                          : 'Select outlet'
+                      }
                     />
                   </div>
                 )}
@@ -1660,8 +1807,14 @@ const StockTransferRequest = () => {
                       setToOutlet(e.target.value);
                       setToSubOutlet('');
                     }}
-                    disabled={isReceiveMode || isDispatchMode}
-                    placeholder={unitsLoading ? 'Loading outlets...' : 'Select outlet'}
+                    disabled={isReceiveMode || isDispatchMode || (isGroupUser && !selectedCompany)}
+                    placeholder={
+                      isGroupUser && !selectedCompany
+                        ? 'Select company first'
+                        : unitsLoading
+                        ? 'Loading outlets...'
+                        : 'Select outlet'
+                    }
                   />
                 </div>
 
@@ -1770,9 +1923,11 @@ const StockTransferRequest = () => {
                     options={itemOptions}
                     value={itemSelectValue}
                     onChange={handleItemSelectChange}
-                    disabled={itemsLoading || (!isOutletUser && !fromOutlet)}
+                    disabled={itemsLoading || (!isOutletUser && !fromOutlet) || (isGroupUser && !selectedCompany)}
                     placeholder={
-                      !isOutletUser && !fromOutlet
+                      isGroupUser && !selectedCompany
+                        ? 'Please select Company first...'
+                        : !isOutletUser && !fromOutlet
                         ? 'Please select From Outlet first...'
                         : itemsLoading
                         ? 'Loading items...'
@@ -1948,7 +2103,7 @@ const StockTransferRequest = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Confirmation Dialog for Source Location Change */}
+        {/* Confirmation Dialog for Location / Company Change */}
         <Dialog open={Boolean(pendingOrgChange)} onOpenChange={(open) => !open && handleCancelOrgChange()}>
           <DialogContent className="max-w-md rounded-2xl p-6">
             <DialogHeader>
@@ -1957,16 +2112,26 @@ const StockTransferRequest = () => {
                   <AlertTriangle size={20} />
                 </div>
                 <div>
-                  <DialogTitle className="text-base font-bold text-gray-900">Change Source Location?</DialogTitle>
+                  <DialogTitle className="text-base font-bold text-gray-900">
+                    {pendingOrgChange?.type === 'company' ? 'Change Company?' : 'Change Source Location?'}
+                  </DialogTitle>
                   <DialogDescription className="text-xs text-gray-500 mt-0.5">
-                    Updating stock levels for manifest items
+                    {pendingOrgChange?.type === 'company'
+                      ? 'Resetting outlets and manifest items'
+                      : 'Updating stock levels for manifest items'}
                   </DialogDescription>
                 </div>
               </div>
             </DialogHeader>
-            <div className="py-2 text-xs text-gray-600 leading-relaxed">
-              Changing the source location to <strong className="text-gray-900">{pendingOrgChange?.targetName}</strong> will recalculate and update the current available stock for the <strong className="text-gray-900">{manifestItems.length} item{manifestItems.length > 1 ? 's' : ''}</strong> in your transfer manifest. Do you want to proceed?
-            </div>
+            {pendingOrgChange?.type === 'company' ? (
+              <div className="py-2 text-xs text-gray-600 leading-relaxed">
+                Changing the company to <strong className="text-gray-900">{pendingOrgChange?.targetName}</strong> will clear the selected outlets and reset the <strong className="text-gray-900">{manifestItems.length} item{manifestItems.length > 1 ? 's' : ''}</strong> in your transfer manifest. Do you want to proceed?
+              </div>
+            ) : (
+              <div className="py-2 text-xs text-gray-600 leading-relaxed">
+                Changing the source location to <strong className="text-gray-900">{pendingOrgChange?.targetName}</strong> will recalculate and update the current available stock for the <strong className="text-gray-900">{manifestItems.length} item{manifestItems.length > 1 ? 's' : ''}</strong> in your transfer manifest. Do you want to proceed?
+              </div>
+            )}
             <DialogFooter className="flex items-center justify-end gap-2 pt-4">
               <button
                 type="button"
@@ -1980,7 +2145,7 @@ const StockTransferRequest = () => {
                 onClick={handleConfirmOrgChange}
                 className="px-5 py-2 text-xs font-semibold text-white bg-[#084E92] hover:bg-[#073e77] rounded-xl transition shadow-sm cursor-pointer"
               >
-                Proceed & Update Stock
+                {pendingOrgChange?.type === 'company' ? 'Proceed & Reset' : 'Proceed & Update Stock'}
               </button>
             </DialogFooter>
           </DialogContent>

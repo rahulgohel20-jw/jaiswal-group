@@ -332,10 +332,7 @@ const Departmentlist = () => {
           <table className="w-full text-sm">
             <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB]">
               <tr>
-                <th className="w-10 px-4 py-3">
-                  <input type="checkbox" className="rounded border-gray-300" />
-                </th>
-                <th className="text-left px-2 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
                   S.NO
                 </th>
                 <th className="text-left px-2 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
@@ -350,7 +347,7 @@ const Departmentlist = () => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     className="text-center py-10 text-sm text-[#737781]"
                   >
                     Loading departments...
@@ -359,7 +356,7 @@ const Departmentlist = () => {
               ) : pageDepartments.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     className="text-center py-10 text-sm text-[#737781]"
                   >
                     No departments match your search or filter.
@@ -371,13 +368,7 @@ const Departmentlist = () => {
                     key={dept.id}
                     className="border-b border-[#F0F1F3] last:border-b-0 hover:bg-[#FAFBFC]"
                   >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300"
-                      />
-                    </td>
-                    <td className="px-2 py-3 text-[#737781]">
+                    <td className="px-4 py-3 text-[#737781]">
                       {String(pageStart + idx + 1).padStart(2, '0')}
                     </td>
                     <td className="px-2 py-3">

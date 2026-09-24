@@ -52,7 +52,6 @@ const RowMaterialUnit = () => {
   const [error, setError] = useState(null);
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
-  const [rowSelection, setRowSelection] = useState({});
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
@@ -258,27 +257,6 @@ const RowMaterialUnit = () => {
   const columns = useMemo(
     () => [
       {
-        id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllPageRowsSelected()}
-            onChange={table.getToggleAllPageRowsSelectedHandler()}
-            className="w-4 h-4 cursor-pointer accent-[#005BAC]"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            className="w-4 h-4 cursor-pointer accent-[#005BAC]"
-          />
-        ),
-        enableSorting: false,
-        size: 50,
-      },
-      {
         id: 'sno',
         header: ({ column }) => (
           <DataGridColumnHeader
@@ -424,10 +402,8 @@ const RowMaterialUnit = () => {
   const table = useReactTable({
     data: filteredUnits,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination },
     onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
-    enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });

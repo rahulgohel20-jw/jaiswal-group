@@ -104,7 +104,6 @@ const AssetsTransferLog = () => {
     const [search, setSearch] = useState("");
     const [transferData, setTransferData] = useState(TRANSFER_DATA);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
@@ -155,27 +154,6 @@ const AssetsTransferLog = () => {
     };
 
     const columns = [
-        {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className='my-5'
-                />
-            ),
-            cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                />
-            ),
-            enableSorting: false,
-            size: 30,
-        },
-
         {
             accessorKey: "transferId",
             header: ({ column }) => (
@@ -280,10 +258,8 @@ const AssetsTransferLog = () => {
     const table = useReactTable({
         data: filteredTransferData,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

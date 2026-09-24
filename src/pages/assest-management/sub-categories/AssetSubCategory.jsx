@@ -71,7 +71,6 @@ const AssetSubCategory = () => {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [rowSelection, setRowSelection] = useState({});
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [showAddSubCategory, setShowAddSubCategory] = useState(false);
     const [viewingSubCategory, setViewingSubCategory] = useState(null);
@@ -242,27 +241,6 @@ const confirmDelete = async () => {
 
     const columns = useMemo(() => [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className="w-4 h-4 cursor-pointer"
-                />
-            ),
-            cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-                />
-            ),
-            enableSorting: false,
-            size: 45,
-        },
-        {
             id: "parentCategory",
             accessorFn: (row) => row.parentCategory,
             header: ({ column }) => (
@@ -334,10 +312,8 @@ const confirmDelete = async () => {
     const table = useReactTable({
         data: filteredSubCategories,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

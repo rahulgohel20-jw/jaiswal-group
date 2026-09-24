@@ -109,7 +109,6 @@ const AssetsManagement = () => {
     const [assetsError, setAssetsError] = useState(null);
 
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
     const [showDetails, setShowDetails] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [searchInput, setSearchInput] = useState("");
@@ -288,30 +287,6 @@ const AssetsManagement = () => {
 
     const columns = useMemo(() => [
         {
-            id: "select",
-
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className="w-4 h-4 cursor-pointer"
-                />
-            ),
-
-            cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-                />
-            ),
-
-            enableSorting: false,
-            size: 40,
-        },
-        {
             id: "assetId",
             accessorFn: (row) => row.assetId,
             header: ({ column }) => (
@@ -450,10 +425,8 @@ const AssetsManagement = () => {
     const table = useReactTable({
         data: filteredAssets,
         columns,
-        state: { pagination, rowSelection, },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

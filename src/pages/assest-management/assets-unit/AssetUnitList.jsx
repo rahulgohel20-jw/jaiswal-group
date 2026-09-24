@@ -63,7 +63,6 @@ const AssetUnitList = () => {
     const [error, setError] = useState(null);
 
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
-    const [rowSelection, setRowSelection] = useState({});
 
     const [showAddUnit, setShowAddUnit] = useState(false);
     const [editingUnit, setEditingUnit] = useState(null);
@@ -206,27 +205,6 @@ const AssetUnitList = () => {
 
     const columns = useMemo(() => [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className="w-4 h-4 cursor-pointer"
-                />
-            ),
-            cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-                />
-            ),
-            enableSorting: false,
-            size: 45,
-        },
-        {
             id: "sno",
             header: ({ column }) => (
                 <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
@@ -296,10 +274,8 @@ const AssetUnitList = () => {
     const table = useReactTable({
         data: filteredUnits,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

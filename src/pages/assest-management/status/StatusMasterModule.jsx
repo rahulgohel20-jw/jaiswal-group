@@ -81,7 +81,6 @@ const StatusMasterModule = () => {
 
     const [statusData, setStatusData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
 
     const [listLoading, setListLoading] = useState(false);
     const [listError, setListError] = useState(null);
@@ -255,27 +254,6 @@ const StatusMasterModule = () => {
     // -------------------------------------------------------------------
     const columns = useMemo(() => [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className='my-4'
-                />
-            ),
-            cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                />
-            ),
-            enableSorting: false,
-            size: 50,
-        },
-
-        {
             accessorKey: "srNo",
             header: ({ column }) => (
                 <DataGridColumnHeader title="S.NO" column={column} className="font-semibold" />
@@ -387,10 +365,8 @@ const StatusMasterModule = () => {
     const table = useReactTable({
         data: filteredStatusData,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

@@ -36,7 +36,6 @@ const MenuCategory = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [rowSelection, setRowSelection] = useState({});
   const [openCategory, setOpenCategory] = useState(false);
   const [editData, setEditData] = useState(null);
 
@@ -184,28 +183,6 @@ const MenuCategory = () => {
   const columns = useMemo(
     () => [
       {
-        id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllPageRowsSelected()}
-            onChange={table.getToggleAllPageRowsSelectedHandler()}
-            className="w-4 h-4 cursor-pointer my-4"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            className="w-4 h-4 rounded border-gray-300 cursor-pointer"
-          />
-        ),
-        enableSorting: false,
-        size: 50,
-      },
-
-      {
         id: 'image',
         accessorFn: (row) => row.image,
         header: ({ column }) => (
@@ -338,10 +315,8 @@ const MenuCategory = () => {
   const table = useReactTable({
     data: filteredCategories,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination },
     onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
-    enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
