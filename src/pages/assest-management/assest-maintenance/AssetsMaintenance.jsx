@@ -49,7 +49,6 @@ const AssetsMaintenance = () => {
     const [statsData, setStatsData] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
     const [searchText, setSearchText] = useState("");
     const [statusFilter, setStatusFilter] = useState("All Records");
 
@@ -222,21 +221,6 @@ const AssetsMaintenance = () => {
 
     const columns = [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className='my-5'
-                />
-            ),
-            cell: ({ row }) => (
-                <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />
-            ),
-            size: 30,
-        },
-        {
             accessorKey: "assetId",
             header: ({ column }) => <DataGridColumnHeader title="ASSET IDENTITY" column={column} className="text-[#43474F] font-semibold" />,
             cell: ({ row }) => (
@@ -340,10 +324,8 @@ const AssetsMaintenance = () => {
     const table = useReactTable({
         data: filteredMaintenanceData,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         manualPagination: true,
         pageCount,
         getCoreRowModel: getCoreRowModel(),

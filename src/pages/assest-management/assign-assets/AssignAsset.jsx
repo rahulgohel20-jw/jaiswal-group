@@ -258,7 +258,6 @@ const AssignAssets = () => {
   const [loadError, setLoadError] = useState('');
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [rowSelection, setRowSelection] = useState({});
   const [previewAssignment, setPreviewAssignment] = useState(null);
   const [actionSaving, setActionSaving] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -524,27 +523,6 @@ const AssignAssets = () => {
 
   const columns = useMemo(() => [
     {
-      id: 'select',
-      header: ({ table }) => (
-        <input
-          type="checkbox"
-          checked={table.getIsAllPageRowsSelected()}
-          onChange={table.getToggleAllPageRowsSelectedHandler()}
-          className="w-4 h-4 cursor-pointer"
-        />
-      ),
-      cell: ({ row }) => (
-        <input
-          type="checkbox"
-          checked={row.getIsSelected()}
-          onChange={row.getToggleSelectedHandler()}
-          className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-        />
-      ),
-      enableSorting: false,
-      size: 45,
-    },
-    {
       id: 'assignmentId',
       accessorFn: (row) => row.assignmentId,
       header: ({ column }) => (
@@ -738,10 +716,8 @@ const AssignAssets = () => {
   const table = useReactTable({
     data: filteredAssignments,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination },
     onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
-    enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });

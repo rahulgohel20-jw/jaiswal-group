@@ -143,7 +143,6 @@ const AssetItemsList = () => {
   });
 
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
-  const [selectedIds, setSelectedIds] = useState([]);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -181,7 +180,6 @@ const AssetItemsList = () => {
 
   const handleDelete = (id) => {
     setItems((prev) => prev.filter((it) => it.id !== id));
-    setSelectedIds((prev) => prev.filter((sid) => sid !== id));
     notify.success("Asset Item Deleted Successfully");
   };
 
@@ -224,20 +222,6 @@ const AssetItemsList = () => {
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * rowsPerPage;
   const pageItems = sortedItems.slice(pageStart, pageStart + rowsPerPage);
-
-  const allOnPageSelected = pageItems.length > 0 && pageItems.every((it) => selectedIds.includes(it.id));
-
-  const toggleSelectAllOnPage = () => {
-    if (allOnPageSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !pageItems.some((it) => it.id === id)));
-    } else {
-      setSelectedIds((prev) => [...new Set([...prev, ...pageItems.map((it) => it.id)])]);
-    }
-  };
-
-  const toggleSelectRow = (id) => {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]));
-  };
 
   const activeCount = items.filter((it) => it.status === 'Active').length;
   const inactiveCount = items.length - activeCount;
@@ -373,14 +357,6 @@ const AssetItemsList = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs uppercase text-gray-500 border-b">
-                  <th className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={allOnPageSelected}
-                      onChange={toggleSelectAllOnPage}
-                      className="h-4 w-4 rounded border-gray-300 accent-[#0a4a8f]"
-                    />
-                  </th>
                   <SortableHeader label="Asset Name" sortKey="name" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader label="Category" sortKey="category" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader
@@ -397,21 +373,13 @@ const AssetItemsList = () => {
               <tbody className="divide-y">
                 {pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center text-gray-400">
+                    <td colSpan={6} className="px-4 py-16 text-center text-gray-400">
                       No asset items match your filters.
                     </td>
                   </tr>
                 ) : (
                   pageItems.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(item.id)}
-                          onChange={() => toggleSelectRow(item.id)}
-                          className="h-4 w-4 rounded border-gray-300 accent-[#0a4a8f]"
-                        />
-                      </td>
                       <td className="px-4 py-3">
                         <div className="font-semibold text-primary">{item.name}</div>
                         <div className="text-xs text-gray-400">{item.id}</div>

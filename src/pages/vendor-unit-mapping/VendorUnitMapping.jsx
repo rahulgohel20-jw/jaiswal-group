@@ -662,7 +662,7 @@ const VendorUnitMapping = () => {
         </div>
 
         <div>
-          <h1 className="text-[28px] font-bold text-[#101828]">
+          <h1 className="text-[18px] font-bold text-[#101828]">
             Vendor & Unit Mapping
           </h1>
           <p className="text-[#667085] text-sm mt-2 max-w-xl">
