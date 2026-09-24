@@ -53,13 +53,24 @@ export const getUserPermissions = (userOrAuth) => {
   const auth = userOrAuth || getStoredAuthOrUser() || {};
   const user = auth?.user || auth?.data || auth || {};
 
+  const userTypeStr = String(
+    user?.userType ||
+    auth?.userType ||
+    user?.role ||
+    auth?.role ||
+    user?.user_type ||
+    ''
+  ).toUpperCase().trim();
+
   const isAdmin =
-    user?.userType === 'ADMIN' ||
-    user?.userType === 'SUPER_ADMIN' ||
+    userTypeStr === 'ADMIN' ||
+    userTypeStr === 'SUPER_ADMIN' ||
+    userTypeStr === 'SUPERADMIN' ||
+    userTypeStr.includes('ADMIN') ||
     user?.is_admin === true ||
     user?.isAdmin === true ||
-    auth?.userType === 'ADMIN' ||
-    auth?.userType === 'SUPER_ADMIN';
+    auth?.is_admin === true ||
+    auth?.isAdmin === true;
 
   let rawUserRights =
     user?.userRights ||
@@ -177,6 +188,26 @@ const PAGE_ALIASES = {
       }
     }
 
+    // Default permissions for Event Module (standalone app integration)
+    const isEventRelated = checkList.some((item) => {
+      const lk = String(item).trim().toLowerCase();
+      return (
+        lk.includes('event') ||
+        lk === 'events' ||
+        lk === 'events list' ||
+        lk === 'create event' ||
+        lk === 'event calendar' ||
+        lk === 'calendar' ||
+        lk === 'event types' ||
+        lk === 'inquiries' ||
+        lk === 'event management'
+      );
+    });
+
+    if (isEventRelated) {
+      return { view: true, add: true, edit: true, delete: true, hasAccess: true };
+    }
+
     // If no explicit rights and user is Admin, grant full access
     if (isAdmin) {
       return { view: true, add: true, edit: true, delete: true, hasAccess: true };
@@ -184,6 +215,7 @@ const PAGE_ALIASES = {
 
     return { view: false, add: false, edit: false, delete: false, hasAccess: false };
   };
+
 
   const hasPermission = (pageName, action = 'view') => {
     const rights = getPageRights(pageName);

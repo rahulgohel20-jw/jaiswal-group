@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { filterMenuByPermissions } from '@/utils/permissions';
 import { useAuth } from '@/auth/context/auth-context';
+import { buildEventSsoUrl } from '@/utils/eventSso';
 
 export function SidebarMenu() {
   const { pathname } = useLocation();
@@ -97,13 +98,33 @@ export function SidebarMenu() {
         </AccordionMenuSub>
       );
     } else {
+      const isSsoEvent = item.path === '/events' || item.isSso;
+
+      const handleClick = (e) => {
+        if (item.onClick) {
+          item.onClick(e);
+          return;
+        }
+        if (isSsoEvent && item.target === '_blank') {
+          e.preventDefault();
+          const ssoUrl = buildEventSsoUrl(item.ssoPath || '/events/calendar');
+          window.open(ssoUrl, '_blank', 'noopener,noreferrer');
+        }
+      };
+
       return (
         <AccordionMenuItem
           key={index}
           value={item.path || ''}
           className="text-md font-medium"
         >
-          <Link to={item.path || '#'} className="flex items-center grow gap-2">
+          <Link
+            to={item.path || '#'}
+            target={item.target}
+            rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
+            onClick={handleClick}
+            className="flex items-center grow gap-2"
+          >
             {item.icon && (
               <item.icon
                 data-slot="accordion-menu-icon"

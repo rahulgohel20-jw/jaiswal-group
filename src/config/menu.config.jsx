@@ -451,8 +451,15 @@ export const MENU_SIDEBAR = [
     path: '/users',
   },
   {
+    title: 'Events',
+    icon: CalendarCheck,
+    path: '/events',
+    target: '_blank',
+  },
+  {
     title: 'Vendors',
     icon: UserCog,
+
     children: [
       { title: 'Vendors', path: '/vendors' },
       {title: 'Vendor Unit Mapping', path: '/vendor-unit-mapping'}
@@ -574,7 +581,14 @@ export const MENU_SIDEBAR_ADMIN = [
     icon: LayoutGrid,
     path: '/',
   },
+  {
+    title: 'Events',
+    icon: CalendarCheck,
+    path: '/events',
+    target: '_blank',
+  },
   { heading: 'Supply Chain' },
+
   {
     title: 'Purchase',
     icon: Fence,
