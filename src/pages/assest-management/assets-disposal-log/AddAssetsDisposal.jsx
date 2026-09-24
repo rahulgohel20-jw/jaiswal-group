@@ -483,12 +483,14 @@ const AddAssetsDisposal = () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
+            <div className="px-4 mx-auto">
                 {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
                     <span>Asset Management</span>
+                    <ChevronRight size={12} />
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate(-1)}>Asset Disposal</span>
                     <ChevronRight size={12} />
                     <span className="text-[#0151a8] font-medium">
                         {isEditMode ? "Edit Disposal Record" : "Asset Disposal Registration"}
@@ -509,7 +511,7 @@ const AddAssetsDisposal = () => {
                         </p>
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-col sm:flex-row">
                         <Link to="/assets/asset-disposal">
                             <button
                                 type="button"

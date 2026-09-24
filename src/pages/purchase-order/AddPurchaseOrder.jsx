@@ -9,6 +9,7 @@ import {
   Check,
 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { Container } from '@/components/common/container';
 
 const inputCls =
   "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
@@ -79,8 +80,9 @@ const AddPurchaseOrder = () => {
   };
 
   return (
-    <div className="min-h-screen -mt-4">
-      <div className="max-w-6xl mx-auto space-y-5 pt-2">
+    <Container>
+    <div className="mx-auto px-4">
+      <div>
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900 leading-none">Add Purchase Order</h1>
         </div>
@@ -376,6 +378,7 @@ const AddPurchaseOrder = () => {
         />
       )}
     </div>
+    </Container>
   );
 };
 

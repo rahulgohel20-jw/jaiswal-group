@@ -667,24 +667,24 @@ const AddPurchaseRequisition = () => {
 
   return (
     <Container>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-10">
+      <div className="mx-auto p-4">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 mt-3">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
-          <span>Purchase Requisition List</span>
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate(-1)}>Purchase Requisition List</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">{isEditMode ? 'Edit' : 'Create'}</span>
         </div>
 
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
+        <div className="flex items-start justify-between gap-4 flex-wrap mt-2">
           <div>
-            <h1 className="text-2xl md:text-4xl font-semibold">
+            <h1 className="font-bold text-[#101828] text-[28px]">
               {isEditMode ? `Edit Purchase Requisition` : 'Create Purchase Requisition'}
             </h1>
-            <p className="text-[#43474F] mt-1 text-sm sm:text-base">
+            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
               {isEditMode
                 ? `Editing ${loadedPr?.prCode || ''} for ${loadedPr?.outlet || 'the selected outlet'}.`
                 : 'Raise a new purchase requisition for an outlet.'}
@@ -715,21 +715,18 @@ const AddPurchaseRequisition = () => {
         </label>
 
         {outletFieldIsEditable ? (
-          <select
-            value={outletId ? String(outletId) : ''}
-            onChange={handleOutletSelectChange}
-            disabled={outletsLoading}
-            className={errors.outletId ? errorInputCls : inputCls}
-          >
-            <option value="">
-              {outletsLoading ? 'Loading outlets...' : 'Select outlet'}
-            </option>
-            {outlets.map((o) => (
-              <option key={o.id} value={String(o.id)}>
-                {o.name} {o.code ? `(${o.code})` : ''}
-              </option>
-            ))}
-          </select>
+                  <SearchableSelect
+                    name="outletId"
+                    value={outletId ? String(outletId) : ''}
+                    onChange={(e) => setOutletId(e.target.value)}
+                    options={outlets.map((o) => ({
+                      value: String(o.id),
+                      label: `${o.name}${o.code ? ` (${o.code})` : ''}`,
+                    }))}
+                    placeholder={outletsLoading ? 'Loading outlets...' : 'Select outlet'}
+                    disabled={outletsLoading || !outletFieldIsEditable}
+                    hasError={!!errors.outletId}
+                  />
         ) : (
           <div className={`${inputCls} bg-gray-50 text-gray-600`}>
             {outletsLoading

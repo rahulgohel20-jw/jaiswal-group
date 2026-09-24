@@ -22,10 +22,11 @@ import {
 } from "@/components/ui/select";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { useNavigate } from 'react-router';
 
 const RowMaterialItemMaster = () => {
     const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Items');
-
+    const navigate = useNavigate();
     const [itemData, setItemData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
     const [loading, setLoading] = useState(false);
@@ -510,23 +511,23 @@ const RowMaterialItemMaster = () => {
 
     return (
         <Container>
-            <div className='p-4 md:p-6'>
+            <div className='p-4 mx-auto'>
                 {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
-                    <span>Master Data</span>
+                    <span>Raw Material</span>
                     <ChevronRight size={12} />
                     <span className="text-[#084E92] font-medium">Raw Material Items</span>
                 </div>
 
-                <div className="flex justify-between items-start flex-col lg:flex-row gap-4">
+                <div className="flex justify-between lg:items-start flex-col lg:flex-row gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+                        <h1 className="text-[28px] font-bold text-[#101828] text-start">
                             Raw Material Items Master
                         </h1>
 
-                        <p className="text-sm text-gray-400 mt-1 max-w-xl">
+                        <p className="text-[#667085] text-sm mt-2 max-w-2xl">
                             Centralized inventory registry for global raw material tracking,
                             specification management, and real-time stock valuation monitoring.
                         </p>
@@ -535,7 +536,7 @@ const RowMaterialItemMaster = () => {
                     {canAdd && (
                         <button
                             onClick={openCreateModal}
-                            className="bg-[#084E92] hover:bg-[#074486] cursor-pointer transition-colors duration-200 text-white rounded-xl px-6 py-3 flex items-center gap-2 shadow-lg"
+                            className="bg-[#084E92] w-max self-end hover:bg-[#074486] cursor-pointer transition-colors duration-200 text-white rounded-lg px-6 py-3 flex items-center gap-2 shadow-lg"
                         >
                             <Plus size={18} />
                             Add New Item
@@ -555,7 +556,7 @@ const RowMaterialItemMaster = () => {
                     ))}
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
+                <div className="flex flex-col gap-4 mt-6">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         {/* Search */}
                         <div className="relative md:col-span-2">
@@ -568,7 +569,7 @@ const RowMaterialItemMaster = () => {
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search by type name..."
-                                className="w-full pl-10 py-2 border rounded-lg outline-none "
+                                className="w-full pl-10 py-2 border rounded-xl outline-none border-[#C3C6D1] "
                             />
                         </div>
 
@@ -577,7 +578,7 @@ const RowMaterialItemMaster = () => {
                             value={statusFilter}
                             onValueChange={(value) => setStatusFilter(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Status" />
                             </SelectTrigger>
 
@@ -604,7 +605,7 @@ const RowMaterialItemMaster = () => {
                                 setTypeFilter(value === "all" ? "" : value);
                             }}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Categories" />
                             </SelectTrigger>
 

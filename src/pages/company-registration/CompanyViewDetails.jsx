@@ -14,6 +14,7 @@ import {
     Phone,
     Mail,
 } from "lucide-react";
+import { Container } from '@/components/common/container';
 
 
 const SectionCard = ({ title, icon: Icon, children }) => (
@@ -95,8 +96,8 @@ const CompanyViewDetails = () => {
 
 
     return (
-
-        <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+         <Container>
+        <div className="mx-auto p-4">
 
 
             {/* Header */}
@@ -115,12 +116,12 @@ const CompanyViewDetails = () => {
                     </button>
 
 
-                    <h1 className="text-3xl md:text-4xl font-bold text-[#084E92]">
+                    <h1 className="font-bold text-[#101828] text-[28px]">
                         {company.companyNameEnglish}
                     </h1>
 
 
-                    <p className="text-[#737781] mt-1">
+                    <p className="text-[#667085] text-sm mt-1">
                         Complete company profile and registration information.
                     </p>
 
@@ -137,7 +138,7 @@ const CompanyViewDetails = () => {
                             }
                         })
                     }
-                    className="bg-[#084E92] text-white px-5 py-3 rounded-xl flex items-center gap-2"
+                    className="bg-[#084E92] text-white px-5 py-3 cursor-pointer rounded-xl flex items-center gap-2"
                 >
 
                     <SquarePen className="w-4 h-4" />
@@ -153,7 +154,7 @@ const CompanyViewDetails = () => {
 
             {/* Company Profile Card */}
 
-            <div className="mt-6 bg-white border border-gray-100 rounded-3xl shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+            <div className="my-6 bg-white border border-gray-100 rounded-3xl shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
 
 
                 <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center">
@@ -423,6 +424,7 @@ const CompanyViewDetails = () => {
 
 
         </div>
+        </Container>
 
     );
 

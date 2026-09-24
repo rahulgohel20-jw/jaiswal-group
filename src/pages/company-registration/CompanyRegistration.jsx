@@ -37,6 +37,7 @@ import {
   lookupIFSC,
 } from '@/utils/validations';
 import SearchableSelect from '../../utils/SearchableSelect';
+import { Container } from '@/components/common/container';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -347,47 +348,47 @@ const mapCompanyToForm = (company) => {
       ? company.images[company.images.length - 1]
       : null;
 
-      
-    return {
-       ...emptyForm,
 
-  id: company.id,
+  return {
+    ...emptyForm,
 
-  companyName: company.companyNameEnglish || '',
-  companyCode: company.companyCode || '',
-  shortCode: company.shortCode || '',
+    id: company.id,
 
-  gstNumber: company.gstNumber || '',
-  panNumber: company.panNumber || '',
+    companyName: company.companyNameEnglish || '',
+    companyCode: company.companyCode || '',
+    shortCode: company.shortCode || '',
 
-  mobile: company.mobilenumber || '',
-  altMobile: company.alternatemobilenumber || '',
+    gstNumber: company.gstNumber || '',
+    panNumber: company.panNumber || '',
 
-  email: company.emailid || '',
+    mobile: company.mobilenumber || '',
+    altMobile: company.alternatemobilenumber || '',
 
-  addressLine1: company.addressEnglish || '',
-  addressLine2: company.addressline2 || '',
+    email: company.emailid || '',
 
-  pincode: company.pincode || '',
-  latitude: company.latitude || '',
-  longitude: company.longitude || '',
+    addressLine1: company.addressEnglish || '',
+    addressLine2: company.addressline2 || '',
 
-  accountHolder: company.accountholdername || '',
-  accountNumber: company.accountnumber || '',
+    pincode: company.pincode || '',
+    latitude: company.latitude || '',
+    longitude: company.longitude || '',
 
-  bankName: company.bankname || '',
-  branchName: company.branchname || '',
-  ifsc: company.bankifsccode || '',
+    accountHolder: company.accountholdername || '',
+    accountNumber: company.accountnumber || '',
 
-  upiId: company.upiid || '',
+    bankName: company.bankname || '',
+    branchName: company.branchname || '',
+    ifsc: company.bankifsccode || '',
 
-  countryId: company.countryId,
-  stateId: company.stateId,
-  cityId: company.cityId,
+    upiId: company.upiid || '',
 
-  logo: latestImage?.path || null,
-  favicon: company.favicon,
-    }
+    countryId: company.countryId,
+    stateId: company.stateId,
+    cityId: company.cityId,
+
+    logo: latestImage?.path || null,
+    favicon: company.favicon,
+  }
 }
 
 // PAN isn't validated anywhere else in the app yet, so it lives here for now —
@@ -825,20 +826,21 @@ const CompanyRegistration = () => {
   }
 
   return (
-    <div className="mx-4 min-h-screen p-4 md:p-6">
+     <Container>
+    <div className="mx-auto p-4">
       <div className="flex flex-col gap-1">
         <button
           type="button"
           onClick={() => navigate('/companies')}
-          className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] mb-2 cursor-pointer bg-transparent border-0 p-0 self-start"
+          className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92]  cursor-pointer bg-transparent border-0 p-0 self-start"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Companies
         </button>
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
+        <h1 className="font-bold text-[#101828] text-[28px]">
           {isEditMode ? 'Update Company' : 'Register New Company'}
         </h1>
-        <p className="text-[#43474F] mt-2">
+        <p className="text-[#667085] text-sm mt-1">
           {isEditMode
             ? `Edit the details for ${editingCompany.companyNameEnglish || ''} and save your changes.`
             : 'Complete the form below to establish a new corporate entity in the Jaiswal Group ecosystem.'}
@@ -856,7 +858,7 @@ const CompanyRegistration = () => {
 
         {openSections.company && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label required>Company Name</Label>
                 <input
@@ -888,7 +890,7 @@ const CompanyRegistration = () => {
             </div>
 
             <div
-              className={`grid gap-4 ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'}`}
+              className={`grid grid-cols-1 gap-4 ${isEditMode ? 'sm:grid-cols-2' : 'sm:grid-cols-1'}`}
             >
               {isEditMode && (
                 <div>
@@ -916,7 +918,7 @@ const CompanyRegistration = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label required>PAN Number</Label>
                 <input
@@ -964,7 +966,7 @@ const CompanyRegistration = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label required>Email</Label>
                 <input
@@ -1007,7 +1009,7 @@ const CompanyRegistration = () => {
         />
         {openSections.address && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label required>Address Line 1</Label>
                 <input
@@ -1036,63 +1038,67 @@ const CompanyRegistration = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <Label required>Country</Label>
-                <SearchableSelect
-                  name="country"
-                  value={selectedCountry}
-                  onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
-                  options={countries.map((country) => ({ value: country.id, label: country.name }))}
-                  placeholder="Select Country"
-                  error={!!errors.country}
-                />
-                <ErrorText error={errors.country} />
+            <div className="grid col-span-1 sm:grid-cols-2 gap-4">
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <div>
+                  <Label required>Country</Label>
+                  <SearchableSelect
+                    name="country"
+                    value={selectedCountry}
+                    onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                    options={countries.map((country) => ({ value: country.id, label: country.name }))}
+                    placeholder="Select Country"
+                    error={!!errors.country}
+                  />
+                  <ErrorText error={errors.country} />
+                </div>
+                <div>
+                  <Label required>State</Label>
+                  <SearchableSelect
+                    name="state"
+                    value={selectedState}
+                    onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
+                    options={states.map((state) => ({ value: state.id, label: state.name }))}
+                    placeholder={selectedCountry ? 'Select State' : 'Select country first'}
+                    disabled={!selectedCountry}
+                    error={!!errors.state}
+                  />
+                  <ErrorText error={errors.state} />
+                </div>
               </div>
-              <div>
-                <Label required>State</Label>
-                <SearchableSelect
-                  name="state"
-                  value={selectedState}
-                  onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
-                  options={states.map((state) => ({ value: state.id, label: state.name }))}
-                  placeholder={selectedCountry ? 'Select State' : 'Select country first'}
-                  disabled={!selectedCountry}
-                  error={!!errors.state}
-                />
-                <ErrorText error={errors.state} />
-              </div>
-              <div>
-                <Label required>City</Label>
-                <SearchableSelect
-                  name="city"
-                  value={selectedCity}
-                  onChange={(e) => handleCityChange({ target: { value: e.target.value } })}
-                  options={cities?.map((city) => ({ value: city.id, label: city.name })) || []}
-                  placeholder={selectedState ? 'Select City' : 'Select state first'}
-                  disabled={!selectedState}
-                  error={!!errors.city}
-                />
-                <ErrorText error={errors.city} />
-              </div>
-              <div>
-                <Label required>Pincode</Label>
-                <input
-                  value={form.pincode}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    set('pincode', val);
-                    setErrorFor('pincode', validatePincode(val));
-                  }}
-                  placeholder="380009"
-                  maxLength={6}
-                  className={`${inputCls} ${errors.pincode ? errorInputCls : ''}`}
-                />
-                <ErrorText error={errors.pincode} />
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                <div>
+                  <Label required>City</Label>
+                  <SearchableSelect
+                    name="city"
+                    value={selectedCity}
+                    onChange={(e) => handleCityChange({ target: { value: e.target.value } })}
+                    options={cities?.map((city) => ({ value: city.id, label: city.name })) || []}
+                    placeholder={selectedState ? 'Select City' : 'Select state first'}
+                    disabled={!selectedState}
+                    error={!!errors.city}
+                  />
+                  <ErrorText error={errors.city} />
+                </div>
+                <div>
+                  <Label required>Pincode</Label>
+                  <input
+                    value={form.pincode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      set('pincode', val);
+                      setErrorFor('pincode', validatePincode(val));
+                    }}
+                    placeholder="380009"
+                    maxLength={6}
+                    className={`${inputCls} ${errors.pincode ? errorInputCls : ''}`}
+                  />
+                  <ErrorText error={errors.pincode} />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
                 <Label>Latitude</Label>
                 <input
@@ -1134,7 +1140,7 @@ const CompanyRegistration = () => {
         />
         {openSections.bank && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label required>Account Holder Name</Label>
                 <input
@@ -1175,7 +1181,7 @@ const CompanyRegistration = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label required>Branch Name</Label>
                 <input
@@ -1259,6 +1265,7 @@ const CompanyRegistration = () => {
         />
       )}
     </div>
+    </Container>
   );
 };
 

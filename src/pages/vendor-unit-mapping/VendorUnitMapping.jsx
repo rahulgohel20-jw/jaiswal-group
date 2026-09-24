@@ -39,6 +39,7 @@ import {
   getAllVendorOutletMappings,
   getOrganizationByType,
 } from '../../services/apiServices';
+import { useNavigate } from 'react-router';
 
 const SingleSelectDropdown = ({
   label,
@@ -645,15 +646,15 @@ const VendorUnitMapping = () => {
   if (!canView) {
     return <AccessDenied pageTitle="Vendor & Unit Mapping" />;
   }
-
+  const navigate = useNavigate();
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="mx-auto p-4">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+          <span onClick={() => navigate('/')} className='cursor-pointer'>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Masters</span>
+          <span>Vendors</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">
             Vendor & Unit Mapping
@@ -661,10 +662,10 @@ const VendorUnitMapping = () => {
         </div>
 
         <div>
-          <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+          <h1 className="text-[28px] font-bold text-[#101828]">
             Vendor & Unit Mapping
           </h1>
-          <p className="text-sm text-gray-400 mt-1 max-w-xl">
+          <p className="text-[#667085] text-sm mt-2 max-w-xl">
             Map vendors to one or multiple units for procurement and purchase
             management.
           </p>

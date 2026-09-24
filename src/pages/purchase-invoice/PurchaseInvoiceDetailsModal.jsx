@@ -460,7 +460,7 @@ const PurchaseInvoiceDetailsModal = () => {
 
     return (
         <Container>
-            <div className="mx-auto w-full min-w-0 max-w-full overflow-x-hidden px-4">
+            <div className="mx-auto p-4">
                 <div className="mb-3 flex min-w-0 items-center gap-1.5 text-xs text-gray-400">
                     <span
                         className="shrink-0 cursor-pointer hover:text-blue-400"

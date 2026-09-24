@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
+  ChevronRight,
   Eye,
   EyeOff,
   Map,
@@ -34,6 +35,7 @@ import {
   getEmployeeOrgId,
   mapEmployeeToForm,
 } from './utils/Employeemappers';
+import { Container } from '@/components/common/container';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -791,12 +793,22 @@ const UserRegistration = () => {
   };
 
   return (
-    <div className="mx-4 min-h-screen p-4 md:p-6">
+     <Container>
+    <div className="mx-auto p-4">
+      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
+          <ChevronRight size={12} />
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate(-1)}>Users</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">
+            Add User
+          </span>
+        </div>
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
+        <h1 className="font-bold text-[#101828] text-[28px]">
           {isEditMode ? 'Update User' : 'User Registration'}
         </h1>
-        <p className="text-[#43474F]">
+        <p className="text-[#667085] text-sm max-w-xl">
           {isEditMode
             ? `Update the account details for ${editingUser?.name ?? 'this user'}.`
             : 'Create a new enterprise user account across organizational levels.'}
@@ -942,7 +954,7 @@ const UserRegistration = () => {
                 </div>
 
                 {/* Row 3 — Sub Company / Unit / Password */}
-                <div className={`grid grid-cols-3 gap-4`}>
+                <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4`}>
                   <div>
                     <Label required>Group</Label>
                     <SearchableSelect
@@ -1006,8 +1018,9 @@ const UserRegistration = () => {
                 </div>
 
                 {/* Row 4 — Mobile / Alt Mobile / Department */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                   <div>
                     <Label required>Mobile Number</Label>
                     <input
                       name="mobile"
@@ -1036,8 +1049,10 @@ const UserRegistration = () => {
                     />
                     <ErrorText message={errors.altMobile} />
                   </div>
+                 </div>
 
-                  <div>
+                 <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                   <div>
                     <Label required>Department</Label>
                     <SearchableSelect
                       name="departmentId"
@@ -1062,6 +1077,7 @@ const UserRegistration = () => {
                     />
                     <ErrorText message={errors.designation} />
                   </div>
+                 </div>
                 </div>
               </div>
             )}
@@ -1077,7 +1093,7 @@ const UserRegistration = () => {
             />
             {openSections.address && (
               <div className="px-6 py-6 space-y-5">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label>Address Line 1</Label>
                     <input
@@ -1099,8 +1115,9 @@ const UserRegistration = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
                     <Label>Country</Label>
                     <SearchableSelect
                       name="countryId"
@@ -1128,7 +1145,9 @@ const UserRegistration = () => {
                       disabled={!form.countryId || loadingStates}
                     />
                   </div>
-                  <div>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
                     <Label>City</Label>
                     <SearchableSelect
                       name="cityId"
@@ -1159,9 +1178,10 @@ const UserRegistration = () => {
                     />
                     <ErrorText message={errors.pincode} />
                   </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div>
                     <Label>Latitude</Label>
                     <input
@@ -1228,6 +1248,7 @@ const UserRegistration = () => {
         />
       )}
     </div>
+    </Container>
   );
 };
 

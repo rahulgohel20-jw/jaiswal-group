@@ -17,7 +17,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -73,6 +73,8 @@ const MenuItemsListing = ({ onAddNew }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+
+  const navigate = useNavigate();
 
   const [totalCount, setTotalCount] = useState(0);
 
@@ -491,12 +493,12 @@ useEffect(() => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6 text-gray-600 min-h-screen">
+      <div className="p-4 mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[10px] sm:text-sm text-gray-400 mb-2">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Master Data</span>
+          <span>Menu Item</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Menu Items</span>
         </div>
@@ -504,10 +506,10 @@ useEffect(() => {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-semibold text-black">
+            <h2 className="text-[28px] font-bold text-[#101828]">
               Menu Items Master
             </h2>
-            <p className="text-sm text-gray-400 mt-1 max-w-xl">
+            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
               Manage your restaurant's menu catalog, pricing, and category
               organization in one place.
             </p>
@@ -515,7 +517,7 @@ useEffect(() => {
 
           <Link
             to="/menu-item/add-menu-items"
-            className="flex items-center w-max gap-2 bg-[#084E92] text-white px-4 py-2.5 rounded-lg font-medium cursor-pointer whitespace-nowrap"
+            className="flex items-center w-max gap-2 self-end bg-[#084E92] text-white px-4 py-2.5 rounded-lg font-medium cursor-pointer whitespace-nowrap"
           >
             <Plus size={18} />
             Add New Item
@@ -545,7 +547,7 @@ useEffect(() => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
+        <div className="flex flex-col gap-4 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative md:col-span-2">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -553,7 +555,7 @@ useEffect(() => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by item name..."
-                className="w-full pl-10 py-2 border rounded-lg outline-none"
+                className="w-full pl-10 py-2 border rounded-lg outline-none border-[#C3C6D1] "
               />
             </div>
 

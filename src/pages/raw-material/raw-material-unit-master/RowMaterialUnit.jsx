@@ -42,6 +42,7 @@ import {
 } from '../../../services/apiServices';
 import StatusConfirmModal from '../../../utils/StatusConfirmModal';
 import AddRawMaterialUnit from './AddRawMaterialUnit';
+import { useNavigate } from 'react-router';
 
 const RowMaterialUnit = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Unit Master');
@@ -63,6 +64,8 @@ const RowMaterialUnit = () => {
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+
+  const navigate = useNavigate();
   const confirmStatusChange = async () => {
     if (!statusTarget) return;
 
@@ -435,33 +438,33 @@ const RowMaterialUnit = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Master Data</span>
+          <span>Raw Material</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">
             Raw Material Unit Master
           </span>
         </div>
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+        <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+            <h1 className="text-[28px] font-bold text-[#101828] text-start">
               Measure of unit Master
             </h1>
-            <p className="text-sm text-gray-400 mt-1 max-w-xl">
+            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
               Manage all measurement units used throughout the Asset Management
               module.
             </p>
           </div>
 
-          <div className="flex gap-3 self-end">
+          <div className="flex gap-3 sm:self-end">
             <button
               type="button"
-              className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white"
+              className="px-4 py-2 border w-max border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white"
             >
               <Upload size={16} />
               Export
@@ -470,7 +473,7 @@ const RowMaterialUnit = () => {
               <button
                 type="button"
                 onClick={handleAddClick}
-                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                className="px-4 py-2 bg-[#084E92] w-max text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
               >
                 <Plus size={16} />
                 Add Unit
@@ -497,7 +500,7 @@ const RowMaterialUnit = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -506,12 +509,12 @@ const RowMaterialUnit = () => {
                 placeholder="Search unit by name or symbol..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-[#C3C6D1] rounded-lg text-sm focus:outline-none"
+                className="w-full pl-9 pr-4 py-2.5 border border-[#C3C6D1] rounded-xl text-sm focus:outline-none"
               />
             </div>
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>

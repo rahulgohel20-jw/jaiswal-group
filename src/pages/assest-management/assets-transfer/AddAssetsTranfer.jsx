@@ -8,6 +8,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { Container } from "@/components/common/container";
 
 const KITCHENS = [
     "Central Kitchen",
@@ -235,14 +236,15 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
     }
 
     return (
-        <div className="p-4 md:p-6">
+        <Container>
+        <div className="mx-auto p-4">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 flex-wrap">
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2 flex-wrap">
                 <span>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
-                <button onClick={onBackToList} className="hover:underline">
+                <button onClick={onBackToList} className="hover:text-blue-300 cursor-pointer">
                     Asset Transfer Log
                 </button>
                 <ChevronRight size={12} />
@@ -254,27 +256,27 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
             {/* Header */}
             <div className="flex justify-between flex-col gap-5 sm:flex-row sm:items-start">
                 <div>
-                    <h1 className="text-2xl font-bold ">
+                    <h1 className="font-bold text-[#101828] text-[28px] ">
                         Asset Transfer Registration
                     </h1>
 
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
                         Systematically record and track the movement of operational assets between kitchen
                         facilities and hub locations.
                     </p>
                 </div>
 
-                 <div className="flex gap-3 shrink-0">
+                 <div className="flex gap-3 shrink-0 self-end">
                     <Link
                         to="/assets/asset-transfer-log"
-                        className="h-11 px-5 cursor-pointer rounded-xl border border-[#D9E2EC] text-[#121C2A] font-medium hover:bg-gray-50 transition inline-flex items-center justify-center"
+                        className="h-11 px-5 cursor-pointer w-max rounded-xl border border-[#D9E2EC] text-[#121C2A] font-medium hover:bg-gray-50 transition inline-flex items-center justify-center"
                     >
                         Back to List
                     </Link>
 
                     <button
                         onClick={() => handleSave(false)}
-                        className="h-11 px-5 cursor-pointer rounded-xl bg-[#0B5CAB] text-white font-medium hover:bg-[#094b8f] transition"
+                        className="h-11 px-5 cursor-pointer w-max rounded-xl bg-[#084E92] text-white font-medium hover:bg-[#094b8f] transition"
                     >
                         Save Transfer
                     </button>
@@ -417,6 +419,7 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
                 </div>
             </div>
         </div>
+        </Container>
     );
 };
 

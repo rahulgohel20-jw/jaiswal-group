@@ -351,9 +351,9 @@ const AssetsMaintenance = () => {
 
     return (
         <Container>
-            <div className='p-4 md:p-6'>
+            <div className='p-4 mx-auto'>
                 <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                    <span>Dashboard</span>
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
                     <span>Asset Management</span>
                     <ChevronRight size={12} />
@@ -362,19 +362,19 @@ const AssetsMaintenance = () => {
 
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold">Maintenance Log</h1>
-                        <p className="text-sm text-[#6B7280] mt-1">
+                        <h1 className="font-bold text-[#101828] text-[28px] ">Maintenance Log</h1>
+                        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
                             View and manage all maintenance records for organizational assets.
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <button className="flex items-center cursor-pointer gap-2 px-4 py-2 border border-[#D8E2F0] bg-white rounded-xl text-[#0B5CAB] font-medium hover:bg-[#F8FAFC] transition">
+                    <div className="flex items-center gap-3 self-end">
+                        <button className="flex items-center cursor-pointer gap-2 px-4 py-2 border border-[#D8E2F0] bg-white rounded-lg text-[#0B5CAB] font-medium hover:bg-[#F8FAFC] transition">
                             <Download size={16} />
                             Export
                         </button>
                         <Link to="/assets/add-maintenance-log">
-                            <button className="flex items-center w-max cursor-pointer gap-2 px-5 py-2 bg-[#084E92] text-white rounded-xl font-medium hover:bg-[#084E92] transition">
+                            <button className="flex items-center w-max cursor-pointer gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg font-medium hover:bg-[#084E92] transition">
                                 <Plus size={16} />
                                 Add Maintenance Log
                             </button>
@@ -386,7 +386,7 @@ const AssetsMaintenance = () => {
                     {STATS.map((item, index) => {
                         const Icon = item.icon;
                         return (
-                            <div key={index} className="bg-white rounded-2xl border p-4 shadow-sm">
+                            <div key={index} className="border border-[#C3C6D1] rounded-2xl p-4 shadow-sm">
                                 <div className={`w-6 h-6 rounded flex items-center justify-center ${item.bg}`}>
                                     <Icon className={item.iconColor} size={15} />
                                 </div>
@@ -400,7 +400,7 @@ const AssetsMaintenance = () => {
                     })}
                 </div>
 
-                <div className="bg-white border rounded-2xl p-5">
+                <div>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className="col-span-1">
                             <div className="relative mt-1">
@@ -408,7 +408,7 @@ const AssetsMaintenance = () => {
                                 <Search size={16} className="absolute left-3 top-11 -translate-y-1/2 text-gray-400" />
                                 <input
                                     placeholder="Asset ID, Name, Kitchen..."
-                                    className="w-full border rounded-lg pl-10 pr-3 py-2 outline-none"
+                                    className="w-full border rounded-lg pl-10 pr-3 py-2 outline-none border-[#C3C6D1]"
                                     value={searchText}
                                     onChange={(e) => setSearchText(e.target.value)}
                                 />

@@ -467,36 +467,36 @@ const AssetsManagement = () => {
 
     return (
        <Container>
-         <div className="p-4 md:p-6">
+         <div className="p-4 mx-auto">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
                 <span className="text-[#084E92] font-medium">Assets</span>
             </div>
 
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+            <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">
+                    <h1 className="text-[28px] font-bold text-[#101828]">
                         Assets
                     </h1>
 
-                    <p className="text-[#737781] mt-1 text-sm">
+                    <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
                         Manage, monitor, assign, and maintain all organizational assets
                         from a centralized dashboard.
                     </p>
                 </div>
 
-                <div className="flex gap-3 self-end">
+                <div className="flex gap-3 sm:self-end">
                     <button className="px-4 py-2 border rounded-lg flex gap-2 items-center">
                         <Download size={16} />
                         Export
                     </button>
                     {canAdd && (
                         <Link to="/assets/add-asset">
-                            <button className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
+                            <button className="px-4 py-2 w-max bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
                                 <Plus size={16} />
                                 Add Asset
                             </button>
@@ -529,11 +529,11 @@ const AssetsManagement = () => {
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
 
                     {/* Search  */}
-                    <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+                    <div className="relative w-full border border-[#C3C6D1] rounded-xl">
                         <Search
 
                             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -544,7 +544,7 @@ const AssetsManagement = () => {
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             placeholder="Search by type, description..."
-                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
+                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-xl text-sm"
                         />
                     </div>
 
@@ -557,7 +557,7 @@ const AssetsManagement = () => {
                                     value={categoryInput}
                                     onValueChange={(value) => setCategoryInput(value)}
                                 >
-                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                         <SelectValue placeholder="All Category" />
                                     </SelectTrigger>
 
@@ -580,7 +580,7 @@ const AssetsManagement = () => {
                                     value={statusInput}
                                     onValueChange={(value) => setStatusInput(value)}
                                 >
-                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                         <SelectValue placeholder="All Status" />
                                     </SelectTrigger>
 

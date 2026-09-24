@@ -40,6 +40,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
 // TODO: replace with the actual logged-in user id from your auth/session context
 const CURRENT_USER_ID = 1;
 
@@ -99,6 +100,7 @@ const StatusMasterModule = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const navigate = useNavigate();
 
     // -------------------------------------------------------------------
     // Load list
@@ -399,28 +401,28 @@ const StatusMasterModule = () => {
 
     return (
         <Container>
-            <div className='p-4 md:px-6'>
+            <div className='p-4 mx-auto'>
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
                     <span>Asset Management</span>
                     <ChevronRight size={12} />
                     <span className="text-[#084E92] font-medium">Status Master</span>
                 </div>
-                <div className="flex justify-between items-start mb-6">
+                <div className="flex justify-between flex-col sm:flex-row sm:items-start mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold">
+                        <h1 className="font-bold text-[#101828] text-[28px]">
                             Status Master
                         </h1>
 
-                        <p className="text-[#737781] mt-1 text-sm">
+                        <p className="text-[#737781] my-1 text-sm">
                             Streamline operational tracking with comprehensive asset status management.
                         </p>
                     </div>
 
                     {canAdd && (
-                        <div className="flex gap-3">
-                            <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
+                        <div className="flex gap-3 self-end">
+                            <button onClick={openAddModal} className="flex items-center w-max gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
                                 <Plus size={16} />
                                 Add Status
                             </button>
@@ -465,9 +467,9 @@ const StatusMasterModule = () => {
                 </div>
 
 
-                <div className="bg-white rounded-2xl border border-[#D9DEE8] p-5 my-6">
+                <div className="my-6">
                     <div className="grid md:grid-cols-3 gap-4">
-                        <div className="relative mt-1 rounded-lg md:col-span-2 col-span-1 border border-[#C3C6D1]">
+                        <div className="relative mt-1 rounded-xl md:col-span-2 col-span-1 border border-[#C3C6D1]">
                             <Search
                                 size={16}
                                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -486,7 +488,7 @@ const StatusMasterModule = () => {
                                 value={statusInput}
                                 onValueChange={(value) => setStatusInput(value)}
                             >
-                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
 

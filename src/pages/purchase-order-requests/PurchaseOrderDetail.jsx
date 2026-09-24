@@ -386,17 +386,16 @@ const PurchaseOrderDetail = () => {
 
   return (
     <Container>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-12">
+      <div className="mx-auto p-4">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3 mt-4">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <Link
-            to="/purchase/purchase-order-requests"
-            className="cursor-pointer hover:text-[#084E92] transition"
+          <span
+            className='cursor-pointer hover:text-blue-400' onClick={() => navigate(-1)}
           >
             Purchase Orders
-          </Link>
+          </span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">{po?.poCode}</span>
         </div>

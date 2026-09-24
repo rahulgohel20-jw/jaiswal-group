@@ -27,6 +27,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
 
 
 const STATUS_COLORS = {
@@ -88,7 +89,7 @@ const ConditionMasterModule = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
 
-
+  const navigate = useNavigate();
 
   const loadConditions = async () => {
     setListLoading(true);
@@ -391,9 +392,9 @@ const ConditionMasterModule = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
           <span>Asset Management</span>
           <ChevronRight size={12} />
@@ -402,7 +403,7 @@ const ConditionMasterModule = () => {
 
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">
+            <h1 className="font-bold text-[#101828] text-[28px]">
               Condition Master
             </h1>
 
@@ -413,8 +414,8 @@ const ConditionMasterModule = () => {
           </div>
 
           {canAdd && (
-            <div className="flex gap-3">
-              <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
+            <div className="flex gap-3 self-end">
+              <button onClick={openAddModal} className="flex items-center w-max gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
                 <Plus size={16} />
                 Add Condition
               </button>
@@ -430,7 +431,7 @@ const ConditionMasterModule = () => {
             return (
               <div
                 key={index}
-                className="bg-white rounded-3xl border border-[#E6EBF4] p-5 shadow-sm"
+                className="border border-[#C3C6D1] rounded-2xl p-4 shadow-sm"
               >
                 <div className="flex justify-between items-start mb-2">
                   <div
@@ -457,11 +458,11 @@ const ConditionMasterModule = () => {
           })}
         </div>
 
-        <div className="rounded-2xl border border-[#D9DEE8] p-5 my-10 bg-white">
+        <div className="my-6 bg-white">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
             {/* Search  */}
-            <div className="relative border border-[#C3C6D1] rounded-lg col-span-1 md:col-span-2 py-0">
+            <div className="relative border border-[#C3C6D1] rounded-xl col-span-1 md:col-span-2 py-0">
               <Search
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -471,7 +472,7 @@ const ConditionMasterModule = () => {
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 placeholder="Type to search conditions..."
-                className="w-full pl-10 py-2 rounded-lg outline-none"
+                className="w-full pl-10 py-2 rounded-xl outline-none"
               />
             </div>
 
@@ -481,7 +482,7 @@ const ConditionMasterModule = () => {
               value={statusInput}
               onValueChange={(value) => setStatusInput(value)}
             >
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
 

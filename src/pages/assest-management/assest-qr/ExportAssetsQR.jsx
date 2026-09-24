@@ -675,9 +675,9 @@ const ExportAssetsQR = () => {
             {/* Normal UI — hidden while printing */}
             <div className="print:hidden">
                 <Container>
-                    <div className='p-4 md:p-6'>
+                    <div className='p-4 mx-auto'>
                         <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                            <span>Dashboard</span>
+                            <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                             <ChevronRight size={12} />
                             <span>Asset Management</span>
                             <ChevronRight size={12} />
@@ -685,11 +685,11 @@ const ExportAssetsQR = () => {
                         </div>
 
                         <div>
-                            <h1 className="text-2xl font-bold">
+                            <h1 className="font-bold text-[#101828] text-[28px] ">
                                 Export Assets QR
                             </h1>
 
-                            <p className="text-[#737781] mt-1 text-sm">
+                            <p className="text-[#667085] text-sm mt-1.5 max-w-2xl">
                                 Generate and export high-resolution QR codes for registered assets for inventory tracking.
                             </p>
                         </div>

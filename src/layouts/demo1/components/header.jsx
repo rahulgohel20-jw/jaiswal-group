@@ -68,13 +68,13 @@ export function Header() {
       <Container className="flex justify-end items-center lg:gap-4">
         {/* HeaderLogo */}
         <div className="flex gap-1 lg:hidden items-center gap-2.5">
-          <Link to="/" className="shrink-0">
+          {/* <Link to="/" className="shrink-0">
             <img
               src={toAbsoluteUrl('/media/app/mini-logo.svg')}
               className="h-[25px] w-full"
               alt="mini-logo"
             />
-          </Link>
+          </Link> */}
           <div className="flex items-center">
             {mobileMode && (
               <Sheet
@@ -103,11 +103,11 @@ export function Header() {
                 open={isMegaMenuSheetOpen}
                 onOpenChange={setIsMegaMenuSheetOpen}
               >
-                <SheetTrigger asChild>
+                {/* <SheetTrigger asChild>
                   <Button variant="ghost" mode="icon">
                     <SquareChevronRight className="text-muted-foreground/70" />
                   </Button>
-                </SheetTrigger>
+                </SheetTrigger> */}
                 <SheetContent
                   className="p-0 gap-0 w-[275px]"
                   side="left"

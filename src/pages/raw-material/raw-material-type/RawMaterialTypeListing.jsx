@@ -40,6 +40,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useNavigate } from 'react-router';
 
 
 const mapType = (t) => ({
@@ -52,6 +53,7 @@ const mapType = (t) => ({
 
 const RawMaterialTypeListing = () => {
     const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Types');
+    const navigate = useNavigate();
     const [types, setTypes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -336,22 +338,22 @@ const RawMaterialTypeListing = () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
+            <div className="p-4 mx-auto">
                 {/* Breadcrumb */}
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
-                    <span>Master Data</span>
+                    <span>Raw Material</span>
                     <ChevronRight size={12} />
                     <span className="text-[#084E92] font-medium">Raw Material Type</span>
                 </div>
 
-                <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+                <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold">Raw Material Type Master</h1>
+                        <h1 className="font-bold text-[#101828] text-[28px]">Raw Material Type Master</h1>
                     </div>
 
-                    <div className="flex gap-3 self-end">
+                    <div className="flex gap-3 sm:self-end">
                         <button
                             type="button"
                             className="px-4 py-2 border border-[#C3C6D1] text-[#43474F] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-gray-50 transition"
@@ -386,9 +388,9 @@ const RawMaterialTypeListing = () => {
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+                <div className="bg-white flex flex-col gap-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                        <div className="relative min-w-0 border border-[#C3C6D1] rounded-lg">
+                        <div className="relative min-w-0 border border-[#C3C6D1] rounded-xl">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             <input
                                 placeholder="Search by type name..."
@@ -401,7 +403,7 @@ const RawMaterialTypeListing = () => {
                             value={statusFilter}
                             onValueChange={(value) => setStatusFilter(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Status" />
                             </SelectTrigger>
 

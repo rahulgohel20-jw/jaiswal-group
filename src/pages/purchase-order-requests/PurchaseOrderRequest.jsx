@@ -19,7 +19,7 @@ import {
   Search,
   Loader2,
 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -36,6 +36,13 @@ import { PO_STATUS_GROUP, PO_GROUPS, getPoStatusLabel } from './utils/poStatus';
 import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const STAGE = {
   PR_NO_PO: 'PR_NO_PO',
@@ -117,28 +124,32 @@ const PO_STATUS_OPTIONS = [
 
 function MasterStatusDropdown({ value, onChange }) {
   return (
-    <div className="relative min-w-[190px]">
+    <div className="relative min-w-47.5">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-      >
-        {PO_STATUS_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        >
+          <SelectValue />
+        </SelectTrigger>
+
+        <SelectContent>
+          {PO_STATUS_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex items-center gap-3.5">
+    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex flex-col gap-2.5">
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        className="w-7 h-7 rounded flex items-center justify-center shrink-0"
         style={{ background: iconBg, color: iconFg }}
       >
         {icon}
@@ -193,6 +204,7 @@ const sortByDateDesc = (a, b) => {
 };
 
 const PurchaseOrderRequest = () => {
+  const navigate = useNavigate();
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Purchase Order Requests');
 
   const {
@@ -581,9 +593,9 @@ const PurchaseOrderRequest = () => {
 
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
+      <div className="mx-auto p-4">
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
           <span>Purchase</span>
           <ChevronRight size={12} />
@@ -600,7 +612,7 @@ const PurchaseOrderRequest = () => {
             </p>
           </div>
 
-          <div className="flex gap-3 self-end sm:self-auto">
+          <div className="flex gap-3 self-end">
             {canAdd && (
               <Link to="/purchase/create-purchase-order-requests">
                 <button

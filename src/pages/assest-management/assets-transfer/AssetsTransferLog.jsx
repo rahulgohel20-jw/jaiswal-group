@@ -7,17 +7,9 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
 import { Container } from "@/components/common/container";
 
-import { Calendar } from "@/components/ui/calendar";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { fi } from '@faker-js/faker';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
@@ -117,6 +109,8 @@ const AssetsTransferLog = () => {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
 
+    const navigate = useNavigate();
+
     const filteredTransferData = useMemo(() => {
         return TRANSFER_DATA.filter((item) => {
 
@@ -131,18 +125,10 @@ const AssetsTransferLog = () => {
                 item.fromLocation.toLowerCase().includes(keyword) ||
                 item.toLocation.toLowerCase().includes(keyword);
 
-            const matchesDate =
-                !dateRange.from ||
-                !dateRange.to ||
-                (
-                    new Date(item.transferDate) >= dateRange.from &&
-                    new Date(item.transferDate) <= dateRange.to
-                );
-
-            return matchesSearch && matchesDate;
+            return matchesSearch ;
         });
 
-    }, [search, dateRange]);
+    }, [search]);
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, itemLabel: row.name });
         setShowDeleteConfirm(true);
@@ -303,18 +289,18 @@ const AssetsTransferLog = () => {
     });
     return (
        <Container>
-         <div className='p-4 md:p-6'>
+         <div className='p-4 mx-auto'>
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
+                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
                 <span className="text-[#084E92] font-medium">Asset Transfer Log</span>
             </div>
 
-            <div className='flex justify-between flex-col gap-5 sm:flex-row'>
+            <div className='flex justify-between flex-col gap-5 md:flex-row'>
                 <div>
-                    <h1 className="text-2xl font-bold">
+                    <h1 className="font-bold text-[#101828] text-[28px]">
                         Asset Transfer Log
                     </h1>
 
@@ -323,14 +309,14 @@ const AssetsTransferLog = () => {
                         locations with high-fidelity tracking.
                     </p>
                 </div>
-                <div className='flex gap-5'>
-                    <button className="flex items-center cursor-pointer gap-2 h-11 px-5 border rounded-xl text-[#0B5CAB] hover:bg-gray-50 transition-colors duration-200">
+                <div className='flex gap-5 self-end'>
+                    <button className="flex items-center w-max cursor-pointer gap-2 h-11 px-5 border rounded-lg text-[#0B5CAB] hover:bg-gray-50 transition-colors duration-200">
                         <Download size={16} />
                         Export
                     </button>
                     <Link
                         to="/assets/asset-transfer"
-                        className="flex items-center cursor-pointer gap-2 h-11 px-5 rounded-xl bg-[#0B5CAB] text-white font-medium hover:bg-[#094b8f] transition"
+                        className="flex items-center w-max cursor-pointer gap-2 h-11 px-5 rounded-lg bg-[#084E92] text-white font-medium hover:bg-[#094b8f] transition"
                     >
                         <CalendarSync size={16} />
                         Transfer New Asset
@@ -345,7 +331,7 @@ const AssetsTransferLog = () => {
                     return (
                         <div
                             key={index}
-                            className="bg-white rounded-2xl border p-4 shadow-sm"
+                            className="border border-[#C3C6D1] rounded-2xl p-4 shadow-sm"
                         >
                             <div className="w-6 h-6 rounded bg-[#EAF3FF] flex items-center justify-center mb-2">
                                 <Icon size={15} className="text-[#0B5CAB]" />
@@ -366,12 +352,12 @@ const AssetsTransferLog = () => {
                 })}
             </div>
 
-            <div className="bg-white border border-[#E6EAF2] rounded-2xl p-6 mt-6">
+            <div className="mt-6">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
 
                     {/* Search */}
 
-                        <div className="relative md:col-span-3">
+                        <div className="relative md:col-span-4">
                             <Search
                                 size={18}
                                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -385,37 +371,6 @@ const AssetsTransferLog = () => {
                                 className="w-full h-11 rounded-xl border border-[#D9E2EC] pl-10 pr-4 text-sm outline-none"
                             />
                         </div>
-
-                    {/* Date Range 50% */}
-                    <div className='md:col-span-1'>
-
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <button className="w-full h-11 border border-[#D9E2EC] rounded-xl px-4 flex items-center gap-3">
-                                    <CalendarIcon className="w-4 h-4 text-gray-500" />
-
-                                    <span className="text-sm">
-                                        {dateRange.from
-                                            ? `${format(dateRange.from, "MMM dd, yyyy")} ${dateRange.to
-                                                ? `- ${format(dateRange.to, "MMM dd, yyyy")}`
-                                                : ""
-                                            }`
-                                            : "Select Date Range"}
-                                    </span>
-                                </button>
-                            </PopoverTrigger>
-
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="range"
-                                    selected={dateRange}
-                                    onSelect={setDateRange}
-                                    numberOfMonths={2}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-
                 </div>
             </div>
 

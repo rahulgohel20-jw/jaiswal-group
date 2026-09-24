@@ -33,6 +33,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -77,6 +78,8 @@ const AssetUnitList = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    
+    const navigate = useNavigate();
 
     const fetchUnits = async () => {
         setLoading(true);
@@ -307,26 +310,26 @@ const AssetUnitList = () => {
 
     return (
        <Container>
-         <div className="p-4 md:p-6">
+         <div className="p-4 mx-auto">
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
+                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
                 <span className="text-[#084E92] font-medium">Measure of unit Master</span>
             </div>
 
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+            <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Measure of unit Master</h1>
+                    <h1 className="font-bold text-[#101828] text-[28px]">Measure of Unit Master</h1>
                     <p className="text-[#737781] mt-1 text-sm">
                         Manage all measurement units used throughout the Asset Management module.
                     </p>
                 </div>
 
-                <div className="flex gap-3 self-end">
-                    <button type="button" className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white">
+                <div className="flex gap-3 sm:self-end">
+                    <button type="button" className="px-4 py-2 border w-max border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white">
                         <Upload size={16} />
                         Export
                     </button>
@@ -334,7 +337,7 @@ const AssetUnitList = () => {
                         <button
                             type="button"
                             onClick={handleAddClick}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                            className="px-4 py-2 bg-[#084E92] text-white w-max rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                         >
                             <Plus size={16} />
                             Add Unit
@@ -359,7 +362,7 @@ const AssetUnitList = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
 
-                <div className="relative border border-[#C3C6D1] rounded-lg">
+                <div className="relative border border-[#C3C6D1] rounded-xl">
                     <Search
                         className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                         size={18}
@@ -367,7 +370,7 @@ const AssetUnitList = () => {
 
                     <input
                         placeholder="Search Unit Name or Symbol..."
-                        className="w-full pl-10 py-2 outline-none rounded-lg"
+                        className="w-full pl-10 py-2 outline-none rounded-xl"
                         value={searchText}
                         onChange={(e) => { setSearchText(e.target.value); }}
                     />
@@ -377,7 +380,7 @@ const AssetUnitList = () => {
                         value={statusFilter}
                         onValueChange={(value) => setStatusFilter(value)}
                     >
-                        <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                        <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                             <SelectValue placeholder="All Status" />
                         </SelectTrigger>
 

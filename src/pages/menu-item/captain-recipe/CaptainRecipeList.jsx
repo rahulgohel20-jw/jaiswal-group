@@ -28,6 +28,7 @@ import { Container } from '@/components/common/container';
 import { getOrgIdFromToken } from '../../../utils/auth';
 import CreateCaptainRecipe from './CreateCaptainRecipe';
 import { deleteCaptainRecipeById, getCaptainRecipeById, syncCaptainRecipes, updateCaptainRecipeStatus } from '../../../services/apiServices';
+import { useNavigate } from 'react-router';
 
 const ORG_ID = getOrgIdFromToken();
 
@@ -49,6 +50,7 @@ const CaptainRecipeList = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const navigate = useNavigate();
 
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, itemLabel: row.name });
@@ -399,23 +401,25 @@ const CaptainRecipeList = () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
+            <div className="p-4 mx-auto">
                 {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
+                    <ChevronRight size={12} />
+                    <span>Menu Item</span>
                     <ChevronRight size={12} />
                     <span className="text-[#084E92] font-medium">Captain Recipes</span>
                 </div>
 
                 <div className="flex justify-between flex-col lg:flex-row gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+                        <h1 className="font-bold text-[#101828] text-[28px] text-start mb-1">
                             Captain Recipes
                         </h1>
                     </div>
                 </div>
 
-                <div className="bg-white py-5">
+                <div className="bg-white mt-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="relative w-full md:w-96">
                             <Search

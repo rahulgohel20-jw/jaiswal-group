@@ -8,6 +8,7 @@ import {
   Building2,
   Check,
   ChevronDown,
+  ChevronRight,
   ClipboardList,
   Landmark,
   Map,
@@ -54,7 +55,7 @@ import {
   lookupIFSC,
 } from '@/utils/validations';
 import SearchableSelect from '../../utils/SearchableSelect';
-
+import { Container } from '@/components/common/container';
 
 
 const inputCls =
@@ -347,7 +348,7 @@ const AddressFields = ({
   errors = {},
 }) => (
   <div className="space-y-4">
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <Label required>Country</Label>
         <SearchableSelect
@@ -402,7 +403,7 @@ const AddressFields = ({
       />
     </div>
 
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <Label required>City</Label>
         <SearchableSelect
@@ -1259,12 +1260,22 @@ const handleIfscBlur = async (bankId, ifscValue) => {
   }
 
   return (
-    <div className="mx-4 min-h-screen p-4 md:p-6">
+     <Container>
+    <div className="mx-auto p-4">
+      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
+          <ChevronRight size={12} />
+          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate(-1)}>Vendors</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">
+             Add Vendor  
+          </span>
+        </div>
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
+        <h1 className="font-bold text-[#101828] text-[28px]">
           {isEditMode ? 'Update Vendor' : 'Vendor Registration'}
         </h1>
-        <p className="text-[#43474F]">
+        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
           {isEditMode
             ? `Update the account details for ${editingVendor?.fullName ?? editingVendor?.name ?? 'this vendor'}.`
             : 'Onboard a new vendor to the Jaiswal ERP ecosystem with comprehensive business and financial details.'}
@@ -1283,7 +1294,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
 
         {openSection === SECTIONS.PERSONAL && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label required>Vendor Name</Label>
                 <input
@@ -1325,7 +1336,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
             </div>
 
             <div
-              className={`grid ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}
+              className={`grid grid-cols-1 ${isEditMode ? 'sm:grid-cols-2' : 'grid-cols-1'} gap-4`}
             >
               {isEditMode && (
                 <div>
@@ -1349,7 +1360,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label required>Email Address</Label>
                 <input
@@ -1480,7 +1491,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
           <div className="px-6 py-6 space-y-6">
             <div className="space-y-5">
               {/* Registration Toggles (Side-by-side Interactive Cards) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* GST Toggle Card */}
                 <div
                   onClick={() => {
@@ -1497,7 +1508,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs'
                   }`}
                 >
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3.5">
                     <div
                       className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
                         form.isGstApplicable
@@ -1508,12 +1519,12 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       <Receipt size={20} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-0.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-0.5">
                         <span className="text-sm font-bold text-gray-900">
                           GST Registered Vendor
                         </span>
                         <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
+                          className={`text-[10px] font-bold uppercase w-max tracking-wider px-2 py-0.5 mb-1 rounded-full border transition-colors ${
                             form.isGstApplicable
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-gray-100 text-gray-500 border-gray-200'
@@ -1557,7 +1568,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs'
                   }`}
                 >
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3.5">
                     <div
                       className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
                         form.msmeRegistered
@@ -1568,12 +1579,12 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       <ShieldCheck size={20} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-0.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-0.5">
                         <span className="text-sm font-bold text-gray-900">
                           MSME / Udyam Registered
                         </span>
                         <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
+                          className={`text-[10px] font-bold uppercase w-max mb-1 tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
                             form.msmeRegistered
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
                               : 'bg-gray-100 text-gray-500 border-gray-200'
@@ -1605,7 +1616,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
               {/* GST Fields (Expanded) */}
               {form.isGstApplicable && (
                 <div className="p-5 rounded-2xl border border-blue-100/90 bg-gradient-to-b from-blue-50/40 to-slate-50/20 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-blue-100/70 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-blue-100/70 pb-3">
                     <div className="flex items-center gap-2">
                       <span className="w-6 h-6 rounded-md bg-[#084E92]/10 flex items-center justify-center text-[#084E92]">
                         <Receipt className="w-3.5 h-3.5" />
@@ -1614,7 +1625,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                         GST Registration Information
                       </h4>
                     </div>
-                    <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs font-medium text-emerald-700  w-max my-2 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                       GST Invoice Applicable
                     </span>
                   </div>
@@ -1666,7 +1677,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
               {/* MSME Fields (Expanded) */}
               {form.msmeRegistered && (
                 <div className="p-5 rounded-2xl border border-blue-100/90 bg-gradient-to-b from-blue-50/40 to-slate-50/20 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-blue-100/70 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-blue-100/70 pb-3">
                     <div className="flex items-center gap-2">
                       <span className="w-6 h-6 rounded-md bg-[#084E92]/10 flex items-center justify-center text-[#084E92]">
                         <ShieldCheck className="w-3.5 h-3.5" />
@@ -1675,7 +1686,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                         MSME / Udyam Details
                       </h4>
                     </div>
-                    <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs font-medium text-blue-700 w-max my-2 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
                       MSME Benefits Linked
                     </span>
                   </div>
@@ -1719,7 +1730,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
             </div>
 
             <div className="border-t border-gray-100 pt-6 space-y-5">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Currency</Label>
                   <SearchableSelect
@@ -1963,7 +1974,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       <X className="w-4 h-4" />
                     </button>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label required>Account Holder Name</Label>
                       <input
@@ -1994,7 +2005,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       <ErrorText error={be.bankName} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label required>Account Number</Label>
                       <input
@@ -2188,6 +2199,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
         />
       )}
     </div>
+    </Container>
   );
 };
 

@@ -16,6 +16,7 @@ import {
   CirclePlus,
   ImagePlus,
   X,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from 'react-aria-components';
 import AddCategoryModal from '../categories/AddCategoryModal';
@@ -39,6 +40,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { Input } from "@/components/ui/input";
 import SearchableSelect from '../../../utils/SearchableSelect';
+import { Container } from "@/components/common/container";
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -842,10 +844,21 @@ const AddAsset = () => {
   }
 
   return (
-    <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">
+    <Container>
+    <div className="mx-auto px-4">
+
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
+          <ChevronRight size={12} />
+          <span>Asset Management</span>
+          <ChevronRight size={12} />
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate(-1)}>Assets</span>
+          <ChevronRight size={12} />
+          <span className="text-[#084E92] font-medium">Assets Registration</span>
+        </div>
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold">
+          <h1 className="font-bold text-[#101828] text-[28px]">
             {isEditMode ? 'Edit Asset' : 'Asset Registration'}
           </h1>
           <p className="text-[#43474F] mt-2 text-sm">
@@ -1406,6 +1419,7 @@ const AddAsset = () => {
         </div>
       )}
     </div>
+    </Container>
   );
 };
 

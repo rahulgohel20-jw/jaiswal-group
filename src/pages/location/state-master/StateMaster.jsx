@@ -17,6 +17,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddStateModel from './AddStateModel';
+import { useNavigate } from 'react-router';
 
 const StateMaster = () => {
     const { canAdd, canEdit, canDelete, canView } = usePagePermissions('State');
@@ -38,6 +39,7 @@ const StateMaster = () => {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
 
+    const navigate = useNavigate();
     const fetchStates = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -223,27 +225,27 @@ const StateMaster = () => {
 
     return (
         <Container>
-            <div className='p-4 md:p-6'>
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
+            <div className='p-4 mx-auto'>
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
                     <span>Location Master</span>
                     <ChevronRight size={12} />
                     <span className="text-[#084E92] font-medium">State</span>
                 </div>
 
-                <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+                <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+                        <h1 className="font-bold text-[#101828] text-[28px] text-start">
                             State Master
                         </h1>
                     </div>
 
-                    <div className="flex gap-3 self-end">
+                    <div className="flex gap-3 sm:self-end">
                         {canAdd && (
                             <button
                                 onClick={openAddModal}
-                                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
+                                className="px-4 py-2 bg-[#084E92] border w-max border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
                             >
                                 <Plus size={16} />
                                 Add State
@@ -252,7 +254,7 @@ const StateMaster = () => {
                     </div>
                 </div>
 
-                <div className="bg-white py-5">
+                <div className="bg-white pt-5">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div className="relative w-full md:w-96">
                             <Search

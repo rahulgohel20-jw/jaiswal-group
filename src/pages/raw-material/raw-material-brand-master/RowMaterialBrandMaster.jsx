@@ -41,6 +41,7 @@ import {
   updateRawMaterialBrand,
 } from '../../../services/apiServices';
 import AddRawMaterialBrand from './AddRawMaterialBrand';
+import { useNavigate } from 'react-router';
 
 const RowMaterialBrandMaster = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Brand Master');
@@ -61,7 +62,7 @@ const RowMaterialBrandMaster = () => {
   const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [activeBrandCount, setActiveBrandCount] = useState(0);
-
+  const navigate = useNavigate();
   const fetchBrands = async () => {
     try {
       const response = await getAllRawMaterialBrand();
@@ -409,24 +410,24 @@ const RowMaterialBrandMaster = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Master Data</span>
+          <span>Raw Material</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">
             Raw Material Brand Master
           </span>
         </div>
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+        <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+            <h1 className="text-[28px] font-bold text-[#101828] text-start">
               Raw Material Brand Master
             </h1>
-            <p className="text-sm text-gray-400 mt-1 max-w-xl">
+            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
               Manage and track raw material brands used across the organization.
             </p>
           </div>
@@ -435,7 +436,7 @@ const RowMaterialBrandMaster = () => {
             <button
               type="button"
               onClick={handleAddClick}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+              className="px-4 py-2 bg-[#084E92] w-max self-end text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
             >
               <Plus size={16} />
               Create Brand
@@ -463,16 +464,16 @@ const RowMaterialBrandMaster = () => {
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-0">
+        <div className="flex flex-col gap-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative border border-[#C3C6D1] rounded-lg">
+            <div className="relative border border-[#C3C6D1] rounded-xl">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 size={18}
               />
               <input
                 placeholder="Search brands..."
-                className="w-full pl-10 py-2 outline-none rounded-lg"
+                className="w-full pl-10 py-2 outline-none rounded-xl"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
               />
@@ -482,7 +483,7 @@ const RowMaterialBrandMaster = () => {
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value)}
             >
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>

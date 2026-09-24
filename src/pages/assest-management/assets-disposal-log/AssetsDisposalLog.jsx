@@ -401,9 +401,9 @@ const AssetsDisposalLog = () => {
 
     return (
         <Container>
-            <div className='p-4 md:p-6'>
+            <div className='p-4 mx-auto'>
                 <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                    <span>Dashboard</span>
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
                     <span>Asset Management</span>
                     <ChevronRight size={12} />
@@ -412,20 +412,20 @@ const AssetsDisposalLog = () => {
 
                 <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold">Asset Disposal Log</h1>
-                        <p className="text-[#6B7280] mt-1 text-sm">
+                        <h1 className="font-bold text-[#101828] text-[28px]">Asset Disposal Log</h1>
+                        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
                             Audit-ready records for organization-wide asset retirements.
                         </p>
                     </div>
 
-                    <div className="flex gap-3">
-                        <button className="flex text-sm cursor-pointer items-center gap-2 px-4 py-2 border border-[#D7DCE5] bg-white rounded-xl text-[#0B5CAB] font-medium hover:bg-slate-50">
+                    <div className="flex gap-3 self-end">
+                        <button className="flex text-sm cursor-pointer w-max items-center gap-2 px-4 py-2 border border-[#D7DCE5] bg-white rounded-lg text-[#0B5CAB] font-medium hover:bg-slate-50">
                             <Download size={16} />
                             Export
                         </button>
                         {canAdd && (
                             <Link to="/assets/add-disposal">
-                                <button className="flex text-sm w-max cursor-pointer items-center gap-2 px-5 py-2.5 bg-[#084E92] text-white rounded-xl font-medium shadow-md hover:bg-[#084E92]">
+                                <button className="flex text-sm w-max cursor-pointer items-center gap-2 px-5 py-2.5 bg-[#084E92] text-white rounded-lg font-medium shadow-md hover:bg-[#084E92]">
                                     <CirclePlus size={18} />
                                     New Disposal Entry
                                 </button>
@@ -456,10 +456,10 @@ const AssetsDisposalLog = () => {
                     })}
                 </div>
 
-                <div className="bg-white border border-[#E6EAF2] rounded-xl p-6">
+                <div>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="md:col-span-3">
-                            <div className="relative rounded-md">
+                            <div className="relative rounded-xl">
                                 <input
                                     value={searchText}
                                     onChange={(e) => {
@@ -467,7 +467,7 @@ const AssetsDisposalLog = () => {
                                         setPagination({ pageIndex: 0, pageSize: 10 });
                                     }}
                                     placeholder="Search Asset ID, Name, or Approved By..."
-                                    className="w-full h-10 border border-[#DCE3EE] rounded-md pl-4 pr-4 outline-none"
+                                    className="w-full h-10 border border-[#DCE3EE] rounded-xl pl-4 pr-4 outline-none"
                                 />
                             </div>
                         </div>
@@ -481,7 +481,7 @@ const AssetsDisposalLog = () => {
                                         setPagination({ pageIndex: 0, pageSize: 10 });
                                     }}
                                     placeholder="Select timeframe"
-                                    className="w-full h-10 border border-[#DCE3EE] rounded-md pl-4 pr-4 outline-none"
+                                    className="w-full h-10 border border-[#DCE3EE] rounded-xl pl-4 pr-4 outline-none"
                                 />
                             </div>
                         </div>

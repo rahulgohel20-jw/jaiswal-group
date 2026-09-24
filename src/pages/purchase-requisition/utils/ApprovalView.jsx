@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { getAllRawMaterialItems, getCurrentStockListGet } from "@/services/apiServices";
 import SearchableSelect from "@/utils/SearchableSelect";
+import { useNavigate } from "react-router";
+import { Container } from '@/components/common/container';
 
 const FONT_IMPORT_URL =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap";
@@ -176,7 +178,7 @@ export default function ApprovalView({
   onReject,
 }) {
   const isReject = mode === "reject";
-
+  const navigate = useNavigate();
   // ---- Item state ----
   const [items, setItems] = useState(() =>
     (requisition?.details ?? []).map(mapItem)
@@ -396,12 +398,13 @@ export default function ApprovalView({
 
   // ---- Render ----
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
+     <Container>
+    <div className="mx-auto px-4">
       <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
 
       <button
         onClick={onBack}
-        className="cursor-pointer flex items-center gap-1.5 text-sm font-medium text-[#475467] hover:text-[#101828] mb-5 transition-colors"
+        className="cursor-pointer flex items-center gap-1.5 text-sm font-medium text-[#475467] hover:text-[#101828] mb-3 transition-colors"
       >
         <ArrowLeft size={15} />
         Back to approvals
@@ -439,7 +442,7 @@ export default function ApprovalView({
           </span>
         </div>
 
-        <div className="grid grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
           <Field label="PR code" value={requisition?.code} mono accent />
           <Field label="PR date" value={requisition?.date} />
           <Field label="Outlet location" value={requisition?.outlet} />
@@ -672,5 +675,6 @@ export default function ApprovalView({
         )}
       </div>
     </div>
+    </Container>
   );
 }

@@ -34,6 +34,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useNavigate } from 'react-router';
 const StatusBadge = ({ status }) => {
     const styles = {
         Active: "bg-green-100 text-green-700",
@@ -65,7 +66,7 @@ const mapSubCategory = (c, cats) => ({
 
 const AssetSubCategory = () => {
     const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Category Master');
-
+    const navigate = useNavigate();
     const [subCategories, setSubCategories] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -347,31 +348,31 @@ const confirmDelete = async () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
+            <div className="p-4 mx-auto">
             {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
+            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
                 <ChevronRight size={12} />
                 <span>Asset Management</span>
                 <ChevronRight size={12} />
                 <span className="text-[#084E92] font-medium">Sub Category Master</span>
             </div>
 
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+            <div className="flex justify-between md:items-center flex-col md:flex-row gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Asset Sub Categories</h1>
-                    <p className="text-[#737781] mt-1 text-sm">
+                    <h1 className="font-bold text-[#101828] text-[28px]">Asset Sub Categories</h1>
+                    <p className="text-[#667085] text-sm mt-1.5 max-w-2xl">
                         Manage sub-categories under each asset category for better classification, reporting, and
                         inventory management.
                     </p>
                 </div>
 
                 {canAdd && (
-                    <div className="flex gap-3 self-end">
+                    <div className="flex gap-3 md:self-end">
                         <button
                             type="button"
                             onClick={openCreateModal}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
+                            className="px-4 py-2 bg-[#084E92] w-max text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
                         >
                             <Plus size={16} />
                             Add Sub Category
@@ -393,11 +394,11 @@ const confirmDelete = async () => {
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
 
-                    <div className="relative w-full border border-[#C3C6D1] rounded-lg">
+                    <div className="relative w-full border border-[#C3C6D1] rounded-xl">
                         <Search
                             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                             size={18}
@@ -419,7 +420,7 @@ const confirmDelete = async () => {
                                 value={categoryFilter}
                                 onValueChange={(value) => setCategoryFilter(value)}
                             >
-                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                     <SelectValue placeholder="All Categories" />
                                 </SelectTrigger>
 
@@ -449,7 +450,7 @@ const confirmDelete = async () => {
                                 value={statusFilter}
                                 onValueChange={(value) => setStatusFilter(value)}
                             >
-                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
 
