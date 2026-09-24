@@ -199,6 +199,7 @@ import ManualAdjustmentScreenListing from '../pages/inventory/manual-adjustment/
 import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateManualAdjustment';
 import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
 // import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
+import EventSsoRedirect from '../pages/event/EventSsoRedirect';
 
 
 export function AppRoutingSetup() {
@@ -220,15 +221,15 @@ export function AppRoutingSetup() {
           <Route path="/change-password" element={<ChangePasswordPage />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
-
           <Route path='/my-profile' element={<UserProfile />} />
 
-          {/* Event Module Routes */}
-          <Route path="/events" element={<EventListing />} />
-          <Route path="/events/add" element={<AddEvent />} />
-          <Route path="/events/edit/:id" element={<AddEvent />} />
-          <Route path="/events/view/:id" element={<EventViewDetails />} />
-          <Route path="/events/types" element={<EventTypeMaster />} />
+          {/* Event Module SSO Routes */}
+          <Route path="/events" element={<EventSsoRedirect defaultPath="/events/calendar" />} />
+          <Route path="/events/add" element={<EventSsoRedirect defaultPath="/events/add" />} />
+          <Route path="/events/calendar" element={<EventSsoRedirect defaultPath="/events/calendar" />} />
+          <Route path="/events/types" element={<EventSsoRedirect defaultPath="/events/types" />} />
+          <Route path="/events/inquiries" element={<EventSsoRedirect defaultPath="/events/inquiries" />} />
+          <Route path="/events/*" element={<EventSsoRedirect />} />
 
           <Route path="/companies" element={<CompaniesListing />} />
 

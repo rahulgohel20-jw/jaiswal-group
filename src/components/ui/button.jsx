@@ -370,24 +370,28 @@ const buttonVariants = cva(
   },
 );
 
-function Button({
-  className,
-  selected,
-  variant,
-  shape,
-  appearance,
-  mode,
-  size,
-  autoHeight,
-  underlined,
-  underline,
-  asChild = false,
-  placeholder = false,
-  ...props
-}) {
+const Button = React.forwardRef(function Button(
+  {
+    className,
+    selected,
+    variant,
+    shape,
+    appearance,
+    mode,
+    size,
+    autoHeight,
+    underlined,
+    underline,
+    asChild = false,
+    placeholder = false,
+    ...props
+  },
+  ref,
+) {
   const Comp = asChild ? SlotPrimitive.Slot : 'button';
   return (
     <Comp
+      ref={ref}
       data-slot="button"
       className={cn(
         buttonVariants({
@@ -408,7 +412,8 @@ function Button({
       {...props}
     />
   );
-}
+});
+Button.displayName = 'Button';
 
 function ButtonArrow({ icon: Icon = ChevronDown, className, ...props }) {
   return (

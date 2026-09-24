@@ -454,11 +454,7 @@ export const MENU_SIDEBAR = [
     title: 'Events',
     icon: CalendarCheck,
     path: '/events',
-    children: [
-      { title: 'Events List', path: '/events' },
-      { title: 'Create Event', path: '/events/add' },
-      { title: 'Event Types', path: '/events/types' },
-    ],
+    target: '_blank',
   },
   {
     title: 'Vendors',
@@ -589,11 +585,7 @@ export const MENU_SIDEBAR_ADMIN = [
     title: 'Events',
     icon: CalendarCheck,
     path: '/events',
-    children: [
-      { title: 'Events List', path: '/events' },
-      { title: 'Create Event', path: '/events/add' },
-      { title: 'Event Types', path: '/events/types' },
-    ],
+    target: '_blank',
   },
   { heading: 'Supply Chain' },
 

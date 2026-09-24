@@ -188,15 +188,23 @@ const PAGE_ALIASES = {
       }
     }
 
-    // Default permissions for new modules (Events) not yet present in database rightsMap
-    if (
-      lowerKey.includes('event') ||
-      lowerKey === 'events' ||
-      lowerKey === 'events list' ||
-      lowerKey === 'create event' ||
-      lowerKey === 'event types' ||
-      lowerKey === 'event management'
-    ) {
+    // Default permissions for Event Module (standalone app integration)
+    const isEventRelated = checkList.some((item) => {
+      const lk = String(item).trim().toLowerCase();
+      return (
+        lk.includes('event') ||
+        lk === 'events' ||
+        lk === 'events list' ||
+        lk === 'create event' ||
+        lk === 'event calendar' ||
+        lk === 'calendar' ||
+        lk === 'event types' ||
+        lk === 'inquiries' ||
+        lk === 'event management'
+      );
+    });
+
+    if (isEventRelated) {
       return { view: true, add: true, edit: true, delete: true, hasAccess: true };
     }
 
