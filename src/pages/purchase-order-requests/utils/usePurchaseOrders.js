@@ -138,7 +138,7 @@ export const usePurchaseOrders = () => {
   // this fires one call per status and merges the results.
   const fetchByOutletandStatus = useCallback(async (outletId, status) => {
     const finalOutletId = outletId === 'ALL' || !outletId ? 0 : outletId;
-    const statuses = Array.isArray(status) ? status : [status].filter(Boolean);
+    const statuses = Array.isArray(status) ? status : (status ? [status] : []);
 
     setLoading(true);
     setError(null);

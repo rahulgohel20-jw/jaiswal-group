@@ -481,6 +481,11 @@ const GenerateGRNDetail = () => {
       return;
     }
 
+    if (!invoiceFile) {
+      toast.error('Please upload an invoice file.');
+      return;
+    }
+
     // Validate quantities
     for (const item of items) {
       if (Number(item.approvedQty) < 0 || Number(item.returnQty) < 0) {
@@ -740,7 +745,9 @@ const GenerateGRNDetail = () => {
             </div>
 
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Invoice Upload</label>
+              <label className="text-xs font-medium text-gray-600 mb-1.5 block">
+                Invoice Upload <span className="text-red-500">*</span>
+              </label>
               <div className="relative">
                 <label className="w-full h-11 border border-dashed border-gray-300 rounded-xl px-3.5 flex items-center justify-between bg-white cursor-pointer hover:bg-gray-50 transition">
                   <span className={`text-sm truncate pr-6 ${invoiceFile ? 'font-semibold text-[#084E92]' : 'text-gray-400'}`}>

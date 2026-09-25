@@ -37,7 +37,8 @@
   import { usePagePermissions } from '@/utils/permissions';
   import { AccessDenied } from '@/components/common/AccessDenied';
   import { HeaderActionButton } from '@/components/common/HeaderActionButton';
-  import {
+import { CodeCell } from '@/components/common/CodeCell';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -110,21 +111,22 @@
     return (
       <div className="relative min-w-47.5">
         <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-        <Select value={value} onValueChange={onChange}>
-        <SelectTrigger
-          className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-        >
-          <SelectValue />
-        </SelectTrigger>
+        <Select value={value || 'all'} onValueChange={(val) => onChange(val === 'all' ? '' : val)}>
+          <SelectTrigger
+            className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+          >
+            <SelectValue placeholder="All Status" />
+          </SelectTrigger>
 
-        <SelectContent>
-          {PR_STATUS_LIST.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>
-              {opt.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            {PR_STATUS_LIST.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     );
   }
@@ -224,7 +226,7 @@
     const [prError, setPrError] = useState(null);
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState(PR_STATUS.PENDING); // default: Pending
+    const [statusFilter, setStatusFilter] = useState(''); // default: all statuses
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -236,7 +238,7 @@
       setLoading(true);
       setPrError(null);
       try {
-        const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId, statusFilter || PR_STATUS.PENDING);
+        const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId);
         const raw = res?.data?.data ?? res?.data ?? res ?? [];
         const rows = Array.isArray(raw) ? raw.map(normalizeRow) : [];
         const scopedRows = filterRowsByScope(rows);
@@ -246,7 +248,7 @@
       } finally {
         setLoading(false);
       }
-    }, [scopeLoading, effectiveOutletId, statusFilter, filterRowsByScope]);
+    }, [scopeLoading, effectiveOutletId, filterRowsByScope]);
 
     useEffect(() => {
       loadData();
@@ -280,7 +282,7 @@
     };
 
     const filteredRows = useMemo(() => {
-      let rows = list.filter((r) => r.rawStatus === statusFilter);
+      let rows = statusFilter ? list.filter((r) => r.rawStatus === statusFilter) : list;
       const q = searchQuery.trim().toLowerCase();
       if (q) {
         rows = rows.filter(
@@ -319,9 +321,10 @@
             <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => (
-            <span className="font-semibold text-[#084E92]">{row.original.prCode}</span>
+            <CodeCell code={row.original.prCode} maxWidth="max-w-[190px]" />
           ),
-          size: 140,
+          size: 195,
+          minSize: 180,
         },
         {
           id: 'date',
@@ -456,7 +459,7 @@
             <span className="text-[#084E92] font-medium">Purchase Requisition List</span>
           </div>
 
-          <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
                 Purchase Requisition List

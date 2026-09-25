@@ -7,11 +7,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import {
+  Building2,
   ChevronDown,
   ChevronRight,
+  Handshake,
   Link2,
   Search,
   Trash2,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
@@ -40,6 +43,40 @@ import {
   getOrganizationByType,
 } from '../../services/apiServices';
 import { useNavigate } from 'react-router';
+
+// Truncates long text within a fixed-width box, revealing the full value on hover
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-[180px]',
+  className = 'text-gray-600',
+}) => (
+  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+    {value}
+  </span>
+);
+
+const StatCard = ({
+  icon: Icon,
+  iconBg = 'bg-[#D5E3FF]',
+  iconColor = 'text-[#00376C]',
+  label,
+  value,
+  valueColor = 'text-[#1B1B1F]',
+}) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div
+      className={`w-9 h-9 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}
+    >
+      <Icon className="w-5 h-5" />
+    </div>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className={`text-lg sm:text-xl font-bold mt-0.5 ${valueColor}`}>
+        {value}
+      </span>
+    </div>
+  </div>
+);
 
 const SingleSelectDropdown = ({
   label,
@@ -78,16 +115,16 @@ const SingleSelectDropdown = ({
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
+      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
         {label}
       </label>
 
       <div
         onClick={() => setOpen((prev) => !prev)}
-        className="h-11 w-full border border-[#C3C6D1] rounded-lg px-3 flex items-center justify-between gap-2 cursor-pointer bg-white"
+        className="h-10 w-full border border-gray-200 hover:border-gray-300 rounded-xl px-3.5 flex items-center justify-between gap-2 cursor-pointer bg-white transition shadow-2xs"
       >
         <span
-          className={`text-sm truncate ${selected ? 'text-[#1B1B1F]' : 'text-gray-400'}`}
+          className={`text-xs sm:text-sm truncate ${selected ? 'font-medium text-gray-900' : 'text-gray-400'}`}
         >
           {selected ? selected.name : placeholder}
         </span>
@@ -95,20 +132,20 @@ const SingleSelectDropdown = ({
           {selected && (
             <X
               size={14}
-              className="text-gray-400 hover:text-red-500"
+              className="text-gray-400 hover:text-red-500 transition"
               onClick={(e) => {
                 e.stopPropagation();
                 onChange(null);
               }}
             />
           )}
-          <ChevronDown size={16} className="text-gray-400" />
+          <ChevronDown size={15} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
-          <div className="relative border-b border-[#C3C6D1]">
+        <div className="absolute z-30 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col animate-in fade-in-50 duration-100">
+          <div className="relative border-b border-gray-100 bg-gray-50/50">
             <Search
               size={14}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -117,19 +154,19 @@ const SingleSelectDropdown = ({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-8 pr-3 py-2 text-sm outline-none"
+              placeholder="Search vendor..."
+              className="w-full pl-8.5 pr-3 py-2 text-xs sm:text-sm outline-none bg-transparent"
             />
           </div>
 
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto divide-y divide-gray-50">
             {loading && (
-              <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>
+              <p className="px-3 py-2.5 text-xs text-gray-400">Loading vendors...</p>
             )}
 
             {!loading && filteredOptions.length === 0 && (
-              <p className="px-3 py-2 text-sm text-gray-400">
-                No results found.
+              <p className="px-3 py-2.5 text-xs text-gray-400">
+                No vendors found.
               </p>
             )}
 
@@ -139,9 +176,16 @@ const SingleSelectDropdown = ({
                   type="button"
                   key={option.id}
                   onClick={() => handlePick(option)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-[#F4F7FF]"
+                  className={`w-full text-left px-3.5 py-2 text-xs sm:text-sm transition flex items-center justify-between ${
+                    selected?.id === option.id
+                      ? 'bg-blue-50 text-[#084E92] font-semibold'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
                 >
-                  {option.name}
+                  <span>{option.name}</span>
+                  {selected?.id === option.id && (
+                    <span className="text-[#084E92] text-xs font-bold">✓</span>
+                  )}
                 </button>
               ))}
           </div>
@@ -196,27 +240,34 @@ const MultiSelectDropdown = ({
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
-        {label}
-      </label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-semibold text-gray-700 block">
+          {label}
+        </label>
+        {selected.length > 0 && (
+          <span className="text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">
+            {selected.length} selected
+          </span>
+        )}
+      </div>
 
       <div
         onClick={() => setOpen((prev) => !prev)}
-        className="min-h-11 w-full border border-[#C3C6D1] rounded-lg px-2.5 py-1.5 flex flex-wrap items-center gap-1.5 cursor-pointer bg-white"
+        className="min-h-10 w-full border border-gray-200 hover:border-gray-300 rounded-xl px-2.5 py-1.5 flex flex-wrap items-center gap-1.5 cursor-pointer bg-white transition shadow-2xs"
       >
         {selected.length === 0 && (
-          <span className="text-gray-400 text-sm px-1">{placeholder}</span>
+          <span className="text-gray-400 text-xs sm:text-sm px-1">{placeholder}</span>
         )}
 
         {selected.map((item) => (
           <span
             key={item.id}
-            className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-1 rounded-md"
+            className="flex items-center gap-1 bg-blue-50 text-[#084E92] border border-blue-100 text-xs font-medium px-2.5 py-0.5 rounded-lg"
           >
             {item.name}
             <X
               size={12}
-              className="cursor-pointer hover:text-red-500"
+              className="cursor-pointer hover:text-red-500 transition"
               onClick={(e) => {
                 e.stopPropagation();
                 removeOption(item.id);
@@ -225,12 +276,12 @@ const MultiSelectDropdown = ({
           </span>
         ))}
 
-        <ChevronDown size={16} className="ml-auto text-gray-400 shrink-0" />
+        <ChevronDown size={15} className={`ml-auto text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
-          <div className="relative border-b border-[#C3C6D1]">
+        <div className="absolute z-30 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col animate-in fade-in-50 duration-100">
+          <div className="relative border-b border-gray-100 bg-gray-50/50">
             <Search
               size={14}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -239,19 +290,19 @@ const MultiSelectDropdown = ({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-8 pr-3 py-2 text-sm outline-none"
+              placeholder="Search units..."
+              className="w-full pl-8.5 pr-3 py-2 text-xs sm:text-sm outline-none bg-transparent"
             />
           </div>
 
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto divide-y divide-gray-50">
             {loading && (
-              <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>
+              <p className="px-3 py-2.5 text-xs text-gray-400">Loading units...</p>
             )}
 
             {!loading && filteredOptions.length === 0 && (
-              <p className="px-3 py-2 text-sm text-gray-400">
-                No results found.
+              <p className="px-3 py-2.5 text-xs text-gray-400">
+                No units found.
               </p>
             )}
 
@@ -259,15 +310,17 @@ const MultiSelectDropdown = ({
               filteredOptions.map((option) => (
                 <label
                   key={option.id}
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#F4F7FF] cursor-pointer"
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-[#084E92] cursor-pointer transition"
                 >
                   <input
                     type="checkbox"
                     checked={isSelected(option.id)}
                     onChange={() => toggleOption(option)}
-                    className="accent-[#084E92]"
+                    className="w-4 h-4 rounded text-[#084E92] accent-[#084E92] cursor-pointer"
                   />
-                  {option.name}
+                  <span className={isSelected(option.id) ? 'font-semibold text-[#084E92]' : ''}>
+                    {option.name}
+                  </span>
                 </label>
               ))}
           </div>
@@ -338,6 +391,7 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
 };
 
 const VendorUnitMapping = () => {
+  const navigate = useNavigate();
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Vendor Unit Mapping');
 
   const [vendors, setVendors] = useState([]);
@@ -364,6 +418,14 @@ const VendorUnitMapping = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const totalUnitsCount = useMemo(() => {
+    const unitSet = new Set();
+    mappings.forEach((m) => {
+      (m.units || []).forEach((u) => unitSet.add(u.id));
+    });
+    return unitSet.size;
+  }, [mappings]);
 
   // Vendors from the real API.
   useEffect(() => {
@@ -539,96 +601,107 @@ const VendorUnitMapping = () => {
         id: 'sno',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="SR. NO"
+            title="S.NO"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-gray-500 font-semibold"
           />
         ),
-        cell: ({ row }) =>
-          pagination.pageIndex * pagination.pageSize + row.index + 1,
+        cell: ({ row }) => (
+          <span className="text-gray-500">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
+        ),
         enableSorting: false,
-        size: 80,
+        size: 70,
       },
       {
         id: 'vendor',
+        accessorFn: (row) => row.vendor?.name,
         header: ({ column }) => (
-          <DataGridColumnHeader
-            title="VENDOR NAME"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
+          <DataGridColumnHeader title="Vendor Name" column={column} />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-[#1B1B1F]">
-            {row.original.vendor?.name}
-          </span>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-blue-100 text-[#084E92] flex items-center justify-center text-xs font-semibold shrink-0">
+              {(row.original.vendor?.name || 'V').charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 leading-none truncate">
+                {row.original.vendor?.name}
+              </p>
+            </div>
+          </div>
         ),
+        size: 220,
       },
       {
         id: 'gstRegisteredName',
+        accessorFn: (row) => row.vendor?.gstRegisteredName,
         header: ({ column }) => (
-          <DataGridColumnHeader
-            title="REGISTERED COMPANY NAME"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
+          <DataGridColumnHeader title="Registered Company Name" column={column} />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-[#1B1B1F]">
-            {row.original.vendor?.gstRegisteredName ?? '—'}
-          </span>
+          <TruncatedCell
+            value={row.original.vendor?.gstRegisteredName || '—'}
+            widthClass="max-w-[200px]"
+          />
         ),
+        size: 200,
       },
       {
         id: 'units',
         header: ({ column }) => (
-          <DataGridColumnHeader
-            title="UNIT NAME"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
+          <DataGridColumnHeader title="Assigned Units" column={column} />
         ),
         cell: ({ row }) => (
-          <div className="flex flex-wrap gap-1.5">
-            {(row.original.units || []).map((u) => (
-              <span
-                key={u.id}
-                className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full"
-              >
-                {u.name}
-                {canDelete && (
-                  <X
-                    size={12}
-                    className="cursor-pointer hover:text-red-500"
-                    onClick={() => openRemoveUnitConfirm(row.original.vendor.id, u)}
-                  />
-                )}
-              </span>
-            ))}
+          <div className="flex flex-wrap gap-1.5 py-1">
+            {(row.original.units || []).length === 0 ? (
+              <span className="text-gray-400 text-xs italic">No units assigned</span>
+            ) : (
+              (row.original.units || []).map((u) => (
+                <span
+                  key={u.id}
+                  className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] border border-[#D0E2FF] text-xs font-medium px-2.5 py-0.5 rounded-md"
+                >
+                  {u.name}
+                  {canDelete && (
+                    <X
+                      size={12}
+                      className="cursor-pointer hover:text-red-500 transition ml-0.5"
+                      onClick={() => openRemoveUnitConfirm(row.original.vendor.id, u)}
+                    />
+                  )}
+                </span>
+              ))
+            )}
           </div>
         ),
         enableSorting: false,
+        size: 300,
       },
       {
         id: 'actions',
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="ACTION"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
+        header: () => (
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+            Actions
+          </span>
         ),
         cell: ({ row }) => (
-          canDelete ? (
-            <Trash2
-              size={18}
-              className="text-red-300 cursor-pointer hover:text-red-700"
-              onClick={() => openDeleteConfirm(row.original)}
-            />
-          ) : null
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() => openDeleteConfirm(row.original)}
+                className="text-red-300 hover:text-red-600 cursor-pointer p-1 rounded transition"
+                title="Delete mapping"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+          </div>
         ),
         enableSorting: false,
-        size: 100,
+        size: 90,
       },
     ],
     [canDelete, pagination],
@@ -641,18 +714,21 @@ const VendorUnitMapping = () => {
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    columnResizeMode: 'onChange',
   });
 
   if (!canView) {
     return <AccessDenied pageTitle="Vendor & Unit Mapping" />;
   }
-  const navigate = useNavigate();
+
   return (
     <Container>
       <div className="mx-auto p-4">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span onClick={() => navigate('/')} className='cursor-pointer'>Dashboard</span>
+          <span onClick={() => navigate('/')} className="cursor-pointer">
+            Dashboard
+          </span>
           <ChevronRight size={12} />
           <span>Vendors</span>
           <ChevronRight size={12} />
@@ -661,31 +737,29 @@ const VendorUnitMapping = () => {
           </span>
         </div>
 
-        <div>
-          <h1 className="text-[18px] font-bold text-[#101828]">
-            Vendor & Unit Mapping
-          </h1>
-          <p className="text-[#667085] text-sm mt-2 max-w-xl">
-            Map vendors to one or multiple units for procurement and purchase
-            management.
-          </p>
+        {/* Page header */}
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
+              Vendor & Unit Mapping
+            </h1>
+            <p className="text-[#667085] text-sm mt-1 max-w-xl">
+              Map vendors to one or multiple units for procurement and purchase management.
+            </p>
+          </div>
         </div>
 
         {/* Vendor Mapping Details */}
         {(canAdd || canEdit) && (
-          <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-            <h2 className="text-base font-semibold text-[#1B1B1F] pb-4 mb-4 border-b-2 border-[#F8FAFC]">
-              Vendor Mapping Details
-            </h2>
-
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-2xs mt-4 mb-6">
             {unitsError && (
-              <p className="text-sm text-red-500 mb-3">{unitsError}</p>
+              <p className="text-xs text-red-500 mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100">{unitsError}</p>
             )}
             {mappingsError && (
-              <p className="text-sm text-red-500 mb-3">{mappingsError}</p>
+              <p className="text-xs text-red-500 mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100">{mappingsError}</p>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_auto] gap-3.5 items-end">
               <SingleSelectDropdown
                 label="Vendor Name"
                 placeholder="Select a vendor"
@@ -708,95 +782,92 @@ const VendorUnitMapping = () => {
                 type="button"
                 onClick={handleSaveMapping}
                 disabled={saving || !selectedVendor || selectedUnits.length === 0}
-                className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                className="h-10 px-5 bg-[#084E92] hover:bg-[#073e77] active:scale-[0.99] text-white text-xs sm:text-sm font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
-                <Link2 size={16} />
+                <Link2 size={15} />
                 {saving ? 'Saving...' : 'Save Mapping'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Mapping Records */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-base font-semibold text-[#1B1B1F]">
-              Mapping Records
-            </h2>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative border border-[#C3C6D1] rounded-lg">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={16}
-                />
-                <input
-                  placeholder="Search records..."
-                  className="w-full sm:w-56 pl-9 pr-3 py-2 text-sm outline-none rounded-lg"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                />
-              </div>
-
-              <Select
-                value={vendorFilter || 'all'}
-                onValueChange={(value) =>
-                  setVendorFilter(value === 'all' ? '' : value)
-                }
-              >
-                <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue placeholder="Filter by Vendor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Vendors</SelectItem>
-                  {vendors.map((v) => (
-                    <SelectItem key={v.id} value={String(v.id)}>
-                      {v.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={unitFilter || 'all'}
-                onValueChange={(value) =>
-                  setUnitFilter(value === 'all' ? '' : value)
-                }
-              >
-                <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue placeholder="Filter by Unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Units</SelectItem>
-                  {units.map((u) => (
-                    <SelectItem key={u.id} value={String(u.id)}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="relative flex-1 border border-gray-200 hover:border-gray-300 rounded-xl bg-white transition shadow-2xs">
+            <Search
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search by vendor, registered company, or unit..."
+              className="w-full pl-10 pr-3 py-2.5 outline-none rounded-xl text-sm bg-transparent"
+            />
           </div>
 
-          <div className="w-full mt-5 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-            <DataGrid
-              table={table}
-              recordCount={filteredMappings.length}
-              className="rounded-2xl"
-            >
-              <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                </CardTable>
-                <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                  <DataGridPagination />
-                </CardFooter>
-              </Card>
-            </DataGrid>
-          </div>
+          <Select
+            value={vendorFilter || 'all'}
+            onValueChange={(value) =>
+              setVendorFilter(value === 'all' ? '' : value)
+            }
+          >
+            <SelectTrigger className="w-full sm:w-48 h-11 border-gray-200 hover:border-gray-300 rounded-xl bg-white transition shadow-2xs text-sm">
+              <SelectValue placeholder="Filter by Vendor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {vendors.map((v) => (
+                <SelectItem key={v.id} value={String(v.id)}>
+                  {v.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={unitFilter || 'all'}
+            onValueChange={(value) =>
+              setUnitFilter(value === 'all' ? '' : value)
+            }
+          >
+            <SelectTrigger className="w-full sm:w-48 h-11 border-gray-200 hover:border-gray-300 rounded-xl bg-white transition shadow-2xs text-sm">
+              <SelectValue placeholder="Filter by Unit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Units</SelectItem>
+              {units.map((u) => (
+                <SelectItem key={u.id} value={String(u.id)}>
+                  {u.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Listing Table */}
+        <div className="w-full my-6 border border-gray-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
+          {mappingsError && (
+            <p className="text-sm text-red-600 p-4">{mappingsError}</p>
+          )}
+          {mappingsLoading && (
+            <p className="text-sm text-gray-400 p-4">Loading mappings...</p>
+          )}
+
+          <DataGrid table={table} recordCount={filteredMappings.length}>
+            <Card className="rounded-t-none border-t-0">
+              <CardTable>
+                <ScrollArea>
+                  <DataGridTable />
+                  <ScrollBar orientation="horizontal" />
+                </ScrollArea>
+              </CardTable>
+              <CardFooter>
+                <DataGridPagination />
+              </CardFooter>
+            </Card>
+          </DataGrid>
         </div>
       </div>
 

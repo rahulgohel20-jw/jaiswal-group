@@ -893,7 +893,9 @@ export const getPurchaseRequisitionById = (id) => {
 };
 
 export const getPurchaseRequisitionsByOutlet = (outletId, status) => {
-  return GET('/purchase-requisitions/getbyoutlet', { outletId, status });
+  const params = { outletId };
+  if (status) params.status = status;
+  return GET('/purchase-requisitions/getbyoutlet', params);
 };
 
 export const getPurchaseRequisitionsByStatus = (status) => {
@@ -972,7 +974,9 @@ export const getPOByIdAndOpenItems = getPOByIdAndOpenItem;
 export const getPOByidandopenitems = getPOByIdAndOpenItem;
 
 export const getPurchaseOrdersByOutlet = (outletId, status) => {
-  return GET('/purchase-orders/getbyoutlet', { outletId, status });
+  const params = { outletId };
+  if (status) params.status = status;
+  return GET('/purchase-orders/getbyoutlet', params);
 };
 
 export const getPurchaseOrdersByStatuses = (payload) => {
