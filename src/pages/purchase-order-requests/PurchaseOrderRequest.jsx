@@ -36,6 +36,7 @@ import { PO_STATUS_GROUP, PO_GROUPS, getPoStatusLabel } from './utils/poStatus';
 import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import {
   Select,
   SelectContent,
@@ -147,23 +148,18 @@ function MasterStatusDropdown({ value, onChange }) {
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex flex-col gap-2.5">
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
       <div
-        className="w-7 h-7 rounded flex items-center justify-center shrink-0"
+        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: iconBg, color: iconFg }}
       >
         {icon}
       </div>
-      <div>
-        <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide">
-          {label}
-        </div>
-        <div
-          className="text-2xl font-bold text-[#101828] mt-0.5"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
           {value}
-        </div>
+        </span>
       </div>
     </div>
   );
@@ -417,7 +413,8 @@ const PurchaseOrderRequest = () => {
               {row.original.poCode}
             </span>
           ),
-        size: 190,
+        size: 250,
+        minSize: 220,
       },
       {
         accessorKey: 'date',
@@ -425,7 +422,8 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <span className="whitespace-nowrap text-sm text-[#475467]">{row.original.date || '—'}</span>,
-        size: 130,
+        size: 140,
+        minSize: 130,
       },
       {
         accessorKey: 'expectedDeliveryDate',
@@ -435,7 +433,8 @@ const PurchaseOrderRequest = () => {
         cell: ({ row }) => (
           <span className="whitespace-nowrap text-sm text-[#475467]">{row.original.expectedDeliveryDate || '—'}</span>
         ),
-        size: 210,
+        size: 160,
+        minSize: 140,
       },
       {
         accessorKey: 'outlet',
@@ -443,7 +442,8 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[200px]" />,
-        size: 210,
+        size: 200,
+        minSize: 170,
       },
       {
         accessorKey: 'raisedBy',
@@ -465,7 +465,8 @@ const PurchaseOrderRequest = () => {
             </div>
           );
         },
-        size: 180,
+        size: 170,
+        minSize: 150,
       },
       {
         accessorKey: 'displayStatus',
@@ -473,7 +474,8 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.displayStatus} />,
-        size: 170,
+        size: 160,
+        minSize: 140,
       },
       {
         id: 'actions',
@@ -602,29 +604,18 @@ const PurchaseOrderRequest = () => {
           <span className="text-[#084E92] font-medium">Purchase Order Requests</span>
         </div>
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4 mb-2">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
               Purchase Order Requests
             </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-              Review approved purchase requisitions and track purchase orders through generation and approval.
-            </p>
           </div>
 
-          <div className="flex gap-3 self-end">
-            {canAdd && (
-              <Link to="/purchase/create-purchase-order-requests">
-                <button
-                  type="button"
-                  className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e76] transition"
-                >
-                  <Plus size={16} />
-                  Create New PO
-                </button>
-              </Link>
-            )}
-          </div>
+          {canAdd && (
+            <HeaderActionButton to="/purchase/create-purchase-order-requests">
+              Create New PO
+            </HeaderActionButton>
+          )}
         </div>
 
         {scopeError && (

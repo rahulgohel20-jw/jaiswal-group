@@ -32,6 +32,7 @@ import {
 
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import AddCityModel from "./AddCityModel";
 import { useNavigate } from "react-router";
@@ -320,24 +321,18 @@ const CityMaster = () => {
         </div>
 
         {/* HEADER */}
-        <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="font-bold text-[#101828] text-[28px] text-start">
+            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl text-start">
               City Master
             </h1>
           </div>
 
-          <div className="flex gap-3 sm:self-end">
-            {canAdd && (
-              <button
-                onClick={openAddModal}
-                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-white rounded-lg flex gap-2 w-max items-center cursor-pointer hover:bg-blue-800 transition"
-              >
-                <Plus size={16} />
-                Add City
-              </button>
-            )}
-          </div>
+          {canAdd && (
+            <HeaderActionButton onClick={openAddModal}>
+              Add City
+            </HeaderActionButton>
+          )}
         </div>
 
         {/* SEARCH */}
@@ -365,10 +360,10 @@ const CityMaster = () => {
                 className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
               />
             </div>
-
+{/* 
             <p className="text-sm text-gray-500">
               Showing {filteredCities.length} of {cities.length} cities
-            </p>
+            </p> */}
 
           </div>
         </div>

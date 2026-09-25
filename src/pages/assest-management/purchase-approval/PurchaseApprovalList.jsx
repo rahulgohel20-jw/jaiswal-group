@@ -109,23 +109,18 @@ function Avatar({ initials }) {
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex items-center gap-3.5 cursor-pointer">
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: iconBg, color: iconFg }}
       >
         {icon}
       </div>
-      <div>
-        <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide">
-          {label}
-        </div>
-        <div
-          className="text-2xl font-bold text-[#101828] mt-0.5"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
           {value}
-        </div>
+        </span>
       </div>
     </div>
   );

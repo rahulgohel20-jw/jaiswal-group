@@ -276,7 +276,7 @@ const PageMaster = () => {
         </div>
         {/* Header row: title left, breadcrumb + primary action right */}
         <div className="flex justify-between items-start flex-col sm:flex-row gap-4 mb-3">
-          <h1 className="font-bold text-[#101828] text-[28px]">Page Master</h1>
+          <h1 className="font-bold text-[#101828] text-[20px]">Page Master</h1>
         </div>
 
         {/* Search + Add Page */}

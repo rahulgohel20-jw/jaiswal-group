@@ -14,6 +14,7 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import {
     Select,
     SelectContent,
@@ -176,29 +177,29 @@ const confirmDelete = async () => {
             title: "Total Asset Types",
             value: `${type.length}`,
             icon: Package,
-            bg: "bg-[#F5F7FB]",
-            iconColor: "text-[#245AA8]",
+            bg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
         },
         {
             title: "Fixed Assets",
             value: `${type.filter((c) => c.name == 'fixed').length}`,
             icon: Building2,
             bg: "bg-[#EEF5FF]",
-            iconColor: "text-[#245AA8]",
+            iconColor: "text-[#00376C]",
         },
         {
             title: "Unit-to-Unit Assets",
             value: `${type.filter((c) => c.name == "unit-to-unit").length}`,
             icon: ArrowRightLeft,
-            bg: "bg-[#ECFDF3]",
-            iconColor: "text-[#10B981]",
+            bg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
         },
         {
             title: "Movable Assets",
             value: `${type.filter((c) => c.name == "movable").length}`,
             icon: MonitorSmartphone,
-            bg: "bg-[#FFF3ED]",
-            iconColor: "text-[#F97316]",
+            bg: "bg-[#FEF3C7]",
+            iconColor: "text-[#B45309]",
         },
     ];
     const columns = useMemo(() => [
@@ -294,48 +295,42 @@ const confirmDelete = async () => {
             </div>
 
             {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                 <div>
-                    <h1 className="font-bold text-[#101828] text-[28px]">Assign Asset Types</h1>
-                    <p className="text-[#667085] text-sm mt-1.5 max-w-2xl">
-                        Configure classification rules and transfer protocols for organizational assets.
-                    </p>
+                    <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Assign Asset Types</h1>
                 </div>
                 {canAdd && (
-                    <div className="flex gap-3 self-end">
-                        <button onClick={openCreateModal} className="flex w-max items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg hover:bg-[#063b6d] cursor-pointer">
-                            <Plus size={16} />
-                            Add Asset Type
-                        </button>
-                    </div>
+                    <HeaderActionButton onClick={openCreateModal}>
+                        Add Asset Type
+                    </HeaderActionButton>
                 )}
             </div>
 
-            {/* Stats Cards — unchanged, still static */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-2 my-4">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 py-4 text-[#43474F]">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
                     return (
                         <div
                             key={index}
-                            className={`border border-[#C3C6D1] rounded-2xl p-4 shadow-sm`}
+                            className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <div
-                                    className={`w-7 h-7 rounded ${item.bg} flex items-center justify-center`}
-                                >
-                                    <Icon className={`w-4 h-4 ${item.iconColor}`} />
-                                </div>
+                            <div
+                                className={`w-9 h-9 rounded-xl ${item.bg} ${item.iconColor} flex items-center justify-center shrink-0`}
+                            >
+                                <Icon className="w-5 h-5" />
                             </div>
 
-                            <p className="text-sm text-[#43474F]">
-                                {item.title}
-                            </p>
+                            <div className="flex flex-col items-end text-right">
+                                <span className="text-xs font-semibold text-[#00376C]">
+                                    {item.title}
+                                </span>
 
-                            <h2 className="text-xl font-bold text-[#111827]">
-                                {item.value}
-                            </h2>
+                                <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
+                                    {item.value}
+                                </span>
+                            </div>
                         </div>
                     );
                 })}

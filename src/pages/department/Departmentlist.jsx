@@ -7,7 +7,6 @@ import {
   Boxes,
   ChevronLeft,
   ChevronRight,
-  Download,
   Eye,
   History,
   Pencil,
@@ -30,6 +29,7 @@ import DepartmentDetailsModal from './DepartmentDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useNavigate } from 'react-router';
 
 const PAGE_SIZE = 5;
@@ -262,32 +262,20 @@ const Departmentlist = () => {
           <span className="text-[#084E92] font-medium">Departments</span>
         </div>
 
-        <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
           <div>
-            <h1 className="text-[28px] font-bold text-[#101828]">Department Master</h1>
-            <p className="text-sm text-[#737781] mt-2">
-              Manage all organizational departments for efficient asset
-              allocation.
-            </p>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">Department Master</h1>
           </div>
-          <div className="flex items-center gap-2 self-end">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Export Data
-            </Button>
-            {canAdd && (
-              <Button
-                onClick={() => {
-                  setEditingDepartment(null);
-                  setIsAddOpen(true);
-                }}
-                className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Create Department
-              </Button>
-            )}
-          </div>
+          {canAdd && (
+            <HeaderActionButton
+              onClick={() => {
+                setEditingDepartment(null);
+                setIsAddOpen(true);
+              }}
+            >
+              Create Department
+            </HeaderActionButton>
+          )}
         </div>
 
         {error && (
@@ -296,9 +284,9 @@ const Departmentlist = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
           <StatCard
-            icon={<Boxes size={15} />}
+            icon={<Boxes size={16} />}
             iconBg="bg-[#D5E3FF]"
             iconColor="text-[#00376C]"
             label="TOTAL"
@@ -306,7 +294,7 @@ const Departmentlist = () => {
             value={stats.total}
           />
           <StatCard
-            icon={<History size={15} />}
+            icon={<History size={16} />}
             iconBg="bg-[#D5E3FF]"
             iconColor="text-[#00376C]"
             label="STATUS"
@@ -485,20 +473,17 @@ const Departmentlist = () => {
   );
 };
 
-const StatCard = ({ icon, iconBg, iconColor, label, title, value }) => (
-  <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 flex items-start justify-between">
-    <div>
-      <div
-        className={`w-6 h-6 rounded ${iconBg} ${iconColor} flex items-center justify-center mb-3`}
-      >
-        {icon}
-      </div>
-      <p className="text-xs text-[#737781]">{title}</p>
-      <p className="text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</p>
+const StatCard = ({ icon, iconBg, iconColor, title, value }) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div
+      className={`w-9 h-9 rounded-xl ${iconBg || 'bg-[#D5E3FF]'} ${iconColor || 'text-[#00376C]'} flex items-center justify-center shrink-0`}
+    >
+      {icon}
     </div>
-    <span className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wide">
-      {label}
-    </span>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{title}</span>
+      <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</span>
+    </div>
   </div>
 );
 

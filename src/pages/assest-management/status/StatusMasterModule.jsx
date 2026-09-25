@@ -33,6 +33,7 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import {
     Select,
     SelectContent,
@@ -126,26 +127,26 @@ const StatusMasterModule = () => {
         {
             title: "Total Status",
             value: `${statusData.length}`,
-            badge: "OVERVIEW",
             icon: List,
-            iconBg: "bg-[#EAF3FF]",
-            iconColor: "text-[#084E92]",
+            iconBg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#1B1B1F]",
         },
         {
             title: "Active Status",
             value: `${statusData.filter((c) => c.visibilityStatus == 'Active').length}`,
-            badge: "ACTIVE",
             icon: CircleCheck,
-            iconBg: "bg-[#ECFDF3]",
-            iconColor: "text-[#16A34A]",
+            iconBg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
+            color: "text-[#15803D]",
         },
         {
             title: "Inactive Status",
             value: `${statusData.filter((c) => c.visibilityStatus == 'Inactive').length}`,
-            badge: "INACTIVE",
             icon: CircleX,
-            iconBg: "bg-[#FFF7ED]",
-            iconColor: "text-[#F97316]",
+            iconBg: "bg-[#FEE2E2]",
+            iconColor: "text-[#DC2626]",
+            color: "text-[#DC2626]",
         },
     ];
     // -------------------------------------------------------------------
@@ -385,56 +386,41 @@ const StatusMasterModule = () => {
                     <ChevronRight size={12} />
                     <span className="text-[#084E92] font-medium">Status Master</span>
                 </div>
-                <div className="flex justify-between flex-col sm:flex-row sm:items-start mb-6">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                     <div>
-                        <h1 className="font-bold text-[#101828] text-[28px]">
+                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
                             Status Master
                         </h1>
-
-                        <p className="text-[#737781] my-1 text-sm">
-                            Streamline operational tracking with comprehensive asset status management.
-                        </p>
                     </div>
 
                     {canAdd && (
-                        <div className="flex gap-3 self-end">
-                            <button onClick={openAddModal} className="flex items-center w-max gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
-                                <Plus size={16} />
-                                Add Status
-                            </button>
-                        </div>
+                        <HeaderActionButton onClick={openAddModal}>
+                            Add Status
+                        </HeaderActionButton>
                     )}
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 mt-6">
                     {STATS.map((item, index) => {
                         const Icon = item.icon;
 
                         return (
                             <div
                                 key={index}
-                                className="border border-[#C3C6D1] rounded-2xl p-4"
+                                className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
                             >
                                 <div
-                                    className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
+                                    className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}
                                 >
-                                    <Icon
-                                        size={15}
-                                        className={item.iconColor}
-                                    />
+                                    <Icon size={18} />
                                 </div>
 
-                                <div className='mt-2'>
-                                    <p className="text-sm text-[#43474F]">
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-xs font-semibold text-[#00376C]">
                                         {item.title}
-                                    </p>
+                                    </span>
 
-                                    <h3 className="text-xl font-bold">
+                                    <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
                                         {item.value}
-                                    </h3>
-                                    <span
-                                        className={`text-xs ${item.iconColor}`}
-                                    >
-                                        {item.badge}
                                     </span>
                                 </div>
                             </div>

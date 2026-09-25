@@ -29,6 +29,7 @@ import AddAssetItemModal, { CATEGORIES } from './AddAssetsItemModal';
 import { notify } from "@/utils/toast";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 
 // Seed data so the listing has something to show on first load
 const SEED_ITEMS = [
@@ -97,14 +98,15 @@ const StatusBadge = ({ status }) => (
   </span>
 );
 
-const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, note, noteColor }) => (
-  <div className="border border-[#C3C6D1] rounded-2xl p-4">
-    <div className={`w-7 h-7 rounded-md flex items-center justify-center mb-3 ${iconBg} ${iconColor}`}>
-      <Icon className="h-4 w-4" />
+const StatCard = ({ icon: Icon, iconBg = 'bg-[#D5E3FF]', iconColor = 'text-[#00376C]', label, value, valueColor = 'text-[#1B1B1F]' }) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
+      <Icon className="h-5 w-5" />
     </div>
-    <p className="text-sm text-[#43474F]">{label}</p>
-    <p className="text-xl font-semibold text-gray-900 mt-0.5">{value}</p>
-    <p className={`text-xs mt-1 ${noteColor}`}>{note}</p>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className={`text-lg sm:text-xl font-bold mt-0.5 ${valueColor}`}>{value}</span>
+    </div>
   </div>
 );
 
@@ -244,67 +246,48 @@ const AssetItemsList = () => {
         </div>
 
         {/* Page header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="text-2xl font-bold text-primary">Asset Items</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Manage individual asset items under each category and sub category for tracking and inventory.
-            </p>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">Asset Items</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Export
-            </Button>
-            {canAdd && (
-              <Button
-                onClick={openAddModal}
-                className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Asset Item
-              </Button>
-            )}
-          </div>
+          {canAdd && (
+            <HeaderActionButton onClick={openAddModal}>
+              Add Asset Item
+            </HeaderActionButton>
+          )}
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 py-4 text-[#43474F]">
           <StatCard
             icon={Layers}
-            iconBg="bg-blue-50"
-            iconColor="text-primary"
+            iconBg="bg-[#D5E3FF]"
+            iconColor="text-[#00376C]"
             label="Total Asset Items"
             value={items.length}
-            note={`${categoriesCovered} categories in use`}
-            noteColor="text-primary"
           />
           <StatCard
             icon={CheckCircle2}
-            iconBg="bg-green-50"
-            iconColor="text-green-600"
+            iconBg="bg-[#DCFCE7]"
+            iconColor="text-[#15803D]"
             label="Active Items"
             value={activeCount}
-            note={`${items.length ? Math.round((activeCount / items.length) * 100) : 0}% of total`}
-            noteColor="text-green-600"
+            valueColor="text-[#15803D]"
           />
           <StatCard
             icon={XCircle}
-            iconBg="bg-gray-100"
-            iconColor="text-gray-500"
+            iconBg="bg-[#FEE2E2]"
+            iconColor="text-[#DC2626]"
             label="Inactive Items"
             value={inactiveCount}
-            note="Requires review"
-            noteColor="text-gray-400"
+            valueColor="text-[#DC2626]"
           />
           <StatCard
             icon={Boxes}
-            iconBg="bg-purple-50"
-            iconColor="text-purple-600"
+            iconBg="bg-[#EDE9FE]"
+            iconColor="text-[#7C3AED]"
             label="Categories Covered"
             value={categoriesCovered}
-            note={`Across ${CATEGORIES.length} available`}
-            noteColor="text-purple-600"
           />
         </div>
 

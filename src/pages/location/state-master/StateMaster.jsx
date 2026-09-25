@@ -15,6 +15,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { getAllStates, deleteStateById } from '../../../services/apiServices';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddStateModel from './AddStateModel';
 import { useNavigate } from 'react-router';
@@ -234,24 +235,18 @@ const StateMaster = () => {
                     <span className="text-[#084E92] font-medium">State</span>
                 </div>
 
-                <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                     <div>
-                        <h1 className="font-bold text-[#101828] text-[28px] text-start">
+                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl text-start">
                             State Master
                         </h1>
                     </div>
 
-                    <div className="flex gap-3 sm:self-end">
-                        {canAdd && (
-                            <button
-                                onClick={openAddModal}
-                                className="px-4 py-2 bg-[#084E92] border w-max border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-                            >
-                                <Plus size={16} />
-                                Add State
-                            </button>
-                        )}
-                    </div>
+                    {canAdd && (
+                        <HeaderActionButton onClick={openAddModal}>
+                            Add State
+                        </HeaderActionButton>
+                    )}
                 </div>
 
                 <div className="bg-white pt-5">
@@ -277,9 +272,9 @@ const StateMaster = () => {
                             />
                         </div>
 
-                        <p className="text-sm text-gray-500">
+                        {/* <p className="text-sm text-gray-500">
                             Showing {filteredStates.length} of {states.length} states
-                        </p>
+                        </p> */}
                     </div>
                 </div>
 

@@ -6,8 +6,8 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { ChevronRight, CircleCheck, CircleEllipsis, ClipboardList, Download, Eye, FileText, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
@@ -188,34 +188,36 @@ const AssetsMaintenance = () => {
     };
     const STATS = [
         {
-            title: "Total Maintenace Logs",
+            title: "Total Maintenance Logs",
             value: `${statsData.length}`,
             icon: FileText,
-            bg: "bg-slate-50",
-            iconColor: "text-slate-600",
+            bg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#1B1B1F]",
         },
         {
-            title: "Completed Services ",
+            title: "Completed Services",
             value: `${statsData.filter(item => item.status === "COMPLETED").length}`,
             icon: CircleCheck,
-            bg: "bg-green-50",
-            iconColor: "text-green-600",
+            bg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
+            color: "text-[#15803D]",
         },
         {
             title: "Pending Services",
-            badge: "Critical",
             value: `${statsData.filter(item => item.status === "PENDING").length}`,
             icon: CircleEllipsis,
-            bg: "bg-orange-50",
-            iconColor: "text-[#D97706]",
+            bg: "bg-[#FEF3C7]",
+            iconColor: "text-[#B45309]",
+            color: "text-[#B45309]",
         },
         {
-            title: "Today's Maintenace",
-            badge: "Scheduled",
+            title: "Today's Maintenance",
             value: `${statsData.filter(item => formatDateForComparison(item.nextServiceDate) === new Date().toISOString().split('T')[0]).length}`,
             icon: ClipboardList,
-            bg: "bg-slate-50",
-            iconColor: "text-slate-600",
+            bg: "bg-[#F3F4F6]",
+            iconColor: "text-[#4B5563]",
+            color: "text-[#1B1B1F]",
         },
     ];
 
@@ -342,41 +344,28 @@ const AssetsMaintenance = () => {
                     <span className="text-[#084E92] font-medium">Maintenance Log</span>
                 </div>
 
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                     <div>
-                        <h1 className="font-bold text-[#101828] text-[28px] ">Maintenance Log</h1>
-                        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-                            View and manage all maintenance records for organizational assets.
-                        </p>
+                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Maintenance Log</h1>
                     </div>
 
-                    <div className="flex items-center gap-3 self-end">
-                        <button className="flex items-center cursor-pointer gap-2 px-4 py-2 border border-[#D8E2F0] bg-white rounded-lg text-[#0B5CAB] font-medium hover:bg-[#F8FAFC] transition">
-                            <Download size={16} />
-                            Export
-                        </button>
-                        <Link to="/assets/add-maintenance-log">
-                            <button className="flex items-center w-max cursor-pointer gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg font-medium hover:bg-[#084E92] transition">
-                                <Plus size={16} />
-                                Add Maintenance Log
-                            </button>
-                        </Link>
-                    </div>
+                    <HeaderActionButton to="/assets/add-maintenance-log">
+                        Add Maintenance Log
+                    </HeaderActionButton>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 my-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 my-4">
                     {STATS.map((item, index) => {
                         const Icon = item.icon;
                         return (
-                            <div key={index} className="border border-[#C3C6D1] rounded-2xl p-4 shadow-sm">
-                                <div className={`w-6 h-6 rounded flex items-center justify-center ${item.bg}`}>
-                                    <Icon className={item.iconColor} size={15} />
+                            <div key={index} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.bg} ${item.iconColor}`}>
+                                    <Icon size={18} />
                                 </div>
-                                <p className="text-sm text-[#43474F] pt-2">{item.title}</p>
-                                <h2 className="text-xl font-bold">{item.value}</h2>
-                                {item.badge && (
-                                    <span className={`text-[11px] font-medium ${item.iconColor}`}>{item.badge}</span>
-                                )}
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                    <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.value}</span>
+                                </div>
                             </div>
                         );
                     })}
@@ -413,7 +402,7 @@ const AssetsMaintenance = () => {
                             </Select>
                         </div>
 
-                        <div className="col-span-1">
+                        {/* <div className="col-span-1">
                             <label className="text-xs text-gray-500">From Date</label>
                             <input
                                 type="date"
@@ -430,9 +419,9 @@ const AssetsMaintenance = () => {
                                 }}
                                 max={toDate || undefined}
                             />
-                        </div>
+                        </div> */}
 
-                        <div className="col-span-1">
+                        {/* <div className="col-span-1">
                             <label className="text-xs text-gray-500">To Date</label>
                             <input
                                 type="date"
@@ -449,7 +438,7 @@ const AssetsMaintenance = () => {
                                 }}
                                 min={fromDate || undefined}
                             />
-                        </div>
+                        </div> */}
                         </div>
                     </div>
                 </div>

@@ -43,6 +43,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
@@ -127,18 +128,20 @@ const UserManagementList = () => {
 
   const DATA = [
     {
-      label: 'TOTAL USERS',
+      label: 'Total Users',
       count: `${userData.length}`,
-      icon: <UsersRound className="w-5 h-5 text-[#084E92]" />,
-      color: 'text-[#084E92]',
-      iconBg: 'bg-[#084E921A]/50',
+      icon: <UsersRound size={18} />,
+      color: 'text-[#1B1B1F]',
+      iconBg: 'bg-[#D5E3FF]',
+      iconColor: 'text-[#00376C]',
     },
     {
-      label: 'ACTIVE ORGANIZATIONS',
+      label: 'Active Organizations',
       count: `${activeCompanies.length}`,
-      icon: <Building2 className="w-5 h-5 text-[#084E92]" />,
-      color: 'text-[#084E92]',
-      iconBg: 'bg-[#084E921A]/50',
+      icon: <Building2 size={18} />,
+      color: 'text-[#15803D]',
+      iconBg: 'bg-[#DCFCE7]',
+      iconColor: 'text-[#15803D]',
     },
   ];
   const filteredUser = useMemo(
@@ -384,41 +387,32 @@ const UserManagementList = () => {
                     Users
                   </span>
                 </div>
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-[28px] font-bold text-[#101828]">User Management List</h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-              Manage enterprise-wide user access, organizational roles, and
-              compliance verification status from a centralized console.
-            </p>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">User Management List</h1>
           </div>
 
           {canAdd && (
-            <Link
-              to="/users/add-user"
-              className="flex items-center w-max self-end justify-center gap-2 bg-[#084E92] px-5 py-3 rounded-lg text-white text-sm font-medium"
-            >
-              <Plus size={15} /> Add New User
-            </Link>
+            <HeaderActionButton to="/users/add-user">
+              Add New User
+            </HeaderActionButton>
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 my-4">
           {DATA.map((item) => (
             <div
               key={item.label}
-              className=" border border-[#C3C6D1] rounded-2xl p-4"
+              className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
             >
-              <div className="flex justify-between">
-                <span
-                  className={`bg-[#084E921A]/50 p-2 w-7 h-7 rounded flex items-center justify-center`}
-                >
-                  <p className="text-xl">{item.icon}</p>
-                </span>
+              <div
+                className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}
+              >
+                {item.icon}
               </div>
-              <div className="mt-2">
-                <h3 className="text-xs text-[#737781]">{item.label}</h3>
-                <p className={`${item.color} font-bold`}>{item.count}</p>
+              <div className="flex flex-col items-end text-right">
+                <span className="text-xs font-semibold text-[#00376C]">{item.label}</span>
+                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.count}</span>
               </div>
             </div>
           ))}

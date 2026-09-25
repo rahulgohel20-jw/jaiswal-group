@@ -614,7 +614,7 @@ const RowCategoryBrandMapping = () => {
         </div>
 
         <div>
-          <h1 className="font-bold text-[#101828] text-[28px] text-start">
+          <h1 className="font-bold text-[#101828] text-[20px] text-start">
             Raw Material Category Brand Mapping
           </h1>
           <p className="text-[#667085] text-sm mt-1.5 max-w-xl">

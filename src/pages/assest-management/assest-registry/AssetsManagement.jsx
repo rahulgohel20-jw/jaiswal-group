@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 
 // Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
 const unwrapList = (res) => {
@@ -203,42 +204,42 @@ const AssetsManagement = () => {
         {
             title: "Total Assets",
             value: stats.total.toLocaleString(),
-            badge: "Live",
-            icon: <Package size={25} className='text-[#00376C] p-1 bg-[#D5E3FF] rounded' />,
-            color: "text-[#43474F]",
-            bgColor: "bg-white"
+            icon: <Package size={18} />,
+            iconBg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#1B1B1F]",
         },
         {
             title: "Warehouse",
             value: stats.warehouseCount.toLocaleString(),
-            badge: `${stats.warehousePercent}%`,
-            icon: <CircleCheck size={25} className='text-[#15803D] p-1 bg-[#DCFCE7] rounded' />,
+            icon: <CircleCheck size={18} />,
+            iconBg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
             color: "text-[#15803D]",
-            bgColor: "bg-[#DCFCE7]"
         },
         {
             title: "Assigned",
             value: stats.assignedCount.toLocaleString(),
-            badge: `${stats.assignedPercent}%`,
-            icon: <UserPen size={25} className='text-[#265FA4] p-1 bg-[#D5E3FF] rounded' />,
-            color: "text-[#265FA4]",
-            bgColor: "bg-[#D5E3FF]"
+            icon: <UserPen size={18} />,
+            iconBg: "bg-[#D5E3FF]",
+            iconColor: "text-[#265FA4]",
+            color: "text-[#1B1B1F]",
         },
         {
             title: "Under Maintenance",
             value: stats.maintenanceCount.toLocaleString(),
-            badge: "ACTION",
-            icon: <Wrench size={25} className='text-[#C2410C] p-1 bg-[#FFEDD5] rounded' />,
+            icon: <Wrench size={18} />,
+            iconBg: "bg-[#FFEDD5]",
+            iconColor: "text-[#C2410C]",
             color: "text-[#C2410C]",
-            bgColor: "bg-[#FFEDD5]"
         },
         {
             title: "Warranty Expiring",
             value: stats.expiringCount.toLocaleString(),
-            badge: "URGENT",
-            icon: <ShieldAlert size={25} className='text-[#BA1A1A] p-1 bg-[#FEE2E2] rounded' />,
+            icon: <ShieldAlert size={18} />,
+            iconBg: "bg-[#FEE2E2]",
+            iconColor: "text-[#BA1A1A]",
             color: "text-[#BA1A1A]",
-            bgColor: "bg-[#FEE2E2]"
         },
     ], [stats]);
 
@@ -450,54 +451,44 @@ const AssetsManagement = () => {
                 <span className="text-[#084E92] font-medium">Assets</span>
             </div>
 
-            <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                 <div>
-                    <h1 className="text-[28px] font-bold text-[#101828]">
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
                         Assets
                     </h1>
-
-                    <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-                        Manage, monitor, assign, and maintain all organizational assets
-                        from a centralized dashboard.
-                    </p>
                 </div>
 
-                <div className="flex gap-3 sm:self-end">
-                    <button className="px-4 py-2 border rounded-lg flex gap-2 items-center">
-                        <Download size={16} />
-                        Export
-                    </button>
-                    {canAdd && (
-                        <Link to="/assets/add-asset">
-                            <button className="px-4 py-2 w-max bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
-                                <Plus size={16} />
-                                Add Asset
-                            </button>
-                        </Link>
-                    )}
-                </div>
+                {canAdd && (
+                    <HeaderActionButton to="/assets/add-asset">
+                        Add Asset
+                    </HeaderActionButton>
+                )}
             </div>
 
-            <div className='flex flex-col xl:flex-row gap-6 py-8 text-[#43474F]'>
-                <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 flex-1'>
+            <div className='flex flex-col xl:flex-row gap-4 py-4 text-[#43474F]'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5 flex-1'>
                     {
                         statsCards.map((item, index) => (
-                            <div key={index} className='border border-[#C3C6D1] rounded-2xl p-4'>
-                                <div className='flex justify-between items-center pb-2'>
-                                    <p>{item.icon}</p>
-
+                            <div key={index} className='bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs'>
+                                <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                    {item.icon}
                                 </div>
-                                <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                                <h2 className="text-xl font-semibold text-gray-900 mt-0.5">{item.value}</h2>
-                                <p className={`text-xs mt-1 ${item.color}`}>{item.badge}</p>
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                    <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.value}</span>
+                                </div>
                             </div>
                         ))
                     }
                 </div>
-                <div className='bg-[#002246]  text-white p-6 rounded-2xl flex flex-col gap-2 shrink-0'>
-                    <Wallet size={20} />
-                    <p>Total Asset Value</p>
-                    <p>{formatTotalValue(stats.totalValue)}</p>
+                <div className='bg-[#002246] text-white p-3.5 rounded-2xl flex items-center justify-between gap-4 shrink-0'>
+                    <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                        <Wallet size={18} />
+                    </div>
+                    <div className="flex flex-col items-end text-right">
+                        <span className="text-xs font-semibold text-blue-200">Total Asset Value</span>
+                        <span className="text-lg sm:text-xl font-bold mt-0.5">{formatTotalValue(stats.totalValue)}</span>
+                    </div>
                 </div>
             </div>
 

@@ -7,11 +7,10 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useNavigate } from 'react-router';
 import { Container } from "@/components/common/container";
-
-import { Link, useNavigate } from 'react-router';
-import { fi } from '@faker-js/faker';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 
 
 
@@ -20,22 +19,22 @@ const STATS = [
         title: "Total Transfers",
         value: "148",
         icon: ArrowLeftRight,
-        iconBg: "bg-blue-50",
-        iconColor: "text-[#0B5CAB]",
+        iconBg: "bg-[#D5E3FF]",
+        iconColor: "text-[#00376C]",
     },
     {
         title: "Transfers This Month",
         value: "24",
         icon: CalendarDays,
-        iconBg: "bg-blue-50",
-        iconColor: "text-[#0B5CAB]",
+        iconBg: "bg-[#D5E3FF]",
+        iconColor: "text-[#00376C]",
     },
     {
         title: "Transfers Today",
         value: "05",
         icon: CalendarDays,
-        iconBg: "bg-blue-50",
-        iconColor: "text-[#0B5CAB]",
+        iconBg: "bg-[#D5E3FF]",
+        iconColor: "text-[#00376C]",
     },
 ];
 const TRANSFER_DATA = [
@@ -274,55 +273,38 @@ const AssetsTransferLog = () => {
                 <span className="text-[#084E92] font-medium">Asset Transfer Log</span>
             </div>
 
-            <div className='flex justify-between flex-col gap-5 md:flex-row'>
+            <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                 <div>
-                    <h1 className="font-bold text-[#101828] text-[28px]">
+                    <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
                         Asset Transfer Log
                     </h1>
-
-                    <p className="text-[#6B7280] mt-1 w-[80%] md:w-full text-sm">
-                        View and manage all asset transfer records across kitchens and operational
-                        locations with high-fidelity tracking.
-                    </p>
                 </div>
-                <div className='flex gap-5 self-end'>
-                    <button className="flex items-center w-max cursor-pointer gap-2 h-11 px-5 border rounded-lg text-[#0B5CAB] hover:bg-gray-50 transition-colors duration-200">
-                        <Download size={16} />
-                        Export
-                    </button>
-                    <Link
-                        to="/assets/asset-transfer"
-                        className="flex items-center w-max cursor-pointer gap-2 h-11 px-5 rounded-lg bg-[#084E92] text-white font-medium hover:bg-[#094b8f] transition"
-                    >
-                        <CalendarSync size={16} />
-                        Transfer New Asset
-                    </Link>
-                </div>
+                <HeaderActionButton to="/assets/asset-transfer" icon={CalendarSync}>
+                    Transfer New Asset
+                </HeaderActionButton>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 my-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 my-4">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
                     return (
                         <div
                             key={index}
-                            className="border border-[#C3C6D1] rounded-2xl p-4 shadow-sm"
+                            className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
                         >
-                            <div className="w-6 h-6 rounded bg-[#EAF3FF] flex items-center justify-center mb-2">
-                                <Icon size={15} className="text-[#0B5CAB]" />
+                            <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                <Icon size={18} />
                             </div>
-                            <div>
-                                <p className="text-sm text-[#43474F] pt-2">
+                            <div className="flex flex-col items-end text-right">
+                                <span className="text-xs font-semibold text-[#00376C]">
                                     {item.title}
-                                </p>
+                                </span>
 
-                                <h2 className="text-xl font-bold">
+                                <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
                                     {item.value}
-                                </h2>
+                                </span>
                             </div>
-
-
                         </div>
                     );
                 })}

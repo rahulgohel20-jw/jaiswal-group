@@ -104,15 +104,15 @@ function StatusPill({ status }) {
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex flex-col gap-2.5">
-      <div className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
         {icon}
       </div>
-      <div>
-        <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide">{label}</div>
-        <div className="text-2xl font-bold text-[#101828] mt-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
           {value}
-        </div>
+        </span>
       </div>
     </div>
   );
@@ -446,7 +446,8 @@ const PurchaseOrderApproval = () => {
             {row.original.poCode}
           </span>
         ),
-        size: 190,
+        size: 250,
+        minSize: 220,
       },
       {
         id: 'date',
@@ -455,7 +456,8 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="PO DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
-        size: 130,
+        size: 140,
+        minSize: 130,
       },
       {
         id: 'expectedDeliveryDate',
@@ -466,7 +468,8 @@ const PurchaseOrderApproval = () => {
         cell: ({ row }) => (
           <TruncatedCell value={row.original.expectedDeliveryDate} widthClass="max-w-[130px]" />
         ),
-        size: 180,
+        size: 160,
+        minSize: 140,
       },
       {
         id: 'outlet',
@@ -475,7 +478,8 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
-        size: 190,
+        size: 200,
+        minSize: 170,
       },
       {
         id: 'raisedBy',
@@ -487,7 +491,8 @@ const PurchaseOrderApproval = () => {
           const name = row.original.raisedBy || row.original.createdByName;
           return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
         },
-        size: 150,
+        size: 170,
+        minSize: 150,
       },
       {
         id: 'status',
@@ -496,7 +501,8 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusPill status={row.original.rawStatus} />,
-        size: 150,
+        size: 160,
+        minSize: 140,
       },
       {
         id: 'action',
@@ -605,23 +611,20 @@ const PurchaseOrderApproval = () => {
         </div>
 
         {/* Header with Separate Report Export Buttons */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-2">
           <div>
-            <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
               Purchase Order Approval
             </h1>
-            <p className="text-[#667085] text-sm mt-2 max-w-xl">
-              Manage and review purchase orders awaiting your review.
-            </p>
           </div>
-          <div className="flex items-center gap-2.5 flex-wrap self-end">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {/* Button 1: Short Item Received */}
             <button
               type="button"
               onClick={() => handleOpenExportModal('Short Item Received')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition-colors shadow-sm cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition shadow-2xs cursor-pointer whitespace-nowrap"
             >
-              <Download size={14} />
+              <Download className="w-3.5 h-3.5" />
               Short Item Received
               {selectedPoId && (
                 <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">
@@ -634,9 +637,9 @@ const PurchaseOrderApproval = () => {
             <button
               type="button"
               onClick={() => handleOpenExportModal("Pending GRN")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition shadow-2xs cursor-pointer whitespace-nowrap"
             >
-              <FileText size={14} className="text-[#084E92]" />
+              <FileText className="w-3.5 h-3.5 text-[#084E92]" />
               Pending GRN
             </button>
           </div>

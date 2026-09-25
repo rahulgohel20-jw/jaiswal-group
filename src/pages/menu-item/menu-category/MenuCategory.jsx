@@ -27,6 +27,7 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import CreateMenuCategory from './CreateMenuCategory';
 import { useNavigate } from 'react-router';
 
@@ -333,26 +334,21 @@ const MenuCategory = () => {
           <span className="text-[#084E92] font-medium">Category</span>
         </div>
 
-        <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="font-bold text-[#101828] text-[28px] text-start">
+            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl text-start">
               Menu Category Master
             </h1>
           </div>
 
-          <div className="flex gap-3 sm:self-end">
-            <button
-              type="button"
-              onClick={() => {
-                setEditData(null);
-                setOpenCategory(true);
-              }}
-              className="px-4 py-2 bg-[#084E92] w-max border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-            >
-              <Plus size={16} />
-              Create New
-            </button>
-          </div>
+          <HeaderActionButton
+            onClick={() => {
+              setEditData(null);
+              setOpenCategory(true);
+            }}
+          >
+            Create New
+          </HeaderActionButton>
         </div>
 
         <div className="bg-white mt-6">

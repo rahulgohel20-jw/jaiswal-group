@@ -57,25 +57,14 @@ const InfoCard = ({ label, value }) => (
 
 
 const StatCard = ({ label, value, icon: Icon }) => (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-
-        <div className="flex items-center justify-between">
-
-            <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">
-                {label}
-            </p>
-
-            <div className="w-9 h-9 rounded-xl bg-[#084E92]/10 flex items-center justify-center">
-                <Icon className="w-4 h-4 text-[#084E92]" />
-            </div>
-
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+        <div className="w-9 h-9 rounded-xl bg-[#D5E3FF] flex items-center justify-center shrink-0">
+            <Icon className="w-5 h-5 text-[#00376C]" />
         </div>
-
-
-        <p className="mt-3 text-sm font-semibold text-gray-800">
-            {value || "—"}
-        </p>
-
+        <div className="flex flex-col items-end text-right">
+            <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+            <span className="text-base sm:text-lg font-bold text-[#1B1B1F] mt-0.5">{value || "—"}</span>
+        </div>
     </div>
 );
 

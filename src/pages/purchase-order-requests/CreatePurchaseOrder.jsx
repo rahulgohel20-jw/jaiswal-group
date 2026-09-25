@@ -1238,10 +1238,15 @@ const CreatePurchaseOrder = () => {
     return purchaseItems
       .filter((_, idx) => Boolean(rowSelection[idx]))
       .map((item) => {
-        const uom = uomMap[item.rawMaterialId] || {
-          uomId: item.uomId,
-          uomName: item.uomName || item.unit || 'Unit',
-        };
+        const rm = (rawMaterials || []).find((r) => Number(r.id) === Number(item.rawMaterialId));
+        const masterUnitName =
+          rm?.unit?.nameEnglish ||
+          rm?.unit?.symbolEnglish ||
+          (typeof rm?.unit === 'string' ? rm.unit : '') ||
+          rm?.unitName ||
+          '';
+        const masterUnitId = rm?.unitId ?? (typeof rm?.unit === 'object' ? rm?.unit?.id : null) ?? null;
+
         const vId =
           vendorMap[item.rawMaterialId] ||
           (isSingleVendorPo ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '') : '') ||
@@ -1252,24 +1257,42 @@ const CreatePurchaseOrder = () => {
         const remarks = itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '';
         const currentQty = Number(poQtyMap[item.rawMaterialId]) || 1;
 
+        const resolvedUnitName =
+          masterUnitName ||
+          item.uomName ||
+          item.unit ||
+          'Unit';
+        const resolvedUnitId =
+          masterUnitId ||
+          item.uomId ||
+          item.unitId ||
+          null;
+
         return {
           id: item.rawMaterialId,
           rawMaterialId: item.rawMaterialId,
-          itemName: item.itemName,
+          itemId: item.rawMaterialId,
+          itemName: item.itemName || rm?.nameEnglish || rm?.itemName || `Item #${item.rawMaterialId}`,
           source: item.source,
-          uomId: uom.uomId,
-          uomName: uom.uomName,
+          unit: resolvedUnitName,
+          unitName: resolvedUnitName,
+          masterUnitName: masterUnitName || resolvedUnitName,
+          masterUnitId: resolvedUnitId,
+          uomId: resolvedUnitId,
+          unitId: resolvedUnitId,
+          uomName: resolvedUnitName,
           vendorId: vId,
           vendorName: vName,
           remarks: remarks,
           orderedQty: currentQty,
           transferQuantity: currentQty,
+          currentStock: rm?.currentStock ?? rm?.currentstock ?? item.currentStock ?? item.currentstock ?? null,
         };
       });
   }, [
     purchaseItems,
     rowSelection,
-    uomMap,
+    rawMaterials,
     vendorMap,
     isSingleVendorPo,
     commonVendorId,

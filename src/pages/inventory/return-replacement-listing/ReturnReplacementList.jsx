@@ -81,30 +81,17 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
   );
 }
 
-const StatCard = ({ label, value, trend, trendLabel, trendType = 'up' }) => (
-  <div className="bg-white border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 shadow-xs">
-    <div className="min-w-0">
-      <p className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase truncate">{label}</p>
-      <span className="text-base md:text-lg font-bold text-[#0F172A] leading-tight mt-0.5 block">{value}</span>
+const StatCard = ({ icon, iconBg = 'bg-[#D5E3FF]', iconColor = 'text-[#00376C]', label, value }) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div
+      className={`w-9 h-9 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}
+    >
+      {icon}
     </div>
-    {trend && (
-      <span
-        className={`flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-          trendType === 'up'
-            ? 'bg-amber-50 text-amber-600'
-            : trendType === 'down'
-              ? 'bg-blue-50 text-blue-600'
-              : trendType === 'ok'
-                ? 'bg-emerald-50 text-emerald-600'
-                : 'bg-gray-100 text-gray-600'
-        }`}
-      >
-        {trendType === 'up' && <ArrowUpRight size={11} />}
-        {trendType === 'down' && <RotateCcw size={11} />}
-        {trendType === 'ok' && <CircleCheck size={11} />}
-        {trendLabel}
-      </span>
-    )}
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</span>
+    </div>
   </div>
 );
 
@@ -695,32 +682,32 @@ const ReturnReplacementList = () => {
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard
+            icon={<RotateCcw size={18} />}
+            iconBg="bg-[#D5E3FF]"
+            iconColor="text-[#00376C]"
             label="Total Returns"
             value={summary.totalReturns}
-            trend
-            trendType="up"
-            trendLabel="All"
           />
           <StatCard
+            icon={<ArrowUpRight size={18} />}
+            iconBg="bg-[#FEF3C7]"
+            iconColor="text-[#B45309]"
             label="Return Requested"
             value={summary.returnReq}
-            trend
-            trendType="warn"
-            trendLabel="Action"
           />
           <StatCard
+            icon={<RotateCcw size={18} />}
+            iconBg="bg-[#E0E7FF]"
+            iconColor="text-[#4338CA]"
             label="Replacement Requested"
             value={summary.replacementReq}
-            trend
-            trendType="down"
-            trendLabel="Pending"
           />
           <StatCard
+            icon={<CircleCheck size={18} />}
+            iconBg="bg-[#DCFCE7]"
+            iconColor="text-[#15803D]"
             label="Completed"
             value={summary.completed}
-            trend
-            trendType="ok"
-            trendLabel="Done"
           />
         </div>
 

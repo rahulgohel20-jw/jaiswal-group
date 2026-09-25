@@ -685,13 +685,13 @@ const ExportAssetsQR = () => {
                         </div>
 
                         <div>
-                            <h1 className="font-bold text-[#101828] text-[28px] ">
+                            <h1 className="font-bold text-[#101828] text-[20px] ">
                                 Export Assets QR
                             </h1>
 
-                            <p className="text-[#667085] text-sm mt-1.5 max-w-2xl">
+                            {/* <p className="text-[#667085] text-sm mt-1.5 max-w-2xl">
                                 Generate and export high-resolution QR codes for registered assets for inventory tracking.
-                            </p>
+                            </p> */}
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-[450px_1fr] gap-5 mt-6 items-stretch lg:h-[calc(100vh-13rem)]">

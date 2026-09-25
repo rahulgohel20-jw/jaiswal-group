@@ -100,16 +100,16 @@ const TruncatedCell = ({ value, widthClass = 'max-w-[160px]', className = 'text-
 
 function StatCard({ label, value, icon: Icon, iconBg, iconColor }) {
   return (
-    <div className="bg-white rounded-xl border border-[#E7EAF0] px-3.5 py-2.5 flex items-center gap-3 shadow-xs">
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
       <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: iconBg, color: iconColor }}
       >
-        <Icon size={16} />
+        <Icon size={18} />
       </div>
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wider truncate">{label}</div>
-        <div className="text-base md:text-lg font-bold text-[#101828] font-sans leading-tight mt-0.5">{value}</div>
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</span>
       </div>
     </div>
   );
@@ -741,14 +741,11 @@ const StockTransferReqReceiveList = () => {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-[#101828] font-sans leading-tight">
               Stock Transfer Request Receive Listing
             </h1>
-            <p className="text-[#667085] text-xs mt-1">
-              Verify incoming shipments, view FIFO batch layer valuation, and accept or reject transfers.
-            </p>
           </div>
         </div>
 

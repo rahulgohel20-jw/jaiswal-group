@@ -629,7 +629,7 @@ const PurchaseInvoice = () => {
                 {/* Page header */}
                 <div className="flex items-start justify-between gap-4 flex-wrap my-2">
                     <h1
-                        className="text-[28px] font-bold text-[#101828]"
+                        className="text-[20px] font-bold text-[#101828]"
                         style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
                     >
                         Purchase Invoice

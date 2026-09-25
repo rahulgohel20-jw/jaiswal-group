@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useNavigate } from 'react-router';
 
 const RowMaterialItemMaster = () => {
@@ -462,36 +463,27 @@ const RowMaterialItemMaster = () => {
 
     const STATS = [
         {
-            title: "Total Item",
+            title: "Total item",
             value: `${stats.total}`,
-            icon: (
-                <ClipboardList
-                    size={22}
-                    className="text-[#084E92] p-1 bg-[#E8F1FF] rounded"
-                />
-            ),
-            color: 'text-[#084E92]'
+            icon: <ClipboardList size={18} />,
+            iconBg: 'bg-[#D5E3FF]',
+            iconColor: 'text-[#00376C]',
+            color: 'text-[#1B1B1F]'
         },
         {
-            title: "Active Item",
+            title: "Active item",
             value: `${stats.active}`,
-            icon: (
-                <CircleCheck
-                    size={22}
-                    className="text-[#16A34A] p-1 bg-[#DCFCE7] rounded"
-                />
-            ),
+            icon: <CircleCheck size={18} />,
+            iconBg: 'bg-[#DCFCE7]',
+            iconColor: 'text-[#16A34A]',
             color: 'text-[#16A34A]'
         },
         {
-            title: "Inactive Item",
+            title: "Inactive item",
             value: `${stats.inactive}`,
-            icon: (
-                <CircleX
-                    size={22}
-                    className="text-[#DC2626] p-1 bg-[#FEE2E2] rounded"
-                />
-            ),
+            icon: <CircleX size={18} />,
+            iconBg: 'bg-[#FEE2E2]',
+            iconColor: 'text-[#DC2626]',
             color: 'text-[#DC2626]'
         },
     ];
@@ -521,37 +513,30 @@ const RowMaterialItemMaster = () => {
                     <span className="text-[#084E92] font-medium">Raw Material Items</span>
                 </div>
 
-                <div className="flex justify-between lg:items-start flex-col lg:flex-row gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4">
                     <div>
-                        <h1 className="text-[28px] font-bold text-[#101828] text-start">
+                        <h1 className="text-xl sm:text-2xl font-bold text-[#101828] text-start">
                             Raw Material Items Master
                         </h1>
-
-                        <p className="text-[#667085] text-sm mt-2 max-w-2xl">
-                            Centralized inventory registry for global raw material tracking,
-                            specification management, and real-time stock valuation monitoring.
-                        </p>
                     </div>
 
                     {canAdd && (
-                        <button
-                            onClick={openCreateModal}
-                            className="bg-[#084E92] w-max self-end hover:bg-[#074486] cursor-pointer transition-colors duration-200 text-white rounded-lg px-6 py-3 flex items-center gap-2 shadow-lg"
-                        >
-                            <Plus size={18} />
+                        <HeaderActionButton onClick={openCreateModal}>
                             Add New Item
-                        </button>
+                        </HeaderActionButton>
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 mt-4">
                     {STATS.map((item) => (
-                        <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
-                            <div className="flex justify-between items-center pb-2">
-                                <p>{item.icon}</p>
+                        <div key={item.title} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                            <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                {item.icon}
                             </div>
-                            <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                            <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
+                            <div className="flex flex-col items-end text-right">
+                                <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.value}</span>
+                            </div>
                         </div>
                     ))}
                 </div>

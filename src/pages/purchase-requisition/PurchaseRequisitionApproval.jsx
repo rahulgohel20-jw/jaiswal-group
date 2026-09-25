@@ -190,15 +190,15 @@ function StatusPill({ status }) {
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex flex-col gap-2.5">
-      <div className="w-7 h-7 rounded flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
         {icon}
       </div>
-      <div>
-        <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide">{label}</div>
-        <div className="text-2xl font-bold text-[#101828] mt-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
           {value}
-        </div>
+        </span>
       </div>
     </div>
   );
@@ -435,13 +435,10 @@ function ListView({ onApprove, onReject, onView }) {
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Purchase Requisition Approval</span>
         </div>
-        <div className="mb-8">
-          <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="mb-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
             Purchase Requisition Approval
           </h1>
-          <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-            Manage and review purchase requisitions awaiting your review.
-          </p>
         </div>
 
         {scopeError && (

@@ -16,6 +16,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddModuleRightModal from './AddModuleRightModal';
 import { useNavigate } from 'react-router';
@@ -292,15 +293,23 @@ const ModuleMaster = () => {
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Module Rights</span>
         </div>
-        {/* Header row: title left, breadcrumb + primary action right */}
-        <div className="flex justify-between items-start flex-col sm:flex-row gap-4 mb-6">
-          <h1 className="font-bold text-[#101828] text-[28px]">
-            Module Right Name Master
-          </h1>
+        {/* Header */}
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
+          <div>
+            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
+              Module Right Name Master
+            </h1>
+          </div>
+
+          {canAdd && (
+            <HeaderActionButton onClick={openCreateModal}>
+              Add Module Name
+            </HeaderActionButton>
+          )}
         </div>
 
-        {/* Search + Add Module Name */}
-        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-4">
+        {/* Search */}
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 my-4">
           <div className="relative w-full sm:w-80 border border-[#C3C6D1] rounded-lg">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -314,17 +323,6 @@ const ModuleMaster = () => {
               className="w-full pl-10 py-2 outline-none rounded-lg bg-transparent"
             />
           </div>
-
-          {canAdd && (
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition sm:self-end  w-max cursor-pointer"
-            >
-              <Plus size={16} />
-              Add Module Name
-            </button>
-          )}
         </div>
 
         {/* Table */}

@@ -34,6 +34,7 @@ import {
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import {
   deleteUnitMasterById,
   getAllRawMaterialUnits,
@@ -199,35 +200,26 @@ const RowMaterialUnit = () => {
     {
       title: 'Total Units',
       value: `${units.length}`,
-      badge: 'OVERVIEW',
-      icon: (
-        <Ruler size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />
-      ),
+      icon: <Ruler size={18} />,
+      iconBg: 'bg-[#D5E3FF]',
+      iconColor: 'text-[#00376C]',
       color: 'text-[#1B1B1F]',
     },
     {
       title: 'Active Units',
       value: `${units.filter((u) => u.status === 'Active').length}`,
-      badge: 'ACTIVE',
-      icon: (
-        <CircleCheck
-          size={22}
-          className="text-[#15803D] p-1 bg-[#DCFCE7] rounded"
-        />
-      ),
+      icon: <CircleCheck size={18} />,
+      iconBg: 'bg-[#DCFCE7]',
+      iconColor: 'text-[#15803D]',
       color: 'text-[#15803D]',
     },
     {
       title: 'Inactive Units',
       value: `${units.filter((u) => u.status === 'Inactive').length}`,
-      badge: 'INACTIVE',
-      icon: (
-        <CircleX
-          size={22}
-          className="text-[#B45309] p-1 bg-[#FEF3C7] rounded"
-        />
-      ),
-      color: 'text-[#B45309]',
+      icon: <CircleX size={18} />,
+      iconBg: 'bg-[#FEE2E2]',
+      iconColor: 'text-[#DC2626]',
+      color: 'text-[#DC2626]',
     },
   ];
 
@@ -426,52 +418,36 @@ const RowMaterialUnit = () => {
           </span>
         </div>
 
-        <div className="flex justify-between sm:items-center flex-col sm:flex-row gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-[28px] font-bold text-[#101828] text-start">
-              Measure of unit Master
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828] text-start">
+              Unit of Measurement Master
             </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-              Manage all measurement units used throughout the Asset Management
-              module.
-            </p>
           </div>
 
-          <div className="flex gap-3 sm:self-end">
-            <button
-              type="button"
-              className="px-4 py-2 border w-max border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              <Upload size={16} />
-              Export
-            </button>
-            {canAdd && (
-              <button
-                type="button"
-                onClick={handleAddClick}
-                className="px-4 py-2 bg-[#084E92] w-max text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-              >
-                <Plus size={16} />
-                Add Unit
-              </button>
-            )}
-          </div>
+          {canAdd && (
+            <HeaderActionButton onClick={handleAddClick}>
+              Add Unit
+            </HeaderActionButton>
+          )}
         </div>
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 py-4 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}
-              className="border border-[#C3C6D1] rounded-2xl p-4"
+              className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
             >
-              <div className="flex justify-between items-center pb-2">
-                <p>{item.icon}</p>
+              <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                {item.icon}
               </div>
-              <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-              <h2 className={`text-xl font-bold ${item.color}`}>
-                {item.value}
-              </h2>
+              <div className="flex flex-col items-end text-right">
+                <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                  {item.value}
+                </span>
+              </div>
             </div>
           ))}
         </div>

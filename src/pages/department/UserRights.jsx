@@ -108,7 +108,7 @@ const UserRights = () => {
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">User Rights</span>
         </div>
-        <h1 className="font-bold text-[#101828] text-[28px] mb-2">User Rights</h1>
+        <h1 className="font-bold text-[#101828] text-[20px] mb-2">User Rights</h1>
 
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">

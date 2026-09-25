@@ -25,6 +25,7 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { getOrgIdFromToken } from '../../../utils/auth';
 import CreateCaptainRecipe from './CreateCaptainRecipe';
 import { deleteCaptainRecipeById, getCaptainRecipeById, syncCaptainRecipes, updateCaptainRecipeStatus } from '../../../services/apiServices';
@@ -386,15 +387,36 @@ const CaptainRecipeList = () => {
                     <span className="text-[#084E92] font-medium">Captain Recipes</span>
                 </div>
 
-                <div className="flex justify-between flex-col lg:flex-row gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                     <div>
-                        <h1 className="font-bold text-[#101828] text-[28px] text-start mb-1">
+                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl text-start">
                             Captain Recipes
                         </h1>
                     </div>
+
+                    <div className="flex items-center gap-2.5">
+                        <button
+                            type="button"
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white bg-[#084E92] text-xs font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shadow-2xs whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                            {syncing ? 'Syncing...' : 'Sync Recipes'}
+                        </button>
+
+                        <HeaderActionButton
+                            onClick={() => {
+                                setEditData(null);
+                                setOpenRecipe(true);
+                            }}
+                        >
+                            Create New
+                        </HeaderActionButton>
+                    </div>
                 </div>
 
-                <div className="bg-white mt-6">
+                <div className="bg-white mt-4">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="relative w-full md:w-96">
                             <Search
@@ -408,30 +430,6 @@ const CaptainRecipeList = () => {
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
                             />
-                        </div>
-
-                        <div className="flex gap-3 lg:self-end">
-                            <button
-                                type="button"
-                                onClick={handleSync}
-                                disabled={syncing}
-                                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                                <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-                                {syncing ? 'Syncing...' : 'Sync Recipes'}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setEditData(null);
-                                    setOpenRecipe(true);
-                                }}
-                                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-                            >
-                                <Plus size={16} />
-                                Create New
-                            </button>
                         </div>
                     </div>
                 </div>

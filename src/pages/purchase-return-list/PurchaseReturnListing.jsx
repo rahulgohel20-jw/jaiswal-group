@@ -24,6 +24,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { Link } from "react-router";
 import ScanPurchaseModel from "../../pages/stock-purchase/models/ScanAndPurchase.models";
 
@@ -245,40 +246,22 @@ const PurchaseReturnList = () => {
     <Container>
       <div className="px-4 mx-auto">
         {/* Page header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-          <h1 className="font-bold text-[#101828] text-[28px] mb-2">Purchase Return List</h1>
-          <div className="flex flex-col md:flex-row md:items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => alert("Export purchases")}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              <FileText className="w-4 h-4" />
-              Export
-            </button>
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">Purchase Return List</h1>
+          </div>
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               type="button"
               onClick={() => setScanModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-sky-200 text-sm font-semibold text-sky-900 hover:bg-sky-50 transition cursor-pointer bg-white"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-sky-200 text-xs font-semibold text-sky-900 hover:bg-sky-50 transition cursor-pointer bg-white"
             >
-              <ScanLine className="w-4 h-4" />
+              <ScanLine className="w-3.5 h-3.5" />
               Scan &amp; Purchase
             </button>
-            <Link
-              to="/purchase/add-purchase-return"
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-800 text-white text-sm font-semibold border-0 cursor-pointer transition"
-            >
-              <Plus className="w-4 h-4" />
+            <HeaderActionButton to="/purchase/add-purchase-return">
               Create New Purchase
-            </Link>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white shrink-0"
-              title="Print"
-            >
-              <Printer className="w-4 h-4" />
-            </button>
+            </HeaderActionButton>
           </div>
         </div>
 

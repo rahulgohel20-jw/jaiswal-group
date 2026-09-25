@@ -21,9 +21,10 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import {
   getAllSubOutlets,
   getSubOutletById,
@@ -405,26 +406,16 @@ const SubUnitListing = () => {
           </span>
         </div>
         {/* Page header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-          <div className="flex flex-col gap-1">
-            <h1
-              className="text-[28px] font-bold text-[#101828]"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            >
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
               Registered Sub Units
             </h1>
-            <p className="text-[#667085] text-sm mt-1 max-w-xl">
-              Manage and monitor all sub units registered within the Jaiswal Group ecosystem.
-            </p>
           </div>
           {canAdd && (
-            <Link
-              to="/sub-units/add"
-              className="flex items-center gap-2 px-5 py-2.5 self-end rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
-            >
-              <Plus className="w-4 h-4" />
+            <HeaderActionButton to="/sub-units/add">
               Add New Sub Unit
-            </Link>
+            </HeaderActionButton>
           )}
         </div>
 

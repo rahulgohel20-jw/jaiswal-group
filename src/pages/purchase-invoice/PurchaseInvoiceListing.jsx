@@ -334,7 +334,7 @@ const PurchaseInvoiceListing = () => {
                 </div>
 
                 <div className="flex items-center justify-between gap-4 flex-wrap my-2">
-                    <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
                         Purchase Invoice Listing
                     </h1>
 

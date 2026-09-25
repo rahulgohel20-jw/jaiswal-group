@@ -20,6 +20,7 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import {
     Select,
     SelectContent,
@@ -113,26 +114,26 @@ const ConditionMasterModule = () => {
     {
       title: "Total Conditions",
       value: `${conditions.length}`,
-      badge: "+2 new",
       icon: Package,
-      iconBg: "bg-[#EAF3FF]",
-      iconColor: "text-[#084E92]",
+      iconBg: "bg-[#D5E3FF]",
+      iconColor: "text-[#00376C]",
+      color: "text-[#1B1B1F]",
     },
     {
       title: "Operational",
       value: `${conditions.filter((c) => c.status == 'Active').length}`,
-      badge: "ACTIVE",
       icon: CircleCheck,
-      iconBg: "bg-[#ECFDF3]",
-      iconColor: "text-[#16A34A]",
+      iconBg: "bg-[#DCFCE7]",
+      iconColor: "text-[#15803D]",
+      color: "text-[#15803D]",
     },
     {
       title: "Archived",
       value: `${conditions.filter((c) => c.status == 'Inactive').length}`,
-      badge: "INACTIVE",
       icon: CircleX,
-      iconBg: "bg-[#EEF2F6]",
-      iconColor: "text-[#6B7280]",
+      iconBg: "bg-[#FEE2E2]",
+      iconColor: "text-[#DC2626]",
+      color: "text-[#DC2626]",
     }
   ];
   // -------------------------------------------------------------------
@@ -376,58 +377,45 @@ const ConditionMasterModule = () => {
           <span className="text-[#084E92] font-medium">Condition Master</span>
         </div>
 
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="font-bold text-[#101828] text-[28px]">
+            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
               Condition Master
             </h1>
-
-            <p className="text-[#5F6368] mt-1 max-w-2xl text-sm">
-              Configure and standardize asset health states
-              across the enterprise.
-            </p>
           </div>
 
           {canAdd && (
-            <div className="flex gap-3 self-end">
-              <button onClick={openAddModal} className="flex items-center w-max gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
-                <Plus size={16} />
-                Add Condition
-              </button>
-            </div>
+            <HeaderActionButton onClick={openAddModal}>
+              Add Condition
+            </HeaderActionButton>
           )}
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 mt-6">
           {STATS.map((item, index) => {
             const Icon = item.icon;
 
             return (
               <div
                 key={index}
-                className="border border-[#C3C6D1] rounded-2xl p-4 shadow-sm"
+                className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div
-                    className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
-                  >
-                    <Icon
-                      size={15}
-                      className={item.iconColor}
-                    />
-                  </div>
-
-                  {index === 0 && (
-                    <MoreVertical
-                      size={16}
-                      className="text-[#9CA3AF]"
-                    />
-                  )}
+                <div
+                  className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}
+                >
+                  <Icon size={18} />
                 </div>
-                <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                <h2 className={`text-xl font-bold`}>{item.value}</h2>
-                <p className={`text-xs ${item.iconColor}`}>{item.badge}</p>
+
+                <div className="flex flex-col items-end text-right">
+                  <span className="text-xs font-semibold text-[#00376C]">
+                    {item.title}
+                  </span>
+
+                  <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                    {item.value}
+                  </span>
+                </div>
               </div>
             );
           })}

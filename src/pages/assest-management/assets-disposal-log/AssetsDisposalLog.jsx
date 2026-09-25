@@ -17,11 +17,12 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
+import { HeaderActionButton } from "@/components/common/HeaderActionButton";
 import { getAllAssetsDisposal, deleteAssetDisposalById, getAssetDisposalById } from "../../../services/apiServices";
 import ViewDisposalModal from "./ViewDisposalModal";
 
@@ -328,35 +329,35 @@ const AssetsDisposalLog = () => {
                 title: "Total Records",
                 value: String(total),
                 icon: ClipboardList,
-                iconBg: "bg-blue-50",
-                iconColor: "text-[#0B5CAB]",
+                iconBg: "bg-[#D5E3FF]",
+                iconColor: "text-[#00376C]",
+                color: "text-[#1B1B1F]",
             },
             {
                 title: "Assets Sold",
                 value: String(
                     soldRecords.length
                 ),
-                subText: `₹${soldRevenue.toLocaleString(
-                    "en-IN"
-                )} Rev`,
                 icon: BadgeDollarSign,
-                iconBg: "bg-blue-50",
-                iconColor: "text-[#0B5CAB]",
-                subTextColor: "text-[#059669]",
+                iconBg: "bg-[#DCFCE7]",
+                iconColor: "text-[#15803D]",
+                color: "text-[#15803D]",
             },
             {
                 title: "Scrapped",
                 value: String(scrapped),
                 icon: Trash2,
-                iconBg: "bg-red-50",
-                iconColor: "text-red-500",
+                iconBg: "bg-[#FEE2E2]",
+                iconColor: "text-[#DC2626]",
+                color: "text-[#DC2626]",
             },
             {
                 title: "This Month",
                 value: String(thisMonth),
                 icon: CalendarDays,
-                iconBg: "bg-amber-50",
-                iconColor: "text-amber-500",
+                iconBg: "bg-[#FEF3C7]",
+                iconColor: "text-[#B45309]",
+                color: "text-[#1B1B1F]",
             },
         ];
     }, [disposalData]);
@@ -385,47 +386,32 @@ const AssetsDisposalLog = () => {
                     <span className="text-[#084E92] font-medium">Asset Disposal Log</span>
                 </div>
 
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                     <div>
-                        <h1 className="font-bold text-[#101828] text-[28px]">Asset Disposal Log</h1>
-                        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-                            Audit-ready records for organization-wide asset retirements.
-                        </p>
+                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Asset Disposal Log</h1>
                     </div>
 
-                    <div className="flex gap-3 self-end">
-                        <button className="flex text-sm cursor-pointer w-max items-center gap-2 px-4 py-2 border border-[#D7DCE5] bg-white rounded-lg text-[#0B5CAB] font-medium hover:bg-slate-50">
-                            <Download size={16} />
-                            Export
-                        </button>
-                        {canAdd && (
-                            <Link to="/assets/add-disposal">
-                                <button className="flex text-sm w-max cursor-pointer items-center gap-2 px-5 py-2.5 bg-[#084E92] text-white rounded-lg font-medium shadow-md hover:bg-[#084E92]">
-                                    <CirclePlus size={18} />
-                                    New Disposal Entry
-                                </button>
-                            </Link>
-                        )}
-                    </div>
+                    {canAdd && (
+                        <HeaderActionButton to="/assets/add-disposal">
+                            New Disposal Entry
+                        </HeaderActionButton>
+                    )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 my-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 my-4">
                     {stats.map((item, index) => {
                         const Icon = item.icon;
 
                         return (
-                            <div key={index} className="border border-[#C3C6D1] rounded-2xl p-4">
-                                <div className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}>
-                                    <Icon size={15} className={item.iconColor} />
+                            <div key={index} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                                <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                    <Icon size={18} />
                                 </div>
 
-                                <p className="text-sm text-[#43474F] pt-2">{item.title}</p>
-                                <h2 className="text-xl font-bold">{item.value}</h2>
-                                {item.subText && (
-                                    <span className={`text-xs font-medium ${item.subTextColor} mb-1`}>
-                                        {item.subText}
-                                    </span>
-                                )}
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                    <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color || 'text-[#1B1B1F]'}`}>{item.value}</span>
+                                </div>
                             </div>
                         );
                     })}

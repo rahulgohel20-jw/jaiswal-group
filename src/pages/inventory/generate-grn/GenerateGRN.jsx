@@ -578,7 +578,7 @@ const GenerateGRN = () => {
         {/* Page header */}
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex flex-col gap-1">
-            <h1 className="text-xl md:text-2xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+            <h1 className="text-[20px] md:text-2xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
               Generate GRN
             </h1>
             <p className="text-[#667085] text-xs max-w-xl">

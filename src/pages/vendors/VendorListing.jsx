@@ -26,6 +26,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { extractList, mapVendorToRow } from './vendorHelper';
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
@@ -41,23 +42,23 @@ const TruncatedCell = ({
 
 const StatCard = ({
   icon: Icon,
-  iconBg,
-  iconColor,
+  iconBg = 'bg-[#D5E3FF]',
+  iconColor = 'text-[#00376C]',
   label,
   value,
-  valueColor = 'text-gray-900',
+  valueColor = 'text-[#1B1B1F]',
 }) => (
-  <div className="border border-[#C3C6D1] rounded-2xl p-4">
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
     <div
-      className={`w-7 h-7 rounded mb-1 flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}
+      className={`w-9 h-9 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}
     >
       <Icon className="w-5 h-5" />
     </div>
-    <div>
-      <p className="text-xs text-[#737781] uppercase my-1">{label}</p>
-      <p className={`text-lg font-bold leading-none ${valueColor}`}>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className={`text-lg sm:text-xl font-bold mt-0.5 ${valueColor}`}>
         {value}
-      </p>
+      </span>
     </div>
   </div>
 );
@@ -313,25 +314,16 @@ const VendorList = () => {
           </span>
         </div>
         {/* Page header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="text-[28px] font-bold text-[#101828]">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
               Vendor Management List
             </h1>
-            <p className="text-[#667085] text-sm mt-2 max-w-xl">
-              View and manage all registered enterprise vendors across the
-              Jaiswal Group <br />
-              ecosystem.
-            </p>
           </div>
           {canAdd && (
-            <Link
-              to="/vendors/add-vendor"
-              className="flex items-center bg-[#084E92] self-end gap-1.5 px-4 py-2.5 rounded-lg text-white text-sm font-semibold border-0 cursor-pointer transition"
-            >
-              <Plus className="w-4 h-4" />
+            <HeaderActionButton to="/vendors/add-vendor">
               Add New Vendor
-            </Link>
+            </HeaderActionButton>
           )}
         </div>
 

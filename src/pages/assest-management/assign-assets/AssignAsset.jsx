@@ -51,6 +51,7 @@ import {
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 
 // Safely pulls the array out of a response, regardless of whether the
 // service resolves to the raw axios response, an already-unwrapped
@@ -411,61 +412,49 @@ const AssignAssets = () => {
     {
       title: 'Total Assignments',
       value: String(totalAssignments),
-      icon: (
-        <Package
-          size={22}
-          className="text-[#00376C] p-1 bg-[#D5E3FF] rounded"
-        />
-      ),
+      icon: <Package size={18} />,
+      iconBg: 'bg-[#D5E3FF]',
+      iconColor: 'text-[#00376C]',
       color: 'text-[#1B1B1F]',
     },
     {
       title: 'Active Assignments',
       value: String(activeAssignments),
-      icon: (
-        <CircleCheck
-          size={22}
-          className="text-[#15803D] p-1 bg-[#DCFCE7] rounded"
-        />
-      ),
+      icon: <CircleCheck size={18} />,
+      iconBg: 'bg-[#DCFCE7]',
+      iconColor: 'text-[#15803D]',
       color: 'text-[#15803D]',
     },
     {
       title: 'Returned Assets',
       value: String(returnedAssignments),
-      icon: (
-        <RotateCcw
-          size={22}
-          className="text-[#265FA4] p-1 bg-[#D5E3FF] rounded"
-        />
-      ),
+      icon: <RotateCcw size={18} />,
+      iconBg: 'bg-[#D5E3FF]',
+      iconColor: 'text-[#265FA4]',
       color: 'text-[#1B1B1F]',
     },
     {
       title: 'Pending Returns',
       value: '—',
-      icon: (
-        <Clock size={22} className="text-[#C2410C] p-1 bg-[#FFEDD5] rounded" />
-      ),
+      icon: <Clock size={18} />,
+      iconBg: 'bg-[#FFEDD5]',
+      iconColor: 'text-[#C2410C]',
       color: 'text-[#C2410C]',
     },
     {
       title: 'Transfer Requests',
       value: '—',
-      icon: (
-        <ArrowLeftRight
-          size={22}
-          className="text-[#265FA4] p-1 bg-[#D5E3FF] rounded"
-        />
-      ),
+      icon: <ArrowLeftRight size={18} />,
+      iconBg: 'bg-[#D5E3FF]',
+      iconColor: 'text-[#265FA4]',
       color: 'text-[#265FA4]',
     },
     {
       title: 'Under Maintenance',
       value: '—',
-      icon: (
-        <Wrench size={22} className="text-[#BA1A1A] p-1 bg-[#FEE2E2] rounded" />
-      ),
+      icon: <Wrench size={18} />,
+      iconBg: 'bg-[#FEE2E2]',
+      iconColor: 'text-[#BA1A1A]',
       color: 'text-[#BA1A1A]',
     },
   ];
@@ -736,35 +725,16 @@ const AssignAssets = () => {
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Assign Assets</span>
         </div>
-        <div className="flex justify-between lg:items-center flex-col lg:flex-row gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="font-bold text-[#101828] text-[28px] ">Assign Assets</h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-              Assign registered assets to kitchens, outlets, departments, or
-              users while maintaining complete inventory tracking.
-            </p>
+            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Assign Assets</h1>
           </div>
 
-          <div className="flex gap-3 lg:self-end">
-            <button
-              type="button"
-              className="px-4 py-2 border border-[#C3C6D1] w-max rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              <Upload size={16} />
-              Export Assignments
-            </button>
-            {canAdd && (
-              <Link to="/assets/assign-asset">
-                <button
-                  type="button"
-                  className="px-4 py-2 bg-[#084E92] text-white rounded-lg w-max flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                >
-                  <Plus size={16} />
-                  Assign Asset
-                </button>
-              </Link>
-            )}
-          </div>
+          {canAdd && (
+            <HeaderActionButton to="/assets/assign-asset">
+              Assign Asset
+            </HeaderActionButton>
+          )}
         </div>
 
         {loadError && (
@@ -774,17 +744,23 @@ const AssignAssets = () => {
         )}
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 py-8 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 py-4 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}
-              className="border border-[#C3C6D1] rounded-2xl p-4"
+              className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
             >
-              <div className="pb-2">{item.icon}</div>
-              <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-              <h2 className={`text-xl font-bold ${item.color}`}>
-                {item.value}
-              </h2>
+              <div
+                className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}
+              >
+                {item.icon}
+              </div>
+              <div className="flex flex-col items-end text-right">
+                <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                  {item.value}
+                </span>
+              </div>
             </div>
           ))}
         </div>

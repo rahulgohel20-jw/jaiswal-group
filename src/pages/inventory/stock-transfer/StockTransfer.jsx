@@ -36,6 +36,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import {
   getTransferList,
   deleteDraftTransfer,
@@ -113,16 +114,16 @@ const TruncatedCell = ({ value, widthClass = 'max-w-[170px]', className = 'text-
 
 function StatCard({ label, value, icon: Icon, iconBg, iconColor }) {
   return (
-    <div className="bg-white rounded-xl border border-[#E7EAF0] px-3.5 py-2.5 flex items-center gap-3 shadow-xs">
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
       <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: iconBg, color: iconColor }}
       >
-        <Icon size={16} />
+        <Icon size={18} />
       </div>
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wider truncate">{label}</div>
-        <div className="text-base md:text-lg font-bold text-[#101828] font-sans leading-tight mt-0.5">{value}</div>
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</span>
       </div>
     </div>
   );
@@ -762,22 +763,14 @@ const StockTransfer = () => {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-[#101828] font-sans leading-tight">Stock Transfer</h1>
-            <p className="text-[#667085] text-xs mt-1">
-              Manage, dispatch, and track internal stock transfers across outlets.
-            </p>
           </div>
           {canAdd && (
-            <div className="flex items-center gap-2">
-              <Link to="/inventory/stock-transfer-request">
-                <button className="flex text-xs font-semibold cursor-pointer items-center gap-1.5 px-3.5 py-2 bg-[#084E92] text-white rounded-lg shadow-2xs hover:bg-[#073e77] transition">
-                  <Plus size={14} />
-                  New Transfer Request
-                </button>
-              </Link>
-            </div>
+            <HeaderActionButton to="/inventory/stock-transfer-request">
+              New Transfer Request
+            </HeaderActionButton>
           )}
         </div>
 
