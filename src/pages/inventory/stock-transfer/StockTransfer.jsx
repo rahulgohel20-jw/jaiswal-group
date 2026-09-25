@@ -37,6 +37,7 @@ import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { CodeCell } from '@/components/common/CodeCell';
 import {
   getTransferList,
   deleteDraftTransfer,
@@ -538,15 +539,15 @@ const StockTransfer = () => {
           <DataGridColumnHeader title="TRANSFER CODE" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <Link
-            to={`/inventory/stock-transfer-detail/${row.original.id}`}
-            className="font-bold text-[#2952E3] text-xs font-mono hover:underline block truncate"
-          >
-            {row.original.transferCode}
-          </Link>
+          <CodeCell
+            code={row.original.transferCode}
+            maxWidth="max-w-[190px]"
+            onClick={() => navigate(`/inventory/stock-transfer-detail/${row.original.id}`)}
+          />
         ),
         enableSorting: false,
-        size: 150,
+        size: 195,
+        minSize: 180,
       },
       {
         id: 'dateAndTime',

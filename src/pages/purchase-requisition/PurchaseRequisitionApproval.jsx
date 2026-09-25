@@ -30,6 +30,7 @@ import {
 } from "@tanstack/react-table";
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
+import { CodeCell } from "@/components/common/CodeCell";
 import {
   Select,
   SelectContent,
@@ -127,12 +128,8 @@ const sortByDateDesc = (a, b) => {
   return (Number(b.id) || 0) - (Number(a.id) || 0);
 };
 
-// ---- PR fetch hook — driven by BOTH the selected unit and the selected
-// status. Selecting a specific status in the dropdown sends that status
-// straight to getbyoutlet as a single call. "All status" is the one case
-// that still needs to fan out across all 4 visible statuses and merge,
-// since the endpoint only accepts one status per call.
-function useRequisitions(effectiveOutletId, statusFilter, filterRowsByScope, scopeLoading) {
+// ---- PR fetch hook — fetches all purchase requisitions for the selected outlet.
+function useRequisitions(effectiveOutletId, filterRowsByScope, scopeLoading) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [requisitions, setRequisitions] = useState([]);
@@ -142,23 +139,9 @@ function useRequisitions(effectiveOutletId, statusFilter, filterRowsByScope, sco
     setLoading(true);
     setError(null);
     try {
-      let raw;
-      if (statusFilter === ALL_STATUS) {
-        const responses = await Promise.all(
-          APPROVER_VISIBLE_STATUSES.map((status) =>
-            getPurchaseRequisitionsByOutlet(effectiveOutletId, status)
-          )
-        );
-        raw = responses.flatMap((res) => {
-          const data = res?.data?.data ?? res?.data ?? res ?? [];
-          return Array.isArray(data) ? data : [];
-        });
-      } else {
-        const targetStatus = statusFilter || PR_STATUS.SENT_FOR_APPROVAL;
-        const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId, targetStatus);
-        const data = res?.data?.data ?? res?.data ?? res ?? [];
-        raw = Array.isArray(data) ? data : [];
-      }
+      const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId);
+      const data = res?.data?.data ?? res?.data ?? res ?? [];
+      const raw = Array.isArray(data) ? data : [];
       const mapped = raw.map(mapPr);
       const scoped = filterRowsByScope ? filterRowsByScope(mapped) : mapped;
       setRequisitions(scoped);
@@ -167,7 +150,7 @@ function useRequisitions(effectiveOutletId, statusFilter, filterRowsByScope, sco
     } finally {
       setLoading(false);
     }
-  }, [effectiveOutletId, statusFilter, filterRowsByScope, scopeLoading]);
+  }, [effectiveOutletId, filterRowsByScope, scopeLoading]);
 
   useEffect(() => {
     reload();
@@ -222,7 +205,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
   );
 }
 
-// Drives the status sent to getPurchaseRequisitionsByOutlet directly.
+// Drives the status filter in the list view.
 function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative">
@@ -250,7 +233,7 @@ const PAGE_SIZE = 10;
 
 function ListView({ onApprove, onReject, onView }) {
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState(PR_STATUS.SENT_FOR_APPROVAL);
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const {
@@ -271,16 +254,11 @@ function ListView({ onApprove, onReject, onView }) {
 
   const { loading: prLoading, error: prError, requisitions } = useRequisitions(
     effectiveOutletId,
-    statusFilter,
     filterRowsByScope,
     scopeLoading
   );
 
-  // Counts reflect whatever is currently loaded. They're exact when "All
-  // statuses" is selected; when one specific status is picked, only that
-  // status's card is non-zero, since the others weren't fetched. If you
-  // want all three cards always accurate regardless of the dropdown, fetch
-  // counts separately (4 parallel calls) instead of deriving from `requisitions`.
+  // Counts reflect whatever is currently loaded across all statuses.
   const counts = useMemo(() => {
     const c = {};
     APPROVER_VISIBLE_STATUSES.forEach((s) => (c[s] = 0));
@@ -292,9 +270,12 @@ function ListView({ onApprove, onReject, onView }) {
 
   const filtered = useMemo(() => {
     let rows = requisitions;
+    if (statusFilter && statusFilter !== ALL_STATUS) {
+      rows = rows.filter((r) => r.status === statusFilter);
+    }
     if (query.trim()) {
       const q = query.toLowerCase();
-      rows = requisitions.filter(
+      rows = rows.filter(
         (r) =>
           (r.code || "").toLowerCase().includes(q) ||
           (r.outlet || "").toLowerCase().includes(q) ||
@@ -303,7 +284,7 @@ function ListView({ onApprove, onReject, onView }) {
       );
     }
     return rows.slice().sort(sortByDateDesc);
-  }, [requisitions, query]);
+  }, [requisitions, statusFilter, query]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -318,14 +299,10 @@ function ListView({ onApprove, onReject, onView }) {
           <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span
-            className="font-semibold text-[#2952E3] text-[13px]"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            {row.original.code}
-          </span>
+          <CodeCell code={row.original.code} maxWidth="max-w-[190px]" />
         ),
-        size: 140,
+        size: 195,
+        minSize: 180,
       },
       {
         id: "date",
@@ -435,7 +412,7 @@ function ListView({ onApprove, onReject, onView }) {
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Purchase Requisition Approval</span>
         </div>
-        <div className="mb-2">
+        <div className="mb-4">
           <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
             Purchase Requisition Approval
           </h1>

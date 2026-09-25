@@ -44,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CodeCell } from '@/components/common/CodeCell';
 
 const STAGE = {
   PR_NO_PO: 'PR_NO_PO',
@@ -241,7 +242,7 @@ const PurchaseOrderRequest = () => {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
   const [search, setSearch] = useState('');
-  const [activeGroup, setActiveGroup] = useState(AWAITING_PO_GROUP);
+  const [activeGroup, setActiveGroup] = useState(ALL_GROUP);
   const [rejectingId, setRejectingId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -261,10 +262,8 @@ const PurchaseOrderRequest = () => {
       fetchApprovedRequestsByOutlet(currentUnitId);
     }
     if (!isAwaitingPoOnly) {
-      const statuses = isAllGroups ? ALL_PO_STATUSES : (GROUP_TO_STATUSES[activeGroup] || []);
-      if (statuses.length > 0) {
-        fetchByOutletandStatus(currentUnitId, statuses);
-      }
+      const statuses = isAllGroups ? [] : (GROUP_TO_STATUSES[activeGroup] || []);
+      fetchByOutletandStatus(currentUnitId, statuses);
     }
   };
 
@@ -280,8 +279,7 @@ const PurchaseOrderRequest = () => {
   useEffect(() => {
     if (scopeLoading) return;
     if (isAwaitingPoOnly) return;
-    const statuses = isAllGroups ? ALL_PO_STATUSES : (GROUP_TO_STATUSES[activeGroup] || []);
-    if (statuses.length === 0) return;
+    const statuses = isAllGroups ? [] : (GROUP_TO_STATUSES[activeGroup] || []);
     fetchByOutletandStatus(currentUnitId, statuses);
   }, [scopeLoading, currentUnitId, activeGroup, isAwaitingPoOnly, isAllGroups, fetchByOutletandStatus]);
 
@@ -398,23 +396,26 @@ const PurchaseOrderRequest = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="CODE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) =>
-          row.original.stage === STAGE.PR_NO_PO ? (
-            <div className="flex flex-col gap-1">
-              <span className="font-semibold text-[#084E92] whitespace-nowrap text-sm">
-                {row.original.prCode || '—'}
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] whitespace-nowrap font-medium text-gray-500 w-fit">
-                PR AWAITING PO
-              </span>
-            </div>
+        cell: ({ row }) => {
+          const isPrNoPo = row.original.stage === STAGE.PR_NO_PO;
+          const codeVal = isPrNoPo ? (row.original.prCode || '—') : (row.original.poCode || '—');
+
+          return isPrNoPo ? (
+            <CodeCell
+              code={codeVal}
+              maxWidth="max-w-[190px]"
+              subtitle={
+                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] whitespace-nowrap font-medium text-gray-500 w-fit">
+                  PR AWAITING PO
+                </span>
+              }
+            />
           ) : (
-            <span className="font-semibold text-[#084E92] whitespace-nowrap text-sm">
-              {row.original.poCode}
-            </span>
-          ),
-        size: 250,
-        minSize: 220,
+            <CodeCell code={codeVal} maxWidth="max-w-[190px]" />
+          );
+        },
+        size: 195,
+        minSize: 180,
       },
       {
         accessorKey: 'date',

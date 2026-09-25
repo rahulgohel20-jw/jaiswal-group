@@ -50,6 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CodeCell } from '@/components/common/CodeCell';
 
 // Statuses visible to an approver, which of those still allow Approve/Reject,
 // and which are editable (approver can still adjust an in-progress PO).
@@ -439,15 +440,10 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span
-            className="font-semibold text-[#2952E3] text-[13px]"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            {row.original.poCode}
-          </span>
+          <CodeCell code={row.original.poCode} maxWidth="max-w-[190px]" />
         ),
-        size: 250,
-        minSize: 220,
+        size: 195,
+        minSize: 180,
       },
       {
         id: 'date',

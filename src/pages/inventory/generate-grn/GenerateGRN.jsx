@@ -30,6 +30,7 @@ import { getPOsByOutlet, getPurchaseOrdersByOutlet } from '@/services/apiService
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { CodeCell } from '@/components/common/CodeCell';
 
 const STATUS_STYLES = {
   Approved: 'bg-emerald-50 text-emerald-600',
@@ -411,14 +412,14 @@ const GenerateGRN = () => {
           <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
         ),
         cell: ({ row }) => (
-          <span
+          <CodeCell
+            code={row.original.poCode}
+            maxWidth="max-w-[190px]"
             onClick={() => navigate(`/purchase/purchase-order-detail/${row.original.id}`)}
-            className="font-bold text-[#084E92] font-mono text-xs whitespace-nowrap hover:underline cursor-pointer"
-          >
-            {row.original.poCode}
-          </span>
+          />
         ),
-        size: 200,
+        size: 195,
+        minSize: 180,
       },
       {
         id: 'prCode',
@@ -427,11 +428,13 @@ const GenerateGRN = () => {
           <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
         ),
         cell: ({ row }) => (
-          <span className="font-semibold text-gray-700 font-mono text-xs whitespace-nowrap">
-            {row.original.prCode || '—'}
-          </span>
+          <CodeCell
+            code={row.original.prCode}
+            maxWidth="max-w-[190px]"
+          />
         ),
-        size: 180,
+        size: 195,
+        minSize: 180,
       },
       {
         id: 'date',

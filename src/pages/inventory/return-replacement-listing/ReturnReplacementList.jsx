@@ -43,6 +43,12 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { CodeCell } from '@/components/common/CodeCell';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const formatDate = (val) => {
   if (!val) return '—';
@@ -180,7 +186,7 @@ const ReturnReplacementList = () => {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
 
-  const [statusFilter, setStatusFilter] = useState('RETURN_REPLACEMENT_REQUESTED');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   const fetchReturnReplacements = useCallback(async () => {
     if (scopeLoading) return;
@@ -430,15 +436,13 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-[130px]">
-            <TruncatedCell
-              value={row.original.prCode || '—'}
-              widthClass="max-w-[130px]"
-              className="font-mono text-xs font-semibold text-gray-700"
-            />
-          </div>
+          <CodeCell
+            code={row.original.prCode}
+            maxWidth="max-w-[110px]"
+          />
         ),
-        size: 150,
+        size: 130,
+        minSize: 115,
       },
       {
         id: 'poCode',
@@ -451,16 +455,18 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-[140px]">
-            <TruncatedCell
-              value={row.original.poCode || '—'}
-              widthClass="max-w-[140px]"
-              className="font-bold text-[#084E92] text-xs font-mono hover:underline cursor-pointer"
-              onClick={() => row.original.purchaseOrderId && navigate(`/purchase/purchase-order-detail/${row.original.purchaseOrderId}`)}
-            />
-          </div>
+          <CodeCell
+            code={row.original.poCode}
+            maxWidth="max-w-[110px]"
+            onClick={
+              row.original.purchaseOrderId
+                ? () => navigate(`/purchase/purchase-order-detail/${row.original.purchaseOrderId}`)
+                : undefined
+            }
+          />
         ),
-        size: 160,
+        size: 130,
+        minSize: 115,
       },
       {
         id: 'grnCode',
@@ -473,15 +479,13 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-[150px]">
-            <TruncatedCell
-              value={row.original.grnCode || '—'}
-              widthClass="max-w-[150px]"
-              className="font-mono text-xs text-gray-700 font-medium"
-            />
-          </div>
+          <CodeCell
+            code={row.original.grnCode}
+            maxWidth="max-w-[110px]"
+          />
         ),
-        size: 170,
+        size: 130,
+        minSize: 115,
       },
       {
         id: 'grnDate',
@@ -651,9 +655,9 @@ const ReturnReplacementList = () => {
 
   return (
     <Container>
-      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
+      <div className="py-5 md:py-4 pb-6 space-y-4 md:space-y-5">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+        <div className="flex items-center gap-1 text-[11px] text-gray-400 mb-2.5 md:mb-2">
           <span>Dashboard</span>
           <ChevronRight size={11} />
           <span>Inventory</span>
@@ -661,13 +665,13 @@ const ReturnReplacementList = () => {
           <span className="text-[#084E92] font-semibold">Return and Replacement</span>
         </div>
 
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-[#0F172A] text-start leading-tight">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-[20px] md:text-2xl font-bold text-[#0F172A] text-start leading-tight">
             Return &amp; Replacement Listing
           </h1>
-          <p className="text-[#53565b] text-xs mt-1">
+          {/* <p className="text-[#53565b] text-xs mt-1">
             Manage and track returned inventory and generate replacement GRNs
-          </p>
+          </p> */}
         </div>
 
         {scopeError && (
