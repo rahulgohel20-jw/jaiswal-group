@@ -198,8 +198,9 @@ const VendorViewDetails = () => {
   );
 
   const departmentName = vendor.deptName || vendor.department?.name || '—';
-  const roleName = vendor.userRights?.roleName || vendor.roleName || null;
+  const roleName = vendor.roleName || null;
 
+  /*
   // Extract module-wise user rights
   const userRightsObj = vendor.userRights;
   const moduleRightsList = Array.isArray(userRightsObj?.userRights)
@@ -210,6 +211,7 @@ const VendorViewDetails = () => {
 
   const totalModules = moduleRightsList.length;
   const totalPages = moduleRightsList.reduce((acc, m) => acc + (m.userRights?.length || 0), 0);
+  */
 
   return (
     <Container>
@@ -230,7 +232,7 @@ const VendorViewDetails = () => {
           </h1>
 
           <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-            Complete vendor profile, department, and access permission details.
+            Complete vendor profile, department, and business details.
           </p>
         </div>
 
@@ -328,7 +330,7 @@ const VendorViewDetails = () => {
         </div>
       </SectionCard>
 
-      {/* User Rights & Permissions Matrix */}
+      {/* User Rights & Permissions Matrix
       <SectionCard
         icon={ShieldCheck}
         title="User Rights & Permissions"
@@ -373,7 +375,6 @@ const VendorViewDetails = () => {
               <tbody>
                 {moduleRightsList.map((mod) => (
                   <React.Fragment key={mod.moduleId ?? mod.moduleName}>
-                    {/* Module Header Row */}
                     <tr className="bg-[#F0F4FA] border-t border-[#E5E7EB]">
                       <td
                         colSpan={5}
@@ -387,7 +388,6 @@ const VendorViewDetails = () => {
                       </td>
                     </tr>
 
-                    {/* Pages in Module */}
                     {(mod.userRights || mod.userRightsPages || []).map((p) => (
                       <tr
                         key={p.id ?? p.pageid ?? p.pageId ?? p.pageName ?? p.pagename}
@@ -417,6 +417,7 @@ const VendorViewDetails = () => {
           </div>
         )}
       </SectionCard>
+      */}
 
       {/* Tax & payment info */}
       <SectionCard icon={BadgeCheck} title="Tax & Payment Information">

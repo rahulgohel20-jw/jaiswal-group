@@ -1698,7 +1698,8 @@ const VendorRegistration = () => {
         )}
       </SectionCard>
 
-      {/* User Permissions Matrix */}
+      {/* User Permissions Matrix (Commented out as of now) */}
+      {/*
       <SectionCard className="mt-4">
         <SectionHeader
           icon={ShieldCheck}
@@ -1821,6 +1822,7 @@ const VendorRegistration = () => {
           </div>
         )}
       </SectionCard>
+      */}
 
       {/* Common Address */}
       <SectionCard className="mt-4">
