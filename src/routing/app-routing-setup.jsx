@@ -164,6 +164,7 @@ import UnitListing from '../pages/units/UnitListing';
 import UnitViewDetails from '../pages/units/UnitViewDetails';
 import ModuleMaster from '../pages/user-rights/module/ModuleMaster';
 import PageMaster from '../pages/user-rights/pages/PageMaster';
+import RoleMaster from '../pages/user-rights/roles/RoleMaster';
 import UserManagementList from '../pages/user/UserManagementList';
 import UserRegistration from '../pages/user/UserRegistration';
 import UserViewDetails from '../pages/user/UserViewDetails';
@@ -356,6 +357,7 @@ export function AppRoutingSetup() {
           <Route path="/location/state" element={<StateMaster />} />
           <Route path="/location/city" element={<CityMaster />} />
 
+          <Route path="/roles" element={<RoleMaster />} />
           <Route path="/pages" element={<PageMaster />} />
           <Route path="/module-rights" element={<ModuleMaster />} />
 

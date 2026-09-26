@@ -3,17 +3,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 
 const inputCls =
   "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
-  "placeholder-gray-400 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-300 hover:border-gray-300";
+  "placeholder-gray-400 outline-none transition-all duration-150 focus:border-[#084E92] focus:ring-2 focus:ring-[#084E92]/15 hover:border-gray-300";
 
 const errorInputCls =
   "w-full border border-red-400 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
-  "placeholder-gray-400 outline-none transition focus:border-red-400 focus:ring-1 focus:ring-red-300";
+  "placeholder-gray-400 outline-none transition-all duration-150 focus:border-red-500 focus:ring-2 focus:ring-red-500/15";
 
 const SearchableSelect = ({
   value,
@@ -141,8 +141,12 @@ const SearchableSelect = ({
 
           <ChevronDown
             size={16}
-            className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${
-              disabled ? "text-gray-300" : "text-gray-400"
+            className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-200 ${
+              disabled
+                ? "text-gray-300"
+                : open
+                ? "text-[#084E92] rotate-180"
+                : "text-gray-400 group-hover:text-gray-600"
             }`}
           />
         </div>
@@ -153,18 +157,18 @@ const SearchableSelect = ({
         align="start"
         sideOffset={4}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="p-1 w-(--radix-popover-trigger-width) overflow-hidden z-100 bg-white rounded-xl shadow-lg border border-gray-100"
+        className="p-1.5 w-(--radix-popover-trigger-width) min-w-[200px] overflow-hidden z-100 bg-white rounded-xl shadow-xl shadow-slate-900/10 border border-slate-200/90 ring-1 ring-black/[0.03]"
       >
-        <div className="max-h-52 overflow-y-auto">
+        <div className="max-h-56 overflow-y-auto space-y-0.5 pr-0.5">
           {hasValue && isClearable && (
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={handleClear}
-              className="w-[95%] text-left px-3 py-2 text-xs mx-1.5 rounded text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 font-semibold transition cursor-pointer mb-1 border-b border-gray-100"
+              className="w-full text-left px-3 py-2 text-xs rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 font-medium transition cursor-pointer mb-1 border-b border-gray-100"
             >
-              <X size={13} />
-              Clear selection (Unselect)
+              <X size={13} className="shrink-0" />
+              Clear selection
             </button>
           )}
 
@@ -178,24 +182,26 @@ const SearchableSelect = ({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleSelect(option)}
-                  className={`w-[95%] text-left px-3 py-2.5 text-sm mx-1.5 rounded mt-0.5 transition cursor-pointer ${
+                  className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-between gap-2 ${
                     isSelected
-                      ? "bg-blue-50 text-[#084E92] font-semibold flex items-center justify-between"
-                      : "text-gray-700 hover:bg-gray-50"
+                      ? "bg-blue-50/90 text-[#084E92] font-semibold shadow-xs"
+                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-normal"
                   }`}
                 >
                   <span className="truncate">{option.label}</span>
-                  {isSelected && (
-                    <span className="text-[10px] text-[#084E92] bg-blue-100 px-1.5 py-0.5 rounded font-medium ml-2">
+                  {isSelected ? (
+                    <span className="flex items-center gap-1 text-[11px] text-[#084E92] bg-blue-100/80 px-2 py-0.5 rounded-md font-semibold shrink-0">
+                      <Check className="w-3 h-3 stroke-[2.5]" />
                       Selected
                     </span>
-                  )}
+                  ) : null}
                 </button>
               );
             })
           ) : (
-            <div className="px-3 py-3 text-sm text-gray-400 text-center">
-              No options found
+            <div className="px-3 py-4 text-xs text-gray-400 text-center flex flex-col items-center justify-center gap-1">
+              <Search className="w-4 h-4 text-gray-300" />
+              <span>No options found</span>
             </div>
           )}
         </div>

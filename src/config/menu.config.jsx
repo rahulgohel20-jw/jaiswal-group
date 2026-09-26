@@ -560,6 +560,7 @@ export const MENU_SIDEBAR = [
     title: 'Users Rights Master',
     icon: SlidersHorizontal,
     children: [
+      { title: 'Roles', path: '/roles' },
       { title: 'Pages', path: '/pages' },
       { title: 'Module Rights', path: '/module-rights' },
       { title: 'User Rights', path: '/user-rights' },

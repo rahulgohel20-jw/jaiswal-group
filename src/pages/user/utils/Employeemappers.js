@@ -65,7 +65,9 @@ export const DEFAULT_FORM = {
   password: '',
   mobile: '',
   altMobile: '',
+  deptId: '',
   departmentId: '',
+  roleId: '',
   designation: '',
   addressLine1: '',
   addressLine2: '',
@@ -97,16 +99,19 @@ export const mapEmployeeToForm = (emp = {}) => {
     password: '',
     mobile: emp.mobileNumber ?? emp.mobile ?? '',
     altMobile: emp.alternateMobile ?? emp.altMobile ?? '',
-    departmentId: idOf(emp.department) || emp.departmentId || emp.roleId || '',
+    deptId: emp.deptId != null ? String(emp.deptId) : idOf(emp.department) ? String(idOf(emp.department)) : '',
+    departmentId: emp.deptId != null ? String(emp.deptId) : idOf(emp.department) ? String(idOf(emp.department)) : (emp.departmentId ? String(emp.departmentId) : ''),
+    roleId: emp.roleId != null ? String(emp.roleId) : '',
     designation: emp.designation ?? '',
     addressLine1: emp.addressLine1 ?? '',
     addressLine2: emp.addressLine2 ?? '',
-    countryId: idOf(emp.country) || (emp.countryId ?? ''),
-    stateId: idOf(emp.state) || (emp.stateId ?? ''),
-    cityId: idOf(emp.city) || (emp.cityId ?? ''),
+    countryId: idOf(emp.country) ? String(idOf(emp.country)) : (emp.countryId != null ? String(emp.countryId) : ''),
+    stateId: idOf(emp.state) ? String(idOf(emp.state)) : (emp.stateId != null ? String(emp.stateId) : ''),
+    cityId: idOf(emp.city) ? String(idOf(emp.city)) : (emp.cityId != null ? String(emp.cityId) : ''),
     pincode: emp.pincode ?? '',
     latitude: emp.latitude ?? '',
     longitude: emp.longitude ?? '',
+    rawUserRights: emp.userRights ?? null,
   };
 };
 
@@ -159,32 +164,37 @@ export const deriveOrgSelection = (orgId, groups = [], allOrgs = []) => {
   };
 };
 
+export const buildEmployeePayload = (form, { isEditMode, rightsList = [] } = {}) => {
+  const orgId = form.outletId || form.companyId || form.groupId || form.organizationId;
+  const activeRights = Array.isArray(rightsList) && rightsList.length > 0
+    ? rightsList
+    : Array.isArray(form.rightsList)
+      ? form.rightsList
+      : [];
 
-export const buildEmployeePayload = (form, { isEditMode }) => ({
-  ...(isEditMode && form.id ? { id: form.id } : {}),
-  erpemployeecode: form.erpemployeecode,
-  addressLine1: form.addressLine1,
-  addressLine2: form.addressLine2,
-  alternateMobile: form.altMobile,
-  cityId: form.cityId,
-  countryId: form.countryId,
-  departmentId: form.departmentId,
-  roleId: form.departmentId,
-  designation: form.designation,
-  emailid: form.email,
-  fullName: [form.firstName, form.middlename, form.lastName].filter(Boolean).join(' '),
-  latitude: form.latitude,
-  longitude: form.longitude,
-  mobileNumber: form.mobile,
-  // Most specific selection wins: Unit > Sub Company > Group.
-  // Sub Company and Unit are optional — if neither is picked, the user is
-  // registered directly under the Group.
-  organizationId: form.outletId || form.companyId || form.groupId,
-  ...(isEditMode ? {} : { password: form.password }),
-  pincode: form.pincode,
-  stateId: form.stateId,
-  username: form.username || form.erpemployeecode || form.email || '',
-});
+  return {
+    ...(isEditMode && form.id ? { id: Number(form.id) } : {}),
+    addressLine1: form.addressLine1 || '',
+    addressLine2: form.addressLine2 || '',
+    alternateMobile: form.altMobile || form.alternateMobile || '',
+    cityId: Number(form.cityId) || 0,
+    countryId: Number(form.countryId) || 0,
+    deptId: Number(form.deptId || form.departmentId) || 0,
+    designation: form.designation || '',
+    emailid: form.email || form.emailid || '',
+    erpemployeecode: form.erpemployeecode || '',
+    fullName: form.fullName || [form.firstName, form.middlename, form.lastName].filter(Boolean).join(' '),
+    latitude: form.latitude ? String(form.latitude) : '',
+    longitude: form.longitude ? String(form.longitude) : '',
+    mobileNumber: form.mobile || form.mobileNumber || '',
+    organizationId: Number(orgId) || 0,
+    ...((!isEditMode && form.password) || form.password ? { password: form.password } : {}),
+    pincode: form.pincode ? String(form.pincode) : '',
+    rightsList: activeRights,
+    stateId: Number(form.stateId) || 0,
+    username: form.username || form.erpemployeecode || form.email || '',
+  };
+};
 
 // Employee (from API) -> user management table row
 export const mapEmployeeToRow = (emp = {}) => {
@@ -197,8 +207,9 @@ export const mapEmployeeToRow = (emp = {}) => {
     erpemployeecode: emp.erpemployeecode ?? emp.erpEmployeeCode ?? emp.code ?? '',
     email: emp.emailid ?? emp.email ?? '',
     company: emp.organizationName ?? emp.company ?? '',
-    role: emp.role ?? emp.designation ?? '',
-    department: emp.roleName ?? emp.department?.name ?? emp.department ?? '',
+    role: emp.roleName ?? emp.role ?? emp.designation ?? '',
+    department: emp.deptName ?? emp.dept?.name ?? emp.department?.name ?? emp.department ?? emp.roleName ?? '',
+    deptId: emp.deptId ?? idOf(emp.department),
     designation: emp.designation ?? '',
     mobile: emp.mobileNumber ?? '',
     kycStatus: emp.kycStatus ?? 'Pending',

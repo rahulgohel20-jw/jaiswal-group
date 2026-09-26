@@ -156,10 +156,10 @@ export function useOrgScope() {
     if (isOutletUser) {
       return tokenOrgId ?? units[0]?.id ?? 0;
     }
-    if (isGroupUser) return Number(0);
     if (selectedUnitId) return Number(selectedUnitId);
+    if (isGroupUser) return Number(0);
     return tokenOrgId ?? 0;
-  }, [isOutletUser, units, selectedUnitId]);
+  }, [isOutletUser, isGroupUser, units, selectedUnitId]);
 
   const filterRowsByScope = useCallback(
     (rows) => {

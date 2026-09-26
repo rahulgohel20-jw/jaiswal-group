@@ -296,7 +296,7 @@ const ModuleMaster = () => {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
+            <h1 className="font-bold text-[#101828] text-[18px] sm:text-[20px]">
               Module Right Name Master
             </h1>
           </div>

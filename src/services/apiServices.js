@@ -557,6 +557,28 @@ export const updateRoleMaster = (payload) => {
 export const deleteRoleMasterById = (id) => {
   return DELETE('/rolemaster/deletebyid', { id });
 };
+
+// ---- Department Master APIs ----
+export const getAllDepartmentMaster = () => {
+  return GET('/department/getall');
+};
+
+export const getDepartmentMasterById = (id) => {
+  return GET('/department/getbyid', { id });
+};
+
+export const addDepartmentMaster = (payload) => {
+  return POST('/department/add', payload);
+};
+
+export const updateDepartmentMaster = (payload) => {
+  return PUT('/department/update', payload, { id: payload.id });
+};
+
+export const deleteDepartmentMasterById = (id) => {
+  return DELETE('/department/deletebyid', { id });
+};
+
 //Raw Material Unit APIs
 export const getAllRawMaterialUnits = () => {
   return GET(`/unit/getall`);
