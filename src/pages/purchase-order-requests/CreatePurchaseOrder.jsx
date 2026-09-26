@@ -231,6 +231,8 @@ const CreatePurchaseOrder = () => {
   const [poQtyMap, setPoQtyMap] = useState({});
   const [uomMap, setUomMap] = useState({});
   const [priceMap, setPriceMap] = useState({});
+  const [discountMap, setDiscountMap] = useState({});
+  const [overallDiscountPercentage, setOverallDiscountPercentage] = useState(0);
   const [hsnMap, setHsnMap] = useState({});
   const [gstMap, setGstMap] = useState({});
   const [cessMap, setCessMap] = useState({});
@@ -251,6 +253,8 @@ const CreatePurchaseOrder = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [rowSelection, setRowSelection] = useState({});
   const [showStockTransferModal, setShowStockTransferModal] = useState(false);
+
+  const [termsAndConditions, setTermsAndConditions] = useState('');
 
   const [otherCosts, setOtherCosts] = useState(() => {
     const initial = poRecord?.otherCosts || state?.otherCosts;
@@ -293,7 +297,7 @@ const CreatePurchaseOrder = () => {
   const {
     loading: outletsLoading,
     orgType,
-    units: outlets, // [{ id, name, code }]
+    units: outlets,
     selectedUnitId: orgScopeOutletId,
   } = useOrgScope();
 
@@ -302,11 +306,6 @@ const CreatePurchaseOrder = () => {
     state?.outletId != null ? String(state.outletId) : '',
   );
 
-  // NOTE: activeOutletId must be declared here, before any effect that
-  // references it (directly or in a dependency array) — dependency arrays
-  // are evaluated during render, at the useEffect() call site itself, so
-  // referencing activeOutletId before this declaration throws
-  // "Cannot access 'activeOutletId' before initialization" (TDZ).
   const activeOutletId =
     selectedOutletId ||
     (poRecord?.outletId != null ? String(poRecord.outletId) : '') ||
@@ -331,7 +330,6 @@ const CreatePurchaseOrder = () => {
   const shipTo = fetchedShipTo || poRecord?.shipTo || state?.shipTo || null;
   const isInterState = useMemo(() => checkIsInterState(billTo, shipTo), [billTo, shipTo]);
 
-  // Fetch vendor address if billTo is not directly provided on poRecord/state
   useEffect(() => {
     if (poRecord?.billTo || state?.billTo) return;
     const vendorId = commonVendorId || poRecord?.vendorId || state?.vendorId || Object.values(vendorMap).find(Boolean);
@@ -373,7 +371,6 @@ const CreatePurchaseOrder = () => {
     };
   }, [poRecord?.billTo, state?.billTo, commonVendorId, poRecord?.vendorId, state?.vendorId, vendorMap]);
 
-  // Fetch outlet address if shipTo is not directly provided on poRecord/state
   useEffect(() => {
     if (poRecord?.shipTo || state?.shipTo) return;
     const outletId = activeOutletId || selectedOutletId || poRecord?.outletId || state?.outletId || pr?.outletId;
@@ -413,11 +410,7 @@ const CreatePurchaseOrder = () => {
     };
   }, [poRecord?.shipTo, state?.shipTo, activeOutletId, selectedOutletId, poRecord?.outletId, state?.outletId, pr?.outletId]);
 
-  // Set by PurchaseOrderApproval.jsx's navigate() call:
-  //  - 'approve' -> actionable review, shows an Approve button
-  //  - 'reject'  -> actionable review, shows a Reject button, remarks required
-  // undefined -> normal create / continue-draft flow (Save Draft / Generate)
-  const reviewMode = state?.reviewMode; // 'approve' | 'reject' | undefined
+  const reviewMode = state?.reviewMode;
   const isApproveMode = reviewMode === 'approve';
   const isRejectMode = reviewMode === 'reject';
   const isReviewMode = isApproveMode || isRejectMode;
@@ -446,8 +439,6 @@ const CreatePurchaseOrder = () => {
       setSelectedOutletId(String(poRecord.outletId));
     }
   }, [poRecord?.outletId, selectedOutletId]);
-
-
 
   useEffect(() => {
     if (isEditingExistingPo && targetPoId) {
@@ -504,10 +495,15 @@ const CreatePurchaseOrder = () => {
       setExpectedDeliveryDate(apiDateToInputDate(poRecord.expectedDeliveryDate));
     }
     if (poRecord.remarks) setRemarks(poRecord.remarks);
+    if (poRecord.termsAndConditions) setTermsAndConditions(poRecord.termsAndConditions);
+    if (poRecord.discountPercentage != null) {
+      setOverallDiscountPercentage(Number(poRecord.discountPercentage) || 0);
+    }
 
     const qtyNext = {};
     const uomNext = {};
     const priceNext = {};
+    const discountNext = {};
     const vendorNext = {};
     const remarksNext = {};
     const hsnNext = {};
@@ -515,14 +511,12 @@ const CreatePurchaseOrder = () => {
     const cessNext = {};
 
     (poRecord.details || []).forEach((d) => {
-      // normalizePo renames the API's `orderedQuantity` to `quantity` on
-      // the flattened detail object — read `d.quantity`, not
-      // `d.orderedQuantity` (which is always undefined).
       qtyNext[d.rawMaterialId] = d.quantity;
       if (d.uomId || d.uomName) {
         uomNext[d.rawMaterialId] = { uomId: d.uomId, uomName: d.uomName };
       }
       priceNext[d.rawMaterialId] = d.unitPrice;
+      discountNext[d.rawMaterialId] = Number(d.discountPercentage) || 0;
       if (d.vendorId) vendorNext[d.rawMaterialId] = d.vendorId;
       if (d.remarks) remarksNext[d.rawMaterialId] = d.remarks;
       if (d.hsnCode) hsnNext[d.rawMaterialId] = d.hsnCode;
@@ -539,9 +533,11 @@ const CreatePurchaseOrder = () => {
       else if (hasTax) gstNext[d.rawMaterialId] = Number(d.tax);
       else gstNext[d.rawMaterialId] = 18;
     });
+
     setPoQtyMap((prev) => ({ ...prev, ...qtyNext }));
     setUomMap((prev) => ({ ...prev, ...uomNext }));
     setPriceMap((prev) => ({ ...prev, ...priceNext }));
+    setDiscountMap((prev) => ({ ...prev, ...discountNext }));
     setVendorMap((prev) => ({ ...prev, ...vendorNext }));
     setItemRemarksMap((prev) => ({ ...prev, ...remarksNext }));
     setHsnMap((prev) => ({ ...prev, ...hsnNext }));
@@ -556,7 +552,6 @@ const CreatePurchaseOrder = () => {
         }))
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poRecord, isEditingExistingPo]);
 
   const [vendorOutletMappings, setVendorOutletMappings] = useState([]);
@@ -637,15 +632,12 @@ const CreatePurchaseOrder = () => {
   }, [vendors, commonVendorId, poRecord?.vendorId, state?.vendorId, billTo?.vendorId, vendorMap]);
 
   const isGstApplicable = useMemo(() => {
-    // 1. From matched active vendor in getAllActiveVendors()
     if (activeVendorObj && activeVendorObj.isGstApplicable !== undefined && activeVendorObj.isGstApplicable !== null) {
       return Boolean(activeVendorObj.isGstApplicable);
     }
-    // 2. Directly from getbyid response (poRecord.isGstApplicable)
     if (poRecord && poRecord.isGstApplicable !== undefined && poRecord.isGstApplicable !== null) {
       return Boolean(poRecord.isGstApplicable);
     }
-    // 3. From billTo or route state
     if (billTo && billTo.isGstApplicable !== undefined && billTo.isGstApplicable !== null) {
       return Boolean(billTo.isGstApplicable);
     }
@@ -668,11 +660,6 @@ const CreatePurchaseOrder = () => {
       }));
       return;
     }
-
-    const vendorObj = vendors.find((v) => String(v.id) === String(vendorId));
-    const vendorName = vendorObj?.name || 'Selected Vendor';
-    const item = purchaseItems.find((i) => String(i.rawMaterialId) === String(rawMaterialId));
-    const itemName = item?.itemName || 'this item';
 
     try {
       const res = await getVendorPriceConfigsByVendorId(Number(vendorId));
@@ -715,6 +702,38 @@ const CreatePurchaseOrder = () => {
     })();
   }, []);
 
+  const handleOverallDiscountChange = (value) => {
+    const discount = value === '' ? '' : Math.max(0, Math.min(100, Number(value) || 0));
+    setOverallDiscountPercentage(value);
+    setDiscountMap((prev) => {
+      const next = { ...prev };
+      purchaseItems.forEach((item) => {
+        next[item.rawMaterialId] = discount === '' ? 0 : discount;
+      });
+      return next;
+    });
+  };
+
+  const handleItemDiscountChange = (rawMaterialId, value) => {
+    const v = value === '' ? '' : Math.max(0, Math.min(100, Number(value)));
+    setDiscountMap((prev) => {
+      const next = { ...prev, [rawMaterialId]: v };
+      let sub = 0;
+      let disc = 0;
+      includedItems.forEach((item) => {
+        const q = Number(poQtyMap[item.rawMaterialId]) || 0;
+        const p = Number(priceMap[item.rawMaterialId]) || 0;
+        const d = item.rawMaterialId === rawMaterialId ? (Number(v) || 0) : (Number(next[item.rawMaterialId]) || 0);
+        const base = q * p;
+        sub += base;
+        disc += (base * d) / 100;
+      });
+      const effectivePct = sub > 0 ? Number(((disc / sub) * 100).toFixed(2)) : (Number(v) || 0);
+      setOverallDiscountPercentage(effectivePct);
+      return next;
+    });
+  };
+
   const handleGlobalVendorChange = async (vendorId) => {
     if (!vendorId) {
       setCommonVendorId('');
@@ -722,22 +741,20 @@ const CreatePurchaseOrder = () => {
     }
 
     if (isSingleVendorPo) {
-      // In single vendor PO, trigger confirmation modal before switching vendor
       const currentVendorId = commonVendorId || poRecord?.vendorId || state?.vendorId || '';
       if (String(vendorId) === String(currentVendorId)) return;
       setPendingVendorId(vendorId);
       setShowVendorChangeModal(true);
     } else {
-      // In pre-generation multi-vendor mode, apply directly to checked items
       setCommonVendorId(vendorId);
       const selectedVendor = vendors.find(
         (vendor) => String(vendor.id) === String(vendorId)
       );
 
       if (selectedVendor?.rawVendor?.termsAndConditions) {
-        setRemarks(htmlToPlainText(selectedVendor.rawVendor.termsAndConditions));
+        setTermsAndConditions(htmlToPlainText(selectedVendor.rawVendor.termsAndConditions));
       } else {
-        setRemarks('');
+        setTermsAndConditions('');
       }
       applyCommonVendorToChecked(vendorId, rowSelection, purchaseItems);
     }
@@ -748,16 +765,14 @@ const CreatePurchaseOrder = () => {
     setIsSwitchingVendor(true);
     try {
       await applyVendorSwitch(pendingVendorId);
-      // Get selected vendor
       const selectedVendor = vendors.find(
         (vendor) => String(vendor.id) === String(pendingVendorId)
       );
 
-      // Set vendor terms in textarea
       if (selectedVendor?.rawVendor?.termsAndConditions) {
-        setRemarks(htmlToPlainText(selectedVendor.rawVendor.termsAndConditions));
+        setTermsAndConditions(htmlToPlainText(selectedVendor.rawVendor.termsAndConditions));
       } else {
-        setRemarks('');
+        setTermsAndConditions('');
       }
       setShowVendorChangeModal(false);
       setPendingVendorId(null);
@@ -786,7 +801,6 @@ const CreatePurchaseOrder = () => {
       }
     });
 
-    // All items are supplied with new vendor:
     setCommonVendorId(vendorId);
 
     setVendorMap((prev) => {
@@ -809,7 +823,6 @@ const CreatePurchaseOrder = () => {
       return next;
     });
 
-    // Fetch new vendor's address and check state against outlet
     try {
       const vendorRes = await getVendorById(Number(vendorId));
       const v = vendorRes?.data?.data ?? vendorRes?.data;
@@ -834,7 +847,6 @@ const CreatePurchaseOrder = () => {
         };
         setFetchedBillTo(newBillTo);
 
-        // Get outlet address if not present
         const outletId = activeOutletId || selectedOutletId || poRecord?.outletId || state?.outletId || pr?.outletId;
         let currentShipTo = shipTo;
         if (!currentShipTo && outletId) {
@@ -852,10 +864,6 @@ const CreatePurchaseOrder = () => {
           }
         }
 
-        // Check if Inter-State (vendor state != outlet state)
-        const isNewInterState = checkIsInterState(newBillTo, currentShipTo);
-
-        // Update tax fields accordingly:
         purchaseItems.forEach((item) => {
           const defaultTax = item.tax != null && Number(item.tax) > 0 ? Number(item.tax) : 18;
           setGstMap((prev) => ({ ...prev, [item.rawMaterialId]: prev[item.rawMaterialId] ?? defaultTax }));
@@ -877,9 +885,6 @@ const CreatePurchaseOrder = () => {
     const targetRows = selectedIndexes.map((idx) => rows[Number(idx)]).filter(Boolean);
     if (targetRows.length === 0) return;
 
-    const vendorObj = vendors.find((v) => String(v.id) === String(vendorId));
-    const vendorName = passedVendorName || vendorObj?.name || 'Selected Vendor';
-
     let configs = passedConfigs;
     if (!configs) {
       try {
@@ -899,7 +904,6 @@ const CreatePurchaseOrder = () => {
       }
     });
 
-    // Set vendor for target items
     setVendorMap((prev) => {
       const next = { ...prev };
       targetRows.forEach((item) => {
@@ -910,7 +914,6 @@ const CreatePurchaseOrder = () => {
       return next;
     });
 
-    // Set price from config or 0 if vendor is not supplier
     setPriceMap((prev) => {
       const next = { ...prev };
       targetRows.forEach((item) => {
@@ -939,7 +942,6 @@ const CreatePurchaseOrder = () => {
       [item.id]: { uomId, uomName },
     }));
 
-    // If single-vendor PO, assign the PO's vendor to this new item if supplied
     const targetVendor = isSingleVendorPo
       ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '')
       : (commonVendorId || '');
@@ -948,8 +950,6 @@ const CreatePurchaseOrder = () => {
     let initialPrice = item.supplierRate ?? '';
 
     if (targetVendor) {
-      const vendorObj = vendors.find((v) => String(v.id) === String(targetVendor));
-      const vendorName = vendorObj?.name || 'Selected Vendor';
       try {
         const res = await getVendorPriceConfigsByVendorId(Number(targetVendor));
         const raw = res?.data?.data ?? res?.data ?? res ?? [];
@@ -966,7 +966,6 @@ const CreatePurchaseOrder = () => {
       setVendorMap((prev) => ({ ...prev, [item.id]: String(vendorAssigned) }));
     }
 
-    // If previously removed, un-delete it
     setDeletedRawMaterialIds((prev) => {
       const next = new Set(prev);
       next.delete(String(item.id));
@@ -996,6 +995,7 @@ const CreatePurchaseOrder = () => {
 
     setPoQtyMap((prev) => ({ ...prev, [item.id]: prev[item.id] || 1 }));
     setPriceMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? initialPrice }));
+    setDiscountMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? overallDiscountPercentage ?? 0 }));
     if (item.hsnCode) {
       setHsnMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? item.hsnCode }));
     }
@@ -1042,6 +1042,11 @@ const CreatePurchaseOrder = () => {
       return next;
     });
     setPriceMap((prev) => {
+      const next = { ...prev };
+      delete next[rawMaterialId];
+      return next;
+    });
+    setDiscountMap((prev) => {
       const next = { ...prev };
       delete next[rawMaterialId];
       return next;
@@ -1143,6 +1148,7 @@ const CreatePurchaseOrder = () => {
   const purchaseItems = useMemo(() => {
     const baseline = isEditingExistingPo
       ? (poRecord?.details || []).map((d, idx) => ({
+        id: d.id != null ? Number(d.id) : (d.poDetailId != null ? Number(d.poDetailId) : 0),
         rawMaterialId: d.rawMaterialId,
         prDetailId: d.prDetailId != null ? Number(d.prDetailId) : (d.id != null ? Number(d.id) : null),
         srNo: String(idx + 1).padStart(2, '0'),
@@ -1153,8 +1159,10 @@ const CreatePurchaseOrder = () => {
         approvedQty: d.quantity,
         remarks: d.remarks || '',
         source: 'pr',
+        receivedQuantity: d.receivedQuantity != null ? Number(d.receivedQuantity) : 0,
       }))
       : (pr?.details || []).map((d, idx) => ({
+        id: 0,
         rawMaterialId: d.rawMaterialId,
         prDetailId: d.id != null ? Number(d.id) : (d.prDetailId != null ? Number(d.prDetailId) : null),
         srNo: String(idx + 1).padStart(2, '0'),
@@ -1165,8 +1173,10 @@ const CreatePurchaseOrder = () => {
         approvedQty: d.quantity ?? d.orderedQuantity,
         remarks: d.remarks || '',
         source: 'pr',
+        receivedQuantity: 0,
       }));
     const fromManual = manualItems.map((m, idx) => ({
+      id: m.id != null ? Number(m.id) : 0,
       rawMaterialId: m.rawMaterialId,
       prDetailId: null,
       srNo: String(baseline.length + idx + 1).padStart(2, '0'),
@@ -1177,6 +1187,7 @@ const CreatePurchaseOrder = () => {
       approvedQty: null,
       remarks: m.remarks || '',
       source: 'manual',
+      receivedQuantity: 0,
     }));
     return [...baseline, ...fromManual]
       .filter((item) => !deletedRawMaterialIds.has(String(item.rawMaterialId)))
@@ -1186,7 +1197,6 @@ const CreatePurchaseOrder = () => {
       }));
   }, [pr, poRecord, isEditingExistingPo, manualItems, deletedRawMaterialIds]);
 
-  // Synchronize HSN, CESS and Tax rates from loaded rawMaterials
   useEffect(() => {
     if (!rawMaterials.length || !purchaseItems.length) return;
     const rmMap = {};
@@ -1319,6 +1329,8 @@ const CreatePurchaseOrder = () => {
   };
 
   const calculatedTotals = useMemo(() => {
+    let subtotal = 0;
+    let totalDiscount = 0;
     let totalTaxable = 0;
     let totalCGST = 0;
     let totalSGST = 0;
@@ -1331,7 +1343,14 @@ const CreatePurchaseOrder = () => {
     includedItems.forEach((item) => {
       const qty = Number(poQtyMap[item.rawMaterialId]) || 0;
       const price = Number(priceMap[item.rawMaterialId]) || 0;
-      const taxable = qty * price;
+      const discountPct = Number(discountMap[item.rawMaterialId]) || 0;
+
+      const baseAmount = qty * price;
+      const discountAmt = (baseAmount * discountPct) / 100;
+      const taxable = Math.max(0, baseAmount - discountAmt);
+
+      subtotal += baseAmount;
+      totalDiscount += discountAmt;
       totalTaxable += taxable;
 
       const cessPct =
@@ -1378,6 +1397,9 @@ const CreatePurchaseOrder = () => {
       itemCalculations[item.rawMaterialId] = {
         qty,
         price,
+        baseAmount,
+        discountPct,
+        discountAmt,
         taxable,
         gstPct,
         gstAmt,
@@ -1431,6 +1453,8 @@ const CreatePurchaseOrder = () => {
     return {
       itemCalculations,
       taxBreakdowns,
+      subtotal,
+      totalDiscount,
       totalTaxable,
       totalCGST,
       totalSGST,
@@ -1445,7 +1469,7 @@ const CreatePurchaseOrder = () => {
       roundOff,
       amountInWords: numberToWords(netAmount),
     };
-  }, [includedItems, poQtyMap, priceMap, gstMap, cessMap, isInterState, isGstApplicable, totalOtherCosts]);
+  }, [includedItems, poQtyMap, priceMap, discountMap, gstMap, cessMap, isInterState, isGstApplicable, totalOtherCosts]);
 
   const buildSinglePayload = (status) => {
     const reqId = getPurchaseRequisitionId();
@@ -1459,12 +1483,17 @@ const CreatePurchaseOrder = () => {
     const otherCostsPayload = otherCosts
       .filter((c) => (c.label && c.label.trim()) || (c.cost !== '' && !isNaN(Number(c.cost))))
       .map((c) => ({
-        ...(c.id && typeof c.id === 'number' && c.id < 1000000000 ? { id: c.id } : {}),
+        ...(c.id && typeof c.id === 'number' && c.id < 1000000000 ? { id: Number(c.id) } : { id: 0 }),
         label: (c.label || '').trim(),
         cost: Number(c.cost) || 0,
+        moduleName: 'PO',
       }));
 
-    // Line items inserted vendor-wise (ordered by vendorId)
+    const selectedOutlet = (outlets || []).find((u) => String(u.id) === String(outletId));
+    const outletInitials = selectedOutlet?.code || poRecord?.outletInitials || state?.outletInitials || '';
+    const firstVendorObj = vendors.find((v) => String(v.id) === String(firstVendorId));
+    const vendorName = firstVendorObj?.name ?? poRecord?.vendorName ?? state?.vendorName ?? '';
+
     const details = [...includedItems]
       .map((item) => {
         const itemVendorId = vendorMap[item.rawMaterialId] || commonVendorId || firstVendorId;
@@ -1472,23 +1501,31 @@ const CreatePurchaseOrder = () => {
         const qty = Number(poQtyMap[item.rawMaterialId]) || 0;
         const unitPrice = Number(priceMap[item.rawMaterialId]) || 0;
         const currentUom = uomMap[item.rawMaterialId] || { uomId: item.uomId, uomName: item.uomName || item.unit };
+        const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {};
+        const discountPercentage = Number(discountMap[item.rawMaterialId]) || 0;
+        const discountAmount = Number((calc.discountAmt || (qty * unitPrice * discountPercentage / 100) || 0).toFixed(2));
+        const detailId = item.id != null ? Number(item.id) : 0;
+        const prDetailId = item.prDetailId != null ? Number(item.prDetailId) : 0;
+        const receivedQuantity = item.receivedQuantity != null ? Number(item.receivedQuantity) : 0;
 
-        // If initial Create PO / isGeneratePo OR Non-GST vendor: NO GST, NO HSN, NO tax fields
         if (isGeneratePo || !isGstApplicable) {
           return {
-            uomId: currentUom.uomId,
-            uomName: currentUom.uomName,
-            rawMaterialId: item.rawMaterialId,
-            rawMaterialName: item.itemName,
+            id: detailId,
+            uomId: currentUom.uomId ? Number(currentUom.uomId) : 0,
+            uomName: currentUom.uomName || '',
+            rawMaterialId: Number(item.rawMaterialId) || 0,
+            rawMaterialName: item.itemName || '',
             quantity: qty,
-            unitPrice: unitPrice,
-            vendorId: itemVendorId ? Number(itemVendorId) : undefined,
-            vendorName: vendorObj?.name ?? item.vendorName ?? '',
             orderedQuantity: qty,
-            receivedQuantity: 0,
+            receivedQuantity,
+            unitPrice: unitPrice,
+            discountPercentage,
+            discountAmount,
+            vendorId: itemVendorId ? Number(itemVendorId) : 0,
+            vendorName: vendorObj?.name ?? item.vendorName ?? '',
             tax: 0,
             taxAmount: 0,
-            totalPrice: Number((qty * unitPrice).toFixed(2)),
+            totalPrice: Number((calc.taxable || (qty * unitPrice - discountAmount)).toFixed(2)),
             hsnCode: '',
             cess: 0,
             cessAmount: 0,
@@ -1498,13 +1535,12 @@ const CreatePurchaseOrder = () => {
             sgstAmount: 0,
             igst: 0,
             igstAmount: 0,
-            prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
+            prDetailId,
             remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
+            termsAndConditions: termsAndConditions || '',
           };
         }
 
-        // Otherwise (GST-applicable vendor): Include configured GST, HSN, Tax amounts, CESS
-        const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {};
         const hsn = hsnMap[item.rawMaterialId] || '';
         const cess = calc.cessPct ?? 0;
 
@@ -1517,7 +1553,7 @@ const CreatePurchaseOrder = () => {
         let igstAmount = 0;
         const cessAmount = Number((calc.cessAmt || 0).toFixed(2));
         const taxAmount = Number((calc.itemTax || 0).toFixed(2));
-        const totalPrice = Number((calc.itemTotal || (qty * unitPrice + (calc.itemTax || 0))).toFixed(2));
+        const totalPrice = Number((calc.itemTotal || (calc.taxable + (calc.itemTax || 0))).toFixed(2));
 
         if (isInterState) {
           igstRate = Number(calc.igstPct ?? 18);
@@ -1538,16 +1574,19 @@ const CreatePurchaseOrder = () => {
         }
 
         return {
-          uomId: currentUom.uomId,
-          uomName: currentUom.uomName,
-          rawMaterialId: item.rawMaterialId,
-          rawMaterialName: item.itemName,
+          id: detailId,
+          uomId: currentUom.uomId ? Number(currentUom.uomId) : 0,
+          uomName: currentUom.uomName || '',
+          rawMaterialId: Number(item.rawMaterialId) || 0,
+          rawMaterialName: item.itemName || '',
           quantity: qty,
-          unitPrice: unitPrice,
-          vendorId: itemVendorId ? Number(itemVendorId) : undefined,
-          vendorName: vendorObj?.name ?? item.vendorName ?? '',
           orderedQuantity: qty,
-          receivedQuantity: 0,
+          receivedQuantity,
+          unitPrice: unitPrice,
+          discountPercentage,
+          discountAmount,
+          vendorId: itemVendorId ? Number(itemVendorId) : 0,
+          vendorName: vendorObj?.name ?? item.vendorName ?? '',
           tax: taxRate,
           taxAmount: taxAmount,
           totalPrice: totalPrice,
@@ -1560,44 +1599,32 @@ const CreatePurchaseOrder = () => {
           sgstAmount: sgstAmount,
           igst: igstRate,
           igstAmount: igstAmount,
-          prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
+          prDetailId,
           remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
+          termsAndConditions: termsAndConditions || '',
         };
       })
       .sort((a, b) => (Number(a.vendorId) || 0) - (Number(b.vendorId) || 0));
 
-    if (isGeneratePo) {
-      return {
-        purchaseRequisitionId: reqId,
-        prId: reqId,
-        outletId,
-        poDate: formattedPoDate,
-        expectedDeliveryDate: formattedExpectedDate,
-        remarks,
-        totalAmount: Number(calculatedTotals.netAmount.toFixed(2)),
-        vendorId: firstVendorId ? Number(firstVendorId) : undefined,
-        status,
-        userId,
-        actionBy,
-        otherCosts: otherCostsPayload,
-        totalOtherCosts: Number(totalOtherCosts.toFixed(2)),
-        details,
-      };
-    }
-
     return {
-      purchaseRequisitionId: reqId,
-      prId: reqId,
-      outletId,
+      purchaseRequisitionId: reqId != null ? Number(reqId) : 0,
+      prId: reqId != null ? Number(reqId) : 0,
+      outletId: outletId ? Number(outletId) : 0,
+      outletInitials: outletInitials || '',
       poDate: formattedPoDate,
       expectedDeliveryDate: formattedExpectedDate,
-      remarks,
-      roundOff: calculatedTotals.roundOff,
-      totalAmount: calculatedTotals.netAmount,
-      vendorId: firstVendorId ? Number(firstVendorId) : undefined,
+      remarks: remarks || '',
+      termsAndConditions: termsAndConditions || '',
+      discountPercentage: Number(overallDiscountPercentage) || 0,
+      discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
+      subtotal: Number(calculatedTotals.subtotal.toFixed(2)),
+      roundOff: calculatedTotals.roundOff != null ? Number(calculatedTotals.roundOff) : 0,
+      totalAmount: calculatedTotals.netAmount != null ? Number(calculatedTotals.netAmount) : 0,
+      vendorId: firstVendorId ? Number(firstVendorId) : 0,
+      vendorName: vendorName || '',
       status,
-      userId,
-      actionBy,
+      userId: userId ? Number(userId) : 0,
+      actionBy: actionBy || '',
       otherCosts: otherCostsPayload,
       totalOtherCosts: Number(totalOtherCosts.toFixed(2)),
       details,
@@ -1633,8 +1660,6 @@ const CreatePurchaseOrder = () => {
         return false;
       }
       const vendorId = vendorMap[item.rawMaterialId] || (isSingleVendorPo ? commonVendorId : '');
-      const vendorObj = vendors.find((v) => String(v.id) === String(vendorId));
-      const vendorName = vendorObj?.name || 'Selected vendor';
       if (!vendorId) {
         setSubmitError(`Please select a valid vendor for "${item.itemName}".`);
         return false;
@@ -1642,6 +1667,11 @@ const CreatePurchaseOrder = () => {
       const price = priceMap[item.rawMaterialId];
       if (price === '' || price === undefined || isNaN(Number(price)) || Number(price) < 0) {
         setSubmitError(`Please enter a valid price for "${item.itemName}".`);
+        return false;
+      }
+      const discount = discountMap[item.rawMaterialId];
+      if (discount !== '' && discount !== undefined && (isNaN(Number(discount)) || Number(discount) < 0 || Number(discount) > 100)) {
+        setSubmitError(`Please enter a valid discount percentage (0-100) for "${item.itemName}".`);
         return false;
       }
       if (!isGeneratePo && isGstApplicable) {
@@ -1669,7 +1699,6 @@ const CreatePurchaseOrder = () => {
       const currentRawStatus = poRecord?.rawStatus || state?.rawStatus;
       const targetStatus = currentRawStatus === PO_STATUS.IN_PROGRESS ? PO_STATUS.IN_PROGRESS : PO_STATUS.PENDING;
       const payload = buildSinglePayload(targetStatus);
-      console.log('=== SAVE DRAFT / GENERATE PO PAYLOAD ===', payload);
       if (isEditingExistingPo && targetPoId) {
         await update(targetPoId, payload);
       } else {
@@ -1690,7 +1719,6 @@ const CreatePurchaseOrder = () => {
     setSubmitError('');
     try {
       const payload = buildSinglePayload(PO_STATUS.SENT_FOR_APPROVAL);
-      console.log('=== SENT FOR APPROVAL PO PAYLOAD ===', payload);
       if (isEditingExistingPo && targetPoId) {
         await update(targetPoId, payload);
       } else {
@@ -1705,8 +1733,6 @@ const CreatePurchaseOrder = () => {
     }
   };
 
-  // Approve/Reject/Save-in-progress reuse the same update() call as Save Draft/Generate —
-  // only the target status (and, for reject, the required remarks) differ.
   const handleSaveInProgress = async () => {
     if (!validateForm()) return;
     setIsSubmitting(true);
@@ -1776,13 +1802,6 @@ const CreatePurchaseOrder = () => {
     }
   };
 
-  const estimatedTotal = calculatedTotals.netAmount;
-
-  // Approval Date isn't a field the PR or PO APIs return today — there's no
-  // "date approved" property in either response shape. updatedAt is the
-  // closest proxy (it does get bumped on the approve action) but it also
-  // changes on any edit, so treat this as best-effort display, not a source
-  // of truth, until the backend exposes a real approvedAt field.
   const approvalDateDisplay =
     poRecord?.rawStatus === PO_STATUS.APPROVED ? poRecord?.updatedAt : '';
 
@@ -1800,9 +1819,9 @@ const CreatePurchaseOrder = () => {
     <Container>
       <div className="p-4 mx-auto">
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
+          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate(-1)}>Purchase Order Request</span>
+          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate(-1)}>Purchase Order Request</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">
             {isRejectMode
@@ -2078,7 +2097,7 @@ const CreatePurchaseOrder = () => {
           </div>
         </div>
 
-        {/* Bill To & Ship To Address Section (Shown only once PO is generated vendor-wise / existing / review) */}
+        {/* Bill To & Ship To Address Section */}
         {isSingleVendorPo && (billTo || shipTo) && (
           <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm mt-6 overflow-hidden">
             <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between flex-wrap gap-3 bg-[#F8FAFC]">
@@ -2090,8 +2109,8 @@ const CreatePurchaseOrder = () => {
                 {isGstApplicable ? (
                   <span
                     className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isInterState
-                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       }`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
@@ -2265,8 +2284,8 @@ const CreatePurchaseOrder = () => {
                   disabled={selectedItemsForTransfer.length === 0}
                   onClick={() => setShowStockTransferModal(true)}
                   className={`inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${selectedItemsForTransfer.length > 0
-                      ? 'bg-[#084E92] text-white hover:bg-blue-800 shadow-sm active:scale-[0.98]'
-                      : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
+                    ? 'bg-[#084E92] text-white hover:bg-blue-800 shadow-sm active:scale-[0.98]'
+                    : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
                     }`}
                   title={
                     selectedItemsForTransfer.length === 0
@@ -2313,6 +2332,7 @@ const CreatePurchaseOrder = () => {
                   <th className="py-3 px-2 text-left w-52">Vendor Name</th>
                   <th className="py-3 px-2 text-center w-16">Qty</th>
                   <th className="py-3 px-2 text-right w-20">Rate (₹)</th>
+                  <th className="py-3 px-2 text-right w-16">Discount (%)</th>
                   {!isGeneratePo && isGstApplicable && (
                     <>
                       <th className="py-3 px-2 text-center w-20">HSN/SAC</th>
@@ -2332,7 +2352,7 @@ const CreatePurchaseOrder = () => {
               <tbody className="divide-y divide-gray-100 text-sm">
                 {purchaseItems.length === 0 ? (
                   <tr>
-                    <td colSpan={(!isGeneratePo && isGstApplicable) ? 12 : 8} className="py-14 text-center">
+                    <td colSpan={(!isGeneratePo && isGstApplicable) ? 13 : 9} className="py-14 text-center">
                       <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                         <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-3">
                           <Package className="w-6 h-6" />
@@ -2348,6 +2368,8 @@ const CreatePurchaseOrder = () => {
                     const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {
                       qty: Number(poQtyMap[item.rawMaterialId]) || 0,
                       price: Number(priceMap[item.rawMaterialId]) || 0,
+                      discountPct: Number(discountMap[item.rawMaterialId]) || 0,
+                      discountAmt: 0,
                       taxable: 0,
                       gstPct: 18,
                       gstAmt: 0,
@@ -2401,7 +2423,6 @@ const CreatePurchaseOrder = () => {
                               )}
                             </div>
 
-                            {/* Show compact remarks input when opened via pencil icon */}
                             {isRemarksOpen ? (
                               <div className="mt-1">
                                 <input
@@ -2543,6 +2564,25 @@ const CreatePurchaseOrder = () => {
                             className="w-18 h-8 border border-[#E2E8F0] rounded-lg text-right px-1.5 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                           />
                         </td>
+                        <td className="py-2.5 px-2 text-right align-top pt-3 w-16">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={discountMap[item.rawMaterialId] ?? 0}
+                            onKeyDown={(e) => {
+                              if (e.key === '-' || e.key === 'e') e.preventDefault();
+                            }}
+                            onChange={(e) => handleItemDiscountChange(item.rawMaterialId, e.target.value)}
+                            disabled={isReadOnly}
+                            onWheel={(e) => {
+                              e.currentTarget.blur();
+                            }}
+                            placeholder="0"
+                            className="w-14 h-8 border border-[#E2E8F0] rounded-lg text-right px-1.5 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                          />
+                        </td>
                         {!isGeneratePo && isGstApplicable ? (
                           <>
                             <td className="py-2.5 px-2 text-center align-top pt-3 w-20">
@@ -2574,7 +2614,7 @@ const CreatePurchaseOrder = () => {
                                   const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
                                   setGstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
                                 }}
-                                onWheel={e => e.currentTarget.blur()}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 disabled={isReadOnly}
                                 placeholder="18"
                                 className="w-13 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
@@ -2594,7 +2634,7 @@ const CreatePurchaseOrder = () => {
                                   const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
                                   setCessMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
                                 }}
-                                onWheel={e => e.currentTarget.blur()}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 disabled={isReadOnly}
                                 placeholder="0"
                                 className="w-12 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
@@ -2612,7 +2652,7 @@ const CreatePurchaseOrder = () => {
                           </>
                         ) : (
                           <td className="py-2.5 px-4 text-right font-bold text-xs text-gray-900 font-mono align-top pt-3.5 w-auto min-w-[130px] whitespace-nowrap">
-                            ₹{((Number(poQtyMap[item.rawMaterialId]) || 0) * (Number(priceMap[item.rawMaterialId]) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            ₹{calc.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         )}
                         <td className="py-2.5 px-2 text-center align-top pt-3 w-12">
@@ -2635,7 +2675,7 @@ const CreatePurchaseOrder = () => {
             </table>
           </div>
 
-          {/* Summary Section: Simple for Generate PO vs Detailed Tax Invoice for Continue PO / Review */}
+          {/* Summary Section */}
           {isGeneratePo ? (
             <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-4 flex items-center justify-between">
               <span className="text-xs text-gray-500 font-medium">
@@ -2650,7 +2690,6 @@ const CreatePurchaseOrder = () => {
             </div>
           ) : (
             <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-6">
-              {/* If GST is applicable, show Other Costing on top across full width, then 2-col Tax Breakdown + Summary */}
               {isGstApplicable && (
                 <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mb-6">
                   <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
@@ -2695,7 +2734,7 @@ const CreatePurchaseOrder = () => {
                             onChange={(e) => handleOtherCostChange(costItem.id, 'cost', e.target.value)}
                             disabled={isReadOnly}
                             placeholder="0.00"
-                            onWheel={e => e.currentTarget.blur()}
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-9 border border-[#E2E8F0] rounded-lg pl-6 pr-2 text-right text-xs font-mono text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
                           />
                         </div>
@@ -2725,7 +2764,6 @@ const CreatePurchaseOrder = () => {
               )}
 
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-                {/* Left Column: If GST is applicable -> Tax Breakdown. If GST NOT applicable -> Other Costing / Charges */}
                 {isGstApplicable ? (
                   <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">
                     <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-gray-100">
@@ -2868,7 +2906,6 @@ const CreatePurchaseOrder = () => {
                     </div>
                   </div>
                 ) : (
-                  /* Non-GST View: Left column is Other Costing / Charges */
                   <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
@@ -2912,7 +2949,7 @@ const CreatePurchaseOrder = () => {
                                 }}
                                 onChange={(e) => handleOtherCostChange(costItem.id, 'cost', e.target.value)}
                                 disabled={isReadOnly}
-                                onWheel={e => e.currentTarget.blur()}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 placeholder="0.00"
                                 className="w-full h-9 border border-[#E2E8F0] rounded-lg pl-6 pr-2 text-right text-xs font-mono text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
                               />
@@ -2947,9 +2984,38 @@ const CreatePurchaseOrder = () => {
                 <div className="xl:col-span-5 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between py-1 border-b border-gray-100">
-                      <span className="text-gray-500">{isGstApplicable ? 'Sub Total (Taxable):' : 'Sub Total:'}</span>
+                      <span className="text-gray-500">Sub Total:</span>
+                      <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.subtotal)}</span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Overall Discount (%):</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={overallDiscountPercentage}
+                          onChange={(e) => handleOverallDiscountChange(e.target.value)}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          disabled={isReadOnly}
+                          className="w-16 h-7 px-2 rounded-lg border border-[#E2E8F0] text-xs text-right outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                        />
+                        <span>%</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Discount Amount:</span>
+                      <span className="font-semibold text-red-600 font-mono">-{formatCurrency(calculatedTotals.totalDiscount)}</span>
+                    </div>
+
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">{isGstApplicable ? 'Sub Total (Taxable):' : 'Amount after Discount:'}</span>
                       <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTaxable)}</span>
                     </div>
+
                     {isGstApplicable && (
                       <div className="flex justify-between py-1 border-b border-gray-100">
                         <span className="text-gray-500">Total Tax:</span>
@@ -3007,7 +3073,7 @@ const CreatePurchaseOrder = () => {
             <div className="flex items-center gap-2">
               <FileText size={18} className="text-[#0B5CAD]" />
               <h2 className="text-sm font-semibold text-[#1E293B]">
-                Terms & Delivery Notes {isRejectMode && <span className="text-red-500">*</span>}
+                Remarks {isRejectMode && <span className="text-red-500">*</span>}
               </h2>
             </div>
           </div>
@@ -3039,6 +3105,27 @@ const CreatePurchaseOrder = () => {
             {submitError}
           </div>
         )}
+
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm mt-6">
+          <div className="px-6 py-5 border-b border-[#E2E8F0]">
+            <div className="flex items-center gap-2">
+              <FileText size={18} className="text-[#0B5CAD]" />
+              <h2 className="text-sm font-semibold text-[#1E293B]">
+                Terms &amp; Conditions
+              </h2>
+            </div>
+          </div>
+          <div className="p-6">
+            <textarea
+              rows={4}
+              value={termsAndConditions}
+              disabled={isReadOnly && !isRejectMode}
+              onChange={(e) => setTermsAndConditions(e.target.value)}
+              placeholder="Vendor's terms & conditions will auto-fill here on vendor selection — you can edit them."
+              className="w-full p-4 rounded-xl border border-[#E2E8F0] focus:border-[#0B5CAD] text-sm outline-none resize-none transition disabled:bg-[#F8FAFC]"
+            />
+          </div>
+        </div>
 
         <div className="flex justify-between items-center mt-6">
           <button
@@ -3158,7 +3245,6 @@ const CreatePurchaseOrder = () => {
         description={`Are you sure you want to remove "${itemToDelete?.itemName}" from this purchase order?`}
       />
 
-      {/* Vendor Change Confirmation Modal */}
       <VendorChangeConfirmModal
         isOpen={showVendorChangeModal}
         onClose={() => {
@@ -3172,7 +3258,6 @@ const CreatePurchaseOrder = () => {
         loading={isSwitchingVendor}
       />
 
-      {/* Generate Stock Transfer Modal */}
       <GenerateStockTransferModal
         isOpen={showStockTransferModal}
         onClose={() => setShowStockTransferModal(false)}

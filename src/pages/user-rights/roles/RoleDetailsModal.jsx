@@ -1,9 +1,6 @@
 import React from 'react';
-import { Building2, X } from 'lucide-react';
+import { Shield, X } from 'lucide-react';
 
-// Backend sends createdAt as "DD/MM/YYYY" (e.g. "06/08/2026" = 06 Aug 2026).
-// new Date("06/08/2026") would misparse this as MM/DD/YYYY (8 June), so
-// we split it manually instead of trusting the Date constructor.
 const formatDateOnly = (value) => {
   if (!value) return '—';
 
@@ -23,8 +20,6 @@ const formatDateOnly = (value) => {
     }
   }
 
-  // Not a plain DD/MM/YYYY string — try letting Date() parse it directly
-  // (covers ISO strings, etc).
   const d = new Date(value);
   if (!isNaN(d.getTime())) {
     return d.toLocaleDateString('en-US', {
@@ -34,33 +29,27 @@ const formatDateOnly = (value) => {
     });
   }
 
-  // Last resort — it's probably already a formatted string like
-  // "07/27/2026, 2:32:00 PM" or "Jul 27, 2026 14:32".
-  // Strip anything from the first comma onward, or a trailing time pattern.
   const commaIdx = str.indexOf(',');
   if (commaIdx !== -1) return str.slice(0, commaIdx).trim();
 
-  // fallback: strip a trailing HH:MM(:SS)? (AM/PM)? pattern
   return str.replace(/\s+\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM)?$/i, '').trim();
 };
 
-const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
-  if (!isOpen || !department) return null;
+const RoleDetailsModal = ({ isOpen, onClose, onEdit, role }) => {
+  if (!isOpen || !role) return null;
 
   const {
     id,
     name,
-    description = 'No description provided for this department yet.',
-    code,
-    totalEmployees = '—',
+    description = 'No description provided for this role yet.',
     createdAt,
-  } = department;
+  } = role;
 
   const displayCreatedAt = formatDateOnly(createdAt);
-  const departmentCode = code || `DEPT-${String(id).padStart(3, '0')}`;
+  const roleCode = `ROLE-${String(id).padStart(3, '0')}`;
 
   const handleEditClick = () => {
-    onEdit?.(department);
+    onEdit?.(role);
   };
 
   return (
@@ -77,7 +66,7 @@ const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
         {/* Header */}
         <div className="px-5 py-4 flex items-start justify-between border-b border-[#E5E7EB]">
           <h2 className="text-[#1B1B1F] text-base font-bold">
-            Department Details
+            Role Details
           </h2>
           <button
             type="button"
@@ -93,21 +82,21 @@ const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
         <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-[#D5E3FF] flex items-center justify-center text-[#00376C] shrink-0">
-              <Building2 size={20} />
+              <Shield size={20} />
             </div>
             <div>
               <p className="text-base font-bold text-[#1B1B1F]">{name}</p>
-              <span className="text-xs text-[#737781]">{departmentCode}</span>
+              <span className="text-xs text-[#737781]">{roleCode}</span>
             </div>
           </div>
 
           <div className="bg-[#EFF4FF] border border-[#DDE7FF] rounded-lg p-3 grid grid-cols-2 gap-3">
             <div>
               <p className="text-[11px] font-semibold text-[#737781] uppercase tracking-wide">
-                Total Employees
+                Role ID
               </p>
               <p className="text-sm font-semibold text-[#1B1B1F] mt-0.5">
-                {totalEmployees}
+                #{id}
               </p>
             </div>
             <div>
@@ -125,7 +114,7 @@ const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
               Description
             </p>
             <p className="text-xs sm:text-sm text-[#43474F] mt-1 leading-relaxed">
-              {description}
+              {description || '—'}
             </p>
           </div>
         </div>
@@ -144,7 +133,7 @@ const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
             onClick={handleEditClick}
             className="px-4 py-2 text-xs sm:text-sm font-medium bg-[#084E92] text-white rounded-lg hover:bg-[#073e77] transition cursor-pointer shadow-xs"
           >
-            Edit Department
+            Edit Role
           </button>
         </div>
       </div>
@@ -152,4 +141,4 @@ const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
   );
 };
 
-export default DepartmentDetailsModal;
+export default RoleDetailsModal;

@@ -49,6 +49,7 @@ export const DEFAULT_FORM = {
   mobile: '', // -> mobileNumber
   altMobile: '', // -> alternateMobile
   organizationId: '',
+  deptId: '',
   roleId: '',
 
   // Business details
@@ -144,6 +145,7 @@ export const mapVendorToForm = (vendor = {}) => {
     mobile: vendor.mobileNumber ?? '',
     altMobile: vendor.alternateMobile ?? '',
     organizationId: vendor.organizationId ?? '',
+    deptId: vendor.deptId ?? vendor.departmentId ?? '',
     roleId: vendor.roleId ?? '',
     isGstApplicable:
       vendor.isGstApplicable !== undefined && vendor.isGstApplicable !== null
@@ -190,11 +192,24 @@ const buildAddressPayload = (address, type, { isEditMode, vendorId, phoneNumber 
 });
 
 // Form state -> POST /vendor/save or PUT /vendor/update payload
-export const buildVendorPayload = (form, { isEditMode, editingVendor }) => {
+export const buildVendorPayload = (form, { isEditMode, editingVendor, checks }) => {
   const shippingSource = form.shippingSameAsBilling
     ? form.billingAddress
     : form.shippingAddress;
   const vendorId = isEditMode ? editingVendor?.id : undefined;
+
+  const rightsList = checks
+    ? Object.entries(checks)
+        .filter(([_, r]) => r.add || r.edit || r.view || r.delete)
+        .map(([pageId, r]) => ({
+          pageid: Number(pageId),
+          moduleId: Number(r.moduleId),
+          add: Boolean(r.add),
+          edit: Boolean(r.edit),
+          view: Boolean(r.view),
+          delete: Boolean(r.delete),
+        }))
+    : (form.rightsList || []);
 
   return {
     ...(isEditMode && vendorId ? { id: vendorId } : {}),
@@ -207,7 +222,9 @@ export const buildVendorPayload = (form, { isEditMode, editingVendor }) => {
     mobileNumber: form.mobile,
     alternateMobile: form.altMobile,
     organizationId: form.organizationId,
-    roleId: form.roleId,
+    deptId: form.deptId ? Number(form.deptId) : form.deptId,
+    roleId: form.roleId ? Number(form.roleId) : form.roleId,
+    rightsList,
 
     isGstApplicable: !!form.isGstApplicable,
     gstNumber: form.isGstApplicable ? (form.gstin || '') : '',

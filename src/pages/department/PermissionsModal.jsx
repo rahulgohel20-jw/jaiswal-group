@@ -9,7 +9,7 @@ import {
   getPages,
   getUserRightsByRole,
 } from '@/services/apiServices';
-import AddDepartmentModal from './AddDepartmentModal';
+import AddRoleModal from '../user-rights/roles/AddRoleModal';
 
 const ACTIONS = [
   { key: 'add', label: 'Add' },
@@ -72,9 +72,9 @@ const PermissionsModal = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // --- Add Department state ---
-  const [showAddDept, setShowAddDept] = useState(false);
-  const [addingDept, setAddingDept] = useState(false);
+  // --- Add Role state ---
+  const [showAddRole, setShowAddRole] = useState(false);
+  const [addingRole, setAddingRole] = useState(false);
 
   const isReportMode = mode === 'reportRights';
 
@@ -103,10 +103,10 @@ const PermissionsModal = ({
     load();
   }, [load]);
 
-  // Reset the add-department form whenever the modal closes/reopens
+  // Reset the add-role form whenever the modal closes/reopens
   useEffect(() => {
     if (!isOpen) {
-      setShowAddDept(false);
+      setShowAddRole(false);
     }
   }, [isOpen]);
 
@@ -214,23 +214,20 @@ const PermissionsModal = ({
     }
   };
 
-  // payload comes from AddDepartmentModal as { name, description }
-  const handleAddDepartment = async (payload) => {
-    setAddingDept(true);
+  // payload comes from AddRoleModal as { name, description }
+  const handleAddRole = async (payload) => {
+    setAddingRole(true);
     try {
-      // ADJUST: addRoleMaster(...) payload shape assumed to be { name, description }
-      // per AddDepartmentModal — point this at whatever your real "create
-      // department" endpoint/service actually expects.
       const res = await addRoleMaster(payload);
-      notify?.success?.('Department added successfully');
-      setShowAddDept(false);
+      notify?.success?.('Role added successfully');
+      setShowAddRole(false);
       onDepartmentAdded?.(res?.data?.data ?? payload);
     } catch (err) {
       console.error(err);
-      const msg = getApiErrorMessage(err, 'Failed to add department.');
+      const msg = getApiErrorMessage(err, 'Failed to add role.');
       notify?.error?.(msg);
     } finally {
-      setAddingDept(false);
+      setAddingRole(false);
     }
   };
 
@@ -257,11 +254,11 @@ const PermissionsModal = ({
           <div className="flex items-center gap-2">
             {!isReportMode && canAdd && (
               <button
-                onClick={() => setShowAddDept(true)}
+                onClick={() => setShowAddRole(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#084E92] text-[#084E92] text-xs font-medium hover:bg-blue-50 cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
-                Add Department
+                Add Role
               </button>
             )}
             <button
@@ -399,11 +396,11 @@ const PermissionsModal = ({
         </div>
       </div>
 
-      <AddDepartmentModal
-        isOpen={showAddDept}
-        onClose={() => setShowAddDept(false)}
-        onSave={handleAddDepartment}
-        saving={addingDept}
+      <AddRoleModal
+        isOpen={showAddRole}
+        onClose={() => setShowAddRole(false)}
+        onSave={handleAddRole}
+        saving={addingRole}
       />
     </div>
   );

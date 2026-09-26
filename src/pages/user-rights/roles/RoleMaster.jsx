@@ -9,32 +9,28 @@ import {
   ChevronRight,
   Eye,
   History,
-  Pencil,
-  Plus,
   Search,
   SquarePen,
   Trash2,
 } from 'lucide-react';
 import {
-  addDepartmentMaster,
-  deleteDepartmentMasterById,
-  getAllDepartmentMaster,
-  updateDepartmentMaster,
+  addRoleMaster,
+  deleteRoleMasterById,
+  getAllRoleMasterByUserId,
+  updateRoleMaster,
 } from '@/services/apiServices';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Container } from '@/components/common/container';
-import AddDepartmentModal from './AddDepartmentModal';
-import DepartmentDetailsModal from './DepartmentDetailsModal';
+import AddRoleModal from './AddRoleModal';
+import RoleDetailsModal from './RoleDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useNavigate } from 'react-router';
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
-// Backend sends createdAt as "DD/MM/YYYY" (e.g. "06/08/2026" = 06 Aug 2026).
 const formatCreatedAt = (value) => {
   if (!value) return '—';
   const parts = String(value).split('/');
@@ -50,20 +46,19 @@ const formatCreatedAt = (value) => {
   });
 };
 
-const mapDepartment = (d) => ({
+const mapRole = (d) => ({
   id: d.id,
   name: d.name,
   description: d.description,
-  totalEmployees: d.totalEmployees ?? 0,
   createdAt: d.createdAt ?? null,
   createdDate: formatCreatedAt(d.createdAt),
 });
 
-const Departmentlist = () => {
+const RoleMaster = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Departments');
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Roles');
 
-  const [departments, setDepartments] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -72,29 +67,30 @@ const Departmentlist = () => {
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState(null);
-  const [editingDepartment, setEditingDepartment] = useState(null); // null = "add" mode
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [editingRole, setEditingRole] = useState(null);
 
   // Delete confirmation state
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [deletingDepartment, setDeletingDepartment] = useState(null);
+  const [deletingRole, setDeletingRole] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchDepartments = useCallback(async () => {
+  const fetchRoles = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await getAllDepartmentMaster();
+      const userId = getUserIdFromToken();
+      const res = await getAllRoleMasterByUserId(userId);
       const list =
-        res?.data?.data?.['Department Details'] ?? res?.data?.data ?? res?.data ?? [];
-      setDepartments(Array.isArray(list) ? list.map(mapDepartment) : []);
+        res?.data?.data?.['Role Details'] ?? res?.data?.data ?? res?.data ?? [];
+      setRoles(list.map(mapRole));
     } catch (err) {
       console.error(err);
       const serverMsg =
         err?.response?.data?.errorMessage ||
         err?.response?.data?.message ||
         (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
-        'Failed to load departments.';
+        'Failed to load roles.';
       setError(serverMsg);
       notify.error(serverMsg);
     } finally {
@@ -103,19 +99,19 @@ const Departmentlist = () => {
   }, []);
 
   useEffect(() => {
-    fetchDepartments();
-  }, [fetchDepartments]);
+    fetchRoles();
+  }, [fetchRoles]);
 
   const stats = useMemo(() => {
-    const total = departments.length;
+    const total = roles.length;
     return { total };
-  }, [departments]);
+  }, [roles]);
 
-  const filteredDepartments = useMemo(() => {
-    return departments.filter((department) =>
-      department.name?.toLowerCase().includes(searchTerm.trim().toLowerCase()),
+  const filteredRoles = useMemo(() => {
+    return roles.filter((role) =>
+      role.name?.toLowerCase().includes(searchTerm.trim().toLowerCase()),
     );
-  }, [departments, searchTerm]);
+  }, [roles, searchTerm]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -123,37 +119,40 @@ const Departmentlist = () => {
 
   const totalPages = Math.max(
     1,
-    Math.ceil(filteredDepartments.length / PAGE_SIZE),
+    Math.ceil(filteredRoles.length / PAGE_SIZE),
   );
   const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const pageDepartments = filteredDepartments.slice(
+  const pageRoles = filteredRoles.slice(
     pageStart,
     pageStart + PAGE_SIZE,
   );
 
-  const handleSaveDepartment = async (form, { addAnother } = {}) => {
-    const name = (form.name ?? form.departmentName ?? '').trim();
+  const handleSaveRole = async (form, { addAnother } = {}) => {
+    const name = (form.name ?? '').trim();
     const description = (form.description ?? '').trim();
+    const userId = getUserIdFromToken();
 
     try {
-      if (editingDepartment) {
-        await updateDepartmentMaster({
-          id: editingDepartment.id,
+      if (editingRole) {
+        await updateRoleMaster({
+          id: editingRole.id,
           name,
-          description: description || undefined,
+          description,
+          userId,
         });
-        notify.success('Department updated successfully');
+        notify.success('Role updated successfully');
       } else {
-        await addDepartmentMaster({
+        await addRoleMaster({
           name,
-          description: description || undefined,
+          description,
+          userId,
         });
-        notify.success('Department added successfully');
+        notify.success('Role added successfully');
       }
-      await fetchDepartments();
+      await fetchRoles();
       if (!addAnother) {
         setIsAddOpen(false);
-        setEditingDepartment(null);
+        setEditingRole(null);
       }
     } catch (err) {
       console.error(err);
@@ -161,46 +160,44 @@ const Departmentlist = () => {
         err?.response?.data?.errorMessage ||
         err?.response?.data?.message ||
         (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
-        'Failed to save department.';
+        'Failed to save role.';
       setError(serverMsg);
       notify.error(serverMsg);
     }
   };
 
-  // Step 1: user clicks the trash icon -> open the confirm modal
-  const openDeleteConfirm = (dept) => {
-    setDeletingDepartment(dept);
+  const openDeleteConfirm = (role) => {
+    setDeletingRole(role);
     setIsDeleteOpen(true);
   };
 
   const closeDeleteConfirm = () => {
-    if (deleting) return; // don't allow closing mid-request
+    if (deleting) return;
     setIsDeleteOpen(false);
-    setDeletingDepartment(null);
+    setDeletingRole(null);
   };
 
-  // Step 2: user confirms inside the modal -> actually delete
   const handleConfirmDelete = async () => {
-    if (!deletingDepartment) return;
-    const id = deletingDepartment.id;
+    if (!deletingRole) return;
+    const id = deletingRole.id;
 
     setDeleting(true);
-    const prev = departments;
-    setDepartments((cur) => cur.filter((d) => d.id !== id)); // optimistic
+    const prev = roles;
+    setRoles((cur) => cur.filter((d) => d.id !== id));
 
     try {
-      await deleteDepartmentMasterById(id);
-      notify.success('Department deleted successfully');
+      await deleteRoleMasterById(id);
+      notify.success('Role deleted successfully');
       setIsDeleteOpen(false);
-      setDeletingDepartment(null);
+      setDeletingRole(null);
     } catch (err) {
       console.error(err);
-      setDepartments(prev); // rollback
+      setRoles(prev);
       const serverMsg =
         err?.response?.data?.errorMessage ||
         err?.response?.data?.message ||
         (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
-        'Failed to delete department.';
+        'Failed to delete role.';
       setError(serverMsg);
       notify.error(serverMsg);
     } finally {
@@ -208,54 +205,54 @@ const Departmentlist = () => {
     }
   };
 
-  const openDetails = (dept) => {
-    setSelectedDepartment(dept);
+  const openDetails = (role) => {
+    setSelectedRole(role);
     setIsDetailsOpen(true);
   };
 
-  const openEdit = (dept) => {
-    setEditingDepartment(dept);
+  const openEdit = (role) => {
+    setEditingRole(role);
     setIsAddOpen(true);
   };
 
   const closeAddModal = () => {
     setIsAddOpen(false);
-    setEditingDepartment(null);
+    setEditingRole(null);
   };
 
-  const handleEditFromDetails = (dept) => {
+  const handleEditFromDetails = (role) => {
     setIsDetailsOpen(false);
-    setEditingDepartment(dept);
+    setEditingRole(role);
     setIsAddOpen(true);
   };
 
   if (!canView) {
-    return <AccessDenied pageTitle="Departments" />;
+    return <AccessDenied pageTitle="Roles" />;
   }
 
   return (
     <Container>
       <div className="mx-auto p-4">
         <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
+          <span className="cursor-pointer" onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Department</span>
+          <span>Users Rights Master</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Departments</span>
+          <span className="text-[#084E92] font-medium">Roles</span>
         </div>
 
         <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">Department Master</h1>
+            <h1 className="text-[18px] sm:text-[20px] font-bold text-[#101828]">Role Master</h1>
           </div>
           {canAdd && (
             <HeaderActionButton
               onClick={() => {
-                setEditingDepartment(null);
+                setEditingRole(null);
                 setIsAddOpen(true);
               }}
             >
-              Create Department
+              Create Role
             </HeaderActionButton>
           )}
         </div>
@@ -272,7 +269,7 @@ const Departmentlist = () => {
             iconBg="bg-[#D5E3FF]"
             iconColor="text-[#00376C]"
             label="TOTAL"
-            title="Total Departments"
+            title="Total Roles"
             value={stats.total}
           />
           <StatCard
@@ -290,7 +287,7 @@ const Departmentlist = () => {
           <div className="relative">
             <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Enter department name..."
+              placeholder="Enter role name..."
               className="pl-9"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -306,7 +303,7 @@ const Departmentlist = () => {
                   S.NO
                 </th>
                 <th className="text-left px-2 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
-                  Department Name
+                  Role Name
                 </th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
                   Actions
@@ -320,22 +317,22 @@ const Departmentlist = () => {
                     colSpan={3}
                     className="text-center py-10 text-sm text-[#737781]"
                   >
-                    Loading departments...
+                    Loading roles...
                   </td>
                 </tr>
-              ) : pageDepartments.length === 0 ? (
+              ) : pageRoles.length === 0 ? (
                 <tr>
                   <td
                     colSpan={3}
                     className="text-center py-10 text-sm text-[#737781]"
                   >
-                    No departments match your search or filter.
+                    No roles match your search or filter.
                   </td>
                 </tr>
               ) : (
-                pageDepartments.map((dept, idx) => (
+                pageRoles.map((role, idx) => (
                   <tr
-                    key={dept.id}
+                    key={role.id}
                     className="border-b border-[#F0F1F3] last:border-b-0 hover:bg-[#FAFBFC]"
                   >
                     <td className="px-4 py-3 text-[#737781]">
@@ -343,28 +340,28 @@ const Departmentlist = () => {
                     </td>
                     <td className="px-2 py-3">
                       <p className="font-semibold text-[#1B1B1F]">
-                        {dept.name}
+                        {role.name}
                       </p>
                       <p className="text-xs text-[#9CA3AF]">
-                        {dept.description}
+                        {role.description || '—'}
                       </p>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-3">
                         <button
                           type="button"
-                          onClick={() => openDetails(dept)}
+                          onClick={() => openDetails(role)}
                           className="text-gray-500 hover:text-green-600 cursor-pointer"
-                          aria-label={`View ${dept.name}`}
+                          aria-label={`View ${role.name}`}
                         >
                           <Eye size={18} />
                         </button>
                         {canEdit && (
                           <button
                             type="button"
-                            onClick={() => openEdit(dept)}
+                            onClick={() => openEdit(role)}
                             className="text-gray-500 hover:text-blue-600 cursor-pointer"
-                            aria-label={`Edit ${dept.name}`}
+                            aria-label={`Edit ${role.name}`}
                           >
                             <SquarePen size={18} />
                           </button>
@@ -372,9 +369,9 @@ const Departmentlist = () => {
                         {canDelete && (
                           <button
                             type="button"
-                            onClick={() => openDeleteConfirm(dept)}
+                            onClick={() => openDeleteConfirm(role)}
                             className="text-red-300 hover:text-red-600 cursor-pointer"
-                            aria-label={`Delete ${dept.name}`}
+                            aria-label={`Delete ${role.name}`}
                           >
                             <Trash2 size={18} />
                           </button>
@@ -389,11 +386,11 @@ const Departmentlist = () => {
 
           <div className="flex items-center justify-between px-4 py-3 border-t border-[#E5E7EB] text-sm text-[#737781]">
             <p>
-              Showing {filteredDepartments.length === 0 ? 0 : pageStart + 1} -{' '}
+              Showing {filteredRoles.length === 0 ? 0 : pageStart + 1} -{' '}
               {String(
-                Math.min(pageStart + PAGE_SIZE, filteredDepartments.length),
+                Math.min(pageStart + PAGE_SIZE, filteredRoles.length),
               ).padStart(2, '0')}{' '}
-              of {filteredDepartments.length} entries
+              of {filteredRoles.length} entries
             </p>
             <div className="flex items-center gap-1">
               <button
@@ -430,25 +427,25 @@ const Departmentlist = () => {
           </div>
         </div>
 
-        <AddDepartmentModal
+        <AddRoleModal
           isOpen={isAddOpen}
           onClose={closeAddModal}
-          onSave={handleSaveDepartment}
-          initialData={editingDepartment}
+          onSave={handleSaveRole}
+          initialData={editingRole}
         />
-        <DepartmentDetailsModal
+        <RoleDetailsModal
           isOpen={isDetailsOpen}
           onClose={() => setIsDetailsOpen(false)}
           onEdit={handleEditFromDetails}
-          department={selectedDepartment}
+          role={selectedRole}
         />
         <DeleteConfirmModal
           isOpen={isDeleteOpen}
           onClose={closeDeleteConfirm}
           onConfirm={handleConfirmDelete}
-          itemLabel={deletingDepartment?.name}
+          itemLabel={deletingRole?.name}
           saving={deleting}
-          title="Delete Department"
+          title="Delete Role"
         />
       </div>
     </Container>
@@ -469,4 +466,4 @@ const StatCard = ({ icon, iconBg, iconColor, title, value }) => (
   </div>
 );
 
-export default Departmentlist;
+export default RoleMaster;
