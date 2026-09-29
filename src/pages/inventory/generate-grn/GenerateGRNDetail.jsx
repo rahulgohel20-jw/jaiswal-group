@@ -331,6 +331,8 @@ const GenerateGRNDetail = () => {
           isCompleted: isCompleted,
           returnGrnDetailId: lineReturnGrnDetailId,
           oldGrnId: oldGrnId ? Number(oldGrnId) : undefined,
+          batchNo: d.batchNo || d.batchNumber || '',
+          useByDate: d.useByDate ? (d.useByDate.includes('T') ? d.useByDate.split('T')[0] : d.useByDate) : '',
         };
       });
       setItems(mappedItems);
@@ -464,6 +466,28 @@ const GenerateGRNDetail = () => {
     );
   };
 
+  const handleBatchNoChange = (itemId, val) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, batchNo: val };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleUseByDateChange = (itemId, val) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, useByDate: val };
+        }
+        return item;
+      })
+    );
+  };
+
   const handleGenerateGRN = async () => {
     if (!po) {
       toast.error('Purchase order details not loaded.');
@@ -504,6 +528,14 @@ const GenerateGRNDetail = () => {
       return;
     }
 
+    // Validate mandatory Best Before date for active items receiving approved quantity
+    for (const item of activeItems) {
+      if (Number(item.approvedQty) > 0 && !item.useByDate) {
+        toast.error(`Best Before date is mandatory for "${item.itemName}".`);
+        return;
+      }
+    }
+
     // Validate details
     const detailsPayload = activeItems.map((item) => {
       const apprQty = Number(item.approvedQty) || 0;
@@ -512,6 +544,13 @@ const GenerateGRNDetail = () => {
         ? Number(item.returnGrnDetailId)
         : (returnGrnDetailId && item.isReplacementItem ? Number(returnGrnDetailId) : null);
 
+      const formattedUseByDate = (() => {
+        if (!item.useByDate) return null;
+        const [y, m, d] = item.useByDate.split('-');
+        if (!d || !m || !y) return item.useByDate;
+        return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+      })();
+
       return {
         acceptedQuantity: apprQty,
         purchaseOrderDetailId: Number(item.purchaseOrderDetailId || item.id || 0),
@@ -519,6 +558,8 @@ const GenerateGRNDetail = () => {
         returnReplacementStatus: retQty > 0 ? (item.returnReplacementStatus || 'RETURN_REQUESTED') : null,
         returnedQuantity: retQty,
         isPoDetailClosed: Boolean(item.isPoDetailClosed),
+        batchNo: item.batchNo ? item.batchNo.trim() : null,
+        useByDate: formattedUseByDate,
       };
     });
 
@@ -842,25 +883,31 @@ const GenerateGRNDetail = () => {
             </span>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white shadow-2xs overflow-hidden">
-            <table className="w-full text-xs">
+          <div className="rounded-xl border border-gray-200 bg-white shadow-2xs overflow-x-auto">
+            <table className="w-full text-xs min-w-[1000px]">
               <thead>
                 <tr className="bg-[#F8FAFC] border-b border-gray-200 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
                   <th className="text-center px-1.5 py-2.5 w-8">#</th>
                   {po?.poIds && po.poIds.length > 1 && (
-                    <th className="text-left px-2 py-2.5 w-32">PO Code</th>
+                    <th className="text-left px-2 py-2.5 w-28">PO Code</th>
                   )}
-                  <th className="text-left px-2 py-2.5">Item Description</th>
+                  <th className="text-left px-2.5 py-2.5 min-w-[140px]">Item Description</th>
                   <th className="text-center px-1 py-2.5 w-14">Unit</th>
-                  <th className="text-right px-1.5 py-2.5 w-16">Ordered</th>
-                  <th className="text-right px-1.5 py-2.5 w-16" title="Quantity already received in previous GRNs (read-only)">
+                  <th className="text-right px-1.5 py-2.5 w-14">Ordered</th>
+                  <th className="text-right px-1.5 py-2.5 w-14" title="Quantity already received in previous GRNs (read-only)">
                     Received
                   </th>
                   <th className="text-right px-1.5 py-2.5 w-20">
                     Approved <span className="text-red-500">*</span>
                   </th>
-                  <th className="text-right px-1.5 py-2.5 w-16">Return</th>
-                  <th className="text-left px-1.5 py-2.5 w-36">Return Status</th>
+                  <th className="text-left px-2 py-2.5 w-28" title="Leave blank to auto-generate batch number from backend">
+                    Batch No
+                  </th>
+                  <th className="text-left px-2 py-2.5 w-32" title="Best before / Use by date (Mandatory)">
+                    Best Before <span className="text-red-500">*</span>
+                  </th>
+                  <th className="text-right px-1.5 py-2.5 w-14">Return</th>
+                  <th className="text-left px-1.5 py-2.5 w-32">Return Status</th>
                   <th className="text-center px-1.5 py-2.5 w-20" title="Close PO if items are completed / short received">
                     <div className="flex items-center justify-center gap-1">
                       <span className="whitespace-nowrap">Close PO</span>
@@ -888,7 +935,7 @@ const GenerateGRNDetail = () => {
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={(po?.poIds && po.poIds.length > 1 ? 1 : 0) + 9} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={(po?.poIds && po.poIds.length > 1 ? 1 : 0) + 11} className="px-4 py-12 text-center text-gray-400">
                       No items found on this order.
                     </td>
                   </tr>
@@ -905,10 +952,10 @@ const GenerateGRNDetail = () => {
                           </span>
                         </td>
                       )}
-                      <td className="px-2 py-2">
+                      <td className="px-2.5 py-2">
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                            <span className="font-semibold text-[#084E92] text-xs truncate max-w-[160px]">
+                            <span className="font-semibold text-[#084E92] text-xs truncate max-w-[150px]">
                               {item.itemName}
                             </span>
                             {item.isReplacementItem ? (
@@ -938,14 +985,14 @@ const GenerateGRNDetail = () => {
                                 value={item.remarks || ''}
                                 onChange={(e) => handleItemRemarksChange(item.id, e.target.value)}
                                 placeholder="Add remarks..."
-                                className="w-full max-w-[160px] h-6 border border-[#CBD5E1] rounded px-1.5 text-xs text-[#1E293B] outline-none focus:border-[#084E92] bg-white"
+                                className="w-full max-w-[150px] h-6 border border-[#CBD5E1] rounded px-1.5 text-xs text-[#1E293B] outline-none focus:border-[#084E92] bg-white"
                               />
                             </div>
                           ) : item.remarks ? (
                             <p
                               onClick={() => toggleItemRemarks(item.id)}
                               title="Click to edit remarks"
-                              className="text-[10px] text-gray-500 italic truncate max-w-[160px] cursor-pointer hover:text-gray-700 mt-0.5"
+                              className="text-[10px] text-gray-500 italic truncate max-w-[150px] cursor-pointer hover:text-gray-700 mt-0.5"
                             >
                               {item.remarks}
                             </p>
@@ -986,6 +1033,36 @@ const GenerateGRNDetail = () => {
                           />
                         )}
                       </td>
+                      {/* Batch No (Editable / Auto) */}
+                      <td className="px-2 py-2 text-left">
+                        {item.isCompleted ? (
+                          <span className="text-gray-400 text-xs font-medium">—</span>
+                        ) : (
+                          <input
+                            type="text"
+                            value={item.batchNo || ''}
+                            onChange={(e) => handleBatchNoChange(item.id, e.target.value)}
+                            placeholder="Auto"
+                            title="Leave blank to auto-generate batch number from backend"
+                            className="w-full min-w-[85px] h-7 border border-gray-200 rounded-md px-2 text-xs font-medium text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition placeholder:text-gray-400 placeholder:italic"
+                          />
+                        )}
+                      </td>
+                      {/* Best Before Date (Editable) */}
+                      <td className="px-2 py-2 text-left">
+                        {item.isCompleted ? (
+                          <span className="text-gray-400 text-xs font-medium">—</span>
+                        ) : (
+                          <input
+                            type="date"
+                            value={item.useByDate || ''}
+                            onChange={(e) => handleUseByDateChange(item.id, e.target.value)}
+                            min={getTodayInputDate()}
+                            title="Best before / Use by date"
+                            className="w-full min-w-[110px] h-7 border border-gray-200 rounded-md px-1.5 text-xs text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition"
+                          />
+                        )}
+                      </td>
                       {/* Return Qty (Editable / Completed) */}
                       <td className="px-1.5 py-2 text-right">
                         {item.isCompleted ? (
@@ -1001,7 +1078,7 @@ const GenerateGRNDetail = () => {
                         )}
                       </td>
                       {/* Return Status */}
-                      <td className="px-1.5 py-2 text-left w-36">
+                      <td className="px-1.5 py-2 text-left w-32">
                         {item.isCompleted ? (
                           <span className="text-gray-400 text-xs pl-1">—</span>
                         ) : (

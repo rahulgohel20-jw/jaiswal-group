@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  Layers,
   FileText,
   Pencil,
 } from 'lucide-react';
@@ -19,10 +18,8 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import SearchableSelect from '@/utils/SearchableSelect';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router';
 import {
   getAllRawMaterialItems,
@@ -37,7 +34,7 @@ import {
   getCurrentStockListGet,
   getCompanyById,
 } from '@/services/apiServices';
-import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
+import { getUserIdFromToken } from '@/utils/auth';
 import { OrgTypes } from '@/constants/orgTypes';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { getCoreRowModel, getPaginationRowModel, getSortedRowModel, useReactTable } from '@tanstack/react-table';
@@ -49,16 +46,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import FifoBatchVisualizerModal from './FifoBatchVisualizerModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-
-const STATUS_OPTIONS = ['Draft', 'In Transit', 'Rejected', 'Closed'];
+import FifoBatchVisualizerModal from './FifoBatchVisualizerModal';
 
 const formatStatusLabel = (status) => {
   if (!status) return 'Draft';
   const s = String(status).toUpperCase().replace(/[\s_-]/g, '');
   if (s === 'DRAFT') return 'Draft';
+  if (s === 'APPROVED') return 'Approved';
   if (s === 'INTRANSIT') return 'In Transit';
   if (s === 'REJECTED') return 'Rejected';
   if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
@@ -96,14 +92,23 @@ const normalizeUnit = (item) => ({
 const extractStockInfo = (item) => {
   const stockObj = item?.currentStock;
   let currentStock = 0;
-  let unitName = item?.unit?.nameEnglish || item?.unitName || 'Units';
-  let unitId = item?.unitId ?? item?.unit?.id ?? 0;
+  let unitName =
+    item?.unit?.nameEnglish ||
+    item?.unit?.unitName ||
+    item?.unitName ||
+    item?.unitSymbol ||
+    item?.unitOfMeasurement?.nameEnglish ||
+    item?.measureUnit?.nameEnglish ||
+    (typeof item?.unit === 'string' && item.unit !== 'Units' ? item.unit : '') ||
+    'Units';
+  let unitId = item?.unitId ?? item?.unit?.id ?? item?.measureUnitId ?? item?.unitOfMeasurementId ?? 0;
 
   if (typeof stockObj === 'object' && stockObj !== null) {
     currentStock = Number(stockObj.currentStock ?? 0);
-    if (stockObj.unitName) unitName = stockObj.unitName;
-    else if (stockObj.unitSymbol) unitName = stockObj.unitSymbol;
-    if (stockObj.unitId != null) unitId = stockObj.unitId;
+    if ((!unitName || unitName === 'Units') && (stockObj.unitName || stockObj.unitSymbol)) {
+      unitName = stockObj.unitName || stockObj.unitSymbol;
+    }
+    if (unitId === 0 && stockObj.unitId != null) unitId = stockObj.unitId;
   } else if (typeof stockObj === 'number') {
     currentStock = stockObj;
   } else {
@@ -159,6 +164,11 @@ const StockTransferRequest = () => {
     'Stock Transfer Receive',
     'STR Receive',
   ]);
+  const approvalPermissions = usePagePermissions([
+    'STR Approval',
+    'Stock Transfer Approval',
+    'Stock Transfer Request Approval',
+  ]);
 
   const isAllowed = useMemo(() => {
     if (isReceiveMode) {
@@ -171,15 +181,36 @@ const StockTransferRequest = () => {
         transferPermissions.canAdd
       );
     }
-    if (isEditMode) {
-      return transferPermissions.canEdit || transferPermissions.canAdd || receivePermissions.canEdit;
-    }
     if (isDispatchMode) {
-      return transferPermissions.canEdit || transferPermissions.canAdd || transferPermissions.canView;
+      return (
+        approvalPermissions.canView ||
+        approvalPermissions.canEdit ||
+        approvalPermissions.canAdd ||
+        transferPermissions.canView ||
+        transferPermissions.canEdit ||
+        transferPermissions.canAdd
+      );
+    }
+    if (isEditMode) {
+      return (
+        approvalPermissions.canView ||
+        approvalPermissions.canEdit ||
+        approvalPermissions.canAdd ||
+        transferPermissions.canEdit ||
+        transferPermissions.canAdd ||
+        transferPermissions.canView ||
+        receivePermissions.canEdit
+      );
     }
     // Create mode
-    return transferPermissions.canAdd || transferPermissions.canEdit;
-  }, [isReceiveMode, isEditMode, isDispatchMode, receivePermissions, transferPermissions]);
+    return (
+      transferPermissions.canAdd ||
+      transferPermissions.canEdit ||
+      transferPermissions.canView ||
+      approvalPermissions.canAdd ||
+      approvalPermissions.canEdit
+    );
+  }, [isReceiveMode, isEditMode, isDispatchMode, receivePermissions, transferPermissions, approvalPermissions]);
 
   const {
     isOutletUser,
@@ -235,7 +266,7 @@ const StockTransferRequest = () => {
   const [loadingInitialData, setLoadingInitialData] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // FIFO Visualizer Modal State
+  // FIFO Visualizer & Batch Selection Modal State
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
   const [selectedVisualizerItem, setSelectedVisualizerItem] = useState(null);
 
@@ -362,7 +393,7 @@ const StockTransferRequest = () => {
             ? stockData.list
             : [];
 
-          // Update manifestItems with new stock values
+          // Update manifestItems with new stock values and clear outdated batch selections
           setManifestItems((prev) =>
             prev.map((row) => {
               const matchedStock = stockList.find(
@@ -372,8 +403,11 @@ const StockTransferRequest = () => {
                 return {
                   ...row,
                   currentStock: Number(matchedStock.currentStock ?? 0),
-                  unit: matchedStock.unitName || matchedStock.unitSymbol || row.unit,
-                  unitId: matchedStock.unitId || row.unitId,
+                  unit: row.unit && row.unit !== 'Units' ? row.unit : (matchedStock.unitName || matchedStock.unitSymbol || row.unit),
+                  unitId: row.unitId || matchedStock.unitId,
+                  selectedBatches: [],
+                  batchNumber: '',
+                  expiryDate: '',
                 };
               }
               const matchedRaw = updatedItems.find((rm) => Number(rm.id) === Number(row.itemId));
@@ -381,11 +415,19 @@ const StockTransferRequest = () => {
                 return {
                   ...row,
                   currentStock: matchedRaw.currentStock ?? 0,
-                  unit: matchedRaw.unit && matchedRaw.unit !== 'Units' ? matchedRaw.unit : row.unit,
-                  unitId: matchedRaw.unitId || row.unitId,
+                  unit: row.unit && row.unit !== 'Units' ? row.unit : matchedRaw.unit,
+                  unitId: row.unitId || matchedRaw.unitId,
+                  selectedBatches: [],
+                  batchNumber: '',
+                  expiryDate: '',
                 };
               }
-              return row;
+              return {
+                ...row,
+                selectedBatches: [],
+                batchNumber: '',
+                expiryDate: '',
+              };
             })
           );
         } catch (stockErr) {
@@ -394,7 +436,20 @@ const StockTransferRequest = () => {
             setManifestItems((prev) =>
               prev.map((row) => {
                 const matchedRaw = updatedItems.find((rm) => Number(rm.id) === Number(row.itemId));
-                return matchedRaw ? { ...row, currentStock: matchedRaw.currentStock ?? 0 } : row;
+                return matchedRaw
+                  ? {
+                      ...row,
+                      currentStock: matchedRaw.currentStock ?? 0,
+                      selectedBatches: [],
+                      batchNumber: '',
+                      expiryDate: '',
+                    }
+                  : {
+                      ...row,
+                      selectedBatches: [],
+                      batchNumber: '',
+                      expiryDate: '',
+                    };
               })
             );
           }
@@ -706,18 +761,38 @@ const StockTransferRequest = () => {
                 }
 
                 const unitVal =
+                  item.unitName ||
+                  item.unitSymbol ||
+                  (typeof item.unit === 'string' && item.unit && item.unit !== 'Units' ? item.unit : '') ||
+                  matchedRawItem?.unit ||
                   matchedStock?.unitName ||
                   matchedStock?.unitSymbol ||
-                  matchedRawItem?.unit ||
-                  item.unitName ||
-                  item.unit ||
                   'Units';
 
                 const unitIdVal =
-                  matchedStock?.unitId ||
-                  matchedRawItem?.unitId ||
                   item.unitId ||
+                  item.unit?.id ||
+                  matchedRawItem?.unitId ||
+                  matchedStock?.unitId ||
                   0;
+
+                const existingBatches = Array.isArray(item.selectedBatches) && item.selectedBatches.length > 0
+                  ? item.selectedBatches.map((b) => ({
+                      sourceStockBatchId: Number(b.sourceStockBatchId || b.batchId || b.id || 0),
+                      batchNumber: b.batchNumber || b.batchCode || '',
+                      expiryDate: b.expiryDate || '',
+                      quantity: Number(b.quantity || b.dispatchedQuantity || b.receivedQuantity || 0),
+                      unitRate: Number(b.unitRate || 0),
+                    }))
+                  : Array.isArray(item.batchBreakdown) && item.batchBreakdown.length > 0
+                  ? item.batchBreakdown.map((b) => ({
+                      sourceStockBatchId: Number(b.sourceStockBatchId || b.batchId || b.id || 0),
+                      batchNumber: b.batchNumber || b.batchCode || '',
+                      expiryDate: b.expiryDate || '',
+                      quantity: Number(b.quantity || 0),
+                      unitRate: Number(b.unitRate || 0),
+                    }))
+                  : [];
 
                 return {
                   rowId: rowIdCounter++,
@@ -739,6 +814,7 @@ const StockTransferRequest = () => {
                   batchNumber: item.batchNumber || '',
                   expiryDate: item.expiryDate || '',
                   remarks: item.remarks || '',
+                  selectedBatches: existingBatches,
                 };
               })
             );
@@ -896,6 +972,7 @@ const StockTransferRequest = () => {
           batchNumber: '',
           expiryDate: '',
           remarks: '',
+          selectedBatches: [],
         },
       ];
     });
@@ -928,8 +1005,8 @@ const StockTransferRequest = () => {
                   ? {
                       ...row,
                       currentStock: Number(matchedStock.currentStock ?? 0),
-                      unit: matchedStock.unitName || matchedStock.unitSymbol || row.unit,
-                      unitId: matchedStock.unitId || row.unitId,
+                      unit: row.unit && row.unit !== 'Units' ? row.unit : (matchedStock.unitName || matchedStock.unitSymbol || row.unit),
+                      unitId: row.unitId || matchedStock.unitId,
                     }
                   : row
               )
@@ -997,6 +1074,26 @@ const StockTransferRequest = () => {
           };
         }
 
+        if (field === 'orderQty' || field === 'transferQty') {
+          let valNum = value === '' ? '' : Number(value);
+          const stockMax = row.currentStock !== undefined && row.currentStock !== null ? Number(row.currentStock) : Infinity;
+
+          if (valNum !== '' && !isNaN(valNum)) {
+            if (valNum < 0) {
+              valNum = 0;
+            } else if (stockMax >= 0 && valNum > stockMax) {
+              valNum = stockMax;
+              toast.error(`Transfer quantity cannot exceed available stock (${stockMax} ${row.unit || 'units'})`);
+            }
+          }
+
+          const updated = { ...row, [field]: valNum };
+          if (field === 'orderQty' && (!row.transferQty || row.transferQty === row.orderQty)) {
+            updated.transferQty = valNum;
+          }
+          return updated;
+        }
+
         const updated = { ...row, [field]: value };
         if (field === 'orderQty' && (!row.transferQty || row.transferQty === row.orderQty)) {
           updated.transferQty = value;
@@ -1017,8 +1114,8 @@ const StockTransferRequest = () => {
     return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   }, []);
 
-  // Validation
-  const validateForm = () => {
+  // Validation (Batch selection is optional for Draft Save/Update, but mandatory for Dispatch / In Transit)
+  const validateForm = (isDispatch = false) => {
     if (isGroupUser && !selectedCompany) {
       toast.error('Please select Company');
       return false;
@@ -1066,10 +1163,38 @@ const StockTransferRequest = () => {
       return false;
     }
     for (const item of manifestItems) {
-      const qty = Number(item.transferQty || item.orderQty);
+      const qty = Number(
+        item.transferQty !== undefined && item.transferQty !== ''
+          ? item.transferQty
+          : item.orderQty || 0
+      );
       if (!qty || qty <= 0) {
         toast.error(`Please enter a valid transfer quantity for ${item.itemName}`);
         return false;
+      }
+
+      if (item.currentStock !== undefined && item.currentStock !== null && Number(item.currentStock) >= 0) {
+        const maxStock = Number(item.currentStock);
+        if (qty > maxStock) {
+          toast.error(`Transfer quantity (${qty} ${item.unit}) cannot exceed available stock (${maxStock} ${item.unit}) for ${item.itemName}`);
+          return false;
+        }
+      }
+
+      // Batch selection is strictly mandatory for Dispatch / In Transit
+      if (isDispatch) {
+        const batches = Array.isArray(item.selectedBatches) ? item.selectedBatches : [];
+        if (batches.length === 0) {
+          toast.error(`Please select batch(es) for ${item.itemName}. Batch selection is mandatory before dispatch.`);
+          return false;
+        }
+        const totalBatchQty = batches.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+        if (Math.abs(totalBatchQty - qty) > 0.0001) {
+          toast.error(
+            `Total allocated batch quantity (${totalBatchQty} ${item.unit}) does not match requested transfer quantity (${qty} ${item.unit}) for ${item.itemName} before dispatch.`
+          );
+          return false;
+        }
       }
     }
     return true;
@@ -1103,15 +1228,33 @@ const StockTransferRequest = () => {
           (item.id && item.id !== rawItemId ? item.id : 0) ||
           0
         );
+        const reqQty = Number(
+          item.transferQty !== undefined && item.transferQty !== ''
+            ? item.transferQty
+            : item.orderQty || 0
+        );
+
+        const formattedBatches = Array.isArray(item.selectedBatches)
+          ? item.selectedBatches.map((b) => ({
+              batchNumber: b.batchNumber || b.batchCode || '',
+              expiryDate: b.expiryDate || '',
+              quantity: Number(b.quantity || 0),
+              sourceStockBatchId: Number(b.sourceStockBatchId || b.batchId || b.id || 0),
+            }))
+          : [];
+
+        const primaryBatch = formattedBatches[0];
+
         return {
           id: transferItemId,
           itemId: rawItemId,
           itemType: 'RAW_MATERIAL',
           unitId: Number(item.unitId || 0),
-          requestedQuantity: Number(item.transferQty || item.orderQty || 0),
-          batchNumber: item.batchNumber || '',
-          expiryDate: item.expiryDate || '',
+          requestedQuantity: reqQty,
+          batchNumber: primaryBatch?.batchNumber || item.batchNumber || '',
+          expiryDate: primaryBatch?.expiryDate || item.expiryDate || '',
           remarks: item.remarks || '',
+          selectedBatches: formattedBatches,
         };
       }),
     };
@@ -1123,26 +1266,27 @@ const StockTransferRequest = () => {
     return payload;
   };
 
-  // Submit / Save Draft
-  const handleSaveDraft = async () => {
-    if (!validateForm()) return;
+  // Save Transfer Request (saved/drafted requests automatically go for approval)
+  const handleSaveTransferRequest = async () => {
+    if (!validateForm(false)) return;
     setSubmitting(true);
     try {
-      const payload = buildPayload(true);
+      const payload = buildPayload(false);
       if (transferId && Number(transferId) > 0) {
         payload.id = Number(transferId);
         try {
           await updateDraftTransfer(transferId, payload);
         } catch (saveErr) {
           console.warn('Failed to update stock transfer', saveErr);
+          await saveTransfer(payload);
         }
       } else {
         await saveTransfer(payload);
       }
-      toast.success('Stock transfer request saved as draft');
+      toast.success(isEditMode ? 'Stock transfer request updated successfully' : 'Stock transfer request saved successfully');
       navigate('/inventory/stock-transfer');
     } catch (err) {
-      const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to save draft';
+      const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to save transfer request';
       toast.error(errMsg);
     } finally {
       setSubmitting(false);
@@ -1150,14 +1294,13 @@ const StockTransferRequest = () => {
   };
 
   const handleSubmitTransfer = async () => {
-    if (!validateForm()) return;
+    if (!validateForm(true)) return;
     setSubmitting(true);
     try {
       let targetId = transferId && Number(transferId) > 0 ? Number(transferId) : null;
-      let transferItemsList = [];
 
       if (!targetId) {
-        // Save new transfer first
+        // Save new transfer first to obtain target ID if not already saved
         const payload = buildPayload(false);
         const saveRes = await saveTransfer(payload);
         const savedData = saveRes?.data?.data ?? saveRes?.data;
@@ -1168,47 +1311,6 @@ const StockTransferRequest = () => {
           saveRes?.data?.transferId ||
           (typeof savedData === 'number' ? savedData : null);
         if (resId) targetId = Number(resId);
-
-        const itemsFromSave = Array.isArray(savedData?.items)
-          ? savedData.items
-          : Array.isArray(savedData?.transferItems)
-          ? savedData.transferItems
-          : Array.isArray(savedData?.details)
-          ? savedData.details
-          : [];
-
-        if (itemsFromSave.length > 0) {
-          transferItemsList = itemsFromSave;
-        } else if (targetId) {
-          const detailRes = await getTransferById(targetId);
-          const detailData = detailRes?.data?.data ?? detailRes?.data;
-          transferItemsList = Array.isArray(detailData?.items)
-            ? detailData.items
-            : Array.isArray(detailData?.transferItems)
-            ? detailData.transferItems
-            : Array.isArray(detailData?.details)
-            ? detailData.details
-            : [];
-        }
-      } else {
-        // Existing transfer: update draft first then get saved item IDs
-        const payload = buildPayload(false);
-        payload.id = Number(targetId);
-        try {
-          await saveTransfer(payload);
-        } catch (saveErr) {
-          console.warn('saveTransfer failed, attempting updateDraftTransfer:', saveErr);
-          await updateDraftTransfer(targetId, payload);
-        }
-        const detailRes = await getTransferById(targetId);
-        const detailData = detailRes?.data?.data ?? detailRes?.data;
-        transferItemsList = Array.isArray(detailData?.items)
-          ? detailData.items
-          : Array.isArray(detailData?.transferItems)
-          ? detailData.transferItems
-          : Array.isArray(detailData?.details)
-          ? detailData.details
-          : [];
       }
 
       if (!targetId) {
@@ -1216,17 +1318,9 @@ const StockTransferRequest = () => {
       }
 
       // Build dispatch payload according to API specs:
-      // In transferItemId key, pass the transfer item id (item.id in transfer.items) and not the raw material id.
-      const dispatchItems = manifestItems.map((manifestItem, idx) => {
-        const matchedDetail = transferItemsList.find(
-          (ti) =>
-            Number(ti.id) === Number(manifestItem.transferItemId) ||
-            Number(ti.itemId || ti.rawMaterialId) === Number(manifestItem.itemId)
-        ) || transferItemsList[idx];
-
+      // In transferItemId key, pass the transfer item id (item.id in transfer.items)
+      const dispatchItems = manifestItems.map((manifestItem) => {
         const transferItemId = Number(
-          matchedDetail?.id ||
-          matchedDetail?.transferItemId ||
           manifestItem.transferItemId ||
           (manifestItem.id && Number(manifestItem.id) !== Number(manifestItem.itemId) ? manifestItem.id : 0) ||
           manifestItem.id ||
@@ -1239,12 +1333,24 @@ const StockTransferRequest = () => {
             : manifestItem.orderQty || 0
         );
 
+        const formattedBatches = Array.isArray(manifestItem.selectedBatches)
+          ? manifestItem.selectedBatches.map((b) => ({
+              batchNumber: b.batchNumber || b.batchCode || '',
+              expiryDate: b.expiryDate || '',
+              quantity: Number(b.quantity || 0),
+              sourceStockBatchId: Number(b.sourceStockBatchId || b.batchId || b.id || 0),
+            }))
+          : [];
+
+        const primaryBatch = formattedBatches[0];
+
         return {
           transferItemId,
           dispatchedQuantity,
-          batchNumber: manifestItem.batchNumber || matchedDetail?.batchNumber || '',
-          expiryDate: manifestItem.expiryDate || matchedDetail?.expiryDate || '',
-          remarks: manifestItem.remarks || matchedDetail?.remarks || '',
+          batchNumber: primaryBatch?.batchNumber || manifestItem.batchNumber || '',
+          expiryDate: primaryBatch?.expiryDate || manifestItem.expiryDate || '',
+          remarks: manifestItem.remarks || '',
+          selectedBatches: formattedBatches,
         };
       });
 
@@ -1371,21 +1477,27 @@ const StockTransferRequest = () => {
     }
   };
 
-  const openVisualizerForItem = (row) => {
-    if (!fromOutlet || !toOutlet) {
-      toast.info('Please select From Outlet and To Outlet to preview FIFO batch flow');
+  const openBatchVisualizerForItem = (row) => {
+    const actualFrom = fromOutlet || (isOutletUser ? String(effectiveOutletId) : '');
+    if (!actualFrom || !toOutlet) {
+      toast.info('Please select From Outlet and To Outlet to preview FIFO batch flow & select batches');
       return;
     }
-    const qty = Number(row.transferQty !== '' && row.transferQty !== undefined && row.transferQty !== null ? row.transferQty : row.orderQty || 0);
+    const qty = Number(
+      row.transferQty !== '' && row.transferQty !== undefined && row.transferQty !== null
+        ? row.transferQty
+        : row.orderQty || 0
+    );
     if (!qty || qty <= 0) {
-      toast.info('Please enter a transfer/requested quantity first to preview FIFO batch flow');
+      toast.info('Please enter a transfer/requested quantity first');
       return;
     }
-    const fromName = units.find((u) => String(u.id) === String(fromOutlet))?.name || 'Source Outlet';
+    const fromName = units.find((u) => String(u.id) === String(actualFrom))?.name || (isOutletUser ? 'Source Outlet' : 'Source Outlet');
     const toName = units.find((u) => String(u.id) === String(toOutlet))?.name || 'Destination Outlet';
+
     setSelectedVisualizerItem({
       ...row,
-      fromOrganizationId: Number(fromOutlet),
+      fromOrganizationId: Number(actualFrom),
       fromSubOutletId: fromSubOutlet ? Number(fromSubOutlet) : undefined,
       toOrganizationId: Number(toOutlet),
       toSubOutletId: toSubOutlet ? Number(toSubOutlet) : undefined,
@@ -1393,6 +1505,31 @@ const StockTransferRequest = () => {
       toOutletName: toName,
     });
     setVisualizerModalOpen(true);
+  };
+
+  const handleSaveItemBatches = (selectedBatches, syncedQty) => {
+    if (!selectedVisualizerItem) return;
+    const primaryBatch = selectedBatches && selectedBatches.length > 0 ? selectedBatches[0] : null;
+    setManifestItems((prev) =>
+      prev.map((row) => {
+        if (row.rowId === selectedVisualizerItem.rowId) {
+          const updated = {
+            ...row,
+            selectedBatches: selectedBatches || [],
+            batchNumber: primaryBatch?.batchNumber || row.batchNumber || '',
+            expiryDate: primaryBatch?.expiryDate || row.expiryDate || '',
+          };
+          if (syncedQty !== undefined && syncedQty > 0) {
+            if (row.orderQty === '' || row.orderQty === row.transferQty) {
+              updated.orderQty = syncedQty;
+            }
+            updated.transferQty = syncedQty;
+          }
+          return updated;
+        }
+        return row;
+      })
+    );
   };
 
   // Table Columns
@@ -1419,14 +1556,24 @@ const StockTransferRequest = () => {
           const isRemarkOpen = Boolean(openRemarkRowIds[row.original.rowId]);
           const hasRemark = Boolean(row.original.remarks && row.original.remarks.trim());
 
+          const batches = Array.isArray(row.original.selectedBatches) ? row.original.selectedBatches : [];
+          const totalBatchQty = batches.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+          const reqQty = Number(
+            row.original.transferQty !== undefined && row.original.transferQty !== ''
+              ? row.original.transferQty
+              : row.original.orderQty || 0
+          );
+          const isFulfilled = batches.length > 0 && Math.abs(totalBatchQty - reqQty) < 0.0001;
+          const isPartial = batches.length > 0 && !isFulfilled;
+
           return (
             <div className="flex flex-col gap-1 py-1 max-w-full">
               <div className="inline-flex items-center gap-1.5 max-w-full">
                 <button
                   type="button"
-                  onClick={() => openVisualizerForItem(row.original)}
+                  onClick={() => openBatchVisualizerForItem(row.original)}
                   className="group text-left hover:text-[#084E92] transition cursor-pointer truncate max-w-full"
-                  title="Click to view FIFO Rate Layers Visualizer"
+                  title="Click to view FIFO Rate Layers & Batches"
                 >
                   <span className="text-xs font-bold text-[#0F172A] group-hover:text-[#084E92] group-hover:underline truncate">
                     {row.original.itemName}
@@ -1445,6 +1592,36 @@ const StockTransferRequest = () => {
                   <Pencil size={13} />
                 </button>
               </div>
+
+              {/* Show selected batch information badge if batches are selected */}
+              {!isReceiveMode && batches.length > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  {isFulfilled ? (
+                    <button
+                      type="button"
+                      onClick={() => openBatchVisualizerForItem(row.original)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer shadow-2xs"
+                      title={`Selected Batches:\n${batches
+                        .map((b) => `${b.batchNumber || `#${b.sourceStockBatchId}`}: ${b.quantity} ${row.original.unit}${b.expiryDate ? ` (Exp: ${b.expiryDate})` : ''}`)
+                        .join('\n')}\nClick to edit batch allocation`}
+                    >
+                      <CheckCircle2 size={11} className="text-emerald-600 shrink-0" />
+                      <span>{batches.length} {batches.length === 1 ? 'Batch' : 'Batches'} ({totalBatchQty} {row.original.unit})</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openBatchVisualizerForItem(row.original)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition cursor-pointer shadow-2xs"
+                      title={`Partially allocated: ${totalBatchQty} / ${reqQty} ${row.original.unit}\nClick to complete allocation`}
+                    >
+                      <AlertTriangle size={11} className="text-amber-600 shrink-0" />
+                      <span>{batches.length} {batches.length === 1 ? 'Batch' : 'Batches'} ({totalBatchQty}/{reqQty} {row.original.unit})</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
               {isRemarkOpen && (
                 <div className="mt-1">
                   <input
@@ -1642,8 +1819,11 @@ const StockTransferRequest = () => {
   }, [
     isReceiveMode,
     isEditMode,
-    isDispatchMode,
-    openVisualizerForItem,
+    openBatchVisualizerForItem,
+    fromOutlet,
+    toOutlet,
+    isOutletUser,
+    effectiveOutletId,
     updateItemField,
     stockBadgeClass,
     handleRemoveItem,
@@ -1670,7 +1850,19 @@ const StockTransferRequest = () => {
   };
 
   if (!isAllowed) {
-    return <AccessDenied pageTitle={isReceiveMode ? 'Stock Transfer Request Received' : 'Stock Transfer Request'} />;
+    return (
+      <AccessDenied
+        pageTitle={
+          isReceiveMode
+            ? 'Stock Transfer Request Received'
+            : isDispatchMode
+            ? 'STR Approval'
+            : isEditMode
+            ? 'Stock Transfer Request'
+            : 'Stock Transfer Request'
+        }
+      />
+    );
   }
 
   return (
@@ -1725,14 +1917,14 @@ const StockTransferRequest = () => {
           <>
             {/* Header Form Card */}
             <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-sm space-y-5">
-              {/* Row 1: Outlets and Status */}
+              {/* Row 1: Outlets */}
               <div
                 className={`grid grid-cols-1 sm:grid-cols-2 ${
                   isGroupUser
-                    ? 'lg:grid-cols-3 xl:grid-cols-6'
+                    ? 'lg:grid-cols-3 xl:grid-cols-5'
                     : isOutletUser
-                    ? 'lg:grid-cols-4'
-                    : 'lg:grid-cols-5'
+                    ? 'lg:grid-cols-3'
+                    : 'lg:grid-cols-4'
                 } gap-4`}
               >
                 {/* Company: only rendered for Group users */}
@@ -1836,22 +2028,6 @@ const StockTransferRequest = () => {
                         : 'Select sub-outlet'
                     }
                   />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-gray-700">Status</label>
-                  <Select value={status} onValueChange={setStatus} disabled>
-                    <SelectTrigger className="h-10 mt-1.5 border-[#E2E8F0] rounded-xl bg-gray-50 text-xs text-gray-700 font-medium cursor-not-allowed">
-                      <SelectValue placeholder="Draft" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {STATUS_OPTIONS.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 
@@ -2006,12 +2182,12 @@ const StockTransferRequest = () => {
               ) : isEditMode ? (
                 <button
                   type="button"
-                  onClick={handleSaveDraft}
+                  onClick={handleSaveTransferRequest}
                   disabled={submitting}
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold shadow-md hover:bg-[#073e77] transition disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                  Save Draft
+                  Update Request
                 </button>
               ) : isDispatchMode ? (
                 <button
@@ -2024,25 +2200,15 @@ const StockTransferRequest = () => {
                   Confirm Transfer & Dispatch
                 </button>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleSaveDraft}
-                    disabled={submitting}
-                    className="px-5 py-2.5 rounded-xl border border-[#E2E8F0] text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
-                  >
-                    Save as Draft
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSubmitTransfer}
-                    disabled={submitting}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold shadow-md hover:bg-[#073e77] transition disabled:opacity-50 cursor-pointer"
-                  >
-                    {submitting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                    Confirm & Submit Transfer
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={handleSaveTransferRequest}
+                  disabled={submitting}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold shadow-md hover:bg-[#073e77] transition disabled:opacity-50 cursor-pointer"
+                >
+                  {submitting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                  Save Request
+                </button>
               )}
             </div>
           </>
@@ -2151,7 +2317,7 @@ const StockTransferRequest = () => {
           </DialogContent>
         </Dialog>
 
-        {/* FIFO Batch Flow Visualizer Modal */}
+        {/* Single Unified FIFO Batch Flow & Batch Selection Modal */}
         {selectedVisualizerItem && (
           <FifoBatchVisualizerModal
             isOpen={visualizerModalOpen}
@@ -2159,6 +2325,7 @@ const StockTransferRequest = () => {
               setVisualizerModalOpen(false);
               setSelectedVisualizerItem(null);
             }}
+            item={selectedVisualizerItem}
             transferItemId={
               isReceiveMode || isDispatchMode
                 ? selectedVisualizerItem.transferItemId || (selectedVisualizerItem.id && selectedVisualizerItem.id !== selectedVisualizerItem.itemId ? selectedVisualizerItem.id : undefined)
@@ -2167,15 +2334,17 @@ const StockTransferRequest = () => {
             itemId={Number(selectedVisualizerItem.itemId || selectedVisualizerItem.rawMaterialId || selectedVisualizerItem.id)}
             itemType={selectedVisualizerItem.itemType || 'RAW_MATERIAL'}
             unitId={selectedVisualizerItem.unitId ? Number(selectedVisualizerItem.unitId) : undefined}
-            fromOrganizationId={fromOutlet ? Number(fromOutlet) : undefined}
-            fromSubOutletId={fromSubOutlet ? Number(fromSubOutlet) : undefined}
-            toOrganizationId={toOutlet ? Number(toOutlet) : undefined}
-            toSubOutletId={toSubOutlet ? Number(toSubOutlet) : undefined}
+            fromOrganizationId={selectedVisualizerItem.fromOrganizationId || (fromOutlet ? Number(fromOutlet) : undefined)}
+            fromSubOutletId={selectedVisualizerItem.fromSubOutletId || (fromSubOutlet ? Number(fromSubOutlet) : undefined)}
+            toOrganizationId={selectedVisualizerItem.toOrganizationId || (toOutlet ? Number(toOutlet) : undefined)}
+            toSubOutletId={selectedVisualizerItem.toSubOutletId || (toSubOutlet ? Number(toSubOutlet) : undefined)}
             itemName={selectedVisualizerItem.itemName}
             fromOutletName={selectedVisualizerItem.fromOutletName}
             toOutletName={selectedVisualizerItem.toOutletName}
             transferQty={selectedVisualizerItem.transferQty !== '' && selectedVisualizerItem.transferQty != null ? Number(selectedVisualizerItem.transferQty) : selectedVisualizerItem.orderQty != null ? Number(selectedVisualizerItem.orderQty) : 0}
             unit={selectedVisualizerItem.unit || 'kg'}
+            isSelectionMode={!isReceiveMode && status !== 'In Transit' && status !== 'IN_TRANSIT' && status !== 'Approved' && status !== 'APPROVED' && status !== 'Received' && status !== 'RECEIVED' && status !== 'Closed' && status !== 'CLOSED'}
+            onSaveBatches={!isReceiveMode && status !== 'In Transit' && status !== 'IN_TRANSIT' && status !== 'Approved' && status !== 'APPROVED' && status !== 'Received' && status !== 'RECEIVED' && status !== 'Closed' && status !== 'CLOSED' ? handleSaveItemBatches : undefined}
           />
         )}
       </div>

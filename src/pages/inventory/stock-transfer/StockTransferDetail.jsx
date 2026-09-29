@@ -10,6 +10,11 @@ import {
   Pencil,
   Send,
   Boxes,
+  CheckCircle2,
+  XCircle,
+  CheckCheck,
+  Ban,
+  AlertTriangle,
 } from 'lucide-react';
 import { useParams, useNavigate, Link } from 'react-router';
 import { toast } from 'sonner';
@@ -23,55 +28,90 @@ import {
   getCoreRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { getTransferById, dispatchTransfer } from '@/services/apiServices';
+import {
+  getTransferById,
+  dispatchTransfer,
+  approveTransfer,
+  rejectTransfer,
+} from '@/services/apiServices';
+import { getUserIdFromToken } from '@/utils/auth';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import FifoBatchVisualizerModal from './FifoBatchVisualizerModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 
 const STATUS_STYLES = {
-  Draft: 'bg-gray-100 text-gray-700 border-gray-200',
-  DRAFT: 'bg-gray-100 text-gray-700 border-gray-200',
+  Draft: 'bg-amber-50 text-amber-700 border-amber-200',
+  DRAFT: 'bg-amber-50 text-amber-700 border-amber-200',
   Pending: 'bg-amber-50 text-amber-700 border-amber-200',
   PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+  Approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   'In Transit': 'bg-blue-50 text-blue-700 border-blue-200',
   IN_TRANSIT: 'bg-blue-50 text-blue-700 border-blue-200',
   'Partially Accepted': 'bg-purple-50 text-purple-700 border-purple-200',
   PARTIALLY_ACCEPTED: 'bg-purple-50 text-purple-700 border-purple-200',
-  Received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  RECEIVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Closed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  CLOSED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  Received: 'bg-gray-100 text-gray-700 border-gray-200',
+  RECEIVED: 'bg-gray-100 text-gray-700 border-gray-200',
+  Closed: 'bg-gray-100 text-gray-700 border-gray-200',
+  CLOSED: 'bg-gray-100 text-gray-700 border-gray-200',
   Rejected: 'bg-rose-50 text-rose-700 border-rose-200',
   REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
 };
 
 const STATUS_DOT = {
-  Draft: 'bg-gray-400',
-  DRAFT: 'bg-gray-400',
+  Draft: 'bg-amber-500',
+  DRAFT: 'bg-amber-500',
   Pending: 'bg-amber-500',
   PENDING: 'bg-amber-500',
+  Approved: 'bg-emerald-500',
+  APPROVED: 'bg-emerald-500',
   'In Transit': 'bg-blue-500',
   IN_TRANSIT: 'bg-blue-500',
   'Partially Accepted': 'bg-purple-500',
   PARTIALLY_ACCEPTED: 'bg-purple-500',
-  Received: 'bg-emerald-500',
-  RECEIVED: 'bg-emerald-500',
-  Closed: 'bg-emerald-500',
-  CLOSED: 'bg-emerald-500',
+  Received: 'bg-gray-400',
+  RECEIVED: 'bg-gray-400',
+  Closed: 'bg-gray-400',
+  CLOSED: 'bg-gray-400',
   Rejected: 'bg-rose-500',
   REJECTED: 'bg-rose-500',
 };
 
-const StatusBadge = ({ status = 'Draft' }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
-      STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border-gray-200'
-    }`}
-  >
-    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
-    {status}
-  </span>
-);
+const formatStatusLabel = (status) => {
+  if (!status) return 'Draft';
+  const s = String(status).toUpperCase().replace(/[\s_]/g, '');
+  if (s === 'DRAFT') return 'Draft';
+  if (s === 'PENDING' || s === 'SENTFORAPPROVAL' || s === 'PENDINGAPPROVAL') return 'Pending Approval';
+  if (s === 'APPROVED') return 'Approved';
+  if (s === 'INTRANSIT') return 'In Transit';
+  if (s === 'PARTIALLYACCEPTED') return 'Partially Accepted';
+  if (s === 'REJECTED') return 'Rejected';
+  if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
+  return status;
+};
+
+const StatusBadge = ({ status = 'Draft' }) => {
+  const label = formatStatusLabel(status);
+  const key = String(status).toUpperCase();
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
+        STATUS_STYLES[key] || STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border-gray-200'
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[key] || STATUS_DOT[status] || 'bg-gray-400'}`} />
+      {label}
+    </span>
+  );
+};
 
 const StockTransferDetail = () => {
   const { id } = useParams();
@@ -80,7 +120,8 @@ const StockTransferDetail = () => {
   // Permissions
   const transferPermissions = usePagePermissions(['Stock Transfer Request', 'Stock Transfer', 'STR']);
   const receivePermissions = usePagePermissions(['STR Received', 'Stock Transfer Request Received', 'Stock Transfer Receive', 'STR Receive']);
-  const canView = transferPermissions.canView || receivePermissions.canView;
+  const approvalPermissions = usePagePermissions(['STR Approval', 'Stock Transfer Approval', 'Stock Transfer Request Approval']);
+  const canView = transferPermissions.canView || receivePermissions.canView || approvalPermissions.canView;
 
   const [transfer, setTransfer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -89,6 +130,15 @@ const StockTransferDetail = () => {
   // FIFO visualizer modal
   const [visualizerOpen, setVisualizerOpen] = useState(false);
   const [selectedItemForVisualizer, setSelectedItemForVisualizer] = useState(null);
+
+  // Approval & Rejection modal state
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [approving, setApproving] = useState(false);
+
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectError, setRejectError] = useState('');
+  const [rejecting, setRejecting] = useState(false);
 
   const fetchDetails = async () => {
     if (!id) return;
@@ -152,10 +202,60 @@ const StockTransferDetail = () => {
     }
   };
 
-  const rawStatus = (transfer?.status || '').toString().trim().toUpperCase();
+  const handleConfirmApprove = async () => {
+    if (!transfer?.id) return;
+    setApproving(true);
+    try {
+      const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+      await approveTransfer(transfer.id, currentUserId);
+      toast.success(`Stock transfer ${transfer.transferCode || transfer.code || ''} approved successfully`);
+      setApproveModalOpen(false);
+      fetchDetails();
+    } catch (err) {
+      const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to approve transfer';
+      toast.error(errMsg);
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleConfirmReject = async () => {
+    if (!transfer?.id) return;
+    if (!rejectReason.trim()) {
+      setRejectError('Please enter a mandatory reason for rejecting this transfer request.');
+      return;
+    }
+    setRejectError('');
+    setRejecting(true);
+    try {
+      const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+      const payload = {
+        id: Number(transfer.id),
+        reason: rejectReason.trim(),
+        userId: currentUserId ? Number(currentUserId) : undefined,
+      };
+      await rejectTransfer(transfer.id, payload);
+      toast.success(`Stock transfer ${transfer.transferCode || transfer.code || ''} rejected successfully`);
+      setRejectModalOpen(false);
+      fetchDetails();
+    } catch (err) {
+      const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to reject transfer';
+      toast.error(errMsg);
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const rawStatus = (transfer?.status || '').toString().trim().toUpperCase().replace(/[\s_]/g, '');
   const isDraft = rawStatus === 'DRAFT' || Boolean(transfer?.isDraft);
-  const isPending = rawStatus === 'PENDING';
-  const isRejected = rawStatus === 'REJECTED' || String(transfer?.status || '').toUpperCase() === 'REJECTED';
+  const isApproved = rawStatus === 'APPROVED';
+  const isPending =
+    rawStatus === 'DRAFT' ||
+    rawStatus === 'PENDING' ||
+    rawStatus === 'SENTFORAPPROVAL' ||
+    rawStatus === 'PENDINGAPPROVAL' ||
+    Boolean(transfer?.isDraft);
+  const isRejected = rawStatus === 'REJECTED';
 
   const manifestItems = React.useMemo(() => {
     if (!transfer) return [];
@@ -507,7 +607,7 @@ const StockTransferDetail = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               type="button"
               onClick={() => navigate('/inventory/stock-transfer')}
@@ -517,10 +617,10 @@ const StockTransferDetail = () => {
               Back
             </button>
 
-            {isDraft && transferPermissions.canEdit && (
+            {(isDraft || isPending) && (transferPermissions.canEdit || approvalPermissions.canEdit) && (
               <button
                 type="button"
-                onClick={() => navigate(`/inventory/stock-transfer-request?id=${id}`)}
+                onClick={() => navigate(`/inventory/stock-transfer-request?id=${id}&mode=edit`)}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#084E92] text-[#084E92] bg-white hover:bg-blue-50 text-xs font-semibold transition shadow-sm cursor-pointer"
               >
                 <Pencil size={14} />
@@ -528,7 +628,33 @@ const StockTransferDetail = () => {
               </button>
             )}
 
-            {(isDraft || isPending) && (transferPermissions.canEdit || transferPermissions.canAdd) && (
+            {isPending && (approvalPermissions.canEdit || approvalPermissions.canAdd || transferPermissions.canEdit) && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setApproveModalOpen(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-sm cursor-pointer"
+                >
+                  <CheckCircle2 size={14} />
+                  Approve
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectReason('');
+                    setRejectError('');
+                    setRejectModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition shadow-sm cursor-pointer"
+                >
+                  <XCircle size={14} />
+                  Reject
+                </button>
+              </>
+            )}
+
+            {isApproved && (transferPermissions.canEdit || transferPermissions.canAdd || approvalPermissions.canEdit || approvalPermissions.canAdd) && (
               <button
                 type="button"
                 onClick={handleDispatch}
@@ -712,7 +838,7 @@ const StockTransferDetail = () => {
           </div>
         )}
 
-        {/* FIFO Batch Flow Visualizer Modal */}
+        {/* FIFO Batch Flow Visualizer Modal (Read-Only View Purpose) */}
         {selectedItemForVisualizer && (
           <FifoBatchVisualizerModal
             isOpen={visualizerOpen}
@@ -720,6 +846,7 @@ const StockTransferDetail = () => {
               setVisualizerOpen(false);
               setSelectedItemForVisualizer(null);
             }}
+            item={selectedItemForVisualizer}
             transferItemId={selectedItemForVisualizer.transferItemId || selectedItemForVisualizer.id}
             itemId={selectedItemForVisualizer.itemId}
             itemType={selectedItemForVisualizer.itemType || 'RAW_MATERIAL'}
@@ -729,12 +856,115 @@ const StockTransferDetail = () => {
             toOrganizationId={transfer?.toOrganizationId}
             toSubOutletId={transfer?.toSubOutletId}
             itemName={selectedItemForVisualizer.itemName}
-            fromOutletName={selectedItemForVisualizer.fromOutletName}
-            toOutletName={selectedItemForVisualizer.toOutletName}
+            fromOutletName={selectedItemForVisualizer.fromOutletName || transfer?.fromOrganizationName}
+            toOutletName={selectedItemForVisualizer.toOutletName || transfer?.toOrganizationName}
             transferQty={selectedItemForVisualizer.requestedQuantity != null && selectedItemForVisualizer.requestedQuantity !== '' ? Number(selectedItemForVisualizer.requestedQuantity) : 0}
             unit={selectedItemForVisualizer.unit || 'kg'}
+            isSelectionMode={false}
           />
         )}
+
+        {/* Approve Confirmation Dialog */}
+        <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
+          <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
+            <DialogHeader className="space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
+                <CheckCircle2 size={22} />
+              </div>
+              <DialogTitle className="text-base font-bold text-gray-900">
+                Approve Stock Transfer Request?
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                Are you sure you want to approve transfer{' '}
+                <strong className="text-gray-800">{transfer?.transferCode || transfer?.code || `#${id}`}</strong>?
+                Once approved, the originating outlet can dispatch the items to the destination outlet.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter className="gap-2 sm:gap-0 mt-3">
+              <button
+                type="button"
+                onClick={() => setApproveModalOpen(false)}
+                disabled={approving}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmApprove}
+                disabled={approving}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {approving ? <Loader2 size={14} className="animate-spin" /> : <CheckCheck size={14} />}
+                Approve Transfer
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reject Modal with Mandatory Reason */}
+        <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
+          <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
+            <DialogHeader className="space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-1">
+                <AlertTriangle size={22} />
+              </div>
+              <DialogTitle className="text-base font-bold text-gray-900">
+                Reject Stock Transfer Request
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                Please provide a mandatory reason for rejecting{' '}
+                <strong className="text-gray-800">{transfer?.transferCode || transfer?.code || `#${id}`}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2 my-2">
+              <label className="text-xs font-bold text-gray-700 block">
+                Rejection Reason <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => {
+                  setRejectReason(e.target.value);
+                  if (rejectError) setRejectError('');
+                }}
+                placeholder="Enter detailed reason for rejection..."
+                className="w-full p-2.5 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 placeholder:text-gray-400"
+              />
+              {rejectError && (
+                <p className="text-[11px] font-medium text-rose-600 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {rejectError}
+                </p>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setRejectReason('');
+                  setRejectError('');
+                }}
+                disabled={rejecting}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                disabled={rejecting}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {rejecting ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+                Reject Transfer
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Container>
   );

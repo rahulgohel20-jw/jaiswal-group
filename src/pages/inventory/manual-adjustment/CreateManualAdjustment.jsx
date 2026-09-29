@@ -558,8 +558,12 @@ const CreateManualAdjustment = () => {
       prev.map((row) => {
         if (row.id !== id) return row;
         if (field === 'physicalStock' && value !== '') {
-          const actual = Number(row.actualStock || 0);
           const numVal = Number(value);
+          if (isNaN(numVal) || numVal < 0) {
+            toast.error('Physical stock quantity cannot be negative');
+            return row;
+          }
+          const actual = Number(row.actualStock || 0);
           if (actual <= 0 && numVal < actual) {
             toast.error(`Cannot decrease stock for ${row.itemName} when current stock is 0`);
             return row;

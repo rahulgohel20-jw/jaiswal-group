@@ -277,6 +277,8 @@ const GRNListing = () => {
         poCode: d.poCode || d.purchaseOrderCode || null,
         prCode: d.prCode || d.purchaseRequisitionCode || null,
         isPoDetailClosed: Boolean(d.isPoDetailClosed),
+        batchNo: d.batchNo || d.batchNumber || null,
+        useByDate: d.useByDate || d.bestBeforeDate || d.expiryDate || null,
       }));
 
       setGrnTarget({
@@ -329,6 +331,8 @@ const GRNListing = () => {
           poCode: d.poCode || d.purchaseOrderCode || null,
           prCode: d.prCode || d.purchaseRequisitionCode || null,
           isPoDetailClosed: Boolean(d.isPoDetailClosed),
+          batchNo: d.batchNo || d.batchNumber || null,
+          useByDate: d.useByDate || d.bestBeforeDate || d.expiryDate || null,
         })),
       });
     } finally {

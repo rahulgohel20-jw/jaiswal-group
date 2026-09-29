@@ -1196,12 +1196,20 @@ export const receiveTransfer = (id, payload) => {
   return POST(`/stock-transfer/receive/${id}`, payload);
 };
 
+export const approveTransfer = (id, userId) => {
+  const currentUserId = userId || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+  const params = typeof currentUserId === 'object' ? currentUserId : currentUserId ? { userId: currentUserId } : {};
+  return POST(`/stock-transfer/approve/${id}`, null, { params });
+};
+
 export const rejectTransfer = (id, payload = {}) => {
   const body =
     typeof payload === 'object' && payload !== null
       ? { id: Number(id), ...payload }
       : { id: Number(id), reason: payload };
-  return POST(`/stock-transfer/reject/${id}`, body);
+  const currentUserId = body.userId || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+  const params = currentUserId ? { userId: currentUserId } : {};
+  return POST(`/stock-transfer/reject/${id}`, body, { params });
 };
 
 export const saveTransfer = (payload) => {

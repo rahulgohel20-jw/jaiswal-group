@@ -9,22 +9,21 @@ import {
   Search,
   Eye,
   Pencil,
-  Trash2,
-  Download,
-  ArrowLeftRight,
-  ClipboardList,
   CheckCircle2,
-  Send,
-  Plus,
+  XCircle,
   ChevronRight,
   Filter,
   Loader2,
   AlertTriangle,
-  Boxes,
+  ArrowLeftRight,
   Clock,
+  CheckCheck,
+  Ban,
+  FileCheck2,
+  Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Link, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -34,22 +33,29 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import SearchableSelect from '@/utils/SearchableSelect';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { CodeCell } from '@/components/common/CodeCell';
 import {
   getTransferList,
+  approveTransfer,
+  rejectTransfer,
   deleteDraftTransfer,
-  dispatchTransfer,
   getAllSubOutlets,
   getOrganizationByType,
-  saveTransfer,
-  updateDraftTransfer,
 } from '@/services/apiServices';
-import FifoBatchVisualizerModal from './FifoBatchVisualizerModal';
+import { getUserIdFromToken } from '@/utils/auth';
 import { OrgTypes } from '@/constants/orgTypes';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 /* -------------------------------------------------------------------------
  * Status Styling Tokens (DRAFT, APPROVED, IN_TRANSIT, REJECTED, CLOSED)
@@ -91,8 +97,7 @@ const STATUS_DOT = {
 const formatStatusLabel = (status) => {
   if (!status) return 'Draft';
   const s = String(status).toUpperCase().replace(/[\s_]/g, '');
-  if (s === 'DRAFT') return 'Draft';
-  if (s === 'PENDING' || s === 'SENTFORAPPROVAL' || s === 'PENDINGAPPROVAL') return 'Pending Approval';
+  if (s === 'DRAFT' || s === 'PENDING' || s === 'SENTFORAPPROVAL' || s === 'PENDINGAPPROVAL') return 'Draft';
   if (s === 'APPROVED') return 'Approved';
   if (s === 'INTRANSIT') return 'In Transit';
   if (s === 'REJECTED') return 'Rejected';
@@ -106,10 +111,10 @@ const StatusBadge = ({ status = 'Draft' }) => {
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-        STATUS_STYLES[key] || STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border-gray-200'
+        STATUS_STYLES[key] || STATUS_STYLES[status] || 'bg-amber-50 text-amber-700 border-amber-200'
       }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[key] || STATUS_DOT[status] || 'bg-gray-400'}`} />
+      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[key] || STATUS_DOT[status] || 'bg-amber-500'}`} />
       {label}
     </span>
   );
@@ -141,10 +146,10 @@ function StatCard({ label, value, icon: Icon, iconBg, iconColor }) {
 function StatusDropdown({ value, onChange }) {
   const options = [
     { value: 'ALL', label: 'All Status' },
-    { value: 'PENDING', label: 'Pending Approval' },
+    { value: 'DRAFT', label: 'Draft' },
     { value: 'APPROVED', label: 'Approved' },
-    { value: 'IN_TRANSIT', label: 'In Transit' },
     { value: 'REJECTED', label: 'Rejected' },
+    { value: 'IN_TRANSIT', label: 'In Transit' },
     { value: 'CLOSED', label: 'Closed' },
   ];
 
@@ -179,23 +184,30 @@ const parseDateToTimestamp = (dateStr) => {
   return isNaN(t) ? 0 : t;
 };
 
-const StockTransfer = () => {
+const StockTransferApproval = () => {
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('DRAFT');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
   const [sorting, setSorting] = useState([]);
 
-  // Delete modal state
+  // Modals state
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [targetApproveTransfer, setTargetApproveTransfer] = useState(null);
+  const [approving, setApproving] = useState(false);
+
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [targetRejectTransfer, setTargetRejectTransfer] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectError, setRejectError] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+
+  // Delete draft modal state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [targetDeleteTransfer, setTargetDeleteTransfer] = useState(null);
   const [deleting, setDeleting] = useState(false);
-
-  // FIFO visualizer modal state
-  const [visualizerOpen, setVisualizerOpen] = useState(false);
-  const [selectedVisualizerItem, setSelectedVisualizerItem] = useState(null);
 
   // Outlets, Sub-units & Filter states
   const [allOutlets, setAllOutlets] = useState([]);
@@ -207,22 +219,19 @@ const StockTransfer = () => {
 
   // Permissions hook
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions([
+    'STR Approval',
+    'Stock Transfer Approval',
     'Stock Transfer Request',
     'Stock Transfer',
-    'STR',
   ]);
 
   // Scope hooks
   const {
     loading: scopeLoading,
-    orgType,
     isOutletUser,
     isCompanyUser,
-    isGroupUser,
-    showUnitDropdown,
     units,
     selectedUnitId,
-    setSelectedUnitId,
     effectiveOutletId,
   } = useOrgScope();
 
@@ -239,7 +248,7 @@ const StockTransfer = () => {
         }));
         setAllOutlets(mapped);
       } catch (err) {
-        console.error('Failed to load outlets in StockTransfer:', err);
+        console.error('Failed to load outlets in StockTransferApproval:', err);
       }
     };
     fetchOutlets();
@@ -253,13 +262,13 @@ const StockTransfer = () => {
         const raw = res?.data?.data || res?.data || [];
         setSubUnits(Array.isArray(raw) ? raw : []);
       } catch (err) {
-        console.error('Failed to load sub-units in StockTransfer:', err);
+        console.error('Failed to load sub-units in StockTransferApproval:', err);
       }
     };
     loadSubUnits();
   }, []);
 
-  // Available outlets for dropdowns (strictly company outlets for company user, same parent company for outlet user)
+  // Available outlets for dropdowns
   const displayOutletOptions = useMemo(() => {
     if (isCompanyUser || isOutletUser) {
       return units.map((u) => ({ value: String(u.id), label: `${u.name}${u.code ? ` (${u.code})` : ''}` }));
@@ -276,7 +285,7 @@ const StockTransfer = () => {
     );
   }, [displayOutletOptions, isOutletUser, effectiveOutletId]);
 
-  // From Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedFromOutletId
+  // From Sub-outlet options
   const fromSubOutletOptions = useMemo(() => {
     const targetId = isOutletUser ? effectiveOutletId : selectedFromOutletId;
     if (!targetId) return [];
@@ -288,7 +297,7 @@ const StockTransfer = () => {
       }));
   }, [subUnits, isOutletUser, effectiveOutletId, selectedFromOutletId]);
 
-  // To Sub-outlet options: based on selectedToOutletId
+  // To Sub-outlet options
   const toSubOutletOptions = useMemo(() => {
     if (!selectedToOutletId) return [];
     return subUnits
@@ -312,6 +321,10 @@ const StockTransfer = () => {
         params.fromOrganizationId = Number(selectedUnitId);
       }
 
+      if (statusFilter && statusFilter !== 'ALL') {
+        params.status = statusFilter;
+      }
+
       const res = await getTransferList(params);
       const rawList = res?.data?.data || res?.data?.content || res?.data || [];
       const list = Array.isArray(rawList) ? rawList : [];
@@ -327,17 +340,6 @@ const StockTransfer = () => {
 
         const totalReqQty = itemsArr.reduce(
           (acc, it) => acc + Number(it.requestedQuantity ?? it.transferQty ?? it.quantity ?? 0),
-          0
-        );
-        const totalAccQty = itemsArr.reduce(
-          (acc, it) =>
-            acc +
-            Number(
-              it.receivedQuantity ??
-              it.acceptedQuantity ??
-              it.baseReceivedQuantity ??
-              0
-            ),
           0
         );
 
@@ -362,7 +364,7 @@ const StockTransfer = () => {
               : !item.toSubOutletId
               ? ''
               : item.toSubOutletName || item.toSubOutlet || '',
-          status: item.isDraft ? 'Draft' : item.status || 'Draft',
+          status: item.status || (item.isDraft ? 'Draft' : 'Draft'),
           isDraft: Boolean(item.isDraft),
           transferDate: item.transferDate || item.createdAt || '—',
           createdAt: item.createdAt || item.transferDate || '—',
@@ -372,20 +374,8 @@ const StockTransfer = () => {
           itemsCount: itemsArr.length || 1,
           primaryItemName: itemsArr[0]?.itemName || itemsArr[0]?.rawMaterialName || 'Multiple Items',
           primaryItemId: itemsArr[0]?.itemId || itemsArr[0]?.rawMaterialId || itemsArr[0]?.id,
-          primaryItemType: itemsArr[0]?.itemType || 'RAW_MATERIAL',
-          primaryUnitId: itemsArr[0]?.unitId || itemsArr[0]?.unit?.id || 0,
           transferItemId: itemsArr[0]?.id || itemsArr[0]?.transferItemId,
           totalRequestedQuantity: totalReqQty || item.totalQuantity || item.transferQuantity || 0,
-          totalAcceptedQuantity:
-            totalAccQty > 0
-              ? totalAccQty
-              : Number(
-                  item.receivedQuantity ??
-                  item.acceptedQuantity ??
-                  item.totalReceivedQuantity ??
-                  item.totalAcceptedQuantity ??
-                  0
-                ),
           unit: itemsArr[0]?.unitName || itemsArr[0]?.unitSymbol || itemsArr[0]?.unit || 'Units',
           raw: item,
         };
@@ -393,13 +383,12 @@ const StockTransfer = () => {
 
       setTransfers(normalized);
     } catch (err) {
-      console.error('Failed to fetch stock transfers:', err);
-      // Fallback empty list if error
+      console.error('Failed to fetch stock transfers in approval:', err);
       setTransfers([]);
     } finally {
       setLoading(false);
     }
-  }, [isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId]);
+  }, [isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId, statusFilter]);
 
   useEffect(() => {
     if (!scopeLoading) {
@@ -410,26 +399,26 @@ const StockTransfer = () => {
   // Counts for stat cards
   const stats = useMemo(() => {
     const total = transfers.length;
-    const inTransit = transfers.filter((t) => {
+    const drafts = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
-      return s === 'INTRANSIT';
+      return s === 'DRAFT' || s === 'PENDING' || s === 'SENTFORAPPROVAL' || s === 'PENDINGAPPROVAL' || Boolean(t.isDraft);
     }).length;
     const approved = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
       return s === 'APPROVED';
     }).length;
-    const pending = transfers.filter((t) => {
+    const rejected = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
-      return s === 'PENDING' || s === 'SENTFORAPPROVAL' || s === 'PENDINGAPPROVAL';
+      return s === 'REJECTED';
     }).length;
-    return { total, inTransit, approved, pending };
+    return { total, drafts, approved, rejected };
   }, [transfers]);
 
   // Filtered rows
   const filteredTransfers = useMemo(() => {
     let rows = transfers;
 
-    // 1. Outlet user locked to From Outlet = effectiveOutletId
+    // 1. Outlet user locked to From Outlet
     if (isOutletUser && effectiveOutletId) {
       rows = rows.filter(
         (r) => !r.fromOrganizationId || Number(r.fromOrganizationId) === Number(effectiveOutletId)
@@ -474,23 +463,20 @@ const StockTransfer = () => {
       const target = statusFilter.toUpperCase().replace(/[\s_]/g, '');
       rows = rows.filter((r) => {
         const itemStatus = String(r.status || '').toUpperCase().replace(/[\s_]/g, '');
-        if (target === 'CLOSED') {
-          return itemStatus === 'CLOSED' || itemStatus === 'RECEIVED' || itemStatus === 'RECIEVED';
-        }
         if (target === 'DRAFT') {
-          return itemStatus === 'DRAFT' || Boolean(r.isDraft);
-        }
-        if (target === 'PENDING') {
-          return !r.isDraft && (itemStatus === 'PENDING' || itemStatus === 'SENTFORAPPROVAL' || itemStatus === 'PENDINGAPPROVAL');
+          return itemStatus === 'DRAFT' || itemStatus === 'PENDING' || itemStatus === 'SENTFORAPPROVAL' || itemStatus === 'PENDINGAPPROVAL' || Boolean(r.isDraft);
         }
         if (target === 'APPROVED') {
           return itemStatus === 'APPROVED';
         }
+        if (target === 'REJECTED') {
+          return itemStatus === 'REJECTED';
+        }
         if (target === 'INTRANSIT') {
           return itemStatus === 'INTRANSIT';
         }
-        if (target === 'REJECTED') {
-          return itemStatus === 'REJECTED';
+        if (target === 'CLOSED') {
+          return itemStatus === 'CLOSED' || itemStatus === 'RECEIVED' || itemStatus === 'RECIEVED';
         }
         return itemStatus === target;
       });
@@ -537,16 +523,77 @@ const StockTransfer = () => {
     navigate(`/inventory/stock-transfer-detail/${row.id}`, { state: row.raw || row });
   };
 
+  const handleOpenApproveModal = (row) => {
+    setTargetApproveTransfer(row);
+    setApproveModalOpen(true);
+  };
+
+  const handleConfirmApprove = async () => {
+    if (!targetApproveTransfer?.id) return;
+    setApproving(true);
+    try {
+      const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+      await approveTransfer(targetApproveTransfer.id, currentUserId);
+      toast.success(`Stock transfer ${targetApproveTransfer.transferCode} approved successfully`);
+      setApproveModalOpen(false);
+      setTargetApproveTransfer(null);
+      fetchTransfers();
+    } catch (err) {
+      console.error('Failed to approve stock transfer:', err);
+      const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to approve stock transfer';
+      toast.error(errMsg);
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleOpenRejectModal = (row) => {
+    setTargetRejectTransfer(row);
+    setRejectReason('');
+    setRejectError('');
+    setRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!targetRejectTransfer?.id) return;
+    if (!rejectReason.trim()) {
+      setRejectError('Please enter a mandatory reason for rejecting this transfer request.');
+      return;
+    }
+    setRejectError('');
+    setRejecting(true);
+    try {
+      const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+      const payload = {
+        id: Number(targetRejectTransfer.id),
+        reason: rejectReason.trim(),
+        userId: currentUserId ? Number(currentUserId) : undefined,
+      };
+      await rejectTransfer(targetRejectTransfer.id, payload);
+      toast.success(`Stock transfer ${targetRejectTransfer.transferCode} rejected successfully`);
+      setRejectModalOpen(false);
+      setTargetRejectTransfer(null);
+      fetchTransfers();
+    } catch (err) {
+      console.error('Failed to reject stock transfer:', err);
+      const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to reject stock transfer';
+      toast.error(errMsg);
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   const handleDeleteDraft = async () => {
     if (!targetDeleteTransfer?.id) return;
     setDeleting(true);
     try {
       await deleteDraftTransfer(targetDeleteTransfer.id);
-      toast.success('Draft transfer deleted successfully');
+      toast.success('Draft transfer request deleted successfully');
       setDeleteModalOpen(false);
       setTargetDeleteTransfer(null);
       fetchTransfers();
     } catch (err) {
+      console.error('Failed to delete draft transfer:', err);
       const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to delete draft transfer';
       toast.error(errMsg);
     } finally {
@@ -627,10 +674,7 @@ const StockTransfer = () => {
         ),
         cell: ({ row }) => (
           <div className="flex items-center gap-1.5">
-            <span
-              className="font-semibold text-xs text-gray-800 truncate max-w-[140px]"
-              title={row.original.primaryItemName}
-            >
+            <span className="font-semibold text-xs text-gray-800 truncate max-w-[130px]">
               {row.original.primaryItemName}
             </span>
             {row.original.itemsCount > 1 && (
@@ -664,7 +708,7 @@ const StockTransfer = () => {
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
         enableSorting: false,
-        size: 130,
+        size: 140,
       },
       {
         id: 'actions',
@@ -674,11 +718,17 @@ const StockTransfer = () => {
         cell: ({ row }) => {
           const item = row.original;
           const rawStatus = (item.status || '').toString().trim().toUpperCase().replace(/[\s_]/g, '');
-          const isDraft = rawStatus === 'DRAFT' || Boolean(item.isDraft);
+          const isPending =
+            rawStatus === 'DRAFT' ||
+            rawStatus === 'PENDING' ||
+            rawStatus === 'SENTFORAPPROVAL' ||
+            rawStatus === 'PENDINGAPPROVAL' ||
+            Boolean(item.isDraft);
           const isApproved = rawStatus === 'APPROVED';
 
           return (
             <div className="flex items-center gap-1.5">
+              {/* View Transfer Details */}
               <button
                 type="button"
                 onClick={() => handleView(item)}
@@ -688,7 +738,8 @@ const StockTransfer = () => {
                 <Eye size={15} />
               </button>
 
-              {isDraft && (
+              {/* Actions for Pending / Draft Requests: Edit, Approve, Reject, Delete */}
+              {isPending && (
                 <>
                   {canEdit && (
                     <button
@@ -701,6 +752,28 @@ const StockTransfer = () => {
                     </button>
                   )}
 
+                  {(canEdit || canAdd) && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenApproveModal(item)}
+                      className="p-1.5 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+                      title="Approve Transfer Request"
+                    >
+                      <CheckCircle2 size={16} />
+                    </button>
+                  )}
+
+                  {(canEdit || canAdd) && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenRejectModal(item)}
+                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                      title="Reject Transfer Request"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  )}
+
                   {canDelete && (
                     <button
                       type="button"
@@ -709,29 +782,18 @@ const StockTransfer = () => {
                         setDeleteModalOpen(true);
                       }}
                       className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                      title="Delete Draft"
+                      title="Delete Draft Request"
                     >
                       <Trash2 size={15} />
                     </button>
                   )}
                 </>
               )}
-
-              {isApproved && (canEdit || canAdd) && (
-                <button
-                  type="button"
-                  onClick={() => handleDispatch(item)}
-                  className="p-1.5 text-[#084E92] hover:text-[#063b6f] hover:bg-blue-50 rounded-lg transition cursor-pointer"
-                  title="Dispatch Transfer"
-                >
-                  <Send size={15} />
-                </button>
-              )}
             </div>
           );
         },
         enableSorting: false,
-        size: 150,
+        size: 160,
       },
     ],
     [canAdd, canEdit, canDelete, canView]
@@ -749,7 +811,7 @@ const StockTransfer = () => {
   });
 
   if (!canView) {
-    return <AccessDenied pageTitle="Stock Transfer Request" />;
+    return <AccessDenied pageTitle="STR Approval" />;
   }
 
   return (
@@ -761,13 +823,18 @@ const StockTransfer = () => {
           <ChevronRight size={11} />
           <span>Inventory</span>
           <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">Stock Transfer</span>
+          <span className="text-[#084E92] font-semibold">STR Approval</span>
         </div>
 
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-[#101828] font-sans leading-tight">Stock Transfer</h1>
+            <h1 className="text-xl md:text-2xl font-bold text-[#101828] font-sans leading-tight">
+              Stock Transfer Approval (STR)
+            </h1>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Review, edit, approve, or reject stock transfer requests submitted by outlets and suboutlets.
+            </p>
           </div>
           {canAdd && (
             <HeaderActionButton to="/inventory/stock-transfer-request">
@@ -779,15 +846,15 @@ const StockTransfer = () => {
         {/* Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatCard
-            label="Total Transfers"
+            label="Total Requests"
             value={stats.total}
             icon={ArrowLeftRight}
             iconBg="#EEF2FE"
             iconColor="#2952E3"
           />
           <StatCard
-            label="Pending Approval"
-            value={stats.pending}
+            label="Draft Requests"
+            value={stats.drafts}
             icon={Clock}
             iconBg="#FEF6E7"
             iconColor="#B7791F"
@@ -795,16 +862,16 @@ const StockTransfer = () => {
           <StatCard
             label="Approved"
             value={stats.approved}
-            icon={CheckCircle2}
+            icon={CheckCheck}
             iconBg="#E7F7EE"
             iconColor="#14804A"
           />
           <StatCard
-            label="In Transit"
-            value={stats.inTransit}
-            icon={ClipboardList}
-            iconBg="#F4F3FF"
-            iconColor="#6938EF"
+            label="Rejected"
+            value={stats.rejected}
+            icon={Ban}
+            iconBg="#FBEAEC"
+            iconColor="#C0293D"
           />
         </div>
 
@@ -817,18 +884,18 @@ const StockTransfer = () => {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search transfer code, item, outlet, vehicle..."
+                placeholder="Search transfer code, item, outlet, vehicle, driver..."
                 className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs font-medium text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
               />
             </div>
-            <div className="w-[160px] shrink-0">
+            <div className="w-[200px] shrink-0">
               <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
             </div>
           </div>
 
           {/* Row 2: Location Filters (From Outlet, From Sub-Outlet, To Outlet, To Sub-Outlet) */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
-            {/* 1. From Outlet: only for Company & Group Users */}
+            {/* 1. From Outlet */}
             {!isOutletUser && (
               <SearchableSelect
                 name="fromOutlet"
@@ -842,7 +909,7 @@ const StockTransfer = () => {
               />
             )}
 
-            {/* 2. From Sub-Outlet: based on From Outlet */}
+            {/* 2. From Sub-Outlet */}
             <SearchableSelect
               name="fromSubOutlet"
               value={selectedFromSubOutletId}
@@ -852,7 +919,7 @@ const StockTransfer = () => {
               placeholder={!isOutletUser && !selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
             />
 
-            {/* 3. To Outlet: for all users */}
+            {/* 3. To Outlet */}
             <SearchableSelect
               name="toOutlet"
               value={selectedToOutletId}
@@ -864,7 +931,7 @@ const StockTransfer = () => {
               placeholder="To Outlet..."
             />
 
-            {/* 4. To Sub-Outlet: based on To Outlet */}
+            {/* 4. To Sub-Outlet */}
             <SearchableSelect
               name="toSubOutlet"
               value={selectedToSubOutletId}
@@ -876,12 +943,12 @@ const StockTransfer = () => {
           </div>
         </div>
 
-        {/* Table Card (Maximized height for comfortable viewing) */}
+        {/* Table Card */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
           {loading || scopeLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={18} className="animate-spin text-[#084E92]" />
-              Loading stock transfers…
+              Loading transfer requests for approval…
             </div>
           ) : (
             <DataGrid
@@ -911,7 +978,131 @@ const StockTransfer = () => {
           )}
         </div>
 
-        {/* Delete Draft Confirm Modal */}
+        {/* Approve Confirmation Dialog */}
+        <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
+          <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
+            <DialogHeader className="space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
+                <CheckCircle2 size={22} />
+              </div>
+              <DialogTitle className="text-base font-bold text-gray-900">
+                Approve Stock Transfer Request?
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                Are you sure you want to approve transfer request ?
+                Once approved, the originating outlet can dispatch the items to the destination outlet.
+              </DialogDescription>
+            </DialogHeader>
+
+            {targetApproveTransfer && (
+              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 my-2 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">From Outlet:</span>
+                  <span className="font-semibold text-gray-800">{targetApproveTransfer.fromOutlet}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">To Outlet:</span>
+                  <span className="font-semibold text-gray-800">{targetApproveTransfer.toOutlet}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Total Quantity:</span>
+                  <span className="font-bold text-gray-900">
+                    {targetApproveTransfer.totalRequestedQuantity} {targetApproveTransfer.unit}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setApproveModalOpen(false);
+                  setTargetApproveTransfer(null);
+                }}
+                disabled={approving}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmApprove}
+                disabled={approving}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {approving ? <Loader2 size={14} className="animate-spin" /> : <CheckCheck size={14} />}
+                Approve Transfer
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Reject Modal with Mandatory Reason */}
+        <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>
+          <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
+            <DialogHeader className="space-y-2">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-1">
+                <AlertTriangle size={22} />
+              </div>
+              <DialogTitle className="text-base font-bold text-gray-900">
+                Reject Stock Transfer Request
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                Please provide a mandatory reason for rejecting{' '}
+                <strong className="text-gray-800">{targetRejectTransfer?.transferCode}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-2 my-2">
+              <label className="text-xs font-bold text-gray-700 block">
+                Rejection Reason <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => {
+                  setRejectReason(e.target.value);
+                  if (rejectError) setRejectError('');
+                }}
+                placeholder="Enter detailed reason for rejection..."
+                className="w-full p-2.5 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 placeholder:text-gray-400"
+              />
+              {rejectError && (
+                <p className="text-[11px] font-medium text-rose-600 flex items-center gap-1">
+                  <AlertTriangle size={12} /> {rejectError}
+                </p>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 mt-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setRejectModalOpen(false);
+                  setTargetRejectTransfer(null);
+                  setRejectReason('');
+                  setRejectError('');
+                }}
+                disabled={rejecting}
+                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                disabled={rejecting}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {rejecting ? <Loader2 size={14} className="animate-spin" /> : <Ban size={14} />}
+                Reject Transfer
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Modal */}
         <DeleteConfirmModal
           isOpen={deleteModalOpen}
           onClose={() => {
@@ -919,12 +1110,13 @@ const StockTransfer = () => {
             setTargetDeleteTransfer(null);
           }}
           onConfirm={handleDeleteDraft}
-          itemLabel={targetDeleteTransfer?.transferCode || 'this draft transfer'}
-          saving={deleting}
+          isLoading={deleting}
+          title="Delete Stock Transfer"
+          message={`Are you sure you want to delete stock transfer request ${targetDeleteTransfer?.transferCode || ''}? This action cannot be undone.`}
         />
       </div>
     </Container>
   );
 };
 
-export default StockTransfer;
+export default StockTransferApproval;

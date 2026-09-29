@@ -305,11 +305,21 @@ const StockTransferReqReceiveList = () => {
       const rawList = res?.data?.data || res?.data?.content || res?.data || [];
       const list = Array.isArray(rawList) ? rawList : [];
 
-      // Filter: only dispatched records (status != DRAFT and isDraft != true)
+      // Filter: only show transfers that have actually been dispatched (IN_TRANSIT) or completed/rejected.
+      // Exclude requests that are DRAFT, PENDING / SENT FOR APPROVAL, or APPROVED (not yet dispatched).
       const dispatchedList = list.filter((item) => {
         if (item.isDraft) return false;
         const s = String(item.status || '').toUpperCase().replace(/[\s_]/g, '');
-        return s !== 'DRAFT';
+        if (
+          s === 'DRAFT' ||
+          s === 'PENDING' ||
+          s === 'SENTFORAPPROVAL' ||
+          s === 'PENDINGAPPROVAL' ||
+          s === 'APPROVED'
+        ) {
+          return false;
+        }
+        return true;
       });
 
       const normalized = dispatchedList.map((item) => {
@@ -405,11 +415,11 @@ const StockTransferReqReceiveList = () => {
     const total = transfers.length;
     const inTransit = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
-      return s === 'INTRANSIT' || s === 'PENDING';
+      return s === 'INTRANSIT';
     }).length;
     const closed = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
-      return s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED';
+      return s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED' || s === 'PARTIALLYACCEPTED';
     }).length;
     const rejected = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
@@ -468,10 +478,18 @@ const StockTransferReqReceiveList = () => {
       rows = rows.filter((r) => {
         const itemStatus = String(r.status || '').toUpperCase().replace(/[\s_]/g, '');
         if (target === 'CLOSED') {
-          return itemStatus === 'CLOSED' || itemStatus === 'RECEIVED' || itemStatus === 'RECIEVED';
+          return (
+            itemStatus === 'CLOSED' ||
+            itemStatus === 'RECEIVED' ||
+            itemStatus === 'RECIEVED' ||
+            itemStatus === 'PARTIALLYACCEPTED'
+          );
         }
         if (target === 'INTRANSIT') {
-          return itemStatus === 'INTRANSIT' || itemStatus === 'PENDING';
+          return itemStatus === 'INTRANSIT';
+        }
+        if (target === 'REJECTED') {
+          return itemStatus === 'REJECTED';
         }
         return itemStatus === target;
       });
@@ -669,14 +687,7 @@ const StockTransferReqReceiveList = () => {
         ),
         cell: ({ row }) => {
           const s = String(row.original.status || '').toUpperCase().replace(/[\s_-]/g, '');
-          const isFinished =
-            s === 'CLOSED' ||
-            s === 'RECEIVED' ||
-            s === 'RECIEVED' ||
-            s === 'PARTIALLYACCEPTED' ||
-            s === 'ACCEPTED' ||
-            s === 'REJECTED' ||
-            s === 'DRAFT';
+          const isInTransit = s === 'INTRANSIT';
 
           return (
             <div className="flex items-center gap-1.5 whitespace-nowrap">
@@ -693,12 +704,12 @@ const StockTransferReqReceiveList = () => {
                 <Eye size={16} />
               </button>
 
-              {!isFinished && (canEdit || canAdd) && (
+              {isInTransit && (canEdit || canAdd) && (
                 <button
                   type="button"
                   onClick={() => handleTransferAccept(row.original)}
                   className="p-1.5 text-[#084E92] hover:text-[#073e77] hover:bg-blue-50 rounded-lg transition cursor-pointer"
-                  title="Transfer Accept"
+                  title="Receive & Verify Stock"
                 >
                   <CheckCircle2 size={16} />
                 </button>

@@ -193,6 +193,7 @@ import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceLis
 import ApproveInvoice from '../pages/purchase-invoice/ApproveInvoice';
 import PurchaseInvoiceDetailsModal from '../pages/purchase-invoice/PurchaseInvoiceDetailsModal';
 import StockTransferRequest from '../pages/inventory/stock-transfer/StockTransferRequest';
+import StockTransferApproval from '../pages/inventory/stock-transfer-approval/StockTransferApproval';
 import StockTransferReqReceiveList from '../pages/inventory/stock-transfer-request-listing/StockTransferReqReceiveList';
 import OpbStockCreateRequestListing from '../pages/inventory/opb-stock/OpbStockCreateRequestListing';
 import OpbStockCreateRequest from '../pages/inventory/opb-stock/OpbStockCreateRequest';
@@ -460,6 +461,8 @@ export function AppRoutingSetup() {
           <Route path='/inventory/stock-transfer' element={<StockTransfer />} />
           <Route path='/inventory/stock-transfer-detail/:id' element={<StockTransferDetail />} />
           <Route path='/inventory/stock-transfer-request' element={<StockTransferRequest />} />
+          <Route path='/inventory/str-approval' element={<StockTransferApproval />} />
+          <Route path='/inventory/stock-transfer-approval' element={<StockTransferApproval />} />
           <Route path='/inventory/transfer-receive-requests' element={<StockTransferReqReceiveList />} />
           <Route path='/inventory/stock-transfer-request-receive' element={<StockTransferReqReceiveList />} />
 
