@@ -600,16 +600,6 @@ const PurchaseOrderDetail = () => {
                         {billTo.emailid || billTo.email}
                       </span>
                     )}
-                    {billTo.gstNumber && (
-                      <span>
-                        <strong className="text-gray-700">GSTIN:</strong> {billTo.gstNumber}
-                      </span>
-                    )}
-                    {billTo.panNumber && (
-                      <span>
-                        <strong className="text-gray-700">PAN:</strong> {billTo.panNumber}
-                      </span>
-                    )}
                   </div>
                 </div>
               ) : (

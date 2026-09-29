@@ -176,11 +176,10 @@ const SingleSelectDropdown = ({
                   type="button"
                   key={option.id}
                   onClick={() => handlePick(option)}
-                  className={`w-full text-left px-3.5 py-2 text-xs sm:text-sm transition flex items-center justify-between ${
-                    selected?.id === option.id
-                      ? 'bg-blue-50 text-[#084E92] font-semibold'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
+                  className={`w-full text-left px-3.5 py-2 text-xs sm:text-sm transition flex items-center justify-between ${selected?.id === option.id
+                    ? 'bg-blue-50 text-[#084E92] font-semibold'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
                 >
                   <span>{option.name}</span>
                   {selected?.id === option.id && (
@@ -192,6 +191,90 @@ const SingleSelectDropdown = ({
         </div>
       )}
     </div>
+  );
+};
+
+const AssignedUnitsTooltip = ({ units }) => {
+  const wrapperRef = useRef(null);
+  const hideTimerRef = useRef(null);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [showAbove, setShowAbove] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+
+  const clearHideTimer = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const updatePosition = () => {
+    if (!wrapperRef.current) return;
+
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const tooltipHeight = 220;
+    const gap = 8;
+
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    const above = spaceBelow < tooltipHeight + gap && spaceAbove > tooltipHeight + gap;
+
+    setShowAbove(above);
+
+    setPosition({
+      left: rect.left,
+      top: above ? rect.top - tooltipHeight - gap : rect.bottom + gap,
+    });
+  };
+
+  const handleMouseEnter = () => {
+    clearHideTimer();
+    updatePosition();
+    setShowTooltip(true);
+  };
+
+  const handleMouseLeave = () => {
+    clearHideTimer();
+
+    hideTimerRef.current = setTimeout(() => {
+      setShowTooltip(false);
+    }, 300);
+  };
+
+  useEffect(() => {
+    return () => clearHideTimer();
+  }, []);
+
+  return (
+    <>
+      <div ref={wrapperRef} className="relative inline-flex" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+        <span className="inline-flex items-center bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-semibold px-2.5 py-1 rounded-full cursor-help">
+          ...
+        </span>
+      </div>
+
+      {showTooltip && (
+        <div className="fixed z-99999" style={{ left: position.left, top: position.top }} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+          <div className="relative bg-[#1F2937] text-white rounded-lg shadow-xl border border-gray-700 px-3 py-2.5 min-w-50 max-w-70">
+            <div className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide mb-1.5 pb-1.5 border-b border-gray-600">
+              Assigned Units
+            </div>
+
+            <div className="max-h-48 overflow-y-auto">
+              {units.map((u, index) => (
+                <div key={u.id} className="flex items-start gap-2 py-0.5 text-xs">
+                  <span className="text-gray-400 min-w-4.5">{index + 1}.</span>
+                  <span className="text-white wrap-break-word">{u.name}</span>
+                </div>
+              ))}
+            </div>
+
+            <span className={`absolute left-4 w-0 h-0 border-l-[5px] border-r-[5px] border-transparent ${showAbove ? 'top-full border-t-[5px] border-t-[#1F2937]' : 'bottom-full border-b-[5px] border-b-[#1F2937]'}`} />
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -238,6 +321,16 @@ const MultiSelectDropdown = ({
     onChange(selected.filter((s) => s.id !== id));
   };
 
+  const isAllSelected = options.length > 0 && selected.length === options.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange([...options]);
+    }
+  };
+
   return (
     <div ref={wrapperRef} className="relative w-full">
       <div className="flex items-center justify-between mb-1.5">
@@ -259,22 +352,36 @@ const MultiSelectDropdown = ({
           <span className="text-gray-400 text-xs sm:text-sm px-1">{placeholder}</span>
         )}
 
-        {selected.map((item) => (
-          <span
-            key={item.id}
-            className="flex items-center gap-1 bg-blue-50 text-[#084E92] border border-blue-100 text-xs font-medium px-2.5 py-0.5 rounded-lg"
-          >
-            {item.name}
+        {isAllSelected ? (
+          <span className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-semibold px-2.5 py-1 rounded-md">
+            All Units Selected ({options.length})
             <X
               size={12}
-              className="cursor-pointer hover:text-red-500 transition"
+              className="cursor-pointer hover:text-red-500 ml-1"
               onClick={(e) => {
                 e.stopPropagation();
-                removeOption(item.id);
+                onChange([]);
               }}
             />
           </span>
-        ))}
+        ) : (
+          selected.map((item) => (
+            <span
+              key={item.id}
+              className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-1 rounded-md"
+            >
+              {item.name}
+              <X
+                size={12}
+                className="cursor-pointer hover:text-red-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeOption(item.id);
+                }}
+              />
+            </span>
+          ))
+        )}
 
         <ChevronDown size={15} className={`ml-auto text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
@@ -304,6 +411,19 @@ const MultiSelectDropdown = ({
               <p className="px-3 py-2.5 text-xs text-gray-400">
                 No units found.
               </p>
+            )}
+
+            {/* "All Units" checkbox option */}
+            {!loading && options.length > 0 && !query.trim() && (
+              <label className="flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b border-gray-100 hover:bg-[#F4F7FF] cursor-pointer text-[#084E92]">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                  className="accent-[#084E92]"
+                />
+                All Units ({options.length})
+              </label>
             )}
 
             {!loading &&
@@ -337,8 +457,7 @@ const normalizeUnit = (o) => ({
 });
 
 // Normalizes a raw vendor record from getAllActiveVendors into { id, name, gstRegisteredName }.
-const normalizeVendor = (
-  v) => ({
+const normalizeVendor = (v) => ({
   id: v.id,
   name:
     v.companyName ||
@@ -349,8 +468,7 @@ const normalizeVendor = (
   gstRegisteredName: v.gstRegisteredName ?? null,
 });
 
-// Groups flat rows from GET /vendor-outlet-mapping/get-all into
-// { id, vendor: {id, name, gstRegisteredName}, units: [{id, name}] } rows the table expects.
+// Groups flat rows from GET /vendor-outlet-mapping/get-all
 const groupMappings = (rawRows, vendorsById, unitsById) => {
   const byVendor = new Map();
 
@@ -373,7 +491,6 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
 
     const entry = byVendor.get(vendorId);
 
-    // API returns one row per outlet, keyed by organizationId/organizationName
     const outletId = row.organizationId;
     const outletName = row.organizationName;
 
@@ -419,15 +536,6 @@ const VendorUnitMapping = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const totalUnitsCount = useMemo(() => {
-    const unitSet = new Set();
-    mappings.forEach((m) => {
-      (m.units || []).forEach((u) => unitSet.add(u.id));
-    });
-    return unitSet.size;
-  }, [mappings]);
-
-  // Vendors from the real API.
   useEffect(() => {
     const fetchVendors = async () => {
       setVendorsLoading(true);
@@ -445,7 +553,6 @@ const VendorUnitMapping = () => {
     fetchVendors();
   }, []);
 
-  // Units (outlets) from the real API.
   useEffect(() => {
     const fetchUnits = async () => {
       setUnitsLoading(true);
@@ -470,7 +577,6 @@ const VendorUnitMapping = () => {
     fetchUnits();
   }, []);
 
-  // Existing vendor-outlet mappings. Re-fetched after vendors/units load and after every save/delete.
   const fetchMappings = async () => {
     setMappingsLoading(true);
     setMappingsError(null);
@@ -544,7 +650,6 @@ const VendorUnitMapping = () => {
     }
   };
 
-  // Row delete = drop the whole vendor mapping (all outlets for that vendor).
   const openDeleteConfirm = (row) => {
     setDeleteTarget({
       type: 'row',
@@ -554,7 +659,6 @@ const VendorUnitMapping = () => {
     setShowDeleteConfirm(true);
   };
 
-  // Single unit chip delete = drop one vendor+outlet pair.
   const openRemoveUnitConfirm = (vendorId, unit) => {
     setDeleteTarget({
       type: 'unit',
@@ -653,29 +757,40 @@ const VendorUnitMapping = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="Assigned Units" column={column} />
         ),
-        cell: ({ row }) => (
-          <div className="flex flex-wrap gap-1.5 py-1">
-            {(row.original.units || []).length === 0 ? (
-              <span className="text-gray-400 text-xs italic">No units assigned</span>
-            ) : (
-              (row.original.units || []).map((u) => (
+        cell: ({ row }) => {
+          const rowUnits = row.original.units || [];
+
+          const visibleUnits = rowUnits.slice(0, 4);
+          const remainingUnits = rowUnits.slice(4);
+          const hasMore = remainingUnits.length > 0;
+
+          return (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {visibleUnits.map((u) => (
                 <span
                   key={u.id}
-                  className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] border border-[#D0E2FF] text-xs font-medium px-2.5 py-0.5 rounded-md"
+                  className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full"
                 >
                   {u.name}
+
                   {canDelete && (
                     <X
                       size={12}
-                      className="cursor-pointer hover:text-red-500 transition ml-0.5"
-                      onClick={() => openRemoveUnitConfirm(row.original.vendor.id, u)}
+                      className="cursor-pointer hover:text-red-500"
+                      onClick={() =>
+                        openRemoveUnitConfirm(row.original.vendor.id, u)
+                      }
                     />
                   )}
                 </span>
-              ))
-            )}
-          </div>
-        ),
+              ))}
+
+              {hasMore && (
+                <AssignedUnitsTooltip units={rowUnits} />
+              )}
+            </div>
+          );
+        },
         enableSorting: false,
         size: 300,
       },
@@ -686,25 +801,19 @@ const VendorUnitMapping = () => {
             Actions
           </span>
         ),
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2 whitespace-nowrap">
-            {canDelete && (
-              <button
-                type="button"
-                onClick={() => openDeleteConfirm(row.original)}
-                className="text-red-300 hover:text-red-600 cursor-pointer p-1 rounded transition"
-                title="Delete mapping"
-              >
-                <Trash2 size={18} />
-              </button>
-            )}
-          </div>
-        ),
+        cell: ({ row }) =>
+          canDelete ? (
+            <Trash2
+              size={18}
+              className="text-red-300 cursor-pointer hover:text-red-700"
+              onClick={() => openDeleteConfirm(row.original)}
+            />
+          ) : null,
         enableSorting: false,
         size: 90,
       },
     ],
-    [canDelete, pagination],
+    [canDelete, pagination, units],
   );
 
   const table = useReactTable({

@@ -15,7 +15,8 @@ import { Container } from '@/components/common/container';
 import { Link } from 'react-router';
 import OpbStockRequestDetailsModal from './OpbStockRequestDetailsModal';
 import { getEmployeeById, getOpbById, getOpbList } from '../../../services/apiServices';
-
+import { useOrgScope } from '../../../hooks/useOrgScope';
+import HeaderActionButton from '../../../components/common/HeaderActionButton';
 
 const StatusBadge = ({ status }) => {
     const map = {
@@ -46,6 +47,32 @@ const Pill = ({ children }) => (
 );
 const employeeNameCache = new Map();
 const OpbStockCreateRequestListing = () => {
+
+    const {
+        loading: orgScopeLoading,
+        isOutletUser,
+        isCompanyUser,
+        effectiveOutletId,
+        units: scopedOutlets,
+    } = useOrgScope();
+
+    const allowedOutletIdSet = useMemo(() => {
+        if (orgScopeLoading) return null;
+
+        if (isOutletUser && effectiveOutletId) {
+            return new Set([String(effectiveOutletId)]);
+        }
+
+        if (isCompanyUser && Array.isArray(scopedOutlets)) {
+            return new Set(
+                scopedOutlets
+                    .filter((outlet) => outlet?.id != null && String(outlet.id).toUpperCase() !== 'ALL')
+                    .map((outlet) => String(outlet.id))
+            );
+        }
+
+        return null;
+    }, [orgScopeLoading, isOutletUser, isCompanyUser, effectiveOutletId, scopedOutlets]);
 
     const [allRequests, setAllRequests] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -130,15 +157,27 @@ const OpbStockCreateRequestListing = () => {
     }, [fetchAllOpb]);
 
     const filteredRequests = useMemo(() => {
-        const term = search.toLowerCase();
-        if (!term) return allRequests;
+        if (orgScopeLoading) return [];
 
-        return allRequests.filter((r) =>
+        const scopedRequests = allRequests.filter((request) => {
+            if (!allowedOutletIdSet) return true;
+
+            return (
+                request.organizationId != null &&
+                allowedOutletIdSet.has(String(request.organizationId))
+            );
+        });
+
+        const term = search.toLowerCase();
+
+        if (!term) return scopedRequests;
+
+        return scopedRequests.filter((r) =>
             r.opbCode?.toLowerCase().includes(term) ||
             r.organizationName?.toLowerCase().includes(term) ||
             r.subOutletName?.toLowerCase().includes(term)
         );
-    }, [allRequests, search]);
+    }, [allRequests, search, orgScopeLoading, allowedOutletIdSet]);
 
     const totalElements = filteredRequests.length;
 
@@ -403,12 +442,12 @@ const OpbStockCreateRequestListing = () => {
                 <div className="flex md:flex-row flex-col md:items-center justify-between gap-3">
                     <h1 className="text-xl font-bold text-[#0F172A]">OPB Stock Create Request Listing</h1>
 
-                    <Link to="/inventory/opb-stock-create-request">
-                        <button className="flex items-center w-max gap-2 px-4 py-2 text-sm h-max bg-[#084E92] text-white rounded-lg shadow-md hover:bg-[#084E92]/90 cursor-pointer whitespace-nowrap">
-                            <Plus size={16} />
-                            OPB Stock Request
-                        </button>
-                    </Link>
+                    <HeaderActionButton
+                        to="/inventory/opb-stock-create-request"
+                        icon={Plus}
+                    >
+                        OPB Stock Request
+                    </HeaderActionButton>
                 </div>
 
                 {/* Search + create */}

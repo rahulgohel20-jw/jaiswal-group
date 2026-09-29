@@ -642,6 +642,35 @@ export const getRawMaterialById = (id) => {
 export const deleteRawMaterialItemById = (id) => {
   return DELETE(`/rawmaterial/delete?id=${id}`);
 };
+//Raw material item Vendor price approval API
+export const getVendorPriceApprovals = (
+  pageNo = 1,
+  pageSize = 10,
+  status = ''
+) => {
+  let url = `/raw-material-vendor-price/vendorpricing/status?pageNo=${pageNo}&pageSize=${pageSize}`;
+
+  if (status) {
+    url += `&status=${status}`;
+  }
+
+  return GET(url);
+};
+export const approveVendorPricing = (priceConfigIds) => {
+  const ids = (Array.isArray(priceConfigIds) ? priceConfigIds : [priceConfigIds]).filter(
+    (id) => id !== null && id !== undefined && id !== ''
+  );
+  const query = ids.map((id) => `priceConfigIds=${encodeURIComponent(id)}`).join('&');
+  return PUT(`/raw-material-vendor-price/vendorpricing/approve?${query}`);
+};
+
+export const rejectVendorPricing = (outletPriceIds) => {
+  const ids = (Array.isArray(outletPriceIds) ? outletPriceIds : [outletPriceIds]).filter(
+    (id) => id !== null && id !== undefined && id !== ''
+  );
+  const query = ids.map((id) => `outletPriceIds=${encodeURIComponent(id)}`).join('&');
+  return PUT(`/raw-material-vendor-price/vendorpricing/reject?${query}`);
+};
 // ---- User Rights: Pages APIs ----
 // Add these alongside the other exports in apiServices.js
 export const getPages = (isAdminRights = false, isCombine = true) => {
@@ -1276,9 +1305,10 @@ export const getOpbById = (id) => {
 export const getEligibleGrns = ({ outletId, vendorId }) => {
   return GET(`/purchase-invoice/eligible-grns?outletId=${outletId}&vendorId=${vendorId}`);
 }
-export const getEligibleGrnDetails = (id) => {
-  return GET(`/purchase-invoice/eligible-grns/${id}`);
-}
+export const getEligibleGrnDetails = (grnIds) => {
+  const idsParam = Array.isArray(grnIds) ? grnIds.join(',') : grnIds;
+  return GET(`/purchase-invoice/eligible-grns/${encodeURIComponent(idsParam)}`);
+};
 export const createPurchaseInvoice = (payload) => {
   return POST('/purchase-invoice/create', payload);
 }

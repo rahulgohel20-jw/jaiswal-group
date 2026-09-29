@@ -323,29 +323,62 @@ const CreatePurchaseOrder = () => {
   );
   const isSingleVendorPo = !isGeneratePo && (isEditingExistingPo || Boolean(state?.reviewMode) || Boolean(poRecord?.id && (poRecord?.vendorId || poRecord?.billTo)));
 
-  const [fetchedBillTo, setFetchedBillTo] = useState(null);
+  const [fetchedVendorAddress, setFetchedVendorAddress] = useState(null);
   const [fetchedShipTo, setFetchedShipTo] = useState(null);
 
-  const billTo = fetchedBillTo || poRecord?.billTo || state?.billTo || null;
-  const shipTo = fetchedShipTo || poRecord?.shipTo || state?.shipTo || null;
-  const isInterState = useMemo(() => checkIsInterState(billTo, shipTo), [billTo, shipTo]);
+  // Vendor / Supplier details (from poRecord.supplierAddress or fetched dynamically)
+  const vendorAddressData = useMemo(() => {
+    if (fetchedVendorAddress) return fetchedVendorAddress;
+    if (poRecord?.supplierAddress) {
+      return {
+        vendorId: poRecord.vendorId,
+        vendorName: poRecord.vendorName,
+        isGstApplicable: poRecord.isGstApplicable ?? true,
+        addressLine1: poRecord.supplierAddress.addressLine1 || '',
+        addressLine2: poRecord.supplierAddress.addressLine2 || '',
+        cityName: poRecord.supplierAddress.cityName || '',
+        stateId: poRecord.supplierAddress.stateId,
+        stateName: poRecord.supplierAddress.stateName || '',
+        countryName: poRecord.supplierAddress.countryName || '',
+        pincode: poRecord.supplierAddress.pincode || '',
+        phoneNumber: poRecord.supplierAddress.phoneNumber || '',
+        gstNumber: poRecord.gstNumber || '',
+        panNumber: poRecord.panNumber || '',
+      };
+    }
+    return null;
+  }, [fetchedVendorAddress, poRecord]);
 
+  // Billing entity (Sub-Company)
+  const billToOrg = poRecord?.billTo || state?.billTo || null;
+
+  // Delivery outlet
+  const shipTo = fetchedShipTo || poRecord?.shipTo || state?.shipTo || null;
+
+  // Inter-state supply check between Supplier and Ship To
+  const isInterState = useMemo(() => checkIsInterState(vendorAddressData, shipTo), [vendorAddressData, shipTo]);
+
+  // Fetch or update supplier address dynamically whenever selected vendor changes
   useEffect(() => {
-    if (poRecord?.billTo || state?.billTo) return;
-    const vendorId = commonVendorId || poRecord?.vendorId || state?.vendorId || Object.values(vendorMap).find(Boolean);
-    if (!vendorId) {
-      setFetchedBillTo(null);
+    const currentVendorId = commonVendorId || poRecord?.vendorId || state?.vendorId || Object.values(vendorMap).find(Boolean);
+    if (!currentVendorId) {
+      setFetchedVendorAddress(null);
       return;
     }
+
+    if (poRecord?.supplierAddress && String(poRecord.vendorId) === String(currentVendorId) && !fetchedVendorAddress) {
+      return;
+    }
+
     let isCancelled = false;
-    getVendorById(vendorId)
+    getVendorById(currentVendorId)
       .then((res) => {
         if (isCancelled) return;
         const v = res?.data?.data ?? res?.data;
         if (v) {
-          setFetchedBillTo({
+          setFetchedVendorAddress({
             vendorId: v.id,
-            vendorName: v.name || v.vendorName,
+            vendorName: v.name || v.vendorName || v.companyName,
             isGstApplicable:
               v.isGstApplicable !== undefined && v.isGstApplicable !== null
                 ? Boolean(v.isGstApplicable)
@@ -364,20 +397,25 @@ const CreatePurchaseOrder = () => {
         }
       })
       .catch(() => {
-        if (!isCancelled) setFetchedBillTo(null);
+        if (!isCancelled) setFetchedVendorAddress(null);
       });
     return () => {
       isCancelled = true;
     };
-  }, [poRecord?.billTo, state?.billTo, commonVendorId, poRecord?.vendorId, state?.vendorId, vendorMap]);
+  }, [commonVendorId, poRecord?.vendorId, poRecord?.supplierAddress, state?.vendorId, vendorMap]);
 
+  // Fetch or update outlet shipping address whenever selected outlet changes
   useEffect(() => {
-    if (poRecord?.shipTo || state?.shipTo) return;
     const outletId = activeOutletId || selectedOutletId || poRecord?.outletId || state?.outletId || pr?.outletId;
     if (!outletId) {
       setFetchedShipTo(null);
       return;
     }
+
+    if (poRecord?.shipTo && String(poRecord.outletId) === String(outletId) && !fetchedShipTo) {
+      return;
+    }
+
     let isCancelled = false;
     getCompanyById(outletId)
       .then((res) => {
@@ -408,7 +446,7 @@ const CreatePurchaseOrder = () => {
     return () => {
       isCancelled = true;
     };
-  }, [poRecord?.shipTo, state?.shipTo, activeOutletId, selectedOutletId, poRecord?.outletId, state?.outletId, pr?.outletId]);
+  }, [activeOutletId, selectedOutletId, poRecord?.outletId, poRecord?.shipTo, state?.outletId, pr?.outletId]);
 
   const reviewMode = state?.reviewMode;
   const isApproveMode = reviewMode === 'approve';
@@ -488,6 +526,7 @@ const CreatePurchaseOrder = () => {
     });
   }, [pr, isEditingExistingPo]);
 
+  // Load PO Record into form states when in edit mode
   useEffect(() => {
     if (!isEditingExistingPo || !poRecord) return;
     if (poRecord.poDate) setPoDate(apiDateToInputDate(poRecord.poDate));
@@ -495,9 +534,15 @@ const CreatePurchaseOrder = () => {
       setExpectedDeliveryDate(apiDateToInputDate(poRecord.expectedDeliveryDate));
     }
     if (poRecord.remarks) setRemarks(poRecord.remarks);
-    if (poRecord.termsAndConditions) setTermsAndConditions(poRecord.termsAndConditions);
+    if (poRecord.termsAndConditions) setTermsAndConditions(htmlToPlainText(poRecord.termsAndConditions));
     if (poRecord.discountPercentage != null) {
       setOverallDiscountPercentage(Number(poRecord.discountPercentage) || 0);
+    }
+    if (poRecord.vendorId && !commonVendorId) {
+      setCommonVendorId(String(poRecord.vendorId));
+    }
+    if (poRecord.outletId && !selectedOutletId) {
+      setSelectedOutletId(String(poRecord.outletId));
     }
 
     const qtyNext = {};
@@ -511,7 +556,7 @@ const CreatePurchaseOrder = () => {
     const cessNext = {};
 
     (poRecord.details || []).forEach((d) => {
-      qtyNext[d.rawMaterialId] = d.quantity;
+      qtyNext[d.rawMaterialId] = d.orderedQuantity ?? d.quantity ?? 0;
       if (d.uomId || d.uomName) {
         uomNext[d.rawMaterialId] = { uomId: d.uomId, uomName: d.uomName };
       }
@@ -625,11 +670,11 @@ const CreatePurchaseOrder = () => {
       commonVendorId ||
       poRecord?.vendorId ||
       state?.vendorId ||
-      billTo?.vendorId ||
+      vendorAddressData?.vendorId ||
       Object.values(vendorMap).find(Boolean);
     if (!targetId) return null;
     return vendors.find((v) => String(v.id) === String(targetId)) || null;
-  }, [vendors, commonVendorId, poRecord?.vendorId, state?.vendorId, billTo?.vendorId, vendorMap]);
+  }, [vendors, commonVendorId, poRecord?.vendorId, state?.vendorId, vendorAddressData?.vendorId, vendorMap]);
 
   const isGstApplicable = useMemo(() => {
     if (activeVendorObj && activeVendorObj.isGstApplicable !== undefined && activeVendorObj.isGstApplicable !== null) {
@@ -638,14 +683,14 @@ const CreatePurchaseOrder = () => {
     if (poRecord && poRecord.isGstApplicable !== undefined && poRecord.isGstApplicable !== null) {
       return Boolean(poRecord.isGstApplicable);
     }
-    if (billTo && billTo.isGstApplicable !== undefined && billTo.isGstApplicable !== null) {
-      return Boolean(billTo.isGstApplicable);
+    if (vendorAddressData && vendorAddressData.isGstApplicable !== undefined && vendorAddressData.isGstApplicable !== null) {
+      return Boolean(vendorAddressData.isGstApplicable);
     }
     if (state && state.isGstApplicable !== undefined && state.isGstApplicable !== null) {
       return Boolean(state.isGstApplicable);
     }
     return false;
-  }, [activeVendorObj, poRecord, billTo, state]);
+  }, [activeVendorObj, poRecord, vendorAddressData, state]);
 
   const handleVendorChange = async (rawMaterialId, vendorId) => {
     if (!vendorId) {
@@ -703,33 +748,13 @@ const CreatePurchaseOrder = () => {
   }, []);
 
   const handleOverallDiscountChange = (value) => {
-    const discount = value === '' ? '' : Math.max(0, Math.min(100, Number(value) || 0));
+    const discount = Math.max(0, Math.min(100, Number(value) || 0));
     setOverallDiscountPercentage(value);
     setDiscountMap((prev) => {
       const next = { ...prev };
       purchaseItems.forEach((item) => {
-        next[item.rawMaterialId] = discount === '' ? 0 : discount;
+        next[item.rawMaterialId] = discount;
       });
-      return next;
-    });
-  };
-
-  const handleItemDiscountChange = (rawMaterialId, value) => {
-    const v = value === '' ? '' : Math.max(0, Math.min(100, Number(value)));
-    setDiscountMap((prev) => {
-      const next = { ...prev, [rawMaterialId]: v };
-      let sub = 0;
-      let disc = 0;
-      includedItems.forEach((item) => {
-        const q = Number(poQtyMap[item.rawMaterialId]) || 0;
-        const p = Number(priceMap[item.rawMaterialId]) || 0;
-        const d = item.rawMaterialId === rawMaterialId ? (Number(v) || 0) : (Number(next[item.rawMaterialId]) || 0);
-        const base = q * p;
-        sub += base;
-        disc += (base * d) / 100;
-      });
-      const effectivePct = sub > 0 ? Number(((disc / sub) * 100).toFixed(2)) : (Number(v) || 0);
-      setOverallDiscountPercentage(effectivePct);
       return next;
     });
   };
@@ -829,7 +854,7 @@ const CreatePurchaseOrder = () => {
       if (v) {
         const newBillTo = {
           vendorId: v.id,
-          vendorName: v.name || v.vendorName,
+          vendorName: v.name || v.vendorName || v.companyName,
           isGstApplicable:
             v.isGstApplicable !== undefined && v.isGstApplicable !== null
               ? Boolean(v.isGstApplicable)
@@ -845,7 +870,7 @@ const CreatePurchaseOrder = () => {
           gstNumber: v.gstNumber || v.gstin,
           panNumber: v.panNumber || v.pan,
         };
-        setFetchedBillTo(newBillTo);
+        setFetchedVendorAddress(newBillTo);
 
         const outletId = activeOutletId || selectedOutletId || poRecord?.outletId || state?.outletId || pr?.outletId;
         let currentShipTo = shipTo;
@@ -1148,7 +1173,6 @@ const CreatePurchaseOrder = () => {
   const purchaseItems = useMemo(() => {
     const baseline = isEditingExistingPo
       ? (poRecord?.details || []).map((d, idx) => ({
-        id: d.id != null ? Number(d.id) : (d.poDetailId != null ? Number(d.poDetailId) : 0),
         rawMaterialId: d.rawMaterialId,
         prDetailId: d.prDetailId != null ? Number(d.prDetailId) : (d.id != null ? Number(d.id) : null),
         srNo: String(idx + 1).padStart(2, '0'),
@@ -1159,10 +1183,8 @@ const CreatePurchaseOrder = () => {
         approvedQty: d.quantity,
         remarks: d.remarks || '',
         source: 'pr',
-        receivedQuantity: d.receivedQuantity != null ? Number(d.receivedQuantity) : 0,
       }))
       : (pr?.details || []).map((d, idx) => ({
-        id: 0,
         rawMaterialId: d.rawMaterialId,
         prDetailId: d.id != null ? Number(d.id) : (d.prDetailId != null ? Number(d.prDetailId) : null),
         srNo: String(idx + 1).padStart(2, '0'),
@@ -1173,10 +1195,8 @@ const CreatePurchaseOrder = () => {
         approvedQty: d.quantity ?? d.orderedQuantity,
         remarks: d.remarks || '',
         source: 'pr',
-        receivedQuantity: 0,
       }));
     const fromManual = manualItems.map((m, idx) => ({
-      id: m.id != null ? Number(m.id) : 0,
       rawMaterialId: m.rawMaterialId,
       prDetailId: null,
       srNo: String(baseline.length + idx + 1).padStart(2, '0'),
@@ -1187,7 +1207,6 @@ const CreatePurchaseOrder = () => {
       approvedQty: null,
       remarks: m.remarks || '',
       source: 'manual',
-      receivedQuantity: 0,
     }));
     return [...baseline, ...fromManual]
       .filter((item) => !deletedRawMaterialIds.has(String(item.rawMaterialId)))
@@ -1483,16 +1502,10 @@ const CreatePurchaseOrder = () => {
     const otherCostsPayload = otherCosts
       .filter((c) => (c.label && c.label.trim()) || (c.cost !== '' && !isNaN(Number(c.cost))))
       .map((c) => ({
-        ...(c.id && typeof c.id === 'number' && c.id < 1000000000 ? { id: Number(c.id) } : { id: 0 }),
+        ...(c.id && typeof c.id === 'number' && c.id < 1000000000 ? { id: c.id } : {}),
         label: (c.label || '').trim(),
         cost: Number(c.cost) || 0,
-        moduleName: 'PO',
       }));
-
-    const selectedOutlet = (outlets || []).find((u) => String(u.id) === String(outletId));
-    const outletInitials = selectedOutlet?.code || poRecord?.outletInitials || state?.outletInitials || '';
-    const firstVendorObj = vendors.find((v) => String(v.id) === String(firstVendorId));
-    const vendorName = firstVendorObj?.name ?? poRecord?.vendorName ?? state?.vendorName ?? '';
 
     const details = [...includedItems]
       .map((item) => {
@@ -1503,26 +1516,22 @@ const CreatePurchaseOrder = () => {
         const currentUom = uomMap[item.rawMaterialId] || { uomId: item.uomId, uomName: item.uomName || item.unit };
         const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {};
         const discountPercentage = Number(discountMap[item.rawMaterialId]) || 0;
-        const discountAmount = Number((calc.discountAmt || (qty * unitPrice * discountPercentage / 100) || 0).toFixed(2));
-        const detailId = item.id != null ? Number(item.id) : 0;
-        const prDetailId = item.prDetailId != null ? Number(item.prDetailId) : 0;
-        const receivedQuantity = item.receivedQuantity != null ? Number(item.receivedQuantity) : 0;
+        const discountAmount = Number((calc.discountAmt || 0).toFixed(2));
 
         if (isGeneratePo || !isGstApplicable) {
           return {
-            id: detailId,
-            uomId: currentUom.uomId ? Number(currentUom.uomId) : 0,
-            uomName: currentUom.uomName || '',
-            rawMaterialId: Number(item.rawMaterialId) || 0,
-            rawMaterialName: item.itemName || '',
+            uomId: currentUom.uomId,
+            uomName: currentUom.uomName,
+            rawMaterialId: item.rawMaterialId,
+            rawMaterialName: item.itemName,
             quantity: qty,
-            orderedQuantity: qty,
-            receivedQuantity,
             unitPrice: unitPrice,
             discountPercentage,
             discountAmount,
-            vendorId: itemVendorId ? Number(itemVendorId) : 0,
+            vendorId: itemVendorId ? Number(itemVendorId) : undefined,
             vendorName: vendorObj?.name ?? item.vendorName ?? '',
+            orderedQuantity: qty,
+            receivedQuantity: 0,
             tax: 0,
             taxAmount: 0,
             totalPrice: Number((calc.taxable || (qty * unitPrice - discountAmount)).toFixed(2)),
@@ -1535,9 +1544,9 @@ const CreatePurchaseOrder = () => {
             sgstAmount: 0,
             igst: 0,
             igstAmount: 0,
-            prDetailId,
+            prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
             remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
-            termsAndConditions: termsAndConditions || '',
+            termsAndConditions: termsAndConditions || null,
           };
         }
 
@@ -1574,19 +1583,18 @@ const CreatePurchaseOrder = () => {
         }
 
         return {
-          id: detailId,
-          uomId: currentUom.uomId ? Number(currentUom.uomId) : 0,
-          uomName: currentUom.uomName || '',
-          rawMaterialId: Number(item.rawMaterialId) || 0,
-          rawMaterialName: item.itemName || '',
+          uomId: currentUom.uomId,
+          uomName: currentUom.uomName,
+          rawMaterialId: item.rawMaterialId,
+          rawMaterialName: item.itemName,
           quantity: qty,
-          orderedQuantity: qty,
-          receivedQuantity,
           unitPrice: unitPrice,
           discountPercentage,
           discountAmount,
-          vendorId: itemVendorId ? Number(itemVendorId) : 0,
+          vendorId: itemVendorId ? Number(itemVendorId) : undefined,
           vendorName: vendorObj?.name ?? item.vendorName ?? '',
+          orderedQuantity: qty,
+          receivedQuantity: 0,
           tax: taxRate,
           taxAmount: taxAmount,
           totalPrice: totalPrice,
@@ -1599,32 +1607,53 @@ const CreatePurchaseOrder = () => {
           sgstAmount: sgstAmount,
           igst: igstRate,
           igstAmount: igstAmount,
-          prDetailId,
+          prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
           remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
-          termsAndConditions: termsAndConditions || '',
+          termsAndConditions: termsAndConditions || null,
         };
       })
       .sort((a, b) => (Number(a.vendorId) || 0) - (Number(b.vendorId) || 0));
 
+    if (isGeneratePo) {
+      return {
+        purchaseRequisitionId: reqId,
+        prId: reqId,
+        outletId,
+        poDate: formattedPoDate,
+        expectedDeliveryDate: formattedExpectedDate,
+        remarks,
+        termsAndConditions: termsAndConditions || null,
+        discountPercentage: Number(overallDiscountPercentage) || 0,
+        discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
+        subtotal: Number(calculatedTotals.subtotal.toFixed(2)),
+        totalAmount: Number(calculatedTotals.netAmount.toFixed(2)),
+        vendorId: firstVendorId ? Number(firstVendorId) : undefined,
+        status,
+        userId,
+        actionBy,
+        otherCosts: otherCostsPayload,
+        totalOtherCosts: Number(totalOtherCosts.toFixed(2)),
+        details,
+      };
+    }
+
     return {
-      purchaseRequisitionId: reqId != null ? Number(reqId) : 0,
-      prId: reqId != null ? Number(reqId) : 0,
-      outletId: outletId ? Number(outletId) : 0,
-      outletInitials: outletInitials || '',
+      purchaseRequisitionId: reqId,
+      prId: reqId,
+      outletId,
       poDate: formattedPoDate,
       expectedDeliveryDate: formattedExpectedDate,
-      remarks: remarks || '',
-      termsAndConditions: termsAndConditions || '',
+      remarks,
+      termsAndConditions: termsAndConditions || null,
       discountPercentage: Number(overallDiscountPercentage) || 0,
       discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
       subtotal: Number(calculatedTotals.subtotal.toFixed(2)),
-      roundOff: calculatedTotals.roundOff != null ? Number(calculatedTotals.roundOff) : 0,
-      totalAmount: calculatedTotals.netAmount != null ? Number(calculatedTotals.netAmount) : 0,
-      vendorId: firstVendorId ? Number(firstVendorId) : 0,
-      vendorName: vendorName || '',
+      roundOff: calculatedTotals.roundOff,
+      totalAmount: calculatedTotals.netAmount,
+      vendorId: firstVendorId ? Number(firstVendorId) : undefined,
       status,
-      userId: userId ? Number(userId) : 0,
-      actionBy: actionBy || '',
+      userId,
+      actionBy,
       otherCosts: otherCostsPayload,
       totalOtherCosts: Number(totalOtherCosts.toFixed(2)),
       details,
@@ -1952,7 +1981,7 @@ const CreatePurchaseOrder = () => {
                     label="PO Code"
                     value={poRecord?.poCode || state?.poCode || 'TO BE GENERATED'}
                   />
-                  <Field label="Outlet Name" value={pr?.outlet ?? poRecord?.outlet ?? state?.outlet} />
+                  <Field label="Outlet Name" value={poRecord?.outletName || pr?.outlet || poRecord?.outlet || state?.outlet} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
@@ -2097,8 +2126,8 @@ const CreatePurchaseOrder = () => {
           </div>
         </div>
 
-        {/* Bill To & Ship To Address Section */}
-        {isSingleVendorPo && (billTo || shipTo) && (
+        {/* 3-Section Address Configuration: Supplier Details, Bill To, and Ship To */}
+        {isSingleVendorPo && (vendorAddressData || billToOrg || shipTo) && (
           <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm mt-6 overflow-hidden">
             <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between flex-wrap gap-3 bg-[#F8FAFC]">
               <div className="flex items-center gap-2">
@@ -2127,118 +2156,172 @@ const CreatePurchaseOrder = () => {
               </div>
             </div>
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Bill To (Vendor Address) */}
-              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative">
-                <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-[#084E92]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
-                      Bill To (Vendor Address)
-                    </span>
-                  </div>
-                </div>
-
-                {billTo ? (
-                  <div className="space-y-1.5 text-xs text-gray-700">
-                    <p className="font-bold text-sm text-gray-900">
-                      {poRecord?.vendorName || state?.vendorName || billTo?.vendorName || 'Vendor'}
-                    </p>
-                    {billTo.addressLine1 && <p>{billTo.addressLine1}</p>}
-                    {billTo.addressLine2 && <p>{billTo.addressLine2}</p>}
-                    <p className="font-medium text-gray-800">
-                      {[billTo.cityName, billTo.stateName, billTo.pincode, billTo.countryName].filter(Boolean).join(', ')}
-                    </p>
-                    <div className="pt-2 mt-2 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-gray-600">
-                      {billTo.phoneNumber && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-gray-400" />
-                          {billTo.phoneNumber}
-                        </span>
-                      )}
-                      {isGstApplicable && billTo.gstNumber && (
-                        <span>
-                          <strong className="text-gray-700">GSTIN:</strong> {billTo.gstNumber}
-                        </span>
-                      )}
-                      {billTo.panNumber && (
-                        <span>
-                          <strong className="text-gray-700">PAN:</strong> {billTo.panNumber}
-                        </span>
-                      )}
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {/* 1. Supplier Details (Vendor Address) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-[#084E92]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        Supplier Details (Vendor)
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p className="font-semibold text-gray-800">
-                      {commonVendorId
-                        ? mappedVendors.find((v) => String(v.id) === String(commonVendorId))?.name || 'Selected Vendor'
-                        : 'Vendor not yet selected'}
-                    </p>
-                    <p className="text-gray-400 italic">
-                      {commonVendorId
-                        ? 'Billing address details will be attached upon PO generation.'
-                        : 'Select a vendor above to preview billing details.'}
-                    </p>
+
+                  {vendorAddressData ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {vendorAddressData.vendorName || poRecord?.vendorName || state?.vendorName || 'Vendor'}
+                      </p>
+                      {vendorAddressData.addressLine1 && <p>{vendorAddressData.addressLine1}</p>}
+                      {vendorAddressData.addressLine2 && <p>{vendorAddressData.addressLine2}</p>}
+                      <p className="font-medium text-gray-800">
+                        {[vendorAddressData.cityName, vendorAddressData.stateName, vendorAddressData.pincode, vendorAddressData.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">
+                        {commonVendorId
+                          ? mappedVendors.find((v) => String(v.id) === String(commonVendorId))?.name || 'Selected Vendor'
+                          : 'Vendor not yet selected'}
+                      </p>
+                      <p className="text-gray-400 italic">
+                        Select a vendor above to view supplier address details.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {vendorAddressData && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {vendorAddressData.phoneNumber && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        {vendorAddressData.phoneNumber}
+                      </span>
+                    )}
+                    {isGstApplicable && (vendorAddressData.gstNumber || poRecord?.gstNumber) && (
+                      <span>
+                        <strong className="text-gray-700">GSTIN:</strong> {vendorAddressData.gstNumber || poRecord?.gstNumber}
+                      </span>
+                    )}
+                    {vendorAddressData.panNumber && (
+                      <span>
+                        <strong className="text-gray-700">PAN:</strong> {vendorAddressData.panNumber}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Ship To (Outlet Address) */}
-              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative">
-                <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-[#084E92]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
-                      Ship To (Outlet Delivery Address)
-                    </span>
-                  </div>
-                </div>
-
-                {shipTo ? (
-                  <div className="space-y-1.5 text-xs text-gray-700">
-                    <p className="font-bold text-sm text-gray-900">
-                      {shipTo.companyNameEnglish || poRecord?.outlet || state?.outlet || 'Outlet'}
-                      {shipTo.companyCode ? ` (${shipTo.companyCode})` : ''}
-                    </p>
-                    {shipTo.addressEnglish && <p>{shipTo.addressEnglish}</p>}
-                    {shipTo.addressline2 && <p>{shipTo.addressline2}</p>}
-                    <p className="font-medium text-gray-800">
-                      {[shipTo.cityName, shipTo.stateName, shipTo.pincode, shipTo.countryName].filter(Boolean).join(', ')}
-                    </p>
-                    <div className="pt-2 mt-2 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-gray-600">
-                      {(shipTo.mobilenumber || shipTo.alternatemobilenumber) && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-gray-400" />
-                          {shipTo.mobilenumber || shipTo.alternatemobilenumber}
-                        </span>
-                      )}
-                      {shipTo.emailid && (
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-3 h-3 text-gray-400" />
-                          {shipTo.emailid}
-                        </span>
-                      )}
-                      {shipTo.gstNumber && (
-                        <span>
-                          <strong className="text-gray-700">GSTIN:</strong> {shipTo.gstNumber}
-                        </span>
-                      )}
-                      {shipTo.panNumber && (
-                        <span>
-                          <strong className="text-gray-700">PAN:</strong> {shipTo.panNumber}
-                        </span>
-                      )}
+              {/* 2. Bill To (Company / Sub-Company Invoicing Details) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Receipt className="w-4 h-4 text-[#084E92]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        Bill To (Invoicing Entity)
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p className="font-semibold text-gray-800">
-                      {pr?.outlet || poRecord?.outlet || state?.outlet || 'Assigned Outlet'}
-                    </p>
-                    <p className="text-gray-400 italic">
-                      Delivery address configured for this outlet will be bound upon PO generation.
-                    </p>
+
+                  {billToOrg ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {billToOrg.companyNameEnglish || billToOrg.name || 'Company'}
+                        {billToOrg.companyCode ? ` (${billToOrg.companyCode})` : ''}
+                      </p>
+                      {billToOrg.addressEnglish && <p>{billToOrg.addressEnglish}</p>}
+                      {billToOrg.addressline2 && <p>{billToOrg.addressline2}</p>}
+                      <p className="font-medium text-gray-800">
+                        {[billToOrg.cityName, billToOrg.stateName, billToOrg.pincode, billToOrg.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">
+                        {poRecord?.billTo?.companyNameEnglish || 'Billing Entity'}
+                      </p>
+                      <p className="text-gray-400 italic">
+                        Invoicing entity details are attached from the organization master.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {billToOrg && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {billToOrg.mobilenumber && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        {billToOrg.mobilenumber}
+                      </span>
+                    )}
+                    {billToOrg.emailid && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-gray-400" />
+                        {billToOrg.emailid}
+                      </span>
+                    )}
+                  
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Ship To (Outlet Delivery Address) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-[#084E92]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        Ship To (Outlet Delivery Address)
+                      </span>
+                    </div>
+                  </div>
+
+                  {shipTo ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {shipTo.companyNameEnglish || poRecord?.outletName || poRecord?.outlet || state?.outlet || 'Outlet'}
+                        {shipTo.companyCode ? ` (${shipTo.companyCode})` : ''}
+                      </p>
+                      {shipTo.addressEnglish && <p>{shipTo.addressEnglish}</p>}
+                      {shipTo.addressline2 && <p>{shipTo.addressline2}</p>}
+                      <p className="font-medium text-gray-800">
+                        {[shipTo.cityName, shipTo.stateName, shipTo.pincode, shipTo.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">
+                        {pr?.outlet || poRecord?.outletName || poRecord?.outlet || state?.outlet || 'Assigned Outlet'}
+                      </p>
+                      <p className="text-gray-400 italic">
+                        Delivery address configured for this outlet will be bound upon PO generation.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {shipTo && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {(shipTo.mobilenumber || shipTo.alternatemobilenumber) && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        {shipTo.mobilenumber || shipTo.alternatemobilenumber}
+                      </span>
+                    )}
+                    {shipTo.emailid && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-gray-400" />
+                        {shipTo.emailid}
+                      </span>
+                    )}
+                   
                   </div>
                 )}
               </div>
@@ -2574,7 +2657,13 @@ const CreatePurchaseOrder = () => {
                             onKeyDown={(e) => {
                               if (e.key === '-' || e.key === 'e') e.preventDefault();
                             }}
-                            onChange={(e) => handleItemDiscountChange(item.rawMaterialId, e.target.value)}
+                            onChange={(e) => {
+                              const v = e.target.value === '' ? '' : Math.max(0, Math.min(100, Number(e.target.value)));
+                              setDiscountMap((prev) => ({
+                                ...prev,
+                                [item.rawMaterialId]: v,
+                              }));
+                            }}
                             disabled={isReadOnly}
                             onWheel={(e) => {
                               e.currentTarget.blur();

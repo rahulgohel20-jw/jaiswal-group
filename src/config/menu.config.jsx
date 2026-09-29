@@ -505,6 +505,7 @@ export const MENU_SIDEBAR = [
       { title: 'Categories', path: '/material/categories' },
       { title: 'Sub Categories', path: '/material/sub-categories' },
       { title: 'Raw Material Items', path: '/material/items' },
+      { title: 'Vendor Price Approval', path:'/material/vendor-price-approval'},
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
       {
@@ -628,6 +629,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Types', path: '/material/types' },
       { title: 'Categories', path: '/material/categories' },
       { title: 'Raw Material Items', path: '/material/items' },
+      { title: 'Vendor Price Approval', path:'/material/vendor-price-approval'},
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
       {

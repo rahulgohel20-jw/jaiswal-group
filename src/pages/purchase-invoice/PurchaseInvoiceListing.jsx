@@ -14,6 +14,7 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { OrgTypes } from '../../constants/orgTypes';
 import { getOrganizationByType, getAllActiveVendors, getPurchaseInvoices } from '@/services/apiServices';
 import { toast } from 'sonner';
+import { useOrgScope } from '../../hooks/useOrgScope';
 
 const STATUS_OPTIONS = ['All Status', 'Approved', 'Draft'];
 const STATUS_VALUE_MAP = { Draft: 'DRAFT', Approved: 'APPROVED' };
@@ -53,10 +54,6 @@ const formatDisplayDate = (date) => {
 const PurchaseInvoiceListing = () => {
     const navigate = useNavigate();
 
-    const [outlets, setOutlets] = useState([]);
-    const [outletsLoading, setOutletsLoading] = useState(false);
-    const [selectedOutletId, setSelectedOutletId] = useState('');
-
     const [vendors, setVendors] = useState([]);
     const [vendorLoading, setVendorLoading] = useState(false);
     const [selectedVendorId, setSelectedVendorId] = useState('');
@@ -73,25 +70,41 @@ const PurchaseInvoiceListing = () => {
     const [pageInfo, setPageInfo] = useState({ totalPages: 0, totalElements: 0 });
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
-    useEffect(() => {
-        const fetchOutlets = async () => {
-            setOutletsLoading(true);
-            try {
-                const res = await getOrganizationByType(OrgTypes.OUTLET);
-                const raw = res?.data?.data || res?.data?.content || res?.data || [];
-                setOutlets(Array.isArray(raw) ? raw.map(o => ({
-                    id: o.id,
-                    name: o.companyNameEnglish || o.name || `Outlet #${o.id}`,
-                })) : []);
-            } catch (error) {
-                console.error(error);
-                toast.error('Failed to load outlets.');
-            } finally {
-                setOutletsLoading(false);
-            }
-        };
-        fetchOutlets();
-    }, []);
+    const scope = useOrgScope();
+    const {
+        loading: scopeLoading,
+        error: scopeError,
+        showUnitDropdown,
+        units,
+        selectedUnitId,
+        setSelectedUnitId,
+        effectiveOutletId,
+        filterRowsByScope,
+        retry: retryScope,
+    } = scope;
+
+    // Helper: extracts a valid positive integer ID or returns null
+    const cleanId = (val) => {
+        if (val === null || val === undefined || val === '' || val === '0' || Number(val) <= 0) {
+            return null;
+        }
+        return Number(val);
+    };
+
+    // 1. If user selected an outlet from dropdown, prioritize it.
+    // 2. Otherwise fall back to effectiveOutletId or main group organization ID.
+    const resolvedOrgId = useMemo(() => {
+        const fromDropdown = cleanId(selectedUnitId);
+        if (fromDropdown !== null) return fromDropdown;
+
+        const fromOutlet = cleanId(effectiveOutletId);
+        if (fromOutlet !== null) return fromOutlet;
+
+        const fromScope = cleanId(scope?.organizationId || scope?.rootOrgId || scope?.mainOrgId || scope?.userOrgId);
+        if (fromScope !== null) return fromScope;
+
+        return null;
+    }, [selectedUnitId, effectiveOutletId, scope]);
 
     useEffect(() => {
         const fetchVendors = async () => {
@@ -109,11 +122,6 @@ const PurchaseInvoiceListing = () => {
         };
         fetchVendors();
     }, []);
-
-    const outletOptions = useMemo(
-        () => outlets.map(o => ({ value: String(o.id), label: o.name })),
-        [outlets]
-    );
 
     const vendorOptions = useMemo(
         () => vendors.map(v => ({
@@ -146,14 +154,15 @@ const PurchaseInvoiceListing = () => {
     const resetFilters = () => {
         setSearchQuery('');
         setStatusFilter('All Status');
-        setSelectedOutletId('');
+        setSelectedUnitId('');
         setSelectedVendorId('');
         clearDateRange();
     };
 
+    // Reset page to 0 when any filter changes
     useEffect(() => {
-        setPagination(prev => ({ ...prev, pageIndex: 0 }));
-    }, [statusFilter, selectedOutletId, selectedVendorId]);
+        setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+    }, [statusFilter, resolvedOrgId, selectedVendorId]);
 
     const normalizeInvoice = useCallback(inv => ({
         ...inv,
@@ -178,9 +187,18 @@ const PurchaseInvoiceListing = () => {
                 direction: 'DESC',
             };
 
-            if (selectedOutletId) params.organizationId = Number(selectedOutletId);
-            if (selectedVendorId) params.vendorId = Number(selectedVendorId);
-            if (statusFilter !== 'All Status') params.status = STATUS_VALUE_MAP[statusFilter];
+            // Only attach organizationId if it is a valid ID (> 0)
+            if (resolvedOrgId !== null && resolvedOrgId > 0) {
+                params.organizationId = resolvedOrgId;
+            }
+
+            if (selectedVendorId) {
+                params.vendorId = Number(selectedVendorId);
+            }
+
+            if (statusFilter !== 'All Status') {
+                params.status = STATUS_VALUE_MAP[statusFilter];
+            }
 
             const res = await getPurchaseInvoices(params);
             const body = res?.data || {};
@@ -204,7 +222,7 @@ const PurchaseInvoiceListing = () => {
     }, [
         pagination.pageIndex,
         pagination.pageSize,
-        selectedOutletId,
+        resolvedOrgId,
         selectedVendorId,
         statusFilter,
         normalizeInvoice,
@@ -346,9 +364,18 @@ const PurchaseInvoiceListing = () => {
                     </div>
                 </div>
 
+                {scopeError && (
+                    <div className="mb-4 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
+                        <span className="text-sm text-[#C0293D]">{scopeError}</span>
+                        <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
+                            Retry
+                        </button>
+                    </div>
+                )}
+
                 <div className="my-6">
-                    <div className="grid lg:grid-cols-5 gap-3 md:grid-cols-3">
-                        <div className="relative flex-1 col-span-2">
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 ${showUnitDropdown ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3`}>
+                        <div className="relative sm:col-span-2 lg:col-span-2">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
                             <input
                                 value={searchQuery}
@@ -358,32 +385,40 @@ const PurchaseInvoiceListing = () => {
                             />
                         </div>
 
+                        {showUnitDropdown && (
+                            <div className="lg:col-span-1">
+                                <SearchableSelect
+                                    name="outlet"
+                                    value={selectedUnitId ? String(selectedUnitId) : ''}
+                                    onChange={val => {
+                                        // Handles event objects, { value, label } items, and direct string/number values
+                                        const raw = val?.target ? val.target.value : (val?.value !== undefined ? val.value : val);
+                                        setSelectedUnitId(raw ? String(raw) : '');
+                                    }}
+                                    options={units.map(u => ({ value: String(u.id), label: u.name }))}
+                                    placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+                                    disabled={units.length === 0}
+                                />
+                            </div>
+                        )}
 
-                        <div className="col-span-1">
-                            <SearchableSelect
-                                name="outlet"
-                                value={selectedOutletId}
-                                onChange={e => setSelectedOutletId(e.target.value)}
-                                options={outletOptions}
-                                placeholder={outletsLoading ? 'Loading...' : 'All Outlets'}
-                                disabled={outletsLoading}
-                            />
-                        </div>
-
-                        <div className="col-span-1">
+                        <div className="lg:col-span-1">
                             <SearchableSelect
                                 name="vendor"
                                 value={selectedVendorId}
-                                onChange={e => setSelectedVendorId(e.target.value)}
+                                onChange={val => {
+                                    const raw = val?.target ? val.target.value : (val?.value !== undefined ? val.value : val);
+                                    setSelectedVendorId(raw ? String(raw) : '');
+                                }}
                                 options={vendorOptions}
                                 placeholder={vendorLoading ? 'Loading...' : 'All Vendors'}
                                 disabled={vendorLoading}
                             />
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 lg:col-span-1">
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="h-10 w-44 border-[#C3C6D1] rounded-lg">
+                                <SelectTrigger className="h-10 w-full border-[#C3C6D1] rounded-lg">
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
                                 <SelectContent>
