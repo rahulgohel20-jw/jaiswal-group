@@ -450,12 +450,12 @@ export const MENU_SIDEBAR = [
     icon: Users,
     path: '/users',
   },
-  {
-    title: 'Events',
-    icon: CalendarCheck,
-    path: '/events',
-    target: '_blank',
-  },
+  // {
+  //   title: 'Events',
+  //   icon: CalendarCheck,
+  //   path: '/events',
+  //   target: '_blank',
+  // },
   {
     title: 'Vendors',
     icon: UserCog,
@@ -583,12 +583,12 @@ export const MENU_SIDEBAR_ADMIN = [
     icon: LayoutGrid,
     path: '/',
   },
-  {
-    title: 'Events',
-    icon: CalendarCheck,
-    path: '/events',
-    target: '_blank',
-  },
+  // {
+  //   title: 'Events',
+  //   icon: CalendarCheck,
+  //   path: '/events',
+  //   target: '_blank',
+  // },
   { heading: 'Supply Chain' },
 
   {

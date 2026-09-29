@@ -89,9 +89,9 @@ export function UserDropdownMenu({ trigger }) {
               </a>
             </div>
           </div>
-          <Badge variant="primary" appearance="light" size="sm">
+          {/* <Badge variant="primary" appearance="light" size="sm">
             Pro
-          </Badge>
+          </Badge> */}
         </div>
 
         <DropdownMenuSeparator />

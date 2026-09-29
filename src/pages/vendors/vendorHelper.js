@@ -198,6 +198,7 @@ export const buildVendorPayload = (form, { isEditMode, editingVendor, checks }) 
     : form.shippingAddress;
   const vendorId = isEditMode ? editingVendor?.id : undefined;
 
+  /*
   const rightsList = checks
     ? Object.entries(checks)
         .filter(([_, r]) => r.add || r.edit || r.view || r.delete)
@@ -210,6 +211,7 @@ export const buildVendorPayload = (form, { isEditMode, editingVendor, checks }) 
           delete: Boolean(r.delete),
         }))
     : (form.rightsList || []);
+  */
 
   return {
     ...(isEditMode && vendorId ? { id: vendorId } : {}),
@@ -224,7 +226,7 @@ export const buildVendorPayload = (form, { isEditMode, editingVendor, checks }) 
     organizationId: form.organizationId,
     deptId: form.deptId ? Number(form.deptId) : form.deptId,
     roleId: form.roleId ? Number(form.roleId) : form.roleId,
-    rightsList,
+    // rightsList,
 
     isGstApplicable: !!form.isGstApplicable,
     gstNumber: form.isGstApplicable ? (form.gstin || '') : '',

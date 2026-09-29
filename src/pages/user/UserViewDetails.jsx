@@ -310,11 +310,6 @@ const UserViewDetails = () => {
                 icon={Briefcase}
               />
 
-              <StatCard
-                label="Role"
-                value={roleName || 'Direct / Custom'}
-                icon={Shield}
-              />
             </div>
 
             {/* Personal Information */}
@@ -356,11 +351,6 @@ const UserViewDetails = () => {
                 />
 
                 <InfoCard
-                  label="Role"
-                  value={roleName || 'Direct / Custom'}
-                />
-
-                <InfoCard
                   label="Designation"
                   value={employee.designation}
                 />
@@ -368,16 +358,6 @@ const UserViewDetails = () => {
                 <InfoCard
                   label="Company"
                   value={employee.organizationName}
-                />
-
-                <InfoCard
-                  label="Joining Date"
-                  value={employee.joiningDate}
-                />
-
-                <InfoCard
-                  label="Salary"
-                  value={employee.salary ? `₹${employee.salary}` : '—'}
                 />
               </div>
             </SectionCard>
