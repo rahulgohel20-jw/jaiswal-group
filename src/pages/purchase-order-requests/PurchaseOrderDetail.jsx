@@ -100,7 +100,12 @@ const formatDateOnly = (dateStr) => {
 const PurchaseOrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canView } = usePagePermissions('Purchase Order Requests');
+  const { canView } = usePagePermissions([
+    'Purchase Order Requests',
+    'Approve Purchase Order',
+    'Generate GRN',
+    'GRN',
+  ]);
   const { current: po, loading, error, fetchById } = usePurchaseOrders();
   const [logOpen, setLogOpen] = useState(false);
   const { exporting, exportReport } = useExportReport();

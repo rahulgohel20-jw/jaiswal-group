@@ -76,7 +76,7 @@ const AUDIT_MODULE_NAME = 'PURCHASE_REQUISITION';
 const PurchaseRequisitionView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canView } = usePagePermissions('Purchase Requisition');
+  const { canView } = usePagePermissions(['Purchase Requisition', 'Approve Purchase Requisition']);
   const { current, loading, error, fetchById } = usePurchaseRequisitions();
   const [logOpen, setLogOpen] = useState(false);
 

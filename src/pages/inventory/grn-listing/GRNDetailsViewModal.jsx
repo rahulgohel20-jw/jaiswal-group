@@ -57,6 +57,39 @@ const getFileNameFromUrl = (url) => {
   }
 };
 
+const formatDateShort = (val) => {
+  if (!val) return '—';
+  const slashMatch = String(val).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    const [, d, m, y] = slashMatch;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthName = months[parseInt(m, 10) - 1] || m;
+    return `${d.padStart(2, '0')} ${monthName} ${y}`;
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  return d.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const formatDateDDMMYYYY = (val) => {
+  if (!val) return '—';
+  const match = String(val).match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (match) {
+    const [, d, m, y] = match;
+    return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return val;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 const handleDownloadFile = (url, fileName) => {
   if (!url) return;
   const link = document.createElement('a');
@@ -118,7 +151,7 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col border border-gray-100">
+      <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col border border-gray-100">
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-4.5 border-b border-gray-100 shrink-0 bg-white">
           <div>
@@ -315,16 +348,18 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-140 text-xs">
-                  <thead>
-                    <tr className="bg-gray-50/50 text-[10px] font-bold tracking-wider text-gray-500 uppercase border-b border-gray-100">
-                      <th className="text-left px-4 py-2.5 w-12">#</th>
-                      <th className="text-left px-4 py-2.5">Item Name</th>
-                      <th className="text-left px-4 py-2.5 w-24">Unit</th>
-                      <th className="text-right px-4 py-2.5 w-24">Appr. Qty</th>
-                      <th className="text-right px-4 py-2.5 w-24">Ret. Qty</th>
-                      <th className="text-center px-4 py-2.5 w-36">Return Status</th>
-                      <th className="text-center px-4 py-2.5 w-24">Status</th>
+                <table className="w-full min-w-[920px] text-xs">
+                  <thead className="bg-[#F8FAFC]">
+                    <tr className="border-b border-gray-200 text-[10px] sm:text-[11px] font-bold tracking-wider text-[#64748B] uppercase">
+                      <th className="text-center px-3 py-3 w-10">#</th>
+                      <th className="text-left px-3.5 py-3 min-w-[180px]">Item Name</th>
+                      <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[160px]">Batch No</th>
+                      <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[120px]">Best Before</th>
+                      <th className="text-center px-3 py-3 whitespace-nowrap min-w-[90px]">Unit</th>
+                      <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[90px]">Appr. Qty</th>
+                      <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[85px]">Ret. Qty</th>
+                      <th className="text-center px-3.5 py-3 whitespace-nowrap min-w-[140px]">Return Status</th>
+                      <th className="text-center px-3.5 py-3 whitespace-nowrap min-w-[100px]">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -333,13 +368,13 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                       const returnStatus = item.returnReplacementStatus;
 
                       return (
-                        <tr key={item.id ?? idx} className="border-t border-gray-100 hover:bg-gray-50/50 transition">
-                          <td className="px-4 py-3 text-gray-400 font-medium">
+                        <tr key={item.id ?? idx} className="border-t border-gray-100 hover:bg-[#F8FAFC]/60 transition">
+                          <td className="px-3 py-3 text-center text-gray-400 font-medium">
                             {String(idx + 1).padStart(2, '0')}
                           </td>
-                          <td className="px-4 py-3 font-semibold text-gray-900">
+                          <td className="px-3.5 py-3 font-semibold text-gray-900">
                             <div>
-                              <p>{item.name}</p>
+                              <p className="text-xs text-gray-900">{item.name}</p>
                               {(item.poCode || item.prCode) && (
                                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                   {item.poCode && (
@@ -359,20 +394,42 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-gray-600">
-                            <span className="inline-block bg-gray-100 px-2 py-0.5 rounded text-[11px] font-medium">
+                          <td className="px-3.5 py-3 text-left whitespace-nowrap">
+                            {item.batchNo || item.batchNumber ? (
+                              <span className="inline-block font-mono text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md whitespace-nowrap select-all">
+                                {item.batchNo || item.batchNumber}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-3.5 py-3 text-left whitespace-nowrap">
+                            {item.useByDate || item.bestBeforeDate || item.expiryDate ? (
+                              <span className="inline-block font-mono text-[11px] font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-md whitespace-nowrap">
+                                {formatDateDDMMYYYY(item.useByDate || item.bestBeforeDate || item.expiryDate)}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center text-gray-600">
+                            <span className="inline-block bg-gray-100 px-2.5 py-1 rounded-md text-[11px] font-medium text-gray-700 whitespace-nowrap">
                               {item.unit || '-'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right font-semibold text-emerald-600">
-                            {item.acceptedQuantity ?? '-'}
+                          <td className="px-3.5 py-3 text-right">
+                            <span className="font-bold text-xs text-emerald-600">
+                              {item.acceptedQuantity ?? '-'}
+                            </span>
                           </td>
-                          <td className="px-4 py-3 text-right font-medium text-amber-700">
-                            {returnQty > 0 ? returnQty : '0'}
+                          <td className="px-3.5 py-3 text-right">
+                            <span className="font-bold text-xs text-amber-700">
+                              {returnQty > 0 ? returnQty : '0'}
+                            </span>
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-3.5 py-3 text-center whitespace-nowrap">
                             {returnQty > 0 || returnStatus ? (
-                              <span className="inline-block text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded">
+                              <span className="inline-block text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md whitespace-nowrap">
                                 {returnStatus === 'RETURN_REQUESTED'
                                   ? 'Return'
                                   : returnStatus === 'RETURN_REPLACEMENT_REQUESTED' || returnStatus === 'RETURN_OR_REPLACEMENT'
@@ -385,8 +442,8 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                               <span className="text-gray-400 text-xs">—</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                          <td className="px-3.5 py-3 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md whitespace-nowrap border border-emerald-100">
                               <CheckCircle2 size={11} />
                               {item.status || 'Received'}
                             </span>
@@ -397,7 +454,7 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
 
                     {items.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-4 py-8 text-center text-xs text-gray-400">
+                        <td colSpan={9} className="px-4 py-8 text-center text-xs text-gray-400">
                           No items found in this GRN
                         </td>
                       </tr>
