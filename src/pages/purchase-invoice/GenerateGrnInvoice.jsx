@@ -32,6 +32,8 @@ const GenerateGrnInvoice = () => {
     }
   })();
 
+  const initialOtherCosts = location.state?.otherCosts || [];
+
   const [billNumber, setBillNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(todayISO());
   const [discountPercentage, setDiscountPercentage] = useState(0);
@@ -92,43 +94,83 @@ const GenerateGrnInvoice = () => {
   useEffect(() => {
     if (isEditMode) return;
 
-    setRows(
-      selectedGrns.flatMap(grn =>
-        (grn.details || []).map(detail => {
-          const allowedUnits = Array.isArray(detail.allowedUnits) ? detail.allowedUnits : [];
-          const selectedUnit = allowedUnits.find(u => String(u.id) === String(detail.unitId));
-          const unitId = detail.unitId ?? selectedUnit?.id ?? '';
-          const unitName = detail.unitName || selectedUnit?.nameEnglish || selectedUnit?.symbolEnglish || '—';
+    if (Array.isArray(initialOtherCosts) && initialOtherCosts.length > 0) {
+      setOtherCosts(
+        initialOtherCosts.map((item, index) => ({
+          id: item.id || Date.now() + index,
+          label: item.label || '',
+          cost: Number(item.cost) || 0,
+          moduleName: item.moduleName || 'POINVOICE'
+        }))
+      );
+    } else {
+      setOtherCosts([{ id: Date.now(), label: '', cost: 0 }]);
+    }
 
-          return {
-            key: `${grn.grnId || grn.id}-${detail.grnDetailId}`,
-            grnId: detail.grnId || grn.grnId || grn.id,
-            grnDetailId: detail.grnDetailId,
-            grnCode: detail.grnCode || grn.grnCode || '—',
-            poCode: detail.poCode || '—',
-            purchaseOrderDetailId: detail.purchaseOrderDetailId,
-            purchaseOrderId: detail.purchaseOrderId,
-            rawMaterialId: detail.rawMaterialId,
-            itemName: detail.rawMaterialName || `Item #${detail.rawMaterialId}`,
-            unitId,
-            unitName,
-            allowedUnits,
-            acceptedQuantity: Number(detail.acceptedQuantity) || 0,
-            previouslyInvoicedQuantity: Number(detail.previouslyInvoicedQuantity) || 0,
-            invoiceableQuantity: Number(detail.invoiceableQuantity) || 0,
-            qty: Number(detail.invoiceableQuantity) || 0,
-            rate: Number(detail.unitPrice) || 0,
-            discount: Number(detail.discountPercentage) || 0,
-            hsn: detail.hsnCode || '',
-            gst: Number(detail.igstRate) > 0
-              ? Number(detail.igstRate)
-              : (Number(detail.cgstRate) || 0) + (Number(detail.sgstRate) || 0),
-            cess: Number(detail.cessRate) || 0
-          };
-        })
-      )
+    let initialSubtotal = 0;
+    let initialTotalDiscount = 0;
+
+    const mappedRows = selectedGrns.flatMap(grn =>
+      (grn.details || []).map(detail => {
+        const allowedUnits = Array.isArray(detail.allowedUnits) ? detail.allowedUnits : [];
+        const selectedUnit = allowedUnits.find(u => String(u.id) === String(detail.unitId));
+        const unitId = detail.unitId ?? selectedUnit?.id ?? '';
+        const unitName = detail.unitName || selectedUnit?.nameEnglish || selectedUnit?.symbolEnglish || '—';
+
+        const unitPrice = Number(detail.unitPrice) || 0;
+        const invoiceableQty = Number(detail.invoiceableQuantity) || 0;
+        let prefilledDiscount = Number(detail.discountPercentage) || 0;
+
+        const baseAmount = unitPrice * invoiceableQty;
+        let discountAmt = Number(detail.discountAmount) || 0;
+
+        if (!prefilledDiscount && discountAmt > 0 && baseAmount > 0) {
+          prefilledDiscount = Number(((discountAmt / baseAmount) * 100).toFixed(2));
+        } else if (prefilledDiscount > 0 && !discountAmt) {
+          discountAmt = (baseAmount * prefilledDiscount) / 100;
+        }
+
+        initialSubtotal += baseAmount;
+        initialTotalDiscount += discountAmt;
+
+        return {
+          key: `${grn.grnId || grn.id}-${detail.grnDetailId}`,
+          grnId: detail.grnId || grn.grnId || grn.id,
+          grnDetailId: detail.grnDetailId,
+          grnCode: detail.grnCode || grn.grnCode || '—',
+          poCode: detail.poCode || '—',
+          purchaseOrderDetailId: detail.purchaseOrderDetailId,
+          purchaseOrderId: detail.purchaseOrderId,
+          rawMaterialId: detail.rawMaterialId,
+          itemName: detail.rawMaterialName || `Item #${detail.rawMaterialId}`,
+          unitId,
+          unitName,
+          allowedUnits,
+          acceptedQuantity: Number(detail.acceptedQuantity) || 0,
+          previouslyInvoicedQuantity: Number(detail.previouslyInvoicedQuantity) || 0,
+          invoiceableQuantity: invoiceableQty,
+          qty: invoiceableQty,
+          rate: unitPrice,
+          discount: prefilledDiscount,
+          hsn: detail.hsnCode || '',
+          gst: Number(detail.igstRate) > 0
+            ? Number(detail.igstRate)
+            : (Number(detail.cgstRate) || 0) + (Number(detail.sgstRate) || 0),
+          cess: Number(detail.cessRate) || 0
+        };
+      })
     );
-  }, [isEditMode, selectedGrns]);
+
+    setRows(mappedRows);
+
+    // Auto-calculate and show overall discount percentage on load
+    if (initialSubtotal > 0 && initialTotalDiscount > 0) {
+      const calculatedOverallPct = Number(((initialTotalDiscount / initialSubtotal) * 100).toFixed(2));
+      setDiscountPercentage(calculatedOverallPct);
+    } else {
+      setDiscountPercentage(0);
+    }
+  }, [isEditMode, selectedGrns, initialOtherCosts]);
 
   useEffect(() => {
     if (!isEditMode) return;
@@ -250,12 +292,12 @@ const GenerateGrnInvoice = () => {
   const vendorStateId = isEditMode
     ? vendors.find(v => Number(v.id) === Number(selectedVendorId))?.stateId
     : selectedGrns[0]?.vendorStateId ??
-      vendors.find(v => Number(v.id) === Number(selectedVendorId))?.stateId;
+    vendors.find(v => Number(v.id) === Number(selectedVendorId))?.stateId;
 
   const outletStateId = isEditMode
     ? outlets.find(o => Number(o.id) === Number(selectedOutletId))?.stateId
     : selectedGrns[0]?.outletStateId ??
-      outlets.find(o => Number(o.id) === Number(selectedOutletId))?.stateId;
+    outlets.find(o => Number(o.id) === Number(selectedOutletId))?.stateId;
 
   const isInterState =
     vendorStateId != null && outletStateId != null
@@ -273,12 +315,12 @@ const GenerateGrnInvoice = () => {
 
   const outletName = isEditMode
     ? outlets.find(o => Number(o.id) === Number(selectedOutletId))?.name ||
-      `Outlet #${selectedOutletId || '—'}`
+    `Outlet #${selectedOutletId || '—'}`
     : selectedGrns[0]?.organizationName ||
-      selectedGrns[0]?.outletName ||
-      selectedGrns[0]?.outlet ||
-      outlets.find(o => Number(o.id) === Number(selectedOutletId))?.name ||
-      '—';
+    selectedGrns[0]?.outletName ||
+    selectedGrns[0]?.outlet ||
+    outlets.find(o => Number(o.id) === Number(selectedOutletId))?.name ||
+    '—';
 
   const updateRow = (key, field, value) => {
     setRows(prev =>
@@ -307,9 +349,29 @@ const GenerateGrnInvoice = () => {
   };
 
   const handleOverallDiscountChange = value => {
-    const discount = Math.max(0, Math.min(100, Number(value) || 0));
+    const discount = value === '' ? '' : Math.max(0, Math.min(100, Number(value) || 0));
     setDiscountPercentage(value);
-    setRows(prev => prev.map(row => ({ ...row, discount })));
+    setRows(prev => prev.map(row => ({ ...row, discount: discount === '' ? 0 : discount })));
+  };
+
+  const handleItemDiscountChange = (key, value) => {
+    const v = value === '' ? '' : Math.max(0, Math.min(100, Number(value)));
+    setRows(prev => {
+      const nextRows = prev.map(r => r.key === key ? { ...r, discount: v } : r);
+      let sub = 0;
+      let disc = 0;
+      nextRows.forEach(r => {
+        const q = Number(r.qty) || 0;
+        const p = Number(r.rate) || 0;
+        const d = Number(r.discount) || 0;
+        const base = q * p;
+        sub += base;
+        disc += (base * d) / 100;
+      });
+      const effectivePct = sub > 0 ? Number(((disc / sub) * 100).toFixed(2)) : (Number(v) || 0);
+      setDiscountPercentage(effectivePct);
+      return nextRows;
+    });
   };
 
   const updateOtherCost = (id, field, value) => {
@@ -330,108 +392,163 @@ const GenerateGrnInvoice = () => {
   };
 
   const rowCalculation = r => {
-    const base = (Number(r.qty) || 0) * (Number(r.rate) || 0);
-    const discountRate = Number(r.discount) || 0;
-    const gstRate = Number(r.gst) || 0;
-    const cessRate = Number(r.cess) || 0;
-    const discountAmount = (base * discountRate) / 100;
-    const taxableAmount = Math.max(0, base - discountAmount);
-    const gstAmount = (taxableAmount * gstRate) / 100;
-    const cessAmount = (taxableAmount * cessRate) / 100;
-    const totalTax = gstAmount + cessAmount;
-    const amountAfterTax = taxableAmount + totalTax;
+    const qty = Number(r.qty) || 0;
+    const price = Number(r.rate) || 0;
+    const discountPct = Number(r.discount) || 0;
+    const gstPct = Number(r.gst) || 0;
+    const cessPct = Number(r.cess) || 0;
+
+    const baseAmount = qty * price;
+    const discountAmt = (baseAmount * discountPct) / 100;
+    const taxable = Math.max(0, baseAmount - discountAmt);
+
+    const cessAmt = (taxable * cessPct) / 100;
+
+    let itemTax = 0;
+    let cgstPct = 0;
+    let sgstPct = 0;
+    let igstPct = 0;
+    let cgstAmt = 0;
+    let sgstAmt = 0;
+    let igstAmt = 0;
+    let gstAmt = 0;
+
+    if (isInterState) {
+      igstPct = gstPct;
+      igstAmt = (taxable * igstPct) / 100;
+      gstAmt = igstAmt;
+    } else {
+      cgstPct = gstPct / 2;
+      sgstPct = gstPct / 2;
+      cgstAmt = (taxable * cgstPct) / 100;
+      sgstAmt = (taxable * sgstPct) / 100;
+      gstAmt = cgstAmt + sgstAmt;
+    }
+
+    itemTax = gstAmt + cessAmt;
+    const itemTotal = taxable + itemTax;
 
     return {
-      base,
-      discountAmount,
-      taxableAmount,
-      gstAmount,
-      cessAmount,
-      totalTax,
-      amountAfterTax,
-      total: amountAfterTax
+      base: baseAmount,
+      baseAmount,
+      discountPct,
+      discountAmt,
+      discountAmount: discountAmt,
+      taxable,
+      taxableAmount: taxable,
+      gstPct,
+      gstAmount: gstAmt,
+      gstAmt,
+      cgstPct,
+      sgstPct,
+      igstPct,
+      cgstAmt,
+      sgstAmt,
+      igstAmt,
+      cessPct,
+      cessAmt,
+      cessAmount: cessAmt,
+      totalTax: itemTax,
+      itemTax,
+      amountAfterTax: itemTotal,
+      total: itemTotal,
+      itemTotal
     };
   };
 
   const totals = useMemo(() => {
     let subtotal = 0;
-    let discountAmount = 0;
-    let taxable = 0;
-    let gstAmt = 0;
-    let cessAmt = 0;
-    let amountAfterTax = 0;
+    let totalDiscount = 0;
+    let totalTaxable = 0;
+    let totalCGST = 0;
+    let totalSGST = 0;
+    let totalIGST = 0;
+    let totalCESS = 0;
 
     rows.forEach(row => {
       const calc = rowCalculation(row);
-      subtotal += calc.base;
-      discountAmount += calc.discountAmount;
-      taxable += calc.taxableAmount;
-      gstAmt += calc.gstAmount;
-      cessAmt += calc.cessAmount;
-      amountAfterTax += calc.amountAfterTax;
+      subtotal += calc.baseAmount;
+      totalDiscount += calc.discountAmt;
+      totalTaxable += calc.taxable;
+      totalCESS += calc.cessAmt;
+      if (isInterState) {
+        totalIGST += calc.igstAmt;
+      } else {
+        totalCGST += calc.cgstAmt;
+        totalSGST += calc.sgstAmt;
+      }
     });
 
-    const totalTax = gstAmt + cessAmt;
-    const totalOtherCosts = otherCosts.reduce(
-      (sum, item) => sum + (Number(item.cost) || 0),
-      0
-    );
+    const totalGST = isInterState ? totalIGST : totalCGST + totalSGST;
+    const totalTax = totalGST + totalCESS;
 
-    const rawNet = amountAfterTax + totalOtherCosts;
-    const netAmount = Math.round(rawNet);
-    const roundOff = netAmount - rawNet;
+    const totalOtherCosts = otherCosts.reduce((sum, item) => {
+      const val = Number(item.cost);
+      return sum + (!isNaN(val) && val > 0 ? val : 0);
+    }, 0);
+
+    const rawNet = totalTaxable + totalTax + totalOtherCosts;
+    const roundedNet = Math.round(rawNet);
+    const roundOff = Number((roundedNet - rawNet).toFixed(2));
+    const netAmount = roundedNet;
 
     return {
       subtotal,
-      discountAmount,
-      taxable,
-      gstAmt,
-      cessAmt,
+      discountAmount: totalDiscount,
+      totalDiscount,
+      taxable: totalTaxable,
+      totalTaxable,
+      gstAmt: totalGST,
+      totalGST,
+      totalCGST,
+      totalSGST,
+      totalIGST,
+      cessAmt: totalCESS,
+      totalCESS,
       totalTax,
-      amountAfterTax,
-      amountAfterDiscount: taxable,
+      amountAfterTax: totalTaxable + totalTax,
+      amountAfterDiscount: totalTaxable,
       totalOtherCosts,
       rawNet,
       netAmount,
+      roundedNet,
       roundOff
     };
-  }, [rows, otherCosts]);
+  }, [rows, otherCosts, isInterState]);
 
   const taxBreakdown = useMemo(() => {
-    const grouped = {};
+    const taxRateGroups = {};
 
     rows.forEach(row => {
       const calc = rowCalculation(row);
-      const gstRate = Number(row.gst) || 0;
-      const cessRate = Number(row.cess) || 0;
-      const key = `${gstRate}-${cessRate}`;
+      const rateKey = `${calc.gstPct}_${calc.cessPct}`;
 
-      if (!grouped[key]) {
-        grouped[key] = {
-          rate: gstRate,
+      if (!taxRateGroups[rateKey]) {
+        taxRateGroups[rateKey] = {
+          rate: calc.gstPct,
+          gstPct: calc.gstPct,
+          cessPct: calc.cessPct,
+          cgstPct: calc.cgstPct,
+          sgstPct: calc.sgstPct,
+          igstPct: calc.igstPct,
           taxable: 0,
-          gstAmt: 0,
           cgstAmt: 0,
           sgstAmt: 0,
           igstAmt: 0,
-          cessAmt: 0,
-          cessPct: cessRate
+          gstAmt: 0,
+          cessAmt: 0
         };
       }
 
-      grouped[key].taxable += calc.taxableAmount;
-      grouped[key].gstAmt += calc.gstAmount;
-      grouped[key].cessAmt += calc.cessAmount;
-
-      if (isInterState) {
-        grouped[key].igstAmt += calc.gstAmount;
-      } else {
-        grouped[key].cgstAmt += calc.gstAmount / 2;
-        grouped[key].sgstAmt += calc.gstAmount / 2;
-      }
+      taxRateGroups[rateKey].taxable += calc.taxable;
+      taxRateGroups[rateKey].cgstAmt += calc.cgstAmt;
+      taxRateGroups[rateKey].sgstAmt += calc.sgstAmt;
+      taxRateGroups[rateKey].igstAmt += calc.igstAmt;
+      taxRateGroups[rateKey].gstAmt += calc.gstAmt;
+      taxRateGroups[rateKey].cessAmt += calc.cessAmt;
     });
 
-    return Object.values(grouped).sort((a, b) => a.rate - b.rate);
+    return Object.values(taxRateGroups).sort((a, b) => b.gstPct - a.gstPct || b.cessPct - a.cessPct);
   }, [rows, isInterState]);
 
   const handleGenerate = async (approve = false) => {
@@ -465,8 +582,6 @@ const GenerateGrnInvoice = () => {
     try {
       const details = rows.map(r => {
         const calc = rowCalculation(r);
-        const gstRate = Number(r.gst) || 0;
-        const cessRate = Number(r.cess) || 0;
 
         return {
           grnDetailId: r.grnDetailId,
@@ -475,31 +590,31 @@ const GenerateGrnInvoice = () => {
           unitPrice: Number(r.rate) || 0,
           invoiceQuantity: Number(r.qty) || 0,
           discountPercentage: Number(r.discount) || 0,
-          discountAmount: calc.discountAmount,
-          cgstRate: isInterState ? 0 : gstRate / 2,
-          sgstRate: isInterState ? 0 : gstRate / 2,
-          igstRate: isInterState ? gstRate : 0,
-          cessRate,
-          taxableAmount: calc.taxableAmount,
-          cgstAmount: isInterState ? 0 : calc.gstAmount / 2,
-          sgstAmount: isInterState ? 0 : calc.gstAmount / 2,
-          igstAmount: isInterState ? calc.gstAmount : 0,
-          cessAmount: calc.cessAmount,
-          tax: calc.totalTax,
-          lineTotal: calc.total
+          discountAmount: Number(calc.discountAmt.toFixed(2)),
+          cgstRate: Number(calc.cgstPct || 0),
+          sgstRate: Number(calc.sgstPct || 0),
+          igstRate: Number(calc.igstPct || 0),
+          cessRate: Number(calc.cessPct || 0),
+          taxableAmount: Number(calc.taxable.toFixed(2)),
+          cgstAmount: Number(calc.cgstAmt.toFixed(2)),
+          sgstAmount: Number(calc.sgstAmt.toFixed(2)),
+          igstAmount: Number(calc.igstAmt.toFixed(2)),
+          cessAmount: Number(calc.cessAmt.toFixed(2)),
+          tax: Number(calc.totalTax.toFixed(2)),
+          lineTotal: Number(calc.total.toFixed(2))
         };
       });
 
       const payload = {
-        subtotal: totals.subtotal,
+        subtotal: Number(totals.subtotal.toFixed(2)),
         discountPercentage: Number(discountPercentage) || 0,
-        discountAmount: totals.discountAmount,
-        cgstAmount: isInterState ? 0 : totals.gstAmt / 2,
-        sgstAmount: isInterState ? 0 : totals.gstAmt / 2,
-        igstAmount: isInterState ? totals.gstAmt : 0,
-        cessAmount: totals.cessAmt,
-        totalAmount: totals.netAmount,
-        roundOff: totals.roundOff,
+        discountAmount: Number(totals.discountAmount.toFixed(2)),
+        cgstAmount: Number(totals.totalCGST.toFixed(2)),
+        sgstAmount: Number(totals.totalSGST.toFixed(2)),
+        igstAmount: Number(totals.totalIGST.toFixed(2)),
+        cessAmount: Number(totals.cessAmt.toFixed(2)),
+        totalAmount: Number(totals.netAmount),
+        roundOff: Number(totals.roundOff),
         details,
         grnIds: [...new Set(rows.map(r => r.grnId).filter(id => id != null))],
         invoiceDate,
@@ -748,7 +863,7 @@ const GenerateGrnInvoice = () => {
                           max="100"
                           step="0.01"
                           value={row.discount}
-                          onChange={e => updateRow(row.key, 'discount', e.target.value)}
+                          onChange={e => handleItemDiscountChange(row.key, e.target.value)}
                           onWheel={e => e.currentTarget.blur()}
                           className="w-16 h-9 px-2 rounded-lg border border-gray-200 text-sm text-right outline-none focus:border-[#084E92]"
                         />
@@ -925,14 +1040,14 @@ const GenerateGrnInvoice = () => {
               </div>
 
               {taxBreakdown.length ? (
-                taxBreakdown.map(rate => (
+                taxBreakdown.map((rate, idx) => (
                   <div
-                    key={`${rate.rate}-${rate.cessPct}`}
+                    key={`${rate.gstPct}_${rate.cessPct}_${idx}`}
                     className={`grid ${taxGridClass} items-center px-2 py-2.5 border-b border-gray-100 min-w-max text-xs`}
                   >
                     <div>
                       <span className="inline-flex px-2.5 py-1 rounded-md bg-blue-50 text-[#084E92] font-semibold text-xs whitespace-nowrap">
-                        {Number(rate.rate).toFixed(2)}% GST
+                        {Number(rate.gstPct).toFixed(2)}% GST
                       </span>
                     </div>
 
@@ -990,18 +1105,18 @@ const GenerateGrnInvoice = () => {
 
                 {!isInterState ? (
                   <>
-                    <div className="text-right">{formatCurrency(totals.gstAmt / 2)}</div>
+                    <div className="text-right">{formatCurrency(totals.totalSGST)}</div>
                     <div></div>
-                    <div className="text-right">{formatCurrency(totals.gstAmt / 2)}</div>
+                    <div className="text-right">{formatCurrency(totals.totalCGST)}</div>
                   </>
                 ) : (
-                  <div className="text-right text-[#084E92]">{formatCurrency(totals.gstAmt)}</div>
+                  <div className="text-right text-[#084E92]">{formatCurrency(totals.totalIGST)}</div>
                 )}
 
                 {totals.cessAmt > 0 && (
                   <>
                     <div></div>
-                    <div className="text-right text-[#084E92]">{formatCurrency(totals.cessAmt)}</div>
+                    <div className="text-right text-[#084E92]">{formatCurrency(totals.totalCESS)}</div>
                   </>
                 )}
               </div>
@@ -1122,9 +1237,7 @@ const GenerateGrnInvoice = () => {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg cursor-pointer bg-[#084E92] text-white text-sm font-medium hover:bg-[#063d73] disabled:opacity-50"
           >
             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {isSubmitting
-              ? (isEditMode ? 'Updating...' : 'Creating...')
-              : (isEditMode ? 'Create Invoice' : 'Create Invoice')}
+            {isEditMode ? 'Updating...' : 'Create Invoice'}
           </button>
         </div>
       </div>

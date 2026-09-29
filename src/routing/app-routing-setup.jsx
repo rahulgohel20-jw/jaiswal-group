@@ -200,6 +200,8 @@ import OpbStockCreateRequest from '../pages/inventory/opb-stock/OpbStockCreateRe
 import ManualAdjustmentScreenListing from '../pages/inventory/manual-adjustment/ManualAdjustmentScreenListing';
 import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateManualAdjustment';
 import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
+import AddRawMaterialItemModal from '../pages/raw-material/raw-material-item-master/AddRawMaterialItemModal';
+import VendorPriceApproval from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceApproval';
 // import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
 import EventSsoRedirect from '../pages/event/EventSsoRedirect';
 
@@ -327,6 +329,11 @@ export function AppRoutingSetup() {
           />
           <Route path='/material/sub-categories' element={<RawMaterialSubCategory />} />
           <Route path="/material/items" element={<RowMaterialItemMaster />} />
+          <Route path="/material/vendor-price-approval" element={<VendorPriceApproval />} />
+          <Route path="/material/items/add" element={<AddRawMaterialItemModal />} />
+          <Route path="/material/items/approve/:id" element={<AddRawMaterialItemModal />} />
+          <Route path="/material/items/edit/:id" element={<AddRawMaterialItemModal />} />
+          <Route path="/material/items/view/:id" element={<AddRawMaterialItemModal />} />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
           <Route
             path="/material/brand-master"

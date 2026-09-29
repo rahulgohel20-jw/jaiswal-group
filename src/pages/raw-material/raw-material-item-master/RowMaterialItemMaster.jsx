@@ -22,27 +22,27 @@ import {
 } from "@/components/ui/select";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+
 import { useNavigate } from 'react-router';
+import HeaderActionButton from '../../../components/common/HeaderActionButton';
 
 const RowMaterialItemMaster = () => {
     const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Items');
     const navigate = useNavigate();
     const [itemData, setItemData] = useState([]);
-    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
+    const [pagination, setPagination] = useState({
+        pageIndex: 0,
+        pageSize: 5,
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("All Status");
     const [categoryList, setCategoryList] = useState([]);
     const [typeFilter, setTypeFilter] = useState("");
-    const [showAddItem, setShowAddItem] = useState(false);
     const [showStatusConfirm, setShowStatusConfirm] = useState(false);
     const [statusTarget, setStatusTarget] = useState(null);
     const [statusSaving, setStatusSaving] = useState(false);
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [totalItems, setTotalItems] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -51,8 +51,7 @@ const RowMaterialItemMaster = () => {
         active: 0,
         inactive: 0,
     });
-    const [isViewOnly, setIsViewOnly] = useState(false);
-
+    const [totalItems, setTotalItems] = useState(0);
     const fetchStats = useCallback(async () => {
         try {
             const res = await getAllRawMaterialItems(
@@ -80,17 +79,6 @@ const RowMaterialItemMaster = () => {
         fetchStats();
     }, [fetchStats]);
 
-    const openCreateModal = () => {
-        setIsViewOnly(false);
-        setSelectedItem(null);
-        setShowAddItem(true);
-    };
-
-    const closeModal = () => {
-        setShowAddItem(false);
-        setSelectedItem(null);
-        setIsViewOnly(false);
-    };
 
     const fetchCategories = useCallback(async () => {
         try {
@@ -112,6 +100,7 @@ const RowMaterialItemMaster = () => {
     const fetchRawMaterialList = useCallback(async () => {
         try {
             setLoading(true);
+            setError(null);
 
             let isActive = "";
 
@@ -120,100 +109,87 @@ const RowMaterialItemMaster = () => {
             } else if (statusFilter === "Inactive") {
                 isActive = false;
             }
+
             const res = await getAllRawMaterialItems(
-                typeFilter || 0,   //raw category id
+                typeFilter || 0,
                 0,
                 isActive,
-                searchTerm.trim()
+                searchTerm.trim(),
+                pagination.pageIndex + 1,
+                pagination.pageSize
             );
-
             const responseData = res?.data?.data || {};
 
             const list = responseData["Raw Material Details"] || [];
-
-            const totalItems = responseData.totalItems || 0;
-            const totalPages = responseData.totalPages || 0;
 
             const mapped = list.map((item) => {
                 const latestImage = [...(item.images || [])]
                     .filter(img => img.path)
                     .sort((a, b) => b.id - a.id)[0];
-                return {
-                id: item.id,
-                image: latestImage?.path || "",
-                name: item.nameEnglish,
-                nameEnglish: item.nameEnglish,
-                category:
-                    item.rawMaterialCat?.nameEnglish ||
-                    item.rawMaterialCategoryName ||
-                    "",
-                unit:
-                    item.unit?.nameEnglish ||
-                    item.unitName ||
-                    "",
-                rate: item.supplierRate,
-                status: item.isActive ? "Active" : "Inactive",
 
-                rawMaterialCatId: item.rawMaterialCatId ?? item.rawMaterialCategory?.id,
-                unitId: item.unitId ?? item.unit?.id,
-                supplierRate: item.supplierRate,
-                dailyConsumption: item.dailyConsumption,
-                expiryDate: item.expiryDate,
-                opbStock: item.opbStock,
-                minStock: item.minStock,
-                minOrder: item.minOrder,
-                sequence: item.sequence,
-                weightPer100Pax: item.weightPer100Pax,
-                hsnCode: item.hsnCode,
-                tax: item.tax,
-                cess: item.cess,
-                isGeneralFix: item.isGeneralFix ?? false,
-                isApplyCal: item.isApplyCal ?? false,
-            }});
+                return {
+                    id: item.id,
+                    image: latestImage?.path || "",
+                    name: item.nameEnglish,
+                    nameEnglish: item.nameEnglish,
+                    category:
+                        item.rawMaterialCat?.nameEnglish ||
+                        item.rawMaterialCategoryName ||
+                        "",
+                    unit:
+                        item.unit?.nameEnglish ||
+                        item.unitName ||
+                        "",
+                    rate: item.supplierRate,
+                    status: item.isActive ? "Active" : "Inactive",
+
+                    rawMaterialCatId:
+                        item.rawMaterialCatId ??
+                        item.rawMaterialCategory?.id,
+
+                    unitId:
+                        item.unitId ??
+                        item.unit?.id,
+
+                    supplierRate: item.supplierRate,
+                    dailyConsumption: item.dailyConsumption,
+                    expiryDate: item.expiryDate,
+                    opbStock: item.opbStock,
+                    minStock: item.minStock,
+                    minOrder: item.minOrder,
+                    sequence: item.sequence,
+                    weightPer100Pax: item.weightPer100Pax,
+                    hsnCode: item.hsnCode,
+                    tax: item.tax,
+                    cess: item.cess,
+                    isGeneralFix: item.isGeneralFix ?? false,
+                    isApplyCal: item.isApplyCal ?? false,
+                };
+            });
 
             setItemData(mapped);
             setTotalItems(responseData.totalItems || 0);
-            setTotalPages(responseData.totalPages || 0);
+
         } catch (err) {
-            console.error(err);
+            console.error("Failed to load raw materials:", err);
             setError("Failed to load raw materials");
         } finally {
             setLoading(false);
         }
-    }, [searchTerm, statusFilter, typeFilter]);
+    }, [
+        searchTerm,
+        statusFilter,
+        typeFilter,
+        pagination.pageIndex,
+        pagination.pageSize
+    ]);
 
     const handleEdit = async (id) => {
-        try {
-            setIsViewOnly(false);
-            const res = await getRawMaterialById(id);
-
-            const item =
-                res?.data?.data?.["Raw Material Details"]?.[0];
-
-            if (!item) return;
-
-            setSelectedItem(item);
-            setShowAddItem(true);
-        } catch (err) {
-            console.error(err);
-        }
+        navigate(`/material/items/edit/${id}`);
     };
 
     const handleView = async (id) => {
-        try {
-            setIsViewOnly(true);
-            const res = await getRawMaterialById(id);
-
-            const item =
-                res?.data?.data?.["Raw Material Details"]?.[0];
-
-            if (!item) return;
-
-            setSelectedItem(item);
-            setShowAddItem(true);
-        } catch (err) {
-            console.error(err);
-        }
+        navigate(`/material/items/view/${id}`);
     };
 
     useEffect(() => {
@@ -291,7 +267,9 @@ const RowMaterialItemMaster = () => {
                 ),
                 cell: ({ row }) => (
                     <span className="text-gray-500 py-2">
-                        {String(row.index + 1).padStart(2, "0")}
+                        {String(
+                            pagination.pageIndex * pagination.pageSize + row.index + 1
+                        ).padStart(2, "0")}
                     </span>
                 ),
                 enableSorting: false,
@@ -335,7 +313,7 @@ const RowMaterialItemMaster = () => {
                         {row.original.name}
                     </div>
                 ),
-                size:180
+                size: 180
             },
 
             {
@@ -361,19 +339,6 @@ const RowMaterialItemMaster = () => {
                 ),
                 size: 110,
             },
-
-            {
-                accessorKey: "rate",
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="RATE"
-                        column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
-                    />
-                ),
-                size: 90,
-            },
-
             {
                 accessorKey: "status",
                 header: ({ column }) => (
@@ -415,7 +380,7 @@ const RowMaterialItemMaster = () => {
 
                     </label>
                 ),
-                size:100
+                size: 100
             },
 
             {
@@ -458,7 +423,7 @@ const RowMaterialItemMaster = () => {
                 ),
             },
         ],
-        [canEdit, canDelete],
+        [canEdit, canDelete, pagination],
     );
 
     const STATS = [
@@ -491,10 +456,13 @@ const RowMaterialItemMaster = () => {
     const table = useReactTable({
         data: itemData,
         columns,
-        state: { pagination },
+        state: {
+            pagination,
+        },
         onPaginationChange: setPagination,
+        manualPagination: true,
+        pageCount: Math.ceil(totalItems / pagination.pageSize),
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
     });
 
     if (!canView) {
@@ -515,13 +483,15 @@ const RowMaterialItemMaster = () => {
 
                 <div className="flex items-center justify-between flex-wrap gap-4">
                     <div>
-                        <h1 className="text-xl sm:text-2xl font-bold text-[#101828] text-start">
+                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
                             Raw Material Items Master
                         </h1>
                     </div>
 
                     {canAdd && (
-                        <HeaderActionButton onClick={openCreateModal}>
+                        <HeaderActionButton
+                            onClick={() => navigate('/material/items/add')}
+                        >
                             Add New Item
                         </HeaderActionButton>
                     )}
@@ -616,7 +586,7 @@ const RowMaterialItemMaster = () => {
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
                     {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                    <DataGrid table={table} recordCount={itemData.length} className="rounded-2xl">
+                    <DataGrid table={table} recordCount={totalItems} className="rounded-2xl">
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>
@@ -630,15 +600,6 @@ const RowMaterialItemMaster = () => {
                         </Card>
                     </DataGrid>
                 </div>
-
-                <AddRawMaterialItemModal
-                    isOpen={showAddItem}
-                    onClose={closeModal}
-                    editData={selectedItem}
-                    isViewOnly={isViewOnly}
-                    fetchRawMaterialList={fetchRawMaterialList}
-                    fetchStats={fetchStats}
-                />
             </div>
             <StatusConfirmModal
                 isOpen={showStatusConfirm}

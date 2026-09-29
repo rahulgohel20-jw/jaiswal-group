@@ -50,6 +50,7 @@ const normalizePo = (po) => {
     remarks: po.remarks ?? '',
     discountPercentage: po.discountPercentage != null ? Number(po.discountPercentage) : 0,
     discountAmount: po.discountAmount != null ? Number(po.discountAmount) : 0,
+    termsAndConditions: po.termsAndConditions ?? '',
     roundOff: po.roundOff != null ? Number(po.roundOff) : 0,
     raisedBy: po.createdByName ?? po.updatedByName ?? po.updatedBy ?? po.createdBy ?? '',
     status: getPoStatusLabel(po.status),

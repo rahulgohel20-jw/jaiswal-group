@@ -9,7 +9,6 @@ import {
     FileText,
     Loader2,
     Minus,
-    Printer,
     Search,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
@@ -20,13 +19,10 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import SearchableSelect from '@/utils/SearchableSelect';
-import { OrgTypes } from '../../constants/orgTypes';
-import {
-    getOrganizationByType,
-} from '@/services/apiServices';
 import { toast } from 'sonner';
 import { getAllActiveVendors, getEligibleGrnDetails, getEligibleGrns } from '../../services/apiServices';
 import { useNavigate } from 'react-router';
+import { useOrgScope } from '../../hooks/useOrgScope';
 
 const STATUS_STYLES = {
     OPEN: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
@@ -56,8 +52,9 @@ const StatusBadge = ({ status }) => {
     const display = status || 'Closed';
     return (
         <span
-            className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 capitalize ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border border-gray-200'
-                }`}
+            className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 capitalize ${
+                STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border border-gray-200'
+            }`}
         >
             <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
             {display.toLowerCase()}
@@ -75,7 +72,6 @@ const TruncatedCell = ({
     </span>
 );
 
-// PO Code renders as a light badge/chip, matching the reference screen
 const PoCodeCell = ({ value }) => (
     <span
         title={value}
@@ -107,12 +103,8 @@ const PAGE_SIZE = 10;
 
 const PurchaseInvoice = () => {
     const navigate = useNavigate();
-    /* ---------------- Outlet dropdown ---------------- */
-    const [outlets, setOutlets] = useState([]);
-    const [outletsLoading, setOutletsLoading] = useState(false);
-    const [selectedOutletId, setSelectedOutletId] = useState(null);
 
-    /* ---------------- Vendor dropdown (via vendor-outlet-mapping/get-all) ---------------- */
+    /* ---------------- Vendor dropdown ---------------- */
     const [vendors, setVendors] = useState([]);
     const [vendorsLoading, setVendorsLoading] = useState(false);
     const [selectedVendorId, setSelectedVendorId] = useState(null);
@@ -128,34 +120,20 @@ const PurchaseInvoice = () => {
 
     const [selectedGrnIds, setSelectedGrnIds] = useState([]);
     const [grnDetails, setGrnDetails] = useState({});
-    const [detailsLoadingIds, setDetailsLoadingIds] = useState([]);
+    const [otherCosts, setOtherCosts] = useState([]);
 
-    /* ---------------- Fetch outlets ---------------- */
-    useEffect(() => {
-        const fetchOutlets = async () => {
-            setOutletsLoading(true);
-            try {
-                const res = await getOrganizationByType(OrgTypes.OUTLET);
-                const raw = res?.data?.data || res?.data?.content || res?.data || [];
-                const list = Array.isArray(raw) ? raw : [];
-                setOutlets(
-                    list.map((o) => ({
-                        id: o.id,
-                        name: o.companyNameEnglish || o.name || `Outlet #${o.id}`,
-                    }))
-                );
-            } catch (err) {
-                console.error('Failed to load outlets:', err);
-                toast.error('Failed to load outlets.');
-            } finally {
-                setOutletsLoading(false);
-            }
-        };
-        fetchOutlets();
-    }, []);
+    const {
+        loading: scopeLoading,
+        error: scopeError,
+        showUnitDropdown,
+        units,
+        selectedUnitId,
+        setSelectedUnitId,
+        effectiveOutletId,
+        retry: retryScope,
+    } = useOrgScope();
 
-    /* ---------------- Fetch vendor ---------------- */
-
+    /* ---------------- Fetch vendors ---------------- */
     useEffect(() => {
         const fetchVendors = async () => {
             setVendorsLoading(true);
@@ -164,7 +142,7 @@ const PurchaseInvoice = () => {
                 const raw = res?.data?.data || res?.data || [];
                 setVendors(Array.isArray(raw) ? raw : []);
             } catch (err) {
-                console.error('Failed to load vendor', err);
+                console.error('Failed to load vendors', err);
                 toast.error('Failed to load vendors.');
             } finally {
                 setVendorsLoading(false);
@@ -174,105 +152,120 @@ const PurchaseInvoice = () => {
     }, []);
 
     /* ---------------- Search GRN ---------------- */
+    const handleSearchGrn = useCallback(async () => {
+        const targetOutletId = selectedUnitId || effectiveOutletId;
 
-   const handleSearchGrn = useCallback(async () => {
-    if (!selectedOutletId || !selectedVendorId) {
-        toast.error('Please select outlet and vendor.');
-        return;
-    }
+        if (!targetOutletId || !selectedVendorId) {
+            toast.error('Please select outlet and vendor.');
+            return;
+        }
 
-    setLoading(true);
-    setGrnError(null);
-    setSelectedGrnIds([]);
-    setGrnDetails({});
-
-    try {
-        const res = await getEligibleGrns({
-            outletId: Number(selectedOutletId),
-            vendorId: Number(selectedVendorId),
-        });
-
-        const raw = res?.data?.data ?? res?.data ?? [];
-        const rawList = Array.isArray(raw) ? raw : [];
-
-        const normalized = rawList.map((g) => {
-            const details = Array.isArray(g.eligibleGrnDetailResponseDtos)
-                ? g.eligibleGrnDetailResponseDtos
-                : [];
-
-            return {
-                id: g.grnId,
-                grnId: g.grnId,
-
-                grnCode: g.grnCode || `GRN-${g.grnId}`,
-
-                poCode: Array.isArray(g.poCode)
-                    ? g.poCode.join(', ')
-                    : (g.poCode || '—'),
-
-                grnDate: formatDateShort(g.grnDate),
-                rawDate: g.grnDate,
-
-                createdBy: g.createdBy || '—',
-
-                vendorId: g.vendorId,
-                vendorName: g.vendorName || '—',
-
-                organizationId: g.organizationId,
-                organizationName: g.organizationName || '—',
-
-                status: g.status || 'OPEN',
-
-                // Already coming from first API
-                details,
-
-                // Number of eligible GRN detail items
-                itemsReceived: details.length,
-            };
-        });
-
-        setList(normalized);
-
-        // Store all details immediately
-        const detailsMap = {};
-
-        normalized.forEach((grn) => {
-            detailsMap[grn.id] = grn.details;
-        });
-
-        setGrnDetails(detailsMap);
-
-        setSearched(true);
-        setPagination((p) => ({
-            ...p,
-            pageIndex: 0,
-        }));
-    } catch (err) {
-        console.error('Failed to load GRN listing:', err);
-
-        setGrnError(
-            err?.response?.data?.msg ||
-            err?.response?.data?.message ||
-            err?.message ||
-            'Failed to load GRN list.'
-        );
-
-        setList([]);
+        setLoading(true);
+        setGrnError(null);
+        setSelectedGrnIds([]);
         setGrnDetails({});
-        setSearched(true);
-    } finally {
-        setLoading(false);
-    }
-}, [selectedOutletId, selectedVendorId]);
+        setOtherCosts([]);
 
-    /* ---------------- search filter (search box within listing card) ---------------- */
+        try {
+            const res = await getEligibleGrns({
+                outletId: Number(targetOutletId),
+                vendorId: Number(selectedVendorId),
+            });
+
+            const raw = res?.data?.data ?? res?.data ?? [];
+            const rawList = Array.isArray(raw) ? raw : [];
+
+            const detailsMap = {};
+
+            const normalized = rawList.map((g) => {
+                const details = Array.isArray(g.eligibleGrnDetailResponseDtos)
+                    ? g.eligibleGrnDetailResponseDtos
+                    : [];
+
+                if (details.length > 0) {
+                    detailsMap[g.grnId] = details;
+                }
+
+                return {
+                    id: g.grnId,
+                    grnId: g.grnId,
+                    grnCode: g.grnCode || `GRN-${g.grnId}`,
+                    poCode: Array.isArray(g.poCode)
+                        ? g.poCode.join(', ')
+                        : (g.poCode || details[0]?.poCode || '—'),
+                    grnDate: formatDateShort(g.grnDate),
+                    rawDate: g.grnDate,
+                    createdBy: g.createdBy || '—',
+                    vendorId: g.vendorId,
+                    vendorName: g.vendorName || '—',
+                    organizationId: g.organizationId,
+                    organizationName: g.organizationName || '—',
+                    status: g.status || 'OPEN',
+                    details,
+                    itemsReceived: details.length,
+                };
+            });
+
+            setList(normalized);
+            setGrnDetails(detailsMap);
+            setSearched(true);
+            setPagination((p) => ({ ...p, pageIndex: 0 }));
+        } catch (err) {
+            console.error('Failed to load GRN listing:', err);
+            setGrnError(
+                err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                err?.message ||
+                'Failed to load GRN list.'
+            );
+            setList([]);
+            setGrnDetails({});
+            setSearched(true);
+        } finally {
+            setLoading(false);
+        }
+    }, [selectedUnitId, effectiveOutletId, selectedVendorId]);
+
+    /* ---------------- Single multi-GRN fetch helper ---------------- */
+    const fetchMultipleGrnDetails = useCallback(async (ids) => {
+        if (!ids || ids.length === 0) return { detailsByGrnId: {}, otherCostList: [] };
+
+        const joinedIds = ids.join(',');
+        const res = await getEligibleGrnDetails(joinedIds);
+
+        const responseData = res?.data?.data || {};
+        const detailDtos = Array.isArray(responseData.eligibleGrnDetailResponseDtos)
+            ? responseData.eligibleGrnDetailResponseDtos
+            : (Array.isArray(responseData) ? responseData : []);
+        const otherCostList = Array.isArray(responseData.otherCostResponseDtos)
+            ? responseData.otherCostResponseDtos
+            : [];
+
+        // Group details by grnId
+        const detailsByGrnId = {};
+        ids.forEach((id) => {
+            detailsByGrnId[id] = [];
+        });
+
+        detailDtos.forEach((item) => {
+            if (item && item.grnId) {
+                if (!detailsByGrnId[item.grnId]) {
+                    detailsByGrnId[item.grnId] = [];
+                }
+                detailsByGrnId[item.grnId].push(item);
+            }
+        });
+
+        return { detailsByGrnId, otherCostList };
+    }, []);
+
+    /* ---------------- search filter ---------------- */
     const filteredRows = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         if (!q) return list;
 
-        return list.filter(
-            (item) =>
-                (item.grnCode || '').toLowerCase().includes(q)
+        return list.filter((item) =>
+            (item.grnCode || '').toLowerCase().includes(q)
         );
     }, [list, searchQuery]);
 
@@ -286,160 +279,107 @@ const PurchaseInvoice = () => {
     const someVisibleSelected = filteredRows.some((row) => selectedGrnIds.includes(row.id));
 
     const toggleRow = async (id) => {
-        const alreadySelected = selectedGrnIds.includes(id);
+        const isCurrentlySelected = selectedGrnIds.includes(id);
 
-        // Unselect
-        if (alreadySelected) {
-            setSelectedGrnIds((prev) =>
-                prev.filter((x) => x !== id)
-            );
-
+        if (isCurrentlySelected) {
+            setSelectedGrnIds((prev) => prev.filter((x) => x !== id));
             return;
         }
 
-        // Select immediately
+        // Add to selection
         setSelectedGrnIds((prev) => [...prev, id]);
 
-        // Don't call API again if details are already loaded
-        if (grnDetails[id]) {
+        // If details already fetched, skip API
+        if (grnDetails[id] && grnDetails[id].length > 0) {
             return;
         }
 
         try {
-            setDetailsLoadingIds((prev) => [...prev, id]);
+            const { detailsByGrnId, otherCostList } = await fetchMultipleGrnDetails([id]);
+            const newDetails = detailsByGrnId[id] || [];
 
-            const res = await getEligibleGrnDetails(id);
-            const details = res?.data?.data ?? [];
             setGrnDetails((prev) => ({
                 ...prev,
-                [id]: Array.isArray(details) ? details : [],
+                [id]: newDetails,
             }));
 
-            // Update list row with detail information
+            if (otherCostList.length > 0) {
+                setOtherCosts((prev) => [...prev, ...otherCostList]);
+            }
+
             setList((prev) =>
                 prev.map((grn) =>
                     grn.id === id
                         ? {
                             ...grn,
-                            details: Array.isArray(details)
-                                ? details
-                                : [],
-                            poCode:
-                                details?.[0]?.poCode || '—',
-                            itemsReceived:
-                                Array.isArray(details)
-                                    ? details.length
-                                    : 0,
+                            details: newDetails,
+                            poCode: newDetails[0]?.poCode || grn.poCode || '—',
+                            itemsReceived: newDetails.length,
                         }
                         : grn
                 )
             );
         } catch (err) {
-            console.error(
-                `Failed to load details for GRN ${id}:`,
-                err
-            );
-
+            console.error(`Failed to load details for GRN ${id}:`, err);
             toast.error(
                 err?.response?.data?.msg ||
                 err?.response?.data?.message ||
                 'Failed to load GRN details.'
             );
-
-            // If API failed, remove selection
-            setSelectedGrnIds((prev) =>
-                prev.filter((x) => x !== id)
-            );
-        } finally {
-            setDetailsLoadingIds((prev) =>
-                prev.filter((x) => x !== id)
-            );
+            setSelectedGrnIds((prev) => prev.filter((x) => x !== id));
         }
     };
+
     const toggleAllVisible = async () => {
+        const visibleIds = filteredRows.map((r) => r.id);
+
         if (allVisibleSelected) {
-            const visibleIds = filteredRows.map((r) => r.id);
-
-            setSelectedGrnIds((prev) =>
-                prev.filter((id) => !visibleIds.includes(id))
-            );
-
+            setSelectedGrnIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
             return;
         }
 
-        const visibleIds = filteredRows.map((r) => r.id);
+        setSelectedGrnIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
 
-        setSelectedGrnIds((prev) =>
-            Array.from(new Set([...prev, ...visibleIds]))
-        );
-
+        // Find IDs that do not have their details loaded yet
         const idsToFetch = visibleIds.filter(
-            (id) => !grnDetails[id]
+            (id) => !grnDetails[id] || grnDetails[id].length === 0
         );
 
         if (!idsToFetch.length) return;
 
         try {
-            setDetailsLoadingIds((prev) => [
-                ...prev,
-                ...idsToFetch,
-            ]);
-
-            const responses = await Promise.all(
-                idsToFetch.map(async (id) => {
-                    const res = await getEligibleGrnDetails(id);
-
-                    return {
-                        id,
-                        details: res?.data?.data ?? [],
-                    };
-                })
-            );
-
-            const detailsMap = {};
-
-            responses.forEach(({ id, details }) => {
-                detailsMap[id] = Array.isArray(details)
-                    ? details
-                    : [];
-            });
+            // One single call for all missing IDs
+            const { detailsByGrnId, otherCostList } = await fetchMultipleGrnDetails(idsToFetch);
 
             setGrnDetails((prev) => ({
                 ...prev,
-                ...detailsMap,
+                ...detailsByGrnId,
             }));
+
+            if (otherCostList.length > 0) {
+                setOtherCosts((prev) => [...prev, ...otherCostList]);
+            }
 
             setList((prev) =>
                 prev.map((grn) => {
-                    const details = detailsMap[grn.id];
-
-                    if (!details) return grn;
+                    const rowDetails = detailsByGrnId[grn.id];
+                    if (!rowDetails) return grn;
 
                     return {
                         ...grn,
-                        details,
-                        poCode: details?.[0]?.poCode || '—',
-                        itemsReceived: details.length,
+                        details: rowDetails,
+                        poCode: rowDetails[0]?.poCode || grn.poCode || '—',
+                        itemsReceived: rowDetails.length,
                     };
                 })
             );
         } catch (err) {
-            console.error(
-                'Failed to load selected GRN details:',
-                err
-            );
-
-            toast.error(
-                'Failed to load details for one or more GRNs.'
-            );
-        } finally {
-            setDetailsLoadingIds((prev) =>
-                prev.filter((id) => !idsToFetch.includes(id))
-            );
+            console.error('Failed to load selected GRN details:', err);
+            toast.error('Failed to load details for selected GRNs.');
         }
     };
 
-
+    /* ---------------- Generate GRN Invoice ---------------- */
     const handleGenerateGrnInvoice = async () => {
         if (selectedGrnIds.length === 0) {
             toast.error('Select at least one GRN to generate an invoice.');
@@ -449,34 +389,32 @@ const PurchaseInvoice = () => {
         try {
             setLoading(true);
 
-            const selectedGrns = list.filter((g) =>
-                selectedGrnIds.includes(g.id)
-            );
+            // ALWAYS call the API for all selected GRN IDs (e.g. "26,27")
+            const { detailsByGrnId, otherCostList } = await fetchMultipleGrnDetails(selectedGrnIds);
 
-            const detailedGrns = await Promise.all(
-                selectedGrns.map(async (grn) => {
-                    const res = await getEligibleGrnDetails(grn.grnId);
+            // Update local state with fresh data from backend
+            setGrnDetails((prev) => ({
+                ...prev,
+                ...detailsByGrnId,
+            }));
+            setOtherCosts(otherCostList);
 
-                    const details = res?.data?.data ?? [];
-
-                    return {
-                        ...grn, // IMPORTANT: keeps organizationId/vendorId/etc.
-
-                        details: Array.isArray(details)
-                            ? details
-                            : [],
-                    };
-                })
-            );
+            // Combine the fresh details into each selected GRN item
+            const detailedGrns = list
+                .filter((g) => selectedGrnIds.includes(g.id))
+                .map((grn) => ({
+                    ...grn,
+                    details: detailsByGrnId[grn.id] || [],
+                }));
 
             navigate('/purchase/purchase-invoice/generate-grn-invoice', {
                 state: {
                     selectedGrns: detailedGrns,
+                    otherCosts: otherCostList || [],
                 },
             });
         } catch (err) {
-            console.error('Failed to load GRN details:', err);
-
+            console.error('Failed to prepare GRN details:', err);
             toast.error(
                 err?.response?.data?.msg ||
                 err?.response?.data?.message ||
@@ -486,7 +424,7 @@ const PurchaseInvoice = () => {
             setLoading(false);
         }
     };
- 
+
     /* ---------------- Columns ---------------- */
     const columns = useMemo(
         () => [
@@ -496,10 +434,11 @@ const PurchaseInvoice = () => {
                     <button
                         type="button"
                         onClick={toggleAllVisible}
-                        className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${allVisibleSelected || someVisibleSelected
-                            ? 'bg-[#084E92] border-[#084E92]'
-                            : 'bg-white border-gray-300'
-                            }`}
+                        className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${
+                            allVisibleSelected || someVisibleSelected
+                                ? 'bg-[#084E92] border-[#084E92]'
+                                : 'bg-white border-gray-300'
+                        }`}
                         title={allVisibleSelected ? 'Deselect all' : 'Select all'}
                     >
                         {(allVisibleSelected || someVisibleSelected) && (
@@ -513,8 +452,9 @@ const PurchaseInvoice = () => {
                         <button
                             type="button"
                             onClick={() => toggleRow(row.original.id)}
-                            className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${checked ? 'bg-[#084E92] border-[#084E92]' : 'bg-white border-gray-300'
-                                }`}
+                            className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${
+                                checked ? 'bg-[#084E92] border-[#084E92]' : 'bg-white border-gray-300'
+                            }`}
                         >
                             {checked && (
                                 <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-none stroke-white" strokeWidth={2.5}>
@@ -611,7 +551,7 @@ const PurchaseInvoice = () => {
         getPaginationRowModel: getPaginationRowModel(),
     });
 
-    const outletOptions = outlets.map((o) => ({ value: String(o.id), label: o.name }));
+    const outletOptions = units.map((o) => ({ value: String(o.id), label: o.name }));
     const vendorOptions = vendors.map((v) => ({ value: String(v.id), label: v.fullName }));
 
     return (
@@ -619,7 +559,7 @@ const PurchaseInvoice = () => {
             <div className="mx-auto p-4">
                 {/* Breadcrumbs */}
                 <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
+                    <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
                     <ChevronRight size={12} />
                     <span>Purchase</span>
                     <ChevronRight size={12} />
@@ -634,8 +574,16 @@ const PurchaseInvoice = () => {
                     >
                         Purchase Invoice
                     </h1>
-
                 </div>
+
+                {scopeError && (
+                    <div className="mb-4 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
+                        <span className="text-sm text-[#C0293D]">{scopeError}</span>
+                        <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
+                            Retry
+                        </button>
+                    </div>
+                )}
 
                 {/* Search GRN card */}
                 <div className="bg-white rounded-2xl border border-[#E7EAF0] p-6 mb-6">
@@ -651,19 +599,25 @@ const PurchaseInvoice = () => {
                             <label className="text-sm font-semibold text-[#101828] mb-1.5 block">
                                 Outlet <span className="text-red-500">*</span>
                             </label>
-                            <SearchableSelect
-                                name="outlet"
-                                value={selectedOutletId ? String(selectedOutletId) : ''}
-                                onChange={(e) =>
-                                    setSelectedOutletId(e.target.value ? Number(e.target.value) : null)
-                                }
-                                options={outletOptions}
-                                placeholder={outletsLoading ? 'Loading outlets...' : 'Select outlet'}
-                                disabled={outletsLoading}
-                            />
+                            {showUnitDropdown ? (
+                                <SearchableSelect
+                                    name="outlet"
+                                    value={selectedUnitId ? String(selectedUnitId) : ''}
+                                    onChange={(e) =>
+                                        setSelectedUnitId(e.target.value ? Number(e.target.value) : null)
+                                    }
+                                    options={outletOptions}
+                                    placeholder={scopeLoading ? 'Loading outlets...' : 'Select outlet'}
+                                    disabled={scopeLoading || outletOptions.length === 0}
+                                />
+                            ) : (
+                                <div className="h-10.5 flex items-center px-3.5 rounded-xl border border-[#E7EAF0] bg-gray-50 text-sm text-[#101828] font-medium">
+                                    {units[0]?.name || (scopeLoading ? 'Loading…' : '—')}
+                                </div>
+                            )}
                         </div>
 
-                        <div className='col-span-2'>
+                        <div className="col-span-2">
                             <label className="text-sm font-semibold text-[#101828] mb-1.5 block">
                                 Vendor <span className="text-red-500">*</span>
                             </label>
@@ -694,8 +648,6 @@ const PurchaseInvoice = () => {
                             Search GRN
                         </button>
                     </div>
-
-
                 </div>
 
                 {/* GRN Listing card */}
@@ -727,7 +679,8 @@ const PurchaseInvoice = () => {
                         <button
                             type="button"
                             onClick={handleGenerateGrnInvoice}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer border border-[#E7EAF0] bg-gray-100 text-sm font-semibold text-[#101828] hover:bg-gray-200 transition"
+                            disabled={loading || selectedGrnIds.length === 0}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer border border-[#E7EAF0] bg-[#084E92] text-white text-sm font-semibold hover:bg-blue-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <FileText size={16} />
                             Generate GRN Invoice
