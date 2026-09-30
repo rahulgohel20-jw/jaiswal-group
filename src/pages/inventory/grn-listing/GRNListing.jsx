@@ -33,6 +33,7 @@ import {
 import SearchableSelect from '@/utils/SearchableSelect';
 import { getAllGrns, getGrnById, getGrnByOutletOrStatus } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { useExportReport } from '@/hooks/useExportReport';
@@ -184,7 +185,7 @@ const GRNListing = () => {
   const { exporting: exportingGrn, exportReport: exportGrnReport } = useExportReport();
 
   const loadData = useCallback(async () => {
-    if (scopeLoading) return;
+    if (scopeLoading || scopeError) return;
     setLoading(true);
     setGrnError(null);
     try {
@@ -243,7 +244,7 @@ const GRNListing = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, effectiveOutletId, statusFilter, filterRowsByScope]);
+  }, [scopeLoading, scopeError, effectiveOutletId, statusFilter, filterRowsByScope]);
 
   useEffect(() => {
     loadData();
@@ -585,14 +586,10 @@ const GRNListing = () => {
           )}
         </div>
 
-        {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || grnError}
+          onRetry={scopeError ? retryScope : loadData}
+        />
 
         {/* Search + unit dropdown + status dropdown + date range */}
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -663,18 +660,7 @@ const GRNListing = () => {
           </Popover>
         </div>
 
-        {grnError && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 text-xs text-[#C0293D]">
-            <span>{grnError}</span>
-            <button
-              type="button"
-              onClick={loadData}
-              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+
 
         {/* Table card (Maximized height for comfortable viewing) */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">

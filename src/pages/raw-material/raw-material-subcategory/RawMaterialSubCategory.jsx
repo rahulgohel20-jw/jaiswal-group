@@ -33,6 +33,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -465,7 +466,7 @@ const RowMaterialSubCategory = () => {
                     </span>
                 </div>
 
-                <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
                             Raw Material Sub Category Master
@@ -478,6 +479,8 @@ const RowMaterialSubCategory = () => {
                         </HeaderActionButton>
                     )}
                 </div>
+
+                <PageErrorAlert error={error} onRetry={fetchSubCategories} className="my-3" />
 
                 {/* Stat cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 py-4 text-[#43474F]">
@@ -568,7 +571,6 @@ const RowMaterialSubCategory = () => {
                             Loading raw material sub categories...
                         </p>
                     )}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <DataGrid
                         table={table}
                         recordCount={filteredSubCategories.length}

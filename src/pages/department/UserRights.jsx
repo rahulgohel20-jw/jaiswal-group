@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { getApiErrorMessage } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getAllRoleMasterByUserId } from '@/services/apiServices';
 import { Container } from '@/components/common/container';
@@ -110,11 +111,10 @@ const UserRights = () => {
         </div>
         <h1 className="font-bold text-[#101828] text-[20px] mb-2">User Rights</h1>
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchRoles}
+        />
 
         <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
           <table className="w-full text-sm">

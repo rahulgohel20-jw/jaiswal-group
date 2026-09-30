@@ -34,6 +34,7 @@ import FifoBatchVisualizerModal from '../stock-transfer/FifoBatchVisualizerModal
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { CodeCell } from '@/components/common/CodeCell';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 /* -------------------------------------------------------------------------
  * Status Styling Tokens (IN_TRANSIT, REJECTED, CLOSED)
@@ -174,6 +175,7 @@ const StockTransferReqReceiveList = () => {
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
@@ -203,6 +205,8 @@ const StockTransferReqReceiveList = () => {
   // Scope hooks
   const {
     loading: scopeLoading,
+    error: scopeError,
+    retry: retryScope,
     isOutletUser,
     isCompanyUser,
     units,
@@ -285,7 +289,9 @@ const StockTransferReqReceiveList = () => {
 
   // Fetch Receive Transfers from API
   const fetchReceiveTransfers = useCallback(async () => {
+    if (scopeLoading || scopeError) return;
     setLoading(true);
+    setError(null);
     try {
       const params = {};
       // For outlet users: limited to transfers incoming to their outlet (toOrganizationId)
@@ -398,17 +404,18 @@ const StockTransferReqReceiveList = () => {
       setTransfers(normalized);
     } catch (err) {
       console.error('Failed to fetch incoming stock transfers:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load transfer receive list');
       setTransfers([]);
     } finally {
       setLoading(false);
     }
-  }, [isOutletUser, effectiveOutletId, selectedToOutletId, selectedFromOutletId, selectedUnitId]);
+  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedToOutletId, selectedFromOutletId, selectedUnitId]);
 
   useEffect(() => {
-    if (!scopeLoading) {
+    if (!scopeLoading && !scopeError) {
       fetchReceiveTransfers();
     }
-  }, [fetchReceiveTransfers, scopeLoading]);
+  }, [fetchReceiveTransfers, scopeLoading, scopeError]);
 
   // Stat counts (IN_TRANSIT, CLOSED, REJECTED)
   const stats = useMemo(() => {
@@ -760,6 +767,11 @@ const StockTransferReqReceiveList = () => {
             </h1>
           </div>
         </div>
+
+        <PageErrorAlert
+          error={scopeError || error}
+          onRetry={scopeError ? retryScope : fetchReceiveTransfers}
+        />
 
         {/* Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

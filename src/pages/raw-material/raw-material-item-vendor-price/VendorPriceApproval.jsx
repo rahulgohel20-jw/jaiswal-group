@@ -39,6 +39,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { getVendorPriceApprovals } from '../../../services/apiServices';
 import { useOrgScope } from '../../../hooks/useOrgScope';
 
@@ -365,6 +366,8 @@ const VendorPriceApproval = () => {
         isOutletUser,
         effectiveOutletId,
         units: scopedOutlets,
+        error: scopeError,
+        retry: retryScope,
     } = useOrgScope();
 
     // Map organization options from useOrgScope
@@ -411,7 +414,7 @@ const VendorPriceApproval = () => {
 
     // 1. Permanent global stats
     const fetchGlobalStats = useCallback(async () => {
-        if (orgScopeLoading) return;
+        if (orgScopeLoading || scopeError) return;
 
         try {
             const res = await getVendorPriceApprovals(1, 1000, '', '');
@@ -486,7 +489,7 @@ const VendorPriceApproval = () => {
     // 2. Fetch data via API based on status & organization filter
     const fetchApprovalData = useCallback(
         async (selectedStatus = statusFilter, selectedOrg = selectedOrgId) => {
-            if (orgScopeLoading) return;
+            if (orgScopeLoading || scopeError) return;
 
             try {
                 setLoading(true);
@@ -886,6 +889,19 @@ const VendorPriceApproval = () => {
                     </p>
                 </div>
 
+                <PageErrorAlert
+                    error={scopeError || error}
+                    onRetry={() => {
+                        if (scopeError) {
+                            retryScope?.();
+                        } else {
+                            fetchGlobalStats();
+                            fetchApprovalData(statusFilter, selectedOrgId);
+                        }
+                    }}
+                    className="my-3"
+                />
+
                 {/* Global Stat Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 mt-4">
                     {STATS.map((item) => (
@@ -965,7 +981,6 @@ const VendorPriceApproval = () => {
                     {loading && (
                         <p className="p-4 text-sm text-gray-500">Loading vendor price approvals...</p>
                     )}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <DataGrid table={table} recordCount={filteredRows.length} className="rounded-2xl">
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>

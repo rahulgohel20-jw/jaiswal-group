@@ -26,6 +26,7 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   deleteMenuItemById,
   getAllMenuCategory,
@@ -517,6 +518,8 @@ useEffect(() => {
           </HeaderActionButton>
         </div>
 
+        <PageErrorAlert error={error} onRetry={fetchMenuItems} className="my-3" />
+
         {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <StatCard
@@ -587,7 +590,6 @@ useEffect(() => {
           {loading && (
             <p className="p-4 text-sm text-gray-500">Loading menu items...</p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
 
           <DataGrid
             table={table}

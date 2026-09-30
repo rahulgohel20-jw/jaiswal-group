@@ -139,14 +139,22 @@ axiosInstance.interceptors.response.use(
         error.config.url?.includes("/auth/reset-password") ||
         error.config.url?.includes("/system-api/admin/token");
       if (!isAuthPath) {
+        const isNetworkError =
+          error.code === 'ERR_NETWORK' ||
+          !error.response ||
+          error.message === 'Network Error' ||
+          (typeof error.message === 'string' && error.message.toLowerCase().includes('network error'));
+
         const data = error.response?.data;
         const msg =
           data?.errorMessage ||
           data?.message ||
           (data?.msg && data.msg !== "FAILED" && data.msg !== "ERROR" ? data.msg : null) ||
-          error.message ||
+          (isNetworkError ? "Network Error" : error.message) ||
           "An error occurred.";
-        toast.error(msg);
+
+        const toastId = isNetworkError ? "network-error" : (typeof msg === "string" ? `error-${msg}` : undefined);
+        toast.error(msg, toastId ? { id: toastId } : undefined);
       }
     }
 

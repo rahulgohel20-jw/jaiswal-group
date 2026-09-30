@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { notify } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -10,7 +11,6 @@ import {
   Eye,
   Filter,
   Loader2,
-  Plus,
   Search,
   SquarePen,
   Trash2,
@@ -69,10 +69,13 @@ const STATUS_LABELS = {
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'
-      }`}
+    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${
+      STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'
+    }`}
   >
-    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
+    <span
+      className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`}
+    />
     {STATUS_LABELS[status] || status}
   </span>
 );
@@ -99,7 +102,10 @@ const STATUS_OPTIONS = [
 function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative min-w-[190px]">
-      <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
+      <Filter
+        size={16}
+        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none"
+      />
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]">
           <SelectValue placeholder="All Status" />
@@ -117,12 +123,30 @@ function StatusDropdown({ value, onChange }) {
   );
 }
 
+const normalizeUnit = (item) => ({
+  id: item.id,
+  name: item.companyNameEnglish || '',
+  code: item.companyCode || '',
+  location: item.cityName || '',
+  email: item.emailid || item.email || '',
+  mobile: item.mobilenumber || '',
+  address:
+    [item.addressEnglish, item.addressline2].filter(Boolean).join(', ') ||
+    item.addressEnglish ||
+    '',
+  parentName: item.parentName || '',
+  parentId: item.parentId || item.parentCompanyId || item.companyId || '',
+  shortCode: item.shortCode || '',
+  status: item.isActive ? 'active' : 'inactive',
+  originalData: item,
+});
+
 const UnitListing = () => {
   const navigate = useNavigate();
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Units');
 
   const [units, setUnits] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -134,39 +158,16 @@ const UnitListing = () => {
   const [companies, setCompanies] = useState([]);
   const [companyFilter, setCompanyFilter] = useState('');
 
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        const res = await getActiveCompany();
-        const list = res?.data?.data || [];
-
-        const subCompanies = list.filter(
-          (item) => item.orgType === 'SUB_COMPANY',
-        );
-
-        setCompanies(subCompanies);
-      } catch (error) {
-        console.error('Failed to load companies:', error);
-      }
-    };
-
-    fetchCompanies();
-  }, []);
-
-  const normalizeUnit = (item) => ({
-    id: item.id,
-    name: item.companyNameEnglish || '',
-    code: item.companyCode || '',
-    location: item.cityName || '',
-    email: item.emailid || item.email || '',
-    mobile: item.mobilenumber || '',
-    address: [item.addressEnglish, item.addressline2].filter(Boolean).join(', ') || item.addressEnglish || '',
-    parentName: item.parentName || '',
-    parentId: item.parentId || item.parentCompanyId || item.companyId || '',
-    shortCode: item.shortCode || '',
-    status: item.isActive ? 'active' : 'inactive',
-    originalData: item,
-  });
+  // Defined at component level so the retry button can call it too
+  const fetchCompanies = async () => {
+    try {
+      const res = await getActiveCompany();
+      const list = res?.data?.data || [];
+      setCompanies(list.filter((item) => item.orgType === 'SUB_COMPANY'));
+    } catch (err) {
+      console.error('Failed to load companies:', err);
+    }
+  };
 
   const fetchUnits = async () => {
     setLoading(true);
@@ -180,37 +181,42 @@ const UnitListing = () => {
     } catch (err) {
       console.error(err);
       setError('Failed to load units.');
+      setUnits([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    fetchCompanies();
     fetchUnits();
   }, []);
+
+  const term = search.trim().toLowerCase();
 
   const filteredUnits = useMemo(
     () =>
       units.filter((u) => {
-        const searchText = search.toLowerCase();
-
         const matchesSearch =
-          (u.name || '').toLowerCase().includes(searchText) ||
-          (u.code || '').toLowerCase().includes(searchText) ||
-          (u.location || '').toLowerCase().includes(searchText) ||
-          (u.email || '').toLowerCase().includes(searchText) ||
-          (u.mobile || '').toLowerCase().includes(searchText);
+          !term ||
+          [u.name, u.code, u.location, u.email, u.mobile].some((field) =>
+            String(field ?? '').toLowerCase().includes(term),
+          );
 
         const matchesStatus =
           statusFilter === 'all' || u.status === statusFilter;
 
         const matchesCompany =
-          !companyFilter ||
-          String(u.parentId) === String(companyFilter);
+          !companyFilter || String(u.parentId) === String(companyFilter);
+
         return matchesSearch && matchesStatus && matchesCompany;
       }),
-    [units, search, statusFilter, companyFilter],
+    [units, term, statusFilter, companyFilter],
   );
+
+  useEffect(() => {
+    setPagination((p) => ({ ...p, pageIndex: 0 }));
+  }, [term, statusFilter, companyFilter]);
 
   const handleViewClick = async (unit) => {
     try {
@@ -263,14 +269,11 @@ const UnitListing = () => {
       await fetchUnits();
     } catch (err) {
       console.error(err);
+      notify.error('Failed to delete unit. Please try again.');
     } finally {
       setDeleteLoading(false);
     }
   };
-
-  useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [search, statusFilter, companyFilter]);
 
   const columns = useMemo(
     () => [
@@ -278,7 +281,11 @@ const UnitListing = () => {
         id: 'name',
         accessorFn: (row) => row.name,
         header: ({ column }) => (
-          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader
+            title="UNIT NAME"
+            column={column}
+            className="my-2 text-xs"
+          />
         ),
         cell: ({ row }) => (
           <TruncatedCell
@@ -293,7 +300,11 @@ const UnitListing = () => {
         id: 'code',
         accessorFn: (row) => row.code,
         header: ({ column }) => (
-          <DataGridColumnHeader title="UNIT CODE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader
+            title="UNIT CODE"
+            column={column}
+            className="my-2 text-xs"
+          />
         ),
         cell: ({ row }) => (
           <TruncatedCell value={row.original.code} widthClass="max-w-[130px]" />
@@ -304,7 +315,11 @@ const UnitListing = () => {
         id: 'location',
         accessorFn: (row) => row.location,
         header: ({ column }) => (
-          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader
+            title="LOCATION"
+            column={column}
+            className="my-2 text-xs"
+          />
         ),
         cell: ({ row }) => (
           <TruncatedCell
@@ -318,7 +333,11 @@ const UnitListing = () => {
         id: 'email',
         accessorFn: (row) => row.email,
         header: ({ column }) => (
-          <DataGridColumnHeader title="CONTACT EMAIL" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader
+            title="CONTACT EMAIL"
+            column={column}
+            className="my-2 text-xs"
+          />
         ),
         cell: ({ row }) => (
           <TruncatedCell
@@ -332,10 +351,17 @@ const UnitListing = () => {
         id: 'mobile',
         accessorFn: (row) => row.mobile,
         header: ({ column }) => (
-          <DataGridColumnHeader title="MOBILE NUMBER" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader
+            title="MOBILE NUMBER"
+            column={column}
+            className="my-2 text-xs"
+          />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.mobile} widthClass="max-w-[140px]" />
+          <TruncatedCell
+            value={row.original.mobile}
+            widthClass="max-w-[140px]"
+          />
         ),
         size: 150,
       },
@@ -343,7 +369,11 @@ const UnitListing = () => {
         id: 'status',
         accessorFn: (row) => row.status,
         header: ({ column }) => (
-          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader
+            title="STATUS"
+            column={column}
+            className="my-2 text-xs"
+          />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
         size: 120,
@@ -351,7 +381,11 @@ const UnitListing = () => {
       {
         id: 'actions',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader
+            title="ACTIONS"
+            column={column}
+            className="my-2 text-xs"
+          />
         ),
         cell: ({ row }) => (
           <div className="flex items-center gap-2 whitespace-nowrap">
@@ -389,6 +423,7 @@ const UnitListing = () => {
         size: 110,
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [canEdit, canDelete],
   );
 
@@ -408,13 +443,15 @@ const UnitListing = () => {
   return (
     <Container>
       <div className="mx-auto p-4">
+        {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
+          <Link to="/" className="hover:text-[#084E92]">
+            Dashboard
+          </Link>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Units
-          </span>
+          <span className="text-[#084E92] font-medium">Units</span>
         </div>
+
         {/* Page header */}
         <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
@@ -428,6 +465,14 @@ const UnitListing = () => {
             </HeaderActionButton>
           )}
         </div>
+
+        <PageErrorAlert
+          error={error}
+          onRetry={() => {
+            fetchCompanies();
+            fetchUnits();
+          }}
+        />
 
         {/* Search + company + status filter */}
         <div className="flex items-center gap-3 mb-5 flex-wrap">
@@ -449,9 +494,7 @@ const UnitListing = () => {
             <SearchableSelect
               name="company"
               value={companyFilter}
-              onChange={(e) => {
-                setCompanyFilter(e.target.value);
-              }}
+              onChange={(e) => setCompanyFilter(e.target.value)}
               options={companies.map((company) => ({
                 value: String(company.id),
                 label: company.companyNameEnglish,
@@ -461,10 +504,7 @@ const UnitListing = () => {
           </div>
 
           <div className="w-47.5 shrink-0">
-            <StatusDropdown
-              value={statusFilter}
-              onChange={setStatusFilter}
-            />
+            <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
           </div>
         </div>
 
@@ -474,17 +514,6 @@ const UnitListing = () => {
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
               Loading units…
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-sm text-red-500">
-              <span>{error}</span>
-              <button
-                type="button"
-                onClick={fetchUnits}
-                className="font-semibold underline cursor-pointer bg-transparent border-0"
-              >
-                Retry
-              </button>
             </div>
           ) : (
             <DataGrid
@@ -520,4 +549,3 @@ const UnitListing = () => {
 };
 
 export default UnitListing;
-

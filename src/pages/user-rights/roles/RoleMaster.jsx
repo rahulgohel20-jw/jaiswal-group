@@ -27,6 +27,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { useNavigate } from 'react-router';
 
 const PAGE_SIZE = 10;
@@ -257,11 +258,7 @@ const RoleMaster = () => {
           )}
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        <PageErrorAlert error={error} onRetry={fetchRoles} className="mb-4" />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
           <StatCard

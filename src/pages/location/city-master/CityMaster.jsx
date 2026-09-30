@@ -33,6 +33,7 @@ import {
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import AddCityModel from "./AddCityModel";
 import { useNavigate } from "react-router";
@@ -335,6 +336,8 @@ const CityMaster = () => {
           )}
         </div>
 
+        <PageErrorAlert error={error} onRetry={fetchCities} className="my-3" />
+
         {/* SEARCH */}
         <div className="bg-white pt-5">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -374,12 +377,6 @@ const CityMaster = () => {
           {loading && (
             <p className="p-4 text-sm text-gray-500">
               Loading cities...
-            </p>
-          )}
-
-          {error && (
-            <p className="p-4 text-sm text-red-600">
-              {error}
             </p>
           )}
 

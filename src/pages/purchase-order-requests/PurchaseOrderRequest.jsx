@@ -37,6 +37,7 @@ import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   Select,
   SelectContent,
@@ -619,14 +620,12 @@ const PurchaseOrderRequest = () => {
           )}
         </div>
 
-        {scopeError && (
-          <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || prError || poError}
+          onRetry={scopeError ? retryScope : () => {
+            fetchApprovedRequestsByOutlet(currentUnitId);
+          }}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-6">
           <StatCard
@@ -678,19 +677,6 @@ const PurchaseOrderRequest = () => {
 
           <MasterStatusDropdown value={activeGroup} onChange={setActiveGroup} />
         </div>
-
-        {error && (
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
-            <span>{error}</span>
-            <button
-              type="button"
-              onClick={loadData}
-              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-            >
-              Retry
-            </button>
-          </div>
-        )}
 
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
           {loading || scopeLoading ? (

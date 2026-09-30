@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -399,6 +400,11 @@ const UserManagementList = () => {
           )}
         </div>
 
+        <PageErrorAlert
+          error={loadError}
+          onRetry={fetchUsers}
+        />
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 my-4">
           {DATA.map((item) => (
             <div
@@ -462,19 +468,6 @@ const UserManagementList = () => {
             </div>
           </div>
         </div>
-        {loadError && (
-          <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{loadError}</span>
-            <button
-              type="button"
-              onClick={fetchUsers}
-              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-            >
-              Retry
-            </button>
-          </div>
-        )}
 
         <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
           {loading ? (

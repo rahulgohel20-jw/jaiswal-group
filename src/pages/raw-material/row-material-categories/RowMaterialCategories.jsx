@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import StatusConfirmModal from '@/utils/StatusConfirmModal';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -450,7 +451,7 @@ const RowMaterialCategories = () => {
           </span>
         </div>
 
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
           <div>
             <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
               Raw Material Category Master
@@ -463,6 +464,12 @@ const RowMaterialCategories = () => {
             </HeaderActionButton>
           )}
         </div>
+
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchCategories}
+          className="my-3"
+        />
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 py-4 text-[#43474F]">
@@ -553,7 +560,6 @@ const RowMaterialCategories = () => {
               Loading raw material categories...
             </p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
           <DataGrid
             table={table}
             recordCount={filteredCategories.length}

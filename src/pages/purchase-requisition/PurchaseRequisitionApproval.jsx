@@ -31,6 +31,7 @@ import {
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
 import { CodeCell } from "@/components/common/CodeCell";
+import { PageErrorAlert } from "@/components/common/PageErrorAlert";
 import {
   Select,
   SelectContent,
@@ -252,10 +253,10 @@ function ListView({ onApprove, onReject, onView }) {
     retry: retryScope,
   } = useOrgScope();
 
-  const { loading: prLoading, error: prError, requisitions } = useRequisitions(
+  const { loading: prLoading, error: prError, requisitions, reload: reloadPr } = useRequisitions(
     effectiveOutletId,
     filterRowsByScope,
-    scopeLoading
+    scopeLoading || Boolean(scopeError)
   );
 
   // Counts reflect whatever is currently loaded across all statuses.
@@ -418,14 +419,10 @@ function ListView({ onApprove, onReject, onView }) {
           </h1>
         </div>
 
-        {scopeError && (
-          <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || prError}
+          onRetry={scopeError ? retryScope : reloadPr}
+        />
 
         <div className="grid grid-cols-3 gap-4 mb-7">
           <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Send for approval" value={counts[PR_STATUS.SENT_FOR_APPROVAL] ?? 0} />
@@ -450,12 +447,7 @@ function ListView({ onApprove, onReject, onView }) {
           <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
         </div>
 
-        {prError && !scopeLoading && !prLoading && (
-          <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{prError}</span>
-          </div>
-        )}
+
 
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
           {(scopeLoading || prLoading) ? (

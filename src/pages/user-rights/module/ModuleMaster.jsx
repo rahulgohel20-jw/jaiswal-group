@@ -17,6 +17,7 @@ import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddModuleRightModal from './AddModuleRightModal';
 import { useNavigate } from 'react-router';
@@ -308,6 +309,8 @@ const ModuleMaster = () => {
           )}
         </div>
 
+        <PageErrorAlert error={error} onRetry={fetchModuleRights} className="mb-4" />
+
         {/* Search */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 my-4">
           <div className="relative w-full sm:w-80 border border-[#C3C6D1] rounded-lg">
@@ -332,7 +335,6 @@ const ModuleMaster = () => {
               Loading module rights...
             </p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
           <DataGrid
             table={table}
             recordCount={filteredModuleRights.length}

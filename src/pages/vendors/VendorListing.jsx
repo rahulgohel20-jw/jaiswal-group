@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -9,7 +10,7 @@ import {
   ChevronRight,
   Eye,
   Handshake,
-  Plus,
+  Loader2,
   Search,
   SquarePen,
   Trash2,
@@ -63,12 +64,15 @@ const StatCard = ({
   </div>
 );
 
+// Safe string helper so null/undefined API values never crash search or render
+const str = (val) => String(val ?? '');
+
 const VendorList = () => {
   const navigate = useNavigate();
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Vendors');
 
   const [vendors, setVendors] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
@@ -98,23 +102,37 @@ const VendorList = () => {
     fetchVendors();
   }, []);
 
+  const term = search.trim().toLowerCase();
+
   const filteredVendors = useMemo(
     () =>
-      vendors.filter((v) => {
-        const term = search.toLowerCase();
-        return (
-          v.name.toLowerCase().includes(term) ||
-          v.vendorCode.toLowerCase().includes(term) ||
-          v.emailid.toLowerCase().includes(term) ||
-          v.company.toLowerCase().includes(term)
-        );
-      }),
-    [vendors, search],
+      vendors.filter((v) =>
+        [v.name, v.vendorCode, v.emailid, v.company].some((field) =>
+          str(field).toLowerCase().includes(term),
+        ),
+      ),
+    [vendors, term],
   );
 
-  useEffect(() => {
+  // Vendors created in the current calendar month.
+  // Assumes mapVendorToRow exposes a `createdAt` date field; adjust the name if yours differs.
+  const onboardedThisMonth = useMemo(() => {
+    const now = new Date();
+    return vendors.filter((v) => {
+      if (!v.createdAt) return false;
+      const d = new Date(v.createdAt);
+      return (
+        !Number.isNaN(d.getTime()) &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear()
+      );
+    }).length;
+  }, [vendors]);
+
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [search]);
+  };
 
   const handleEdit = (vendor) => {
     navigate('/vendors/add-vendor', {
@@ -183,7 +201,7 @@ const VendorList = () => {
         cell: ({ row }) => (
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-blue-100 text-[#084E92] flex items-center justify-center text-xs font-semibold shrink-0">
-              {row.original.name.charAt(0).toUpperCase()}
+              {str(row.original.name).charAt(0).toUpperCase() || '?'}
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 leading-none truncate">
@@ -199,7 +217,7 @@ const VendorList = () => {
       },
       {
         id: 'email',
-        accessorFn: (row) => row.email,
+        accessorFn: (row) => row.emailid,
         header: ({ column }) => (
           <DataGridColumnHeader title="Email Address" column={column} />
         ),
@@ -209,7 +227,7 @@ const VendorList = () => {
             widthClass="max-w-[190px]"
           />
         ),
-        size: 140,
+        size: 200,
       },
       {
         id: 'mobile',
@@ -285,6 +303,7 @@ const VendorList = () => {
         size: 130,
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [canEdit, canDelete],
   );
 
@@ -301,18 +320,21 @@ const VendorList = () => {
   if (!canView) {
     return <AccessDenied pageTitle="Vendors" />;
   }
+
   return (
     <Container>
       <div className="mx-auto p-4">
+        {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
+          <Link to="/" className="hover:text-[#084E92]">
+            Dashboard
+          </Link>
           <ChevronRight size={12} />
           <span>Vendors</span>
           <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Vendor List
-          </span>
+          <span className="text-[#084E92] font-medium">Vendor List</span>
         </div>
+
         {/* Page header */}
         <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
@@ -326,6 +348,8 @@ const VendorList = () => {
             </HeaderActionButton>
           )}
         </div>
+
+        <PageErrorAlert error={error} onRetry={fetchVendors} />
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -341,7 +365,7 @@ const VendorList = () => {
             iconBg="bg-blue-50"
             iconColor="text-blue-500"
             label="Onboarding This Month"
-            value="+24"
+            value={`+${onboardedThisMonth}`}
             valueColor="text-blue-600"
           />
         </div>
@@ -356,34 +380,42 @@ const VendorList = () => {
             <input
               type="text"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
               placeholder="Search by vendor name, code, email..."
               className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
             />
           </div>
         </div>
-          
-      <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-        {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-        {loading && (
-          <p className="text-sm text-gray-400 mb-4">Loading vendors...</p>
-        )}
 
-        <DataGrid table={table} recordCount={filteredVendors.length}>
-          <Card className="rounded-t-none border-t-0">
-            <CardTable>
-              <ScrollArea>
-                <DataGridTable />
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </CardTable>
-            <CardFooter>
-              <DataGridPagination />
-            </CardFooter>
-          </Card>
-        </DataGrid>
+        {/* Table */}
+        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
+              <Loader2 size={16} className="animate-spin" />
+              Loading vendors…
+            </div>
+          ) : (
+            <DataGrid
+              table={table}
+              recordCount={filteredVendors.length}
+              tableLayout={{ columnsResizable: true }}
+            >
+              <Card className="rounded-t-none border-t-0">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+                <CardFooter>
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
+          )}
         </div>
       </div>
+
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
         onClose={closeDeleteConfirm}

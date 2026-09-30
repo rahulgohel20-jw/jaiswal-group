@@ -34,6 +34,7 @@ import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   deleteRawMaterialBrandById,
   getAllActiveRawMaterialBrand,
@@ -48,6 +49,8 @@ const RowMaterialBrandMaster = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Brand Master');
 
   const [brands, setBrands] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
   const [rowSelection, setRowSelection] = useState({});
@@ -64,6 +67,27 @@ const RowMaterialBrandMaster = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [activeBrandCount, setActiveBrandCount] = useState(0);
   const navigate = useNavigate();
+
+  const loadAll = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [brandRes, activeRes] = await Promise.all([
+        getAllRawMaterialBrand(),
+        getAllActiveRawMaterialBrand(),
+      ]);
+      const brandData = brandRes?.data?.data || [];
+      const activeBrands = activeRes?.data?.data || [];
+      setBrands(brandData);
+      setActiveBrandCount(activeBrands.length);
+    } catch (err) {
+      console.error('Failed to fetch raw material brands:', err);
+      setError('Failed to load raw material brands');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchBrands = async () => {
     try {
       const response = await getAllRawMaterialBrand();
@@ -87,8 +111,7 @@ const RowMaterialBrandMaster = () => {
   };
 
   useEffect(() => {
-    fetchBrands();
-    fetchActiveBrands();
+    loadAll();
   }, []);
 
   const handleAddClick = () => {
@@ -413,7 +436,7 @@ const RowMaterialBrandMaster = () => {
           </span>
         </div>
 
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-[#101828] text-start">
               Raw Material Brand Master
@@ -426,6 +449,8 @@ const RowMaterialBrandMaster = () => {
             </HeaderActionButton>
           )}
         </div>
+
+        <PageErrorAlert error={error} onRetry={loadAll} className="my-3" />
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 py-4 text-[#43474F]">

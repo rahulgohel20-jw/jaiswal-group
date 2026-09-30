@@ -41,6 +41,7 @@ import { OrgTypes } from '@/constants/orgTypes';
 import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   Dialog,
   DialogContent,
@@ -197,6 +198,8 @@ const ManualAdjustmentScreenListing = () => {
   // Role Scoping
   const {
     loading: scopeLoading,
+    error: scopeError,
+    retry: retryScope,
     isOutletUser,
     isCompanyUser,
     isGroupUser,
@@ -222,6 +225,7 @@ const ManualAdjustmentScreenListing = () => {
   // Table Data & Loading
   const [adjustments, setAdjustments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [postingId, setPostingId] = useState(null);
   const [bulkPosting, setBulkPosting] = useState(false);
 
@@ -339,7 +343,7 @@ const ManualAdjustmentScreenListing = () => {
 
   /* 3. Fetch Adjustment List from API */
   const fetchAdjustments = useCallback(async () => {
-    if (scopeLoading) return;
+    if (scopeLoading || scopeError) return;
 
     const activeOrgId = isOutletUser
       ? (effectiveOutletId || getOrgIdFromToken() || selectedOutletId)
@@ -354,6 +358,7 @@ const ManualAdjustmentScreenListing = () => {
     }
 
     setLoading(true);
+    setError(null);
     try {
       const params = {
         page: pagination.pageIndex,
@@ -455,12 +460,14 @@ const ManualAdjustmentScreenListing = () => {
       setAdjustments(mapped);
     } catch (err) {
       console.warn('Could not fetch live adjustments from API:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load adjustments');
       setAdjustments([]);
     } finally {
       setLoading(false);
     }
   }, [
     scopeLoading,
+    scopeError,
     pagination.pageIndex,
     pagination.pageSize,
     selectedOutletId,
@@ -472,8 +479,10 @@ const ManualAdjustmentScreenListing = () => {
   ]);
 
   useEffect(() => {
-    fetchAdjustments();
-  }, [fetchAdjustments]);
+    if (!scopeLoading && !scopeError) {
+      fetchAdjustments();
+    }
+  }, [fetchAdjustments, scopeLoading, scopeError]);
 
   /* Filter adjustments locally for responsive search & status matching */
   const filteredAdjustments = useMemo(() => {
@@ -944,6 +953,11 @@ const ManualAdjustmentScreenListing = () => {
             </div>
           )}
         </div>
+
+        <PageErrorAlert
+          error={scopeError || error}
+          onRetry={scopeError ? retryScope : fetchAdjustments}
+        />
 
         {/* Filter Toolbar (Aligned in single row like PurchaseRequisitionList) */}
         <div className="flex items-center gap-2.5 flex-wrap">

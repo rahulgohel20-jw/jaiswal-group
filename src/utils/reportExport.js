@@ -133,13 +133,20 @@ export const exportAndDownloadReport = async (payload, options = {}) => {
     return { success: false, error: new Error(failMsg) };
   } catch (err) {
     console.error('[exportAndDownloadReport] Error:', err);
+    const isNetworkError =
+      err?.code === 'ERR_NETWORK' ||
+      !err?.response ||
+      err?.message === 'Network Error' ||
+      (typeof err?.message === 'string' && err.message.toLowerCase().includes('network error'));
     const resolvedErrorMsg =
+      (isNetworkError ? 'Network Error' : null) ||
       err?.response?.data?.message ||
       err?.response?.data?.msg ||
       err?.message ||
       errorMessage;
 
-    if (showToast) toast.error(resolvedErrorMsg);
+    const toastId = isNetworkError ? 'network-error' : (typeof resolvedErrorMsg === 'string' ? `error-${resolvedErrorMsg}` : undefined);
+    if (showToast) toast.error(resolvedErrorMsg, toastId ? { id: toastId } : undefined);
     if (typeof onError === 'function') onError(err);
     return { success: false, error: err };
   }

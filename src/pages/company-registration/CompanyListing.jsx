@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { OrgTypes } from '@/constants/orgTypes';
 import { notify } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -375,6 +376,11 @@ const CompanyListing = () => {
           )}
         </div>
 
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchCompanies}
+        />
+
         {/* Search + status filter */}
         <div className="flex items-center gap-3 mb-5 flex-wrap">
           <div className="relative flex-1 min-w-[220px]">
@@ -399,17 +405,6 @@ const CompanyListing = () => {
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
               Loading companies…
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-sm text-red-500">
-              <span>{error}</span>
-              <button
-                type="button"
-                onClick={fetchCompanies}
-                className="font-semibold underline cursor-pointer bg-transparent border-0"
-              >
-                Retry
-              </button>
             </div>
           ) : (
             <DataGrid table={table} recordCount={filteredCompanies.length} className="rounded-2xl">

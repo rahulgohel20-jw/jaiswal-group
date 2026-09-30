@@ -34,6 +34,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -357,7 +358,7 @@ const RawMaterialTypeListing = () => {
                     <span className="text-[#084E92] font-medium">Raw Material Type</span>
                 </div>
 
-                <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
                     <div>
                         <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Raw Material Type Master</h1>
                     </div>
@@ -368,6 +369,8 @@ const RawMaterialTypeListing = () => {
                         </HeaderActionButton>
                     )}
                 </div>
+
+                <PageErrorAlert error={error} onRetry={fetchTypes} className="my-3" />
 
                 {/* Stat cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 py-4 text-[#43474F]">
@@ -425,7 +428,6 @@ const RawMaterialTypeListing = () => {
                 {/* Table */}
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl ">
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>

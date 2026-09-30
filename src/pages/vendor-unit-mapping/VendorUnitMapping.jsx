@@ -861,11 +861,8 @@ const VendorUnitMapping = () => {
         {/* Vendor Mapping Details */}
         {(canAdd || canEdit) && (
           <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-2xs mt-4 mb-6">
-            {unitsError && (
-              <p className="text-xs text-red-500 mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100">{unitsError}</p>
-            )}
-            {mappingsError && (
-              <p className="text-xs text-red-500 mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100">{mappingsError}</p>
+            {(unitsError || mappingsError) && (
+              <p className="text-xs text-red-500 mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100">{unitsError || mappingsError}</p>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_auto] gap-3.5 items-end">

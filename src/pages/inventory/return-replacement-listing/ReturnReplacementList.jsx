@@ -43,6 +43,7 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { CodeCell } from '@/components/common/CodeCell';
 import {
   Tooltip,
@@ -189,7 +190,7 @@ const ReturnReplacementList = () => {
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const fetchReturnReplacements = useCallback(async () => {
-    if (scopeLoading) return;
+    if (scopeLoading || scopeError) return;
     setLoading(true);
     setError(null);
     try {
@@ -269,16 +270,17 @@ const ReturnReplacementList = () => {
       setRecords(list);
     } catch (err) {
       console.error('Failed to fetch return & replacement records:', err);
-      setError(err?.message || 'Failed to load return & replacement records.');
-      toast.error('Failed to load return & replacement records');
+      setError(err?.response?.data?.message || err?.message || 'Failed to load return & replacement records.');
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, effectiveOutletId, statusFilter, units]);
+  }, [scopeLoading, scopeError, effectiveOutletId, statusFilter, units]);
 
   useEffect(() => {
-    fetchReturnReplacements();
-  }, [fetchReturnReplacements]);
+    if (!scopeLoading && !scopeError) {
+      fetchReturnReplacements();
+    }
+  }, [fetchReturnReplacements, scopeLoading, scopeError]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -674,14 +676,10 @@ const ReturnReplacementList = () => {
           </p> */}
         </div>
 
-        {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0 cursor-pointer">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || error}
+          onRetry={scopeError ? retryScope : fetchReturnReplacements}
+        />
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -764,7 +762,6 @@ const ReturnReplacementList = () => {
               Loading records...
             </div>
           )}
-          {error && !loading && <p className="p-6 text-center text-sm text-red-600">{error}</p>}
 
           {!loading && (
             <DataGrid

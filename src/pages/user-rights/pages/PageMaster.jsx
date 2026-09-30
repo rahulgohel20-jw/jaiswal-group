@@ -16,6 +16,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddPageModal from './AddPageModal';
 import { useNavigate } from 'react-router';
@@ -279,6 +280,8 @@ const PageMaster = () => {
           <h1 className="font-bold text-[#101828] text-[20px]">Page Master</h1>
         </div>
 
+        <PageErrorAlert error={error} onRetry={fetchPages} className="mb-4" />
+
         {/* Search + Add Page */}
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-4">
           <div className="relative w-full sm:w-80 border border-[#C3C6D1] rounded-lg">
@@ -312,7 +315,6 @@ const PageMaster = () => {
           {loading && (
             <p className="p-4 text-sm text-gray-500">Loading pages...</p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
           <DataGrid
             table={table}
             recordCount={filteredPages.length}

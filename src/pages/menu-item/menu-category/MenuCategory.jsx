@@ -28,6 +28,7 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import CreateMenuCategory from './CreateMenuCategory';
 import { useNavigate } from 'react-router';
 
@@ -351,6 +352,8 @@ const MenuCategory = () => {
           </HeaderActionButton>
         </div>
 
+        <PageErrorAlert error={error} onRetry={fetchCategories} className="my-3" />
+
         <div className="bg-white mt-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="relative w-full md:w-100">
@@ -378,7 +381,6 @@ const MenuCategory = () => {
           {loading && (
             <p className="p-4 text-sm text-gray-500">Loading categories...</p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
           <DataGrid
             table={table}
             recordCount={filteredCategories.length}

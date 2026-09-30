@@ -26,6 +26,7 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { getOrgIdFromToken } from '../../../utils/auth';
 import CreateCaptainRecipe from './CreateCaptainRecipe';
 import { deleteCaptainRecipeById, getCaptainRecipeById, syncCaptainRecipes, updateCaptainRecipeStatus } from '../../../services/apiServices';
@@ -416,6 +417,8 @@ const CaptainRecipeList = () => {
                     </div>
                 </div>
 
+                <PageErrorAlert error={error} onRetry={fetchRecipes} className="my-3" />
+
                 <div className="bg-white mt-4">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                         <div className="relative w-full md:w-96">
@@ -438,7 +441,6 @@ const CaptainRecipeList = () => {
                     {loading && (
                         <p className="p-4 text-sm text-gray-500">Loading captain recipes...</p>
                     )}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <DataGrid
                         table={table}
                         recordCount={filteredRecipes.length}

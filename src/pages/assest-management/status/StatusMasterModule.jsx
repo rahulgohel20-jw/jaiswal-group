@@ -34,6 +34,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -399,6 +400,9 @@ const StatusMasterModule = () => {
                         </HeaderActionButton>
                     )}
                 </div>
+
+                <PageErrorAlert error={listError} onRetry={loadStatus} className="my-3" />
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 mt-6">
                     {STATS.map((item, index) => {
                         const Icon = item.icon;
@@ -471,12 +475,6 @@ const StatusMasterModule = () => {
                         </div>
                     </div>
                 </div>
-
-                {listError && (
-                    <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
-                        {listError}
-                    </div>
-                )}
 
                 {/* Table */}
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">

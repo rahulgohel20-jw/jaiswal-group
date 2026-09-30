@@ -28,6 +28,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -128,6 +129,7 @@ const [deleteSaving, setDeleteSaving] = useState(false);
             setSubCategories(list.map((c) => mapSubCategory(c, cats)));
         } catch (err) {
             console.error(err);
+            setError('Failed to load sub categories');
             notify.error('Failed to load sub category.');
         } finally {
             setLoading(false);
@@ -347,6 +349,8 @@ const confirmDelete = async () => {
                 )}
             </div>
 
+            <PageErrorAlert error={error} onRetry={fetchAll} className="my-3" />
+
             {/* Stat cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 py-4 text-[#43474F]">
                 {STATS.map((item) => (
@@ -400,7 +404,7 @@ const confirmDelete = async () => {
 
                                     {[...new Set(
                                         subCategories
-                                            .map(item => item.parentCategory)
+                                             .map(item => item.parentCategory)
                                             .filter(Boolean)
                                     )].map((category) => (
                                         <SelectItem
@@ -448,7 +452,6 @@ const confirmDelete = async () => {
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                 <DataGrid table={table} recordCount={filteredSubCategories.length} className="rounded-2xl">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
                         <CardTable>
                             <ScrollArea>
@@ -462,9 +465,6 @@ const confirmDelete = async () => {
                     </Card>
                 </DataGrid>
             </div>
-
-            {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
-            {error && <p className="p-4 text-sm text-red-600">{error}</p>}
 
             <AddSubCategoryModal
                 isOpen={showAddSubCategory}

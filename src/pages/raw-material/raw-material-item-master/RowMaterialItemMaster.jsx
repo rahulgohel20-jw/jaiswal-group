@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 import { useNavigate } from 'react-router';
 import HeaderActionButton from '../../../components/common/HeaderActionButton';
@@ -481,7 +482,7 @@ const RowMaterialItemMaster = () => {
                     <span className="text-[#084E92] font-medium">Raw Material Items</span>
                 </div>
 
-                <div className="flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
                     <div>
                         <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
                             Raw Material Items Master
@@ -496,6 +497,8 @@ const RowMaterialItemMaster = () => {
                         </HeaderActionButton>
                     )}
                 </div>
+
+                <PageErrorAlert error={error} onRetry={fetchRawMaterialList} className="my-3" />
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 mt-4">
                     {STATS.map((item) => (
@@ -585,7 +588,6 @@ const RowMaterialItemMaster = () => {
                 {/* Table */}
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <DataGrid table={table} recordCount={totalItems} className="rounded-2xl">
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>

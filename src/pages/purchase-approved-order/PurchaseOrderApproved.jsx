@@ -41,6 +41,7 @@ import {
 } from '@tanstack/react-table';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { ExportReportModal } from './ExportReportModal';
 import { ClosePurchaseOrderModal } from './ClosePurchaseOrderModal';
 import {
@@ -246,16 +247,16 @@ const PurchaseOrderApproval = () => {
   }, [statusFilter]);
 
   const loadData = () => {
-    if (scopeLoading) return;
+    if (scopeLoading || scopeError) return;
     fetchByOutletandStatus(currentUnitId, targetStatus);
   };
 
   useEffect(() => {
-    if (!scopeLoading) {
+    if (!scopeLoading && !scopeError) {
       loadData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeLoading, currentUnitId, targetStatus]);
+  }, [scopeLoading, scopeError, currentUnitId, targetStatus]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -641,14 +642,10 @@ const PurchaseOrderApproval = () => {
           </div>
         </div>
 
-        {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0 cursor-pointer">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || poError}
+          onRetry={scopeError ? retryScope : loadData}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 my-7">
           <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Sent for approval" value={counts[PO_STATUS.SENT_FOR_APPROVAL] ?? 0} />
@@ -673,13 +670,6 @@ const PurchaseOrderApproval = () => {
           )}
           <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
         </div>
-
-        {poError && !scopeLoading && !poLoading && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{poError}</span>
-          </div>
-        )}
 
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-sm">
           {scopeLoading || poLoading ? (

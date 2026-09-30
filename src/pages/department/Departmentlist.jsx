@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   Boxes,
   ChevronLeft,
@@ -260,11 +261,10 @@ const Departmentlist = () => {
           )}
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchDepartments}
+        />
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
           <StatCard

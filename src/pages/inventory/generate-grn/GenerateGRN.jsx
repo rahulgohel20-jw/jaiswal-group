@@ -31,6 +31,7 @@ import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { CodeCell } from '@/components/common/CodeCell';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 const STATUS_STYLES = {
   Approved: 'bg-emerald-50 text-emerald-600',
@@ -170,7 +171,7 @@ const GenerateGRN = () => {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
   const loadData = useCallback(async () => {
-    if (scopeLoading) return;
+    if (scopeLoading || scopeError) return;
     setLoading(true);
     setPoError(null);
     try {
@@ -266,7 +267,7 @@ const GenerateGRN = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, effectiveOutletId, statusFilter, filterRowsByScope]);
+  }, [scopeLoading, scopeError, effectiveOutletId, statusFilter, filterRowsByScope]);
 
   useEffect(() => {
     loadData();
@@ -629,14 +630,10 @@ const GenerateGRN = () => {
           </div>
         )}
 
-        {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || poError}
+          onRetry={scopeError ? retryScope : loadData}
+        />
 
         {/* Search + unit dropdown + status dropdown */}
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -657,18 +654,7 @@ const GenerateGRN = () => {
           <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
         </div>
 
-        {poError && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 text-xs text-[#C0293D]">
-            <span>{poError}</span>
-            <button
-              type="button"
-              onClick={loadData}
-              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-            >
-              Retry
-            </button>
-          </div>
-        )}
+
 
         {/* Table card (Maximized height for comfortable viewing) */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">

@@ -39,6 +39,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { CodeCell } from '@/components/common/CodeCell';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getTransferList,
   deleteDraftTransfer,
@@ -183,6 +184,7 @@ const StockTransfer = () => {
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
@@ -215,6 +217,8 @@ const StockTransfer = () => {
   // Scope hooks
   const {
     loading: scopeLoading,
+    error: scopeError,
+    retry: retryScope,
     orgType,
     isOutletUser,
     isCompanyUser,
@@ -301,7 +305,9 @@ const StockTransfer = () => {
 
   // Fetch Transfers from API
   const fetchTransfers = useCallback(async () => {
+    if (scopeLoading || scopeError) return;
     setLoading(true);
+    setError(null);
     try {
       const params = {};
       if (isOutletUser && effectiveOutletId) {
@@ -394,18 +400,18 @@ const StockTransfer = () => {
       setTransfers(normalized);
     } catch (err) {
       console.error('Failed to fetch stock transfers:', err);
-      // Fallback empty list if error
+      setError(err?.response?.data?.message || err?.message || 'Failed to load stock transfers');
       setTransfers([]);
     } finally {
       setLoading(false);
     }
-  }, [isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId]);
+  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId]);
 
   useEffect(() => {
-    if (!scopeLoading) {
+    if (!scopeLoading && !scopeError) {
       fetchTransfers();
     }
-  }, [fetchTransfers, scopeLoading]);
+  }, [fetchTransfers, scopeLoading, scopeError]);
 
   // Counts for stat cards
   const stats = useMemo(() => {
@@ -775,6 +781,11 @@ const StockTransfer = () => {
             </HeaderActionButton>
           )}
         </div>
+
+        <PageErrorAlert
+          error={scopeError || error}
+          onRetry={scopeError ? retryScope : fetchTransfers}
+        />
 
         {/* Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -37,6 +37,7 @@
   import { usePagePermissions } from '@/utils/permissions';
   import { AccessDenied } from '@/components/common/AccessDenied';
   import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { CodeCell } from '@/components/common/CodeCell';
 import {
   Select,
@@ -234,7 +235,7 @@ import {
     const [deleteSaving, setDeleteSaving] = useState(false);
 
     const loadData = useCallback(async () => {
-      if (scopeLoading) return;
+      if (scopeLoading || scopeError) return;
       setLoading(true);
       setPrError(null);
       try {
@@ -248,7 +249,7 @@ import {
       } finally {
         setLoading(false);
       }
-    }, [scopeLoading, effectiveOutletId, filterRowsByScope]);
+    }, [scopeLoading, scopeError, effectiveOutletId, filterRowsByScope]);
 
     useEffect(() => {
       loadData();
@@ -472,14 +473,10 @@ import {
             )}
           </div>
 
-          {scopeError && (
-            <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-              <span className="text-sm text-[#C0293D]">{scopeError}</span>
-              <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
-                Retry
-              </button>
-            </div>
-          )}
+          <PageErrorAlert
+            error={scopeError || prError}
+            onRetry={scopeError ? retryScope : loadData}
+          />
 
           {/* Search + unit dropdown + status dropdown, aligned in one row */}
           <div className="flex items-center gap-3 mb-5 flex-wrap">
@@ -500,18 +497,7 @@ import {
             <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
           </div>
 
-          {prError && (
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
-              <span>{prError}</span>
-              <button
-                type="button"
-                onClick={loadData}
-                className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-              >
-                Retry
-              </button>
-            </div>
-          )}
+
 
           <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
             {loading || scopeLoading ? (

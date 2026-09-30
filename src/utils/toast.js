@@ -1,6 +1,14 @@
 import { toast } from "sonner";
 
 export const getApiErrorMessage = (err, fallback = 'Something went wrong. Please try again.') => {
+  if (typeof err === 'string') return err;
+  const isNetworkError =
+    err?.code === 'ERR_NETWORK' ||
+    (err?.name === 'AxiosError' && !err?.response) ||
+    err?.message === 'Network Error' ||
+    (typeof err?.message === 'string' && err.message.toLowerCase().includes('network error'));
+  if (isNetworkError) return 'Network Error';
+
   const data = err?.response?.data;
   if (data) {
     if (data.errorMessage) return data.errorMessage;
@@ -17,13 +25,33 @@ export const getApiErrorMessage = (err, fallback = 'Something went wrong. Please
 };
 
 export const notify = {
-  success: (message) => toast.success(message),
-  error: (errOrMessage, fallback) => {
-    if (typeof errOrMessage === 'string') {
-      return toast.error(errOrMessage);
-    }
-    return toast.error(getApiErrorMessage(errOrMessage, fallback));
+  success: (message, options = {}) => {
+    const id = options?.id || (typeof message === 'string' ? `success-${message}` : undefined);
+    return toast.success(message, id ? { id, ...options } : options);
   },
-  warning: (message) => toast.warning(message),
-  info: (message) => toast.info(message),
+  error: (errOrMessage, fallback, options = {}) => {
+    let msg;
+    let isNetErr = false;
+    if (typeof errOrMessage === 'string') {
+      msg = errOrMessage;
+      if (msg.toLowerCase().includes('network error')) isNetErr = true;
+    } else {
+      isNetErr =
+        errOrMessage?.code === 'ERR_NETWORK' ||
+        (errOrMessage?.name === 'AxiosError' && !errOrMessage?.response) ||
+        errOrMessage?.message === 'Network Error' ||
+        (typeof errOrMessage?.message === 'string' && errOrMessage.message.toLowerCase().includes('network error'));
+      msg = getApiErrorMessage(errOrMessage, fallback);
+    }
+    const toastId = options?.id || (isNetErr ? 'network-error' : (typeof msg === 'string' ? `error-${msg}` : undefined));
+    return toast.error(msg, toastId ? { id: toastId, ...options } : options);
+  },
+  warning: (message, options = {}) => {
+    const id = options?.id || (typeof message === 'string' ? `warning-${message}` : undefined);
+    return toast.warning(message, id ? { id, ...options } : options);
+  },
+  info: (message, options = {}) => {
+    const id = options?.id || (typeof message === 'string' ? `info-${message}` : undefined);
+    return toast.info(message, id ? { id, ...options } : options);
+  },
 };

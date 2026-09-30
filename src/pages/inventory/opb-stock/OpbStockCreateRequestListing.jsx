@@ -17,6 +17,7 @@ import OpbStockRequestDetailsModal from './OpbStockRequestDetailsModal';
 import { getEmployeeById, getOpbById, getOpbList } from '../../../services/apiServices';
 import { useOrgScope } from '../../../hooks/useOrgScope';
 import HeaderActionButton from '../../../components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 const StatusBadge = ({ status }) => {
     const map = {
@@ -50,6 +51,8 @@ const OpbStockCreateRequestListing = () => {
 
     const {
         loading: orgScopeLoading,
+        error: orgScopeError,
+        retry: retryScope,
         isOutletUser,
         isCompanyUser,
         effectiveOutletId,
@@ -76,6 +79,7 @@ const OpbStockCreateRequestListing = () => {
 
     const [allRequests, setAllRequests] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     const [searchInput, setSearchInput] = useState('');
     const [search, setSearch] = useState('');
@@ -130,7 +134,9 @@ const OpbStockCreateRequestListing = () => {
         })();
     }, [allRequests]);
     const fetchAllOpb = useCallback(async () => {
+        if (orgScopeLoading || orgScopeError) return;
         setLoading(true);
+        setError(null);
 
         try {
             const probe = await getOpbList({ pageNo: 1, pageSize: 1 });
@@ -146,15 +152,18 @@ const OpbStockCreateRequestListing = () => {
             setAllRequests(response?.data?.data || []);
         } catch (error) {
             console.error('Failed to load OPB list:', error);
+            setError(error?.response?.data?.message || error?.message || 'Failed to load OPB list');
             setAllRequests([]);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [orgScopeLoading, orgScopeError]);
 
     useEffect(() => {
-        fetchAllOpb();
-    }, [fetchAllOpb]);
+        if (!orgScopeLoading && !orgScopeError) {
+            fetchAllOpb();
+        }
+    }, [fetchAllOpb, orgScopeLoading, orgScopeError]);
 
     const filteredRequests = useMemo(() => {
         if (orgScopeLoading) return [];
@@ -449,6 +458,11 @@ const OpbStockCreateRequestListing = () => {
                         OPB Stock Request
                     </HeaderActionButton>
                 </div>
+
+                <PageErrorAlert
+                    error={orgScopeError || error}
+                    onRetry={orgScopeError ? retryScope : fetchAllOpb}
+                />
 
                 {/* Search + create */}
                 <div className="flex md:items-center md:justify-between md:flex-row flex-col gap-4 my-4">

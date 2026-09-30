@@ -32,6 +32,7 @@ import {
   getOrganizationByType,
 } from "../../services/apiServices";
 import { notify } from "@/utils/toast";
+import { PageErrorAlert } from "@/components/common/PageErrorAlert";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
   Select,
@@ -419,6 +420,11 @@ const SubUnitListing = () => {
           )}
         </div>
 
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchSubUnits}
+        />
+
         {/* Search + Unit + Status filter */}
         <div className="flex items-center gap-3 mb-5 flex-wrap">
           {/* Search */}
@@ -466,17 +472,6 @@ const SubUnitListing = () => {
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
               Loading sub units…
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-sm text-red-500">
-              <span>{error}</span>
-              <button
-                type="button"
-                onClick={fetchSubUnits}
-                className="font-semibold underline cursor-pointer bg-transparent border-0"
-              >
-                Retry
-              </button>
             </div>
           ) : (
             <DataGrid

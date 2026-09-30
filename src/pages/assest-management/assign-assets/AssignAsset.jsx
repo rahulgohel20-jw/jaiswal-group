@@ -52,6 +52,7 @@ import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 // Safely pulls the array out of a response, regardless of whether the
 // service resolves to the raw axios response, an already-unwrapped
@@ -737,11 +738,7 @@ const AssignAssets = () => {
           )}
         </div>
 
-        {loadError && (
-          <div className="mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-2">
-            {loadError}
-          </div>
-        )}
+        <PageErrorAlert error={loadError} onRetry={loadAll} className="my-3" />
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 py-4 text-[#43474F]">

@@ -16,6 +16,7 @@ import { getAllStates, deleteStateById } from '../../../services/apiServices';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddStateModel from './AddStateModel';
 import { useNavigate } from 'react-router';
@@ -249,6 +250,8 @@ const StateMaster = () => {
                     )}
                 </div>
 
+                <PageErrorAlert error={error} onRetry={fetchStates} className="my-3" />
+
                 <div className="bg-white pt-5">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div className="relative w-full md:w-96">
@@ -284,7 +287,6 @@ const StateMaster = () => {
                             Loading states...
                         </p>
                     )}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <DataGrid
                         table={table}
                         recordCount={filteredStates.length}
