@@ -1891,13 +1891,14 @@ const CreateMenuItem = () => {
                                                 disabled={rawMaterialLoading}
                                             />
                                         </div>
+                                        <Link to={'/material/items/add'}>
                                         <button
                                             type="button"
-                                            onClick={() => setOpenRawMaterialItem(true)}
                                             className="w-10 h-10 bg-[#084E92] rounded-lg cursor-pointer text-white flex items-center justify-center shrink-0"
                                         >
                                             <Plus size={18} />
                                         </button>
+                                        </Link>
                                     </div>
                                 </div>
 
@@ -2213,11 +2214,6 @@ const CreateMenuItem = () => {
                     isCaptainRecipe={isCaptainRecipe}
                     onCopy={handleCopyIngredients}
 
-                />
-                <AddRawMaterialItemModal
-                    isOpen={openRawMaterialItem}
-                    fetchRawMaterialList={fetchRawMaterialCatalog}
-                    onClose={() => setOpenRawMaterialItem(false)}
                 />
 
                 <DeleteConfirmModal
