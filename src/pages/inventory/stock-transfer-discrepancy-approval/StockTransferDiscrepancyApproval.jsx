@@ -285,12 +285,12 @@ const StockTransferDiscrepancyApproval = () => {
       {
         id: 'index',
         header: ({ column }) => (
-          <DataGridColumnHeader title="SR." column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 font-semibold text-xs">{String(row.original.index).padStart(2, '0')}</span>
+          <span className="text-gray-500 font-semibold text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
-        size: 55,
+        size: 70,
       },
       {
         id: 'transferCode',

@@ -242,6 +242,17 @@ const confirmDelete = async () => {
 
     const columns = useMemo(() => [
         {
+            id: "sno",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => (
+                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+            ),
+            enableSorting: false,
+            size: 70,
+        },
+        {
             id: "parentCategory",
             accessorFn: (row) => row.parentCategory,
             header: ({ column }) => (
@@ -263,17 +274,7 @@ const confirmDelete = async () => {
             ),
             size: 190,
         },
-        {
-            id: "description",
-            accessorFn: (row) => row.description,
-            header: ({ column }) => (
-                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold" />
-            ),
-            cell: ({ row }) => (
-                <span className="text-gray-500 py-1 line-clamp-1">{row.original.description}</span>
-            ),
-            size: 300,
-        },
+
         {
             id: "status",
             accessorFn: (row) => row.status,

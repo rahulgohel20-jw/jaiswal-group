@@ -216,7 +216,7 @@ export default function ListView({ onOpen }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#F9FAFC] border-b border-[#E7EAF0]">
-              {["PR Code", "Date", "Raised by", "Outlet name", "Status", "Actions"].map(
+              {["S.No", "PR Code", "Date", "Raised by", "Outlet name", "Status", "Actions"].map(
                 (h) => (
                   <th
                     key={h}
@@ -237,6 +237,9 @@ export default function ListView({ onOpen }) {
                   i !== filtered.length - 1 ? "border-b border-[#EFF1F5]" : ""
                 }`}
               >
+                <td className="px-5 py-4 text-gray-500">
+                  {String(i + 1).padStart(2, '0')}
+                </td>
                 <td className="px-5 py-4">
                   <span
                     className="font-semibold text-[#2952E3] text-[13px]"

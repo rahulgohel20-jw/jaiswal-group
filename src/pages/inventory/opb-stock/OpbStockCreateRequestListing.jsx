@@ -213,7 +213,7 @@ const OpbStockCreateRequestListing = () => {
                 id: 'srNo',
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="Sr. No."
+                        title="S.NO"
                         column={column}
                         className="text-[#43474F] font-semibold uppercase text-sm"
                     />

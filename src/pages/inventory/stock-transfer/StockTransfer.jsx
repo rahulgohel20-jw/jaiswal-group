@@ -526,6 +526,18 @@ const StockTransfer = () => {
   const columns = useMemo(
     () => [
       {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="S.NO" column={column} className="text-xs font-bold" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 70,
+        minSize: 60,
+      },
+      {
         id: 'transferCode',
         accessorFn: (row) => row.transferCode,
         header: ({ column }) => (

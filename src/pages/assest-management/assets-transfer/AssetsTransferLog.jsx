@@ -156,6 +156,17 @@ const AssetsTransferLog = () => {
 
     const columns = [
         {
+            id: "sno",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} />
+            ),
+            cell: ({ row }) => (
+                <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+            ),
+            enableSorting: false,
+            size: 70,
+        },
+        {
             accessorKey: "transferId",
             header: ({ column }) => (
                 <DataGridColumnHeader title="TRANSFER ID" column={column} />

@@ -296,6 +296,18 @@ function ListView({ onApprove, onReject, onView }) {
   const columns = useMemo(
     () => [
       {
+        id: "sno",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 70,
+        minSize: 60,
+      },
+      {
         id: "code",
         accessorFn: (row) => row.code,
         header: ({ column }) => (

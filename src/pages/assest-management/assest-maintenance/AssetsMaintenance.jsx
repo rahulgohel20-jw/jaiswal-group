@@ -228,6 +228,15 @@ const AssetsMaintenance = () => {
 
     const columns = [
         {
+            id: "sno",
+            header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />,
+            cell: ({ row }) => (
+                <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+            ),
+            enableSorting: false,
+            size: 70,
+        },
+        {
             accessorKey: "assetId",
             header: ({ column }) => <DataGridColumnHeader title="ASSET IDENTITY" column={column} className="text-[#43474F] font-semibold" />,
             cell: ({ row }) => (

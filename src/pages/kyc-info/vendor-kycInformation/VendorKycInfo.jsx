@@ -55,6 +55,22 @@ const VendorKycInfo = () => {
   const columns = useMemo(
     () => [
       {
+        id: "sno",
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.NO"
+            column={column}
+            className="px-4 uppercase text-xs font-semibold text-[#43474F]"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2 px-4">{String(row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 70,
+        minSize: 60,
+      },
+      {
         id: "kycType",
         accessorFn: (row) => row.kycType,
         header: ({ column }) => (

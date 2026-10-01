@@ -207,6 +207,17 @@ const confirmDelete = async () => {
     ];
     const columns = useMemo(() => [
         {
+            id: "sno",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => (
+                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+            ),
+            enableSorting: false,
+            size: 70,
+        },
+        {
             accessorKey: "assetType",
             header: ({ column }) => (
                 <DataGridColumnHeader title="ASSET TYPE" column={column} className="text-[#43474F] font-semibold" />
@@ -214,16 +225,7 @@ const confirmDelete = async () => {
             cell: ({ row }) => <TypeBadge type={row.original.name} />,
             size: 150,
         },
-        {
-            accessorKey: "description",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold my-2.5" />
-            ),
-            cell: ({ row }) => (
-                <TruncatedCell value={row.original.description} widthClass="max-w-[220px]" />
-            ),
-            size: 220,
-        },
+
         {
             accessorKey: "status",
             header: ({ column }) => (

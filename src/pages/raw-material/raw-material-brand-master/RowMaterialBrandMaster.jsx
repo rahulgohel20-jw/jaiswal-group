@@ -319,21 +319,7 @@ const RowMaterialBrandMaster = () => {
           </span>
         ),
       },
-      {
-        accessorKey: 'description',
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="DESCRIPTION"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
-          />
-        ),
-        cell: ({ row }) => (
-          <span className="text-[#1B1B1F] capitalize">
-            {row.original.description}
-          </span>
-        ),
-      },
+
       {
         id: 'status',
         accessorFn: (row) => row.active,

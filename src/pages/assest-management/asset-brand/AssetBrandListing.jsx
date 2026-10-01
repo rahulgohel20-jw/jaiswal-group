@@ -211,6 +211,17 @@ const AssetBrandListing = () => {
 
     const columns = useMemo(() => [
         {
+            id: "sno",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
+            ),
+            cell: ({ row }) => (
+                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+            ),
+            enableSorting: false,
+            size: 70,
+        },
+        {
             id: "name",
             accessorFn: (row) => row.name,
             header: ({ column }) => (
@@ -221,17 +232,7 @@ const AssetBrandListing = () => {
             ),
             size: 190,
         },
-        {
-            id: "description",
-            accessorFn: (row) => row.description,
-            header: ({ column }) => (
-                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold" />
-            ),
-            cell: ({ row }) => (
-                <span className="text-gray-500 py-1 line-clamp-1 first-letter:uppercase">{row.original.description}</span>
-            ),
-            size: 320,
-        },
+
         {
             id: "status",
             accessorFn: (row) => row.status,

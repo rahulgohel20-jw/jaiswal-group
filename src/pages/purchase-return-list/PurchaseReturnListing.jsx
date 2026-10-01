@@ -150,6 +150,15 @@ const PurchaseReturnList = () => {
   const columns = useMemo(
     () => [
       {
+        id: "sno",
+        header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} />,
+        cell: ({ row }) => (
+          <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 70,
+      },
+      {
         id: "invoiceNo",
         accessorFn: (row) => row.invoiceNo,
         header: ({ column }) => <DataGridColumnHeader title="Invoice No." column={column} />,

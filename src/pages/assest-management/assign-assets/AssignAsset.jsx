@@ -506,6 +506,21 @@ const AssignAssets = () => {
 
   const columns = useMemo(() => [
     {
+      id: 'sno',
+      header: ({ column }) => (
+        <DataGridColumnHeader
+          title="S.NO"
+          column={column}
+          className="text-[#43474F] font-semibold my-3"
+        />
+      ),
+      cell: ({ row }) => (
+        <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+      ),
+      enableSorting: false,
+      size: 70,
+    },
+    {
       id: 'assignmentId',
       accessorFn: (row) => row.assignmentId,
       header: ({ column }) => (

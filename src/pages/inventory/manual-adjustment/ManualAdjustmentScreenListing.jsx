@@ -698,7 +698,7 @@ const ManualAdjustmentScreenListing = () => {
       {
         id: 'srNo',
         header: ({ column }) => (
-          <DataGridColumnHeader title="SR. NO." column={column} className="text-xs" />
+          <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <span className="text-gray-500 font-mono text-xs">

@@ -329,6 +329,7 @@ const AssetItemsList = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs uppercase text-gray-500 border-b">
+                  <th className="px-4 py-3 font-medium">S.NO</th>
                   <SortableHeader label="Asset Name" sortKey="name" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader label="Category" sortKey="category" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader
@@ -337,7 +338,6 @@ const AssetItemsList = () => {
                     sortConfig={sortConfig}
                     onSort={handleSort}
                   />
-                  <th className="px-4 py-3 font-medium">Description</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
                 </tr>
@@ -350,20 +350,17 @@ const AssetItemsList = () => {
                     </td>
                   </tr>
                 ) : (
-                  pageItems.map((item) => (
+                  pageItems.map((item, idx) => (
                     <tr key={item.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-500">
+                        {String(pageStart + idx + 1).padStart(2, '0')}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="font-semibold text-primary">{item.name}</div>
                         <div className="text-xs text-gray-400">{item.id}</div>
                       </td>
                       <td className="px-4 py-3 text-gray-700 font-medium">{item.category}</td>
                       <td className="px-4 py-3 text-gray-600">{item.subCategory}</td>
-                      <td
-                        className="px-4 py-3 text-gray-500 max-w-xs truncate"
-                        title={item.description}
-                      >
-                        {item.description || '—'}
-                      </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={item.status} />
                       </td>

@@ -204,7 +204,7 @@ const CaptainRecipeList = () => {
                 id: 'srNo',
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="SR NO"
+                        title="S.NO"
                         column={column}
                         className="text-[#43474F] font-semibold"
                     />

@@ -159,6 +159,15 @@ const AssetsDisposalLog = () => {
     const columns = useMemo(
         () => [
             {
+                id: "sno",
+                header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} />,
+                cell: ({ row }) => (
+                    <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+                ),
+                enableSorting: false,
+                size: 70,
+            },
+            {
                 accessorKey: "assetId",
                 header: ({ column }) => <DataGridColumnHeader title="ASSET ID" column={column} />,
                 cell: ({ row }) => <span className="font-semibold text-[#0B5CAB]">{row.original.assetId}</span>,
