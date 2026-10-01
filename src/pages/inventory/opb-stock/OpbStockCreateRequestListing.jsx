@@ -17,7 +17,9 @@ import OpbStockRequestDetailsModal from './OpbStockRequestDetailsModal';
 import { getEmployeeById, getOpbById, getOpbList } from '../../../services/apiServices';
 import { useOrgScope } from '../../../hooks/useOrgScope';
 import HeaderActionButton from '../../../components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { SearchBar } from '@/components/common/SearchBar';
 
 const StatusBadge = ({ status }) => {
     const map = {
@@ -439,49 +441,32 @@ const OpbStockCreateRequestListing = () => {
 
     return (
         <Container>
-            <div className="py-1 md:py-2 pb-6 space-y-4">
-                <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Inventory</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">OPB Stock Create Request</span>
-                </div>
-
-                <div className="flex md:flex-row flex-col md:items-center justify-between gap-3">
-                    <h1 className="text-xl font-bold text-[#0F172A]">OPB Stock Create Request Listing</h1>
-
-                    <HeaderActionButton
-                        to="/inventory/opb-stock-create-request"
-                        icon={Plus}
-                    >
-                        OPB Stock Request
-                    </HeaderActionButton>
-                </div>
+            <div className="pt-2 pb-6 space-y-3.5">
+                <PageHeader
+                    title="OPB Stock Create Request Listing"
+                    actions={
+                        <HeaderActionButton
+                            to="/inventory/opb-stock-create-request"
+                            icon={Plus}
+                        >
+                            OPB Stock Request
+                        </HeaderActionButton>
+                    }
+                />
 
                 <PageErrorAlert
                     error={orgScopeError || error}
                     onRetry={orgScopeError ? retryScope : fetchAllOpb}
                 />
 
-                {/* Search + create */}
-                <div className="flex md:items-center md:justify-between md:flex-row flex-col gap-4 my-4">
-                    <div className="relative w-full max-w-2xl">
-                        <Search
-                            size={18}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        />
-                        <input
-                            type="text"
-                            placeholder="Search by Request Code, Outlet, or Sub-Outlet..."
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            className="w-full border border-[#C3C6D1] rounded-lg pl-10 pr-4 py-2 outline-none"
-                        />
-                    </div>
-
-
-                </div>
+                {/* Search */}
+                <SearchBar
+                    isStandalone={true}
+                    placeholder="Search by Request Code, Outlet, or Sub-Outlet..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onClear={() => setSearchInput('')}
+                />
 
                 {/* Table */}
                 <div className="w-full my-4 border border-[#E2E8F0] rounded-2xl overflow-hidden">

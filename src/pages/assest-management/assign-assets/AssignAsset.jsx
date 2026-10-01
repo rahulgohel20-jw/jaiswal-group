@@ -52,7 +52,9 @@ import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { SearchBar } from '@/components/common/SearchBar';
 
 // Safely pulls the array out of a response, regardless of whether the
 // service resolves to the raw axios response, an already-unwrapped
@@ -718,30 +720,22 @@ const AssignAssets = () => {
 
   return (
     <Container>
-      <div className="p-4 mx-auto">
-        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Assign Assets</span>
-        </div>
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-          <div>
-            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Assign Assets</h1>
-          </div>
-
-          {canAdd && (
-            <HeaderActionButton to="/assets/assign-asset">
-              Assign Asset
-            </HeaderActionButton>
-          )}
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Assign Assets"
+          actions={
+            canAdd && (
+              <HeaderActionButton to="/assets/assign-asset">
+                Assign Asset
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert error={loadError} onRetry={loadAll} className="my-3" />
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 py-4 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}
@@ -754,7 +748,7 @@ const AssignAssets = () => {
               </div>
               <div className="flex flex-col items-end text-right">
                 <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                   {item.value}
                 </span>
               </div>
@@ -766,18 +760,11 @@ const AssignAssets = () => {
         <div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-end">
             {/* Search */}
-            <div className="relative">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Search by ID, Name, Kitchen..."
-                className="w-full border border-[#C3C6D1] rounded-xl pl-10 pr-3 py-2 outline-none focus:border-[#084E92]"
-              />
-            </div>
+            <SearchBar
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by ID, Name, Kitchen..."
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* Outlet */}

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router';
 import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -7,8 +8,10 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
+import { PageHeader } from '@/components/common/PageHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
-import { ChevronRight, CircleCheck, CircleEllipsis, ClipboardList, Download, Eye, FileText, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
+import { CircleCheck, CircleEllipsis, ClipboardList, Download, Eye, FileText, Plus, SquarePen, Trash2 } from 'lucide-react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
     Select,
@@ -80,6 +83,41 @@ const AssetsMaintenance = () => {
     useEffect(() => {
         fetchStatsData();
     }, []);
+
+    const STATS = useMemo(() => [
+        {
+            title: "Total Records",
+            value: String(statsData.length || totalCount || 0),
+            icon: ClipboardList,
+            bg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#1B1B1F]",
+        },
+        {
+            title: "Completed",
+            value: String(statsData.filter((i) => String(i.status).toUpperCase() === "COMPLETED").length),
+            icon: CircleCheck,
+            bg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
+            color: "text-[#15803D]",
+        },
+        {
+            title: "In Progress",
+            value: String(statsData.filter((i) => String(i.status).toUpperCase() === "IN_PROGRESS").length),
+            icon: CircleEllipsis,
+            bg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#00376C]",
+        },
+        {
+            title: "Pending",
+            value: String(statsData.filter((i) => String(i.status).toUpperCase() === "PENDING").length),
+            icon: FileText,
+            bg: "bg-[#FEF3C7]",
+            iconColor: "text-[#B45309]",
+            color: "text-[#B45309]",
+        },
+    ], [statsData, totalCount]);
 
     const fetchMaintenanceData = async (pageIndex = pagination.pageIndex, pageSize = pagination.pageSize) => {
         setLoading(true);
@@ -186,40 +224,6 @@ const AssetsMaintenance = () => {
             setViewLoading(false);
         }
     };
-    const STATS = [
-        {
-            title: "Total Maintenance Logs",
-            value: `${statsData.length}`,
-            icon: FileText,
-            bg: "bg-[#D5E3FF]",
-            iconColor: "text-[#00376C]",
-            color: "text-[#1B1B1F]",
-        },
-        {
-            title: "Completed Services",
-            value: `${statsData.filter(item => item.status === "COMPLETED").length}`,
-            icon: CircleCheck,
-            bg: "bg-[#DCFCE7]",
-            iconColor: "text-[#15803D]",
-            color: "text-[#15803D]",
-        },
-        {
-            title: "Pending Services",
-            value: `${statsData.filter(item => item.status === "PENDING").length}`,
-            icon: CircleEllipsis,
-            bg: "bg-[#FEF3C7]",
-            iconColor: "text-[#B45309]",
-            color: "text-[#B45309]",
-        },
-        {
-            title: "Today's Maintenance",
-            value: `${statsData.filter(item => formatDateForComparison(item.nextServiceDate) === new Date().toISOString().split('T')[0]).length}`,
-            icon: ClipboardList,
-            bg: "bg-[#F3F4F6]",
-            iconColor: "text-[#4B5563]",
-            color: "text-[#1B1B1F]",
-        },
-    ];
 
     const columns = [
         {
@@ -335,26 +339,17 @@ const AssetsMaintenance = () => {
 
     return (
         <Container>
-            <div className='p-4 mx-auto'>
-                <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Asset Management</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Maintenance Log</span>
-                </div>
+            <div className='pt-2 pb-6 mx-auto space-y-3.5'>
+                <PageHeader
+                    title="Maintenance Log"
+                    actions={
+                        <HeaderActionButton to="/assets/add-maintenance-log">
+                            Add Maintenance Log
+                        </HeaderActionButton>
+                    }
+                />
 
-                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-                    <div>
-                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Maintenance Log</h1>
-                    </div>
-
-                    <HeaderActionButton to="/assets/add-maintenance-log">
-                        Add Maintenance Log
-                    </HeaderActionButton>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 my-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
                     {STATS.map((item, index) => {
                         const Icon = item.icon;
                         return (
@@ -364,7 +359,7 @@ const AssetsMaintenance = () => {
                                 </div>
                                 <div className="flex flex-col items-end text-right">
                                     <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                                    <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.value}</span>
+                                    <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
                                 </div>
                             </div>
                         );
@@ -372,25 +367,21 @@ const AssetsMaintenance = () => {
                 </div>
 
                 <div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-end">
                         <div className="col-span-1">
-                            <div className="relative mt-1">
-                                <label className="text-xs text-gray-500">Search</label>
-                                <Search size={16} className="absolute left-3 top-11 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    placeholder="Asset ID, Name, Kitchen..."
-                                    className="w-full border rounded-lg pl-10 pr-3 py-2 outline-none border-[#C3C6D1]"
-                                    value={searchText}
-                                    onChange={(e) => setSearchText(e.target.value)}
-                                />
-                            </div>
+                            <label className="text-xs text-gray-500 block mb-1">Search</label>
+                            <SearchBar
+                                placeholder="Asset ID, Name, Kitchen..."
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                            />
                         </div>
 
                         <div className="grid sm:grid-cols-3 gap-4">
                             <div className="col-span-1">
-                                <label className="text-xs text-gray-500">Status</label>
+                                <label className="text-xs text-gray-500 block mb-1">Status</label>
                             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
-                                <SelectTrigger className="w-full h-10 mt-1 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                     <SelectValue placeholder="All Records" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -443,7 +434,7 @@ const AssetsMaintenance = () => {
                     </div>
                 </div>
 
-                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     <DataGrid table={table} recordCount={totalCount} className="rounded-2xl">
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>

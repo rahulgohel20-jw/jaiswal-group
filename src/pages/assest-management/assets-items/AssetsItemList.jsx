@@ -27,9 +27,11 @@ import {
 } from '@/components/ui/select';
 import AddAssetItemModal, { CATEGORIES } from './AddAssetsItemModal';
 import { notify } from "@/utils/toast";
-import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { Container } from '@/components/common/container';
+import { SearchBar } from '@/components/common/SearchBar';
 
 // Seed data so the listing has something to show on first load
 const SEED_ITEMS = [
@@ -105,7 +107,7 @@ const StatCard = ({ icon: Icon, iconBg = 'bg-[#D5E3FF]', iconColor = 'text-[#003
     </div>
     <div className="flex flex-col items-end text-right">
       <span className="text-xs font-semibold text-[#00376C]">{label}</span>
-      <span className={`text-lg sm:text-xl font-bold mt-0.5 ${valueColor}`}>{value}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
     </div>
   </div>
 );
@@ -234,28 +236,18 @@ const AssetItemsList = () => {
   }
 
   return (
-    <div className="p-4">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span className="text-primary font-semibold">Asset Items</span>
-        </div>
-
-        {/* Page header */}
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">Asset Items</h1>
-          </div>
-          {canAdd && (
-            <HeaderActionButton onClick={openAddModal}>
-              Add Asset Item
-            </HeaderActionButton>
-          )}
-        </div>
+    <Container>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Asset Items"
+          actions={
+            canAdd && (
+              <HeaderActionButton onClick={openAddModal}>
+                Add Asset Item
+              </HeaderActionButton>
+            )
+          }
+        />
 
         {/* Stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 py-4 text-[#43474F]">
@@ -293,13 +285,12 @@ const AssetItemsList = () => {
 
         {/* Filter bar */}
         <div className="bg-white rounded-xl border border-gray-200 p-3 flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               placeholder="Search by name, code or description..."
-              className="pl-9"
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
+              onClear={() => setSearchDraft('')}
               onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
             />
           </div>
@@ -479,7 +470,7 @@ const AssetItemsList = () => {
         editingItem={viewingItem}
         readOnly
       />
-    </div>
+    </Container>
   );
 };
 

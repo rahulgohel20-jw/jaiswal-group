@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronRight, CircleCheck, Download, Eye, Loader2, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
+import { AlertTriangle, CircleCheck, Download, Eye, Loader2, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
 import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -23,7 +23,9 @@ import {
 } from "@/components/ui/select";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageHeader } from '@/components/common/PageHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { SearchBar } from '@/components/common/SearchBar';
 
 // Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
 const unwrapList = (res) => {
@@ -441,31 +443,19 @@ const AssetsManagement = () => {
 
     return (
        <Container>
-         <div className="p-4 mx-auto">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Assets</span>
-            </div>
+         <div className="pt-2 pb-6 mx-auto space-y-3.5">
+            <PageHeader
+                title="Assets"
+                actions={
+                    canAdd && (
+                        <HeaderActionButton to="/assets/add-asset">
+                            Add Asset
+                        </HeaderActionButton>
+                    )
+                }
+            />
 
-            <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
-                        Assets
-                    </h1>
-                </div>
-
-                {canAdd && (
-                    <HeaderActionButton to="/assets/add-asset">
-                        Add Asset
-                    </HeaderActionButton>
-                )}
-            </div>
-
-            <div className='flex flex-col xl:flex-row gap-4 py-4 text-[#43474F]'>
+            <div className='flex flex-col xl:flex-row gap-4 text-[#43474F]'>
                 <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5 flex-1'>
                     {
                         statsCards.map((item, index) => (
@@ -475,7 +465,7 @@ const AssetsManagement = () => {
                                 </div>
                                 <div className="flex flex-col items-end text-right">
                                     <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                                    <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.value}</span>
+                                    <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
                                 </div>
                             </div>
                         ))
@@ -487,7 +477,7 @@ const AssetsManagement = () => {
                     </div>
                     <div className="flex flex-col items-end text-right">
                         <span className="text-xs font-semibold text-blue-200">Total Asset Value</span>
-                        <span className="text-lg sm:text-xl font-bold mt-0.5">{formatTotalValue(stats.totalValue)}</span>
+                        <span className="text-sm sm:text-base font-bold mt-0.5 text-white">{formatTotalValue(stats.totalValue)}</span>
                     </div>
                 </div>
             </div>
@@ -497,20 +487,11 @@ const AssetsManagement = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
 
                     {/* Search  */}
-                    <div className="relative w-full border border-[#C3C6D1] rounded-xl">
-                        <Search
-
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
-
-                        <input
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            placeholder="Search by type, description..."
-                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-xl text-sm"
-                        />
-                    </div>
+                    <SearchBar
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        placeholder="Search by type, description..."
+                    />
 
                     {/* Right side  */}
                         <div className="grid grid-cols-2 gap-3">

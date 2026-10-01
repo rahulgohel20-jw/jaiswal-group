@@ -5,7 +5,8 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import { ChevronRight, Eye, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
+import { ChevronRight, Eye, Plus, SquarePen, Trash2 } from 'lucide-react';
 import { deletePage, getPages } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -14,6 +15,8 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
@@ -267,47 +270,28 @@ const PageMaster = () => {
 
   return (
     <Container>
-      <div className="p-4 mx-auto">
-         <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Users Rights Master</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Page Master</span>
-        </div>
-        {/* Header row: title left, breadcrumb + primary action right */}
-        <div className="flex justify-between items-start flex-col sm:flex-row gap-4 mb-3">
-          <h1 className="font-bold text-[#101828] text-[20px]">Page Master</h1>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
+        <PageHeader
+          title="Page Master"
+          actions={
+            canAdd && (
+              <HeaderActionButton onClick={openCreateModal}>
+                Add Page
+              </HeaderActionButton>
+            )
+          }
+        />
 
-        <PageErrorAlert error={error} onRetry={fetchPages} className="mb-4" />
+        <PageErrorAlert error={error} onRetry={fetchPages} />
 
-        {/* Search + Add Page */}
-        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-4">
-          <div className="relative w-full sm:w-80 border border-[#C3C6D1] rounded-lg">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search Page"
-              className="w-full pl-10 py-2 outline-none rounded-lg bg-transparent"
-            />
-          </div>
-
-          {canAdd && (
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition sm:self-end w-max cursor-pointer"
-            >
-              <Plus size={16} />
-              Add Page
-            </button>
-          )}
+        {/* Search */}
+        <div className="w-full">
+          <SearchBar
+            placeholder="Search Page..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            isStandalone={true}
+          />
         </div>
 
         {/* Table */}

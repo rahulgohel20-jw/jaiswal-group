@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { Calendar, ChevronDown, Eye, Loader2, RotateCcw, Search, ChevronRight, Pen } from 'lucide-react';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -340,29 +341,20 @@ const PurchaseInvoiceListing = () => {
         pageCount: pageInfo.totalPages || 0,
     });
 
-    return (
-        <Container>
-            <div className="mx-auto p-4">
-                <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Purchase</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Purchase Invoice Listing</span>
-                </div>
-
-                <div className="flex items-center justify-between gap-4 flex-wrap my-2">
-                    <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
-                        Purchase Invoice Listing
-                    </h1>
-
-                    <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-[#084E92] text-sm font-semibold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#084E92]" />
-                            Showing {pageInfo.totalElements} Record{pageInfo.totalElements !== 1 ? 's' : ''}
-                        </span>
-                    </div>
-                </div>
+  return (
+    <Container>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Purchase Invoice Listing"
+          actions={
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-[#084E92] text-sm font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#084E92]" />
+                Showing {pageInfo.totalElements} Record{pageInfo.totalElements !== 1 ? 's' : ''}
+              </span>
+            </div>
+          }
+        />
 
                 {scopeError && (
                     <div className="mb-4 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">

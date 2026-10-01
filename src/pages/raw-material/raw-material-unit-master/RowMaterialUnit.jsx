@@ -7,6 +7,7 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   ChevronRight,
   CircleCheck,
@@ -14,7 +15,6 @@ import {
   Eye,
   Plus,
   Ruler,
-  Search,
   SquarePen,
   Trash2,
   Upload,
@@ -33,9 +33,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
-import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import {
   deleteUnitMasterById,
   getAllRawMaterialUnits,
@@ -45,6 +45,7 @@ import {
 import StatusConfirmModal from '../../../utils/StatusConfirmModal';
 import AddRawMaterialUnit from './AddRawMaterialUnit';
 import { useNavigate } from 'react-router';
+import { usePagePermissions } from '@/utils/permissions';
 
 const RowMaterialUnit = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Unit Master');
@@ -407,31 +408,17 @@ const RowMaterialUnit = () => {
 
   return (
     <Container>
-      <div className="p-4 mx-auto">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Raw Material</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Raw Material Unit Master
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828] text-start">
-              Unit of Measurement Master
-            </h1>
-          </div>
-
-          {canAdd && (
-            <HeaderActionButton onClick={handleAddClick}>
-              Add Unit
-            </HeaderActionButton>
-          )}
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Unit of Measurement Master"
+          actions={
+            canAdd && (
+              <HeaderActionButton onClick={handleAddClick}>
+                Add Unit
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert
           error={error}
@@ -451,7 +438,7 @@ const RowMaterialUnit = () => {
               </div>
               <div className="flex flex-col items-end text-right">
                 <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                   {item.value}
                 </span>
               </div>
@@ -461,16 +448,11 @@ const RowMaterialUnit = () => {
 
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search unit by name or symbol..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-[#C3C6D1] rounded-xl text-sm focus:outline-none"
-              />
-            </div>
+            <SearchBar
+              placeholder="Search unit by name or symbol..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">

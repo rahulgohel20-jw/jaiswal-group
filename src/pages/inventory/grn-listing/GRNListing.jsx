@@ -33,9 +33,12 @@ import {
 import SearchableSelect from '@/utils/SearchableSelect';
 import { getAllGrns, getGrnById, getGrnByOutletOrStatus } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
+import { PageHeader } from '@/components/common/PageHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { SearchBar } from '@/components/common/SearchBar';
 import { useExportReport } from '@/hooks/useExportReport';
 import { toast } from 'sonner';
 import GRNDetailsViewModal from './GRNDetailsViewModal';
@@ -114,7 +117,7 @@ function StatusDropdown({ value, onChange }) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] font-semibold appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        className="h-10 w-full pl-8 pr-7 rounded-xl border border-[#C3C6D1] bg-white text-xs text-[#101828] font-semibold appearance-none focus:outline-none focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
       >
         {GRN_STATUS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -552,39 +555,18 @@ const GRNListing = () => {
 
   return (
     <Container>
-      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={11} />
-          <span>Inventory</span>
-          <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">GRN Listing</span>
-        </div>
-
-        {/* Page header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-xl md:text-2xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              GRN Listing
-            </h1>
-            <p className="text-[#667085] text-xs max-w-xl">
-              View and track all Goods Received Notes across outlets.
-            </p>
-          </div>
-
-          {(canGenerateGrn || canAdd) && (
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                to="/inventory/generate-grn"
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white bg-[#084E92] text-xs font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shadow-2xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
+      <div className="pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="GRN Listing"
+          description="View and track all Goods Received Notes across outlets."
+          actions={
+            (canGenerateGrn || canAdd) && (
+              <HeaderActionButton to="/inventory/generate-grn">
                 Generate GRN
-              </Link>
-            </div>
-          )}
-        </div>
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert
           error={scopeError || grnError}
@@ -593,13 +575,12 @@ const GRNListing = () => {
 
         {/* Search + unit dropdown + status dropdown + date range */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
-            <input
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onClear={() => setSearchQuery('')}
               placeholder="Search GRN Code, PO Code, Outlet..."
-              className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 
@@ -613,7 +594,7 @@ const GRNListing = () => {
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="h-9.5 flex items-center justify-center gap-2 border border-[#E7EAF0] bg-white text-[#101828] px-3.5 text-xs rounded-xl font-medium hover:bg-gray-50 whitespace-nowrap cursor-pointer"
+                className="h-10 flex items-center justify-center gap-2 border border-[#C3C6D1] bg-white text-[#101828] px-3.5 text-xs rounded-xl font-medium hover:bg-gray-50 whitespace-nowrap cursor-pointer"
               >
                 <CalendarRange size={14} className="text-[#98A2B3]" />
                 {dateRange.from || dateRange.to

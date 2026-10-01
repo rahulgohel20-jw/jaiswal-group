@@ -38,6 +38,7 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { getAllGrnDetailsByStatus, getPOByIdAndOpenItem } from '@/services/apiServices';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -45,6 +46,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { CodeCell } from '@/components/common/CodeCell';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   Tooltip,
   TooltipContent,
@@ -97,7 +99,7 @@ const StatCard = ({ icon, iconBg = 'bg-[#D5E3FF]', iconColor = 'text-[#00376C]',
     </div>
     <div className="flex flex-col items-end text-right">
       <span className="text-xs font-semibold text-[#00376C]">{label}</span>
-      <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
     </div>
   </div>
 );
@@ -657,24 +659,10 @@ const ReturnReplacementList = () => {
 
   return (
     <Container>
-      <div className="py-5 md:py-4 pb-6 space-y-4 md:space-y-5">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1 text-[11px] text-gray-400 mb-2.5 md:mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={11} />
-          <span>Inventory</span>
-          <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">Return and Replacement</span>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <h1 className="text-[20px] md:text-2xl font-bold text-[#0F172A] text-start leading-tight">
-            Return &amp; Replacement Listing
-          </h1>
-          {/* <p className="text-[#53565b] text-xs mt-1">
-            Manage and track returned inventory and generate replacement GRNs
-          </p> */}
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Return & Replacement Listing"
+        />
 
         <PageErrorAlert
           error={scopeError || error}
@@ -715,17 +703,12 @@ const ReturnReplacementList = () => {
 
         {/* Search + Filters */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               placeholder="Search by Item, PR, PO, GRN, or Outlet..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-9.5 border border-gray-200 rounded-xl pl-9 pr-3 text-xs text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition"
+              onClear={() => setSearch('')}
             />
           </div>
 
@@ -743,7 +726,7 @@ const ReturnReplacementList = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer"
+                className="h-10 w-full pl-8 pr-7 rounded-xl border border-[#C3C6D1] bg-white text-xs font-semibold text-gray-800 outline-none focus:border-[#084E92] focus:ring-2 focus:ring-[#084E92]/15 transition cursor-pointer"
               >
                 <option value="ALL">All Status</option>
                 <option value="RETURN_REPLACEMENT_REQUESTED">Replacement Requested</option>

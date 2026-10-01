@@ -3,6 +3,7 @@ import { Calendar, ChevronLeft, ChevronRight, Printer, ArrowLeft, Search, Packag
 import { useNavigate } from 'react-router';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { Card, CardTable, CardFooter } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -448,40 +449,30 @@ const GeneralStockLedger = () => {
 
     return (
         <Container>
-            <div className="py-1 md:py-2 pb-6 space-y-4">
-                <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Inventory</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">
-                        General Stock Ledger
-                    </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <h1 className="text-2xl font-bold text-[#0F172A]">
-                        General Stock Ledger
-                    </h1>
-                    <div className="flex items-center gap-3">
-                        <button
-                            type="button"
-                            className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#084E92] cursor-pointer"
-                            onClick={() => window.print()}
-                        >
-                            <Printer size={17} />
-                            Print
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => navigate(-1)}
-                            className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#084E92] cursor-pointer"
-                        >
-                            <ArrowLeft size={17} />
-                            Back
-                        </button>
-                    </div>
-                </div>
+            <div className="pt-2 pb-6 mx-auto space-y-4">
+                <PageHeader
+                    title="General Stock Ledger"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            <button
+                                type="button"
+                                className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#084E92] cursor-pointer"
+                                onClick={() => window.print()}
+                            >
+                                <Printer size={17} />
+                                Print
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => navigate(-1)}
+                                className="flex items-center gap-2 text-sm text-gray-500 hover:text-[#084E92] cursor-pointer"
+                            >
+                                <ArrowLeft size={17} />
+                                Back
+                            </button>
+                        </div>
+                    }
+                />
 
                 <div className="bg-white border border-[#E2E8F0] rounded-2xl mt-4 p-5">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Container } from "@/components/common/container";
-import { CheckCircle2, ChevronRight, QrCode, Search, Trash2, X } from 'lucide-react';
+import { PageHeader } from '@/components/common/PageHeader';
+import { CheckCircle2, QrCode, Search, Trash2, X } from 'lucide-react';
 import { getActiveCompany, getAllAssets, getAssetCategories, getAssignedAssetsByOrgAndSubOutlet, getAssignmentsByAssetId } from '../../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
@@ -675,24 +676,10 @@ const ExportAssetsQR = () => {
             {/* Normal UI — hidden while printing */}
             <div className="print:hidden">
                 <Container>
-                    <div className='p-4 mx-auto'>
-                        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                            <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                            <ChevronRight size={12} />
-                            <span>Asset Management</span>
-                            <ChevronRight size={12} />
-                            <span className="text-[#084E92] font-medium">Export Assets QR</span>
-                        </div>
-
-                        <div>
-                            <h1 className="font-bold text-[#101828] text-[20px] ">
-                                Export Assets QR
-                            </h1>
-
-                            {/* <p className="text-[#667085] text-sm mt-1.5 max-w-2xl">
-                                Generate and export high-resolution QR codes for registered assets for inventory tracking.
-                            </p> */}
-                        </div>
+                    <div className='pt-2 pb-6 mx-auto space-y-4'>
+                        <PageHeader
+                            title="Export Assets QR"
+                        />
 
                         <div className="grid grid-cols-1 lg:grid-cols-[450px_1fr] gap-5 mt-6 items-stretch lg:h-[calc(100vh-13rem)]">
                             {/* Select Assets */}

@@ -52,7 +52,7 @@ const StatCard = ({ label, value, icon, tone, textColor = 'text-[#1B1B1F]' }) =>
     </div>
     <div className="flex flex-col items-end text-right">
       <span className="text-xs font-semibold text-[#00376C]">{label}</span>
-      <span className={`text-lg sm:text-xl font-bold mt-0.5 ${textColor}`}>{value}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
     </div>
   </div>
 );

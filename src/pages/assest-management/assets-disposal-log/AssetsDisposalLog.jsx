@@ -1,7 +1,6 @@
 import {
     BadgeDollarSign,
     CalendarDays,
-    ChevronRight,
     CirclePlus,
     ClipboardList,
     Download,
@@ -22,7 +21,9 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
+import { PageHeader } from "@/components/common/PageHeader";
 import { HeaderActionButton } from "@/components/common/HeaderActionButton";
+import { SearchBar } from "@/components/common/SearchBar";
 import { getAllAssetsDisposal, deleteAssetDisposalById, getAssetDisposalById } from "../../../services/apiServices";
 import ViewDisposalModal from "./ViewDisposalModal";
 
@@ -377,28 +378,19 @@ const AssetsDisposalLog = () => {
 
     return (
         <Container>
-            <div className='p-4 mx-auto'>
-                <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Asset Management</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Asset Disposal Log</span>
-                </div>
+            <div className='pt-2 pb-6 mx-auto space-y-3.5'>
+                <PageHeader
+                    title="Asset Disposal Log"
+                    actions={
+                        canAdd && (
+                            <HeaderActionButton to="/assets/add-disposal">
+                                New Disposal Entry
+                            </HeaderActionButton>
+                        )
+                    }
+                />
 
-                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-                    <div>
-                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Asset Disposal Log</h1>
-                    </div>
-
-                    {canAdd && (
-                        <HeaderActionButton to="/assets/add-disposal">
-                            New Disposal Entry
-                        </HeaderActionButton>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 my-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
                     {stats.map((item, index) => {
                         const Icon = item.icon;
 
@@ -410,7 +402,7 @@ const AssetsDisposalLog = () => {
 
                                 <div className="flex flex-col items-end text-right">
                                     <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                                    <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color || 'text-[#1B1B1F]'}`}>{item.value}</span>
+                                    <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
                                 </div>
                             </div>
                         );
@@ -420,17 +412,18 @@ const AssetsDisposalLog = () => {
                 <div>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="md:col-span-3">
-                            <div className="relative rounded-xl">
-                                <input
-                                    value={searchText}
-                                    onChange={(e) => {
-                                        setSearchText(e.target.value);
-                                        setPagination({ pageIndex: 0, pageSize: 10 });
-                                    }}
-                                    placeholder="Search Asset ID, Name, or Approved By..."
-                                    className="w-full h-10 border border-[#DCE3EE] rounded-xl pl-4 pr-4 outline-none"
-                                />
-                            </div>
+                            <SearchBar
+                                value={searchText}
+                                onChange={(e) => {
+                                    setSearchText(e.target.value);
+                                    setPagination({ pageIndex: 0, pageSize: 10 });
+                                }}
+                                onClear={() => {
+                                    setSearchText('');
+                                    setPagination({ pageIndex: 0, pageSize: 10 });
+                                }}
+                                placeholder="Search Asset ID, Name, or Approved By..."
+                            />
                         </div>
 
                         <div className="col-span-1">
@@ -442,7 +435,7 @@ const AssetsDisposalLog = () => {
                                         setPagination({ pageIndex: 0, pageSize: 10 });
                                     }}
                                     placeholder="Select timeframe"
-                                    className="w-full h-10 border border-[#DCE3EE] rounded-xl pl-4 pr-4 outline-none"
+                                    className="w-full h-10 border border-[#C3C6D1] rounded-xl pl-4 pr-4 outline-none text-sm"
                                 />
                             </div>
                         </div>

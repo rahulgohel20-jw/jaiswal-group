@@ -1,5 +1,6 @@
-import { AlertTriangle, ChevronRight, CircleCheck, CircleX, ClipboardList, Eye, ListFilter, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
+import { AlertTriangle, ChevronRight, CircleCheck, CircleX, ClipboardList, Eye, ListFilter, Plus, RotateCcw, SquarePen, Trash2 } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { SearchBar } from '@/components/common/SearchBar';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -26,6 +27,7 @@ import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 import { useNavigate } from 'react-router';
 import HeaderActionButton from '../../../components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const RowMaterialItemMaster = () => {
     const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Items');
@@ -472,31 +474,19 @@ const RowMaterialItemMaster = () => {
 
     return (
         <Container>
-            <div className='p-4 mx-auto'>
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Raw Material</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Raw Material Items</span>
-                </div>
-
-                <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
-                    <div>
-                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
-                            Raw Material Items Master
-                        </h1>
-                    </div>
-
-                    {canAdd && (
-                        <HeaderActionButton
-                            onClick={() => navigate('/material/items/add')}
-                        >
-                            Add New Item
-                        </HeaderActionButton>
-                    )}
-                </div>
+            <div className='pt-2 pb-6 mx-auto space-y-4'>
+                <PageHeader
+                    title="Raw Material Items Master"
+                    actions={
+                        canAdd && (
+                            <HeaderActionButton
+                                onClick={() => navigate('/material/items/add')}
+                            >
+                                Add New Item
+                            </HeaderActionButton>
+                        )
+                    }
+                />
 
                 <PageErrorAlert error={error} onRetry={fetchRawMaterialList} className="my-3" />
 
@@ -508,7 +498,7 @@ const RowMaterialItemMaster = () => {
                             </div>
                             <div className="flex flex-col items-end text-right">
                                 <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.value}</span>
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
                             </div>
                         </div>
                     ))}
@@ -517,19 +507,12 @@ const RowMaterialItemMaster = () => {
                 <div className="flex flex-col gap-4 mt-6">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         {/* Search */}
-                        <div className="relative md:col-span-2">
-                            <Search
-                                size={18}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search by type name..."
-                                className="w-full pl-10 py-2 border rounded-xl outline-none border-[#C3C6D1] "
-                            />
-                        </div>
+                        <SearchBar
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by item name..."
+                            wrapperClassName="md:col-span-2"
+                        />
 
                         {/* Status */}
                         <Select

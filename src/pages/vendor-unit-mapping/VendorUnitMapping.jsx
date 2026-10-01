@@ -31,8 +31,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { SearchBar } from '@/components/common/SearchBar';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
   assignVendorOutletMapping,
@@ -71,7 +73,7 @@ const StatCard = ({
     </div>
     <div className="flex flex-col items-end text-right">
       <span className="text-xs font-semibold text-[#00376C]">{label}</span>
-      <span className={`text-lg sm:text-xl font-bold mt-0.5 ${valueColor}`}>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
         {value}
       </span>
     </div>
@@ -832,31 +834,12 @@ const VendorUnitMapping = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span onClick={() => navigate('/')} className="cursor-pointer">
-            Dashboard
-          </span>
-          <ChevronRight size={12} />
-          <span>Vendors</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Vendor & Unit Mapping
-          </span>
-        </div>
-
+      <div className="pt-2 pb-6 mx-auto space-y-4">
         {/* Page header */}
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
-              Vendor & Unit Mapping
-            </h1>
-            <p className="text-[#667085] text-sm mt-1 max-w-xl">
-              Map vendors to one or multiple units for procurement and purchase management.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Vendor & Unit Mapping"
+          description="Map vendors to one or multiple units for procurement and purchase management."
+        />
 
         {/* Vendor Mapping Details */}
         {(canAdd || canEdit) && (
@@ -899,17 +882,12 @@ const VendorUnitMapping = () => {
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="relative flex-1 border border-gray-200 hover:border-gray-300 rounded-xl bg-white transition shadow-2xs">
-            <Search
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
+          <div className="flex-1">
+            <SearchBar
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
+              onClear={() => setSearchText('')}
               placeholder="Search by vendor, registered company, or unit..."
-              className="w-full pl-10 pr-3 py-2.5 outline-none rounded-xl text-sm bg-transparent"
             />
           </div>
 
@@ -919,7 +897,7 @@ const VendorUnitMapping = () => {
               setVendorFilter(value === 'all' ? '' : value)
             }
           >
-            <SelectTrigger className="w-full sm:w-48 h-11 border-gray-200 hover:border-gray-300 rounded-xl bg-white transition shadow-2xs text-sm">
+            <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-xl bg-white text-sm">
               <SelectValue placeholder="Filter by Vendor" />
             </SelectTrigger>
             <SelectContent>
@@ -938,7 +916,7 @@ const VendorUnitMapping = () => {
               setUnitFilter(value === 'all' ? '' : value)
             }
           >
-            <SelectTrigger className="w-full sm:w-48 h-11 border-gray-200 hover:border-gray-300 rounded-xl bg-white transition shadow-2xs text-sm">
+            <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-xl bg-white text-sm">
               <SelectValue placeholder="Filter by Unit" />
             </SelectTrigger>
             <SelectContent>

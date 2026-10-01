@@ -6,13 +6,13 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   ChevronRight,
   CircleCheck,
   Eye,
   LayoutGrid,
   Plus,
-  Search,
   Shapes,
   SquarePen,
   Trash2,
@@ -31,9 +31,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
-import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   deleteRawMaterialBrandById,
@@ -44,6 +44,7 @@ import {
 } from '../../../services/apiServices';
 import AddRawMaterialBrand from './AddRawMaterialBrand';
 import { useNavigate } from 'react-router';
+import { usePagePermissions } from '@/utils/permissions';
 
 const RowMaterialBrandMaster = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Brand Master');
@@ -424,36 +425,22 @@ const RowMaterialBrandMaster = () => {
 
   return (
     <Container>
-      <div className="p-4 mx-auto">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Raw Material</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Raw Material Brand Master
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828] text-start">
-              Raw Material Brand Master
-            </h1>
-          </div>
-
-          {canAdd && (
-            <HeaderActionButton onClick={handleAddClick}>
-              Create Brand
-            </HeaderActionButton>
-          )}
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Raw Material Brand Master"
+          actions={
+            canAdd && (
+              <HeaderActionButton onClick={handleAddClick}>
+                Create Brand
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert error={error} onRetry={loadAll} className="my-3" />
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 py-4 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}
@@ -464,7 +451,7 @@ const RowMaterialBrandMaster = () => {
               </div>
               <div className="flex flex-col items-end text-right">
                 <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                   {item.value}
                 </span>
               </div>
@@ -474,18 +461,11 @@ const RowMaterialBrandMaster = () => {
 
         <div className="flex flex-col gap-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative border border-[#C3C6D1] rounded-xl">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <input
-                placeholder="Search brands..."
-                className="w-full pl-10 py-2 outline-none rounded-xl"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-              />
-            </div>
+            <SearchBar
+              placeholder="Search brands..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
 
             <Select
               value={statusFilter}

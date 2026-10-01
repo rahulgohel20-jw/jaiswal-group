@@ -26,6 +26,8 @@ import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { SearchBar } from '@/components/common/SearchBar';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
   deleteCompany,
@@ -107,7 +109,7 @@ function StatusDropdown({ value, onChange }) {
         className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none"
       />
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]">
+        <SelectTrigger className="h-10 w-full pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]">
           <SelectValue placeholder="All Status" />
         </SelectTrigger>
 
@@ -442,29 +444,17 @@ const UnitListing = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-          <Link to="/" className="hover:text-[#084E92]">
-            Dashboard
-          </Link>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Units</span>
-        </div>
-
-        {/* Page header */}
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
-              Registered Units
-            </h1>
-          </div>
-          {canAdd && (
-            <HeaderActionButton to="/units/add-unit">
-              Add New Unit
-            </HeaderActionButton>
-          )}
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="Registered Units"
+          actions={
+            canAdd && (
+              <HeaderActionButton to="/units/add-unit">
+                Add New Unit
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert
           error={error}
@@ -475,18 +465,13 @@ const UnitListing = () => {
         />
 
         {/* Search + company + status filter */}
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
-            />
-
-            <input
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onClear={() => setSearch('')}
               placeholder="Search units..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 

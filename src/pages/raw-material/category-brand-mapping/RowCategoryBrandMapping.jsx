@@ -22,6 +22,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageHeader } from '@/components/common/PageHeader';
 import {
   assignBrandsToCategories,
   deleteRawMaterialCategoryBrandById,
@@ -601,26 +602,11 @@ const RowCategoryBrandMapping = () => {
 
   return (
     <Container>
-      <div className="p-4 mx-auto">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Raw Material</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Raw Material Category Brand Mapping
-          </span>
-        </div>
-
-        <div>
-          <h1 className="font-bold text-[#101828] text-[20px] text-start">
-            Raw Material Category Brand Mapping
-          </h1>
-          <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-            Map raw material categories with their respective brands.
-          </p>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Raw Material Category Brand Mapping"
+          description="Map raw material categories with their respective brands."
+        />
 
         {/* Configure card */}
         {(canAdd || canEdit) && (

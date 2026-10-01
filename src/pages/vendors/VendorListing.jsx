@@ -28,6 +28,8 @@ import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { SearchBar } from '@/components/common/SearchBar';
 import { extractList, mapVendorToRow } from './vendorHelper';
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
@@ -57,7 +59,7 @@ const StatCard = ({
     </div>
     <div className="flex flex-col items-end text-right">
       <span className="text-xs font-semibold text-[#00376C]">{label}</span>
-      <span className={`text-lg sm:text-xl font-bold mt-0.5 ${valueColor}`}>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
         {value}
       </span>
     </div>
@@ -323,72 +325,33 @@ const VendorList = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <Link to="/" className="hover:text-[#084E92]">
-            Dashboard
-          </Link>
-          <ChevronRight size={12} />
-          <span>Vendors</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Vendor List</span>
-        </div>
-
-        {/* Page header */}
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
-              Vendor Management List
-            </h1>
-          </div>
-          {canAdd && (
-            <HeaderActionButton to="/vendors/add-vendor">
-              Add New Vendor
-            </HeaderActionButton>
-          )}
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="Vendor Management List"
+          actions={
+            canAdd && (
+              <HeaderActionButton to="/vendors/add-vendor">
+                Add New Vendor
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert error={error} onRetry={fetchVendors} />
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <StatCard
-            icon={Handshake}
-            iconBg="bg-blue-50"
-            iconColor="text-blue-500"
-            label="Total Vendors"
-            value={vendors.length}
-          />
-          <StatCard
-            icon={TrendingUp}
-            iconBg="bg-blue-50"
-            iconColor="text-blue-500"
-            label="Onboarding This Month"
-            value={`+${onboardedThisMonth}`}
-            valueColor="text-blue-600"
-          />
-        </div>
-
         {/* Filters */}
-        <div className="flex flex-col gap-4 mb-6">
-          <div className="relative w-full border border-[#C3C6D1] rounded-xl">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={handleSearchChange}
-              placeholder="Search by vendor name, code, email..."
-              className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
-            />
-          </div>
+        <div className="flex flex-col gap-4">
+          <SearchBar
+            isStandalone={true}
+            value={search}
+            onChange={handleSearchChange}
+            onClear={() => setSearch('')}
+            placeholder="Search by vendor name, code, email..."
+          />
         </div>
 
         {/* Table */}
-        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+        <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />

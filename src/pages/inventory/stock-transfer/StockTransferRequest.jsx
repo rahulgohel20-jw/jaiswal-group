@@ -20,6 +20,7 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router';
 import {
@@ -2167,66 +2168,40 @@ const StockTransferRequest = () => {
 
   return (
     <Container>
-      <div className="py-1 md:py-2 pb-6 space-y-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <Link to="/inventory/stock-transfer" className="hover:text-gray-600">
-            Inventory
-          </Link>
-          <ChevronRight size={12} />
-          <Link
-            to={
-              isDiscrepancyApprovalMode
-                ? '/inventory/str-discrepancy-approval'
-                : isReceiveMode
-                ? '/inventory/transfer-receive-requests'
-                : '/inventory/stock-transfer'
-            }
-            className="hover:text-gray-600"
-          >
-            {isDiscrepancyApprovalMode
-              ? 'STR Discrepancy Approval'
-              : isReceiveMode
-              ? 'Stock Transfer Receive Listing'
-              : 'Stock Transfer'}
-          </Link>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-semibold">{getPageTitle()}</span>
-        </div>
-
+      <div className="pt-2 pb-6 mx-auto space-y-4">
         {/* Page Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0F172A]">{getPageTitle()}</h1>
-            <p className="text-[#43474F] text-sm mt-1">
-              {isDiscrepancyApprovalMode
-                ? 'Review short quantity discrepancies and decide stock resolution (Source Stock, Destination Stock, or Miscellaneous Shortage).'
-                : isReceiveMode
-                ? 'Review quantities, verify incoming stock batches, and accept or reject the transfer.'
-                : isDispatchMode
-                ? 'Review requested quantities, enter transfer quantities, and confirm dispatch.'
-                : isEditMode
-                ? 'Update requested raw material quantities for this draft transfer request.'
-                : 'Initiate internal inventory transfer between central warehouses and retail sub-outlets.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() =>
-              navigate(
-                isDiscrepancyApprovalMode
-                  ? '/inventory/str-discrepancy-approval'
-                  : isReceiveMode
-                  ? '/inventory/transfer-receive-requests'
-                  : '/inventory/stock-transfer'
-              )
-            }
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#E2E8F0] bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-sm cursor-pointer"
-          >
-            <ArrowLeft size={14} />
-            Back to List
-          </button>
-        </div>
+        <PageHeader
+          title={getPageTitle()}
+          description={
+            isDiscrepancyApprovalMode
+              ? 'Review short quantity discrepancies and decide stock resolution (Source Stock, Destination Stock, or Miscellaneous Shortage).'
+              : isReceiveMode
+              ? 'Review quantities, verify incoming stock batches, and accept or reject the transfer.'
+              : isDispatchMode
+              ? 'Review requested quantities, enter transfer quantities, and confirm dispatch.'
+              : isEditMode
+              ? 'Update requested raw material quantities for this draft transfer request.'
+              : 'Initiate internal inventory transfer between central warehouses and retail sub-outlets.'
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() =>
+                navigate(
+                  isDiscrepancyApprovalMode
+                    ? '/inventory/str-discrepancy-approval'
+                    : isReceiveMode
+                    ? '/inventory/transfer-receive-requests'
+                    : '/inventory/stock-transfer'
+                )
+              }
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#E2E8F0] bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition shadow-sm cursor-pointer"
+            >
+              <ArrowLeft size={14} />
+              Back to List
+            </button>
+          }
+        />
 
         {loadingInitialData || scopeLoading ? (
           <div className="flex flex-col items-center justify-center py-24 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm">

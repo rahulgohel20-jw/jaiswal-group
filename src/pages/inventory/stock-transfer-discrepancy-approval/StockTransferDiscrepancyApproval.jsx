@@ -25,12 +25,14 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { CodeCell } from '@/components/common/CodeCell';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   getTransferList,
 } from '@/services/apiServices';
@@ -102,7 +104,7 @@ function StatCard({ label, value, icon: Icon, iconBg, iconColor }) {
       </div>
       <div className="flex flex-col items-end text-right">
         <span className="text-xs font-semibold text-[#00376C]">{label}</span>
-        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</span>
+        <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
       </div>
     </div>
   );
@@ -447,23 +449,12 @@ const StockTransferDiscrepancyApproval = () => {
 
   return (
     <Container>
-      <div className="py-1 md:py-2 pb-6 space-y-4">
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <span className="hover:text-gray-600">Inventory</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-semibold">STR Discrepancy Approval</span>
-        </div>
-
+      <div className="pt-2 pb-6 mx-auto space-y-4">
         {/* Page Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0F172A]">Area Manager Discrepancy Approval</h1>
-            <p className="text-[#43474F] text-sm mt-1">
-              Review and resolve stock transfer short quantity discrepancies for pending approvals.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Area Manager Discrepancy Approval"
+          description="Review and resolve stock transfer short quantity discrepancies for pending approvals."
+        />
 
         {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
@@ -494,14 +485,12 @@ const StockTransferDiscrepancyApproval = () => {
         <div className="bg-white border border-[#E7EAF0] rounded-2xl p-3.5 shadow-2xs">
           <div className="flex flex-col sm:flex-row items-center gap-3">
             {/* Long Search Bar */}
-            <div className="relative flex-1 w-full">
-              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-              <input
-                type="text"
+            <div className="flex-1 w-full">
+              <SearchBar
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onClear={() => setSearch('')}
                 placeholder="Search transfer code, outlet, vehicle, driver..."
-                className="h-9.5 w-full pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs font-medium text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
               />
             </div>
 

@@ -1,4 +1,5 @@
-import { ArrowLeftRight, CalendarDays, ChevronRight, Download, Eye, RotateCcw, Search, SquarePen, Trash2, CalendarSync } from 'lucide-react';
+import { ArrowLeftRight, CalendarDays, ChevronRight, Download, Eye, RotateCcw, SquarePen, Trash2, CalendarSync } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -11,6 +12,7 @@ import { useNavigate } from 'react-router';
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 
 
 
@@ -264,27 +266,17 @@ const AssetsTransferLog = () => {
     });
     return (
        <Container>
-         <div className='p-4 mx-auto'>
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Asset Transfer Log</span>
-            </div>
+         <div className='pt-2 pb-6 mx-auto space-y-3.5'>
+            <PageHeader
+                title="Asset Transfer Log"
+                actions={
+                    <HeaderActionButton to="/assets/asset-transfer" icon={CalendarSync}>
+                        Transfer New Asset
+                    </HeaderActionButton>
+                }
+            />
 
-            <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-                <div>
-                    <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
-                        Asset Transfer Log
-                    </h1>
-                </div>
-                <HeaderActionButton to="/assets/asset-transfer" icon={CalendarSync}>
-                    Transfer New Asset
-                </HeaderActionButton>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 my-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
@@ -301,7 +293,7 @@ const AssetsTransferLog = () => {
                                     {item.title}
                                 </span>
 
-                                <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                                     {item.value}
                                 </span>
                             </div>
@@ -310,26 +302,13 @@ const AssetsTransferLog = () => {
                 })}
             </div>
 
-            <div className="mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-
-                    {/* Search */}
-
-                        <div className="relative md:col-span-4">
-                            <Search
-                                size={18}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-
-                            <input
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Transfer ID, Asset ID, or Personnel..."
-                                className="w-full h-11 rounded-xl border border-[#D9E2EC] pl-10 pr-4 text-sm outline-none"
-                            />
-                        </div>
-                </div>
+            <div className="w-full">
+                <SearchBar
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Transfer ID, Asset ID, or Personnel..."
+                    isStandalone={true}
+                />
             </div>
 
             {/* Table */}

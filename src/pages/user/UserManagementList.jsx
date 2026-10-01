@@ -7,13 +7,13 @@ import {
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   AlertTriangle,
   Building2,
   ChevronRight,
   Eye,
   Plus,
-  Search,
   SquarePen,
   Trash2,
   UsersRound,
@@ -45,6 +45,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
@@ -127,24 +128,6 @@ const UserManagementList = () => {
     fetchDepartmentOptions();
   }, []);
 
-  const DATA = [
-    {
-      label: 'Total Users',
-      count: `${userData.length}`,
-      icon: <UsersRound size={18} />,
-      color: 'text-[#1B1B1F]',
-      iconBg: 'bg-[#D5E3FF]',
-      iconColor: 'text-[#00376C]',
-    },
-    {
-      label: 'Active Organizations',
-      count: `${activeCompanies.length}`,
-      icon: <Building2 size={18} />,
-      color: 'text-[#15803D]',
-      iconBg: 'bg-[#DCFCE7]',
-      iconColor: 'text-[#15803D]',
-    },
-  ];
   const filteredUser = useMemo(
     () =>
       userData.filter((u) => {
@@ -380,67 +363,31 @@ const UserManagementList = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                  <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
-                  <ChevronRight size={12} />
-                  <span className="text-[#084E92] font-medium">
-                    Users
-                  </span>
-                </div>
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">User Management List</h1>
-          </div>
-
-          {canAdd && (
-            <HeaderActionButton to="/users/add-user">
-              Add New User
-            </HeaderActionButton>
-          )}
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="User Management List"
+          actions={
+            canAdd && (
+              <HeaderActionButton to="/users/add-user">
+                Add New User
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert
           error={loadError}
           onRetry={fetchUsers}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 my-4">
-          {DATA.map((item) => (
-            <div
-              key={item.label}
-              className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
-            >
-              <div
-                className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}
-              >
-                {item.icon}
-              </div>
-              <div className="flex flex-col items-end text-right">
-                <span className="text-xs font-semibold text-[#00376C]">{item.label}</span>
-                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.count}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex flex-col gap-4 my-6">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
             {/* Search Section - Left */}
-            <div className="relative flex-1 border border-[#C3C6D1] rounded-xl">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, code or email..."
-                className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
-              />
-            </div>
+            <SearchBar
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, code or email..."
+            />
 
             {/* Department Filter - Right */}
             <div>

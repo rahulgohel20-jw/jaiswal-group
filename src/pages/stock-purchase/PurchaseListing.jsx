@@ -25,6 +25,7 @@ import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Link } from "react-router";
 import ScanPurchaseModel from "./models/ScanAndPurchase.models";
 
@@ -244,26 +245,25 @@ const PurchaseList = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Page header */}
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">Purchase List</h1>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setScanModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-sky-200 text-xs font-semibold text-sky-900 hover:bg-sky-50 transition cursor-pointer bg-white"
-            >
-              <ScanLine className="w-3.5 h-3.5" />
-              Scan &amp; Purchase
-            </button>
-            <HeaderActionButton to="/purchase/add-purchase">
-              Create New Purchase
-            </HeaderActionButton>
-          </div>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Purchase List"
+          actions={
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setScanModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-sky-200 text-xs font-semibold text-sky-900 hover:bg-sky-50 transition cursor-pointer bg-white"
+              >
+                <ScanLine className="w-3.5 h-3.5" />
+                Scan &amp; Purchase
+              </button>
+              <HeaderActionButton to="/purchase/add-purchase">
+                Create New Purchase
+              </HeaderActionButton>
+            </div>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 mb-6">

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify } from '@/utils/toast';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   Boxes,
   ChevronLeft,
@@ -12,7 +13,6 @@ import {
   History,
   Pencil,
   Plus,
-  Search,
   SquarePen,
   Trash2,
 } from 'lucide-react';
@@ -31,6 +31,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { useNavigate } from 'react-router';
 
 const PAGE_SIZE = 5;
@@ -236,66 +237,35 @@ const Departmentlist = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Department</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Departments</span>
-        </div>
-
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">Department Master</h1>
-          </div>
-          {canAdd && (
-            <HeaderActionButton
-              onClick={() => {
-                setEditingDepartment(null);
-                setIsAddOpen(true);
-              }}
-            >
-              Create Department
-            </HeaderActionButton>
-          )}
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="Department Master"
+          actions={
+            canAdd && (
+              <HeaderActionButton
+                onClick={() => {
+                  setEditingDepartment(null);
+                  setIsAddOpen(true);
+                }}
+              >
+                Create Department
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert
           error={error}
           onRetry={fetchDepartments}
         />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-6">
-          <StatCard
-            icon={<Boxes size={16} />}
-            iconBg="bg-[#D5E3FF]"
-            iconColor="text-[#00376C]"
-            label="TOTAL"
-            title="Total Departments"
-            value={stats.total}
+        <div className="w-full">
+          <SearchBar
+            placeholder="Search Department..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            isStandalone={true}
           />
-          <StatCard
-            icon={<History size={16} />}
-            iconBg="bg-[#D5E3FF]"
-            iconColor="text-[#00376C]"
-            label="STATUS"
-            title="Last Updated"
-            value="Today"
-          />
-        </div>
-
-        <div className="bg-white mb-6">
-          {/* Search */}
-          <div className="relative">
-            <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder="Enter department name..."
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
         </div>
 
         <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
@@ -464,7 +434,7 @@ const StatCard = ({ icon, iconBg, iconColor, title, value }) => (
     </div>
     <div className="flex flex-col items-end text-right">
       <span className="text-xs font-semibold text-[#00376C]">{title}</span>
-      <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
     </div>
   </div>
 );

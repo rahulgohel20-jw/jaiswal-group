@@ -12,6 +12,7 @@ import {
     Search,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -556,25 +557,10 @@ const PurchaseInvoice = () => {
 
     return (
         <Container>
-            <div className="mx-auto p-4">
-                {/* Breadcrumbs */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Purchase</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Purchase Invoice</span>
-                </div>
-
-                {/* Page header */}
-                <div className="flex items-start justify-between gap-4 flex-wrap my-2">
-                    <h1
-                        className="text-[20px] font-bold text-[#101828]"
-                        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-                    >
-                        Purchase Invoice
-                    </h1>
-                </div>
+            <div className="mx-auto pt-2 pb-6 space-y-4">
+                <PageHeader
+                    title="Purchase Invoice"
+                />
 
                 {scopeError && (
                     <div className="mb-4 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">

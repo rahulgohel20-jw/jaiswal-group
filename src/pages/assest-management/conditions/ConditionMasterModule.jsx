@@ -1,4 +1,5 @@
-import { ChevronRight, CircleCheck, CircleX, Download, Eye, Loader2, MoreVertical, Package, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
+import { ChevronRight, CircleCheck, CircleX, Download, Eye, Loader2, MoreVertical, Package, Plus, RotateCcw, SquarePen, Trash2 } from 'lucide-react'
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -21,6 +22,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
@@ -369,28 +371,17 @@ const ConditionMasterModule = () => {
 
   return (
     <Container>
-      <div className="p-4 mx-auto">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Condition Master</span>
-        </div>
-
-        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-          <div>
-            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
-              Condition Master
-            </h1>
-          </div>
-
-          {canAdd && (
-            <HeaderActionButton onClick={openAddModal}>
-              Add Condition
-            </HeaderActionButton>
-          )}
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Condition Master"
+          actions={
+            canAdd && (
+              <HeaderActionButton onClick={openAddModal}>
+                Add Condition
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert error={listError} onRetry={loadConditions} className="my-3" />
 
@@ -415,7 +406,7 @@ const ConditionMasterModule = () => {
                     {item.title}
                   </span>
 
-                  <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                  <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                     {item.value}
                   </span>
                 </div>
@@ -424,23 +415,15 @@ const ConditionMasterModule = () => {
           })}
         </div>
 
-        <div className="my-6 bg-white">
+        <div className="bg-white">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
             {/* Search  */}
-            <div className="relative border border-[#C3C6D1] rounded-xl col-span-1 md:col-span-2 py-0">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-
-              <input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Type to search conditions..."
-                className="w-full pl-10 py-2 rounded-xl outline-none"
-              />
-            </div>
+            <SearchBar
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Type to search conditions..."
+              wrapperClassName="col-span-1 md:col-span-2"
+            />
 
 
             {/* Status */}

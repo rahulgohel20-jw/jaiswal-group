@@ -28,8 +28,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Container } from '@/components/common/container';
-import { Breadcrumb } from './breadcrumb';
-import { MegaMenu } from './mega-menu';
 import { MegaMenuMobile } from './mega-menu-mobile';
 import { SidebarMenu } from './sidebar-menu';
 
@@ -61,8 +59,8 @@ export function Header() {
   return (
     <header
       className={cn(
-        'header fixed top-0 z-10 start-0 flex items-stretch shrink-0 border-b border-transparent bg-background end-0 pe-[var(--removed-body-scroll-bar-size,0px)]',
-        headerSticky && 'border-b border-border',
+        'header fixed top-0 z-10 start-0 flex items-stretch shrink-0 border-b border-[#E7EAF0] bg-background end-0 pe-[var(--removed-body-scroll-bar-size,0px)]',
+        headerSticky && 'shadow-2xs',
       )}
     >
       <Container className="flex justify-end items-center lg:gap-4">

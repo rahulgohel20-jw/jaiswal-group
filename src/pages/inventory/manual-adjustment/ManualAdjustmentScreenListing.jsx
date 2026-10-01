@@ -26,6 +26,8 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { Link, useNavigate } from 'react-router';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -42,6 +44,7 @@ import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   Dialog,
   DialogContent,
@@ -918,41 +921,19 @@ const ManualAdjustmentScreenListing = () => {
 
   return (
     <Container>
-      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={11} />
-          <span>Inventory</span>
-          <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">Manual Adjustment List</span>
-        </div>
-
+      <div className="pt-2 pb-6 mx-auto space-y-4">
         {/* Header Title + Action Button */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex flex-col gap-1">
-            <h1
-              className="text-xl md:text-2xl font-bold text-[#101828] leading-tight"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            >
-              Manual Adjustment List
-            </h1>
-            <p className="text-[#667085] text-xs max-w-xl">
-              Review and track raw material inventory physical audit reconciliations.
-            </p>
-          </div>
-          {canAdd && (
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                to="/inventory/manual-adjustment/create"
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white bg-[#084E92] text-xs font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shadow-2xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
+        <PageHeader
+          title="Manual Adjustment List"
+          description="Review and track raw material inventory physical audit reconciliations."
+          actions={
+            canAdd && (
+              <HeaderActionButton to="/inventory/manual-adjustment/create">
                 Create Adjustment
-              </Link>
-            </div>
-          )}
-        </div>
+              </HeaderActionButton>
+            )
+          }
+        />
 
         <PageErrorAlert
           error={scopeError || error}
@@ -961,16 +942,12 @@ const ManualAdjustmentScreenListing = () => {
 
         {/* Filter Toolbar (Aligned in single row like PurchaseRequisitionList) */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]"
-            />
-            <input
+          <div className="flex-1 min-w-[200px]">
+            <SearchBar
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onClear={() => setSearch('')}
               placeholder="Search item, remarks, code..."
-              className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 
@@ -1018,7 +995,7 @@ const ManualAdjustmentScreenListing = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-[#E7EAF0] bg-white text-xs font-semibold text-[#101828] appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              className="h-10 w-full pl-8 pr-7 rounded-xl border border-[#C3C6D1] bg-white text-xs font-semibold text-[#101828] appearance-none focus:outline-none focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
             >
               <option value="ALL">All Status</option>
               <option value="DRAFT">Draft</option>

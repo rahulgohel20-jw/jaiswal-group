@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Container } from "@/components/common/container";
-import { ChevronRight, Eye, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
+import { SearchBar } from "@/components/common/SearchBar";
+import { ChevronRight, Eye, Plus, SquarePen, Trash2 } from 'lucide-react';
 import {
     getCoreRowModel,
     getPaginationRowModel,
@@ -17,6 +18,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { PageHeader } from '@/components/common/PageHeader';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddStateModel from './AddStateModel';
 import { useNavigate } from 'react-router';
@@ -227,61 +229,37 @@ const StateMaster = () => {
 
     return (
         <Container>
-            <div className='p-4 mx-auto'>
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Location Master</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">State</span>
+            <div className='pt-2 pb-6 mx-auto space-y-3.5'>
+                <PageHeader
+                    title="State Master"
+                    actions={
+                        canAdd && (
+                            <HeaderActionButton onClick={openAddModal}>
+                                Add State
+                            </HeaderActionButton>
+                        )
+                    }
+                />
+
+                <PageErrorAlert error={error} onRetry={fetchStates} />
+
+                {/* SEARCH */}
+                <div className="w-full">
+                    <SearchBar
+                        placeholder="Search State..."
+                        value={search}
+                        isStandalone={true}
+                        onChange={(e) => {
+                            setSearch(e.target.value);
+                            setPagination((prev) => ({
+                                ...prev,
+                                pageIndex: 0,
+                            }));
+                        }}
+                    />
                 </div>
 
-                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-                    <div>
-                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl text-start">
-                            State Master
-                        </h1>
-                    </div>
-
-                    {canAdd && (
-                        <HeaderActionButton onClick={openAddModal}>
-                            Add State
-                        </HeaderActionButton>
-                    )}
-                </div>
-
-                <PageErrorAlert error={error} onRetry={fetchStates} className="my-3" />
-
-                <div className="bg-white pt-5">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div className="relative w-full md:w-96">
-                            <Search
-                                size={18}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-
-                            <input
-                                type="text"
-                                placeholder="Search State..."
-                                value={search}
-                                onChange={(e) => {
-                                    setSearch(e.target.value);
-                                    setPagination((prev) => ({
-                                        ...prev,
-                                        pageIndex: 0,
-                                    }));
-                                }}
-                                className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
-                            />
-                        </div>
-
-                        {/* <p className="text-sm text-gray-500">
-                            Showing {filteredStates.length} of {states.length} states
-                        </p> */}
-                    </div>
-                </div>
-
-                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && (
                         <p className="p-4 text-sm text-gray-500">
                             Loading states...

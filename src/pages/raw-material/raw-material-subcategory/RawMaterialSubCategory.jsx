@@ -5,6 +5,7 @@ import {
     getPaginationRowModel,
     useReactTable,
 } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
     Blocks,
     ChevronRight,
@@ -12,7 +13,6 @@ import {
     CircleX,
     Eye,
     Plus,
-    Search,
     SquarePen,
     Trash2,
     Upload,
@@ -31,8 +31,8 @@ import AddRawMaterialSubCategoryModal from './AddRawMaterialSubCategoryModal';
 import RawMaterialSubCategoryDetailsModal from './RawMaterialSubCategoryDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
-import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
@@ -454,36 +454,22 @@ const RowMaterialSubCategory = () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Master Data</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">
-                        Raw Material Sub Categories
-                    </span>
-                </div>
-
-                <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
-                    <div>
-                        <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
-                            Raw Material Sub Category Master
-                        </h1>
-                    </div>
-
-                    {canAdd && (
-                        <HeaderActionButton onClick={openCreateModal}>
-                            Add Sub Category
-                        </HeaderActionButton>
-                    )}
-                </div>
+            <div className="pt-2 pb-6 mx-auto space-y-4">
+                <PageHeader
+                    title="Raw Material Sub Category Master"
+                    actions={
+                        canAdd && (
+                            <HeaderActionButton onClick={openCreateModal}>
+                                Add Sub Category
+                            </HeaderActionButton>
+                        )
+                    }
+                />
 
                 <PageErrorAlert error={error} onRetry={fetchSubCategories} className="my-3" />
 
                 {/* Stat cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 py-4 text-[#43474F]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 text-[#43474F]">
                     {STATS.map((item) => (
                         <div
                             key={item.title}
@@ -494,7 +480,7 @@ const RowMaterialSubCategory = () => {
                             </div>
                             <div className="flex flex-col items-end text-right">
                                 <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                                     {item.value}
                                 </span>
                             </div>
@@ -504,19 +490,12 @@ const RowMaterialSubCategory = () => {
 
                 <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
                     <div className="grid grid-cols-1 xl:grid-cols-4 sm:grid-col-2 gap-4">
-                        <div className="relative md:col-span-2">
-                            <Search
-                                size={18}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search by sub category name..."
-                                className="w-full pl-10 py-2 border rounded-lg outline-none"
-                            />
-                        </div>
+                        <SearchBar
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by sub category name..."
+                            wrapperClassName="md:col-span-2"
+                        />
 
                         <Select
                             value={statusFilter}

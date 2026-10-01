@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import {
     CheckCircle2,
     ChevronRight,
@@ -18,6 +18,7 @@ import {
     useReactTable,
 } from '@tanstack/react-table';
 import { Container } from '@/components/common/container';
+import { SearchBar } from '@/components/common/SearchBar';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
@@ -37,11 +38,12 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
-import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { getVendorPriceApprovals } from '../../../services/apiServices';
 import { useOrgScope } from '../../../hooks/useOrgScope';
+import { usePagePermissions } from '@/utils/permissions';
 
 const STATUS_STYLES = {
     PENDING: { label: 'Pending', className: 'bg-yellow-50 text-yellow-700' },
@@ -869,25 +871,11 @@ const VendorPriceApproval = () => {
 
     return (
         <Container>
-            <div className="p-4 mx-auto">
-                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-                    <span className="cursor-pointer hover:text-blue-300" onClick={() => navigate('/')}>
-                        Dashboard
-                    </span>
-                    <ChevronRight size={12} />
-                    <span>Raw Material</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Vendor Price Approval</span>
-                </div>
-
-                <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-[#101828] text-start">
-                        Vendor Price Approval
-                    </h1>
-                    <p className="text-[#667085] text-sm mt-1 max-w-2xl">
-                        Review vendor pricing submitted per outlet and approve or hold each price before it takes effect.
-                    </p>
-                </div>
+            <div className="pt-2 pb-6 mx-auto space-y-4">
+                <PageHeader
+                    title="Vendor Price Approval"
+                    description="Review vendor pricing submitted per outlet and approve or hold each price before it takes effect."
+                />
 
                 <PageErrorAlert
                     error={scopeError || error}
@@ -916,7 +904,7 @@ const VendorPriceApproval = () => {
                             </div>
                             <div className="flex flex-col items-end text-right">
                                 <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                                <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                                     {item.value}
                                 </span>
                             </div>
@@ -931,19 +919,12 @@ const VendorPriceApproval = () => {
                             } gap-4`}
                     >
                         {/* Search Input: Spans 2 columns */}
-                        <div className="relative md:col-span-2">
-                            <Search
-                                size={18}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={handleSearchChange}
-                                placeholder="Search by material, vendor or outlet..."
-                                className="w-full pl-10 py-2 border rounded-xl outline-none border-[#C3C6D1] h-10 text-sm"
-                            />
-                        </div>
+                        <SearchBar
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                            placeholder="Search by material, vendor or outlet..."
+                            wrapperClassName="md:col-span-2"
+                        />
 
                         {/* SearchableSelect for Organization / Outlet: Rendered ONLY if NOT an outlet user */}
                         {!isOutletUser && (
@@ -977,7 +958,7 @@ const VendorPriceApproval = () => {
                 </div>
 
                 {/* Table */}
-                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && (
                         <p className="p-4 text-sm text-gray-500">Loading vendor price approvals...</p>
                     )}

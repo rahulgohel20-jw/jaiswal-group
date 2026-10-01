@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -50,8 +51,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { CodeCell } from '@/components/common/CodeCell';
+} from '@/components/ui/select';
+import { SearchBar } from '@/components/common/SearchBar';
 
 // Statuses visible to an approver, which of those still allow Approve/Reject,
 // and which are editable (approver can still adjust an in-progress PO).
@@ -112,7 +113,7 @@ function StatCard({ icon, iconBg, iconFg, label, value }) {
       </div>
       <div className="flex flex-col items-end text-right">
         <span className="text-xs font-semibold text-[#00376C]">{label}</span>
-        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
+        <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
           {value}
         </span>
       </div>
@@ -143,7 +144,7 @@ function StatusDropdown({ value, onChange }) {
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
      <Select value={value} onValueChange={onChange}>
         <SelectTrigger
-          className="h-11 pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+          className="h-10 pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
         >
           <SelectValue />
         </SelectTrigger>
@@ -598,56 +599,46 @@ const PurchaseOrderApproval = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Purchase</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Purchase Order Approval</span>
-        </div>
-
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
         {/* Header with Separate Report Export Buttons */}
-        <div className="flex items-center justify-between gap-4 flex-wrap mb-2">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
-              Purchase Order Approval
-            </h1>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Button 1: Short Item Received */}
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal('Short Item Received')}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition shadow-2xs cursor-pointer whitespace-nowrap"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Short Item Received
-              {selectedPoId && (
-                <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">
-                  1 PO Selected
-                </span>
-              )}
-            </button>
+        <PageHeader
+          title="Purchase Order Approval"
+          actions={
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {/* Button 1: Short Item Received */}
+              <button
+                type="button"
+                onClick={() => handleOpenExportModal('Short Item Received')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition shadow-2xs cursor-pointer whitespace-nowrap"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Short Item Received
+                {selectedPoId && (
+                  <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">
+                    1 PO Selected
+                  </span>
+                )}
+              </button>
 
-            {/* Button 2: Pending GRN */}
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal("Pending GRN")}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition shadow-2xs cursor-pointer whitespace-nowrap"
-            >
-              <FileText className="w-3.5 h-3.5 text-[#084E92]" />
-              Pending GRN
-            </button>
-          </div>
-        </div>
+              {/* Button 2: Pending GRN */}
+              <button
+                type="button"
+                onClick={() => handleOpenExportModal("Pending GRN")}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition shadow-2xs cursor-pointer whitespace-nowrap"
+              >
+                <FileText className="w-3.5 h-3.5 text-[#084E92]" />
+                Pending GRN
+              </button>
+            </div>
+          }
+        />
 
         <PageErrorAlert
           error={scopeError || poError}
           onRetry={scopeError ? retryScope : loadData}
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 my-7">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5">
           <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Sent for approval" value={counts[PO_STATUS.SENT_FOR_APPROVAL] ?? 0} />
           <StatCard icon={<Clock3 size={18} />} iconBg="#FEF6E7" iconFg="#B7791F" label="In progress" value={counts[PO_STATUS.IN_PROGRESS] ?? 0} />
           <StatCard icon={<CheckCircle2 size={18} />} iconBg="#E7F7EE" iconFg="#14804A" label="Approved" value={counts[PO_STATUS.APPROVED] ?? 0} />
@@ -655,14 +646,13 @@ const PurchaseOrderApproval = () => {
           <StatCard icon={<Package size={18} />} iconBg="#F2F4F7" iconFg="#667085" label="Closed" value={counts[PO_STATUS.CLOSED] ?? 0} />
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap mb-7">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
-            <input
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onClear={() => setQuery('')}
               placeholder="Search PO code or outlet..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
           {showUnitDropdown && (

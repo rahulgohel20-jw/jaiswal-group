@@ -7,12 +7,12 @@ import {
     Plus,
     ChevronRight,
     List,
-    Search,
     Trash2,
     SquarePen,
     Eye,
     Loader2,
 } from "lucide-react";
+import { SearchBar } from '@/components/common/SearchBar';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -34,6 +34,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
@@ -379,27 +380,17 @@ const StatusMasterModule = () => {
 
     return (
         <Container>
-            <div className='p-4 mx-auto'>
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Asset Management</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Status Master</span>
-                </div>
-                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-                    <div>
-                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">
-                            Status Master
-                        </h1>
-                    </div>
-
-                    {canAdd && (
-                        <HeaderActionButton onClick={openAddModal}>
-                            Add Status
-                        </HeaderActionButton>
-                    )}
-                </div>
+            <div className='pt-2 pb-6 mx-auto space-y-4'>
+                <PageHeader
+                    title="Status Master"
+                    actions={
+                        canAdd && (
+                            <HeaderActionButton onClick={openAddModal}>
+                                Add Status
+                            </HeaderActionButton>
+                        )
+                    }
+                />
 
                 <PageErrorAlert error={listError} onRetry={loadStatus} className="my-3" />
 
@@ -423,7 +414,7 @@ const StatusMasterModule = () => {
                                         {item.title}
                                     </span>
 
-                                    <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>
+                                    <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                                         {item.value}
                                     </span>
                                 </div>
@@ -433,21 +424,14 @@ const StatusMasterModule = () => {
                 </div>
 
 
-                <div className="my-6">
-                    <div className="grid md:grid-cols-3 gap-4">
-                        <div className="relative mt-1 rounded-xl md:col-span-2 col-span-1 border border-[#C3C6D1]">
-                            <Search
-                                size={16}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-
-                            <input
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                placeholder="Search by name..."
-                                className="w-full pl-10 py-2 outline-none"
-                            />
-                        </div>
+                <div>
+                    <div className="grid md:grid-cols-3 gap-4 items-center">
+                        <SearchBar
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            placeholder="Search by name..."
+                            wrapperClassName="md:col-span-2 col-span-1"
+                        />
 
                         <div className='my-auto'>
                             <Select

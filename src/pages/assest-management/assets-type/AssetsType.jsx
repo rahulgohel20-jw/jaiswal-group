@@ -1,4 +1,5 @@
-import { ArrowRightLeft, Building2, ChevronRight, CircleCheck, CircleX, ClipboardList, Download, Eye, MonitorSmartphone, Package, Plus, RotateCcw, Search, SquareCheckBig, SquarePen, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Building2, ChevronRight, CircleCheck, CircleX, ClipboardList, Download, Eye, MonitorSmartphone, Package, Plus, RotateCcw, SquareCheckBig, SquarePen, Trash2 } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -15,6 +16,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
@@ -284,28 +286,17 @@ const confirmDelete = async () => {
 
     return (
         <Container>
-            <div className="p-4 mx-auto">
-
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Asset Types</span>
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-                <div>
-                    <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Assign Asset Types</h1>
-                </div>
-                {canAdd && (
-                    <HeaderActionButton onClick={openCreateModal}>
-                        Add Asset Type
-                    </HeaderActionButton>
-                )}
-            </div>
+            <div className="pt-2 pb-6 mx-auto space-y-4">
+                <PageHeader
+                    title="Assign Asset Types"
+                    actions={
+                        canAdd && (
+                            <HeaderActionButton onClick={openCreateModal}>
+                                Add Asset Type
+                            </HeaderActionButton>
+                        )
+                    }
+                />
 
             <PageErrorAlert error={error} onRetry={fetchTypes} className="my-3" />
 
@@ -330,7 +321,7 @@ const confirmDelete = async () => {
                                     {item.title}
                                 </span>
 
-                                <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                                     {item.value}
                                 </span>
                             </div>
@@ -342,19 +333,11 @@ const confirmDelete = async () => {
             <div className="flex flex-col gap-4">
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
-                    <div className="relative w-full border border-[#C3C6D1] rounded-xl">
-                        <Search
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
-
-                        <input
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            placeholder="Search by type, description..."
-                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-xl text-sm"
-                        />
-                    </div>
+                    <SearchBar
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        placeholder="Search by type, description..."
+                    />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 

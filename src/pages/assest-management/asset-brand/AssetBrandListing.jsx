@@ -5,11 +5,11 @@ import {
     CircleX,
     Eye,
     Plus,
-    Search,
     SquarePen,
     Tag,
     Trash2,
 } from 'lucide-react'
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -27,6 +27,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
@@ -285,32 +286,22 @@ const AssetBrandListing = () => {
 
     return (
        <Container>
-         <div className="p-4 mx-auto">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Brand Master</span>
-            </div>
-
-            <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
-                <div>
-                    <h1 className="font-bold text-[#101828] text-xl sm:text-2xl">Asset Brands</h1>
-                </div>
-
-                {canAdd && (
-                    <HeaderActionButton onClick={openCreateModal}>
-                        Add Brand
-                    </HeaderActionButton>
-                )}
-            </div>
+         <div className="pt-2 pb-6 mx-auto space-y-4">
+            <PageHeader
+                title="Asset Brands"
+                actions={
+                    canAdd && (
+                        <HeaderActionButton onClick={openCreateModal}>
+                            Add Brand
+                        </HeaderActionButton>
+                    )
+                }
+            />
 
             <PageErrorAlert error={error} onRetry={fetchBrands} className="my-3" />
 
             {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 py-4 text-[#43474F]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 text-[#43474F]">
                 {STATS.map((item) => (
                     <div key={item.title} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
                         <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
@@ -318,7 +309,7 @@ const AssetBrandListing = () => {
                         </div>
                         <div className="flex flex-col items-end text-right">
                             <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
-                            <span className={`text-lg sm:text-xl font-bold mt-0.5 ${item.color}`}>{item.value}</span>
+                            <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
                         </div>
                     </div>
                 ))}
@@ -327,17 +318,14 @@ const AssetBrandListing = () => {
             {/* Filters */}
             <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                    <div className="relative col-span-1 min-w-0 border border-[#C3C6D1] rounded-xl md:col-span-2">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                        <input
-                            placeholder="Search by brand name..."
-                            className="w-full min-w-0 pl-10 py-2 outline-none rounded-xl"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                    <SearchBar
+                        placeholder="Search by brand name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        wrapperClassName="md:col-span-2"
+                    />
 
-                        <Select
+                    <Select
                             value={statusFilter}
                             onValueChange={(value) => setStatusFilter(value)}
                         >

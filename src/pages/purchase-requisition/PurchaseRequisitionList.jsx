@@ -37,8 +37,10 @@
   import { usePagePermissions } from '@/utils/permissions';
   import { AccessDenied } from '@/components/common/AccessDenied';
   import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { CodeCell } from '@/components/common/CodeCell';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   Select,
   SelectContent,
@@ -114,7 +116,7 @@ import {
         <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
         <Select value={value || 'all'} onValueChange={(val) => onChange(val === 'all' ? '' : val)}>
           <SelectTrigger
-            className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+            className="h-10 w-full pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:outline-none focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
           >
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
@@ -451,27 +453,17 @@ import {
 
     return (
       <Container>
-        <div className="mx-auto p-4">
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-            <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
-            <ChevronRight size={12} />
-            <span>Purchase</span>
-            <ChevronRight size={12} />
-            <span className="text-[#084E92] font-medium">Purchase Requisition List</span>
-          </div>
-
-          <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-[#101828]">
-                Purchase Requisition List
-              </h1>
-            </div>
-            {canAdd && (
-              <HeaderActionButton to="/purchase-requisition/add">
-                Create Purchase Requisition
-              </HeaderActionButton>
-            )}
-          </div>
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
+          <PageHeader
+            title="Purchase Requisition List"
+            actions={
+              canAdd && (
+                <HeaderActionButton to="/purchase-requisition/add">
+                  Create Purchase Requisition
+                </HeaderActionButton>
+              )
+            }
+          />
 
           <PageErrorAlert
             error={scopeError || prError}
@@ -479,14 +471,13 @@ import {
           />
 
           {/* Search + unit dropdown + status dropdown, aligned in one row */}
-          <div className="flex items-center gap-3 mb-5 flex-wrap">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
-              <input
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex-1 min-w-[220px]">
+              <SearchBar
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery('')}
                 placeholder="Search PR Code, Outlet..."
-                className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
               />
             </div>
 

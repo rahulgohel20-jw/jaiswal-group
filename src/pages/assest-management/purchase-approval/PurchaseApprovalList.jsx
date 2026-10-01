@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from "react";
+import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
+import { SearchBar } from "@/components/common/SearchBar";
 import {
   Search,
   Filter,
@@ -118,7 +121,7 @@ function StatCard({ icon, iconBg, iconFg, label, value }) {
       </div>
       <div className="flex flex-col items-end text-right">
         <span className="text-xs font-semibold text-[#00376C]">{label}</span>
-        <span className="text-lg sm:text-xl font-bold text-[#1B1B1F] mt-0.5">
+        <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
           {value}
         </span>
       </div>
@@ -144,22 +147,15 @@ export default function ListView({ onOpen }) {
   }, [query]);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
+    <Container>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1
-          className="text-[28px] font-bold text-[#101828]"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
-          Purchase Approval
-        </h1>
-        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-          Manage and review pending purchase requisitions from various outlets for final
-          authorization.
-        </p>
-      </div>
+        {/* Header */}
+        <PageHeader
+          title="Purchase Approval"
+          description="Manage and review pending purchase requisitions from various outlets for final authorization."
+        />
 
       {/* Stat cards */}
       <div className="grid grid-cols-3 gap-4 mb-7">
@@ -188,30 +184,26 @@ export default function ListView({ onOpen }) {
 
       {/* Search + filter row */}
       <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
-          />
-          <input
+        <div className="flex-1">
+          <SearchBar
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onClear={() => setQuery("")}
             placeholder="Search PR code, outlet or manager..."
-            className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
           />
         </div>
-        <button className="cursor-pointer h-11 px-4 rounded-xl border border-[#E7EAF0] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors">
+        <button className="cursor-pointer h-10 px-4 rounded-xl border border-[#C3C6D1] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors">
           <Filter size={15} />
           Filter
         </button>
         <button
-          className="cursor-pointer w-11 h-11 rounded-xl border border-[#E7EAF0] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
+          className="cursor-pointer w-10 h-10 rounded-xl border border-[#C3C6D1] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
           aria-label="Refresh"
         >
           <RefreshCw size={15} />
         </button>
         <button
-          className="cursor-pointer w-11 h-11 rounded-xl border border-[#E7EAF0] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
+          className="cursor-pointer w-10 h-10 rounded-xl border border-[#C3C6D1] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
           aria-label="Export"
         >
           <Share2 size={15} />
@@ -314,7 +306,6 @@ export default function ListView({ onOpen }) {
                 {p}
               </button>
             ))}
-            <span className="text-[#98A2B3] text-xs px-1">ΓÇª</span>
             <button className="cursor-pointer w-8 h-8 rounded-lg border border-[#E7EAF0] text-xs font-semibold text-[#475467] hover:bg-[#F9FAFC]">
               25
             </button>
@@ -324,6 +315,6 @@ export default function ListView({ onOpen }) {
           </div>
         </div>
       </div>
-    </div>
+    </Container>
   );
 }
