@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
+  ArrowLeft,
   Boxes,
   ChevronDown,
   Copy,
@@ -16,7 +17,6 @@ import {
   CirclePlus,
   ImagePlus,
   X,
-  ChevronRight,
 } from 'lucide-react';
 import { Button } from 'react-aria-components';
 import AddCategoryModal from '../categories/AddCategoryModal';
@@ -41,6 +41,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { Input } from "@/components/ui/input";
 import SearchableSelect from '../../../utils/SearchableSelect';
 import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -845,40 +846,36 @@ const AddAsset = () => {
 
   return (
     <Container>
-    <div className="mx-auto px-4">
-
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate(-1)}>Assets</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Assets Registration</span>
-        </div>
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-1">
-          <h1 className="font-bold text-[#101828] text-[28px]">
-            {isEditMode ? 'Edit Asset' : 'Asset Registration'}
-          </h1>
-          <p className="text-[#43474F] mt-2 text-sm">
-            Register and manage all organizational assets to maintain complete lifecycle visibility and compliance.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleSaveAsset}
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition shrink-0"
-        >
-          <Save className="w-4 h-4" />
-          {saving
-            ? 'Saving...'
-            : isEditMode
-              ? 'Update Asset'
-              : 'Save Asset'}
-        </button>
-      </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? 'Edit Asset' : 'Asset Registration'}
+          description="Register and manage all organizational assets to maintain complete lifecycle visibility and compliance."
+          actions={
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate('/assets/all-assets')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Assets
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAsset}
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition shrink-0"
+              >
+                <Save className="w-4 h-4" />
+                {saving
+                  ? 'Saving...'
+                  : isEditMode
+                    ? 'Update Asset'
+                    : 'Save Asset'}
+              </button>
+            </div>
+          }
+        />
 
       <SectionCard className="mt-4">
         <SectionHeader

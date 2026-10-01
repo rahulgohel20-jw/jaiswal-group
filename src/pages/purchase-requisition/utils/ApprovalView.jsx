@@ -14,6 +14,7 @@ import { getAllRawMaterialItems, getCurrentStockListGet } from "@/services/apiSe
 import SearchableSelect from "@/utils/SearchableSelect";
 import { useNavigate } from "react-router";
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const FONT_IMPORT_URL =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap";
@@ -399,36 +400,33 @@ export default function ApprovalView({
   // ---- Render ----
   return (
      <Container>
-    <div className="mx-auto px-4">
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
       <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
 
-      <button
-        onClick={onBack}
-        className="cursor-pointer flex items-center gap-1.5 text-sm font-medium text-[#475467] hover:text-[#101828] mb-3 transition-colors"
-      >
-        <ArrowLeft size={15} />
-        Back to approvals
-      </button>
-
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1
-            className="text-[28px] font-bold text-[#101828]"
-            style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-          >
-            {isReject ? "Reject Purchase Requisition" : "Purchase Approval View"}
-          </h1>
-          <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-            {isReject
-              ? "Enter a reason for rejecting this requisition. This will be shared with the requester."
-              : "Review and adjust line item quantities before saving or approving."}
-          </p>
-        </div>
-        <button className="cursor-pointer h-10 px-4 rounded-xl border border-[#E7EAF0] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors shrink-0">
-          <Download size={15} />
-          Download PDF
-        </button>
-      </div>
+      <PageHeader
+        title={isReject ? "Reject Purchase Requisition" : "Purchase Approval View"}
+        description={
+          isReject
+            ? "Enter a reason for rejecting this requisition. This will be shared with the requester."
+            : "Review and adjust line item quantities before saving or approving."
+        }
+        actions={
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={onBack}
+              className="cursor-pointer flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] transition-colors bg-transparent border-0 p-0"
+            >
+              <ArrowLeft size={16} />
+              Back to approvals
+            </button>
+            <button className="cursor-pointer h-10 px-4 rounded-xl border border-[#E7EAF0] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors shrink-0">
+              <Download size={15} />
+              Download PDF
+            </button>
+          </div>
+        }
+        className="mb-8"
+      />
 
       {/* Requisition info card */}
       <div className="bg-white rounded-2xl border border-[#E7EAF0] px-6 py-5 mb-6">

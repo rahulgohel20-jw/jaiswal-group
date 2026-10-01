@@ -5,7 +5,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ChevronRight,
   Building2,
   Calendar,
   ArrowLeft,
@@ -386,17 +385,7 @@ const PurchaseOrderDetail = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate(-1)}>
-            Purchase Orders
-          </span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">{po?.poCode}</span>
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
 
         {/* Header card */}
         <div className="rounded-2xl bg-gradient-to-r from-[#084E92] to-[#0B65BD] px-6 py-5 flex items-center justify-between gap-4 flex-wrap shadow-sm">

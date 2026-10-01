@@ -23,6 +23,7 @@ import {
 import { getUserIdFromToken } from '@/utils/auth';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageHeader } from '@/components/common/PageHeader';
 import {
   validateRequired,
   validateEmail,
@@ -827,25 +828,25 @@ const CompanyRegistration = () => {
 
   return (
      <Container>
-    <div className="mx-auto p-4">
-      <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => navigate('/companies')}
-          className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92]  cursor-pointer bg-transparent border-0 p-0 self-start"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Companies
-        </button>
-        <h1 className="font-bold text-[#101828] text-[28px]">
-          {isEditMode ? 'Update Company' : 'Register New Company'}
-        </h1>
-        <p className="text-[#667085] text-sm mt-1">
-          {isEditMode
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
+      <PageHeader
+        title={isEditMode ? 'Update Company' : 'Register New Company'}
+        description={
+          isEditMode
             ? `Edit the details for ${editingCompany.companyNameEnglish || ''} and save your changes.`
-            : 'Complete the form below to establish a new corporate entity in the Jaiswal Group ecosystem.'}
-        </p>
-      </div>
+            : 'Complete the form below to establish a new corporate entity in the Jaiswal Group ecosystem.'
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => navigate('/companies')}
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Companies
+          </button>
+        }
+      />
 
       <SectionCard className="mt-4">
         <SectionHeader

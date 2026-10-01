@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ArrowLeft,
   Calendar,
   CheckCircle2,
-  ChevronRight,
   Info,
   LayoutList,
   Search,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useNavigate, Link } from 'react-router';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -689,32 +690,21 @@ const CreateManualAdjustment = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Inventory</span>
-          <ChevronRight size={12} />
-          <Link
-            to="/inventory/manual-adjustment-listing"
-            className="hover:text-[#084E92] transition-colors cursor-pointer"
-          >
-            Manual Adjustment
-          </Link>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-semibold">Create</span>
-        </div>
-
-        {/* Page Header */}
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0F172A]">Manual Adjustment Creation</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Reconcile physical inventory discrepancies with audit ledger entries
-            </p>
-          </div>
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-6">
+        <PageHeader
+          title="Manual Adjustment Creation"
+          description="Reconcile physical inventory discrepancies with audit ledger entries"
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/inventory/manual-adjustment-listing')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Listing
+            </button>
+          }
+        />
 
         {/* Adjustment Details Card */}
         <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">

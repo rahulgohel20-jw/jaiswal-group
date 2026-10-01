@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import {
-  ChevronRight,
   ArrowLeft,
   Calendar,
   Building2,
@@ -363,22 +362,7 @@ const ViewManualAdjustment = () => {
 
   return (
     <Container>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-12">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3 mt-1">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Inventory</span>
-          <ChevronRight size={12} />
-          <Link
-            to="/inventory/manual-adjustment-listing"
-            className="cursor-pointer hover:text-[#084E92] transition"
-          >
-            Manual Adjustment
-          </Link>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">{voucherNumber}</span>
-        </div>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-12 pt-4">
 
         {/* Header card */}
         <div className="rounded-2xl bg-gradient-to-r from-[#084E92] to-[#0B65BD] px-6 py-5 flex items-center justify-between gap-4 flex-wrap shadow-sm">

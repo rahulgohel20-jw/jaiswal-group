@@ -4,8 +4,8 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
+  ArrowLeft,
   ChevronDown,
-  ChevronRight,
   ClipboardList,
   FileText,
   Info,
@@ -28,6 +28,7 @@ import {
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import VendorPriceComparisonModal from './VendorPriceComparisonModal';
@@ -1846,43 +1847,38 @@ const CreatePurchaseOrder = () => {
 
   return (
     <Container>
-      <div className="p-4 mx-auto">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate(-1)}>Purchase Order Request</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            {isRejectMode
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={
+            isRejectMode
               ? 'Reject Purchase Order'
               : isApproveMode && !isExistingInProgress
                 ? 'Approve Purchase Order'
                 : isEditingExistingPo
                   ? 'Edit Purchase Order'
-                  : 'Create Purchase Order'}
-          </span>
-        </div>
-
-        <div className="my-2">
-          <h1 className="font-bold text-[#101828] text-[28px]">
-            {isRejectMode
-              ? 'Reject Purchase Order'
-              : isApproveMode && !isExistingInProgress
-                ? 'Approve Purchase Order'
-                : isEditingExistingPo
-                  ? 'Edit Purchase Order'
-                  : 'Create Purchase Order'}
-          </h1>
-          <p className="text-sm text-[#737781] mt-1">
-            {isRejectMode
+                  : 'Create Purchase Order'
+          }
+          description={
+            isRejectMode
               ? 'Review the purchase order details and provide rejection remarks.'
               : isReviewMode && !isExistingInProgress
                 ? 'Review the purchase order details before submitting your decision.'
                 : isEditingExistingPo
                   ? 'Update purchase order line items, pricing, vendor assignment, and details.'
-                  : 'Review requisition details and finalize the purchase order for vendor submission.'}
-          </p>
-        </div>
+                  : 'Review requisition details and finalize the purchase order for vendor submission.'
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/purchase-order-request/purchase')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Orders
+            </button>
+          }
+          className="my-2"
+        />
 
         {prError && isGeneratePo && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">

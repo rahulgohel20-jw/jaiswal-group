@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ArrowLeft,
   Building2,
   CalendarDays,
   ChevronDown,
-  ChevronRight,
   FileText,
   MapPin,
   PackageCheck,
@@ -27,6 +27,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import SearchableSelect from '../../../utils/SearchableSelect';
 import { getAllActiveSubOutlets } from '../../../services/apiServices';
 import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 
 
 const inputCls =
@@ -603,26 +604,21 @@ const AddAssignAsset = () => {
 
   return (
     <Container>
-    <div className="mx-auto p-4">
-       <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate(-1)}>Assign Assets</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Add Assign Assets</span>
-              </div>
-      <div className="flex items-center gap-3">
-        <div>
-          <h1 className="font-bold text-[#101828] text-[28px] ">
-            {isEditMode ? 'Edit Assignment' : 'Assign Asset'}
-          </h1>
-          <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-            Configure deployment parameters for enterprise inventory.
-          </p>
-        </div>
-      </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? 'Edit Assignment' : 'Assign Asset'}
+          description="Configure deployment parameters for enterprise inventory."
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/assigned-assets')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Assigned Assets
+            </button>
+          }
+        />
 
       {(fetchError || saveError) && (
         <div className="mt-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-2">

@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 import {
+  ArrowLeft,
   ChevronDown,
-  ChevronRight,
   Plus,
   Search,
   Trash2,
@@ -1225,55 +1226,42 @@ const AddRawMaterialItemModal = () => {
   return (
     <Container>
       <div>
-        <div className="mx-auto p-4">
-          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
-            <span className="cursor-pointer hover:text-blue-300" onClick={() => navigate('/')}>Dashboard</span>
-            <ChevronRight size={12} />
-            <span>Raw Material</span>
-            <ChevronRight size={12} />
-            <span className="cursor-pointer hover:text-blue-300" onClick={() => navigate(-1)}>Raw Material Items</span>
-            <ChevronRight size={12} />
-            <span className="text-[#084E92] font-medium">
-              {isApprovalMode
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
+          <PageHeader
+            title={
+              isApprovalMode
                 ? isApprovalRowModified
-                  ? 'Update & Review Item'
-                  : 'Review Vendor Price'
+                  ? 'Update & Submit Vendor Price Decision'
+                  : 'Review Raw Material Vendor Price'
                 : isViewOnly
-                  ? 'View Item'
+                  ? 'View Raw Material Item'
                   : editData
-                    ? 'Edit Item'
-                    : 'Add Item'}
-            </span>
-          </div>
-
-          <div className="flex justify-between items-center border-b border-[#C3C6D1]">
-            <div className="flex gap-2 items-center">
-              <div>
-                <h2 className="text-[28px] font-bold text-[#101828] text-start">
-                  {isApprovalMode
-                    ? isApprovalRowModified
-                      ? 'Update & Submit Vendor Price Decision'
-                      : 'Review Raw Material Vendor Price'
-                    : isViewOnly
-                      ? 'View Raw Material Item'
-                      : editData
-                        ? 'Edit Raw Material Item'
-                        : 'Add New Raw Material Item'}
-                </h2>
-                <p className="text-xs text-gray-500 pb-5">
-                  {isApprovalMode
-                    ? isApprovalRowModified
-                      ? 'Modifications detected. Click submit to save updates and register the chosen statuses.'
-                      : 'Set status to Approved or Rejected for each outlet below.'
-                    : isViewOnly
-                      ? 'View material properties and supplier associations'
-                      : editData
-                        ? 'Update material properties and supplier associations'
-                        : 'Configure material properties and supplier associations'}
-                </p>
-              </div>
-            </div>
-          </div>
+                    ? 'Edit Raw Material Item'
+                    : 'Add New Raw Material Item'
+            }
+            description={
+              isApprovalMode
+                ? isApprovalRowModified
+                  ? 'Modifications detected. Click submit to save updates and register the chosen statuses.'
+                  : 'Set status to Approved or Rejected for each outlet below.'
+                : isViewOnly
+                  ? 'View material properties and supplier associations'
+                  : editData
+                    ? 'Update material properties and supplier associations'
+                    : 'Configure material properties and supplier associations'
+            }
+            actions={
+              <button
+                type="button"
+                onClick={() => navigate(isApprovalMode ? '/material/vendor-price-approval' : '/material/items')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                {isApprovalMode ? 'Back to Approval List' : 'Back to Raw Material Items'}
+              </button>
+            }
+            className="border-b border-[#C3C6D1] pb-4 mb-2"
+          />
 
           <div className="py-6 flex-1 overflow-y-auto space-y-6">
             {/* Section 1: Basic Information */}

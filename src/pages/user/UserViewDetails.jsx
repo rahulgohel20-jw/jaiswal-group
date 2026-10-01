@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { getEmployeeById } from '@/services/apiServices';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const InfoCard = ({ label, value }) => (
   <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
@@ -198,47 +199,42 @@ const UserViewDetails = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4 pb-12">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <button
-              type="button"
-              onClick={() => navigate('/users')}
-              className="flex items-center gap-2 text-[#084E92] font-semibold text-sm mb-2 cursor-pointer hover:underline"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Users
-            </button>
+      <div className="mx-auto pt-2 pb-12 space-y-3.5">
+        <PageHeader
+          title="User Details"
+          description="Full account, contact, department, and module-level permission rights."
+          actions={
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/users')}
+                className="flex items-center gap-1.5 text-[#084E92] hover:text-[#063b6f] font-semibold text-sm cursor-pointer bg-transparent border-0 p-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Users
+              </button>
 
-            <h1 className="text-[28px] font-bold text-[#101828]">
-              User Details
-            </h1>
-
-            <p className="text-[#667085] text-sm mt-1">
-              Full account, contact, department, and module-level permission rights.
-            </p>
-          </div>
-
-          {employee && (
-            <button
-              onClick={() =>
-                navigate('/users/update-user', {
-                  state: {
-                    user: {
-                      id: employee.id,
-                      name: fullName,
-                    },
-                  },
-                })
-              }
-              className="bg-[#084E92] text-white w-max px-5 py-2.5 rounded-xl flex items-center gap-2 font-semibold text-sm cursor-pointer hover:bg-[#073e77] transition shadow-xs"
-            >
-              <SquarePen className="w-4 h-4" />
-              Edit User
-            </button>
-          )}
-        </div>
+              {employee && (
+                <button
+                  onClick={() =>
+                    navigate('/users/update-user', {
+                      state: {
+                        user: {
+                          id: employee.id,
+                          name: fullName,
+                        },
+                      },
+                    })
+                  }
+                  className="bg-[#084E92] text-white w-max px-5 py-2.5 rounded-xl flex items-center gap-2 font-semibold text-sm cursor-pointer hover:bg-[#073e77] transition shadow-xs"
+                >
+                  <SquarePen className="w-4 h-4" />
+                  Edit User
+                </button>
+              )}
+            </div>
+          }
+        />
 
         {/* Error */}
         {error && (
