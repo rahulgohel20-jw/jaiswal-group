@@ -18,6 +18,9 @@ import {
   Plus,
   Search,
   Loader2,
+  Eye,
+  SquarePen,
+  Trash2,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
@@ -28,18 +31,19 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
-import SearchableSelect from '@/utils/searchableSelect';
+import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePurchaseOrders } from './utils/usePurchaseOrders';
 import { OrgTypes } from '@/constants/orgTypes';
 import { PO_STATUS_GROUP, PO_GROUPS, getPoStatusLabel } from './utils/poStatus';
-import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
+import { getUserIdFromToken, getUsernameFromToken } from '@/utils/auth';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
+import { CodeCell } from '@/components/common/CodeCell';
 import {
   Select,
   SelectContent,
@@ -47,7 +51,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CodeCell } from '@/components/common/CodeCell';
 
 const STAGE = {
   PR_NO_PO: 'PR_NO_PO',
@@ -77,29 +80,20 @@ const TruncatedCell = ({
   </span>
 );
 
-const STATUS_BADGE_STYLES = {
-  'TO BE GENERATED': { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-400' },
-  Draft: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
-  'Sent for Approval': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
-  'In Progress': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
-  Approved: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-  Rejected: { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-500' },
-  Closed: { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-400' },
+const STATUS_TEXT_COLORS = {
+  'TO BE GENERATED': 'text-gray-600',
+  Draft: 'text-amber-600',
+  'Sent for Approval': 'text-blue-600',
+  'In Progress': 'text-indigo-600',
+  Approved: 'text-emerald-600',
+  Rejected: 'text-rose-600',
+  Closed: 'text-gray-500',
 };
 
 const StatusBadge = ({ status }) => {
-  const style = STATUS_BADGE_STYLES[status] || {
-    bg: 'bg-gray-100',
-    text: 'text-gray-700',
-    border: 'border-gray-200',
-    dot: 'bg-gray-400',
-  };
-
+  const color = STATUS_TEXT_COLORS[status] || 'text-gray-700';
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap border ${style.bg} ${style.text} ${style.border}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
+    <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
       {status || '—'}
     </span>
   );
@@ -495,11 +489,14 @@ const PurchaseOrderRequest = () => {
               return null;
             }
             return (
-              <div className="flex gap-2 whitespace-nowrap">
-                <Link to="/purchase/create-purchase-order-requests" state={{ ...original, isGeneratePo: true }}>
-                  <button className="bg-[#084E92] text-white px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-[#063d73] transition">
-                    Generate PO
-                  </button>
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <Link
+                  to="/purchase/create-purchase-order-requests"
+                  state={{ ...original, isGeneratePo: true }}
+                  className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-1 rounded hover:bg-blue-50 transition"
+                  title="Generate PO"
+                >
+                  <Plus size={18} />
                 </Link>
               </div>
             );
@@ -507,28 +504,35 @@ const PurchaseOrderRequest = () => {
 
           if (original.group === 'DRAFT') {
             return (
-              <div className="flex gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-2 whitespace-nowrap">
                 {canEdit && (
-                  <Link to={`/purchase/edit-purchase-order/${original.id}`} state={original}>
-                    <button className="bg-[#084E92] text-white px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-[#063d73] transition">
-                      Continue PO
-                    </button>
+                  <Link
+                    to={`/purchase/edit-purchase-order/${original.id}`}
+                    state={original}
+                    className="text-gray-500 hover:text-blue-600 cursor-pointer p-1 rounded hover:bg-blue-50 transition"
+                    title="Continue PO"
+                  >
+                    <SquarePen size={18} />
                   </Link>
                 )}
                 {canDelete && (
                   <button
                     type="button"
                     onClick={() => openDeleteConfirm(original)}
-                    className="border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-red-50 transition"
+                    className="text-red-400 hover:text-red-600 cursor-pointer p-1 rounded hover:bg-red-50 transition"
+                    title="Delete PO"
                   >
-                    Delete
+                    <Trash2 size={18} />
                   </button>
                 )}
                 {!canEdit && (
-                  <Link to={`/purchase/purchase-order-detail/${original.id}`} state={original}>
-                    <button className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-gray-50 transition">
-                      View
-                    </button>
+                  <Link
+                    to={`/purchase/purchase-order-detail/${original.id}`}
+                    state={original}
+                    className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                    title="View PO"
+                  >
+                    <Eye size={18} />
                   </Link>
                 )}
               </div>
@@ -536,11 +540,16 @@ const PurchaseOrderRequest = () => {
           }
 
           return (
-            <Link to={`/purchase/purchase-order-detail/${original.id}`} state={original}>
-              <button className="border border-gray-300 text-gray-700 px-4 py-1.5 rounded-lg text-xs font-medium cursor-pointer hover:bg-gray-50 transition">
-                View
-              </button>
-            </Link>
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <Link
+                to={`/purchase/purchase-order-detail/${original.id}`}
+                state={original}
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                title="View PO"
+              >
+                <Eye size={18} />
+              </Link>
+            </div>
           );
         },
         size: 180,

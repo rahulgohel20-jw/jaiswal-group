@@ -52,26 +52,15 @@ const TYPE_OPTIONS = [
   { value: "sales_return", label: "Sales Return" },
 ];
 
-const STATUS_STYLES = {
-  completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  pending: "bg-amber-50 text-amber-700 ring-amber-200",
-  cancelled: "bg-red-50 text-red-600 ring-red-200",
+const STATUS_TEXT_COLORS = {
+  completed: "text-emerald-600",
+  pending: "text-amber-600",
+  cancelled: "text-rose-600",
 };
 
 const StatusBadge = ({ status }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset capitalize ${STATUS_STYLES[status]}`}
-  >
-    <span
-      className={`w-1.5 h-1.5 rounded-full ${
-        status === "completed"
-          ? "bg-emerald-500"
-          : status === "pending"
-          ? "bg-amber-500"
-          : "bg-red-500"
-      }`}
-    />
-    {status}
+  <span className={`font-semibold text-xs whitespace-nowrap capitalize ${STATUS_TEXT_COLORS[status] || "text-gray-600"}`}>
+    {status || '—'}
   </span>
 );
 

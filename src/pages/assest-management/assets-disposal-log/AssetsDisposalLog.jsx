@@ -59,17 +59,18 @@ const mapDisposalToRow = (record) => ({
     approvedBy: record.approvedByName ?? record.approvedBy?.name ?? (record.approvedById ? `User #${record.approvedById}` : "-"),
 });
 
-const DisposalBadge = ({ type }) => {
-    const styles = {
-        SALE: "bg-green-100 text-green-700",
-        SCRAP: "bg-red-100 text-red-700",
-        DONATION: "bg-blue-100 text-blue-700",
-        RECYCLED: "bg-amber-100 text-amber-700",
-    };
+const DISPOSAL_TEXT_COLORS = {
+    SALE: "text-emerald-600",
+    SCRAP: "text-rose-600",
+    DONATION: "text-blue-600",
+    RECYCLED: "text-amber-600",
+};
 
+const DisposalBadge = ({ type }) => {
+    const color = DISPOSAL_TEXT_COLORS[type] ?? "text-gray-600";
     return (
-        <span className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase ${styles[type] ?? "bg-gray-100 text-gray-600"}`}>
-            {type}
+        <span className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${color}`}>
+            {type || "—"}
         </span>
     );
 };

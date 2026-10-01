@@ -163,11 +163,11 @@ function useRequisitions(effectiveOutletId, filterRowsByScope, scopeLoading) {
 }
 
 function StatusPill({ status }) {
-  const meta = STATUS_META[status] ?? { bg: "#F2F4F7", fg: "#667085" };
+  const meta = STATUS_META[status] ?? { fg: "#667085" };
   return (
     <span
-      style={{ background: meta.bg, color: meta.fg }}
-      className="px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase"
+      style={{ color: meta.fg }}
+      className="text-xs font-semibold whitespace-nowrap"
     >
       {getStatusLabel(status)}
     </span>
@@ -364,28 +364,35 @@ function ListView({ onApprove, onReject, onView }) {
           const r = row.original;
           const actionable = ACTIONABLE_STATUSES.includes(r.status);
           return actionable ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 whitespace-nowrap">
               <button
+                type="button"
                 onClick={() => onApprove(r)}
-                className="px-3.5 py-1.5 cursor-pointer rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
+                className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded hover:bg-emerald-50 transition"
+                title="Approve PR"
               >
-                Approve
+                <CheckCircle2 size={18} />
               </button>
               <button
+                type="button"
                 onClick={() => onReject(r)}
-                className="px-3.5 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                className="text-rose-500 hover:text-rose-700 cursor-pointer p-1 rounded hover:bg-rose-50 transition"
+                title="Reject PR"
               >
-                Reject
+                <XCircle size={18} />
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => onView(r)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#E7EAF0] text-[#475467] text-xs font-semibold hover:bg-[#F9FAFC] transition-colors"
-            >
-              <Eye size={13} />
-              View
-            </button>
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => onView(r)}
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                title="View PR"
+              >
+                <Eye size={18} />
+              </button>
+            </div>
           );
         },
         enableSorting: false,

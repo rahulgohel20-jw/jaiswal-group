@@ -86,27 +86,18 @@ const AssignTypeBadge = ({ assignType }) => {
   );
 };
 
+const STATUS_TEXT_COLORS = {
+  Assigned: 'text-emerald-600',
+  Pending: 'text-amber-600',
+  Returned: 'text-gray-500',
+  Overdue: 'text-rose-600',
+};
+
 const StatusBadge = ({ status }) => {
-  const styles = {
-    Assigned: 'bg-green-100 text-green-700',
-    Pending: 'bg-orange-100 text-orange-700',
-    Returned: 'bg-gray-100 text-gray-600',
-    Overdue: 'bg-[#FEE2E2] text-[#BA1A1A]',
-  };
-  const dotStyle = {
-    Assigned: 'bg-[#16A34A]',
-    Pending: 'bg-[#C2410C]',
-    Returned: 'bg-[#6B7280]',
-    Overdue: 'bg-[#BA1A1A]',
-  };
+  const color = STATUS_TEXT_COLORS[status] ?? 'text-gray-600';
   return (
-    <span
-      className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] ?? styles.Returned} flex gap-1 items-center justify-center w-fit`}
-    >
-      <p
-        className={`w-2 h-2 rounded-full ${dotStyle[status] ?? dotStyle.Returned}`}
-      ></p>
-      <p>{status}</p>
+    <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+      {status || '—'}
     </span>
   );
 };

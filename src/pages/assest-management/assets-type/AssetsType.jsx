@@ -230,10 +230,9 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className={`flex items-center gap-2 text-sm font-medium ${row.original.status === 'Active' ? 'text-[#16A34A]' : 'text-[#737781]'}`}>
-                    <span className={`w-2 h-2 rounded-full my-4 ${row.original.status === 'Active' ? 'bg-[#16A34A]' : 'bg-[#9CA3AF]'}`} />
-                    {row.original.status}
-                </div>
+                <span className={`text-xs font-semibold whitespace-nowrap ${row.original.status === 'Active' ? 'text-emerald-600' : 'text-gray-500'}`}>
+                    {row.original.status || '—'}
+                </span>
             ),
         },
         {

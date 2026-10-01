@@ -41,20 +41,16 @@ const STATUS_COLORS = {
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`px-3 py-1 rounded-full text-[10px] font-semibold ${status === "Active"
-      ? "bg-[#DCFCE7] text-[#15803D]"
-      : "bg-[#E5EAF5] text-[#6B7280]"
-      }`}
+    className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${
+      status === "Active" ? "text-emerald-600" : "text-gray-500"
+    }`}
   >
-    {(status || "").toUpperCase()}
+    {status || "—"}
   </span>
 );
 
-const ConditionCell = ({ name, color }) => (
-  <div className="flex items-center gap-2">
-    <span className={`w-2 h-2 rounded-full ${color || "bg-[#C3C6D1]"}`} />
-    <span className="font-medium text-[#0F172A]">{name}</span>
-  </div>
+const ConditionCell = ({ name }) => (
+  <span className="font-medium text-[#0F172A] whitespace-nowrap">{name}</span>
 );
 
 // Normalizes whatever shape the API returns into what the table/form expect.

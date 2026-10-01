@@ -142,17 +142,12 @@ const ViewMaintenanceModal = ({
                     {/* Maintenance Status */}
                     <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
 
-                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-
-                            <span className="w-2 h-2 rounded-full bg-[#084E92]" />
-
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Maintenance Status
                         </div>
 
                         <span
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusStyles[data.status] ??
-                                "bg-gray-100 text-gray-600"
-                                }`}
+                            className="text-xs font-semibold whitespace-nowrap text-blue-600"
                         >
                             {data.status ?? "—"}
                         </span>

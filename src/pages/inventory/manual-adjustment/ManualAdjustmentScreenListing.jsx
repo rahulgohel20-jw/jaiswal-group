@@ -64,24 +64,17 @@ const extractValue = (e) => {
 
 /* ---------- Badges & UI helpers (Matching PurchaseRequisitionList) ---------- */
 
-const STATUS_STYLES = {
-  DRAFT: 'bg-gray-100 text-gray-700',
-  Draft: 'bg-gray-100 text-gray-700',
-  POSTED: 'bg-emerald-50 text-emerald-600',
-  Posted: 'bg-emerald-50 text-emerald-600',
-  CANCELLED: 'bg-rose-50 text-rose-600',
-  Cancelled: 'bg-rose-50 text-rose-600',
-  CANCELED: 'bg-rose-50 text-rose-600',
+const STATUS_TEXT_COLORS = {
+  DRAFT: 'text-gray-600',
+  Draft: 'text-gray-600',
+  POSTED: 'text-emerald-600',
+  Posted: 'text-emerald-600',
+  CANCELLED: 'text-rose-600',
+  Cancelled: 'text-rose-600',
+  CANCELED: 'text-rose-600',
 };
 
-const STATUS_DOT = {
-  DRAFT: 'bg-gray-400',
-  POSTED: 'bg-emerald-500',
-  CANCELLED: 'bg-rose-500',
-  CANCELED: 'bg-rose-500',
-};
-
-const StatusBadge = ({ status = 'DRAFT', size = 'sm' }) => {
+const StatusBadge = ({ status = 'DRAFT' }) => {
   const raw = String(status || 'DRAFT').toUpperCase();
   const displayLabel =
     raw === 'DRAFT'
@@ -91,14 +84,10 @@ const StatusBadge = ({ status = 'DRAFT', size = 'sm' }) => {
       : raw === 'CANCELLED' || raw === 'CANCELED'
       ? 'Cancelled'
       : status;
+  const color = STATUS_TEXT_COLORS[raw] || 'text-gray-600';
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${
-        size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
-      } ${STATUS_STYLES[raw] || 'bg-gray-100 text-gray-500'}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[raw] || 'bg-gray-400'}`} />
+    <span className={`font-semibold text-xs whitespace-nowrap ${color}`}>
       {displayLabel}
     </span>
   );

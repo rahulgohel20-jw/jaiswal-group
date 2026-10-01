@@ -23,16 +23,17 @@ import {
 import { deleteAssetMaintenanceById, getAllAssetsMaintenance, getAllAssetsMaintenancePaginated, getAssetMaintenanceById, getAssetsMaintenanceByStatus, getByMaintenanceDateRangeAndStatus } from '../../../services/apiServices';
 import ViewMaintenanceModal from './ViewMaintenanceModal';
 
-const StatusBadge = ({ status }) => {
-    const styles = {
-        "COMPLETED": "bg-green-100 text-green-700",
-        "IN_PROGRESS": "bg-blue-100 text-blue-700",
-        "PENDING": "bg-amber-100 text-amber-700",
-    };
+const STATUS_TEXT_COLORS = {
+    "COMPLETED": "text-emerald-600",
+    "IN_PROGRESS": "text-blue-600",
+    "PENDING": "text-amber-600",
+};
 
+const StatusBadge = ({ status }) => {
+    const color = STATUS_TEXT_COLORS[status] ?? "text-gray-600";
     return (
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status] ?? "bg-gray-100 text-gray-600"}`}>
-            {status}
+        <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+            {status || '—'}
         </span>
     );
 };

@@ -39,13 +39,10 @@ import {
 } from "@/components/ui/select";
 import { useNavigate } from 'react-router';
 const StatusBadge = ({ status }) => {
-    const styles = {
-        Active: "bg-green-100 text-green-700",
-        Inactive: "bg-gray-200 text-gray-600",
-    };
+    const color = status === "Active" ? "text-emerald-600" : "text-gray-500";
     return (
-        <span className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${styles[status]}`}>
-            {status}
+        <span className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${color}`}>
+            {status || '—'}
         </span>
     );
 };

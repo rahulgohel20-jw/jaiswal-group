@@ -35,39 +35,23 @@ import { CodeCell } from '@/components/common/CodeCell';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
 
-const STATUS_STYLES = {
-  Approved: 'bg-emerald-50 text-emerald-600',
-  APPROVED: 'bg-emerald-50 text-emerald-600',
-  'In Progress': 'bg-blue-50 text-blue-600',
-  IN_PROGRESS: 'bg-blue-50 text-blue-600',
-  'Partially Received': 'bg-amber-50 text-amber-600',
-  PARTIALLY_RECEIVED: 'bg-amber-50 text-amber-600',
-  Closed: 'bg-gray-100 text-gray-500',
-  CLOSED: 'bg-gray-100 text-gray-500',
-  Pending: 'bg-red-50 text-red-600',
+const STATUS_TEXT_COLORS = {
+  Approved: 'text-emerald-600',
+  APPROVED: 'text-emerald-600',
+  'In Progress': 'text-blue-600',
+  IN_PROGRESS: 'text-blue-600',
+  'Partially Received': 'text-amber-600',
+  PARTIALLY_RECEIVED: 'text-amber-600',
+  Closed: 'text-gray-500',
+  CLOSED: 'text-gray-500',
+  Pending: 'text-rose-600',
 };
 
-const STATUS_DOT = {
-  Approved: 'bg-emerald-500',
-  APPROVED: 'bg-emerald-500',
-  'In Progress': 'bg-blue-500',
-  IN_PROGRESS: 'bg-blue-500',
-  'Partially Received': 'bg-amber-500',
-  PARTIALLY_RECEIVED: 'bg-amber-500',
-  Closed: 'bg-gray-400',
-  CLOSED: 'bg-gray-400',
-  Pending: 'bg-red-500',
-};
-
-const StatusBadge = ({ status, size = 'md' }) => {
+const StatusBadge = ({ status }) => {
   const displayStatus = status || 'Approved';
+  const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-full capitalize ${
-        size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
-      } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
+    <span className={`font-semibold text-xs whitespace-nowrap capitalize ${color}`}>
       {displayStatus.toLowerCase().replace(/_/g, ' ')}
     </span>
   );
@@ -523,29 +507,41 @@ const GenerateGRN = () => {
           const isApproved = String(original.rawStatus).toUpperCase() === 'APPROVED';
           if (!isApproved || !canAdd) {
             return (
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
+                  className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                  title="View Order"
+                >
+                  <Eye size={18} />
+                </button>
+              </div>
+            );
+          }
+          return (
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate('/inventory/generate-grn/generate', {
+                    state: { poIds: [original.id], pos: [original] },
+                  })
+                }
+                className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-1 rounded hover:bg-blue-50 transition"
+                title="Generate GRN"
+              >
+                <FileText size={18} />
+              </button>
               <button
                 type="button"
                 onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1.5 rounded-lg hover:bg-gray-100 transition"
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
                 title="View Order"
               >
                 <Eye size={18} />
               </button>
-            );
-          }
-          return (
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/inventory/generate-grn/generate', {
-                  state: { poIds: [original.id], pos: [original] },
-                })
-              }
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-white bg-[#084E92] text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs whitespace-nowrap"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Generate GRN
-            </button>
+            </div>
           );
         },
         enableSorting: false,

@@ -19,19 +19,20 @@ import { useOrgScope } from '../../hooks/useOrgScope';
 
 const STATUS_OPTIONS = ['All Status', 'Approved', 'Draft'];
 const STATUS_VALUE_MAP = { Draft: 'DRAFT', Approved: 'APPROVED' };
-const STATUS_STYLES = {
-    DRAFT: 'bg-amber-50 text-amber-600 border border-amber-200',
-    APPROVED: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+const STATUS_TEXT_COLORS = {
+    DRAFT: 'text-amber-600',
+    APPROVED: 'text-emerald-600',
 };
-const STATUS_DOT = { DRAFT: 'bg-amber-500', APPROVED: 'bg-emerald-500' };
 const PAGE_SIZE = 10;
 
-const StatusBadge = ({ status }) => (
-    <span className={`inline-flex items-center w-max gap-1.5 font-semibold rounded-full text-[10px] px-2.5 py-1 ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
-        {status}
-    </span>
-);
+const StatusBadge = ({ status }) => {
+    const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
+    return (
+        <span className={`font-semibold text-xs whitespace-nowrap ${color}`}>
+            {status || '—'}
+        </span>
+    );
+};
 
 const TruncatedCell = ({ value, widthClass = 'max-w-[180px]', className = 'text-gray-600 text-xs' }) => (
     <span title={value || ''} className={`block truncate ${widthClass} ${className}`}>

@@ -21,24 +21,17 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
 
+const STATUS_TEXT_COLORS = {
+    DRAFT: 'text-amber-600',
+    POSTED: 'text-emerald-600',
+    CANCELLED: 'text-rose-600'
+};
+
 const StatusBadge = ({ status }) => {
-    const map = {
-        DRAFT: 'bg-amber-50 text-amber-600',
-        POSTED: 'bg-green-50 text-green-600',
-        CANCELLED: 'bg-red-50 text-red-600'
-    };
-    const dotMap = {
-        DRAFT: 'bg-amber-500',
-        POSTED: 'bg-green-600',
-        CANCELLED: 'bg-red-600'
-    };
+    const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
     return (
-        <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${map[status] || 'bg-gray-100 text-gray-500'
-                }`}
-        >
-            <span className={`w-1.5 h-1.5 rounded-full ${dotMap[status] || 'bg-gray-400'}`} />
-            {status}
+        <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+            {status || '—'}
         </span>
     );
 };

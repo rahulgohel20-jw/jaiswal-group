@@ -40,26 +40,15 @@ import {
 /* -------------------------------------------------------------------------
  * Status Styling Tokens
  * ---------------------------------------------------------------------- */
-const STATUS_STYLES = {
-  PENDING_DISCREPANCY_APPROVAL: 'bg-orange-50 text-orange-700 border-orange-200',
-  'Pending Discrepancy Approval': 'bg-orange-50 text-orange-700 border-orange-200',
-  DISCREPANCY_PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
-  'Discrepancy Pending': 'bg-amber-50 text-amber-700 border-amber-200',
-  DISCREPANCY_RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Discrepancy Resolved': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  CLOSED: 'bg-gray-100 text-gray-700 border-gray-200',
-  Closed: 'bg-gray-100 text-gray-700 border-gray-200',
-};
-
-const STATUS_DOT = {
-  PENDING_DISCREPANCY_APPROVAL: 'bg-orange-500',
-  'Pending Discrepancy Approval': 'bg-orange-500',
-  DISCREPANCY_PENDING: 'bg-amber-500',
-  'Discrepancy Pending': 'bg-amber-500',
-  DISCREPANCY_RESOLVED: 'bg-emerald-500',
-  'Discrepancy Resolved': 'bg-emerald-500',
-  CLOSED: 'bg-gray-400',
-  Closed: 'bg-gray-400',
+const STATUS_TEXT_COLORS = {
+  PENDING_DISCREPANCY_APPROVAL: 'text-orange-600',
+  'Pending Discrepancy Approval': 'text-orange-600',
+  DISCREPANCY_PENDING: 'text-amber-600',
+  'Discrepancy Pending': 'text-amber-600',
+  DISCREPANCY_RESOLVED: 'text-emerald-600',
+  'Discrepancy Resolved': 'text-emerald-600',
+  CLOSED: 'text-gray-500',
+  Closed: 'text-gray-500',
 };
 
 const formatStatusLabel = (status) => {
@@ -75,13 +64,9 @@ const formatStatusLabel = (status) => {
 const StatusBadge = ({ status = 'PENDING_DISCREPANCY_APPROVAL' }) => {
   const label = formatStatusLabel(status);
   const key = String(status).toUpperCase();
+  const color = STATUS_TEXT_COLORS[key] || STATUS_TEXT_COLORS[status] || 'text-gray-600';
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 border ${
-        STATUS_STYLES[key] || STATUS_STYLES[status] || 'bg-orange-50 text-orange-700 border-orange-200'
-      }`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[key] || STATUS_DOT[status] || 'bg-orange-500'}`} />
+    <span className={`text-xs font-semibold whitespace-nowrap shrink-0 ${color}`}>
       {label}
     </span>
   );

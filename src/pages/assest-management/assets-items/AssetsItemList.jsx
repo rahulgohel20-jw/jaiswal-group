@@ -90,13 +90,11 @@ const ROWS_PER_PAGE_OPTIONS = [5, 10, 25];
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${
-      status === 'Active'
-        ? 'bg-green-50 text-green-700 border border-green-200'
-        : 'bg-gray-100 text-gray-500 border border-gray-200'
+    className={`font-semibold text-xs whitespace-nowrap tracking-wide uppercase ${
+      status === 'Active' ? 'text-emerald-600' : 'text-gray-500'
     }`}
   >
-    {status.toUpperCase()}
+    {status ? status.toUpperCase() : '—'}
   </span>
 );
 

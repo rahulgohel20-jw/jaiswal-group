@@ -63,41 +63,38 @@ const normalizeAsset = (a) => ({
     raw: a, // keep the original record around for the detail slider
 });
 
+const STATUS_TEXT_COLORS = {
+    "In Use": "text-emerald-600",
+    Disposed: "text-blue-600",
+    Lost: "text-orange-600",
+    Available: "text-emerald-600",
+};
+
 const StatusBadge = ({ status }) => {
-    const styles = {
-        "In Use": "bg-green-100 text-green-700",
-        Disposed: "bg-blue-100 text-blue-700",
-        Lost: "bg-orange-100 text-orange-700",
-    };
-    const dotStyle = {
-         "In Use": "bg-[#16A34A]",
-        Disposed: "bg-[#265FA4]",
-        Lost: "bg-[#C2410C]",
-    }
+    const color = STATUS_TEXT_COLORS[status] ?? "text-gray-600";
     return (
-        <span
-            className={`p-1 rounded-full text-xs font-medium ${styles[status] ?? "bg-gray-100 text-gray-700"} flex gap-1 items-center justify-center`}
-        >
-            <p className={`w-2 h-2 rounded-full ${dotStyle[status] ?? "bg-gray-400"}`}></p>
-            <p>{status}</p>
+        <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+            {status || '—'}
         </span>
     );
 };
-const ConditionBadge = ({ condition }) => {
-    const styles = {
-        excellent: "bg-green-50 text-green-600",
-        good: "bg-gray-100 text-gray-600",
-        fair: "bg-yellow-50 text-yellow-600",
-        bad: "bg-red-50 text-red-600"
-    };
+const CONDITION_TEXT_COLORS = {
+    excellent: "text-emerald-600",
+    good: "text-blue-600",
+    fair: "text-amber-600",
+    bad: "text-rose-600",
+};
 
-    if (!condition) return null;
+const ConditionBadge = ({ condition }) => {
+    if (!condition) return <span className="text-gray-400">—</span>;
+
+    const normalized = String(condition).toLowerCase();
+    const color = CONDITION_TEXT_COLORS[normalized] ?? "text-gray-600";
+    const label = condition.charAt(0).toUpperCase() + condition.slice(1);
 
     return (
-        <span
-            className={`px-3 py-1 rounded-md text-sm font-medium ${styles[condition] ?? "bg-gray-100 text-gray-600"}`}
-        >
-            {condition.charAt(0).toUpperCase() + condition.slice(1)}
+        <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+            {label}
         </span>
     );
 };
@@ -377,13 +374,11 @@ const AssetsManagement = () => {
             ),
             cell: ({ row }) =>
                 row.original.warranty === "valid" ? (
-                    <div className="flex items-center gap-1 text-green-600 font-medium py-1">
-                        <ShieldCheck size={16} />
+                    <div className="flex items-center gap-1 text-emerald-600 font-medium py-1 whitespace-nowrap">
                         Valid
                     </div>
                 ) : (
-                    <div className="flex items-center gap-1 text-red-600 font-medium py-1">
-                        <AlertTriangle size={16} />
+                    <div className="flex items-center gap-1 text-rose-600 font-medium py-1 whitespace-nowrap">
                         Expiring Soon
                     </div>
                 ),

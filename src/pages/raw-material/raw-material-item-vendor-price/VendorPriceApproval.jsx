@@ -46,9 +46,9 @@ import { useOrgScope } from '../../../hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 
 const STATUS_STYLES = {
-    PENDING: { label: 'Pending', className: 'bg-yellow-50 text-yellow-700' },
-    APPROVED: { label: 'Approved', className: 'bg-green-50 text-green-700' },
-    REJECTED: { label: 'Rejected', className: 'bg-red-50 text-red-700' },
+    PENDING: { label: 'Pending', color: 'text-amber-600' },
+    APPROVED: { label: 'Approved', color: 'text-emerald-600' },
+    REJECTED: { label: 'Rejected', color: 'text-rose-600' },
 };
 
 const inputCls =
@@ -255,9 +255,7 @@ const StatusBadge = ({ status }) => {
     const key = String(status || 'PENDING').toUpperCase();
     const style = STATUS_STYLES[key] || STATUS_STYLES.PENDING;
     return (
-        <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap ${style.className}`}
-        >
+        <span className={`text-xs font-semibold whitespace-nowrap ${style.color}`}>
             {style.label}
         </span>
     );
@@ -792,24 +790,25 @@ const VendorPriceApproval = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
                         {row.original.status !== 'PENDING' ? (
                             <button
+                                type="button"
                                 onClick={() => handleView(row.original)}
-                                className="flex items-center gap-1.5 text-xs font-medium text-[#00376C] border border-[#00376C] rounded-lg px-3 py-1.5 hover:bg-blue-50 cursor-pointer transition-colors"
-                                title="View Item"
+                                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                                title="View Details"
                             >
-                                <Eye size={14} />
-                                View
+                                <Eye size={18} />
                             </button>
                         ) : (
                             canEdit && (
                                 <button
+                                    type="button"
                                     onClick={() => handleApprove(row.original)}
-                                    className="flex items-center gap-1.5 text-xs font-medium text-white bg-[#00376C] rounded-lg px-3 py-1.5 hover:bg-[#002750] cursor-pointer transition-colors"
-                                    title="Review Price"
+                                    className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded hover:bg-emerald-50 transition"
+                                    title="Review / Approve Price"
                                 >
-                                    Approve
+                                    <CheckCircle2 size={18} />
                                 </button>
                             )
                         )}

@@ -25,39 +25,23 @@ import { getAllActiveVendors, getEligibleGrnDetails, getEligibleGrns } from '../
 import { useNavigate } from 'react-router';
 import { useOrgScope } from '../../hooks/useOrgScope';
 
-const STATUS_STYLES = {
-    OPEN: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-    Open: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-    open: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-    CLOSED: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-    Closed: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-    closed: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-    CANCELLED: 'bg-red-50 text-red-600 border border-red-200',
-    Cancelled: 'bg-red-50 text-red-600 border border-red-200',
-    cancelled: 'bg-red-50 text-red-600 border border-red-200',
-};
-
-const STATUS_DOT = {
-    OPEN: 'bg-emerald-500',
-    Open: 'bg-emerald-500',
-    open: 'bg-emerald-500',
-    CLOSED: 'bg-emerald-500',
-    Closed: 'bg-emerald-500',
-    closed: 'bg-emerald-500',
-    CANCELLED: 'bg-red-500',
-    Cancelled: 'bg-red-500',
-    cancelled: 'bg-red-500',
+const STATUS_TEXT_COLORS = {
+    OPEN: 'text-emerald-600',
+    Open: 'text-emerald-600',
+    open: 'text-emerald-600',
+    CLOSED: 'text-emerald-600',
+    Closed: 'text-emerald-600',
+    closed: 'text-emerald-600',
+    CANCELLED: 'text-rose-600',
+    Cancelled: 'text-rose-600',
+    cancelled: 'text-rose-600',
 };
 
 const StatusBadge = ({ status }) => {
     const display = status || 'Closed';
+    const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
     return (
-        <span
-            className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 capitalize ${
-                STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border border-gray-200'
-            }`}
-        >
-            <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
+        <span className={`font-semibold text-xs whitespace-nowrap capitalize ${color}`}>
             {display.toLowerCase()}
         </span>
     );

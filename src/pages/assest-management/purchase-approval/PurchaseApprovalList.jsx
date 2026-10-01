@@ -12,6 +12,7 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -83,14 +84,14 @@ const REQUISITIONS = [
 // ---------------------------------------------------------------------------
 function StatusPill({ status }) {
   const map = {
-    approved: { bg: "#EEF2FE", fg: "#2952E3", label: "Approved" },
-    pending: { bg: "#FDF1E3", fg: "#B5590B", label: "Pending" },
+    approved: { fg: "#14804A", label: "Approved" },
+    pending: { fg: "#B5590B", label: "Pending" },
   };
-  const s = map[status];
+  const s = map[status] || { fg: "#667085", label: status };
   return (
     <span
-      style={{ background: s.bg, color: s.fg }}
-      className="px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase"
+      style={{ color: s.fg }}
+      className="text-xs font-semibold whitespace-nowrap"
     >
       {s.label}
     </span>
@@ -257,27 +258,41 @@ export default function ListView({ onOpen }) {
                 </td>
                 <td className="px-5 py-4">
                   {r.status === "pending" ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpen(r);
                         }}
-                        className="cursor-pointer px-3.5 py-1.5 rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
+                        className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded hover:bg-emerald-50 transition"
+                        title="Approve"
                       >
-                        Approve
+                        <CheckCircle2 size={18} />
                       </button>
                       <button
+                        type="button"
                         onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer px-3.5 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                        className="text-rose-500 hover:text-rose-700 cursor-pointer p-1 rounded hover:bg-rose-50 transition"
+                        title="Reject"
                       >
-                        Reject
+                        <XCircle size={18} />
                       </button>
                     </div>
                   ) : (
-                    <span className="px-3.5 py-1.5 rounded-lg bg-[#F2F4F7] text-[#98A2B3] text-xs font-semibold inline-block">
-                      Approved
-                    </span>
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpen(r);
+                        }}
+                        className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                        title="View"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>

@@ -51,12 +51,9 @@ const CURRENT_USER_ID = 1;
 
 const VisibilityBadge = ({ status }) => (
     <span
-        className={`px-3 py-1 rounded-full text-[10px] font-semibold ${status === "Active"
-            ? "bg-[#DCFCE7] text-[#15803D]"
-            : "bg-[#D9E3F6] text-[#6B7280]"
-            }`}
+        className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${status === "Active" ? "text-emerald-600" : "text-gray-500"}`}
     >
-        {status}
+        {status || "—"}
     </span>
 );
 

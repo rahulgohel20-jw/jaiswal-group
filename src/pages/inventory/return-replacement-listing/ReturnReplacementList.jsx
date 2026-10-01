@@ -107,28 +107,23 @@ const StatCard = ({ icon, iconBg = 'bg-[#D5E3FF]', iconColor = 'text-[#00376C]',
 const STATUS_MAP = {
   RETURN_REQUESTED: {
     label: 'Return Requested',
-    cls: 'bg-amber-50 text-amber-800 border-amber-200/80',
-    dot: 'bg-amber-500',
+    color: 'text-amber-600',
   },
   RETURN_REPLACEMENT_REQUESTED: {
     label: 'Replacement Requested',
-    cls: 'bg-blue-50 text-[#084E92] border-blue-200/80',
-    dot: 'bg-[#084E92]',
+    color: 'text-blue-600',
   },
   RETURN_REPLACEMENT_COMPLETED: {
     label: 'Completed',
-    cls: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
-    dot: 'bg-emerald-600',
+    color: 'text-emerald-600',
   },
   RETURNED: {
     label: 'Returned',
-    cls: 'bg-amber-50 text-amber-800 border-amber-200/80',
-    dot: 'bg-amber-500',
+    color: 'text-amber-600',
   },
   REPLACED: {
     label: 'Replaced',
-    cls: 'bg-blue-50 text-[#084E92] border-blue-200/80',
-    dot: 'bg-[#084E92]',
+    color: 'text-blue-600',
   },
 };
 
@@ -136,15 +131,11 @@ const StatusBadge = ({ status }) => {
   const normKey = String(status || '').toUpperCase().trim();
   const config = STATUS_MAP[normKey] || {
     label: status || 'Pending',
-    cls: 'bg-gray-100 text-gray-700 border-gray-200',
-    dot: 'bg-gray-400',
+    color: 'text-gray-600',
   };
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.cls}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+    <span className={`text-xs font-semibold whitespace-nowrap ${config.color}`}>
       {config.label}
     </span>
   );
@@ -606,19 +597,19 @@ const ReturnReplacementList = () => {
             }
 
             return (
-              <div className="min-w-[140px] flex items-center justify-start">
+              <div className="flex items-center gap-2 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => handleAcceptReturn(row.original)}
                   disabled={checkingPoId === row.original.id}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs whitespace-nowrap disabled:opacity-50"
+                  className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-1 rounded hover:bg-blue-50 transition disabled:opacity-50"
+                  title="Accept Return"
                 >
                   {checkingPoId === row.original.id ? (
-                    <Loader2 size={13} className="animate-spin" />
+                    <Loader2 size={18} className="animate-spin" />
                   ) : (
-                    <FileText size={13} />
+                    <FileText size={18} />
                   )}
-                  Accept Return
                 </button>
               </div>
             );

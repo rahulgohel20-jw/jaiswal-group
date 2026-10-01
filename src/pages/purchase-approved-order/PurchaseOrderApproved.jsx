@@ -19,6 +19,7 @@ import {
   Package,
   FileText,
   Download,
+  Ban,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
@@ -53,6 +54,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SearchBar } from '@/components/common/SearchBar';
+import { CodeCell } from '@/components/common/CodeCell';
 
 // Statuses visible to an approver, which of those still allow Approve/Reject,
 // and which are editable (approver can still adjust an in-progress PO).
@@ -94,11 +96,11 @@ const TruncatedCell = ({
 );
 
 function StatusPill({ status }) {
-  const meta = STATUS_META[status] ?? { bg: '#F2F4F7', fg: '#667085' };
+  const meta = STATUS_META[status] ?? { fg: '#667085' };
   return (
     <span
-      style={{ background: meta.bg, color: meta.fg }}
-      className="px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase"
+      style={{ color: meta.fg }}
+      className="text-xs font-semibold whitespace-nowrap"
     >
       {getPoStatusLabel(status)}
     </span>
@@ -515,18 +517,22 @@ const PurchaseOrderApproval = () => {
 
           if (actionable) {
             return (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 whitespace-nowrap">
                 <button
+                  type="button"
                   onClick={() => handleApprove(po)}
-                  className="px-3.5 py-1.5 cursor-pointer rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
+                  className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded hover:bg-emerald-50 transition"
+                  title="Approve PO"
                 >
-                  Approve
+                  <CheckCircle2 size={18} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleReject(po)}
-                  className="px-3.5 py-1.5 cursor-pointer rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                  className="text-rose-500 hover:text-rose-700 cursor-pointer p-1 rounded hover:bg-rose-50 transition"
+                  title="Reject PO"
                 >
-                  Reject
+                  <XCircle size={18} />
                 </button>
               </div>
             );
@@ -534,45 +540,53 @@ const PurchaseOrderApproval = () => {
 
           if (editable) {
             return (
-              <button
-                onClick={() => handleEdit(po)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#F5C77E] text-[#B7791F] text-xs font-semibold hover:bg-[#FEF6E7] transition-colors"
-              >
-                <Pencil size={13} />
-                Edit
-              </button>
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={() => handleEdit(po)}
+                  className="text-gray-500 hover:text-blue-600 cursor-pointer p-1 rounded hover:bg-blue-50 transition"
+                  title="Edit PO"
+                >
+                  <Pencil size={18} />
+                </button>
+              </div>
             );
           }
 
           if (isApproved) {
             return (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 whitespace-nowrap">
                 <button
+                  type="button"
                   onClick={() => handleView(po)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E7EAF0] text-[#475467] text-xs font-semibold hover:bg-[#F9FAFC] transition-colors"
+                  className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                  title="View PO"
                 >
-                  <Eye size={13} />
-                  View
+                  <Eye size={18} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleOpenCloseModal(po)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                  className="text-red-400 hover:text-red-600 cursor-pointer p-1 rounded hover:bg-red-50 transition"
+                  title="Close PO"
                 >
-                  <XCircle size={13} />
-                  Close PO
+                  <Ban size={18} />
                 </button>
               </div>
             );
           }
 
           return (
-            <button
-              onClick={() => handleView(po)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#E7EAF0] text-[#475467] text-xs font-semibold hover:bg-[#F9FAFC] transition-colors"
-            >
-              <Eye size={13} />
-              View
-            </button>
+            <div className="flex items-center gap-2 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => handleView(po)}
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                title="View PO"
+              >
+                <Eye size={18} />
+              </button>
+            </div>
           );
         },
         enableSorting: false,

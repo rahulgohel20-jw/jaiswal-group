@@ -154,25 +154,17 @@ const ViewDisposalModal = ({
                     {/* Disposal Status */}
                     <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
 
-                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-
-                            <span
-                                className={`w-2 h-2 rounded-full ${data.isActive ? "bg-green-500" : "bg-gray-400"
-                                    }`}
-                            />
-
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Record Status
                         </div>
 
                         <span
-                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${data.isActive
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-600"
-                                }`}
+                            className={`text-xs font-semibold whitespace-nowrap ${
+                                data.isActive ? "text-emerald-600" : "text-gray-500"
+                            }`}
                         >
                             {data.isActive ? "Active" : "Inactive"}
                         </span>
-
                     </div>
 
                     {/* Disposal Information */}

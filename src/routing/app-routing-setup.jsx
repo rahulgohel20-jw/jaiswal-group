@@ -444,11 +444,11 @@ export function AppRoutingSetup() {
             path="/purchase/approved-order"
             element={<PurchaseOrderApproved />}
           />
-
+{/* 
           <Route
             path="/purchase/purchase-return"
             element={<PurchaseReturnList />}
-          />
+          /> */}
           <Route
             path="/purchase/add-purchase-return"
             element={<AddPurchaseReturn />}

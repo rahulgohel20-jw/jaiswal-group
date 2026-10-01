@@ -47,18 +47,11 @@ import {
 /* -----------------------------------------------------------------------
  * Status badge
  * -------------------------------------------------------------------- */
-const STATUS_STYLES = {
-  active:     'bg-emerald-50 text-emerald-700',
-  pending:    'bg-amber-50 text-amber-600',
-  onboarding: 'bg-blue-50 text-blue-700',
-  inactive:   'bg-gray-100 text-gray-500',
-};
-
-const STATUS_DOT = {
-  active:     'bg-emerald-500',
-  pending:    'bg-amber-500',
-  onboarding: 'bg-blue-500',
-  inactive:   'bg-gray-400',
+const STATUS_TEXT_COLORS = {
+  active:     'text-emerald-600',
+  pending:    'text-amber-600',
+  onboarding: 'text-blue-600',
+  inactive:   'text-gray-500',
 };
 
 const STATUS_LABELS = {
@@ -70,12 +63,11 @@ const STATUS_LABELS = {
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${
-      STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'
+    className={`font-semibold text-xs whitespace-nowrap ${
+      STATUS_TEXT_COLORS[status] || 'text-gray-600'
     }`}
   >
-    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
-    {STATUS_LABELS[status] || status}
+    {STATUS_LABELS[status] || status || '—'}
   </span>
 );
 

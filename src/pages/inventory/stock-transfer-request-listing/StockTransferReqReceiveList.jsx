@@ -40,46 +40,25 @@ import { SearchBar } from '@/components/common/SearchBar';
 /* -------------------------------------------------------------------------
  * Status Styling Tokens (IN_TRANSIT, REJECTED, CLOSED)
  * ---------------------------------------------------------------------- */
-const STATUS_STYLES = {
-  IN_TRANSIT: 'bg-blue-50 text-blue-700 border-blue-200',
-  'In Transit': 'bg-blue-50 text-blue-700 border-blue-200',
-  REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-  Rejected: 'bg-rose-50 text-rose-700 border-rose-200',
-  CLOSED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Closed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  RECEIVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  RECIEVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Recieved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  PARTIALLY_ACCEPTED: 'bg-purple-50 text-purple-700 border-purple-200',
-  'Partially Accepted': 'bg-purple-50 text-purple-700 border-purple-200',
-  PENDING_DISCREPANCY_APPROVAL: 'bg-orange-50 text-orange-700 border-orange-200',
-  'Pending Discrepancy Approval': 'bg-orange-50 text-orange-700 border-orange-200',
-  DISCREPANCY_PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
-  'Discrepancy Pending': 'bg-amber-50 text-amber-700 border-amber-200',
-  DISCREPANCY_RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'Discrepancy Resolved': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-};
-
-const STATUS_DOT = {
-  IN_TRANSIT: 'bg-blue-500',
-  'In Transit': 'bg-blue-500',
-  REJECTED: 'bg-rose-500',
-  Rejected: 'bg-rose-500',
-  CLOSED: 'bg-emerald-500',
-  Closed: 'bg-emerald-500',
-  RECEIVED: 'bg-emerald-500',
-  Received: 'bg-emerald-500',
-  RECIEVED: 'bg-emerald-500',
-  Recieved: 'bg-emerald-500',
-  PARTIALLY_ACCEPTED: 'bg-purple-500',
-  'Partially Accepted': 'bg-purple-500',
-  PENDING_DISCREPANCY_APPROVAL: 'bg-orange-500',
-  'Pending Discrepancy Approval': 'bg-orange-500',
-  DISCREPANCY_PENDING: 'bg-amber-500',
-  'Discrepancy Pending': 'bg-amber-500',
-  DISCREPANCY_RESOLVED: 'bg-emerald-500',
-  'Discrepancy Resolved': 'bg-emerald-500',
+const STATUS_TEXT_COLORS = {
+  IN_TRANSIT: 'text-blue-600',
+  'In Transit': 'text-blue-600',
+  REJECTED: 'text-rose-600',
+  Rejected: 'text-rose-600',
+  CLOSED: 'text-emerald-600',
+  Closed: 'text-emerald-600',
+  RECEIVED: 'text-emerald-600',
+  Received: 'text-emerald-600',
+  RECIEVED: 'text-emerald-600',
+  Recieved: 'text-emerald-600',
+  PARTIALLY_ACCEPTED: 'text-purple-600',
+  'Partially Accepted': 'text-purple-600',
+  PENDING_DISCREPANCY_APPROVAL: 'text-orange-600',
+  'Pending Discrepancy Approval': 'text-orange-600',
+  DISCREPANCY_PENDING: 'text-amber-600',
+  'Discrepancy Pending': 'text-amber-600',
+  DISCREPANCY_RESOLVED: 'text-emerald-600',
+  'Discrepancy Resolved': 'text-emerald-600',
 };
 
 const formatStatusLabel = (status) => {
@@ -98,13 +77,9 @@ const formatStatusLabel = (status) => {
 const StatusBadge = ({ status = 'In Transit' }) => {
   const label = formatStatusLabel(status);
   const key = String(status).toUpperCase();
+  const color = STATUS_TEXT_COLORS[key] || STATUS_TEXT_COLORS[status] || 'text-gray-600';
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 border ${
-        STATUS_STYLES[key] || STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border-gray-200'
-      }`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[key] || STATUS_DOT[status] || 'bg-gray-400'}`} />
+    <span className={`text-xs font-semibold whitespace-nowrap shrink-0 ${color}`}>
       {label}
     </span>
   );
