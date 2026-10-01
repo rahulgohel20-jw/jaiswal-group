@@ -492,6 +492,7 @@ export const MENU_SIDEBAR = [
       { title: 'Return and Replacement', path: '/inventory/return-replacement' },
       { title: 'Stock Transfer Request', path: '/inventory/stock-transfer' },
       { title: 'STR Approval', path: '/inventory/str-approval' },
+      { title: 'STR Discrepancy Approval', path: '/inventory/str-discrepancy-approval' },
       { title: 'STR Received', path: '/inventory/transfer-receive-requests' },
       { title: 'OPB Stock', path: '/inventory/opb-stock-create-request-list' },
       { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'},
@@ -619,6 +620,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Return and Replacement', path: '/inventory/return-replacement' },
       { title: 'Stock Transfer Request', path: '/inventory/stock-transfer' },
       { title: 'STR Approval', path: '/inventory/str-approval' },
+      { title: 'STR Discrepancy Approval', path: '/inventory/str-discrepancy-approval' },
       { title: 'STR Received', path: '/inventory/stock-transfer-receive-requests' },
       { title: 'OPB Stock', path: '/inventory/opb-stock-create-request-list' },
       { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'}

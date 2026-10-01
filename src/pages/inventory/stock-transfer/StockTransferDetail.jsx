@@ -64,6 +64,12 @@ const STATUS_STYLES = {
   CLOSED: 'bg-gray-100 text-gray-700 border-gray-200',
   Rejected: 'bg-rose-50 text-rose-700 border-rose-200',
   REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
+  'Pending Discrepancy Approval': 'bg-orange-50 text-orange-700 border-orange-200',
+  PENDING_DISCREPANCY_APPROVAL: 'bg-orange-50 text-orange-700 border-orange-200',
+  'Discrepancy Pending': 'bg-amber-50 text-amber-700 border-amber-200',
+  DISCREPANCY_PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+  'Discrepancy Resolved': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  DISCREPANCY_RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
 const STATUS_DOT = {
@@ -83,6 +89,12 @@ const STATUS_DOT = {
   CLOSED: 'bg-gray-400',
   Rejected: 'bg-rose-500',
   REJECTED: 'bg-rose-500',
+  'Pending Discrepancy Approval': 'bg-orange-500',
+  PENDING_DISCREPANCY_APPROVAL: 'bg-orange-500',
+  'Discrepancy Pending': 'bg-amber-500',
+  DISCREPANCY_PENDING: 'bg-amber-500',
+  'Discrepancy Resolved': 'bg-emerald-500',
+  DISCREPANCY_RESOLVED: 'bg-emerald-500',
 };
 
 const formatStatusLabel = (status) => {
@@ -95,6 +107,9 @@ const formatStatusLabel = (status) => {
   if (s === 'PARTIALLYACCEPTED') return 'Partially Accepted';
   if (s === 'REJECTED') return 'Rejected';
   if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
+  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Pending Discrepancy Approval';
+  if (s === 'DISCREPANCYPENDING') return 'Discrepancy Pending';
+  if (s === 'DISCREPANCYRESOLVED') return 'Discrepancy Resolved';
   return status;
 };
 
@@ -354,8 +369,12 @@ const StockTransferDetail = () => {
         valuation: Number(item.totalValuation || 0),
         effectiveRate: Number(item.averageEffectiveRate || 0),
         batchBreakdown: Array.isArray(item.batchBreakdown) ? item.batchBreakdown : [],
+        discrepancyResolution: item.discrepancyResolution || '',
+        reasonCategory: item.reasonCategory || item.reason || '',
+        discrepancyRemarks: item.discrepancyRemarks || '',
+        resolutionQuantity: Number(item.resolutionQuantity || shortQty || 0),
         status: item.status || '',
-        remarks: item.remarks || '—',
+        remarks: item.remarks || item.discrepancyRemarks || item.reasonCategory || item.reason || '—',
       };
     });
   }, [transfer, isRejected, rawStatus]);
@@ -381,7 +400,11 @@ const StockTransferDetail = () => {
           <DataGridColumnHeader title="ITEM NAME" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="space-y-1.5 py-1">
+          <div className="py-1">
+            <span className="text-xs font-bold text-[#0F172A]">
+              {row.original.itemName}
+            </span>
+            {/* Batches and FIFO visualizer icon commented out as per requirement
             <button
               type="button"
               onClick={() => {
@@ -419,6 +442,7 @@ const StockTransferDetail = () => {
                 ))}
               </div>
             )}
+            */}
           </div>
         ),
         size: 240,
@@ -492,6 +516,21 @@ const StockTransferDetail = () => {
           </span>
         ),
         size: 120,
+      },
+      {
+        id: 'discrepancyReason',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="REASON FOR DISCREPANCY" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+        ),
+        cell: ({ row }) => {
+          const reason = row.original.reasonCategory || row.original.discrepancyRemarks || row.original.remarks;
+          return (
+            <span className="text-xs text-gray-700 italic font-medium">
+              {reason && reason !== '—' ? reason : '—'}
+            </span>
+          );
+        },
+        size: 180,
       },
     ];
 

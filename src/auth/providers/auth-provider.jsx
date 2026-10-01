@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '@/auth/context/auth-context';
 import * as authHelper from '@/auth/lib/helpers';
+import { useIdleTimer } from '@/auth/hooks/use-idle-timer';
+
+function AuthSessionWatcher() {
+  useIdleTimer();
+  return null;
+}
 
 export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
@@ -38,8 +44,19 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const logout = useCallback(() => {
+    saveAuth(undefined);
+    setCurrentUser(undefined);
+    authHelper.removeAuth();
+  }, []);
+
   const verify = async () => {
     const storedAuth = authHelper.getAuth();
+    if (storedAuth?.token && authHelper.isTokenExpired(storedAuth.token)) {
+      logout();
+      return null;
+    }
+
     setAuth(storedAuth);
 
     if (storedAuth) {
@@ -60,6 +77,10 @@ export function AuthProvider({ children }) {
 
   const getUser = async () => {
     const storedAuth = authHelper.getAuth();
+    if (storedAuth?.token && authHelper.isTokenExpired(storedAuth.token)) {
+      logout();
+      return null;
+    }
     const user = storedAuth?.user || storedAuth?.data || storedAuth;
     setCurrentUser(user || undefined);
     return user || null;
@@ -78,12 +99,6 @@ export function AuthProvider({ children }) {
     saveAuth(updatedAuth);
     setCurrentUser(updatedAuth.user || undefined);
     return updatedAuth.user;
-  };
-
-  const logout = () => {
-    saveAuth(undefined);
-    setCurrentUser(undefined);
-    authHelper.removeAuth();
   };
 
   return (
@@ -107,7 +122,8 @@ export function AuthProvider({ children }) {
         isAdmin,
       }}
     >
+      <AuthSessionWatcher />
       {children}
     </AuthContext.Provider>
   );
-}
+}

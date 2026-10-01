@@ -35,6 +35,7 @@ export default function LoginPage() {
     if (payload.token) {
       console.log('Storing auth token in localStorage:', payload.token);
       localStorage.setItem('authToken', payload.token);
+      localStorage.setItem('userToken', payload.token);
     }
 
     saveAuth(payload);

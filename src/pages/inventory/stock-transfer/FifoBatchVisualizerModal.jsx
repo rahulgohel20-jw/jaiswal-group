@@ -67,8 +67,10 @@ const FifoBatchVisualizerModal = ({
   unit = 'kg',
   onSaveBatches,
   isSelectionMode = false,
+  viewOnly = false,
+  readOnly = false,
 }) => {
-  const allowBatchSelection = Boolean(onSaveBatches || isSelectionMode);
+  const allowBatchSelection = Boolean(!viewOnly && !readOnly && (onSaveBatches || isSelectionMode));
   const effectiveItemId = item?.itemId || itemId;
   const initialQty = Number(
     item?.transferQty !== undefined && item?.transferQty !== ''
