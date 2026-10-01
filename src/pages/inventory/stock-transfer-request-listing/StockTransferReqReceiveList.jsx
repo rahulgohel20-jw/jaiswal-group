@@ -28,8 +28,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
-import { getTransferList, getAllSubOutlets, getOrganizationByType } from '@/services/apiServices';
-import { OrgTypes } from '@/constants/orgTypes';
+import { getTransferList, getAllSubOutlets } from '@/services/apiServices';
 import FifoBatchVisualizerModal from '../stock-transfer/FifoBatchVisualizerModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
@@ -52,6 +51,12 @@ const STATUS_STYLES = {
   Recieved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   PARTIALLY_ACCEPTED: 'bg-purple-50 text-purple-700 border-purple-200',
   'Partially Accepted': 'bg-purple-50 text-purple-700 border-purple-200',
+  PENDING_DISCREPANCY_APPROVAL: 'bg-orange-50 text-orange-700 border-orange-200',
+  'Pending Discrepancy Approval': 'bg-orange-50 text-orange-700 border-orange-200',
+  DISCREPANCY_PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+  'Discrepancy Pending': 'bg-amber-50 text-amber-700 border-amber-200',
+  DISCREPANCY_RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Discrepancy Resolved': 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
 const STATUS_DOT = {
@@ -67,6 +72,12 @@ const STATUS_DOT = {
   Recieved: 'bg-emerald-500',
   PARTIALLY_ACCEPTED: 'bg-purple-500',
   'Partially Accepted': 'bg-purple-500',
+  PENDING_DISCREPANCY_APPROVAL: 'bg-orange-500',
+  'Pending Discrepancy Approval': 'bg-orange-500',
+  DISCREPANCY_PENDING: 'bg-amber-500',
+  'Discrepancy Pending': 'bg-amber-500',
+  DISCREPANCY_RESOLVED: 'bg-emerald-500',
+  'Discrepancy Resolved': 'bg-emerald-500',
 };
 
 const formatStatusLabel = (status) => {
@@ -76,6 +87,9 @@ const formatStatusLabel = (status) => {
   if (s === 'REJECTED') return 'Rejected';
   if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
   if (s === 'PARTIALLYACCEPTED') return 'Partially Accepted';
+  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Pending Discrepancy Approval';
+  if (s === 'DISCREPANCYPENDING') return 'Discrepancy Pending';
+  if (s === 'DISCREPANCYRESOLVED') return 'Discrepancy Resolved';
   return status;
 };
 
@@ -84,11 +98,11 @@ const StatusBadge = ({ status = 'In Transit' }) => {
   const key = String(status).toUpperCase();
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold whitespace-nowrap shrink-0 border ${
         STATUS_STYLES[key] || STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border-gray-200'
       }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[key] || STATUS_DOT[status] || 'bg-gray-400'}`} />
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[key] || STATUS_DOT[status] || 'bg-gray-400'}`} />
       {label}
     </span>
   );
@@ -182,7 +196,6 @@ const StockTransferReqReceiveList = () => {
   const [sorting, setSorting] = useState([]);
 
   // Outlets, Sub-units & Filter states
-  const [allOutlets, setAllOutlets] = useState([]);
   const [subUnits, setSubUnits] = useState([]);
   const [selectedFromOutletId, setSelectedFromOutletId] = useState('');
   const [selectedFromSubOutletId, setSelectedFromSubOutletId] = useState('');
@@ -210,28 +223,9 @@ const StockTransferReqReceiveList = () => {
     isOutletUser,
     isCompanyUser,
     units,
-    selectedUnitId ,
+    selectedUnitId,
     effectiveOutletId,
   } = useOrgScope();
-
-  // Load All Outlets
-  useEffect(() => {
-    const fetchOutlets = async () => {
-      try {
-        const res = await getOrganizationByType(OrgTypes.OUTLET);
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        const mapped = (Array.isArray(list) ? list : []).map((o) => ({
-          id: o.id,
-          name: o.companyNameEnglish || o.name || `Outlet #${o.id}`,
-          code: o.companyCode || o.code || '',
-        }));
-        setAllOutlets(mapped);
-      } catch (err) {
-        console.error('Failed to load outlets in Receive list:', err);
-      }
-    };
-    fetchOutlets();
-  }, []);
 
   // Load Sub-units
   useEffect(() => {
@@ -247,16 +241,10 @@ const StockTransferReqReceiveList = () => {
     loadSubUnits();
   }, []);
 
-  // Available outlets for dropdowns (strictly company outlets for company user, same parent company for outlet user)
+  // Available outlets for dropdowns (strictly scoped outlets for logged in user)
   const displayOutletOptions = useMemo(() => {
-    if (isCompanyUser || isOutletUser) {
-      return units.map((u) => ({ value: String(u.id), label: `${u.name}${u.code ? ` (${u.code})` : ''}` }));
-    }
-    if (units.length > 0) {
-      return units.map((u) => ({ value: String(u.id), label: `${u.name}${u.code ? ` (${u.code})` : ''}` }));
-    }
-    return allOutlets.map((o) => ({ value: String(o.id), label: `${o.name}${o.code ? ` (${o.code})` : ''}` }));
-  }, [isCompanyUser, isOutletUser, units, allOutlets]);
+    return units.map((u) => ({ value: String(u.id), label: `${u.name}${u.code ? ` (${u.code})` : ''}` }));
+  }, [units]);
 
   const fromOutletOptions = useMemo(() => {
     return displayOutletOptions.filter(
@@ -683,9 +671,14 @@ const StockTransferReqReceiveList = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="STATUS" column={column} className="text-xs font-bold" />
         ),
-        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        cell: ({ row }) => (
+          <div className="flex items-center min-w-[210px] pr-2">
+            <StatusBadge status={row.original.status} />
+          </div>
+        ),
         enableSorting: false,
-        size: 130,
+        size: 230,
+        minSize: 220,
       },
       {
         id: 'actions',

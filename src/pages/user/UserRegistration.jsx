@@ -1121,7 +1121,7 @@ const UserRegistration = () => {
                     </div>
 
                     <div>
-                      <Label>Sub Company</Label>
+                      <Label>Company</Label>
                       <SearchableSelect
                         name="companyId"
                         value={form.companyId}
@@ -1130,7 +1130,7 @@ const UserRegistration = () => {
                           loadingOrgs
                             ? 'Loading...'
                             : form.groupId
-                            ? 'Select Sub Company (optional)'
+                            ? 'Select Company (optional)'
                             : 'Select group first'
                         }
                         options={subCompanies.map((c) => ({ value: c.id, label: c.name }))}

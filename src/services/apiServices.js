@@ -1249,6 +1249,10 @@ export const updateDraftTransfer = (id, payload) => {
   return PUT(`/stock-transfer/update/${id}`, payload);
 };
 
+export const resolveTransferDiscrepancy = (id, payload) => {
+  return POST(`/stock-transfer/resolve-discrepancy/${id}`, payload);
+};
+
 // ---- Stock Adjustment APIs ----
 export const getAdjustmentById = (id) => {
   return GET(`/stock-adjustment/${id}`);
