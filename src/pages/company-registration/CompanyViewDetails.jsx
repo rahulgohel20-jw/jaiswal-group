@@ -15,6 +15,7 @@ import {
     Mail,
 } from "lucide-react";
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 
 const SectionCard = ({ title, icon: Icon, children }) => (
@@ -86,58 +87,37 @@ const CompanyViewDetails = () => {
 
     return (
          <Container>
-        <div className="mx-auto p-4">
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
 
 
-            {/* Header */}
-
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-
-
-                <div>
-
-                    <button
-                        onClick={() => navigate("/companies")}
-                        className="flex items-center gap-2 text-[#084E92] font-semibold text-sm mb-2"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to Companies
-                    </button>
-
-
-                    <h1 className="font-bold text-[#101828] text-[28px]">
-                        {company.companyNameEnglish}
-                    </h1>
-
-
-                    <p className="text-[#667085] text-sm mt-1">
-                        Complete company profile and registration information.
-                    </p>
-
-
-                </div>
-
-
-
-                <button
-                    onClick={() =>
-                        navigate("/companies/update-company", {
-                            state: {
-                                company
+            <PageHeader
+                title={company.companyNameEnglish}
+                description="Complete company profile and registration information."
+                actions={
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate("/companies")}
+                            className="flex items-center gap-1.5 text-[#084E92] hover:text-[#063b6f] font-semibold text-sm cursor-pointer bg-transparent border-0 p-0"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Companies
+                        </button>
+                        <button
+                            onClick={() =>
+                                navigate("/companies/update-company", {
+                                    state: {
+                                        company
+                                    }
+                                })
                             }
-                        })
-                    }
-                    className="bg-[#084E92] text-white px-5 py-3 cursor-pointer rounded-xl flex items-center gap-2"
-                >
-
-                    <SquarePen className="w-4 h-4" />
-
-                    Edit Company
-
-                </button>
-
-
-            </div>
+                            className="bg-[#084E92] text-white px-5 py-3 cursor-pointer rounded-xl flex items-center gap-2"
+                        >
+                            <SquarePen className="w-4 h-4" />
+                            Edit Company
+                        </button>
+                    </div>
+                }
+            />
 
 
 

@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router';
 import {
-  ChevronRight,
+  ArrowLeft,
   Loader2,
   CheckCircle2,
   Building2,
@@ -16,6 +16,7 @@ import {
   X,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import {
   createGrn,
   getPOByIdAndOpenItem,
@@ -666,33 +667,21 @@ const GenerateGRNDetail = () => {
   return (
     <Container>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 min-h-screen pb-10">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 mt-1">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Inventory</span>
-          <ChevronRight size={12} />
-          <span
-            onClick={() => navigate('/inventory/generate-grn')}
-            className="cursor-pointer hover:text-[#084E92] transition"
-          >
-            Generate GRN
-          </span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">GRN Details</span>
-        </div>
-
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
-          <div>
-            <h1 className="text-2xl md:text-4xl font-semibold">
-              Generate GRN
-            </h1>
-            <p className="text-[#43474F] mt-1 text-sm sm:text-base">
-              Generate Goods Received Note for {po.poCode || `PO-${po.id}`}.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Generate GRN"
+          description={`Generate Goods Received Note for ${po.poCode || `PO-${po.id}`}.`}
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/inventory/generate-grn')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Generate GRN
+            </button>
+          }
+          className="mt-3"
+        />
 
         {/* Return & Replacement Banner */}
         {resolvedGrnCode || returnGrnDetailId ? (

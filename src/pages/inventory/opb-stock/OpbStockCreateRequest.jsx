@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Plus, Trash2 } from 'lucide-react';
 import { notify } from '@/utils/toast';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
@@ -317,20 +318,21 @@ const OpbStockCreateRequest = () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Inventory</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">
-                        OPB Stock Create Request
-                    </span>
-                </div>
-
-                <h1 className="text-2xl font-bold text-[#0F172A]">
-                    OPB Stock Create Request
-                </h1>
+            <div className="mx-auto pt-2 pb-6 space-y-3.5">
+                <PageHeader
+                    title="OPB Stock Create Request"
+                    actions={
+                        <button
+                            type="button"
+                            onClick={() => navigate('/inventory/opb-stock-create-request-list')}
+                            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to List
+                        </button>
+                    }
+                    className="mb-2"
+                />
 
                 <div className="bg-white border border-[#E2E8F0] rounded-2xl mt-4 relative">
                     <div className="px-6 py-4 border-b border-[#E2E8F0]">

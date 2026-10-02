@@ -1,7 +1,7 @@
 import { useNavigate, useParams, useLocation } from 'react-router';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
-  ChevronRight,
+  ArrowLeft,
   Search,
   Trash2,
   Save,
@@ -11,6 +11,7 @@ import {
   ScrollText,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { getAllRawMaterialItems, getCurrentStockListGet } from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { getUserIdFromToken } from '@/utils/auth';
@@ -667,41 +668,38 @@ const AddPurchaseRequisition = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Purchase</span>
-          <ChevronRight size={12} />
-          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate(-1)}>Purchase Requisition List</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">{isEditMode ? 'Edit' : 'Create'}</span>
-        </div>
-
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-2">
-          <div>
-            <h1 className="font-bold text-[#101828] text-[28px]">
-              {isEditMode ? `Edit Purchase Requisition` : 'Create Purchase Requisition'}
-            </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-              {isEditMode
-                ? `Editing ${loadedPr?.prCode || ''} for ${loadedPr?.outlet || 'the selected outlet'}.`
-                : 'Raise a new purchase requisition for an outlet.'}
-            </p>
-          </div>
-
-          {isEditMode && (
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? `Edit Purchase Requisition` : 'Create Purchase Requisition'}
+          description={
+            isEditMode
+              ? `Editing ${loadedPr?.prCode || ''} for ${loadedPr?.outlet || 'the selected outlet'}.`
+              : 'Raise a new purchase requisition for an outlet.'
+          }
+          actions={
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setShowLog(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-sm font-semibold text-white hover:bg-[#073e77] transition-colors cursor-pointer border-0 shadow-sm shrink-0"
+                onClick={() => navigate('/purchase-requisition/list')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
               >
-                <ScrollText className="w-4 h-4 shrink-0" />
-                <span>See Activity Log</span>
+                <ArrowLeft className="w-4 h-4" />
+                Back to Requisitions
               </button>
-            )}
-        </div>
+              {isEditMode && (
+                <button
+                  type="button"
+                  onClick={() => setShowLog(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-sm font-semibold text-white hover:bg-[#073e77] transition-colors cursor-pointer border-0 shadow-sm shrink-0"
+                >
+                  <ScrollText className="w-4 h-4 shrink-0" />
+                  <span>See Activity Log</span>
+                </button>
+              )}
+            </div>
+          }
+          className="mt-2"
+        />
 
           {/* Origin details */}
 <SectionCard className="mt-5 p-5 sm:p-6">

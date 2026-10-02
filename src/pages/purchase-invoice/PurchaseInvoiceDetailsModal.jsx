@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    ChevronRight,
     Building2,
     Calendar,
     ArrowLeft,
@@ -460,28 +459,7 @@ const PurchaseInvoiceDetailsModal = () => {
 
     return (
         <Container>
-            <div className="mx-auto p-4">
-                <div className="mb-3 flex min-w-0 items-center gap-1.5 text-xs text-gray-400">
-                    <span
-                        className="shrink-0 cursor-pointer hover:text-blue-400"
-                        onClick={() => navigate('/')}
-                    >
-                        Dashboard
-                    </span>
-                    <ChevronRight size={12} className="shrink-0" />
-                    <span
-                        className="shrink-0 cursor-pointer hover:text-blue-400"
-                        onClick={() => navigate(-1)}
-                    >
-                        Purchase Invoice Listing
-                    </span>
-                    <ChevronRight size={12} className="shrink-0" />
-                    <span className="min-w-0 truncate font-medium text-[#084E92]">
-                        {invoice.vendorInvoiceNumber ||
-                            invoice.invoiceCode ||
-                            'Purchase Invoice'}
-                    </span>
-                </div>
+            <div className="mx-auto p-4 pt-4">
 
                 <div className="flex w-full flex-col flex-wrap justify-between gap-4 rounded-2xl bg-linear-to-r from-[#084E92] to-[#0B65BD] px-6 py-5 shadow-sm sm:flex-row sm:items-center">
                     <div className="flex min-w-0 items-center gap-3">

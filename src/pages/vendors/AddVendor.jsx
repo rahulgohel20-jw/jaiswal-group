@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify, getApiErrorMessage } from '@/utils/toast';
 import {
+  ArrowLeft,
   Briefcase,
   Building2,
   Check,
   ChevronDown,
-  ChevronRight,
   ClipboardList,
   Landmark,
   Loader2,
@@ -58,6 +58,7 @@ import {
 } from '@/utils/validations';
 import SearchableSelect from '../../utils/SearchableSelect';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const ACTIONS = [
   { key: 'add', label: 'Add' },
@@ -1506,26 +1507,25 @@ const VendorRegistration = () => {
 
   return (
      <Container>
-    <div className="mx-auto p-4">
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} />
-          <span className='cursor-pointer hover:text-blue-400' onClick={() => navigate(-1)}>Vendors</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-             Add Vendor  
-          </span>
-        </div>
-      <div className="flex flex-col gap-1">
-        <h1 className="font-bold text-[#101828] text-[28px]">
-          {isEditMode ? 'Update Vendor' : 'Vendor Registration'}
-        </h1>
-        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-          {isEditMode
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
+      <PageHeader
+        title={isEditMode ? 'Update Vendor' : 'Vendor Registration'}
+        description={
+          isEditMode
             ? `Update the account details for ${editingVendor?.fullName ?? editingVendor?.name ?? 'this vendor'}.`
-            : 'Onboard a new vendor to the Jaiswal ERP ecosystem with comprehensive business and financial details.'}
-        </p>
-      </div>
+            : 'Onboard a new vendor to the Jaiswal ERP ecosystem with comprehensive business and financial details.'
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => navigate('/vendors')}
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Vendors
+          </button>
+        }
+      />
 
       {/* Personal Information */}
       <SectionCard className="mt-4">

@@ -2,9 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { notify } from '@/utils/toast';
 import {
   AlertTriangle,
+  ArrowLeft,
   Check,
   ChevronDown,
-  ChevronRight,
   Eye,
   EyeOff,
   Loader2,
@@ -41,6 +41,7 @@ import {
   mapEmployeeToForm,
 } from './utils/Employeemappers';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -941,30 +942,25 @@ const UserRegistration = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>
-            Dashboard
-          </span>
-          <ChevronRight size={12} />
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate(-1)}>
-            Users
-          </span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            {isEditMode ? 'Update User' : 'Add User'}
-          </span>
-        </div>
-        <div className="flex flex-col gap-1">
-          <h1 className="font-bold text-[#101828] text-[28px]">
-            {isEditMode ? 'Update User' : 'User Registration'}
-          </h1>
-          <p className="text-[#667085] text-sm max-w-xl">
-            {isEditMode
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? 'Update User' : 'User Registration'}
+          description={
+            isEditMode
               ? `Update the account details and permissions for ${editingUser?.name ?? 'this user'}.`
-              : 'Create a new enterprise user account across organizational levels with custom permissions.'}
-          </p>
-        </div>
+              : 'Create a new enterprise user account across organizational levels with custom permissions.'
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/users')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Users
+            </button>
+          }
+        />
 
         {submitError && (
           <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

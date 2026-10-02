@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Receipt, Trash2, Save, Loader2, Plus, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Receipt, Trash2, Save, Loader2, Plus } from 'lucide-react';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { toast } from 'sonner';
 import { formatCurrency, numberToWords } from '@/pages/purchase-order-requests/utils/taxUtils';
 import {
@@ -706,34 +707,22 @@ const GenerateGrnInvoice = () => {
 
   return (
     <Container>
-      <div className="mx-auto p-4">
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mb-3 min-w-0">
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} className="shrink-0" />
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/purchase/invoice-listing')}>Purchase Invoice</span>
-          <ChevronRight size={12} className="shrink-0" />
-          <span className="text-[#084E92] font-medium truncate">{isEditMode ? 'Edit GRN Invoice' : 'Generate GRN Invoice'}</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6 min-w-0">
-          <div className="flex items-start sm:items-center gap-3 min-w-0">
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? 'Edit GRN Invoice' : 'Generate GRN Invoice'}
+          description={isEditMode ? 'Update purchase invoice details' : 'Create purchase invoice from selected GRNs'}
+          actions={
             <button
               type="button"
-              onClick={() => navigate(-1)}
-              className="h-9 w-9 shrink-0 flex items-center cursor-pointer justify-center rounded-lg border border-gray-200 hover:bg-gray-50"
+              onClick={() => navigate('/purchase/invoice-listing')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft className="w-4 h-4" />
+              Back to Invoices
             </button>
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
-                {isEditMode ? 'Edit GRN Invoice' : 'Generate GRN Invoice'}
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 truncate">
-                {isEditMode ? 'Update purchase invoice details' : 'Create purchase invoice from selected GRNs'}
-              </p>
-            </div>
-          </div>
-        </div>
+          }
+          className="mb-6"
+        />
 
         <div className="w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-xl p-3 sm:p-5 mb-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">

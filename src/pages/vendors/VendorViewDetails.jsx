@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getVendorById } from "@/services/apiServices";
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const SectionCard = ({
   title,
@@ -215,37 +216,31 @@ const VendorViewDetails = () => {
 
   return (
     <Container>
-    <div className="mx-auto p-4">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <button
-            onClick={() => navigate("/vendors")}
-            className="flex items-center gap-2 text-[#084E92] font-semibold text-sm mb-2"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Vendors
-          </button>
-
-          <h1 className="text-[28px] font-bold text-[#101828]">
-            {vendor.fullName}
-          </h1>
-
-          <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-            Complete vendor profile, department, and business details.
-          </p>
-        </div>
-
-        <button
-          onClick={() =>
-            navigate("/vendors/update-vendor", { state: { vendorId: vendor.id, vendor } })
-          }
-          className="bg-[#084E92] text-white px-5 py-3 rounded-xl flex items-center gap-2 font-semibold text-sm cursor-pointer hover:bg-[#073e77] transition shadow-xs"
-        >
-          <SquarePen className="w-4 h-4" />
-          Edit Vendor
-        </button>
-      </div>
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
+      <PageHeader
+        title={vendor.fullName}
+        description="Complete vendor profile, department, and business details."
+        actions={
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/vendors")}
+              className="flex items-center gap-1.5 text-[#084E92] hover:text-[#063b6f] font-semibold text-sm cursor-pointer bg-transparent border-0 p-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Vendors
+            </button>
+            <button
+              onClick={() =>
+                navigate("/vendors/update-vendor", { state: { vendorId: vendor.id, vendor } })
+              }
+              className="bg-[#084E92] text-white px-5 py-3 rounded-xl flex items-center gap-2 font-semibold text-sm cursor-pointer hover:bg-[#073e77] transition shadow-xs"
+            >
+              <SquarePen className="w-4 h-4" />
+              Edit Vendor
+            </button>
+          </div>
+        }
+      />
 
       {/* Profile summary */}
       <div className="mt-6 bg-white border border-gray-100 rounded-3xl shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">

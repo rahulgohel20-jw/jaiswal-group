@@ -12,6 +12,7 @@ import {
   Phone,
 } from "lucide-react";
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const InfoCard = ({ label, value }) => (
   <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
@@ -95,44 +96,38 @@ const UnitViewDetails = () => {
 
   return (
      <Container>
-    <div className="mx-auto p-4">
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
 
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-        <div>
-          <button
-            type="button"
-            onClick={() => navigate("/units")}
-            className="flex items-center gap-2 text-[#084E92] font-semibold text-sm mb-2 cursor-pointer bg-transparent border-0 p-0"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Units
-          </button>
-
-          <h1 className="font-bold text-[#101828] text-[28px] capitalize">
-            {name}
-          </h1>
-
-          <p className="text-[#737781] mt-1 text-sm">
-            Complete unit profile and address information.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            navigate("/units/add-unit", {
-              state: {
-                unit: raw,
-              },
-            })
-          }
-          className="bg-[#084E92] hover:bg-[#073e77] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold border-0 cursor-pointer transition self-start lg:self-auto"
-        >
-          <SquarePen className="w-4 h-4" />
-          Edit Unit
-        </button>
-      </div>
+      <PageHeader
+        title={<span className="capitalize">{name}</span>}
+        description="Complete unit profile and address information."
+        actions={
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/units")}
+              className="flex items-center gap-1.5 text-[#084E92] hover:text-[#063b6f] font-semibold text-sm cursor-pointer bg-transparent border-0 p-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Units
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/units/add-unit", {
+                  state: {
+                    unit: raw,
+                  },
+                })
+              }
+              className="bg-[#084E92] hover:bg-[#073e77] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold border-0 cursor-pointer transition"
+            >
+              <SquarePen className="w-4 h-4" />
+              Edit Unit
+            </button>
+          </div>
+        }
+      />
 
       {/* Profile Banner */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm my-4 p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">

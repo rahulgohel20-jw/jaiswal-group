@@ -28,6 +28,7 @@ import {
   validatePincode,
 } from '@/utils/validations';
 import SearchableSelect from '../../utils/SearchableSelect';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Container } from '@/components/common/container';
 
 // Letters only — no digits, spaces, or special characters.
@@ -622,25 +623,25 @@ const AddUnit = () => {
 
   return (
      <Container>
-    <div className="mx-auto p-4">
-      <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => navigate('/units')}
-          className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] mb-1 cursor-pointer bg-transparent border-0 p-0 self-start"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Units
-        </button>
-        <h1 className="font-bold text-[#101828] text-[28px]">
-          {isEditMode ? 'Update Unit' : 'Register New Unit'}
-        </h1>
-        <p className="text-[#667085] text-sm mt-1">
-          {isEditMode
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
+      <PageHeader
+        title={isEditMode ? 'Update Unit' : 'Register New Unit'}
+        description={
+          isEditMode
             ? `Update the details for ${editingUnit?.name ?? 'this Unit'} within the Jaiswal Group ecosystem.`
-            : 'Complete the form below to register a new Unit under the Jaiswal Group ecosystem.'}
-        </p>
-      </div>
+            : 'Complete the form below to register a new Unit under the Jaiswal Group ecosystem.'
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => navigate('/units')}
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Units
+          </button>
+        }
+      />
 
       {/* Unit Information */}
       <SectionCard className="mt-4">

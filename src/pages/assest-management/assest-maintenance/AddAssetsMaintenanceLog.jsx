@@ -1,7 +1,8 @@
-import { ArrowLeft, Building2, ChevronRight, ClipboardList, Info, MapPin, Save, Store, Users, Wrench } from 'lucide-react';
+import { ArrowLeft, Building2, ClipboardList, Info, MapPin, Save, Store, Users, Wrench } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useLocation } from 'react-router';
 import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import SearchableSelect from '../../../utils/SearchableSelect';
@@ -366,54 +367,25 @@ const AddAssetsMaintenanceLog = () => {
 
     return (
        <Container>
-         <div className='p-4 mx-auto'>
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate(-1)}>Asset Maintenance</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">
-                    {isEditMode ? 'Edit Maintenance Log' : 'Add Maintenance Log'}
-                </span>
-            </div>
-            {/* Header */}
-            <div className="flex items-start justify-between flex-wrap gap-4">
-                <div>
-                    <h1 className="font-bold text-[#101828] text-[28px] ">
-                        {isEditMode ? 'Update Maintenance Log' : 'Maintenance Log Registration'}
-                    </h1>
-
-                    <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-                        {isEditMode
-                            ? 'Update the details of this maintenance record.'
-                            : 'Record maintenance activities performed on assets for tracking and service history.'}
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-3 self-end">
-                    <Link to="/assets/asset-maintenance">
-                        <button
-                            type="button"
-                            className="flex items-center cursor-pointer gap-2 px-5 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            Back to List
-                        </button>
-                    </Link>
-
+         <div className="mx-auto pt-2 pb-6 space-y-3.5">
+            <PageHeader
+                title={isEditMode ? 'Update Maintenance Log' : 'Maintenance Log Registration'}
+                description={
+                    isEditMode
+                        ? 'Update the details of this maintenance record.'
+                        : 'Record maintenance activities performed on assets for tracking and service history.'
+                }
+                actions={
                     <button
                         type="button"
-                        disabled={submitting || loadingRecord}
-                        onClick={() => handleSave(false)}
-                        className="flex items-center cursor-pointer gap-2 px-5 py-2.5 rounded-lg bg-[#084E92] text-white font-medium hover:bg-[#073e77] transition disabled:opacity-60"
+                        onClick={() => navigate('/assets/asset-maintenance')}
+                        className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
                     >
-                        <Save className="w-4 h-4" />
-                        {saveLabel}
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to List
                     </button>
-                </div>
-            </div>
+                }
+            />
 
             <div className="mt-8 border rounded-2xl shadow-2xs flex flex-col">
                 {loadingRecord && (

@@ -1,6 +1,6 @@
-import { ChevronRight, ScanLine, RotateCcw, ChevronDown } from 'lucide-react';
+import { ScanLine, RotateCcw, ChevronDown, ArrowLeft } from 'lucide-react';
 import React, { useState } from 'react'
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import {
@@ -9,6 +9,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const KITCHENS = [
     "Central Kitchen",
@@ -187,6 +188,7 @@ const Select = ({
 };
 
 const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => {
+    const navigate = useNavigate();
     const isEditMode = Boolean(transferToEdit);
     const { canAdd, canEdit, canView } = usePagePermissions('Asset Transfer');
     const initialForm = isEditMode ? { ...emptyForm, ...transferToEdit } : emptyForm;
@@ -237,51 +239,21 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
 
     return (
         <Container>
-        <div className="mx-auto p-4">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2 flex-wrap">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <button onClick={onBackToList} className="hover:text-blue-300 cursor-pointer">
-                    Asset Transfer Log
-                </button>
-                <ChevronRight size={12} />
-                <span className="text-[#095ab1] font-medium">
-                    {isEditMode ? "Edit Asset Transfer" : "Add Asset Transfer"}
-                </span>
-            </div>
-
-            {/* Header */}
-            <div className="flex justify-between flex-col gap-5 sm:flex-row sm:items-start">
-                <div>
-                    <h1 className="font-bold text-[#101828] text-[28px] ">
-                        Asset Transfer Registration
-                    </h1>
-
-                    <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-                        Systematically record and track the movement of operational assets between kitchen
-                        facilities and hub locations.
-                    </p>
-                </div>
-
-                 <div className="flex gap-3 shrink-0 self-end">
-                    <Link
-                        to="/assets/asset-transfer-log"
-                        className="h-11 px-5 cursor-pointer w-max rounded-xl border border-[#D9E2EC] text-[#121C2A] font-medium hover:bg-gray-50 transition inline-flex items-center justify-center"
-                    >
-                        Back to List
-                    </Link>
-
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
+            <PageHeader
+                title="Asset Transfer Registration"
+                description="Systematically record and track the movement of operational assets between kitchen facilities and hub locations."
+                actions={
                     <button
-                        onClick={() => handleSave(false)}
-                        className="h-11 px-5 cursor-pointer w-max rounded-xl bg-[#084E92] text-white font-medium hover:bg-[#094b8f] transition"
+                        type="button"
+                        onClick={() => navigate('/assets/asset-transfer-log')}
+                        className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
                     >
-                        Save Transfer
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to List
                     </button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Form Card */}
             <div className="bg-white border border-[#E6EAF2] rounded-2xl mt-6 overflow-hidden">
