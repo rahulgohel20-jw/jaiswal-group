@@ -1450,6 +1450,20 @@ export const getLedgerListFiltered = (payload = {}) => {
 export const getLedgerById = (id) => {
   return GET(`/stock-ledger/${id}`);
 };
+
+//Barcode list API
+export const listBatchesForBarcode = (payload, pageParams = {}) => {
+  return POST('/stock-batch/list-for-barcode', payload, {
+    params: {
+      pageNumber: pageParams.pageNumber ?? 0,
+      pageSize: pageParams.pageSize ?? 10,
+    },
+  });
+}
+export const generateBarcodeForBatch = (payload) => {
+  return POST('/reports/generateBarcodeForBatch', payload);
+};
+
 // Kitchen Menu Item API
 export const addKitchenMenuItem = (data) => {
   return axiosInstance.post('/kitchenmenuitems/add', data);

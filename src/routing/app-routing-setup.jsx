@@ -215,6 +215,7 @@ import KitchenMenuCategory from '../pages/menu-item/kitchen-menu-category/Kitche
 import VendorPriceAssociation from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceAssociation';
 import CreateItemRecipe from '../pages/menu-item/item-recipe/CreateItemRecipe';
 import ItemRecipeList from '../pages/menu-item/item-recipe/ItemRecipeList';
+import RawMaterialBarcode from '../pages/inventory/raw-material-barcode/RawMaterialBarcode';
 
 
 export function AppRoutingSetup() {
@@ -532,6 +533,8 @@ export function AppRoutingSetup() {
           <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger/>}/>
           <Route path='/inventory/general-stock-ledger/view/:id' element={<GeneralStockLedgerViewDetails />} />
           <Route path='/inventory/general-stock-ledger/view' element={<GeneralStockLedgerViewDetails />} />
+
+          <Route path='/inventory/raw-material-barcode' element={<RawMaterialBarcode />} />
 
           <Route
             path="/stocks/available-stocks"

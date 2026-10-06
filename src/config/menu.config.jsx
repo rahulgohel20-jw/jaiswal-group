@@ -502,6 +502,7 @@ export const MENU_SIDEBAR = [
       { title: 'OPB Stock', path: '/inventory/opb-stock-create-request-list' },
       { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'},
       { title: 'General Stock Ledger', path: '/inventory/general-stock-ledger'},
+      { title: 'Raw Material Barcode', path: '/inventory/raw-material-barcode'},
     ],
   },
   {
