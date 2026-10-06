@@ -78,6 +78,54 @@ const STATUS_TEXT_COLORS = {
   'Discrepancy Resolved': 'text-emerald-600',
 };
 
+const UNIT_SYMBOL_MAP = {
+  KILOGRAM: 'KG',
+  KILOGRAMS: 'KG',
+  KG: 'KG',
+  GRAM: 'GM',
+  GRAMS: 'GM',
+  GM: 'GM',
+  G: 'GM',
+  MILLIGRAM: 'MG',
+  MILLIGRAMS: 'MG',
+  MG: 'MG',
+  LITRE: 'LTR',
+  LITRES: 'LTR',
+  LITER: 'LTR',
+  LITERS: 'LTR',
+  LTR: 'LTR',
+  L: 'LTR',
+  MILLILITRE: 'ML',
+  MILLILITRES: 'ML',
+  MILLILITER: 'ML',
+  MILLILITERS: 'ML',
+  ML: 'ML',
+  PIECE: 'PCS',
+  PIECES: 'PCS',
+  PCS: 'PCS',
+  PC: 'PCS',
+  PACKET: 'PKT',
+  PACKETS: 'PKT',
+  PKT: 'PKT',
+  BOX: 'BOX',
+  BOXES: 'BOX',
+  BOTTLE: 'BTL',
+  BOTTLES: 'BTL',
+  CAN: 'CAN',
+  CANS: 'CAN',
+  BAG: 'BAG',
+  BAGS: 'BAG',
+  NUMBER: 'NOS',
+  NUMBERS: 'NOS',
+  NOS: 'NOS',
+};
+
+const formatUnit = (uom) => {
+  if (!uom) return 'Unit';
+  const clean = String(uom).trim().toUpperCase();
+  return UNIT_SYMBOL_MAP[clean] || uom;
+};
+
 const formatStatusLabel = (status) => {
   if (!status) return 'Draft';
   const s = String(status).toUpperCase().replace(/[\s_]/g, '');
@@ -87,9 +135,9 @@ const formatStatusLabel = (status) => {
   if (s === 'INTRANSIT') return 'In Transit';
   if (s === 'REJECTED') return 'Rejected';
   if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
-  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Pending Discrepancy Approval';
+  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Discrepancy Approval';
   if (s === 'DISCREPANCYPENDING') return 'Discrepancy Pending';
-  if (s === 'DISCREPANCYRESOLVED') return 'Discrepancy Resolved';
+  if (s === 'DISCREPANCYRESOLVED') return 'Resolved';
   return status;
 };
 
@@ -315,6 +363,7 @@ const StockTransfer = () => {
           transferCode: item.transferCode || item.code || `TRF-${String(item.id).padStart(4, '0')}`,
           fromOrganizationId: item.fromOrganizationId || item.fromOutletId,
           fromSubOutletId: item.fromSubOutletId || null,
+          fromSubLocationId: item.fromSubLocationId || null,
           fromOutlet: item.fromOrganizationName || item.fromOutletName || item.fromOutlet || '—',
           fromSubOutlet:
             item.fromSubOutletId && item.fromSubOutletName && item.fromSubOutletName !== 'Main Store'
@@ -322,8 +371,10 @@ const StockTransfer = () => {
               : !item.fromSubOutletId
               ? ''
               : item.fromSubOutletName || item.fromSubOutlet || '',
+          fromSubLocation: item.fromSubLocationName || item.fromSubLocation || '',
           toOrganizationId: item.toOrganizationId || item.toOutletId,
           toSubOutletId: item.toSubOutletId || null,
+          toSubLocationId: item.toSubLocationId || null,
           toOutlet: item.toOrganizationName || item.toOutletName || item.toOutlet || '—',
           toSubOutlet:
             item.toSubOutletId && item.toSubOutletName && item.toSubOutletName !== 'Main Store'
@@ -331,6 +382,7 @@ const StockTransfer = () => {
               : !item.toSubOutletId
               ? ''
               : item.toSubOutletName || item.toSubOutlet || '',
+          toSubLocation: item.toSubLocationName || item.toSubLocation || '',
           status: item.isDraft ? 'Draft' : item.status || 'Draft',
           isDraft: Boolean(item.isDraft),
           transferDate: item.transferDate || item.createdAt || '—',
@@ -531,11 +583,10 @@ const StockTransfer = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 36,
       },
       {
         id: 'transferCode',
@@ -546,13 +597,12 @@ const StockTransfer = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.transferCode}
-            maxWidth="max-w-[190px]"
+            maxWidth="max-w-[120px]"
             onClick={() => navigate(`/inventory/stock-transfer-detail/${row.original.id}`)}
           />
         ),
         enableSorting: false,
-        size: 195,
-        minSize: 180,
+        size: 125,
       },
       {
         id: 'dateAndTime',
@@ -563,10 +613,11 @@ const StockTransfer = () => {
           return valA - valB;
         },
         header: ({ column }) => (
-          <DataGridColumnHeader title="DATE & TIME" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="DATE" column={column} className="text-xs font-bold" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.transferDate} widthClass="max-w-[120px]" />,
-        size: 125,
+        cell: ({ row }) => <TruncatedCell value={row.original.transferDate} widthClass="max-w-[75px]" className="text-gray-700 text-xs font-medium" />,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'fromOutlet',
@@ -576,13 +627,17 @@ const StockTransfer = () => {
         ),
         cell: ({ row }) => (
           <div>
-            <div className="font-semibold text-xs text-gray-900">{row.original.fromOutlet}</div>
+            <div className="font-semibold text-xs text-gray-900 truncate max-w-[145px]" title={row.original.fromOutlet}>{row.original.fromOutlet}</div>
             {row.original.fromSubOutlet && (
-              <div className="text-[11px] text-gray-400 font-medium">{row.original.fromSubOutlet}</div>
+              <div className="text-[11px] text-gray-500 font-medium truncate max-w-[145px]" title={row.original.fromSubOutlet}>{row.original.fromSubOutlet}</div>
+            )}
+            {row.original.fromSubLocation && (
+              <div className="text-[10px] text-blue-600 font-medium truncate max-w-[145px]" title={row.original.fromSubLocation}>↳ {row.original.fromSubLocation}</div>
             )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 150,
       },
       {
         id: 'toOutlet',
@@ -592,13 +647,17 @@ const StockTransfer = () => {
         ),
         cell: ({ row }) => (
           <div>
-            <div className="font-semibold text-xs text-gray-900">{row.original.toOutlet}</div>
+            <div className="font-semibold text-xs text-gray-900 truncate max-w-[145px]" title={row.original.toOutlet}>{row.original.toOutlet}</div>
             {row.original.toSubOutlet && (
-              <div className="text-[11px] text-gray-400 font-medium">{row.original.toSubOutlet}</div>
+              <div className="text-[11px] text-gray-500 font-medium truncate max-w-[145px]" title={row.original.toSubOutlet}>{row.original.toSubOutlet}</div>
+            )}
+            {row.original.toSubLocation && (
+              <div className="text-[10px] text-blue-600 font-medium truncate max-w-[145px]" title={row.original.toSubLocation}>↳ {row.original.toSubLocation}</div>
             )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 150,
       },
       {
         id: 'items',
@@ -607,35 +666,36 @@ const StockTransfer = () => {
           <DataGridColumnHeader title="ITEMS" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <span
-              className="font-semibold text-xs text-gray-800 truncate max-w-[140px]"
+              className="font-semibold text-xs text-gray-800 truncate max-w-[85px]"
               title={row.original.primaryItemName}
             >
               {row.original.primaryItemName}
             </span>
             {row.original.itemsCount > 1 && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">
+              <span className="text-[10px] font-bold px-1 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">
                 +{row.original.itemsCount - 1}
               </span>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 150,
+        size: 110,
       },
       {
         id: 'quantity',
         accessorFn: (row) => Number(row.totalRequestedQuantity || 0),
         header: ({ column }) => (
-          <DataGridColumnHeader title="TRANSFER QTY" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="QTY" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <span className="font-bold text-xs text-gray-800">
-            {row.original.totalRequestedQuantity} {row.original.unit}
+          <span className="font-bold text-xs text-gray-800 whitespace-nowrap">
+            {row.original.totalRequestedQuantity} {formatUnit(row.original.unit)}
           </span>
         ),
-        size: 120,
+        enableSorting: false,
+        size: 65,
       },
       {
         id: 'status',
@@ -644,18 +704,17 @@ const StockTransfer = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center min-w-[210px] pr-2">
+          <div className="flex items-center whitespace-nowrap pr-1">
             <StatusBadge status={row.original.status} />
           </div>
         ),
         enableSorting: false,
-        size: 230,
-        minSize: 220,
+        size: 80,
       },
       {
         id: 'actions',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => {
           const item = row.original;
@@ -664,11 +723,11 @@ const StockTransfer = () => {
           const isApproved = rawStatus === 'APPROVED';
 
           return (
-            <div className="flex items-center gap-1.5 min-w-[80px] pl-2">
+            <div className="flex items-center gap-1 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() => handleView(item)}
-                className="p-1.5 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                className="p-1 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
                 title="View Transfer Details"
               >
                 <Eye size={15} />
@@ -680,7 +739,7 @@ const StockTransfer = () => {
                     <button
                       type="button"
                       onClick={() => handleEdit(item)}
-                      className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                      className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition cursor-pointer"
                       title="Edit Transfer Request"
                     >
                       <Pencil size={15} />
@@ -694,7 +753,7 @@ const StockTransfer = () => {
                         setTargetDeleteTransfer(item);
                         setDeleteModalOpen(true);
                       }}
-                      className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                      className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition cursor-pointer"
                       title="Delete Draft"
                     >
                       <Trash2 size={15} />
@@ -707,7 +766,7 @@ const StockTransfer = () => {
                 <button
                   type="button"
                   onClick={() => handleDispatch(item)}
-                  className="p-1.5 text-[#084E92] hover:text-[#063b6f] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                  className="p-1 text-[#084E92] hover:text-[#063b6f] hover:bg-blue-50 rounded-lg transition cursor-pointer"
                   title="Dispatch Transfer"
                 >
                   <Send size={15} />
@@ -717,8 +776,7 @@ const StockTransfer = () => {
           );
         },
         enableSorting: false,
-        size: 130,
-        minSize: 100,
+        size: 95,
       },
     ],
     [canAdd, canEdit, canDelete, canView]
@@ -870,19 +928,16 @@ const StockTransfer = () => {
               recordCount={filteredTransfers.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
+                width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <div className="min-w-[1250px]">
-                      <DataGridTable />
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />

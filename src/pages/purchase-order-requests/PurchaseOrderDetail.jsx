@@ -21,6 +21,7 @@ import {
   Loader2,
   PlusCircle,
   UserCheck,
+  FileText,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { usePurchaseOrders } from './utils/usePurchaseOrders';
@@ -435,6 +436,31 @@ const PurchaseOrderDetail = () => {
           </div>
         </div>
 
+        {/* Order Details */}
+        <SectionCard className="mt-5">
+          <SectionHeader icon={Calendar} title="Order Details" />
+          <div className="px-5 pb-5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <InfoTile label="PO Date" value={po?.date || (po?.createdAt ? formatDateOnly(po.createdAt) : '—')} />
+              <InfoTile label="Expected Delivery Date" value={po?.expectedDeliveryDate || '—'} />
+              <InfoTile label="Created By" value={po?.createdByName || po?.raisedBy || '—'} />
+              <InfoTile label="Last Updated By" value={po?.updatedByName || (po?.updatedBy ? String(po?.updatedBy) : '—')} />
+              <InfoTile label="Outlet / Branch" value={po?.outlet || po?.outletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
+              <InfoTile label="Sub-Unit / Location" value={po?.subOutletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
+            </div>
+
+            {po?.remarks && (
+              <div className="rounded-xl bg-blue-50/60 border border-blue-100 px-4 py-3.5 mt-3">
+                <p className="text-[11px] font-bold text-[#084E92] uppercase tracking-wide mb-1.5">
+                  Remarks
+                </p>
+                <p className="text-sm text-gray-600 leading-relaxed">{po.remarks}</p>
+              </div>
+            )}
+          </div>
+        </SectionCard>
+
+
         {/* Vendor Details */}
         <SectionCard className="mt-5 overflow-hidden">
           <SectionHeader icon={Building2} title="Vendor Details" />
@@ -497,36 +523,6 @@ const PurchaseOrderDetail = () => {
           </div>
         </SectionCard>
 
-        {/* Order Details */}
-        <SectionCard className="mt-5">
-          <SectionHeader icon={Calendar} title="Order Details" />
-          <div className="px-5 pb-5">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <InfoTile label="PO Date" value={po?.date || (po?.createdAt ? formatDateOnly(po.createdAt) : '—')} />
-              <InfoTile label="Expected Delivery Date" value={po?.expectedDeliveryDate || '—'} />
-              <InfoTile label="Created By" value={po?.createdByName || po?.raisedBy || '—'} />
-              <InfoTile label="Last Updated By" value={po?.updatedByName || (po?.updatedBy ? String(po?.updatedBy) : '—')} />
-              <InfoTile label="Outlet / Branch" value={po?.outlet || po?.outletName} icon={Building2} className="col-span-2 sm:col-span-4" />
-            </div>
-
-            {po?.remarks && (
-              <div className="rounded-xl bg-blue-50/60 border border-blue-100 px-4 py-3.5 mt-3">
-                <p className="text-[11px] font-bold text-[#084E92] uppercase tracking-wide mb-1.5">
-                  Remarks
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">{po.remarks}</p>
-              </div>
-            )}
-            {po?.termsAndConditions && (
-              <div className="rounded-xl bg-blue-50/60 border border-blue-100 px-4 py-3.5 mt-3">
-                <p className="text-[11px] font-bold text-[#084E92] uppercase tracking-wide mb-1.5">
-                  Terms & Condition
-                </p>
-                <p className="text-sm text-gray-600 leading-relaxed">{po.termsAndConditions}</p>
-              </div>
-            )}
-          </div>
-        </SectionCard>
 
         {/* Bill To & Ship To Addresses */}
         <SectionCard className="mt-5 overflow-hidden">
@@ -1060,6 +1056,18 @@ const PurchaseOrderDetail = () => {
             </div>
           </div>
         </SectionCard>
+
+        {/* Terms & Conditions */}
+        {po?.termsAndConditions && (
+          <SectionCard className="mt-5 overflow-hidden">
+            <SectionHeader icon={FileText} title="Terms & Conditions" />
+            <div className="px-5 pb-5 border-t border-gray-100 pt-4">
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {po.termsAndConditions}
+              </p>
+            </div>
+          </SectionCard>
+        )}
 
         {/* Slide-over Activity Log */}
         <PurchaseOrderLog

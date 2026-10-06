@@ -23,16 +23,9 @@ import {
 import { deleteAssetMaintenanceById, getAllAssetsMaintenance, getAllAssetsMaintenancePaginated, getAssetMaintenanceById, getAssetsMaintenanceByStatus, getByMaintenanceDateRangeAndStatus } from '../../../services/apiServices';
 import ViewMaintenanceModal from './ViewMaintenanceModal';
 
-const STATUS_TEXT_COLORS = {
-    "COMPLETED": "text-emerald-600",
-    "IN_PROGRESS": "text-blue-600",
-    "PENDING": "text-amber-600",
-};
-
 const StatusBadge = ({ status }) => {
-    const color = STATUS_TEXT_COLORS[status] ?? "text-gray-600";
     return (
-        <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+        <span className="text-xs font-semibold whitespace-nowrap text-gray-900 uppercase">
             {status || '—'}
         </span>
     );
@@ -229,76 +222,85 @@ const AssetsMaintenance = () => {
     const columns = [
         {
             id: "sno",
-            header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />,
+            header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
                 <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 70,
+            size: 36,
         },
         {
             accessorKey: "assetId",
-            header: ({ column }) => <DataGridColumnHeader title="ASSET IDENTITY" column={column} className="text-[#43474F] font-semibold" />,
+            header: ({ column }) => <DataGridColumnHeader title="ASSET IDENTITY" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
                 <div>
-                   <p className="text-[#0B5CAB] font-semibold text-sm"> {row.original.assetCode}</p>
-                   <span className="text-gray-600 text-sm">{row.original.itemName || '-'}</span>
+                   <p className="text-gray-900 font-semibold text-xs truncate"> {row.original.assetCode}</p>
+                   <span className="text-gray-600 text-xs truncate block">{row.original.itemName || '-'}</span>
                 </div>
             ),
-            size: 140,
+            enableSorting: false,
+            size: 115,
         },
         {
             accessorKey: "orgName",
-            header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="text-[#43474F] font-semibold" />,
-            cell: ({ row }) => row.original.orgName ?? '-',
-            size: 130,
+            header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => <span className="truncate block text-gray-700">{row.original.orgName ?? '-'}</span>,
+            enableSorting: false,
+            size: 95,
         },
         {
             accessorKey: "maintenanceDate",
-            header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-semibold" />,
-            size: 120,
+            header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => <span className="text-gray-700 text-xs whitespace-nowrap">{row.original.maintenanceDate ?? '-'}</span>,
+            enableSorting: false,
+            size: 80,
         },
         {
             accessorKey: "complaint",
-            header: ({ column }) => <DataGridColumnHeader title="REPORTED ISSUE" column={column} className="text-[#43474F] font-semibold" />,
+            header: ({ column }) => <DataGridColumnHeader title="REPORTED ISSUE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <span>{row.original.complaint || '-'}</span>
+                <span className="truncate block text-gray-700 text-xs" title={row.original.complaint}>{row.original.complaint || '-'}</span>
             ),
-            size: 160,
+            enableSorting: false,
+            size: 120,
         },
         {
             accessorKey: "engineerName",
-            header: ({ column }) => <DataGridColumnHeader title="ENGINEER" column={column} className="text-[#43474F] font-semibold" />,
+            header: ({ column }) => <DataGridColumnHeader title="ENGINEER" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <span>{row.original.engineerName || '-'}</span>
+                <span className="truncate block text-gray-700 text-xs">{row.original.engineerName || '-'}</span>
             ),
-            size: 120,
+            enableSorting: false,
+            size: 95,
         },
         {
             accessorKey: "cost",
-            header: ({ column }) => <DataGridColumnHeader title="SERVICE COST" column={column} className="text-[#43474F] font-semibold" />,
+            header: ({ column }) => <DataGridColumnHeader title="COST" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <span className="font-semibold text-[#084E92]">₹{row.original.cost}</span>
+                <span className="font-semibold text-gray-900 whitespace-nowrap">₹{row.original.cost}</span>
             ),
-            size: 120,
+            enableSorting: false,
+            size: 80,
         },
         {
             accessorKey: "status",
-            header: ({ column }) => <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />,
+            header: ({ column }) => <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
-            size: 120,
+            enableSorting: false,
+            size: 80,
         },
         {
             accessorKey: "nextServiceDate",
-            header: ({ column }) => <DataGridColumnHeader title="NEXT DUE" column={column} className="text-[#43474F] font-semibold" />,
-            cell: ({ row }) => row.original.nextServiceDate ?? '-',
-            size: 120,
+            header: ({ column }) => <DataGridColumnHeader title="NEXT DUE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => <span className="text-gray-700 text-xs whitespace-nowrap">{row.original.nextServiceDate ?? '-'}</span>,
+            enableSorting: false,
+            size: 80,
         },
         {
             id: "actions",
-            header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />,
+            header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <div className="flex gap-2 my-1 items-center">
+                <div className="flex gap-2 my-1 items-center whitespace-nowrap">
                     <button onClick={() => handleViewMaintenance(row.original.id)} className="text-gray-500 hover:text-green-600 cursor-pointer">
                         <Eye size={18} />
                     </button>
@@ -314,7 +316,8 @@ const AssetsMaintenance = () => {
                     </button>
                 </div>
             ),
-            size: 100
+            enableSorting: false,
+            size: 75
         },
     ];
 
@@ -445,21 +448,27 @@ const AssetsMaintenance = () => {
                 </div>
 
                 <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                    <DataGrid table={table} recordCount={totalCount} className="rounded-2xl">
+                    <DataGrid
+                        table={table}
+                        recordCount={totalCount}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
+                            <CardTable className="w-full overflow-x-hidden">
+                                <DataGridTable />
                             </CardTable>
                             <CardFooter className="bg-[#EFF4FF4D] border-t border-[#C3C6D1] rounded-b-2xl">
                                 <DataGridPagination />
                             </CardFooter>
                         </Card>
                     </DataGrid>
-
-
                 </div>
 
                 {showViewMaintenance && (

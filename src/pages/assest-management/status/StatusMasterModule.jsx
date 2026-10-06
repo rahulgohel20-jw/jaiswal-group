@@ -258,7 +258,8 @@ const StatusMasterModule = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="S.NO" column={column} className="font-semibold" />
             ),
-            size: 50,
+            enableSorting: false,
+            size: 36,
         },
 
         {
@@ -271,10 +272,12 @@ const StatusMasterModule = () => {
                 />
             ),
             cell: ({ row }) => (
-                <span className="font-medium text-[#0F172A]">
+                <span className="font-medium text-[#0F172A] truncate block">
                     {row.original.statusName}
                 </span>
             ),
+            enableSorting: false,
+            size: 200,
         },
 
         {
@@ -291,6 +294,8 @@ const StatusMasterModule = () => {
                     status={row.original.visibilityStatus}
                 />
             ),
+            enableSorting: false,
+            size: 90,
         },
 
         {
@@ -304,7 +309,7 @@ const StatusMasterModule = () => {
             ),
 
             cell: ({ row }) => (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 whitespace-nowrap">
                     <Eye
                         size={18}
                         className="text-gray-500 hover:text-green-600 cursor-pointer"
@@ -337,6 +342,7 @@ const StatusMasterModule = () => {
             ),
 
             enableSorting: false,
+            size: 80,
         },
     ], [canEdit, canDelete, deletingId]);
 
@@ -465,13 +471,21 @@ const StatusMasterModule = () => {
                             Loading Status...
                         </div>
                     ) : (
-                        <DataGrid table={table} recordCount={filteredStatusData.length} className="rounded-2xl">
+                        <DataGrid
+                            table={table}
+                            recordCount={filteredStatusData.length}
+                            className="rounded-2xl"
+                            tableLayout={{
+                                dense: true,
+                                width: 'fixed',
+                                cellBorder: true,
+                                headerBorder: true,
+                                rowBorder: true,
+                            }}
+                        >
                             <Card className="rounded-t-none border-t-0 rounded-2xl">
-                                <CardTable>
-                                    <ScrollArea>
-                                        <DataGridTable />
-                                        <ScrollBar orientation="horizontal" />
-                                    </ScrollArea>
+                                <CardTable className="w-full overflow-x-hidden">
+                                    <DataGridTable />
                                 </CardTable>
                                 <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                                     <DataGridPagination />

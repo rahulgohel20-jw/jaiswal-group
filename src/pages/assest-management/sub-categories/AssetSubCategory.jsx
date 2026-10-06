@@ -250,7 +250,7 @@ const confirmDelete = async () => {
                 <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 70,
+            size: 36,
         },
         {
             id: "parentCategory",
@@ -259,9 +259,10 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="PARENT CATEGORY" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2">{row.original.parentCategory}</div>
+                <div className="font-semibold text-gray-800 py-2 truncate block">{row.original.parentCategory}</div>
             ),
-            size: 170,
+            enableSorting: false,
+            size: 150,
         },
         {
             id: "name",
@@ -270,9 +271,10 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="SUB CATEGORY NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-1">{row.original.name}</div>
+                <div className="font-semibold text-gray-800 py-1 truncate block">{row.original.name}</div>
             ),
-            size: 190,
+            enableSorting: false,
+            size: 180,
         },
 
         {
@@ -282,7 +284,8 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
-            size: 120,
+            enableSorting: false,
+            size: 80,
         },
         {
             id: "actions",
@@ -290,7 +293,7 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
-                <div className="flex items-center gap-3 py-1">
+                <div className="flex items-center gap-3 py-1 whitespace-nowrap">
                     <button type="button" onClick={() => setViewingSubCategory(row.original)} title="View Sub Category">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
@@ -307,7 +310,7 @@ const confirmDelete = async () => {
                 </div>
             ),
             enableSorting: false,
-            size: 110,
+            size: 80,
         },
     ], [canEdit, canDelete]
     )
@@ -430,14 +433,22 @@ const confirmDelete = async () => {
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={filteredSubCategories.length} className="rounded-2xl">
+                <DataGrid
+                    table={table}
+                    recordCount={filteredSubCategories.length}
+                    className="rounded-2xl"
+                    tableLayout={{
+                        dense: true,
+                        width: 'fixed',
+                        cellBorder: true,
+                        headerBorder: true,
+                        rowBorder: true,
+                    }}
+                >
                     {loading && <p className="p-4 text-sm text-gray-500">Loading sub categories...</p>}
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
+                        <CardTable className="w-full overflow-x-hidden">
+                            <DataGridTable />
                         </CardTable>
                         <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                             <DataGridPagination />

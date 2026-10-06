@@ -13,9 +13,11 @@ import {
 import {
   getOrganizationByType,
   getAllSubOutletsByOrganization,
+  getAllSubLocationsBySubOutletId,
   saveTransfer,
   getCurrentStockListGet,
   getAllRawMaterialItems,
+  getAllRawMaterialUnits,
 } from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { notify } from '@/utils/toast';
@@ -42,7 +44,7 @@ export const GenerateStockTransferModal = ({
   const [outlets, setOutlets] = useState([]);
   const [loadingOutlets, setLoadingOutlets] = useState(false);
 
-  // Raw materials map (master unit of measurement from getAllRawMaterialItems API)
+  // Raw materials map (parent / master unit of measurement from master definition)
   const [rawMaterialsMap, setRawMaterialsMap] = useState({});
   const [loadingRawMaterials, setLoadingRawMaterials] = useState(false);
 
@@ -51,10 +53,16 @@ export const GenerateStockTransferModal = ({
   const [toOutletId, setToOutletId] = useState('');
   const [fromSubOutletId, setFromSubOutletId] = useState('');
   const [toSubOutletId, setToSubOutletId] = useState('');
+  const [fromSubLocationId, setFromSubLocationId] = useState('');
+  const [toSubLocationId, setToSubLocationId] = useState('');
   const [fromSubOutlets, setFromSubOutlets] = useState([]);
   const [toSubOutlets, setToSubOutlets] = useState([]);
+  const [fromSubLocations, setFromSubLocations] = useState([]);
+  const [toSubLocations, setToSubLocations] = useState([]);
   const [loadingFromSubs, setLoadingFromSubs] = useState(false);
   const [loadingToSubs, setLoadingToSubs] = useState(false);
+  const [loadingFromSubLocations, setLoadingFromSubLocations] = useState(false);
+  const [loadingToSubLocations, setLoadingToSubLocations] = useState(false);
 
   // Stock map & status states
   const [stockMap, setStockMap] = useState({});
@@ -135,41 +143,112 @@ export const GenerateStockTransferModal = ({
       if (currentOutletId) {
         setFromOutletId(String(currentOutletId));
       }
-      // To Outlet, From Sub-Outlet, and To Sub-Outlet are unselected by default
+      // To Outlet, From Sub-Outlet, To Sub-Outlet, From Sub-Location, To Sub-Location are unselected by default
       setToOutletId('');
       setFromSubOutletId('');
       setToSubOutletId('');
+      setFromSubLocationId('');
+      setToSubLocationId('');
     }
   }, [isOpen, initialItems, currentOutletId]);
 
-  // Load raw material items to get their master UOM definition
+  // Load raw material items and units to resolve their master/parent UOM definition
   useEffect(() => {
     if (!isOpen) return;
     let isCancelled = false;
     setLoadingRawMaterials(true);
-    getAllRawMaterialItems(0, 0, true, '', '', '')
-      .then((res) => {
+
+    Promise.all([
+      getAllRawMaterialItems(0, 0, true, '', '', ''),
+      getAllRawMaterialUnits().catch((e) => {
+        console.warn('Failed to load raw material units:', e);
+        return null;
+      }),
+    ])
+      .then(([rmRes, unitRes]) => {
         if (isCancelled) return;
+
+        // Map units for resolving parent UOM
+        const unitsRaw =
+          unitRes?.data?.data?.['Unit Details'] ||
+          unitRes?.data?.['Unit Details'] ||
+          unitRes?.data?.data ||
+          unitRes?.data ||
+          [];
+        const unitsList = Array.isArray(unitsRaw) ? unitsRaw : [];
+        const unitsMap = {};
+        unitsList.forEach((u) => {
+          if (u?.id != null) {
+            unitsMap[u.id] = u;
+            unitsMap[String(u.id)] = u;
+          }
+        });
+
+        const getParentUnitOf = (unitObjOrId) => {
+          if (!unitObjOrId) return null;
+          const u = typeof unitObjOrId === 'object' ? unitObjOrId : unitsMap[unitObjOrId];
+          if (!u) return null;
+
+          // If unit has parentUnit object embedded
+          if (u.parentUnit && typeof u.parentUnit === 'object' && u.parentUnit.id) {
+            const parentFromMap = unitsMap[u.parentUnit.id];
+            return parentFromMap || u.parentUnit;
+          }
+          // If unit has parentUnitId reference
+          if (u.parentUnitId && unitsMap[u.parentUnitId]) {
+            return unitsMap[u.parentUnitId];
+          }
+          // If unit itself is parent unit or has no parent
+          return u;
+        };
+
         const raw =
-          res?.data?.data?.['Raw Material Details'] ||
-          res?.data?.['Raw Material Details'] ||
-          res?.data?.data ||
-          res?.data ||
+          rmRes?.data?.data?.['Raw Material Details'] ||
+          rmRes?.data?.['Raw Material Details'] ||
+          rmRes?.data?.data ||
+          rmRes?.data ||
           [];
         const list = Array.isArray(raw) ? raw : [];
         const map = {};
         list.forEach((rm) => {
-          const uName =
+          const directUnit = rm?.unit || (rm?.unitId ? unitsMap[rm.unitId] : null);
+          const resolvedParentUnit = getParentUnitOf(directUnit) || directUnit;
+
+          const parentUName =
+            resolvedParentUnit?.nameEnglish ||
+            resolvedParentUnit?.symbolEnglish ||
+            resolvedParentUnit?.name ||
+            (typeof resolvedParentUnit === 'string' ? resolvedParentUnit : '') ||
             rm?.unit?.nameEnglish ||
             rm?.unit?.symbolEnglish ||
             (typeof rm?.unit === 'string' ? rm.unit : '') ||
             rm?.unitName ||
             '';
-          const uId = rm?.unitId ?? rm?.unit?.id ?? null;
+
+          const parentUId =
+            resolvedParentUnit?.id ??
+            resolvedParentUnit?.parentUnitId ??
+            rm?.unitId ??
+            rm?.unit?.id ??
+            null;
+
+          const baseUName =
+            rm?.unit?.nameEnglish ||
+            rm?.unit?.symbolEnglish ||
+            (typeof rm?.unit === 'string' ? rm.unit : '') ||
+            rm?.unitName ||
+            parentUName;
+
+          const baseUId = rm?.unitId ?? rm?.unit?.id ?? parentUId;
+
           const entry = {
             name: rm?.nameEnglish || rm?.itemName || rm?.name || '',
-            unitName: uName,
-            unitId: uId,
+            parentUnitName: parentUName || baseUName,
+            parentUnitId: parentUId || baseUId,
+            unitName: parentUName || baseUName,
+            unitId: parentUId || baseUId,
+            baseUnitName: baseUName,
+            baseUnitId: baseUId,
           };
           map[rm.id] = entry;
           map[String(rm.id)] = entry;
@@ -222,55 +301,13 @@ export const GenerateStockTransferModal = ({
     };
   }, [isOpen]);
 
-  // Default fromOutletId based on currentOutletId or user role
-  useEffect(() => {
-    if (!isOpen) return;
-
-    if (currentOutletId) {
-      setFromOutletId(String(currentOutletId));
-      return;
-    }
-
-    if (isOutletUser) {
-      const myOutletId = String(
-        effectiveOutletId || getOrgIdFromToken() || scopedUnits[0]?.id || ''
-      );
-      if (myOutletId) {
-        setFromOutletId(myOutletId);
-      }
-      return;
-    }
-
-    if (isCompanyUser && availableFromOutlets.length > 0) {
-      if (!fromOutletId || !availableFromOutlets.some((o) => String(o.id) === String(fromOutletId))) {
-        setFromOutletId(String(availableFromOutlets[0].id));
-      }
-      return;
-    }
-
-    if (isGroupUser && outlets.length > 0) {
-      if (!fromOutletId || !outlets.some((o) => String(o.id) === String(fromOutletId))) {
-        setFromOutletId(String(outlets[0].id));
-      }
-    }
-  }, [
-    isOpen,
-    currentOutletId,
-    isOutletUser,
-    isCompanyUser,
-    isGroupUser,
-    effectiveOutletId,
-    scopedUnits,
-    availableFromOutlets,
-    outlets,
-    fromOutletId,
-  ]);
-
   // Load sub-outlets for "From Outlet" (without auto-selecting first item)
   useEffect(() => {
     if (!isOpen || !fromOutletId) {
       setFromSubOutlets([]);
       setFromSubOutletId('');
+      setFromSubLocations([]);
+      setFromSubLocationId('');
       return;
     }
     let isCancelled = false;
@@ -299,11 +336,52 @@ export const GenerateStockTransferModal = ({
     };
   }, [isOpen, fromOutletId]);
 
+  // Load sub-locations for "From Sub-Outlet"
+  useEffect(() => {
+    if (!isOpen || !fromSubOutletId) {
+      setFromSubLocations([]);
+      setFromSubLocationId('');
+      return;
+    }
+    let isCancelled = false;
+    setLoadingFromSubLocations(true);
+    getAllSubLocationsBySubOutletId(fromSubOutletId)
+      .then((res) => {
+        if (isCancelled) return;
+        const raw =
+          res?.data?.data?.content ??
+          res?.data?.content ??
+          res?.data?.data ??
+          res?.data ??
+          res ??
+          [];
+        const list = Array.isArray(raw) ? raw : [];
+        const mapped = list.map((s) => ({
+          id: String(s.id),
+          name: s.locationName || s.name || `Sub-Location #${s.id}`,
+        }));
+        setFromSubLocations(mapped);
+      })
+      .catch((err) => {
+        console.warn('Failed to load sub-locations for fromSubOutlet:', err);
+        if (!isCancelled) setFromSubLocations([]);
+      })
+      .finally(() => {
+        if (!isCancelled) setLoadingFromSubLocations(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, fromSubOutletId]);
+
   // Load sub-outlets for "To Outlet" (without auto-selecting first item)
   useEffect(() => {
     if (!isOpen || !toOutletId) {
       setToSubOutlets([]);
       setToSubOutletId('');
+      setToSubLocations([]);
+      setToSubLocationId('');
       return;
     }
     let isCancelled = false;
@@ -332,6 +410,45 @@ export const GenerateStockTransferModal = ({
     };
   }, [isOpen, toOutletId]);
 
+  // Load sub-locations for "To Sub-Outlet"
+  useEffect(() => {
+    if (!isOpen || !toSubOutletId) {
+      setToSubLocations([]);
+      setToSubLocationId('');
+      return;
+    }
+    let isCancelled = false;
+    setLoadingToSubLocations(true);
+    getAllSubLocationsBySubOutletId(toSubOutletId)
+      .then((res) => {
+        if (isCancelled) return;
+        const raw =
+          res?.data?.data?.content ??
+          res?.data?.content ??
+          res?.data?.data ??
+          res?.data ??
+          res ??
+          [];
+        const list = Array.isArray(raw) ? raw : [];
+        const mapped = list.map((s) => ({
+          id: String(s.id),
+          name: s.locationName || s.name || `Sub-Location #${s.id}`,
+        }));
+        setToSubLocations(mapped);
+      })
+      .catch((err) => {
+        console.warn('Failed to load sub-locations for toSubOutlet:', err);
+        if (!isCancelled) setToSubLocations([]);
+      })
+      .finally(() => {
+        if (!isCancelled) setLoadingToSubLocations(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isOpen, toSubOutletId]);
+
   // Stable key for item IDs
   const itemIdsKey = useMemo(() => {
     return items
@@ -359,6 +476,9 @@ export const GenerateStockTransferModal = ({
     if (fromSubOutletId) {
       params.subOutletId = Number(fromSubOutletId);
     }
+    if (fromSubLocationId) {
+      params.subLocationId = Number(fromSubLocationId);
+    }
 
     getCurrentStockListGet(params)
       .then((res) => {
@@ -378,7 +498,6 @@ export const GenerateStockTransferModal = ({
           if (id != null) {
             const stockVal = Number(
               s.currentStock ??
-                s.closingStock ??
                 s.availableStock ??
                 s.stock ??
                 s.actualStock ??
@@ -410,7 +529,7 @@ export const GenerateStockTransferModal = ({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, fromOutletId, fromSubOutletId, itemIdsKey]);
+  }, [isOpen, fromOutletId, fromSubOutletId, fromSubLocationId, itemIdsKey]);
 
   const handleQtyChange = (itemId, val) => {
     setItems((prev) =>
@@ -434,7 +553,13 @@ export const GenerateStockTransferModal = ({
 
     if (!fromOutletId) errs.fromOutletId = 'From Outlet is required';
     if (!toOutletId) errs.toOutletId = 'To Outlet is required';
-    if (fromOutletId && toOutletId && fromOutletId === toOutletId && fromSubOutletId === toSubOutletId) {
+    if (
+      fromOutletId &&
+      toOutletId &&
+      fromOutletId === toOutletId &&
+      fromSubOutletId === toSubOutletId &&
+      fromSubLocationId === toSubLocationId
+    ) {
       errs.toOutletId = 'Source and Destination cannot be identical';
     }
 
@@ -466,8 +591,10 @@ export const GenerateStockTransferModal = ({
       const payload = {
         fromOrganizationId: Number(fromOutletId),
         fromSubOutletId: fromSubOutletId ? Number(fromSubOutletId) : null,
+        fromSubLocationId: fromSubLocationId ? Number(fromSubLocationId) : null,
         toOrganizationId: Number(toOutletId),
         toSubOutletId: toSubOutletId ? Number(toSubOutletId) : null,
+        toSubLocationId: toSubLocationId ? Number(toSubLocationId) : null,
         vehicleNumber: '',
         driverName: '',
         driverContact: '',
@@ -479,11 +606,12 @@ export const GenerateStockTransferModal = ({
           const rmEntry = rawMaterialsMap[rawItemId] || rawMaterialsMap[String(rawItemId)];
           const stockEntry = stockMap[rawItemId] || stockMap[String(rawItemId)];
           const resolvedUnitId = Number(
-            rmEntry?.unitId ||
+            rmEntry?.parentUnitId ||
+              rmEntry?.unitId ||
               it.masterUnitId ||
-              (typeof stockEntry === 'object' && stockEntry?.unitId ? stockEntry.unitId : 0) ||
               it.unitId ||
               it.uomId ||
+              (typeof stockEntry === 'object' && stockEntry?.unitId ? stockEntry.unitId : 0) ||
               0
           );
           return {
@@ -576,13 +704,15 @@ export const GenerateStockTransferModal = ({
               </div>
             </div>
 
-            <div
-              className={`p-5 grid grid-cols-1 ${
-                isOutletUser ? 'md:grid-cols-3' : 'md:grid-cols-2'
-              } gap-4`}
-            >
-              {/* From Outlet - Hidden for Outlet User */}
-              {!isOutletUser && (
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Origin / Source Box */}
+              <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-100 space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 uppercase tracking-wide">
+                  <span className="w-2 h-2 rounded-full bg-[#084E92]"></span>
+                  Origin (Source)
+                </div>
+
+                {/* From Outlet */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                     From Outlet <span className="text-red-500">*</span>
@@ -591,18 +721,21 @@ export const GenerateStockTransferModal = ({
                     <select
                       value={fromOutletId}
                       onChange={(e) => {
-                        setFromOutletId(e.target.value);
+                        const val = e.target.value;
+                        setFromOutletId(val);
+                        setFromSubOutletId('');
+                        setFromSubLocationId('');
                         if (errors.fromOutletId) {
                           setErrors((prev) => ({ ...prev, fromOutletId: undefined }));
                         }
                       }}
-                      disabled={loadingOutlets || scopeLoading}
-                      className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 ${
+                      disabled={loadingOutlets}
+                      className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 cursor-pointer ${
                         errors.fromOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
                       }`}
                     >
                       <option value="">Select From Outlet</option>
-                      {availableFromOutlets.map((o) => (
+                      {(outlets.length > 0 ? outlets : availableFromOutlets).map((o) => (
                         <option key={o.id} value={o.id}>
                           {o.name}
                         </option>
@@ -614,101 +747,174 @@ export const GenerateStockTransferModal = ({
                     <p className="text-[11px] text-red-500 mt-1">{errors.fromOutletId}</p>
                   )}
                 </div>
-              )}
 
-              {/* To Outlet */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  To Outlet <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={toOutletId}
-                    onChange={(e) => {
-                      setToOutletId(e.target.value);
-                      if (errors.toOutletId) {
-                        setErrors((prev) => ({ ...prev, toOutletId: undefined }));
-                      }
-                    }}
-                    disabled={loadingOutlets || scopeLoading}
-                    className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 ${
-                      errors.toOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
-                    }`}
-                  >
-                    <option value="">Select To Outlet</option>
-                    {outlets.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name}
+                {/* From Sub-Unit / Location */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    From Sub-Unit / Location <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={fromSubOutletId}
+                      onChange={(e) => setFromSubOutletId(e.target.value)}
+                      disabled={!fromOutletId || loadingFromSubs}
+                      className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {loadingFromSubs
+                          ? 'Loading sub-units...'
+                          : fromSubOutlets.length === 0
+                          ? 'No sub-units (Main Store)'
+                          : 'Select From Sub-Unit / Location'}
                       </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      {fromSubOutlets.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
-                {errors.toOutletId && (
-                  <p className="text-[11px] text-red-500 mt-1">{errors.toOutletId}</p>
-                )}
-              </div>
 
-              {/* From Sub-Outlet */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  From Sub-Outlet <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={fromSubOutletId}
-                    onChange={(e) => setFromSubOutletId(e.target.value)}
-                    disabled={!fromOutletId || loadingFromSubs}
-                    className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {loadingFromSubs
-                        ? 'Loading sub-outlets...'
-                        : fromSubOutlets.length === 0
-                        ? 'No sub-outlets (Main Outlet Stock)'
-                        : 'Select From Sub-Outlet'}
-                    </option>
-                    {fromSubOutlets.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
+                {/* From Sub-Location */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    From Sub-Location <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={fromSubLocationId}
+                      onChange={(e) => setFromSubLocationId(e.target.value)}
+                      disabled={!fromSubOutletId || loadingFromSubLocations}
+                      className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {!fromSubOutletId
+                          ? 'Select sub-unit first'
+                          : loadingFromSubLocations
+                          ? 'Loading sub-locations...'
+                          : fromSubLocations.length === 0
+                          ? 'No sub-locations found'
+                          : 'Select From Sub-Location'}
                       </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      {fromSubLocations.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
-              {/* To Sub-Outlet */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  To Sub-Outlet <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={toSubOutletId}
-                    onChange={(e) => setToSubOutletId(e.target.value)}
-                    disabled={!toOutletId || loadingToSubs}
-                    className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {loadingToSubs
-                        ? 'Loading sub-outlets...'
-                        : toSubOutlets.length === 0
-                        ? 'No sub-outlets (Main Outlet Stock)'
-                        : 'Select To Sub-Outlet'}
-                    </option>
-                    {toSubOutlets.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
+              {/* Destination Box */}
+              <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-100 space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 uppercase tracking-wide">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                  Destination (To)
+                </div>
+
+                {/* To Outlet */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    To Outlet <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={toOutletId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setToOutletId(val);
+                        setToSubOutletId('');
+                        setToSubLocationId('');
+                        if (errors.toOutletId) {
+                          setErrors((prev) => ({ ...prev, toOutletId: undefined }));
+                        }
+                      }}
+                      disabled={loadingOutlets}
+                      className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 cursor-pointer ${
+                        errors.toOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
+                      }`}
+                    >
+                      <option value="">Select To Outlet</option>
+                      {outlets.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  {errors.toOutletId && (
+                    <p className="text-[11px] text-red-500 mt-1">{errors.toOutletId}</p>
+                  )}
+                </div>
+
+                {/* To Sub-Unit / Location */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    To Sub-Unit / Location <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={toSubOutletId}
+                      onChange={(e) => setToSubOutletId(e.target.value)}
+                      disabled={!toOutletId || loadingToSubs}
+                      className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {loadingToSubs
+                          ? 'Loading sub-units...'
+                          : toSubOutlets.length === 0
+                          ? 'No sub-units (Main Store)'
+                          : 'Select To Sub-Unit / Location'}
                       </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      {toSubOutlets.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* To Sub-Location */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    To Sub-Location <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={toSubLocationId}
+                      onChange={(e) => setToSubLocationId(e.target.value)}
+                      disabled={!toSubOutletId || loadingToSubLocations}
+                      className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {!toSubOutletId
+                          ? 'Select sub-unit first'
+                          : loadingToSubLocations
+                          ? 'Loading sub-locations...'
+                          : toSubLocations.length === 0
+                          ? 'No sub-locations found'
+                          : 'Select To Sub-Location'}
+                      </option>
+                      {toSubLocations.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
               {/* Remarks (Global) */}
-              <div className={isOutletUser ? 'md:col-span-3' : 'md:col-span-2'}>
+              <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                   Remarks / Notes (Global)
                 </label>
@@ -754,10 +960,10 @@ export const GenerateStockTransferModal = ({
                   const rawId = item.rawMaterialId || item.itemId || item.id;
                   const rmInfo = rawMaterialsMap[rawId] || rawMaterialsMap[String(rawId)];
                   const stockInfo = stockMap[rawId] || stockMap[String(rawId)];
-                  const unitDisplay =
+                  const parentUnitDisplay =
+                    rmInfo?.parentUnitName ||
                     rmInfo?.unitName ||
                     item.masterUnitName ||
-                    (typeof stockInfo === 'object' && stockInfo?.unitName ? stockInfo.unitName : '') ||
                     item.unitName ||
                     item.uomName ||
                     (typeof item.unit === 'string'
@@ -765,6 +971,9 @@ export const GenerateStockTransferModal = ({
                       : item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unit?.name) ||
                     item.unitSymbol ||
                     'Units';
+
+                  const unitDisplay = parentUnitDisplay;
+                  const stockUnitDisplay = parentUnitDisplay;
 
                   const currentStockNum =
                     stockInfo !== undefined && stockInfo !== null
@@ -828,7 +1037,7 @@ export const GenerateStockTransferModal = ({
                                 : currentStockNum !== null && !isNaN(currentStockNum)
                                 ? Number(currentStockNum).toFixed(2)
                                 : '0.00'}{' '}
-                              {unitDisplay}
+                              {stockUnitDisplay}
                             </strong>
                           </span>
                         </div>

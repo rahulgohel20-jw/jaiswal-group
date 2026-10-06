@@ -157,7 +157,8 @@ const PurchaseRequisitionView = () => {
               <InfoTile label="Required Date" value={row.requiredDate || '—'} />
               <InfoTile label="Created By" value={row.createdByName || row.raisedBy || (row.createdBy ? String(row.createdBy) : '—')} />
               <InfoTile label="Last Updated By" value={row.updatedByName || row.actionBy || (row.updatedBy ? String(row.updatedBy) : '—')} />
-              <InfoTile label="Outlet / Branch" value={row.outlet} icon={Building2} className="col-span-2 sm:col-span-4" />
+              <InfoTile label="Outlet / Branch" value={row.outlet || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
+              <InfoTile label="Sub-Unit / Location" value={row.subOutletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
             </div>
 
             {row.remarks && (

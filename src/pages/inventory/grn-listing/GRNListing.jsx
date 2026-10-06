@@ -24,7 +24,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   Popover,
   PopoverContent,
@@ -411,35 +410,35 @@ const GRNListing = () => {
       {
         id: 'sno',
         header: ({ column }) => (
-          <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 font-mono text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 45,
       },
       {
         id: 'grnCode',
         accessorFn: (row) => row.grnCode,
         header: ({ column }) => (
-          <DataGridColumnHeader title="GRN CODE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="GRN CODE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.grnCode}
-            widthClass="max-w-[260px]"
-            className="font-semibold text-[#084E92]"
+            widthClass="max-w-[150px]"
+            className="font-semibold text-[#084E92] text-xs"
           />
         ),
-        size: 270,
+        enableSorting: true,
+        size: 160,
       },
       {
         id: 'poCode',
         accessorFn: (row) => row.poCode,
         header: ({ column }) => (
-          <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="PO CODE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => {
           const poCodes = row.original.poCodes || (row.original.poCode && row.original.poCode !== '—' ? [row.original.poCode] : []);
@@ -450,17 +449,17 @@ const GRNListing = () => {
             return (
               <TruncatedCell
                 value={poCodes[0]}
-                widthClass="max-w-[170px]"
-                className="font-semibold text-gray-800"
+                widthClass="max-w-[120px]"
+                className="font-semibold text-gray-800 text-xs"
               />
             );
           }
           return (
-            <div className="flex flex-wrap gap-1 max-w-[200px]" title={poCodes.join(', ')}>
+            <div className="flex flex-wrap gap-1 max-w-[130px]" title={poCodes.join(', ')}>
               {poCodes.map((code, idx) => (
                 <span
                   key={idx}
-                  className="inline-block font-mono text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded"
+                  className="inline-block font-mono text-[10px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1 py-0.5 rounded"
                 >
                   {code}
                 </span>
@@ -468,72 +467,78 @@ const GRNListing = () => {
             </div>
           );
         },
-        size: 190,
+        enableSorting: true,
+        size: 130,
       },
       {
         id: 'grnDate',
         accessorFn: (row) => row.grnDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="GRN DATE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="GRN DATE" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.grnDate} widthClass="max-w-[120px]" />,
-        size: 130,
+        cell: ({ row }) => <TruncatedCell value={row.original.grnDate} widthClass="max-w-[90px]" className="text-xs" />,
+        enableSorting: true,
+        size: 95,
       },
       {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="OUTLET" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
-        size: 180,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[130px]" className="text-xs" />,
+        enableSorting: false,
+        size: 135,
       },
       {
         id: 'raisedBy',
         accessorFn: (row) => row.raisedBy,
         header: ({ column }) => (
-          <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="RAISED BY" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.raisedBy || '—'} widthClass="max-w-[140px]" />,
-        size: 150,
+        cell: ({ row }) => <TruncatedCell value={row.original.raisedBy || '—'} widthClass="max-w-[105px]" className="text-xs" />,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'itemsReceived',
         accessorFn: (row) => row.itemsReceived,
         header: ({ column }) => (
-          <DataGridColumnHeader title="ITEMS RECEIVED" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="ITEMS" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-gray-700">{row.original.itemsReceived} Items</span>
+          <span className="font-medium text-gray-700 text-xs whitespace-nowrap">{row.original.itemsReceived} Items</span>
         ),
-        size: 140,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'status',
         accessorFn: (row) => row.status,
         header: ({ column }) => (
-          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="STATUS" column={column} className="text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 140,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'action',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <button
             type="button"
             onClick={() => handleViewGrn(row.original)}
-            className="text-gray-500 hover:text-green-600 cursor-pointer p-1"
+            className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5"
             title="View Details"
           >
-            <Eye size={18} />
+            <Eye size={16} />
           </button>
         ),
         enableSorting: false,
-        size: 90,
+        size: 60,
       },
     ],
     []
@@ -640,8 +645,6 @@ const GRNListing = () => {
           </Popover>
         </div>
 
-
-
         {/* Table card (Maximized height for comfortable viewing) */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
           {loading || scopeLoading ? (
@@ -655,18 +658,16 @@ const GRNListing = () => {
               recordCount={filteredRows.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+              <Card className="rounded-2xl border-0 shadow-none">
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />

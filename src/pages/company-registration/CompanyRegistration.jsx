@@ -840,7 +840,7 @@ const CompanyRegistration = () => {
           <button
             type="button"
             onClick={() => navigate('/companies')}
-            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Companies

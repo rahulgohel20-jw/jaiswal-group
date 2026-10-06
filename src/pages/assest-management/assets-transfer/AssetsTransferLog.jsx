@@ -7,7 +7,6 @@ import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useNavigate } from 'react-router';
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
@@ -158,98 +157,112 @@ const AssetsTransferLog = () => {
         {
             id: "sno",
             header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} />
+                <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 70,
+            size: 36,
         },
         {
             accessorKey: "transferId",
             header: ({ column }) => (
-                <DataGridColumnHeader title="TRANSFER ID" column={column} />
+                <DataGridColumnHeader title="TRANSFER ID" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <span className="font-semibold text-[#0B5CAB]">
                     {row.original.transferId}
                 </span>
             ),
-            size: 140,
+            enableSorting: false,
+            size: 110,
         },
-
         {
             accessorKey: "fromLocation",
             header: ({ column }) => (
-                <DataGridColumnHeader title="FROM LOCATION" column={column} />
+                <DataGridColumnHeader title="FROM LOCATION" column={column} className="my-2 text-xs" />
             ),
-            size: 140,
+            cell: ({ row }) => (
+                <span title={row.original.fromLocation} className="text-gray-700 truncate max-w-[120px] block">
+                    {row.original.fromLocation}
+                </span>
+            ),
+            enableSorting: false,
+            size: 120,
         },
-
         {
             accessorKey: "toLocation",
             header: ({ column }) => (
-                <DataGridColumnHeader title="TO LOCATION" column={column} />
+                <DataGridColumnHeader title="TO LOCATION" column={column} className="my-2 text-xs" />
             ),
-            size: 140,
+            cell: ({ row }) => (
+                <span title={row.original.toLocation} className="text-gray-700 truncate max-w-[120px] block">
+                    {row.original.toLocation}
+                </span>
+            ),
+            enableSorting: false,
+            size: 120,
         },
-
         {
             accessorKey: "transferDate",
             header: ({ column }) => (
-                <DataGridColumnHeader title="TRANSFER DATE" column={column} />
+                <DataGridColumnHeader title="TRANSFER DATE" column={column} className="my-2 text-xs" />
             ),
-            size: 140,
+            cell: ({ row }) => (
+                <span className="text-gray-700">{row.original.transferDate}</span>
+            ),
+            enableSorting: false,
+            size: 85,
         },
-
         {
             accessorKey: "approvedBy",
             header: ({ column }) => (
-                <DataGridColumnHeader title="APPROVED BY" column={column} />
+                <DataGridColumnHeader title="APPROVED BY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => {
                 const name = row.original.approvedBy;
-
                 return (
-                    <div className="flex items-center gap-2 my-3">
-                        <span className='text-[#121C2A] font-semibold'>{name}</span>
-                    </div>
+                    <span title={name} className='text-[#121C2A] font-semibold truncate max-w-[110px] block'>
+                        {name}
+                    </span>
                 );
             },
-            size: 120,
+            enableSorting: false,
+            size: 110,
         },
-
         {
             accessorKey: "receivedBy",
             header: ({ column }) => (
-                <DataGridColumnHeader title="RECEIVED BY" column={column} />
+                <DataGridColumnHeader title="RECEIVED BY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-[#121C2A] font-semibold">{row.original.receivedBy}</span>
+                <span title={row.original.receivedBy} className="text-[#121C2A] font-semibold truncate max-w-[110px] block">
+                    {row.original.receivedBy}
+                </span>
             ),
-            size: 120,
+            enableSorting: false,
+            size: 110,
         },
-
         {
             accessorKey: "reason",
             header: ({ column }) => (
-                <DataGridColumnHeader title="REASON" column={column} />
+                <DataGridColumnHeader title="REASON" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <ReasonBadge type={row.original.reason} />
             ),
-            size: 120,
+            enableSorting: false,
+            size: 90,
         },
-
         {
             id: "actions",
             header: ({ column }) => (
-                <DataGridColumnHeader title="ACTIONS" column={column} />
+                <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
             ),
             cell: ({row}) => (
-                <div className="flex gap-2">
-                    <button  className="text-gray-500 hover:text-green-600 cursor-pointer" >
+                <div className="flex gap-2 whitespace-nowrap">
+                    <button className="text-gray-500 hover:text-green-600 cursor-pointer" >
                         <Eye size={18}/>
                     </button>
 
@@ -263,7 +276,7 @@ const AssetsTransferLog = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 120,
+            size: 85,
         },
     ];
 
@@ -324,13 +337,21 @@ const AssetsTransferLog = () => {
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={filteredTransferData.length} className="rounded-2xl">
+                <DataGrid
+                    table={table}
+                    recordCount={filteredTransferData.length}
+                    className="rounded-2xl"
+                    tableLayout={{
+                        dense: true,
+                        width: 'fixed',
+                        cellBorder: true,
+                        headerBorder: true,
+                        rowBorder: true,
+                    }}
+                >
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
+                        <CardTable className="w-full overflow-x-hidden">
+                            <DataGridTable />
                         </CardTable>
                         <CardFooter className="bg-[#EFF4FF4D] border-t border-[#C3C6D1] rounded-b-2xl">
                             <DataGridPagination />

@@ -61,6 +61,54 @@ const STATUS_TEXT_COLORS = {
   'Discrepancy Resolved': 'text-emerald-600',
 };
 
+const UNIT_SYMBOL_MAP = {
+  KILOGRAM: 'KG',
+  KILOGRAMS: 'KG',
+  KG: 'KG',
+  GRAM: 'GM',
+  GRAMS: 'GM',
+  GM: 'GM',
+  G: 'GM',
+  MILLIGRAM: 'MG',
+  MILLIGRAMS: 'MG',
+  MG: 'MG',
+  LITRE: 'LTR',
+  LITRES: 'LTR',
+  LITER: 'LTR',
+  LITERS: 'LTR',
+  LTR: 'LTR',
+  L: 'LTR',
+  MILLILITRE: 'ML',
+  MILLILITRES: 'ML',
+  MILLILITER: 'ML',
+  MILLILITERS: 'ML',
+  ML: 'ML',
+  PIECE: 'PCS',
+  PIECES: 'PCS',
+  PCS: 'PCS',
+  PC: 'PCS',
+  PACKET: 'PKT',
+  PACKETS: 'PKT',
+  PKT: 'PKT',
+  BOX: 'BOX',
+  BOXES: 'BOX',
+  BOTTLE: 'BTL',
+  BOTTLES: 'BTL',
+  CAN: 'CAN',
+  CANS: 'CAN',
+  BAG: 'BAG',
+  BAGS: 'BAG',
+  NUMBER: 'NOS',
+  NUMBERS: 'NOS',
+  NOS: 'NOS',
+};
+
+const formatUnit = (uom) => {
+  if (!uom) return 'Unit';
+  const clean = String(uom).trim().toUpperCase();
+  return UNIT_SYMBOL_MAP[clean] || uom;
+};
+
 const formatStatusLabel = (status) => {
   if (!status) return 'In Transit';
   const s = String(status).toUpperCase().replace(/[\s_]/g, '');
@@ -68,9 +116,9 @@ const formatStatusLabel = (status) => {
   if (s === 'REJECTED') return 'Rejected';
   if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
   if (s === 'PARTIALLYACCEPTED') return 'Partially Accepted';
-  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Pending Discrepancy Approval';
+  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Discrepancy Approval';
   if (s === 'DISCREPANCYPENDING') return 'Discrepancy Pending';
-  if (s === 'DISCREPANCYRESOLVED') return 'Discrepancy Resolved';
+  if (s === 'DISCREPANCYRESOLVED') return 'Resolved';
   return status;
 };
 
@@ -324,6 +372,7 @@ const StockTransferReqReceiveList = () => {
           transferCode: item.transferCode || item.code || `TRF-${String(item.id).padStart(4, '0')}`,
           fromOrganizationId: item.fromOrganizationId || item.fromOutletId,
           fromSubOutletId: item.fromSubOutletId || null,
+          fromSubLocationId: item.fromSubLocationId || null,
           fromOutlet: item.fromOrganizationName || item.fromOutletName || item.fromOutlet || '—',
           fromSubOutlet:
             item.fromSubOutletId && item.fromSubOutletName && item.fromSubOutletName !== 'Main Store'
@@ -331,8 +380,10 @@ const StockTransferReqReceiveList = () => {
               : !item.fromSubOutletId
               ? ''
               : item.fromSubOutletName || item.fromSubOutlet || '',
+          fromSubLocation: item.fromSubLocationName || item.fromSubLocation || '',
           toOrganizationId: item.toOrganizationId || item.toOutletId,
           toSubOutletId: item.toSubOutletId || null,
+          toSubLocationId: item.toSubLocationId || null,
           toOutlet: item.toOrganizationName || item.toOutletName || item.toOutlet || '—',
           toSubOutlet:
             item.toSubOutletId && item.toSubOutletName && item.toSubOutletName !== 'Main Store'
@@ -340,6 +391,7 @@ const StockTransferReqReceiveList = () => {
               : !item.toSubOutletId
               ? ''
               : item.toSubOutletName || item.toSubOutlet || '',
+          toSubLocation: item.toSubLocationName || item.toSubLocation || '',
           status: item.status || 'In Transit',
           transferDate: item.transferDate || item.createdAt || '—',
           vehicleNumber: item.vehicleNumber || '—',
@@ -529,11 +581,10 @@ const StockTransferReqReceiveList = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 40,
       },
       {
         id: 'transferCode',
@@ -544,13 +595,12 @@ const StockTransferReqReceiveList = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.transferCode}
-            maxWidth="max-w-[190px]"
+            maxWidth="max-w-[120px]"
             onClick={() => navigate(`/inventory/stock-transfer-detail/${row.original.id}`)}
           />
         ),
         enableSorting: false,
-        size: 195,
-        minSize: 180,
+        size: 125,
       },
       {
         id: 'dateAndTime',
@@ -561,10 +611,11 @@ const StockTransferReqReceiveList = () => {
           return valA - valB;
         },
         header: ({ column }) => (
-          <DataGridColumnHeader title="DATE & TIME" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="DATE" column={column} className="text-xs font-bold" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.transferDate} widthClass="max-w-[120px]" />,
-        size: 120,
+        cell: ({ row }) => <TruncatedCell value={row.original.transferDate} widthClass="max-w-[80px]" className="text-gray-700 text-xs font-medium" />,
+        enableSorting: false,
+        size: 80,
       },
       {
         id: 'fromOutlet',
@@ -574,13 +625,17 @@ const StockTransferReqReceiveList = () => {
         ),
         cell: ({ row }) => (
           <div>
-            <div className="font-semibold text-xs text-gray-900">{row.original.fromOutlet}</div>
+            <div className="font-semibold text-xs text-gray-900 truncate max-w-[145px]" title={row.original.fromOutlet}>{row.original.fromOutlet}</div>
             {row.original.fromSubOutlet && (
-              <div className="text-[11px] text-gray-400 font-medium">{row.original.fromSubOutlet}</div>
+              <div className="text-[11px] text-gray-500 font-medium truncate max-w-[145px]" title={row.original.fromSubOutlet}>{row.original.fromSubOutlet}</div>
+            )}
+            {row.original.fromSubLocation && (
+              <div className="text-[10px] text-blue-600 font-medium truncate max-w-[145px]" title={row.original.fromSubLocation}>↳ {row.original.fromSubLocation}</div>
             )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 155,
       },
     ];
 
@@ -594,13 +649,17 @@ const StockTransferReqReceiveList = () => {
         ),
         cell: ({ row }) => (
           <div>
-            <div className="font-semibold text-xs text-gray-900">{row.original.toOutlet}</div>
+            <div className="font-semibold text-xs text-gray-900 truncate max-w-[145px]" title={row.original.toOutlet}>{row.original.toOutlet}</div>
             {row.original.toSubOutlet && (
-              <div className="text-[11px] text-gray-400 font-medium">{row.original.toSubOutlet}</div>
+              <div className="text-[11px] text-gray-500 font-medium truncate max-w-[145px]" title={row.original.toSubOutlet}>{row.original.toSubOutlet}</div>
+            )}
+            {row.original.toSubLocation && (
+              <div className="text-[10px] text-blue-600 font-medium truncate max-w-[145px]" title={row.original.toSubLocation}>↳ {row.original.toSubLocation}</div>
             )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 155,
       });
     }
 
@@ -613,7 +672,7 @@ const StockTransferReqReceiveList = () => {
         ),
         cell: ({ row }) => (
           <div>
-            <span className="text-xs font-bold text-[#0F172A] block truncate max-w-[200px]">
+            <span className="text-xs font-bold text-[#0F172A] block truncate max-w-[110px]" title={row.original.primaryItemName}>
               {row.original.primaryItemName}
             </span>
             {row.original.itemsCount > 1 && (
@@ -624,35 +683,37 @@ const StockTransferReqReceiveList = () => {
           </div>
         ),
         enableSorting: false,
-        size: 200,
+        size: 120,
       },
       {
         id: 'quantity',
         accessorFn: (row) => Number(row.totalRequestedQuantity || 0),
         header: ({ column }) => (
-          <DataGridColumnHeader title="TRANSFER QTY" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="TRF QTY" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <span className="font-bold text-xs text-gray-800">
-            {row.original.totalRequestedQuantity} {row.original.unit}
+          <span className="font-bold text-xs text-gray-800 whitespace-nowrap">
+            {row.original.totalRequestedQuantity} {formatUnit(row.original.unit)}
           </span>
         ),
-        size: 130,
+        enableSorting: false,
+        size: 65,
       },
       {
         id: 'acceptedQuantity',
         accessorFn: (row) => Number(row.totalAcceptedQuantity || 0),
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACCEPTED QTY" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="RECV QTY" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <span className="font-bold text-xs text-emerald-700">
+          <span className="font-bold text-xs text-emerald-700 whitespace-nowrap">
             {row.original.totalAcceptedQuantity > 0
-              ? `${row.original.totalAcceptedQuantity} ${row.original.unit}`
+              ? `${row.original.totalAcceptedQuantity} ${formatUnit(row.original.unit)}`
               : '—'}
           </span>
         ),
-        size: 130,
+        enableSorting: false,
+        size: 65,
       },
       {
         id: 'status',
@@ -661,25 +722,24 @@ const StockTransferReqReceiveList = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center min-w-[210px] pr-2">
+          <div className="flex items-center whitespace-nowrap pr-1">
             <StatusBadge status={row.original.status} />
           </div>
         ),
         enableSorting: false,
-        size: 230,
-        minSize: 220,
+        size: 80,
       },
       {
         id: 'actions',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => {
           const s = String(row.original.status || '').toUpperCase().replace(/[\s_-]/g, '');
           const isInTransit = s === 'INTRANSIT';
 
           return (
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <div className="flex items-center gap-1 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() =>
@@ -687,27 +747,27 @@ const StockTransferReqReceiveList = () => {
                     state: row.original.raw || row.original,
                   })
                 }
-                className="p-1.5 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                className="p-1 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
                 title="View Transfer Details"
               >
-                <Eye size={16} />
+                <Eye size={15} />
               </button>
 
               {isInTransit && (canEdit || canAdd) && (
                 <button
                   type="button"
                   onClick={() => handleTransferAccept(row.original)}
-                  className="p-1.5 text-[#084E92] hover:text-[#073e77] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                  className="p-1 text-[#084E92] hover:text-[#073e77] hover:bg-blue-50 rounded-lg transition cursor-pointer"
                   title="Receive & Verify Stock"
                 >
-                  <CheckCircle2 size={16} />
+                  <CheckCircle2 size={15} />
                 </button>
               )}
             </div>
           );
         },
         enableSorting: false,
-        size: 90,
+        size: 75,
       }
     );
 
@@ -854,19 +914,16 @@ const StockTransferReqReceiveList = () => {
               recordCount={filteredTransfers.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
+                width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <div className="min-w-[1250px]">
-                      <DataGridTable />
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />

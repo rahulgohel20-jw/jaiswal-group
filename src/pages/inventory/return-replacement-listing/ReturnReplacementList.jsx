@@ -39,7 +39,14 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
-import { getAllGrnDetailsByStatus, getPOByIdAndOpenItem } from '@/services/apiServices';
+import {
+  getAllGrnDetailsByStatus,
+  getAllGrns,
+  getGrnByOutletOrStatus,
+  getAllActiveSubOutlets,
+  getAllActiveSubLocations,
+  getPOByIdAndOpenItem,
+} from '@/services/apiServices';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
@@ -47,6 +54,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { CodeCell } from '@/components/common/CodeCell';
 import { SearchBar } from '@/components/common/SearchBar';
+import { getOrgIdFromToken } from '@/utils/auth';
 import {
   Tooltip,
   TooltipContent,
@@ -104,13 +112,61 @@ const StatCard = ({ icon, iconBg = 'bg-[#D5E3FF]', iconColor = 'text-[#00376C]',
   </div>
 );
 
+const UNIT_SYMBOL_MAP = {
+  KILOGRAM: 'KG',
+  KILOGRAMS: 'KG',
+  KG: 'KG',
+  GRAM: 'GM',
+  GRAMS: 'GM',
+  GM: 'GM',
+  G: 'GM',
+  MILLIGRAM: 'MG',
+  MILLIGRAMS: 'MG',
+  MG: 'MG',
+  LITRE: 'LTR',
+  LITRES: 'LTR',
+  LITER: 'LTR',
+  LITERS: 'LTR',
+  LTR: 'LTR',
+  L: 'LTR',
+  MILLILITRE: 'ML',
+  MILLILITRES: 'ML',
+  MILLILITER: 'ML',
+  MILLILITERS: 'ML',
+  ML: 'ML',
+  PIECE: 'PCS',
+  PIECES: 'PCS',
+  PCS: 'PCS',
+  PC: 'PCS',
+  PACKET: 'PKT',
+  PACKETS: 'PKT',
+  PKT: 'PKT',
+  BOX: 'BOX',
+  BOXES: 'BOX',
+  BOTTLE: 'BTL',
+  BOTTLES: 'BTL',
+  CAN: 'CAN',
+  CANS: 'CAN',
+  BAG: 'BAG',
+  BAGS: 'BAG',
+  NUMBER: 'NOS',
+  NUMBERS: 'NOS',
+  NOS: 'NOS',
+};
+
+const formatUnit = (uom) => {
+  if (!uom) return 'Unit';
+  const clean = String(uom).trim().toUpperCase();
+  return UNIT_SYMBOL_MAP[clean] || uom;
+};
+
 const STATUS_MAP = {
   RETURN_REQUESTED: {
     label: 'Return Requested',
     color: 'text-amber-600',
   },
   RETURN_REPLACEMENT_REQUESTED: {
-    label: 'Replacement Requested',
+    label: 'Replacement Req.',
     color: 'text-blue-600',
   },
   RETURN_REPLACEMENT_COMPLETED: {
@@ -187,19 +243,46 @@ const ReturnReplacementList = () => {
     setLoading(true);
     setError(null);
     try {
-      const outletParam = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+      const outletOrCompanyId = selectedUnitId && selectedUnitId !== 'ALL'
+        ? Number(selectedUnitId)
+        : (Number(effectiveOutletId) || Number(getOrgIdFromToken()) || 0);
       const statusParam = statusFilter === 'ALL' ? '' : statusFilter;
 
-      // Fetch from API
-      let res;
-      try {
-        res = await getAllGrnDetailsByStatus(statusParam, outletParam);
-      } catch (err) {
-        res = await getAllGrnDetailsByStatus();
-      }
+      // Fetch details, GRN headers, subOutlets and subLocations concurrently to enrich data
+      const [res, grnsRes, subOutletsRes, subLocationsRes] = await Promise.all([
+        getAllGrnDetailsByStatus(statusParam, outletOrCompanyId).catch(() => getAllGrnDetailsByStatus(statusParam, 0).catch(() => getAllGrnDetailsByStatus())),
+        getGrnByOutletOrStatus(outletOrCompanyId, '').catch(() => getAllGrns().catch(() => null)),
+        getAllActiveSubOutlets().catch(() => null),
+        getAllActiveSubLocations().catch(() => null),
+      ]);
 
       const raw = res?.data?.data ?? res?.data ?? res ?? [];
       const rawList = Array.isArray(raw) ? raw : [];
+
+      const grnList = Array.isArray(grnsRes?.data?.data ?? grnsRes?.data) ? (grnsRes?.data?.data ?? grnsRes?.data) : [];
+      const grnMapByCode = new Map();
+      const grnMapById = new Map();
+      grnList.forEach((g) => {
+        if (g.grnCode) grnMapByCode.set(String(g.grnCode).trim().toLowerCase(), g);
+        if (g.code) grnMapByCode.set(String(g.code).trim().toLowerCase(), g);
+        if (g.id) grnMapById.set(Number(g.id), g);
+      });
+
+      const subOutletsList = Array.isArray(subOutletsRes?.data?.data ?? subOutletsRes?.data)
+        ? (subOutletsRes?.data?.data ?? subOutletsRes?.data)
+        : [];
+      const subOutletsMap = new Map();
+      subOutletsList.forEach((s) => {
+        if (s.id) subOutletsMap.set(Number(s.id), s.subOutletName || s.name || '');
+      });
+
+      const subLocationsList = Array.isArray(subLocationsRes?.data?.data ?? subLocationsRes?.data)
+        ? (subLocationsRes?.data?.data ?? subLocationsRes?.data)
+        : [];
+      const subLocationsMap = new Map();
+      subLocationsList.forEach((l) => {
+        if (l.id) subLocationsMap.set(Number(l.id), l.subLocationName || l.locationName || l.name || '');
+      });
 
       const list = rawList.map((item, index) => {
         const rawStatus =
@@ -207,7 +290,18 @@ const ReturnReplacementList = () => {
           item.status ||
           (Number(item.rejectedQuantity || item.returnQuantity) > 0 ? 'RETURN_REQUESTED' : 'RETURN_REQUESTED');
 
-        const outletNameStr = item.outletName || item.organizationName || item.purchaseOrder?.outletName || item.purchaseOrder?.organizationName || '';
+        const matchedGrn =
+          (item.grnCode ? grnMapByCode.get(String(item.grnCode).trim().toLowerCase()) : null) ||
+          (item.grnId ? grnMapById.get(Number(item.grnId)) : null);
+
+        const outletNameStr =
+          item.outletName ||
+          item.organizationName ||
+          matchedGrn?.organizationName ||
+          matchedGrn?.outletName ||
+          item.purchaseOrder?.outletName ||
+          item.purchaseOrder?.organizationName ||
+          '';
 
         // Match unit from units list by name if outletId is not directly in item
         let matchedUnitId = undefined;
@@ -224,24 +318,82 @@ const ReturnReplacementList = () => {
           item.outletId ??
           item.organizationId ??
           item.orgId ??
+          matchedGrn?.orgId ??
+          matchedGrn?.outletId ??
           item.purchaseOrder?.outletId ??
           item.purchaseOrder?.orgId ??
           item.grn?.orgId ??
           item.grn?.outletId ??
           item.purchaseOrder?.organizationId ??
-          matchedUnitId ??
-          (effectiveOutletId ? Number(effectiveOutletId) : undefined);
+          matchedUnitId;
+
+        const rawSubOutletId =
+          item.subOutletId ??
+          item.subUnitId ??
+          item.subOutlet?.id ??
+          matchedGrn?.subOutletId ??
+          matchedGrn?.subUnitId ??
+          matchedGrn?.subOutlet?.id ??
+          item.purchaseOrder?.subOutletId ??
+          item.grn?.subOutletId ??
+          null;
+
+        const subOutletNameStr =
+          item.subOutletName ||
+          item.subUnitName ||
+          item.locationName ||
+          item.subOutlet?.subOutletName ||
+          item.subOutlet?.name ||
+          matchedGrn?.subOutletName ||
+          matchedGrn?.subUnitName ||
+          matchedGrn?.locationName ||
+          matchedGrn?.subOutlet?.subOutletName ||
+          matchedGrn?.subOutlet?.name ||
+          (rawSubOutletId ? subOutletsMap.get(Number(rawSubOutletId)) : '') ||
+          item.purchaseOrder?.subOutletName ||
+          item.purchaseOrder?.subOutlet?.name ||
+          item.grn?.subOutletName ||
+          '';
+
+        const rawSubLocationId =
+          item.subLocationId ??
+          item.subLocation?.id ??
+          matchedGrn?.subLocationId ??
+          matchedGrn?.subLocation?.id ??
+          item.purchaseOrder?.subLocationId ??
+          item.grn?.subLocationId ??
+          null;
+
+        const subLocationNameStr =
+          item.subLocationName ||
+          item.subLocation?.subLocationName ||
+          item.subLocation?.locationName ||
+          item.subLocation?.name ||
+          matchedGrn?.subLocationName ||
+          matchedGrn?.subLocation?.subLocationName ||
+          matchedGrn?.subLocation?.locationName ||
+          matchedGrn?.subLocation?.name ||
+          (rawSubLocationId ? subLocationsMap.get(Number(rawSubLocationId)) : '') ||
+          item.purchaseOrder?.subLocationName ||
+          item.grn?.subLocationName ||
+          '';
+
+        const resolvedGrnId = item.grnId || item.grnHeaderId || item.grn?.id || matchedGrn?.id || item.oldGrnId;
 
         return {
           id: item.id || index + 1,
           grnDetailId: item.id,
-          grnId: item.grnId || item.grnHeaderId || item.grn?.id || item.oldGrnId,
-          grnCode: item.grnCode || item.grn?.grnCode || (item.grnId ? `GRN-#${item.grnId}` : '—'),
-          purchaseOrderId: item.purchaseOrderId || item.poId || item.purchaseOrder?.id,
+          grnId: resolvedGrnId,
+          grnCode: item.grnCode || item.grn?.grnCode || matchedGrn?.grnCode || (resolvedGrnId ? `GRN-#${resolvedGrnId}` : '—'),
+          purchaseOrderId: item.purchaseOrderId || item.poId || item.purchaseOrder?.id || matchedGrn?.purchaseOrderId,
           poCode: item.purchaseOrderCode || item.poCode || item.purchaseOrder?.purchaseOrderCode || item.purchaseOrder?.poCode || (item.purchaseOrderId ? `PO-${item.purchaseOrderId}` : '—'),
           prCode: item.prcode || item.prCode || item.purchaseRequisitionCode || item.purchaseOrder?.prcode || '—',
           outletId: rawOutletId !== undefined && rawOutletId !== null ? Number(rawOutletId) : undefined,
           outlet: outletNameStr || (rawOutletId ? `Outlet #${rawOutletId}` : '—'),
+          subOutletId: rawSubOutletId != null ? Number(rawSubOutletId) : null,
+          subOutletName: subOutletNameStr,
+          subLocationId: rawSubLocationId != null ? Number(rawSubLocationId) : null,
+          subLocationName: subLocationNameStr,
           rawMaterialId: item.rawMaterialId,
           purchaseOrderDetailId: item.purchaseOrderDetailId,
           itemName: item.rawMaterialName || item.itemName || `Item #${item.rawMaterialId || index + 1}`,
@@ -267,7 +419,7 @@ const ReturnReplacementList = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, effectiveOutletId, statusFilter, units]);
+  }, [scopeLoading, scopeError, selectedUnitId, effectiveOutletId, statusFilter, units]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {
@@ -277,16 +429,9 @@ const ReturnReplacementList = () => {
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [search, statusFilter, selectedUnitId, effectiveOutletId]);
+  }, [search, statusFilter, selectedUnitId]);
 
-  const scopedRecords = useMemo(() => {
-    // If API is already filtered by effectiveOutletId, or if outletId matches
-    if (effectiveOutletId && effectiveOutletId !== 'ALL' && records.length > 0) {
-      const filtered = filterRowsByScope(records);
-      return filtered.length > 0 ? filtered : records;
-    }
-    return filterRowsByScope(records);
-  }, [records, filterRowsByScope, effectiveOutletId]);
+  const scopedRecords = records;
 
   const summary = useMemo(() => {
     const total = scopedRecords.length;
@@ -324,7 +469,9 @@ const ReturnReplacementList = () => {
           (r.prCode || '').toLowerCase().includes(term) ||
           (r.poCode || '').toLowerCase().includes(term) ||
           (r.grnCode || '').toLowerCase().includes(term) ||
-          (r.outlet || '').toLowerCase().includes(term)
+          (r.outlet || '').toLowerCase().includes(term) ||
+          (r.subOutletName || '').toLowerCase().includes(term) ||
+          (r.subLocationName || '').toLowerCase().includes(term)
       );
     }
     return rows;
@@ -375,6 +522,10 @@ const ReturnReplacementList = () => {
           returnQty: row.returnQuantity,
           grnCode: row.grnCode,
           oldGrnId: row.grnId,
+          subOutletId: row.subOutletId,
+          subOutletName: row.subOutletName,
+          subLocationId: row.subLocationId,
+          subLocationName: row.subLocationName,
           returnItem: row,
         },
       });
@@ -403,11 +554,10 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 40,
       },
       {
         id: 'itemName',
@@ -420,64 +570,22 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="py-1 min-w-[160px] max-w-[190px]">
+          <div className="py-1 max-w-[145px]">
             <div
-              className="font-bold text-[#084E92] text-sm hover:underline cursor-pointer truncate"
+              className="font-bold text-[#084E92] text-xs hover:underline cursor-pointer truncate"
               title={row.original.itemName}
             >
               {row.original.itemName}
             </div>
             {row.original.itemCode && (
-              <div className="text-[11px] text-gray-500 font-mono mt-0.5 truncate" title={row.original.itemCode}>
+              <div className="text-[10px] text-gray-500 font-mono mt-0.5 truncate" title={row.original.itemCode}>
                 {row.original.itemCode}
               </div>
             )}
           </div>
         ),
-        size: 180,
-      },
-      {
-        id: 'prCode',
-        accessorFn: (row) => row.prCode,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="PR Code"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <CodeCell
-            code={row.original.prCode}
-            maxWidth="max-w-[110px]"
-          />
-        ),
-        size: 130,
-        minSize: 115,
-      },
-      {
-        id: 'poCode',
-        accessorFn: (row) => row.poCode,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="PO Code"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <CodeCell
-            code={row.original.poCode}
-            maxWidth="max-w-[110px]"
-            onClick={
-              row.original.purchaseOrderId
-                ? () => navigate(`/purchase/purchase-order-detail/${row.original.purchaseOrderId}`)
-                : undefined
-            }
-          />
-        ),
-        size: 130,
-        minSize: 115,
+        enableSorting: false,
+        size: 145,
       },
       {
         id: 'grnCode',
@@ -492,11 +600,11 @@ const ReturnReplacementList = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.grnCode}
-            maxWidth="max-w-[110px]"
+            maxWidth="max-w-[125px]"
           />
         ),
+        enableSorting: false,
         size: 130,
-        minSize: 115,
       },
       {
         id: 'grnDate',
@@ -509,36 +617,74 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-[110px]">
-            <TruncatedCell
-              value={row.original.grnDate || '—'}
-              widthClass="max-w-[110px]"
-              className="text-gray-600 text-xs font-medium"
-            />
-          </div>
+          <TruncatedCell
+            value={row.original.grnDate || '—'}
+            widthClass="max-w-[85px]"
+            className="text-gray-600 text-xs font-medium"
+          />
         ),
-        size: 130,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Outlet Name"
+            title="Outlet"
             column={column}
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-[140px]">
-            <TruncatedCell
-              value={row.original.outlet || '—'}
-              widthClass="max-w-[140px]"
-              className="text-gray-800 text-xs font-medium"
-            />
-          </div>
+          <TruncatedCell
+            value={row.original.outlet || '—'}
+            widthClass="max-w-[130px]"
+            className="text-gray-800 text-xs font-medium"
+          />
         ),
-        size: 160,
+        enableSorting: false,
+        size: 135,
+      },
+      {
+        id: 'subOutletName',
+        accessorFn: (row) => row.subOutletName,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Sub Outlet"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell
+            value={row.original.subOutletName || '—'}
+            widthClass="max-w-[115px]"
+            className="text-gray-700 text-xs font-medium"
+          />
+        ),
+        enableSorting: false,
+        size: 120,
+      },
+      {
+        id: 'subLocationName',
+        accessorFn: (row) => row.subLocationName,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="Sub Location"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell
+            value={row.original.subLocationName || '—'}
+            widthClass="max-w-[110px]"
+            className="text-gray-700 text-xs font-medium"
+          />
+        ),
+        enableSorting: false,
+        size: 115,
       },
       {
         id: 'returnQuantity',
@@ -551,14 +697,13 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-1.5 whitespace-nowrap min-w-[110px]">
-            <span className="font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-lg text-xs">
-              {row.original.returnQuantity || 0}
-            </span>
-            <span className="text-[11px] text-gray-600 font-semibold">{row.original.uomName}</span>
+          <div className="flex items-center gap-1 whitespace-nowrap text-xs">
+            <span className="font-semibold text-gray-900">{row.original.returnQuantity || 0}</span>
+            <span className="text-[11px] text-gray-500 font-medium">{formatUnit(row.original.uomName)}</span>
           </div>
         ),
-        size: 130,
+        enableSorting: false,
+        size: 80,
       },
       {
         id: 'status',
@@ -571,17 +716,18 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="whitespace-nowrap min-w-[185px] pr-2">
+          <div className="whitespace-nowrap pr-1">
             <StatusBadge status={row.original.status} />
           </div>
         ),
-        size: 200,
+        enableSorting: false,
+        size: 115,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Actions"
+            title="Action"
             column={column}
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
@@ -589,60 +735,39 @@ const ReturnReplacementList = () => {
         cell: ({ row }) => {
           const normStatus = String(row.original.status || '').toUpperCase().trim();
 
-          if (normStatus === 'RETURN_REPLACEMENT_COMPLETED') {
-            return (
-              <div className="min-w-[140px] flex items-center justify-start">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                  <CheckCircle2 size={13} />
-                  Completed
-                </span>
-              </div>
-            );
-          }
-
           if (normStatus === 'RETURN_REPLACEMENT_REQUESTED') {
             const hasPermissionToAccept = canAdd || canEdit || canGenerateGrn;
             if (!hasPermissionToAccept) {
               return (
-                <div className="min-w-[140px] flex items-center justify-start">
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                    Pending Return
-                  </span>
-                </div>
+                <span className="text-gray-400 text-xs">—</span>
               );
             }
 
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => handleAcceptReturn(row.original)}
                   disabled={checkingPoId === row.original.id}
-                  className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-1 rounded hover:bg-blue-50 transition disabled:opacity-50"
-                  title="Accept Return"
+                  className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-1 rounded-lg hover:bg-blue-50 transition disabled:opacity-50"
+                  title="Generate GRN for Replacement Item"
                 >
                   {checkingPoId === row.original.id ? (
-                    <Loader2 size={18} className="animate-spin" />
+                    <Loader2 size={16} className="animate-spin" />
                   ) : (
-                    <FileText size={18} />
+                    <FileText size={16} />
                   )}
                 </button>
               </div>
             );
           }
 
-          // For RETURN_REQUESTED (Return only, no replacement needed)
           return (
-            <div className="min-w-[140px] flex items-center justify-start">
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                <RotateCcw size={13} />
-                Return Only
-              </span>
-            </div>
+            <span className="text-gray-400 text-xs pl-2 font-medium">—</span>
           );
         },
         enableSorting: false,
-        size: 160,
+        size: 55,
       },
     ],
     [navigate, canAdd, canEdit, canGenerateGrn, checkingPoId]
@@ -759,18 +884,16 @@ const ReturnReplacementList = () => {
               recordCount={filteredRecords.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
-                cellBorder: false,
+                cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
               <Card className="rounded-2xl border-0 shadow-none bg-transparent">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-2xl py-2.5">
                   <DataGridPagination />

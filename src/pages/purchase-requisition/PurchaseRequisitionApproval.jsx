@@ -17,7 +17,6 @@ import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import SearchableSelect from "@/utils/SearchableSelect";
 import { getPurchaseRequisitionsByOutlet } from "@/services/apiServices";
 import { useOrgScope } from "@/hooks/useOrgScope";
@@ -89,6 +88,8 @@ const mapPr = (pr) => ({
   status: pr.status,
   outletId: pr.outletId,
   outlet: pr.outletName ?? `Outlet #${pr.outletId}`,
+  subOutletId: pr.subOutletId,
+  subOutletName: pr.subOutletName ?? pr.locationName ?? '',
   raisedBy: pr.createdByName ?? pr.updatedByName ?? pr.actionBy ?? pr.updatedBy ?? pr.createdBy ?? '',
   createdBy: pr.createdBy,
   createdByName: pr.createdByName,
@@ -282,6 +283,7 @@ function ListView({ onApprove, onReject, onView }) {
         (r) =>
           (r.code || "").toLowerCase().includes(q) ||
           (r.outlet || "").toLowerCase().includes(q) ||
+          (r.subOutletName || "").toLowerCase().includes(q) ||
           (r.raisedBy || "").toLowerCase().includes(q) ||
           (r.createdByName || "").toLowerCase().includes(q)
       );
@@ -304,8 +306,7 @@ function ListView({ onApprove, onReject, onView }) {
           <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 36,
       },
       {
         id: "code",
@@ -314,10 +315,9 @@ function ListView({ onApprove, onReject, onView }) {
           <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <CodeCell code={row.original.code} maxWidth="max-w-[190px]" />
+          <CodeCell code={row.original.code} maxWidth="max-w-[130px]" />
         ),
-        size: 195,
-        minSize: 180,
+        size: 130,
       },
       {
         id: "date",
@@ -325,17 +325,19 @@ function ListView({ onApprove, onReject, onView }) {
         header: ({ column }) => (
           <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
-        size: 130,
+        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[80px]" />,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: "requiredDate",
         accessorFn: (row) => row.requiredDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="REQUIRED DATE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="REQ. DATE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[120px]" />,
-        size: 140,
+        cell: ({ row }) => <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[85px]" />,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: "outlet",
@@ -343,8 +345,19 @@ function ListView({ onApprove, onReject, onView }) {
         header: ({ column }) => (
           <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
-        size: 190,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
+        enableSorting: false,
+        size: 140,
+      },
+      {
+        id: "subOutletName",
+        accessorFn: (row) => row.subOutletName,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-[120px]" />,
+        enableSorting: false,
+        size: 120,
       },
       {
         id: "raisedBy",
@@ -354,9 +367,10 @@ function ListView({ onApprove, onReject, onView }) {
         ),
         cell: ({ row }) => {
           const name = row.original.raisedBy || row.original.createdByName;
-          return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+          return <TruncatedCell value={name || '—'} widthClass="max-w-[110px]" />;
         },
-        size: 150,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: "status",
@@ -365,7 +379,8 @@ function ListView({ onApprove, onReject, onView }) {
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusPill status={row.original.status} />,
-        size: 160,
+        enableSorting: false,
+        size: 80,
       },
       {
         id: "action",
@@ -408,7 +423,7 @@ function ListView({ onApprove, onReject, onView }) {
           );
         },
         enableSorting: false,
-        size: 160,
+        size: 75,
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -472,6 +487,7 @@ function ListView({ onApprove, onReject, onView }) {
               recordCount={filtered.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
@@ -479,11 +495,8 @@ function ListView({ onApprove, onReject, onView }) {
               }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                   <DataGridPagination />

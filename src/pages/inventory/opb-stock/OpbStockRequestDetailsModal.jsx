@@ -5,6 +5,7 @@ import {
     Calendar,
     Home,
     Building2,
+    MapPin,
     Package,
     Hash,
     IndianRupee,
@@ -137,7 +138,7 @@ const OpbStockRequestDetailsModal = ({
                                 Request Details
                             </SectionLabel>
 
-                            <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
 
                                 <FieldCard
                                     icon={Calendar}
@@ -155,6 +156,18 @@ const OpbStockRequestDetailsModal = ({
                                     icon={Building2}
                                     label="Sub-Outlet"
                                     value={request.subOutletName}
+                                />
+
+                                <FieldCard
+                                    icon={MapPin}
+                                    label="Sub-Location"
+                                    value={
+                                        request.subLocationName ||
+                                        request.subLocation?.subLocationName ||
+                                        request.subLocation?.locationName ||
+                                        request.subLocation?.name ||
+                                        '-'
+                                    }
                                 />
 
                             </div>

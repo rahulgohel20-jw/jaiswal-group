@@ -152,6 +152,8 @@ const PAGE_ALIASES = {
   'return and replacement': ['return and replacement', 'return replacement', 'return & replacement'],
   'opening balance stock': ['opening balance stock', 'opb stock', 'opb stock create request'],
   'manual stock adjustment': ['manual stock adjustment', 'manual adjustment', 'manual adjustment screen'],
+  'sub locations': ['sub locations', 'sub location', 'sub-locations', 'sub-location', 'sub location master', 'sublocation', 'sublocations'],
+  'sub location': ['sub locations', 'sub location', 'sub-locations', 'sub-location', 'sub location master', 'sublocation', 'sublocations'],
 };
 
   const getPageRights = (pageName) => {

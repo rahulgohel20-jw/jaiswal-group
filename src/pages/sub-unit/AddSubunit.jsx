@@ -234,8 +234,15 @@ const getOrgLabel = (o) => (o ? o.companyNameEnglish || o.companyCode || String(
 
 const nextSubUnitCode = (outletCode) => (outletCode ? `${outletCode}-SU01` : "Select an outlet first");
 
+const SUB_OUTLET_TYPE_OPTIONS = [
+  { value: "LOCATION", label: "LOCATION" },
+  { value: "KITCHEN", label: "KITCHEN" },
+  { value: "STORE", label: "STORE" },
+];
+
 const emptyForm = {
   outletId: "",
+  subOutletType: "",
   subOutletName: "",
   contactPerson: "",
   contactNumber: "",
@@ -262,6 +269,7 @@ const mapSubUnitToForm = (subUnit) => {
         : raw.outletId
           ? String(raw.outletId)
           : "",
+    subOutletType: raw.subOutletType || raw.type || raw.locationType || "",
     subOutletName: raw.subOutletName || raw.name || "",
     contactPerson: raw.contactPerson || "",
     contactNumber: raw.contactNumber || raw.mobile || raw.mobilenumber || "",
@@ -500,16 +508,24 @@ const AddSubUnit = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOutlet, isEditMode]);
 
+  const handleTypeChange = (newType) => {
+    setErrorFor("subOutletType", validateRequired(newType, "Type"));
+    set("subOutletType", newType);
+  };
+
   const handleOutletChange = (e) => {
     setLocationTouched(false);
     set("outletId", e.target.value);
     setErrorFor("outletId", validateRequired(e.target.value, "Outlet"));
   };
 
-  const requiredFields = ["outletId", "subOutletName", "email", "addressLine1", "pincode"];
+  const requiredFields = ["subOutletName", "email", "addressLine1", "pincode"];
 
   function validate() {
     const next = {};
+
+    const typeErr = validateRequired(form.subOutletType, "Type");
+    if (typeErr) next.subOutletType = typeErr;
 
     const outletErr = validateRequired(form.outletId, "Outlet");
     if (outletErr) next.outletId = outletErr;
@@ -547,18 +563,21 @@ const AddSubUnit = () => {
       username: user?.email || "",
       address: form.addressLine1,
       addressline2: form.addressLine2,
-      cityId: Number(selectedCity),
+      cityId: selectedCity ? Number(selectedCity) : 0,
       contactNumber: form.contactNumber,
       contactPerson: form.contactPerson,
-      countryId: Number(selectedCountry),
+      countryId: selectedCountry ? Number(selectedCountry) : 0,
       email: form.email,
       isActive: form.isActive,
       latitude: form.latitude,
       longitude: form.longitude,
-      organizationId: Number(form.outletId),
+      organizationId: form.outletId ? Number(form.outletId) : 0,
       pincode: form.pincode,
-      stateId: Number(selectedState),
+      stateId: selectedState ? Number(selectedState) : 0,
       subOutletName: form.subOutletName,
+      subOutletType: form.subOutletType,
+      type: form.subOutletType,
+      locationType: form.subOutletType,
     };
 
     try {
@@ -592,7 +611,7 @@ const AddSubUnit = () => {
           <button
             type="button"
             onClick={() => navigate('/sub-units')}
-            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Sub Units
@@ -603,30 +622,49 @@ const AddSubUnit = () => {
       <SectionCard className="mt-4">
         <SectionHeader
           icon={Store}
-          title="Parent Outlet"
+          title="Type & Parent Outlet"
           subtitle="The sub unit will be registered under this outlet"
           open={openSections.outlet}
           onToggle={() => toggleSection("outlet")}
         />
         {openSections.outlet && (
           <div className="px-6 py-6">
-            <div>
-              <Label required>Outlet</Label>
-              <SearchableSelect
-                name="outletId"
-                value={form.outletId}
-                onChange={(e) => handleOutletChange({ target: { value: e.target.value } })}
-                options={outletOptions}
-                placeholder={loadingOutlets ? "Loading outlets..." : "Select Outlet"}
-                disabled={loadingOutlets}
-                hasError={!!errors.outletId}
-              />
-              <ErrorText error={errors.outletId} />
-              {selectedOutlet && (
-                <p className="text-xs text-gray-400 mt-1.5">
-                  {selectedOutlet.companyCode} · {selectedOutlet.cityName}, {selectedOutlet.stateName}
-                </p>
-              )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label required>Type</Label>
+                <SearchableSelect
+                  name="subOutletType"
+                  value={form.subOutletType}
+                  onChange={(e) => handleTypeChange(e.target.value)}
+                  options={SUB_OUTLET_TYPE_OPTIONS}
+                  placeholder="Select Type"
+                  hasError={!!errors.subOutletType}
+                />
+                <ErrorText error={errors.subOutletType} />
+              </div>
+
+              <div>
+                <Label required>Outlet</Label>
+                <SearchableSelect
+                  name="outletId"
+                  value={form.outletId}
+                  onChange={(e) => handleOutletChange({ target: { value: e.target.value } })}
+                  options={outletOptions}
+                  placeholder={
+                    loadingOutlets
+                      ? "Loading outlets..."
+                      : "Select Outlet"
+                  }
+                  disabled={loadingOutlets}
+                  hasError={!!errors.outletId}
+                />
+                <ErrorText error={errors.outletId} />
+                {selectedOutlet && (
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    {selectedOutlet.companyCode} · {selectedOutlet.cityName}, {selectedOutlet.stateName}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         )}

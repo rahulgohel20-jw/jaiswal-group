@@ -158,6 +158,9 @@ import AddSubUnit from '../pages/sub-unit/AddSubunit';
 import SubUnitDetails from '../pages/sub-unit/Subunitdetails';
 import SubUnitList from '../pages/sub-unit/SubUnitListing';
 import SubUnitListing from '../pages/sub-unit/SubUnitListing';
+import AddSubLocation from '../pages/sub-location/AddSubLocation';
+import SubLocationDetails from '../pages/sub-location/SubLocationDetails';
+import SubLocationListing from '../pages/sub-location/SubLocationListing';
 import AddUnit from '../pages/units/AddUnit';
 import UnitListing from '../pages/units/UnitListing';
 import UnitViewDetails from '../pages/units/UnitViewDetails';
@@ -202,7 +205,8 @@ import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateM
 import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
 import AddRawMaterialItemModal from '../pages/raw-material/raw-material-item-master/AddRawMaterialItemModal';
 import VendorPriceApproval from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceApproval';
-// import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
+import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
+import GeneralStockLedgerViewDetails from '../pages/inventory/general-stock-ledger/GeneralStockLedgerViewDetails';
 import EventSsoRedirect from '../pages/event/EventSsoRedirect';
 
 
@@ -261,6 +265,19 @@ export function AppRoutingSetup() {
           <Route
             path="/sub-units/sub-unit-details"
             element={<SubUnitDetails />}
+          />
+
+          <Route path="/sub-locations" element={<SubLocationListing />} />
+          <Route path="/sub-locations/add" element={<AddSubLocation />} />
+          <Route path="/sub-locations/update-sub-location" element={<AddSubLocation />} />
+          <Route path="/sub-locations/edit/:id" element={<AddSubLocation />} />
+          <Route
+            path="/sub-locations/sub-location-details"
+            element={<SubLocationDetails />}
+          />
+          <Route
+            path="/sub-locations/view/:id"
+            element={<SubLocationDetails />}
           />
 
           <Route path="/assets/assets-items" element={<AssetItemsList />} />
@@ -482,7 +499,9 @@ export function AppRoutingSetup() {
           <Route path='/inventory/manual-adjustment/create' element={<CreateManualAdjustment />} />
           <Route path='/inventory/manual-adjustment/view/:id' element={<ViewManualAdjustment />} />
           <Route path='/inventory/manual-adjustment-detail/:id' element={<ViewManualAdjustment />} />
-          {/* <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger/>}/> */}
+          <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger/>}/>
+          <Route path='/inventory/general-stock-ledger/view/:id' element={<GeneralStockLedgerViewDetails />} />
+          <Route path='/inventory/general-stock-ledger/view' element={<GeneralStockLedgerViewDetails />} />
 
           <Route
             path="/stocks/available-stocks"

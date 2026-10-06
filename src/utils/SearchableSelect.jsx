@@ -159,7 +159,7 @@ const SearchableSelect = ({
         onOpenAutoFocus={(e) => e.preventDefault()}
         className="p-1.5 w-(--radix-popover-trigger-width) min-w-[200px] overflow-hidden z-100 bg-white rounded-xl shadow-xl shadow-slate-900/10 border border-slate-200/90 ring-1 ring-black/[0.03]"
       >
-        <div className="max-h-56 overflow-y-auto space-y-0.5 pr-0.5">
+        <div className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
           {hasValue && isClearable && (
             <button
               type="button"
@@ -182,15 +182,15 @@ const SearchableSelect = ({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleSelect(option)}
-                  className={`w-full text-left px-3 py-2.5 text-sm rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-between gap-2 ${
+                  className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-between gap-2 ${
                     isSelected
                       ? "bg-blue-50/90 text-[#084E92] font-semibold shadow-xs"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-normal"
+                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium"
                   }`}
                 >
                   <span className="truncate">{option.label}</span>
                   {isSelected ? (
-                    <span className="flex items-center gap-1 text-[11px] text-[#084E92] bg-blue-100/80 px-2 py-0.5 rounded-md font-semibold shrink-0">
+                    <span className="flex items-center gap-1 text-[10.5px] text-[#084E92] bg-blue-100/80 px-2 py-0.5 rounded-md font-semibold shrink-0">
                       <Check className="w-3 h-3 stroke-[2.5]" />
                       Selected
                     </span>

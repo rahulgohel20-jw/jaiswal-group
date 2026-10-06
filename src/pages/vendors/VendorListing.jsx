@@ -202,9 +202,9 @@ const VendorList = () => {
         ),
         cell: ({ row }) => (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-[#084E92] flex items-center justify-center text-xs font-semibold shrink-0">
+            {/* <div className="w-8 h-8 rounded-full bg-blue-100 text-[#084E92] flex items-center justify-center text-xs font-semibold shrink-0">
               {str(row.original.name).charAt(0).toUpperCase() || '?'}
-            </div>
+            </div> */}
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 leading-none truncate">
                 {row.original.name}

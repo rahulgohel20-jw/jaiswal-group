@@ -29,7 +29,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePurchaseOrders } from '../purchase-order-requests/utils/usePurchaseOrders';
@@ -100,7 +99,8 @@ function StatusPill({ status }) {
   return (
     <span
       style={{ color: meta.fg }}
-      className="text-xs font-semibold whitespace-nowrap"
+      title={getPoStatusLabel(status)}
+      className="text-xs font-semibold truncate block max-w-full"
     >
       {getPoStatusLabel(status)}
     </span>
@@ -311,6 +311,7 @@ const PurchaseOrderApproval = () => {
         (p) =>
           (p.poCode || '').toLowerCase().includes(q) ||
           (p.outlet || '').toLowerCase().includes(q) ||
+          (p.subOutletName || '').toLowerCase().includes(q) ||
           (p.raisedBy || '').toLowerCase().includes(q) ||
           (p.createdByName || '').toLowerCase().includes(q),
       );
@@ -435,7 +436,7 @@ const PurchaseOrderApproval = () => {
           );
         },
         enableSorting: false,
-        size: 55,
+        size: 36,
       },
       {
         id: 'sno',
@@ -446,8 +447,7 @@ const PurchaseOrderApproval = () => {
           <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 36,
       },
       {
         id: 'poCode',
@@ -456,10 +456,10 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <CodeCell code={row.original.poCode} maxWidth="max-w-[190px]" />
+          <CodeCell code={row.original.poCode} maxWidth="max-w-[130px]" />
         ),
-        size: 195,
-        minSize: 180,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: 'date',
@@ -467,21 +467,21 @@ const PurchaseOrderApproval = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="PO DATE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
-        size: 140,
-        minSize: 130,
+        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[80px]" />,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'expectedDeliveryDate',
         accessorFn: (row) => row.expectedDeliveryDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="DELIVERY DATE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="DELV. DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.expectedDeliveryDate} widthClass="max-w-[130px]" />
+          <TruncatedCell value={row.original.expectedDeliveryDate} widthClass="max-w-[85px]" />
         ),
-        size: 160,
-        minSize: 140,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'outlet',
@@ -489,9 +489,21 @@ const PurchaseOrderApproval = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
-        size: 200,
-        minSize: 170,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
+        enableSorting: false,
+        size: 140,
+      },
+      {
+        id: 'location',
+        accessorFn: (row) => row.subOutletName,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-[120px]" />
+        ),
+        enableSorting: false,
+        size: 120,
       },
       {
         id: 'raisedBy',
@@ -501,10 +513,10 @@ const PurchaseOrderApproval = () => {
         ),
         cell: ({ row }) => {
           const name = row.original.raisedBy || row.original.createdByName;
-          return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+          return <TruncatedCell value={name || '—'} widthClass="max-w-[110px]" />;
         },
-        size: 170,
-        minSize: 150,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'status',
@@ -513,8 +525,8 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusPill status={row.original.rawStatus} />,
-        size: 160,
-        minSize: 140,
+        enableSorting: false,
+        size: 80,
       },
       {
         id: 'action',
@@ -602,7 +614,7 @@ const PurchaseOrderApproval = () => {
           );
         },
         enableSorting: false,
-        size: 220,
+        size: 75,
       },
     ],
     [selectedPoId],
@@ -699,6 +711,7 @@ const PurchaseOrderApproval = () => {
               recordCount={filtered.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
@@ -706,11 +719,8 @@ const PurchaseOrderApproval = () => {
               }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                   <DataGridPagination />

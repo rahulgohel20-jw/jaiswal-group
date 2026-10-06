@@ -14,157 +14,10 @@ import { getAllRawMaterialItems, getCurrentStockListGet } from "@/services/apiSe
 import SearchableSelect from "@/utils/SearchableSelect";
 import { useNavigate } from "react-router";
 import { Container } from '@/components/common/container';
-import { PageHeader } from '@/components/common/PageHeader';
+import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
 
 const FONT_IMPORT_URL =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap";
-
-const getAvailableStock = (item) => {
-  if (typeof item?.currentStock === 'object' && item?.currentStock !== null) {
-    return item.currentStock.currentStock ?? 0;
-  }
-  if (typeof item?.currentStock === 'number') {
-    return item.currentStock;
-  }
-  return item?.availableStock != null ? item.availableStock : (item?.closingStock ?? item?.opbStock ?? 0);
-};
-
-// Normalises one `pr.details[]` entry into what the table expects.
-// Only ONE quantity now — no separate requested vs approved split.
-function mapItem(detail, idx) {
-  return {
-    id: detail.id ?? idx,
-    name: detail.rawMaterialName ?? "Untitled item",
-    rawMaterialId: detail.rawMaterialId,
-    uomId: detail.uomId,
-    unit: detail.uomName ?? "",
-    availableStock: detail.availableStock ?? null,
-    quantity: Number(detail.quantity ?? 0),
-  };
-}
-
-function Field({ label, value, mono, accent }) {
-  return (
-    <div>
-      <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1.5">
-        {label}
-      </div>
-      <div
-        className={`text-sm font-semibold ${accent ? "text-[#2952E3]" : "text-[#101828]"}`}
-        style={mono ? { fontFamily: "'IBM Plex Mono', monospace" } : undefined}
-      >
-        {value ?? "—"}
-      </div>
-    </div>
-  );
-}
-
-function TotalStat({ label, value }) {
-  return (
-    <div className="text-right px-4">
-      <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide mb-1">
-        {label}
-      </div>
-      <div
-        className="text-lg font-bold text-[#101828]"
-        style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Raw-material item picker
-// ---------------------------------------------------------------------------
-function RawMaterialPicker({ rawMaterials, alreadyAddedIds, onAdd, loading }) {
-  const [term, setTerm] = useState("");
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const matches = useMemo(() => {
-    const q = term.trim().toLowerCase();
-    return rawMaterials
-      .filter((rm) => !alreadyAddedIds.has(String(rm.id)))
-      .filter((rm) =>
-        q
-          ? String(rm.nameEnglish || "").toLowerCase().includes(q) ||
-            String(rm.itemCode || rm.code || "").toLowerCase().includes(q)
-          : true
-      )
-      .slice(0, 8);
-  }, [rawMaterials, term, alreadyAddedIds]);
-
-  const handleSelect = (item) => {
-    onAdd(item);
-    setTerm("");
-    setOpen(false);
-  };
-
-  return (
-    <div ref={wrapperRef} className="relative flex-1">
-      <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] z-10" />
-      <input
-        value={term}
-        onChange={(e) => { setTerm(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        placeholder={loading ? "Loading items…" : "Search item by name or code…"}
-        disabled={loading}
-        className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-      />
-
-      {open && matches.length > 0 && (
-        <div className="absolute z-20 mt-1.5 w-full max-h-64 overflow-y-auto bg-white border border-[#E7EAF0] rounded-xl shadow-lg">
-          {matches.map((item) => {
-            const availStock = getAvailableStock(item);
-            const unitText = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || "";
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleSelect(item)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-[#EFF1F5] last:border-b-0"
-              >
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-[#2952E3] truncate">
-                    {item.nameEnglish}
-                  </div>
-                  {(item.itemCode || item.code) && (
-                    <div className="text-[11px] text-gray-400 font-mono">
-                      Code: {item.itemCode || item.code}
-                    </div>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <span className="text-xs font-semibold text-gray-700">
-                    Stock: {Number(availStock).toFixed(2)} {unitText}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {open && !loading && term.trim() && matches.length === 0 && (
-        <div className="absolute z-20 mt-1.5 w-full bg-white border border-[#E7EAF0] rounded-xl shadow-lg px-4 py-4 text-sm text-[#98A2B3] text-center">
-          No matching items found.
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // ApprovalView
@@ -207,20 +60,29 @@ export default function ApprovalView({
       setRmLoading(true);
       try {
         const orgId = requisition?.outletId || '';
-        const res = await getAllRawMaterialItems(0, 0, true, "", "", "", orgId, "");
-        const rawItems = res?.data?.data?.["Raw Material Details"] || [];
-        setRawMaterials(rawItems);
+        const subId = requisition?.subOutletId || '';
+        const res = await getAllRawMaterialItems(null, 0, true, "", "", "", orgId, subId);
+        const list = res?.data?.data?.["Raw Material Details"] || [];
+        let rawItems = Array.isArray(list) ? list : [];
 
-        // Fetch current stock for existing items
-        const itemIds = (requisition?.details ?? []).map((d) => d.rawMaterialId).filter(Boolean);
+        // Fetch current stock for all items
+        const itemIds = [
+          ...(requisition?.details ?? []).map((d) => d.rawMaterialId),
+          ...rawItems.map((r) => r.id),
+        ].filter(Boolean);
+
         let stockList = [];
         if (orgId && itemIds.length > 0) {
           try {
-            const stockRes = await getCurrentStockListGet({
-              itemIds,
+            const stockParams = {
+              itemIds: Array.from(new Set(itemIds)),
               itemType: 'RAW_MATERIAL',
               organizationId: Number(orgId),
-            });
+            };
+            if (subId) {
+              stockParams.subOutletId = Number(subId);
+            }
+            const stockRes = await getCurrentStockListGet(stockParams);
             const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
             stockList = Array.isArray(stockData)
               ? stockData
@@ -233,6 +95,20 @@ export default function ApprovalView({
             console.error('Failed to fetch stock list in approval view', stockErr);
           }
         }
+
+        if (stockList.length > 0) {
+          rawItems = rawItems.map((item) => {
+            const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
+            if (matched) {
+              return {
+                ...item,
+                currentStock: matched,
+              };
+            }
+            return item;
+          });
+        }
+        setRawMaterials(rawItems);
 
         setItems((prev) =>
           prev.map((it) => {
@@ -254,9 +130,18 @@ export default function ApprovalView({
                 ? [matchedRaw.unit]
                 : it.allowedUnits || [];
 
+            const stockUnit =
+              matchedStock?.unitName ||
+              matchedStock?.unitSymbol ||
+              matchedRaw?.currentStock?.unitName ||
+              matchedRaw?.currentStock?.unitSymbol ||
+              it.stockUnit ||
+              '';
+
             return {
               ...it,
               availableStock: availStock,
+              stockUnit,
               allowedUnits,
             };
           })
@@ -268,7 +153,7 @@ export default function ApprovalView({
       }
     };
     load();
-  }, [requisition?.outletId, requisition?.details]);
+  }, [requisition?.outletId, requisition?.subOutletId, requisition?.details]);
 
   // ---- Item mutations ----
   const alreadyAddedIds = useMemo(
@@ -277,11 +162,34 @@ export default function ApprovalView({
   );
 
   const handleAddItem = (raw) => {
-    const uomId = raw.unitId ?? raw.unit?.id ?? 0;
-    const uomName = raw.unit?.nameEnglish || raw.unit?.symbolEnglish || raw.unitName || "";
-    const allowedUnits = Array.isArray(raw.allowedUnits) && raw.allowedUnits.length > 0
-      ? raw.allowedUnits
-      : (raw.unit ? [raw.unit] : []);
+    const uomId = raw.currentStock?.unitId ?? raw.unitId ?? raw.unit?.id ?? 0;
+    const uomName =
+      raw.currentStock?.unitName ||
+      raw.currentStock?.unitSymbol ||
+      raw.unit?.nameEnglish ||
+      raw.unit?.symbolEnglish ||
+      raw.unitName ||
+      "";
+    let allowedUnits =
+      Array.isArray(raw.allowedUnits) && raw.allowedUnits.length > 0
+        ? [...raw.allowedUnits]
+        : raw.unit
+        ? [raw.unit]
+        : [];
+
+    if (
+      raw.currentStock?.unitId &&
+      !allowedUnits.some((u) => Number(u.id) === Number(raw.currentStock.unitId))
+    ) {
+      allowedUnits = [
+        {
+          id: raw.currentStock.unitId,
+          nameEnglish: raw.currentStock.unitName || raw.currentStock.unitSymbol || 'Unit',
+          symbolEnglish: raw.currentStock.unitSymbol || '',
+        },
+        ...allowedUnits,
+      ];
+    }
 
     if (!uomId || !uomName) {
       setAddItemError(
@@ -290,6 +198,11 @@ export default function ApprovalView({
       return;
     }
     setAddItemError("");
+    const stockUnit =
+      (typeof raw.currentStock === 'object' && raw.currentStock !== null
+        ? raw.currentStock.unitName || raw.currentStock.unitSymbol
+        : '') || '';
+
     setItems((prev) => [
       ...prev,
       {
@@ -300,6 +213,7 @@ export default function ApprovalView({
         unit: uomName,
         allowedUnits,
         availableStock: getAvailableStock(raw),
+        stockUnit,
         quantity: 1,
       },
     ]);
@@ -440,10 +354,11 @@ export default function ApprovalView({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-          <Field label="PR code" value={requisition?.code} mono accent />
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-6">
+          <Field label="PR code" value={requisition?.code || requisition?.prCode} mono accent />
           <Field label="PR date" value={requisition?.date} />
-          <Field label="Outlet location" value={requisition?.outlet} />
+          <Field label="Outlet" value={requisition?.outlet} />
+          <Field label="Sub-Unit / Location" value={requisition?.subOutletName} />
           <Field label="Required by" value={requisition?.requiredDate} />
         </div>
 
@@ -483,13 +398,13 @@ export default function ApprovalView({
       {/* Add-item row — approve mode only */}
       {!isReject && canEdit && (
         <div className="flex items-center gap-3 mb-5">
-          <RawMaterialPicker
-            rawMaterials={rawMaterials}
+          <RawMaterialSearchPicker
+            items={rawMaterials}
             alreadyAddedIds={alreadyAddedIds}
-            onAdd={handleAddItem}
+            onSelect={handleAddItem}
             loading={rmLoading}
+            isSticky={true}
           />
-        
         </div>
       )}
 
@@ -593,7 +508,9 @@ export default function ApprovalView({
                 </td>
                 <td className="px-5 py-4">
                   <span className="text-[#475467] font-medium">
-                    {it.availableStock != null ? Number(it.availableStock).toFixed(2) : '—'}
+                    {it.availableStock != null
+                      ? `${Number(it.availableStock).toFixed(2)}${it.stockUnit ? ` ${it.stockUnit}` : ''}`
+                      : '—'}
                   </span>
                 </td>
                 <td className="px-5 py-4">

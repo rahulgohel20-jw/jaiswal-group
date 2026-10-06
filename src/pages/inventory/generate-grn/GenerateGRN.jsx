@@ -25,7 +25,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { getPOsByOutlet, getPurchaseOrdersByOutlet } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -368,7 +367,7 @@ const GenerateGRN = () => {
              (item.vendorId && firstSelected.vendorId ? item.vendorId !== firstSelected.vendorId : item.vendorName !== firstSelected.vendorName));
 
           return (
-            <div className="flex items-center justify-center px-1">
+            <div className="flex items-center justify-center px-0.5">
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -379,14 +378,14 @@ const GenerateGRN = () => {
                     ? 'Only Purchase Orders from the same Outlet and Vendor can be merged into a single GRN'
                     : 'Select for combined GRN'
                 }
-                className={`w-4 h-4 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 ${
+                className={`w-3.5 h-3.5 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 ${
                   isMismatch ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
                 }`}
               />
             </div>
           );
         },
-        size: 45,
+        size: 36,
         enableSorting: false,
       });
     }
@@ -395,144 +394,149 @@ const GenerateGRN = () => {
       {
         id: 'sno',
         header: ({ column }) => (
-          <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 font-mono text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 45,
       },
       {
         id: 'poCode',
         accessorFn: (row) => row.poCode,
         header: ({ column }) => (
-          <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="PO CODE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <CodeCell
             code={row.original.poCode}
-            maxWidth="max-w-[190px]"
+            maxWidth="max-w-[120px]"
             onClick={() => navigate(`/purchase/purchase-order-detail/${row.original.id}`)}
           />
         ),
-        size: 195,
-        minSize: 180,
+        enableSorting: true,
+        size: 130,
       },
       {
         id: 'prCode',
         accessorFn: (row) => row.prCode,
         header: ({ column }) => (
-          <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="PR CODE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <CodeCell
             code={row.original.prCode}
-            maxWidth="max-w-[190px]"
+            maxWidth="max-w-[120px]"
           />
         ),
-        size: 195,
-        minSize: 180,
+        enableSorting: true,
+        size: 130,
       },
       {
         id: 'date',
         accessorFn: (row) => row.date,
         header: ({ column }) => (
-          <DataGridColumnHeader title="PO DATE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="PO DATE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
             {row.original.date || '—'}
           </span>
         ),
-        size: 130,
+        enableSorting: true,
+        size: 85,
       },
       {
         id: 'deliveryDate',
         accessorFn: (row) => row.deliveryDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="DELIVERY DATE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="DELIVERY" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
             {row.original.deliveryDate || '—'}
           </span>
         ),
-        size: 140,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="OUTLET" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-800 font-medium whitespace-nowrap" title={row.original.outlet}>
+          <span className="text-xs text-gray-800 font-medium block truncate max-w-[120px]" title={row.original.outlet}>
             {row.original.outlet || '—'}
           </span>
         ),
-        size: 190,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: 'vendorName',
         accessorFn: (row) => row.vendorName,
         header: ({ column }) => (
-          <DataGridColumnHeader title="VENDOR NAME" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="VENDOR" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-800 font-medium whitespace-nowrap" title={row.original.vendorName}>
+          <span className="text-xs text-gray-800 font-medium block truncate max-w-[120px]" title={row.original.vendorName}>
             {row.original.vendorName || '—'}
           </span>
         ),
-        size: 180,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: 'raisedBy',
         accessorFn: (row) => row.raisedBy,
         header: ({ column }) => (
-          <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="RAISED BY" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-700 font-medium whitespace-nowrap" title={row.original.raisedBy}>
+          <span className="text-xs text-gray-700 font-medium block truncate max-w-[100px]" title={row.original.raisedBy}>
             {row.original.raisedBy || '—'}
           </span>
         ),
-        size: 150,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'status',
         accessorFn: (row) => row.status,
         header: ({ column }) => (
-          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="STATUS" column={column} className="text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 150,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'action',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-xs" />
         ),
         cell: ({ row }) => {
           const original = row.original;
           const isApproved = String(original.rawStatus).toUpperCase() === 'APPROVED';
           if (!isApproved || !canAdd) {
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
-                  className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                  className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                   title="View Order"
                 >
-                  <Eye size={18} />
+                  <Eye size={16} />
                 </button>
               </div>
             );
           }
           return (
-            <div className="flex items-center gap-2 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() =>
@@ -540,24 +544,24 @@ const GenerateGRN = () => {
                     state: { poIds: [original.id], pos: [original] },
                   })
                 }
-                className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-1 rounded hover:bg-blue-50 transition"
+                className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
                 title="Generate GRN"
               >
-                <FileText size={18} />
+                <FileText size={16} />
               </button>
               <button
                 type="button"
                 onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                 title="View Order"
               >
-                <Eye size={18} />
+                <Eye size={16} />
               </button>
             </div>
           );
         },
         enableSorting: false,
-        size: 160,
+        size: 75,
       }
     );
 
@@ -649,8 +653,6 @@ const GenerateGRN = () => {
           <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
         </div>
 
-
-
         {/* Table card (Maximized height for comfortable viewing) */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
           {loading || scopeLoading ? (
@@ -664,18 +666,16 @@ const GenerateGRN = () => {
               recordCount={filteredRows.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+              <Card className="rounded-2xl border-0 shadow-none">
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />

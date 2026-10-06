@@ -6,7 +6,6 @@ import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link, useNavigate } from 'react-router';
 import AssetPreviewDetail from './AssetPreviewDetail';
@@ -289,99 +288,99 @@ const AssetsManagement = () => {
         {
             id: "sno",
             header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold my-4" />
+                <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 70,
+            size: 36,
         },
         {
             id: "assetId",
             accessorFn: (row) => row.assetId,
             header: ({ column }) => (
-                <DataGridColumnHeader title="ASSET ID" column={column} className="text-[#43474F] font-semibold my-4" />
+                <DataGridColumnHeader title="ASSET ID" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <div className="font-semibold text-[#123B6D] leading-5 py-2">
                     {row.original.assetId}
                 </div>
             ),
-            size: 110,
+            enableSorting: false,
+            size: 100,
         },
-
         {
             id: "itemName",
             accessorFn: (row) => row.itemName,
             header: ({ column }) => (
-                <DataGridColumnHeader title="ITEM NAME" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="ITEM NAME" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <div className="font-medium text-gray-800 py-1">
+                <div title={row.original.itemName} className="font-medium text-gray-800 py-1 truncate max-w-[140px]">
                     {row.original.itemName}
                 </div>
             ),
-            size: 150,
+            enableSorting: false,
+            size: 140,
         },
-
         {
             id: "category",
             accessorFn: (row) => row.category,
             header: ({ column }) => (
-                <DataGridColumnHeader title="CATEGORY" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="CATEGORY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-600 py-1">
+                <span title={row.original.category} className="text-gray-600 py-1 truncate block max-w-[110px]">
                     {row.original.category}
                 </span>
             ),
-            size: 150,
+            enableSorting: false,
+            size: 110,
         },
-
         {
             id: "status",
             accessorFn: (row) => row.status,
             header: ({ column }) => (
-                <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <StatusBadge status={row.original.status} />
             ),
-            size: 140,
+            enableSorting: false,
+            size: 80,
         },
-
         {
             id: "condition",
             accessorFn: (row) => row.condition,
             header: ({ column }) => (
-                <DataGridColumnHeader title="CONDITION" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="CONDITION" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <ConditionBadge condition={row.original.condition} className="py-1" />
             ),
-            size: 150,
+            enableSorting: false,
+            size: 75,
         },
-
         {
             id: "value",
             accessorFn: (row) => row.value,
             header: ({ column }) => (
-                <DataGridColumnHeader title="VALUE" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="VALUE" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <span className="font-semibold py-1">
                     ₹{Number(row.original.value ?? 0).toLocaleString()}
                 </span>
             ),
-            size: 120,
+            enableSorting: false,
+            size: 85,
         },
-
         {
             id: "warranty",
             accessorFn: (row) => row.warranty,
             header: ({ column }) => (
-                <DataGridColumnHeader title="WARRANTY" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="WARRANTY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) =>
                 row.original.warranty === "valid" ? (
@@ -393,13 +392,13 @@ const AssetsManagement = () => {
                         Expiring Soon
                     </div>
                 ),
-            size: 160,
+            enableSorting: false,
+            size: 90,
         },
-
         {
             id: "actions",
             header: ({ column }) => (
-                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold py-1" />
+                <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
@@ -427,7 +426,7 @@ const AssetsManagement = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 130,
+            size: 85,
         },
     ], [canEdit, canDelete]);
 
@@ -568,17 +567,23 @@ const AssetsManagement = () => {
                         </button>
                     </div>
                 ) : (
-                    <DataGrid table={table} recordCount={filteredAssets.length} className="rounded-2xl">
-
-                        {/* Table Card */}
+                    <DataGrid
+                        table={table}
+                        recordCount={filteredAssets.length}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
+                            <CardTable className="w-full overflow-x-hidden">
+                                <DataGridTable />
                             </CardTable>
-                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1]  rounded-b-2xl">
+                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                                 <DataGridPagination />
                             </CardFooter>
                         </Card>

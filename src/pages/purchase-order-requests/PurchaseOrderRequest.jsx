@@ -29,7 +29,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -92,9 +91,10 @@ const STATUS_TEXT_COLORS = {
 
 const StatusBadge = ({ status }) => {
   const color = STATUS_TEXT_COLORS[status] || 'text-gray-700';
+  const label = status === 'TO BE GENERATED' ? 'Pending PO' : (status || '—');
   return (
-    <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
-      {status || '—'}
+    <span title={status || '—'} className={`text-xs font-semibold truncate block max-w-full ${color}`}>
+      {label}
     </span>
   );
 };
@@ -397,8 +397,7 @@ const PurchaseOrderRequest = () => {
           <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 36,
       },
       {
         accessorKey: 'poCode',
@@ -412,7 +411,7 @@ const PurchaseOrderRequest = () => {
           return isPrNoPo ? (
             <CodeCell
               code={codeVal}
-              maxWidth="max-w-[190px]"
+              maxWidth="max-w-[130px]"
               subtitle={
                 <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] whitespace-nowrap font-medium text-gray-500 w-fit">
                   PR AWAITING PO
@@ -420,11 +419,11 @@ const PurchaseOrderRequest = () => {
               }
             />
           ) : (
-            <CodeCell code={codeVal} maxWidth="max-w-[190px]" />
+            <CodeCell code={codeVal} maxWidth="max-w-[130px]" />
           );
         },
-        size: 195,
-        minSize: 180,
+        enableSorting: false,
+        size: 135,
       },
       {
         accessorKey: 'date',
@@ -432,28 +431,39 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <span className="whitespace-nowrap text-sm text-[#475467]">{row.original.date || '—'}</span>,
-        size: 140,
-        minSize: 130,
+        enableSorting: false,
+        size: 75,
       },
       {
         accessorKey: 'expectedDeliveryDate',
         header: ({ column }) => (
-          <DataGridColumnHeader title="DELIVERY DATE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="DELV. DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <span className="whitespace-nowrap text-sm text-[#475467]">{row.original.expectedDeliveryDate || '—'}</span>
         ),
-        size: 160,
-        minSize: 140,
+        enableSorting: false,
+        size: 85,
       },
       {
         accessorKey: 'outlet',
         header: ({ column }) => (
           <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[200px]" />,
-        size: 200,
-        minSize: 170,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
+        enableSorting: false,
+        size: 140,
+      },
+      {
+        accessorKey: 'subOutletName',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-[120px]" />
+        ),
+        enableSorting: false,
+        size: 120,
       },
       {
         accessorKey: 'raisedBy',
@@ -462,21 +472,10 @@ const PurchaseOrderRequest = () => {
         ),
         cell: ({ row }) => {
           const raisedBy = row.original.raisedBy || row.original.createdByName;
-          const displayName = raisedBy != null && raisedBy !== '' ? String(raisedBy) : '';
-          const initials = displayName ? displayName.slice(0, 2).toUpperCase() : '?';
-          return (
-            <div className="flex items-center gap-2 whitespace-nowrap">
-              <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold shrink-0">
-                {initials}
-              </div>
-              <span className="text-sm text-gray-700 truncate max-w-[130px]" title={displayName}>
-                {displayName || '—'}
-              </span>
-            </div>
-          );
+          return <TruncatedCell value={raisedBy || '—'} widthClass="max-w-[110px]" />;
         },
-        size: 170,
-        minSize: 150,
+        enableSorting: false,
+        size: 110,
       },
       {
         accessorKey: 'displayStatus',
@@ -484,8 +483,8 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.displayStatus} />,
-        size: 160,
-        minSize: 140,
+        enableSorting: false,
+        size: 80,
       },
       {
         id: 'actions',
@@ -564,7 +563,8 @@ const PurchaseOrderRequest = () => {
             </div>
           );
         },
-        size: 180,
+        enableSorting: false,
+        size: 75,
       },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -593,7 +593,8 @@ const PurchaseOrderRequest = () => {
           (item.raisedBy || '').toLowerCase().includes(keyword) ||
           (item.createdByName || '').toLowerCase().includes(keyword) ||
           (item.poCode || '').toLowerCase().includes(keyword) ||
-          (item.outlet || '').toLowerCase().includes(keyword)
+          (item.outlet || '').toLowerCase().includes(keyword) ||
+          (item.subOutletName || '').toLowerCase().includes(keyword)
         );
       });
     }
@@ -700,6 +701,7 @@ const PurchaseOrderRequest = () => {
               recordCount={filteredRequests.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
@@ -707,11 +709,8 @@ const PurchaseOrderRequest = () => {
               }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
 
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">

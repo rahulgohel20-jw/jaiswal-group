@@ -219,7 +219,7 @@ const AssetBrandListing = () => {
                 <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 70,
+            size: 36,
         },
         {
             id: "name",
@@ -228,11 +228,11 @@ const AssetBrandListing = () => {
                 <DataGridColumnHeader title="BRAND NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2 first-letter:uppercase">{row.original.name}</div>
+                <div className="font-semibold text-gray-800 py-2 first-letter:uppercase truncate block">{row.original.name}</div>
             ),
-            size: 190,
+            enableSorting: false,
+            size: 200,
         },
-
         {
             id: "status",
             accessorFn: (row) => row.status,
@@ -240,7 +240,8 @@ const AssetBrandListing = () => {
                 <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold my-3" />
             ),
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
-            size: 120,
+            enableSorting: false,
+            size: 80,
         },
         {
             id: "actions",
@@ -248,7 +249,7 @@ const AssetBrandListing = () => {
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="flex items-center gap-3 py-1">
+                <div className="flex items-center gap-3 py-1 whitespace-nowrap">
                     <button type="button" onClick={() => handleViewBrand(row.original)} title="View Brand">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
@@ -265,7 +266,7 @@ const AssetBrandListing = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 110,
+            size: 80,
         },
     ], [canEdit, canDelete]);
 
@@ -351,13 +352,21 @@ const AssetBrandListing = () => {
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                 {loading && <p className="p-4 text-sm text-gray-500">Loading brands...</p>}
-                <DataGrid table={table} recordCount={filteredBrands.length} className="rounded-2xl">
+                <DataGrid
+                    table={table}
+                    recordCount={filteredBrands.length}
+                    className="rounded-2xl"
+                    tableLayout={{
+                        dense: true,
+                        width: 'fixed',
+                        cellBorder: true,
+                        headerBorder: true,
+                        rowBorder: true,
+                    }}
+                >
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
+                        <CardTable className="w-full overflow-x-hidden">
+                            <DataGridTable />
                         </CardTable>
                         <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                             <DataGridPagination />

@@ -47,8 +47,10 @@ import {
   getActiveVendorPriceConfigsByDate,
   getVendorPriceConfigsByVendorId,
   getAllRawMaterialItems,
+  getCurrentStockListGet,
   getVendorById,
   getCompanyById,
+  getAllSubOutletsByOrganization,
 } from '@/services/apiServices';
 import {
   getUserIdFromToken,
@@ -61,6 +63,7 @@ import { getApiErrorMessage } from '@/utils/toast';
 import { PO_STATUS } from './utils/poStatus';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
 
 const htmlToPlainText = (html = '') => {
   if (!html) return '';
@@ -72,6 +75,14 @@ const htmlToPlainText = (html = '') => {
     .replace(/\u00a0/g, ' ')
     .trim();
 };
+
+const apiDateToInputDate = (str) => {
+  if (!str) return '';
+  const [d, m, y] = str.split('/');
+  if (!d || !m || !y) return '';
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+};
+
 
 const getTodayForDateInput = () => {
   const d = new Date();
@@ -96,100 +107,57 @@ const inputDateToApiDate = (str) => {
   return `${d}/${m}/${y}`;
 };
 
-const apiDateToInputDate = (str) => {
-  if (!str) return '';
-  const [d, m, y] = str.split('/');
-  if (!d || !m || !y) return '';
-  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-};
-
-const RawMaterialItemPicker = ({ rawMaterials, alreadyAddedIds, onAdd, loading }) => {
-  const [term, setTerm] = useState('');
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
+const formatDisplayDate = (val) => {
+  if (!val) return '—';
+  if (typeof val === 'string') {
+    const s = val.trim();
+    if (!s) return '—';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    if (s.includes('T')) {
+      const datePart = s.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        const [y, m, d] = datePart.split('-');
+        return `${d}/${m}/${y}`;
       }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const matches = useMemo(() => {
-    const q = term.trim().toLowerCase();
-    return rawMaterials
-      .filter((rm) => !alreadyAddedIds.has(String(rm.id)))
-      .filter((rm) => {
-        if (!q) return true;
-        return (
-          String(rm.nameEnglish || '').toLowerCase().includes(q) ||
-          String(rm.itemCode || rm.code || '').toLowerCase().includes(q)
-        );
-      })
-      .slice(0, 8);
-  }, [rawMaterials, term, alreadyAddedIds]);
-
-  const handleSelect = (item) => {
-    onAdd(item);
-    setTerm('');
-    setOpen(false);
-  };
-
-  return (
-    <div ref={wrapperRef} className="relative w-full">
-      <div className="relative">
-        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          value={term}
-          onChange={(e) => {
-            setTerm(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder={loading ? 'Loading items...' : 'Search raw material by name or code...'}
-          disabled={loading}
-          className="w-full h-10 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] pl-9 pr-3 text-sm outline-none focus:border-[#084E92] focus:bg-white transition"
-        />
-      </div>
-
-      {open && (
-        <div className="absolute z-20 mt-1.5 w-full max-h-72 overflow-y-auto bg-white border border-[#E2E8F0] rounded-xl shadow-lg">
-          {matches.length === 0 ? (
-            <div className="px-4 py-4 text-sm text-gray-400 text-center">
-              No matching items found.
-            </div>
-          ) : (
-            matches.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleSelect(item)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-gray-50 last:border-b-0 cursor-pointer"
-              >
-                <span className="text-sm font-semibold text-[#084E92] truncate">
-                  {item.nameEnglish}
-                </span>
-                <span className="text-xs font-semibold text-gray-600 shrink-0">
-                  {item.supplierRate != null ? `₹${item.supplierRate}` : '—'}
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
+    }
+  }
+  if (val instanceof Date && !isNaN(val)) {
+    const d = String(val.getDate()).padStart(2, '0');
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const y = val.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  return String(val);
 };
+
+const getAvailableStock = (item) => {
+  if (typeof item?.currentStock === 'object' && item?.currentStock !== null) {
+    return Number(item.currentStock.currentStock ?? item.currentStock.stock ?? item.currentStock.availableStock ?? 0);
+  }
+  if (typeof item?.currentStock === 'number') {
+    return Number(item.currentStock);
+  }
+  if (item?.availableStock != null) {
+    return Number(item.availableStock);
+  }
+  if (item?.stock != null) {
+    return Number(item.stock);
+  }
+  return 0;
+};
+
+
 
 const Field = ({ label, value, required }) => (
   <div>
-    <label className="text-sm text-[#475569] mb-1 block">
+    <label className="text-xs font-medium text-[#475569] mb-1 block">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
-    <div className="w-full h-11 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 flex items-center text-sm text-[#1E293B]">
+    <div className="w-full h-9 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 flex items-center text-xs sm:text-sm text-[#1E293B]">
       {value || '—'}
     </div>
   </div>
@@ -306,6 +274,11 @@ const CreatePurchaseOrder = () => {
   const [selectedOutletId, setSelectedOutletId] = useState(
     state?.outletId != null ? String(state.outletId) : '',
   );
+  const [selectedSubOutletId, setSelectedSubOutletId] = useState(
+    state?.subOutletId != null ? String(state.subOutletId) : '',
+  );
+  const [subOutlets, setSubOutlets] = useState([]);
+  const [subOutletsLoading, setSubOutletsLoading] = useState(false);
 
   const activeOutletId =
     selectedOutletId ||
@@ -313,6 +286,44 @@ const CreatePurchaseOrder = () => {
     (pr?.outletId != null ? String(pr.outletId) : '') ||
     (state?.outletId != null ? String(state.outletId) : '') ||
     (orgScopeOutletId != null ? String(orgScopeOutletId) : '');
+
+  // Fetch subOutlets for activeOutletId
+  useEffect(() => {
+    if (!activeOutletId) {
+      setSubOutlets([]);
+      return;
+    }
+    let isCancelled = false;
+    const fetchSubs = async () => {
+      setSubOutletsLoading(true);
+      try {
+        const res = await getAllSubOutletsByOrganization(activeOutletId);
+        const list = res?.data?.data || res?.data?.content || res?.data || [];
+        const safeList = Array.isArray(list) ? list : [];
+        if (!isCancelled) {
+          setSubOutlets(safeList);
+        }
+      } catch (err) {
+        console.error('Failed to load sub-outlets:', err);
+        if (!isCancelled) setSubOutlets([]);
+      } finally {
+        if (!isCancelled) setSubOutletsLoading(false);
+      }
+    };
+    fetchSubs();
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeOutletId]);
+
+  useEffect(() => {
+    if (pr?.subOutletId && !selectedSubOutletId) {
+      setSelectedSubOutletId(String(pr.subOutletId));
+    }
+    if (poRecord?.subOutletId && !selectedSubOutletId) {
+      setSelectedSubOutletId(String(poRecord.subOutletId));
+    }
+  }, [pr?.subOutletId, poRecord?.subOutletId, selectedSubOutletId]);
 
   const isEditRoute = location.pathname.includes('/edit-purchase-order') || !!routeId;
   const isEditingExistingPo = isEditRoute && !state?.isCopyPr;
@@ -738,15 +749,83 @@ const CreatePurchaseOrder = () => {
     (async () => {
       setRawMaterialsLoading(true);
       try {
-        const res = await getAllRawMaterialItems(0, 0, true, '', '', '');
-        setRawMaterials(res?.data?.data?.['Raw Material Details'] || []);
+        const targetOrg =
+          activeOutletId ||
+          selectedOutletId ||
+          poRecord?.outletId ||
+          poRecord?.organizationId ||
+          pr?.outletId ||
+          state?.outletId ||
+          orgScopeOutletId ||
+          getOrgIdFromToken() ||
+          '';
+        const targetSub =
+          selectedSubOutletId ||
+          poRecord?.subOutletId ||
+          pr?.subOutletId ||
+          state?.subOutletId ||
+          '';
+        const res = await getAllRawMaterialItems(0, 0, true, '', '', '', targetOrg, targetSub);
+        const raw = res?.data?.data?.['Raw Material Details'] || res?.data?.['Raw Material Details'] || [];
+        let rawItems = Array.isArray(raw) ? raw : [];
+
+        if (targetOrg && rawItems.length > 0) {
+          try {
+            const stockParams = {
+              itemIds: rawItems.map((r) => r.id),
+              itemType: 'RAW_MATERIAL',
+              organizationId: Number(targetOrg),
+            };
+            if (targetSub) {
+              stockParams.subOutletId = Number(targetSub);
+            }
+            const stockRes = await getCurrentStockListGet(stockParams);
+            const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
+            const stockList = Array.isArray(stockData)
+              ? stockData
+              : Array.isArray(stockData?.content)
+              ? stockData.content
+              : Array.isArray(stockData?.list)
+              ? stockData.list
+              : [];
+
+            if (stockList.length > 0) {
+              rawItems = rawItems.map((item) => {
+                const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
+                if (matched) {
+                  return {
+                    ...item,
+                    currentStock: matched,
+                  };
+                }
+                return item;
+              });
+            }
+          } catch (stockErr) {
+            console.error('Failed to fetch stock list in CreatePurchaseOrder:', stockErr);
+          }
+        }
+
+        setRawMaterials(rawItems);
       } catch (err) {
         console.error('Failed to load raw materials', err);
       } finally {
         setRawMaterialsLoading(false);
       }
     })();
-  }, []);
+  }, [
+    activeOutletId,
+    selectedOutletId,
+    selectedSubOutletId,
+    poRecord?.organizationId,
+    poRecord?.outletId,
+    poRecord?.subOutletId,
+    pr?.outletId,
+    pr?.subOutletId,
+    state?.outletId,
+    state?.subOutletId,
+    orgScopeOutletId,
+  ]);
 
   const handleOverallDiscountChange = (value) => {
     const discount = Math.max(0, Math.min(100, Number(value) || 0));
@@ -952,8 +1031,14 @@ const CreatePurchaseOrder = () => {
   };
 
   const handleAddRawMaterialItem = async (item) => {
-    const uomId = item.unitId ?? item.unit?.id ?? 0;
-    const uomName = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || '';
+    const uomId = item.currentStock?.unitId ?? item.unitId ?? item.unit?.id ?? 0;
+    const uomName =
+      item.currentStock?.unitName ||
+      item.currentStock?.unitSymbol ||
+      item.unit?.nameEnglish ||
+      item.unit?.symbolEnglish ||
+      item.unitName ||
+      '';
 
     if (!uomId || !uomName) {
       setItemPickError(
@@ -1494,6 +1579,9 @@ const CreatePurchaseOrder = () => {
   const buildSinglePayload = (status) => {
     const reqId = getPurchaseRequisitionId();
     const outletId = Number(selectedOutletId) || pr?.outletId || poRecord?.outletId || state?.outletId;
+    const activeSubOutletId = selectedSubOutletId || pr?.subOutletId || poRecord?.subOutletId || state?.subOutletId;
+    const activeSubOutletObj = subOutlets.find((s) => String(s.id) === String(activeSubOutletId));
+    const activeSubOutletName = activeSubOutletObj?.name || activeSubOutletObj?.subOutletName || activeSubOutletObj?.locationName || pr?.subOutletName || poRecord?.subOutletName || state?.subOutletName || '';
     const formattedPoDate = inputDateToApiDate(poDate);
     const formattedExpectedDate = inputDateToApiDate(expectedDeliveryDate);
     const userId = getUserIdFromToken();
@@ -1620,6 +1708,8 @@ const CreatePurchaseOrder = () => {
         purchaseRequisitionId: reqId,
         prId: reqId,
         outletId,
+        subOutletId: activeSubOutletId ? Number(activeSubOutletId) : undefined,
+        subOutletName: activeSubOutletName,
         poDate: formattedPoDate,
         expectedDeliveryDate: formattedExpectedDate,
         remarks,
@@ -1642,6 +1732,8 @@ const CreatePurchaseOrder = () => {
       purchaseRequisitionId: reqId,
       prId: reqId,
       outletId,
+      subOutletId: activeSubOutletId ? Number(activeSubOutletId) : undefined,
+      subOutletName: activeSubOutletName,
       poDate: formattedPoDate,
       expectedDeliveryDate: formattedExpectedDate,
       remarks,
@@ -1833,7 +1925,11 @@ const CreatePurchaseOrder = () => {
   };
 
   const approvalDateDisplay =
-    poRecord?.rawStatus === PO_STATUS.APPROVED ? poRecord?.updatedAt : '';
+    poRecord?.rawStatus === PO_STATUS.APPROVED
+      ? formatDisplayDate(poRecord?.updatedAt || poRecord?.approvalDate)
+      : pr?.approvalDate || pr?.approvedAt
+      ? formatDisplayDate(pr?.approvalDate || pr?.approvedAt)
+      : '—';
 
   const isSaving = poSaving || isSubmitting;
 
@@ -1846,7 +1942,7 @@ const CreatePurchaseOrder = () => {
   }
 
   return (
-    <Container>
+    <Container width="fluid" className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 lg:px-6">
       <div className="mx-auto pt-2 pb-6 space-y-3.5">
         <PageHeader
           title={
@@ -1871,7 +1967,7 @@ const CreatePurchaseOrder = () => {
             <button
               type="button"
               onClick={() => navigate('/purchase-order-request/purchase')}
-              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Orders
@@ -1905,28 +2001,25 @@ const CreatePurchaseOrder = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-                  <Field label="PR Date" value={pr?.date ?? state?.date} />
+                  <Field label="PR Date" value={formatDisplayDate(pr?.date ?? state?.date)} />
                   <Field label="Approval Date" value={approvalDateDisplay} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <Field label="Outlet Name" value={pr?.outlet ?? poRecord?.outlet ?? state?.outlet} />
-                  <Field label="PR Approved By" value={pr?.updatedBy} />
+                  <Field label="Location / Sub-Unit" value={pr?.subOutletName ?? poRecord?.subOutletName ?? state?.subOutletName ?? '—'} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      PO Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={poDate || getTodayForDateInput()}
-                      disabled
-                      readOnly
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
+                  <Field label="PR Approved By" value={pr?.updatedBy} />
+                  <Field
+                    label="PO Date"
+                    value={formatDisplayDate(poDate || poRecord?.date || getTodayForDateInput())}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <div>
                     <label className="text-sm text-[#475569] mb-1 block">
                       Expected Delivery Date <span className="text-red-500">*</span>
@@ -1940,9 +2033,6 @@ const CreatePurchaseOrder = () => {
                       className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <div>
                     <label className="text-sm text-[#475569] mb-1 block">
                       Vendor Name <span className="text-red-500">*</span>
@@ -1981,8 +2071,13 @@ const CreatePurchaseOrder = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <Field label="Location / Sub-Unit" value={poRecord?.subOutletName || pr?.subOutletName || state?.subOutletName || '—'} />
+                  <Field label="PR Code" value={poRecord?.prCode || pr?.prCode || state?.prCode || '—'} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-3.5">
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       PO Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1990,11 +2085,11 @@ const CreatePurchaseOrder = () => {
                       value={poDate || getTodayForDateInput()}
                       disabled
                       readOnly
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
+                      className="w-full h-9 rounded-lg border border-[#E2E8F0] px-2.5 text-xs sm:text-sm outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Expected Delivery Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2003,14 +2098,14 @@ const CreatePurchaseOrder = () => {
                       min={poDate || getTodayForDateInput()}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                       disabled={isReadOnly}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                      className="w-full h-9 rounded-lg border border-[#E2E8F0] px-2.5 text-xs sm:text-sm outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-3.5">
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Vendor Name <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
@@ -2031,8 +2126,8 @@ const CreatePurchaseOrder = () => {
                         ) : null}
                       </div>
                       {!isReadOnly && (
-                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
-                          <Plus size={18} className="text-[#0B5CAD]" />
+                        <button className="w-9 h-9 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE] shrink-0">
+                          <Plus size={16} className="text-[#0B5CAD]" />
                         </button>
                       )}
                     </div>
@@ -2041,16 +2136,19 @@ const CreatePurchaseOrder = () => {
               </>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   {hasOutletDropdownAccess && (
                     <div>
-                      <label className="text-sm text-[#475569] mb-1 block">
+                      <label className="text-xs font-medium text-[#475569] mb-1 block">
                         Outlet <span className="text-red-500">*</span>
                       </label>
                       <SearchableSelect
                         name="outletId"
                         value={selectedOutletId ? String(selectedOutletId) : ''}
-                        onChange={(e) => setSelectedOutletId(e.target.value)}
+                        onChange={(e) => {
+                          setSelectedOutletId(e.target.value);
+                          setSelectedSubOutletId('');
+                        }}
                         options={outlets.map((o) => ({
                           value: String(o.id),
                           label: `${o.name}${o.code ? ` (${o.code})` : ''}`,
@@ -2062,7 +2160,24 @@ const CreatePurchaseOrder = () => {
                   )}
 
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
+                      Location / Sub-Unit
+                    </label>
+                    <SearchableSelect
+                      name="subOutletId"
+                      value={selectedSubOutletId ? String(selectedSubOutletId) : ''}
+                      onChange={(e) => setSelectedSubOutletId(e.target.value)}
+                      options={subOutlets.map((s) => ({
+                        value: String(s.id),
+                        label: `${s.name || s.subOutletName || s.locationName || ''}${s.shortCode || s.code ? ` (${s.shortCode || s.code})` : ''}`,
+                      }))}
+                      placeholder={subOutletsLoading ? 'Loading locations...' : (!activeOutletId ? 'Select outlet first' : 'Select location (Optional)...')}
+                      disabled={subOutletsLoading || !activeOutletId || isReadOnly || isSwitchingVendor}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Vendor Name <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
@@ -2083,28 +2198,21 @@ const CreatePurchaseOrder = () => {
                         ) : null}
                       </div>
                       {!isReadOnly && (
-                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
-                          <Plus size={18} className="text-[#0B5CAD]" />
+                        <button className="w-9 h-9 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE] shrink-0">
+                          <Plus size={16} className="text-[#0B5CAD]" />
                         </button>
                       )}
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      PO Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={poDate || getTodayForDateInput()}
-                      disabled
-                      readOnly
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
+                  <Field
+                    label="PO Date"
+                    value={formatDisplayDate(poDate || poRecord?.date || getTodayForDateInput())}
+                    required
+                  />
 
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Expected Delivery Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2113,7 +2221,7 @@ const CreatePurchaseOrder = () => {
                       min={poDate || getTodayForDateInput()}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                       disabled={isReadOnly}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                      className="w-full h-9 rounded-lg border border-[#E2E8F0] px-2.5 text-xs sm:text-sm outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                     />
                   </div>
                 </div>
@@ -2325,33 +2433,31 @@ const CreatePurchaseOrder = () => {
           </div>
         )}
 
-        <div className="w-full my-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
+        <div className="w-full my-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm">
           {(isEditingExistingPo ? poSaving && !poRecord : prLoading) && (
             <div className="p-4 text-sm text-gray-500 bg-blue-50/50 border-b border-blue-100 flex items-center gap-2">
               <span className="inline-block w-4 h-4 border-2 border-[#084E92] border-t-transparent rounded-full animate-spin" />
               Loading purchase items...
             </div>
           )}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 border-b border-[#E2E8F0] bg-white">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#084E92] shrink-0">
-                <ClipboardList className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Purchase Items</h2>
-                <p className="text-xs text-gray-500">
-                  Select items, assign vendors, quantities, rates
-                </p>
-              </div>
+          <div className="px-6 py-4 border-b border-[#E2E8F0] bg-white space-y-3">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Purchase Items</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Select items, assign vendors, quantities, rates
+              </p>
             </div>
+
             {!isReadOnly && (
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="w-full sm:w-72 md:w-80">
-                  <RawMaterialItemPicker
-                    rawMaterials={rawMaterials}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
+                <div className="w-full max-w-lg">
+                  <RawMaterialSearchPicker
+                    items={rawMaterials}
                     alreadyAddedIds={alreadyAddedIds}
-                    onAdd={handleAddRawMaterialItem}
+                    onSelect={handleAddRawMaterialItem}
                     loading={rawMaterialsLoading}
+                    label={null}
+                    isSticky={false}
                   />
                   {itemPickError && (
                     <p className="text-xs text-red-500 mt-1.5">{itemPickError}</p>
@@ -2362,10 +2468,11 @@ const CreatePurchaseOrder = () => {
                   type="button"
                   disabled={selectedItemsForTransfer.length === 0}
                   onClick={() => setShowStockTransferModal(true)}
-                  className={`inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${selectedItemsForTransfer.length > 0
-                    ? 'bg-[#084E92] text-white hover:bg-blue-800 shadow-sm active:scale-[0.98]'
-                    : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
-                    }`}
+                  className={`inline-flex items-center justify-center gap-2 h-9.5 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 self-start sm:self-center ${
+                    selectedItemsForTransfer.length > 0
+                      ? 'bg-[#084E92] text-white hover:bg-blue-800 shadow-sm active:scale-[0.98]'
+                      : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
+                  }`}
                   title={
                     selectedItemsForTransfer.length === 0
                       ? 'Select at least one item from the table below to generate stock transfer'
@@ -2387,8 +2494,8 @@ const CreatePurchaseOrder = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-semibold tracking-wider text-[#475569] uppercase">
-                  <th className="py-3 px-2 w-8 text-center">
+                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] font-semibold tracking-wider text-[#475569] uppercase">
+                  <th className="py-2.5 px-1 w-7 text-center">
                     <input
                       type="checkbox"
                       disabled={isReadOnly}
@@ -2403,41 +2510,41 @@ const CreatePurchaseOrder = () => {
                           setRowSelection(next);
                         }
                       }}
-                      className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
+                      className="w-3.5 h-3.5 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
                     />
                   </th>
-                  <th className="py-3 px-2 text-left w-52">Item Description</th>
-                  <th className="py-3 px-2 text-left w-36">Unit</th>
-                  <th className="py-3 px-2 text-left w-52">Vendor Name</th>
-                  <th className="py-3 px-2 text-center w-16">Qty</th>
-                  <th className="py-3 px-2 text-right w-20">Rate (₹)</th>
-                  <th className="py-3 px-2 text-right w-16">Discount (%)</th>
+                  <th className="py-2.5 px-1.5 text-left w-32 min-w-[100px] max-w-[140px]">Item Description</th>
+                  <th className="py-2.5 px-1 text-left w-32 min-w-[125px]">Unit</th>
+                  <th className="py-2.5 px-1 text-left w-48 min-w-[180px]">Vendor Name</th>
+                  <th className="py-2.5 px-1 text-center w-14">Qty</th>
+                  <th className="py-2.5 px-1 text-right w-16">Rate (₹)</th>
+                  <th className="py-2.5 px-1 text-right w-14">Disc (%)</th>
                   {!isGeneratePo && isGstApplicable && (
                     <>
-                      <th className="py-3 px-2 text-center w-20">HSN/SAC</th>
-                      <th className="py-3 px-1 text-center w-14">GST (%)</th>
-                      <th className="py-3 px-1 text-center w-14">CESS (%)</th>
-                      <th className="py-3 px-2 text-right w-24">Amount w/o Tax (₹)</th>
-                      <th className="py-3 px-2 text-right w-20">Tax Applied (₹)</th>
-                      <th className="py-3 px-3 text-right w-28">Total Amount (₹)</th>
+                      <th className="py-2.5 px-1 text-center w-16">HSN</th>
+                      <th className="py-2.5 px-0.5 text-center w-12">GST (%)</th>
+                      <th className="py-2.5 px-0.5 text-center w-12">CESS (%)</th>
+                      <th className="py-2.5 px-1 text-right w-20">Taxable (₹)</th>
+                      <th className="py-2.5 px-1 text-right w-16">Tax (₹)</th>
+                      <th className="py-2.5 px-1.5 text-right w-20">Total (₹)</th>
                     </>
                   )}
                   {(isGeneratePo || !isGstApplicable) && (
-                    <th className="py-3 px-4 text-right w-auto min-w-[130px]">Amount (₹)</th>
+                    <th className="py-2.5 px-2 text-right w-24">Amount (₹)</th>
                   )}
-                  <th className="py-3 px-2 text-center w-12">Action</th>
+                  <th className="py-2.5 px-1 text-center w-9">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
+              <tbody className="divide-y divide-gray-100 text-xs">
                 {purchaseItems.length === 0 ? (
                   <tr>
-                    <td colSpan={(!isGeneratePo && isGstApplicable) ? 13 : 9} className="py-14 text-center">
+                    <td colSpan={(!isGeneratePo && isGstApplicable) ? 13 : 9} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-3">
-                          <Package className="w-6 h-6" />
+                        <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-2.5">
+                          <Package className="w-5 h-5" />
                         </div>
-                        <p className="text-sm font-semibold text-gray-800">No purchase items added</p>
-                        <p className="text-xs text-gray-400 mt-1">Search and select raw material items above to include them in this purchase order.</p>
+                        <p className="text-xs font-semibold text-gray-800">No purchase items added</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Search and select raw material items above to include them in this purchase order.</p>
                       </div>
                     </td>
                   </tr>
@@ -2464,28 +2571,28 @@ const CreatePurchaseOrder = () => {
 
                     return (
                       <tr key={item.rawMaterialId} className={`hover:bg-blue-50/20 transition-colors ${isSelected ? 'bg-blue-50/30' : ''}`}>
-                        <td className="py-2.5 px-2 text-center align-top pt-3.5 w-8">
+                        <td className="py-2 px-1 text-center align-top pt-2.5 w-7">
                           <input
                             type="checkbox"
                             disabled={isReadOnly}
                             checked={isSelected}
                             onChange={() => setRowSelection(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                            className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
+                            className="w-3.5 h-3.5 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
                           />
                         </td>
-                        <td className="py-2.5 px-2 align-top w-52">
+                        <td className="py-2 px-1.5 align-top w-32 min-w-[100px] max-w-[140px]">
                           <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="flex items-center gap-1 min-w-0">
                               <button
                                 type="button"
                                 onClick={() => openQuotationModal(item)}
                                 title="Click to compare vendor prices"
-                                className="text-[#084E92] font-semibold underline underline-offset-2 hover:text-[#063d73] cursor-pointer text-left inline-flex items-center gap-1 text-xs truncate max-w-[140px]"
+                                className="text-[#084E92] font-semibold underline underline-offset-2 hover:text-[#063d73] cursor-pointer text-left inline-flex items-center gap-1 text-xs truncate max-w-[110px]"
                               >
                                 <span className="truncate">{item.itemName}</span>
                               </button>
                               {item.source === 'manual' && (
-                                <span className="text-[9px] font-semibold uppercase tracking-wide text-[#0B5CAD] bg-[#EFF6FF] px-1.5 py-0.2 rounded shrink-0">
+                                <span className="text-[8px] font-semibold uppercase tracking-wide text-[#0B5CAD] bg-[#EFF6FF] px-1 py-0.2 rounded shrink-0">
                                   Added
                                 </span>
                               )}
@@ -2497,13 +2604,13 @@ const CreatePurchaseOrder = () => {
                                   className={`p-0.5 rounded hover:bg-blue-50 transition cursor-pointer shrink-0 ${itemRemarks ? 'text-[#084E92]' : 'text-gray-400 hover:text-gray-600'
                                     }`}
                                 >
-                                  <Pencil size={11} />
+                                  <Pencil size={10} />
                                 </button>
                               )}
                             </div>
 
                             {isRemarksOpen ? (
-                              <div className="mt-1">
+                              <div className="mt-0.5">
                                 <input
                                   type="text"
                                   autoFocus
@@ -2516,21 +2623,21 @@ const CreatePurchaseOrder = () => {
                                   }
                                   disabled={isReadOnly}
                                   placeholder="Remarks..."
-                                  className="w-full max-w-[200px] h-6 border border-[#CBD5E1] rounded px-1.5 text-[10px] text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
+                                  className="w-full max-w-[120px] h-5.5 border border-[#CBD5E1] rounded px-1 text-[10px] text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
                                 />
                               </div>
                             ) : itemRemarks ? (
                               <p
                                 onClick={() => !isReadOnly && toggleItemRemarks(item.rawMaterialId)}
                                 title="Click to edit remarks"
-                                className="text-[10px] text-gray-500 italic truncate max-w-[180px] cursor-pointer hover:text-gray-700"
+                                className="text-[10px] text-gray-500 italic truncate max-w-[120px] cursor-pointer hover:text-gray-700 mt-0.5"
                               >
                                 {itemRemarks}
                               </p>
                             ) : null}
                           </div>
                         </td>
-                        <td className="py-2.5 px-2 align-top pt-2.5 w-36">
+                        <td className="py-2 px-1 align-top pt-1.5 w-32 min-w-[125px]">
                           {(() => {
                             const currentUom = uomMap[item.rawMaterialId] || {
                               uomId: item.uomId,
@@ -2555,14 +2662,14 @@ const CreatePurchaseOrder = () => {
 
                             if (isReadOnly) {
                               return (
-                                <span className="inline-block bg-gray-100 px-1.5 py-0.5 rounded font-medium text-[11px] text-gray-700">
+                                <span className="inline-block bg-gray-100 px-1.5 py-0.5 rounded font-medium text-[10px] text-gray-700">
                                   {currentUom.uomName || '—'}
                                 </span>
                               );
                             }
 
                             return (
-                              <div className="min-w-[110px] max-w-[150px]">
+                              <div className="w-full min-w-[120px]">
                                 <SearchableSelect
                                   name={`unit-${item.rawMaterialId}`}
                                   value={currentUom.uomId ? String(currentUom.uomId) : ''}
@@ -2570,14 +2677,15 @@ const CreatePurchaseOrder = () => {
                                   options={options}
                                   placeholder="Select unit"
                                   disabled={isReadOnly}
+                                  isClearable={false}
                                   hasError={!currentUom.uomId || !currentUom.uomName}
                                 />
                               </div>
                             );
                           })()}
                         </td>
-                        <td className="py-2.5 px-2 align-top pt-3 w-52">
-                          <div className="relative">
+                        <td className="py-2 px-1 align-top pt-1.5 w-48 min-w-[180px]">
+                          <div className="relative w-full min-w-[175px]">
                             <SearchableSelect
                               name={`vendor-${item.rawMaterialId}`}
                               value={
@@ -2598,7 +2706,7 @@ const CreatePurchaseOrder = () => {
                             />
                           </div>
                         </td>
-                        <td className="py-2.5 px-2 text-center align-top pt-3 w-16">
+                        <td className="py-2 px-1 text-center align-top pt-1.5 w-14">
                           <input
                             type="number"
                             min="1"
@@ -2617,10 +2725,10 @@ const CreatePurchaseOrder = () => {
                               e.currentTarget.blur();
                             }}
                             placeholder="0"
-                            className="w-14 h-8 border border-[#E2E8F0] rounded-lg text-center font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:text-[#475467]"
+                            className="w-12 h-7.5 border border-[#E2E8F0] rounded-lg text-center font-bold text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:text-[#475467]"
                           />
                         </td>
-                        <td className="py-2.5 px-2 text-right align-top pt-3 w-20">
+                        <td className="py-2 px-1 text-right align-top pt-1.5 w-16">
                           <input
                             type="number"
                             min="0"
@@ -2640,10 +2748,10 @@ const CreatePurchaseOrder = () => {
                               e.currentTarget.blur();
                             }}
                             placeholder="0.00"
-                            className="w-18 h-8 border border-[#E2E8F0] rounded-lg text-right px-1.5 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                            className="w-14 h-7.5 border border-[#E2E8F0] rounded-lg text-right px-1 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                           />
                         </td>
-                        <td className="py-2.5 px-2 text-right align-top pt-3 w-16">
+                        <td className="py-2 px-1 text-right align-top pt-1.5 w-14">
                           <input
                             type="number"
                             min="0"
@@ -2665,12 +2773,12 @@ const CreatePurchaseOrder = () => {
                               e.currentTarget.blur();
                             }}
                             placeholder="0"
-                            className="w-14 h-8 border border-[#E2E8F0] rounded-lg text-right px-1.5 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                            className="w-12 h-7.5 border border-[#E2E8F0] rounded-lg text-right px-1 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                           />
                         </td>
                         {!isGeneratePo && isGstApplicable ? (
                           <>
-                            <td className="py-2.5 px-2 text-center align-top pt-3 w-20">
+                            <td className="py-2 px-1 text-center align-top pt-1.5 w-16">
                               <input
                                 type="text"
                                 value={hsnMap[item.rawMaterialId] ?? ''}
@@ -2682,10 +2790,10 @@ const CreatePurchaseOrder = () => {
                                 }
                                 disabled={isReadOnly}
                                 placeholder="HSN"
-                                className="w-18 h-8 border border-[#E2E8F0] rounded-lg px-1.5 text-center text-xs font-mono outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                                className="w-14 h-7.5 border border-[#E2E8F0] rounded-lg px-1 text-center text-xs font-mono outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                               />
                             </td>
-                            <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
+                            <td className="py-2 px-0.5 text-center align-top pt-1.5 w-12">
                               <input
                                 type="number"
                                 min="0"
@@ -2702,10 +2810,10 @@ const CreatePurchaseOrder = () => {
                                 onWheel={(e) => e.currentTarget.blur()}
                                 disabled={isReadOnly}
                                 placeholder="18"
-                                className="w-13 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                                className="w-10 h-7.5 border border-[#E2E8F0] rounded-lg text-center text-xs px-0.5 outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                               />
                             </td>
-                            <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
+                            <td className="py-2 px-0.5 text-center align-top pt-1.5 w-12">
                               <input
                                 type="number"
                                 min="0"
@@ -2722,33 +2830,33 @@ const CreatePurchaseOrder = () => {
                                 onWheel={(e) => e.currentTarget.blur()}
                                 disabled={isReadOnly}
                                 placeholder="0"
-                                className="w-12 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                                className="w-10 h-7.5 border border-[#E2E8F0] rounded-lg text-center text-xs px-0.5 outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                               />
                             </td>
-                            <td className="py-2.5 px-2 text-right font-medium text-xs text-gray-700 font-mono align-top pt-3.5 w-24 whitespace-nowrap">
+                            <td className="py-2 px-1 text-right font-medium text-xs text-gray-700 font-mono align-top pt-2 w-20 whitespace-nowrap">
                               ₹{calc.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
-                            <td className="py-2.5 px-2 text-right font-medium text-xs text-amber-700 font-mono align-top pt-3.5 w-20 whitespace-nowrap">
+                            <td className="py-2 px-1 text-right font-medium text-xs text-amber-700 font-mono align-top pt-2 w-16 whitespace-nowrap">
                               ₹{calc.itemTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-bold text-xs text-gray-900 font-mono align-top pt-3.5 w-28 whitespace-nowrap">
+                            <td className="py-2 px-1.5 text-right font-bold text-xs text-gray-900 font-mono align-top pt-2 w-20 whitespace-nowrap">
                               ₹{calc.itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                           </>
                         ) : (
-                          <td className="py-2.5 px-4 text-right font-bold text-xs text-gray-900 font-mono align-top pt-3.5 w-auto min-w-[130px] whitespace-nowrap">
+                          <td className="py-2 px-2 text-right font-bold text-xs text-gray-900 font-mono align-top pt-2 w-24 whitespace-nowrap">
                             ₹{calc.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         )}
-                        <td className="py-2.5 px-2 text-center align-top pt-3 w-12">
+                        <td className="py-2 px-1 text-center align-top pt-2 w-9">
                           {!isReadOnly && (
                             <button
                               type="button"
                               onClick={() => setItemToDelete(item)}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:!text-red-600 hover:!bg-red-50 transition-colors duration-150 cursor-pointer mx-auto group"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:!text-red-600 hover:!bg-red-50 transition-colors duration-150 cursor-pointer mx-auto group"
                               title="Remove from PO"
                             >
-                              <Trash2 size={15} className="text-gray-400 group-hover:!text-red-600 transition-colors duration-150" />
+                              <Trash2 size={13} className="text-gray-400 group-hover:!text-red-600 transition-colors duration-150" />
                             </button>
                           )}
                         </td>
