@@ -6,7 +6,7 @@ export const GuestOnly = () => {
   const token = localStorage.getItem('authToken') || localStorage.getItem('userToken');
 
   if (token && !isTokenExpired(token)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/companies" replace />;
   }
 
   if (token && isTokenExpired(token)) {

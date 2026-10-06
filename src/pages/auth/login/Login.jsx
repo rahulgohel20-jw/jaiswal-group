@@ -43,7 +43,7 @@ export default function LoginPage() {
     setUser(user);
 
     const next = searchParams.get('next');
-    navigate(next || '/dashboard', { replace: true });
+    navigate(next || '/companies', { replace: true });
   };
 
   const handleSubmit = async (e) => {

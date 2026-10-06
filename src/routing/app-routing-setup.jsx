@@ -227,7 +227,7 @@ export function AppRoutingSetup() {
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
           <Route path="/change-password" element={<ChangePasswordPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          {/* <Route path="/dashboard" element={<Dashboard />} /> */}
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
           <Route path='/my-profile' element={<UserProfile />} />
 
