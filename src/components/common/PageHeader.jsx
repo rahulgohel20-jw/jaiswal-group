@@ -65,7 +65,7 @@ export const PageHeader = ({
             </div>
 
             {description && (
-              <p className="text-[#667085] text-xs max-w-2xl mt-0.5 leading-normal">
+              <p className="text-[#667085] text-xs max-w-2xl mt-0.5 leading-normal break-words">
                 {description}
               </p>
             )}

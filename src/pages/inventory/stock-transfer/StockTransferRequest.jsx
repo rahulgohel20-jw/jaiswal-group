@@ -22,13 +22,16 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
+import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router';
 import {
   getAllRawMaterialItems,
   getAllSubOutlets,
+  getAllSubLocationsBySubOutletId,
   getOrganizationByType,
   saveTransfer,
   updateDraftTransfer,
+  updateTransfer,
   getTransferById,
   receiveTransfer,
   rejectTransfer,
@@ -53,6 +56,16 @@ import {
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import FifoBatchVisualizerModal from './FifoBatchVisualizerModal';
+
+const extractArray = (res) => {
+  if (!res) return [];
+  const raw = res?.data?.data ?? res?.data;
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.content)) return raw.content;
+  if (Array.isArray(res?.data?.content)) return res.data.content;
+  if (Array.isArray(res?.data)) return res.data;
+  return [];
+};
 
 const formatStatusLabel = (status) => {
   if (!status) return 'Draft';
@@ -100,6 +113,8 @@ const extractStockInfo = (item) => {
   const stockObj = item?.currentStock;
   let currentStock = 0;
   let unitName =
+    item?.currentStock?.unitName ||
+    item?.currentStock?.unitSymbol ||
     item?.unit?.nameEnglish ||
     item?.unit?.unitName ||
     item?.unitName ||
@@ -108,25 +123,24 @@ const extractStockInfo = (item) => {
     item?.measureUnit?.nameEnglish ||
     (typeof item?.unit === 'string' && item.unit !== 'Units' ? item.unit : '') ||
     'Units';
-  let unitId = item?.unitId ?? item?.unit?.id ?? item?.measureUnitId ?? item?.unitOfMeasurementId ?? 0;
+  let unitId =
+    item?.currentStock?.unitId ??
+    item?.unitId ??
+    item?.unit?.id ??
+    item?.measureUnitId ??
+    item?.unitOfMeasurementId ??
+    0;
 
   if (typeof stockObj === 'object' && stockObj !== null) {
     currentStock = Number(stockObj.currentStock ?? 0);
-    if ((!unitName || unitName === 'Units') && (stockObj.unitName || stockObj.unitSymbol)) {
-      unitName = stockObj.unitName || stockObj.unitSymbol;
-    }
-    if (unitId === 0 && stockObj.unitId != null) unitId = stockObj.unitId;
   } else if (typeof stockObj === 'number') {
     currentStock = stockObj;
+  } else if (item?.availableStock != null) {
+    currentStock = Number(item.availableStock);
+  } else if (item?.actualStock != null) {
+    currentStock = Number(item.actualStock);
   } else {
-    currentStock = Number(
-      item?.closingStock ??
-      item?.opbStock ??
-      item?.stock ??
-      item?.availableStock ??
-      item?.actualStock ??
-      0
-    );
+    currentStock = 0;
   }
 
   return { currentStock, unitName, unitId };
@@ -339,14 +353,40 @@ const StockTransferRequest = () => {
   const [transferId, setTransferId] = useState(transferIdParam ? Number(transferIdParam) : 0);
   const [fromOutlet, setFromOutlet] = useState('');
   const [fromSubOutlet, setFromSubOutlet] = useState('');
+  const [fromSubLocation, setFromSubLocation] = useState('');
+  const [fromSubLocations, setFromSubLocations] = useState([]);
+  const [fromSubLocationsLoading, setFromSubLocationsLoading] = useState(false);
+  const [fromSubLocationName, setFromSubLocationName] = useState('');
+
   const [toOutlet, setToOutlet] = useState('');
   const [toSubOutlet, setToSubOutlet] = useState('');
+  const [toSubLocation, setToSubLocation] = useState('');
+  const [toSubLocations, setToSubLocations] = useState([]);
+  const [toSubLocationsLoading, setToSubLocationsLoading] = useState(false);
+  const [toSubLocationName, setToSubLocationName] = useState('');
+
   const [status, setStatus] = useState('Draft');
   const [transferDate, setTransferDate] = useState(getCurrentDate());
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [driverName, setDriverName] = useState('');
   const [driverContact, setDriverContact] = useState('');
   const [remarks, setRemarks] = useState('');
+
+  // Batch selection is allowed until dispatch (Draft, Edit, and STR Approval / Dispatch before In-Transit)
+  const canSelectBatches = useMemo(() => {
+    if (isViewOnly || isReceiveMode || isDiscrepancyApprovalMode) return false;
+    const normalizedStatus = String(status || '').toUpperCase().replace(/[\s_-]/g, '');
+    const isPastDispatch =
+      normalizedStatus === 'INTRANSIT' ||
+      normalizedStatus === 'RECEIVED' ||
+      normalizedStatus === 'RECIEVED' ||
+      normalizedStatus === 'CLOSED' ||
+      normalizedStatus === 'PENDINGDISCREPANCYAPPROVAL' ||
+      normalizedStatus === 'DISCREPANCYPENDING' ||
+      normalizedStatus === 'DISCREPANCYRESOLVED' ||
+      normalizedStatus === 'REJECTED';
+    return !isPastDispatch;
+  }, [isViewOnly, isReceiveMode, isDiscrepancyApprovalMode, status]);
 
   // Table Items State
   const [manifestItems, setManifestItems] = useState([]);
@@ -387,6 +427,60 @@ const StockTransferRequest = () => {
   // Submission / Loading states
   const [loadingInitialData, setLoadingInitialData] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Fetch From Sub Locations when fromSubOutlet changes
+  useEffect(() => {
+    if (!fromSubOutlet) {
+      setFromSubLocations([]);
+      setFromSubLocation('');
+      return;
+    }
+    let isMounted = true;
+    setFromSubLocationsLoading(true);
+    getAllSubLocationsBySubOutletId(fromSubOutlet)
+      .then((res) => {
+        const list = extractArray(res);
+        if (isMounted) setFromSubLocations(list);
+      })
+      .catch((err) => {
+        console.warn('Failed to load fromSubLocations:', err);
+        if (isMounted) setFromSubLocations([]);
+      })
+      .finally(() => {
+        if (isMounted) setFromSubLocationsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [fromSubOutlet]);
+
+  // Fetch To Sub Locations when toSubOutlet changes
+  useEffect(() => {
+    if (!toSubOutlet) {
+      setToSubLocations([]);
+      setToSubLocation('');
+      return;
+    }
+    let isMounted = true;
+    setToSubLocationsLoading(true);
+    getAllSubLocationsBySubOutletId(toSubOutlet)
+      .then((res) => {
+        const list = extractArray(res);
+        if (isMounted) setToSubLocations(list);
+      })
+      .catch((err) => {
+        console.warn('Failed to load toSubLocations:', err);
+        if (isMounted) setToSubLocations([]);
+      })
+      .finally(() => {
+        if (isMounted) setToSubLocationsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [toSubOutlet]);
 
   // FIFO Visualizer & Batch Selection Modal State
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
@@ -480,17 +574,57 @@ const StockTransferRequest = () => {
     try {
       const res = await getAllRawMaterialItems(0, 0, true, '', '', '', targetOrg, targetSub);
       const responseData = res?.data?.data || res?.data || {};
-      const rawItems = responseData['Raw Material Details'] || (Array.isArray(responseData) ? responseData : []);
+      let rawItems = responseData['Raw Material Details'] || (Array.isArray(responseData) ? responseData : []);
+
+      if (targetOrg && rawItems.length > 0) {
+        try {
+          const params = {
+            itemIds: rawItems.map((r) => r.id),
+            itemType: 'RAW_MATERIAL',
+            organizationId: Number(targetOrg),
+          };
+          if (targetSub) {
+            params.subOutletId = Number(targetSub);
+          }
+          const stockRes = await getCurrentStockListGet(params);
+          const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
+          const stockList = Array.isArray(stockData)
+            ? stockData
+            : Array.isArray(stockData?.content)
+            ? stockData.content
+            : Array.isArray(stockData?.list)
+            ? stockData.list
+            : [];
+          if (stockList.length > 0) {
+            rawItems = rawItems.map((item) => {
+              const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
+              if (matched) {
+                return {
+                  ...item,
+                  currentStock: matched,
+                };
+              }
+              return item;
+            });
+          }
+        } catch (stockErr) {
+          console.error('Failed to fetch stock list in fetchAllItems:', stockErr);
+        }
+      }
 
       const mappedItems = rawItems.map((item) => {
         const { currentStock, unitName, unitId } = extractStockInfo(item);
         return {
           id: item.id,
-          itemName: item.nameEnglish || item.name,
+          itemName: item.nameEnglish || item.name || '',
+          nameEnglish: item.nameEnglish || item.name || '',
+          itemCode: item.itemCode || item.code || item.sku || '',
+          code: item.itemCode || item.code || item.sku || '',
           category: item.rawMaterialCat?.nameEnglish || item.rawMaterialCategoryName || '',
           unit: unitName,
           unitId: unitId,
           currentStock: currentStock,
+          price: item.supplierRate ?? item.unitRate ?? item.price ?? 0,
           originalData: item,
         };
       });
@@ -639,6 +773,8 @@ const StockTransferRequest = () => {
     } else {
       setFromOutlet(newFrom);
       setFromSubOutlet('');
+      setFromSubLocation('');
+      setFromSubLocationName('');
       if (newFrom) {
         handleSourceOrgChange(newFrom, '');
       } else {
@@ -662,6 +798,8 @@ const StockTransferRequest = () => {
       });
     } else {
       setFromSubOutlet(newSub);
+      setFromSubLocation('');
+      setFromSubLocationName('');
       if (parentOrg) {
         handleSourceOrgChange(parentOrg, newSub);
       }
@@ -675,15 +813,23 @@ const StockTransferRequest = () => {
       setSelectedCompany(targetCompanyId);
       setFromOutlet('');
       setFromSubOutlet('');
+      setFromSubLocation('');
+      setFromSubLocationName('');
       setToOutlet('');
       setToSubOutlet('');
+      setToSubLocation('');
+      setToSubLocationName('');
       setManifestItems([]);
       setItems([]);
     } else if (type === 'outlet') {
       setFromOutlet(targetOrgId);
       setFromSubOutlet('');
+      setFromSubLocation('');
+      setFromSubLocationName('');
     } else if (type === 'subOutlet') {
       setFromSubOutlet(targetSubOutletId);
+      setFromSubLocation('');
+      setFromSubLocationName('');
     }
     setPendingOrgChange(null);
     if (type !== 'company') {
@@ -743,6 +889,12 @@ const StockTransferRequest = () => {
             location.state?.fromSubOutletId ||
             ''
           );
+          const fromSubLoc = String(
+            data.fromSubLocationId ||
+            data.fromSubLocation?.id ||
+            location.state?.fromSubLocationId ||
+            ''
+          );
 
           if (fromOrg) {
             setFromOutlet(fromOrg);
@@ -769,10 +921,34 @@ const StockTransferRequest = () => {
             }
           }
           if (fromSub) setFromSubOutlet(fromSub);
+          if (fromSubLoc) setFromSubLocation(fromSubLoc);
+
+          setFromSubLocationName(
+            data.fromSubLocationName ||
+            data.fromSubLocation?.name ||
+            data.fromSubLocation?.locationName ||
+            ''
+          );
+
           if (data.toOrganizationId || data.toOutletId) {
             setToOutlet(String(data.toOrganizationId || data.toOutletId));
           }
           if (data.toSubOutletId) setToSubOutlet(String(data.toSubOutletId));
+          const toSubLoc = String(
+            data.toSubLocationId ||
+            data.toSubLocation?.id ||
+            location.state?.toSubLocationId ||
+            ''
+          );
+          if (toSubLoc) setToSubLocation(toSubLoc);
+
+          setToSubLocationName(
+            data.toSubLocationName ||
+            data.toSubLocation?.name ||
+            data.toSubLocation?.locationName ||
+            ''
+          );
+
           if (data.vehicleNumber) setVehicleNumber(data.vehicleNumber);
           if (data.driverName) setDriverName(data.driverName);
           if (data.driverContact) setDriverContact(data.driverContact);
@@ -1092,6 +1268,38 @@ const StockTransferRequest = () => {
       }));
   }, [subUnits, toOutlet]);
 
+  const fromSubLocationOptions = useMemo(() => {
+    const opts = fromSubLocations.map((loc) => ({
+      value: String(loc.id),
+      label: `${loc.subLocationName || loc.locationName || loc.name || `Sub Location #${loc.id}`}${
+        loc.locationType || loc.type ? ` (${loc.locationType || loc.type})` : ''
+      }`,
+    }));
+    if (fromSubLocation && !opts.some((o) => String(o.value) === String(fromSubLocation))) {
+      opts.unshift({
+        value: String(fromSubLocation),
+        label: fromSubLocationName || `Sub Location #${fromSubLocation}`,
+      });
+    }
+    return opts;
+  }, [fromSubLocations, fromSubLocation, fromSubLocationName]);
+
+  const toSubLocationOptions = useMemo(() => {
+    const opts = toSubLocations.map((loc) => ({
+      value: String(loc.id),
+      label: `${loc.subLocationName || loc.locationName || loc.name || `Sub Location #${loc.id}`}${
+        loc.locationType || loc.type ? ` (${loc.locationType || loc.type})` : ''
+      }`,
+    }));
+    if (toSubLocation && !opts.some((o) => String(o.value) === String(toSubLocation))) {
+      opts.unshift({
+        value: String(toSubLocation),
+        label: toSubLocationName || `Sub Location #${toSubLocation}`,
+      });
+    }
+    return opts;
+  }, [toSubLocations, toSubLocation, toSubLocationName]);
+
   const itemOptions = useMemo(
     () =>
       items
@@ -1361,8 +1569,10 @@ const StockTransferRequest = () => {
     const payload = {
       fromOrganizationId: Number(actualFromOutlet),
       fromSubOutletId: fromSubOutlet ? Number(fromSubOutlet) : null,
+      fromSubLocationId: fromSubLocation ? Number(fromSubLocation) : null,
       toOrganizationId: Number(toOutlet),
       toSubOutletId: toSubOutlet ? Number(toSubOutlet) : null,
+      toSubLocationId: toSubLocation ? Number(toSubLocation) : null,
       vehicleNumber: vehicleNumber.trim(),
       driverName: driverName.trim(),
       driverContact: driverContact.trim(),
@@ -1805,32 +2015,81 @@ const StockTransferRequest = () => {
                 </button>
               </div>
 
-              {/* Show selected batch information badge if batches are selected */}
-              {!isReceiveMode && batches.length > 0 && (
+              {/* Show selected batch information badge if batches are selected, or quick allocation button when batch selection is allowed */}
+              {!isReceiveMode && !isDiscrepancyApprovalMode && (
                 <div className="flex items-center gap-1 flex-wrap">
-                  {isFulfilled ? (
+                  {batches.length > 0 ? (
+                    isFulfilled ? (
+                      <button
+                        type="button"
+                        onClick={() => openBatchVisualizerForItem(row.original)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer shadow-2xs"
+                        title={`Selected Batches:\n${batches
+                          .map((b) => `${b.batchNumber || `#${b.sourceStockBatchId}`}: ${b.quantity} ${row.original.unit}${b.expiryDate ? ` (Exp: ${b.expiryDate})` : ''}`)
+                          .join('\n')}\nClick to edit batch allocation`}
+                      >
+                        <CheckCircle2 size={11} className="text-emerald-600 shrink-0" />
+                        <span>{batches.length} {batches.length === 1 ? 'Batch' : 'Batches'} ({totalBatchQty} {row.original.unit})</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openBatchVisualizerForItem(row.original)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition cursor-pointer shadow-2xs"
+                        title={`Partially allocated: ${totalBatchQty} / ${reqQty} ${row.original.unit}\nClick to complete allocation`}
+                      >
+                        <AlertTriangle size={11} className="text-amber-600 shrink-0" />
+                        <span>{batches.length} {batches.length === 1 ? 'Batch' : 'Batches'} ({totalBatchQty}/{reqQty} {row.original.unit})</span>
+                      </button>
+                    )
+                  ) : canSelectBatches ? (
                     <button
                       type="button"
                       onClick={() => openBatchVisualizerForItem(row.original)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer shadow-2xs"
-                      title={`Selected Batches:\n${batches
-                        .map((b) => `${b.batchNumber || `#${b.sourceStockBatchId}`}: ${b.quantity} ${row.original.unit}${b.expiryDate ? ` (Exp: ${b.expiryDate})` : ''}`)
-                        .join('\n')}\nClick to edit batch allocation`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-blue-50/80 text-[#084E92] border border-blue-200 hover:bg-blue-100 transition cursor-pointer shadow-2xs"
+                      title="Click to allocate / select batches from FIFO stock"
                     >
-                      <CheckCircle2 size={11} className="text-emerald-600 shrink-0" />
-                      <span>{batches.length} {batches.length === 1 ? 'Batch' : 'Batches'} ({totalBatchQty} {row.original.unit})</span>
+                      <Boxes size={11} className="text-[#084E92] shrink-0" />
+                      <span>Select Batches</span>
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => openBatchVisualizerForItem(row.original)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition cursor-pointer shadow-2xs"
-                      title={`Partially allocated: ${totalBatchQty} / ${reqQty} ${row.original.unit}\nClick to complete allocation`}
-                    >
-                      <AlertTriangle size={11} className="text-amber-600 shrink-0" />
-                      <span>{batches.length} {batches.length === 1 ? 'Batch' : 'Batches'} ({totalBatchQty}/{reqQty} {row.original.unit})</span>
-                    </button>
-                  )}
+                  ) : null}
+                </div>
+              )}
+
+              {/* Stacked batch cards for read / receive modes */}
+              {(isReceiveMode || isDiscrepancyApprovalMode) && batches.length > 0 && (
+                <div className="space-y-1.5 mt-1">
+                  {batches.map((b, bIdx) => {
+                    const bNum =
+                      b.batchNumber ||
+                      b.batchCode ||
+                      (b.sourceStockBatchId ? `Batch #${b.sourceStockBatchId}` : `Batch #${bIdx + 1}`);
+                    const bQty = b.quantity != null && b.quantity !== '' ? b.quantity : null;
+                    const bExp = b.expiryDate ? b.expiryDate : '';
+                    return (
+                      <div
+                        key={b.id || b.sourceStockBatchId || bIdx}
+                        className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-[#F0F7FF] border border-[#D9ECFF] text-xs shadow-2xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Boxes size={13} className="text-[#084E92] shrink-0" />
+                          <span className="font-semibold text-[#084E92] font-mono truncate">
+                            {bNum}
+                          </span>
+                          {bQty != null && (
+                            <span className="font-bold text-[#084E92] shrink-0">
+                              ({bQty} {row.original.unit})
+                            </span>
+                          )}
+                        </div>
+                        {bExp && (
+                          <span className="text-[11px] text-gray-500 font-medium shrink-0 ml-2 whitespace-nowrap">
+                            · Exp: {bExp}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
@@ -2126,6 +2385,7 @@ const StockTransferRequest = () => {
     handleRemoveItem,
     openRemarkRowIds,
     toggleRemarkInput,
+    canSelectBatches,
   ]);
 
   const table = useReactTable({
@@ -2174,7 +2434,7 @@ const StockTransferRequest = () => {
           title={getPageTitle()}
           description={
             isDiscrepancyApprovalMode
-              ? 'Review short quantity discrepancies and decide stock resolution (Source Stock, Destination Stock, or Miscellaneous Shortage).'
+              ? 'Review short quantity discrepancies and decide stock resolution.'
               : isReceiveMode
               ? 'Review quantities, verify incoming stock batches, and accept or reject the transfer.'
               : isDispatchMode
@@ -2212,39 +2472,37 @@ const StockTransferRequest = () => {
           <>
             {/* Header Form Card */}
             <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-sm space-y-5">
-              {/* Row 1: Outlets */}
-              <div
-                className={`grid grid-cols-1 sm:grid-cols-2 ${
-                  isGroupUser
-                    ? 'lg:grid-cols-3 xl:grid-cols-5'
-                    : isOutletUser
-                    ? 'lg:grid-cols-3'
-                    : 'lg:grid-cols-4'
-                } gap-4`}
-              >
-                {/* Company: only rendered for Group users */}
-                {isGroupUser && (
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700">
-                      Company <span className="text-red-500">*</span>
-                    </label>
-                    <SearchableSelect
-                      className="mt-1.5"
-                      options={companyOptions}
-                      value={selectedCompany}
-                      onChange={(e) => handleCompanyChange(e.target.value)}
-                      disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || companiesLoading}
-                      placeholder={companiesLoading ? 'Loading companies...' : 'Select company'}
-                    />
-                  </div>
-                )}
+              {/* Row 0: Company for Group Users */}
+              {isGroupUser && (
+                <div className="max-w-sm pb-1">
+                  <label className="text-xs font-semibold text-gray-700">
+                    Company <span className="text-red-500">*</span>
+                  </label>
+                  <SearchableSelect
+                    className="mt-1.5"
+                    options={companyOptions}
+                    value={selectedCompany}
+                    onChange={(e) => handleCompanyChange(e.target.value)}
+                    disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || companiesLoading}
+                    placeholder={companiesLoading ? 'Loading companies...' : 'Select company'}
+                  />
+                </div>
+              )}
 
-                {/* From Outlet: only rendered for non-outlet users */}
-                {!isOutletUser && (
-                  <div>
-                    <label className="text-xs font-semibold text-gray-700">
-                      From Outlet <span className="text-red-500">*</span>
-                    </label>
+              {/* Row 1 & 2: Outlets & Locations (3 Columns per Row) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                {/* From Outlet */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-700">
+                    From Outlet {!isOutletUser && <span className="text-red-500">*</span>}
+                  </label>
+                  {isOutletUser ? (
+                    <div className="h-10 mt-1.5 px-3.5 flex items-center rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700">
+                      {scopedUnits?.find((u) => String(u.id) === String(effectiveOutletId))?.name ||
+                        units?.find((u) => String(u.id) === String(effectiveOutletId))?.name ||
+                        'Current Outlet'}
+                    </div>
+                  ) : (
                     <SearchableSelect
                       className="mt-1.5"
                       options={outletOptions}
@@ -2259,12 +2517,13 @@ const StockTransferRequest = () => {
                           : 'Select outlet'
                       }
                     />
-                  </div>
-                )}
+                  )}
+                </div>
 
+                {/* From Sub-Unit / Location */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    From Sub-Outlet <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
+                    From Sub-Unit / Location <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
                   </label>
                   <SearchableSelect
                     className="mt-1.5"
@@ -2276,12 +2535,36 @@ const StockTransferRequest = () => {
                       !isOutletUser && !fromOutlet
                         ? 'Select outlet first'
                         : subUnitsLoading
-                        ? 'Loading sub outlets...'
-                        : 'Select sub-outlet'
+                        ? 'Loading sub-units...'
+                        : 'Select sub-unit'
                     }
                   />
                 </div>
 
+                {/* From Sub-Location */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-700">
+                    From Sub-Location <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
+                  </label>
+                  <SearchableSelect
+                    className="mt-1.5"
+                    options={fromSubLocationOptions}
+                    value={fromSubLocation}
+                    onChange={(e) => setFromSubLocation(e.target.value)}
+                    disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || !fromSubOutlet || fromSubLocationsLoading}
+                    placeholder={
+                      !fromSubOutlet
+                        ? 'Select sub-unit first'
+                        : fromSubLocationsLoading
+                        ? 'Loading sub-locations...'
+                        : fromSubLocations.length === 0
+                        ? 'None available'
+                        : 'Select sub-location'
+                    }
+                  />
+                </div>
+
+                {/* To Outlet */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
                     To Outlet <span className="text-red-500">*</span>
@@ -2293,6 +2576,8 @@ const StockTransferRequest = () => {
                     onChange={(e) => {
                       setToOutlet(e.target.value);
                       setToSubOutlet('');
+                      setToSubLocation('');
+                      setToSubLocationName('');
                     }}
                     disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || (isGroupUser && !selectedCompany)}
                     placeholder={
@@ -2305,22 +2590,50 @@ const StockTransferRequest = () => {
                   />
                 </div>
 
+                {/* To Sub-Unit / Location */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    To Sub-Outlet <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
+                    To Sub-Unit / Location <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
                   </label>
                   <SearchableSelect
                     className="mt-1.5"
                     options={toSubOutletOptions}
                     value={toSubOutlet}
-                    onChange={(e) => setToSubOutlet(e.target.value)}
+                    onChange={(e) => {
+                      setToSubOutlet(e.target.value);
+                      setToSubLocation('');
+                      setToSubLocationName('');
+                    }}
                     disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || !toOutlet || subUnitsLoading}
                     placeholder={
                       !toOutlet
                         ? 'Select outlet first'
                         : subUnitsLoading
-                        ? 'Loading sub outlets...'
-                        : 'Select sub-outlet'
+                        ? 'Loading sub-units...'
+                        : 'Select sub-unit'
+                    }
+                  />
+                </div>
+
+                {/* To Sub-Location */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-700">
+                    To Sub-Location <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
+                  </label>
+                  <SearchableSelect
+                    className="mt-1.5"
+                    options={toSubLocationOptions}
+                    value={toSubLocation}
+                    onChange={(e) => setToSubLocation(e.target.value)}
+                    disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || !toSubOutlet || toSubLocationsLoading}
+                    placeholder={
+                      !toSubOutlet
+                        ? 'Select sub-unit first'
+                        : toSubLocationsLoading
+                        ? 'Loading sub-locations...'
+                        : toSubLocations.length === 0
+                        ? 'None available'
+                        : 'Select sub-location'
                     }
                   />
                 </div>
@@ -2389,13 +2702,12 @@ const StockTransferRequest = () => {
             {/* Item Selection Card (Visible in Create and Edit modes) */}
             {!isReceiveMode && !isDispatchMode && !isDiscrepancyApprovalMode && (
               <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm">
-                <label className="text-xs font-semibold text-gray-700">Add Raw Material Item</label>
-                <div className="flex flex-col sm:flex-row items-center gap-3 mt-1.5">
-                  <SearchableSelect
-                    className="w-full flex-1"
-                    options={itemOptions}
-                    value={itemSelectValue}
-                    onChange={handleItemSelectChange}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <RawMaterialSearchPicker
+                    items={items}
+                    alreadyAddedIds={manifestItems.map((r) => r.itemId)}
+                    onSelect={handleAddItem}
+                    loading={itemsLoading}
                     disabled={itemsLoading || (!isOutletUser && !fromOutlet) || (isGroupUser && !selectedCompany)}
                     placeholder={
                       isGroupUser && !selectedCompany
@@ -2404,11 +2716,13 @@ const StockTransferRequest = () => {
                         ? 'Please select From Outlet first...'
                         : itemsLoading
                         ? 'Loading items...'
-                        : 'Search & select item to transfer... e.g., Basmati Rice 25kg, Pure Ghee 15L'
+                        : 'Search & select item to transfer by name or code...'
                     }
+                    label="Add Raw Material Item"
+                    isSticky={false}
                   />
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 sm:self-end pb-1.5">
                     <span className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#E2E8F0] text-xs text-[#084E92] font-semibold bg-[#EEF4FE]">
                       <Boxes size={14} />
                       Items Added: {manifestItems.length} {manifestItems.length === 1 ? 'item' : 'items'}
@@ -2447,9 +2761,7 @@ const StockTransferRequest = () => {
                 <Card className="rounded-none border-0 shadow-none">
                   <CardTable>
                     <ScrollArea className="max-h-[60vh] w-full">
-                      <div className="min-w-[1400px]">
-                        <DataGridTable />
-                      </div>
+                      <DataGridTable />
                       <ScrollBar orientation="horizontal" />
                     </ScrollArea>
                   </CardTable>
@@ -2659,16 +2971,18 @@ const StockTransferRequest = () => {
             unitId={selectedVisualizerItem.unitId ? Number(selectedVisualizerItem.unitId) : undefined}
             fromOrganizationId={selectedVisualizerItem.fromOrganizationId || (fromOutlet ? Number(fromOutlet) : undefined)}
             fromSubOutletId={selectedVisualizerItem.fromSubOutletId || (fromSubOutlet ? Number(fromSubOutlet) : undefined)}
+            fromSubLocationId={selectedVisualizerItem.fromSubLocationId || (fromSubLocation ? Number(fromSubLocation) : undefined)}
             toOrganizationId={selectedVisualizerItem.toOrganizationId || (toOutlet ? Number(toOutlet) : undefined)}
             toSubOutletId={selectedVisualizerItem.toSubOutletId || (toSubOutlet ? Number(toSubOutlet) : undefined)}
+            toSubLocationId={selectedVisualizerItem.toSubLocationId || (toSubLocation ? Number(toSubLocation) : undefined)}
             itemName={selectedVisualizerItem.itemName}
             fromOutletName={selectedVisualizerItem.fromOutletName}
             toOutletName={selectedVisualizerItem.toOutletName}
             transferQty={selectedVisualizerItem.transferQty !== '' && selectedVisualizerItem.transferQty != null ? Number(selectedVisualizerItem.transferQty) : selectedVisualizerItem.orderQty != null ? Number(selectedVisualizerItem.orderQty) : 0}
             unit={selectedVisualizerItem.unit || 'kg'}
-            viewOnly={isDiscrepancyApprovalMode || isReceiveMode || isViewOnly}
-            isSelectionMode={!isReceiveMode && !isDiscrepancyApprovalMode && !isViewOnly && status !== 'In Transit' && status !== 'IN_TRANSIT' && status !== 'Approved' && status !== 'APPROVED' && status !== 'Received' && status !== 'RECEIVED' && status !== 'Closed' && status !== 'CLOSED' && status !== 'PENDING_DISCREPANCY_APPROVAL' && status !== 'DISCREPANCY_PENDING'}
-            onSaveBatches={!isReceiveMode && !isDiscrepancyApprovalMode && !isViewOnly && status !== 'In Transit' && status !== 'IN_TRANSIT' && status !== 'Approved' && status !== 'APPROVED' && status !== 'Received' && status !== 'RECEIVED' && status !== 'Closed' && status !== 'CLOSED' && status !== 'PENDING_DISCREPANCY_APPROVAL' && status !== 'DISCREPANCY_PENDING' ? handleSaveItemBatches : undefined}
+            viewOnly={!canSelectBatches}
+            isSelectionMode={canSelectBatches}
+            onSaveBatches={canSelectBatches ? handleSaveItemBatches : undefined}
           />
         )}
       </div>

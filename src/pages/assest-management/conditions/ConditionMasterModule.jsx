@@ -247,7 +247,8 @@ const ConditionMasterModule = () => {
           {row.original.srNo}
         </span>
       ),
-      size: 50,
+      enableSorting: false,
+      size: 36,
     },
 
     {
@@ -265,6 +266,8 @@ const ConditionMasterModule = () => {
           color={row.original.color}
         />
       ),
+      enableSorting: false,
+      size: 200,
     },
 
     {
@@ -279,6 +282,8 @@ const ConditionMasterModule = () => {
       cell: ({ row }) => (
         <StatusBadge status={row.original.status} />
       ),
+      enableSorting: false,
+      size: 80,
     },
 
     {
@@ -292,7 +297,7 @@ const ConditionMasterModule = () => {
       ),
 
       cell: ({ row }) => (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 whitespace-nowrap">
           <Eye
             size={18}
             className="text-gray-500 hover:text-green-600 cursor-pointer"
@@ -325,6 +330,7 @@ const ConditionMasterModule = () => {
       ),
 
       enableSorting: false,
+      size: 80,
     },
   ], [canEdit, canDelete, deletingId]);
 
@@ -456,13 +462,21 @@ const ConditionMasterModule = () => {
               Loading conditions...
             </div>
           ) : (
-            <DataGrid table={table} recordCount={filteredConditions.length} className="rounded-2xl">
+            <DataGrid
+              table={table}
+              recordCount={filteredConditions.length}
+              className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
+            >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                   <DataGridPagination />

@@ -27,7 +27,6 @@
   import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
   import { DataGridPagination } from '@/components/ui/data-grid-pagination';
   import { DataGridTable } from '@/components/ui/data-grid-table';
-  import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
   import SearchableSelect from '@/utils/searchableSelect';
   import { getPurchaseRequisitionsByOutlet, deletePurchaseRequisition } from '@/services/apiServices';
   import { useOrgScope } from '@/hooks/useOrgScope';
@@ -63,7 +62,8 @@ import {
 
   const StatusBadge = ({ status }) => (
     <span
-      className={`font-semibold text-xs whitespace-nowrap ${
+      title={status || '—'}
+      className={`font-semibold text-xs truncate block max-w-full ${
         STATUS_TEXT_COLORS[status] || 'text-gray-600'
       }`}
     >
@@ -137,6 +137,8 @@ import {
     requiredDate: pr.prRequiredDate,
     outlet: pr.outletName ?? '',
     outletId: pr.outletId,
+    subOutletId: pr.subOutletId,
+    subOutletName: pr.subOutletName ?? pr.locationName ?? '',
     status: getStatusLabel(pr.status),
     rawStatus: pr.status,
     remarks: pr.remarks ?? '',
@@ -283,6 +285,7 @@ import {
           (r) =>
             r.prCode.toLowerCase().includes(q) ||
             r.outlet.toLowerCase().includes(q) ||
+            (r.subOutletName || '').toLowerCase().includes(q) ||
             (r.raisedBy || '').toLowerCase().includes(q) ||
             (r.createdByName || '').toLowerCase().includes(q),
         );
@@ -317,8 +320,7 @@ import {
             <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
           ),
           enableSorting: false,
-          size: 70,
-          minSize: 60,
+          size: 36,
         },
         {
           id: 'prCode',
@@ -327,10 +329,10 @@ import {
             <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => (
-            <CodeCell code={row.original.prCode} maxWidth="max-w-[190px]" />
+            <CodeCell code={row.original.prCode} maxWidth="max-w-[130px]" />
           ),
-          size: 195,
-          minSize: 180,
+          enableSorting: false,
+          size: 130,
         },
         {
           id: 'date',
@@ -338,19 +340,21 @@ import {
           header: ({ column }) => (
             <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
           ),
-          cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
-          size: 130,
+          cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[80px]" />,
+          enableSorting: false,
+          size: 75,
         },
         {
           id: 'requiredDate',
           accessorFn: (row) => row.requiredDate,
           header: ({ column }) => (
-            <DataGridColumnHeader title="REQUIRED DATE" column={column} className="my-2 text-xs" />
+            <DataGridColumnHeader title="REQ. DATE" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => (
-            <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[130px]" />
+            <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[85px]" />
           ),
-          size: 140,
+          enableSorting: false,
+          size: 85,
         },
         {
           id: 'outlet',
@@ -358,8 +362,19 @@ import {
           header: ({ column }) => (
             <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
           ),
-          cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
-          size: 190,
+          cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
+          enableSorting: false,
+          size: 140,
+        },
+        {
+          id: 'subOutletName',
+          accessorFn: (row) => row.subOutletName,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-[120px]" />,
+          enableSorting: false,
+          size: 120,
         },
         {
           id: 'raisedBy',
@@ -369,9 +384,10 @@ import {
           ),
           cell: ({ row }) => {
             const name = row.original.raisedBy || row.original.createdByName;
-            return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+            return <TruncatedCell value={name || '—'} widthClass="max-w-[110px]" />;
           },
-          size: 150,
+          enableSorting: false,
+          size: 110,
         },
         {
           id: 'status',
@@ -380,7 +396,8 @@ import {
             <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => <StatusBadge status={row.original.status} />,
-          size: 160,
+          enableSorting: false,
+          size: 80,
         },
         {
           id: 'action',
@@ -434,7 +451,7 @@ import {
             );
           },
           enableSorting: false,
-          size: 120,
+          size: 80,
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -505,6 +522,7 @@ import {
                 recordCount={filteredRows.length}
                 className="rounded-2xl"
                 tableLayout={{
+                  dense: true,
                   width: 'fixed',
                   cellBorder: true,
                   headerBorder: true,
@@ -512,11 +530,8 @@ import {
                 }}
               >
                 <Card className="rounded-t-none border-t-0 rounded-2xl">
-                  <CardTable>
-                    <ScrollArea>
-                      <DataGridTable />
-                      <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
+                  <CardTable className="w-full overflow-x-hidden">
+                    <DataGridTable />
                   </CardTable>
                   <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                     <DataGridPagination />

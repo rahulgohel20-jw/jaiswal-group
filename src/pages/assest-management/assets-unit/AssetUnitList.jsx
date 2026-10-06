@@ -216,7 +216,7 @@ const AssetUnitList = () => {
                 <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 70,
+            size: 36,
         },
         {
             id: "name",
@@ -225,9 +225,10 @@ const AssetUnitList = () => {
                 <DataGridColumnHeader title="UNIT NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-[#084E92] py-2">{row.original.name}</div>
+                <div className="font-semibold text-gray-900 py-2 truncate block">{row.original.name}</div>
             ),
-            size: 200,
+            enableSorting: false,
+            size: 180,
         },
         {
             id: "symbol",
@@ -235,8 +236,9 @@ const AssetUnitList = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="SYMBOL" column={column} className="text-[#43474F] font-semibold" />
             ),
-            cell: ({ row }) => <span className="text-gray-600">{row.original.symbol}</span>,
-            size: 160,
+            cell: ({ row }) => <span className="text-gray-600 truncate block">{row.original.symbol}</span>,
+            enableSorting: false,
+            size: 120,
         },
         {
             id: "status",
@@ -245,7 +247,8 @@ const AssetUnitList = () => {
                 <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
-            size: 120,
+            enableSorting: false,
+            size: 80,
         },
         {
             id: "actions",
@@ -253,7 +256,7 @@ const AssetUnitList = () => {
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
-                <div className="flex items-center gap-3 py-1">
+                <div className="flex items-center gap-3 py-1 whitespace-nowrap">
                     <button type="button" onClick={() => handleViewClick(row.original)} title="View Unit">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
@@ -270,7 +273,7 @@ const AssetUnitList = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 110,
+            size: 80,
         },
     ], [canEdit, canDelete]);
 
@@ -355,13 +358,21 @@ const AssetUnitList = () => {
                 {loading ? (
                     <div className="p-10 text-center text-sm text-gray-500">Loading units...</div>
                 ) : (
-                    <DataGrid table={table} recordCount={filteredUnits.length} className="rounded-2xl">
+                    <DataGrid
+                        table={table}
+                        recordCount={filteredUnits.length}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
+                            <CardTable className="w-full overflow-x-hidden">
+                                <DataGridTable />
                             </CardTable>
                             <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                                 <DataGridPagination />

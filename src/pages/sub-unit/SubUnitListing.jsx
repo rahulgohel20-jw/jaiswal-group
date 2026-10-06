@@ -8,6 +8,7 @@ import {
   Filter,
   Loader2,
   ChevronRight,
+  MapPin,
 } from "lucide-react";
 import {
   getCoreRowModel,
@@ -45,6 +46,16 @@ import {
 } from '@/components/ui/select';
 import { OrgTypes } from "../../constants/orgTypes";
 import SearchableSelect from "../../utils/SearchableSelect";
+
+const extractArray = (res) => {
+  if (!res) return [];
+  const raw = res?.data?.data ?? res?.data;
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.content)) return raw.content;
+  if (Array.isArray(res?.data?.content)) return res.data.content;
+  if (Array.isArray(res?.data)) return res.data;
+  return [];
+};
 
 /* -----------------------------------------------------------------------
  * Status badge — rounded-full pill style matching PurchaseRequisitionList
@@ -86,9 +97,37 @@ const STATUS_OPTIONS = [
   { value: "inactive", label: "Inactive" },
 ];
 
+const TYPE_OPTIONS = [
+  { value: "all", label: "All Types" },
+  { value: "LOCATION", label: "LOCATION" },
+  { value: "KITCHEN", label: "KITCHEN" },
+  { value: "STORE", label: "STORE" },
+];
+
+function TypeDropdown({ value, onChange }) {
+  return (
+    <div className="relative min-w-[150px]">
+      <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-10 w-full pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]">
+          <SelectValue placeholder="All Types" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {TYPE_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function StatusDropdown({ value, onChange }) {
   return (
-    <div className="relative min-w-[190px]">
+    <div className="relative min-w-[160px]">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="h-10 w-full pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]">
@@ -113,6 +152,7 @@ const SubUnitListing = () => {
   const [subUnits, setSubUnits] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -128,14 +168,8 @@ const SubUnitListing = () => {
     const fetchUnits = async () => {
       try {
         const res = await getOrganizationByType(OrgTypes.OUTLET);
-
-        const list =
-          res?.data?.data ||
-          res?.data?.content ||
-          res?.data ||
-          [];
-
-        setUnits(Array.isArray(list) ? list : []);
+        const list = extractArray(res);
+        setUnits(list);
       } catch (error) {
         console.error("Failed to load units:", error);
       }
@@ -148,6 +182,7 @@ const SubUnitListing = () => {
     id: item.id,
     name: item.subOutletName || "",
     code: item.subOutletCode || "",
+    type: item.subOutletType || item.type || item.locationType || "LOCATION",
     location: item.cityName || "",
     email: item.email || "",
     mobile: item.contactNumber || "",
@@ -163,13 +198,8 @@ const SubUnitListing = () => {
 
     try {
       const res = await getAllSubOutlets();
-      const list =
-        res?.data?.data ||
-        res?.data?.content ||
-        res?.data ||
-        [];
-      const subUnitList = Array.isArray(list) ? list : [];
-      setSubUnits(subUnitList.map(normalizeSubUnit));
+      const list = extractArray(res);
+      setSubUnits(list.map(normalizeSubUnit));
     } catch (err) {
       console.error(err);
       setError("Failed to load sub units.");
@@ -246,6 +276,7 @@ const SubUnitListing = () => {
         const matchSearch =
           (item.name || "").toLowerCase().includes(searchText) ||
           (item.code || "").toLowerCase().includes(searchText) ||
+          (item.type || "").toLowerCase().includes(searchText) ||
           (item.location || "").toLowerCase().includes(searchText) ||
           (item.mobile || "").toLowerCase().includes(searchText) ||
           (item.contactPerson || "").toLowerCase().includes(searchText) ||
@@ -254,17 +285,20 @@ const SubUnitListing = () => {
         const matchStatus =
           statusFilter === "all" || item.status === statusFilter;
 
+        const matchType =
+          typeFilter === "all" || item.type === typeFilter;
+
         const matchUnit =
           !unitFilter ||
           String(item.organizationId) === String(unitFilter);
 
-        return matchSearch && matchStatus && matchUnit;
+        return matchSearch && matchStatus && matchType && matchUnit;
       }),
-    [subUnits, search, statusFilter, unitFilter],
+    [subUnits, search, statusFilter, typeFilter, unitFilter],
   );
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [search, statusFilter, unitFilter]);
+  }, [search, statusFilter, typeFilter, unitFilter]);
 
   const columns = useMemo(
     () => [
@@ -274,11 +308,10 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 36,
       },
       {
         id: "name",
@@ -289,11 +322,26 @@ const SubUnitListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[200px]"
-            className="font-semibold text-[#084E92]"
+            widthClass="max-w-[140px]"
+            className="font-semibold text-[#084E92] text-xs"
           />
         ),
-        size: 210,
+        enableSorting: false,
+        size: 150,
+      },
+      {
+        id: "type",
+        accessorFn: (row) => row.type,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="TYPE" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-xs font-semibold text-gray-700 uppercase whitespace-nowrap">
+            {row.original.type || "—"}
+          </span>
+        ),
+        enableSorting: false,
+        size: 85,
       },
       {
         id: "location",
@@ -302,9 +350,10 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.location} widthClass="max-w-[140px]" />
+          <TruncatedCell value={row.original.location} widthClass="max-w-[100px]" className="text-xs text-gray-700" />
         ),
-        size: 150,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: "contactPerson",
@@ -313,20 +362,10 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="CONTACT PERSON" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.contactPerson} widthClass="max-w-[150px]" />
+          <TruncatedCell value={row.original.contactPerson} widthClass="max-w-[110px]" className="text-xs text-gray-700" />
         ),
-        size: 160,
-      },
-      {
-        id: "mobile",
-        accessorFn: (row) => row.mobile,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="CONTACT NUMBER" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => (
-          <TruncatedCell value={row.original.mobile} widthClass="max-w-[140px]" />
-        ),
-        size: 150,
+        enableSorting: false,
+        size: 120,
       },
       {
         id: "email",
@@ -335,9 +374,10 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="EMAIL" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.email} widthClass="max-w-[180px]" />
+          <TruncatedCell value={row.original.email} widthClass="max-w-[120px]" className="text-xs text-gray-700" />
         ),
-        size: 190,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: "status",
@@ -345,8 +385,13 @@ const SubUnitListing = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 120,
+        cell: ({ row }) => (
+          <div className="whitespace-nowrap pr-1">
+            <StatusBadge status={row.original.status} />
+          </div>
+        ),
+        enableSorting: false,
+        size: 75,
       },
       {
         id: "actions",
@@ -354,39 +399,55 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-2 whitespace-nowrap">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() =>
+                navigate('/sub-locations', {
+                  state: {
+                    subOutletId: row.original.id,
+                    subOutletName: row.original.name,
+                    organizationId: row.original.organizationId,
+                  },
+                })
+              }
+              className="p-1 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+              title="View Sub Locations"
+            >
+              <MapPin size={15} />
+            </button>
             <button
               type="button"
               onClick={() => handleViewClick(row.original)}
-              className="text-gray-500 hover:text-green-600 cursor-pointer"
+              className="p-1 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition cursor-pointer"
               title="View sub unit"
             >
-              <Eye size={18} />
+              <Eye size={15} />
             </button>
             {canEdit && (
               <button
                 type="button"
                 onClick={() => handleEdit(row.original)}
-                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                className="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
                 title="Update sub unit"
               >
-                <SquarePen size={18} />
+                <SquarePen size={15} />
               </button>
             )}
             {canDelete && (
               <button
                 type="button"
                 onClick={() => openDeleteConfirm(row.original)}
-                className="text-red-300 hover:text-red-600 cursor-pointer"
+                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
                 title="Delete sub unit"
               >
-                <Trash2 size={18} />
+                <Trash2 size={15} />
               </button>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 110,
+        size: 100,
       },
     ],
     [canEdit, canDelete],
@@ -424,7 +485,7 @@ const SubUnitListing = () => {
           onRetry={fetchSubUnits}
         />
 
-        {/* Search + Unit + Status filter */}
+        {/* Search + Unit + Type + Status filter */}
         <div className="flex items-center gap-3 flex-wrap">
           {/* Search */}
           <div className="flex-1 min-w-55">
@@ -452,8 +513,16 @@ const SubUnitListing = () => {
             />
           </div>
 
+          {/* Type Filter */}
+          <div className="w-40 shrink-0">
+            <TypeDropdown
+              value={typeFilter}
+              onChange={setTypeFilter}
+            />
+          </div>
+
           {/* Status Filter */}
-          <div className="w-47.5 shrink-0">
+          <div className="w-40 shrink-0">
             <StatusDropdown
               value={statusFilter}
               onChange={setStatusFilter}
@@ -472,13 +541,17 @@ const SubUnitListing = () => {
               table={table}
               recordCount={filteredSubUnits.length}
               className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                   <DataGridPagination />

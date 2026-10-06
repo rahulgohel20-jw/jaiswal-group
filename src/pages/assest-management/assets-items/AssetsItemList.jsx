@@ -325,7 +325,7 @@ const AssetItemsList = () => {
 
         {/* Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 text-left text-xs uppercase text-gray-500 border-b">

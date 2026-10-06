@@ -212,26 +212,30 @@ const PageMaster = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => openViewModal(row.original)}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100 transition cursor-pointer"
               aria-label={`View ${row.original.name}`}
               title="View Details"
             >
-              <Eye size={14} />
+              <Eye
+                size={18}
+                className="text-gray-500 hover:text-green-600 cursor-pointer"
+              />
             </button>
 
             {canEdit && (
               <button
                 type="button"
                 onClick={() => openEditModal(row.original)}
-                className="w-8 h-8 flex items-center justify-center rounded-full border border-[#084E92] text-[#084E92] hover:bg-[#084E92] hover:text-white transition cursor-pointer"
                 aria-label={`Edit ${row.original.name}`}
                 title="Edit"
               >
-                <SquarePen size={14} />
+                <SquarePen
+                  size={18}
+                  className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                />
               </button>
             )}
 
@@ -239,11 +243,13 @@ const PageMaster = () => {
               <button
                 type="button"
                 onClick={() => openDeleteConfirm(row.original)}
-                className="w-8 h-8 flex items-center justify-center rounded-full border border-red-300 text-red-500 hover:bg-red-50 transition cursor-pointer"
                 aria-label={`Delete ${row.original.name}`}
                 title="Delete"
               >
-                <Trash2 size={14} />
+                <Trash2
+                  size={18}
+                  className="text-red-300 hover:text-red-600 cursor-pointer"
+                />
               </button>
             )}
           </div>

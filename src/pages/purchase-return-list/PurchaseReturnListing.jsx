@@ -22,7 +22,6 @@ import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -151,93 +150,103 @@ const PurchaseReturnList = () => {
     () => [
       {
         id: "sno",
-        header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
-          <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
+        size: 36,
       },
       {
         id: "invoiceNo",
         accessorFn: (row) => row.invoiceNo,
-        header: ({ column }) => <DataGridColumnHeader title="Invoice No." column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="INVOICE NO." column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
-          <span className="font-semibold text-gray-800">{row.original.invoiceNo}</span>
+          <span className="font-semibold text-[#084E92]">{row.original.invoiceNo}</span>
         ),
+        size: 120,
       },
       {
         id: "supplier",
         accessorFn: (row) => row.supplier,
-        header: ({ column }) => <DataGridColumnHeader title="Supplier" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="SUPPLIER" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => <span className="text-gray-600">{row.original.supplier}</span>,
+        enableSorting: false,
+        size: 140,
       },
       {
         id: "invoiceDate",
         accessorFn: (row) => row.invoiceDate,
-        header: ({ column }) => <DataGridColumnHeader title="Invoice Date" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => <span className="text-gray-600">{row.original.invoiceDate}</span>,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: "amount",
         accessorFn: (row) => row.amount,
-        header: ({ column }) => <DataGridColumnHeader title="Amount" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="AMOUNT" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
           <span className="text-gray-700 font-medium">
-            Rs. {Number(row.original.amount).toFixed(2)}
+            ₹{Number(row.original.amount).toFixed(2)}
           </span>
         ),
+        enableSorting: false,
+        size: 90,
       },
       {
         id: "payment",
         accessorFn: (row) => row.payment,
-        header: ({ column }) => <DataGridColumnHeader title="Payment" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="PAYMENT" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
           <span className="text-gray-600 capitalize">{row.original.payment}</span>
         ),
+        enableSorting: false,
+        size: 80,
       },
       {
         id: "status",
         accessorFn: (row) => row.status,
-        header: ({ column }) => <DataGridColumnHeader title="Status" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        enableSorting: false,
+        size: 80,
       },
       {
         id: "actions",
-        header: () => (
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            Actions
-          </span>
+        header: ({ column }) => (
+          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 whitespace-nowrap">
             <button
               type="button"
               onClick={() => alert(`View ${row.original.invoiceNo}`)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition cursor-pointer bg-white"
+              className="text-gray-500 hover:text-green-600 cursor-pointer"
               title="View purchase"
             >
-              <Eye className="w-4 h-4" />
+              <Eye size={18} />
             </button>
             <button
               type="button"
               onClick={() => alert(`Edit ${row.original.invoiceNo}`)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-emerald-600 hover:border-emerald-300 hover:bg-emerald-50 transition cursor-pointer bg-white"
+              className="text-gray-500 hover:text-blue-600 cursor-pointer"
               title="Edit purchase"
             >
-              <SquarePen className="w-4 h-4" />
+              <SquarePen size={18} />
             </button>
             <button
               type="button"
               onClick={() => alert(`Delete ${row.original.invoiceNo}`)}
-              className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-600 hover:border-red-300 hover:bg-red-50 transition cursor-pointer bg-white"
+              className="text-red-300 hover:text-red-600 cursor-pointer"
               title="Delete purchase"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 size={18} />
             </button>
           </div>
         ),
         enableSorting: false,
+        size: 95,
       },
     ],
     [],
@@ -406,15 +415,23 @@ const PurchaseReturnList = () => {
             <EmptyState />
           </div>
         ) : (
-          <DataGrid table={table} recordCount={filteredPurchases.length}>
-            <Card>
-              <CardTable>
-                <ScrollArea>
-                  <DataGridTable />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
+          <DataGrid
+            table={table}
+            recordCount={filteredPurchases.length}
+            className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
+          >
+            <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <CardTable className="w-full overflow-x-hidden">
+                <DataGridTable />
               </CardTable>
-              <CardFooter>
+              <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                 <DataGridPagination />
               </CardFooter>
             </Card>

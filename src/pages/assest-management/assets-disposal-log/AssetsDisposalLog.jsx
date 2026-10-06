@@ -15,7 +15,6 @@ import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useNavigate } from "react-router";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
@@ -160,80 +159,89 @@ const AssetsDisposalLog = () => {
         () => [
             {
                 id: "sno",
-                header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+                    <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
                 ),
                 enableSorting: false,
-                size: 70,
+                size: 36,
             },
             {
                 accessorKey: "assetId",
-                header: ({ column }) => <DataGridColumnHeader title="ASSET ID" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="ASSET ID" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => <span className="font-semibold text-[#0B5CAB]">{row.original.assetId}</span>,
-                size: 130,
+                enableSorting: false,
+                size: 100,
             },
 
             {
                 accessorKey: "assetName",
-                header: ({ column }) => <DataGridColumnHeader title="ASSET NAME" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="ASSET NAME" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <div>
-                        <p className="font-semibold text-gray-900 leading-tight">{row.original.assetName}</p>
-                    </div>
+                    <span title={row.original.assetName} className="font-semibold text-gray-900 truncate max-w-[130px] block">
+                        {row.original.assetName}
+                    </span>
                 ),
-                size: 160,
+                enableSorting: false,
+                size: 130,
             },
             {
                 accessorKey: "Unit",
-                header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} />,
-                cell: ({ row }) => <span className="font-medium text-sm">{row.original.orgName}</span>,
-                size: 160,
+                header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="my-2 text-xs" />,
+                cell: ({ row }) => <span title={row.original.orgName} className="font-medium text-sm truncate max-w-[110px] block">{row.original.orgName}</span>,
+                enableSorting: false,
+                size: 110,
             },
 
             {
                 accessorKey: "SubUnit",
-                header: ({ column }) => <DataGridColumnHeader title="SUB UNIT" column={column} />,
-                cell: ({ row }) => <span className="font-medium text-sm">{row.original.subOutletName || '-'}</span>,
-                size: 160,
+                header: ({ column }) => <DataGridColumnHeader title="SUB UNIT" column={column} className="my-2 text-xs" />,
+                cell: ({ row }) => <span title={row.original.subOutletName} className="font-medium text-sm truncate max-w-[110px] block">{row.original.subOutletName || '-'}</span>,
+                enableSorting: false,
+                size: 110,
             },
 
             {
                 accessorKey: "date",
-                header: ({ column }) => <DataGridColumnHeader title="DISPOSAL DATE" column={column} />,
-                size: 120,
+                header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
+                cell: ({ row }) => <span className="text-gray-700">{row.original.date}</span>,
+                enableSorting: false,
+                size: 85,
             },
 
             {
                 accessorKey: "method",
-                header: ({ column }) => <DataGridColumnHeader title="METHOD" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="METHOD" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => <DisposalBadge type={row.original.method} />,
-                size: 110,
+                enableSorting: false,
+                size: 75,
             },
 
             {
                 accessorKey: "saleValue",
-                header: ({ column }) => <DataGridColumnHeader title="SALE VALUE" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="SALE VALUE" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => <span className="font-semibold text-[#111827]">{row.original.saleValue}</span>,
-                size: 110,
+                enableSorting: false,
+                size: 85,
             },
 
             {
                 accessorKey: "approvedBy",
-                header: ({ column }) => <DataGridColumnHeader title="APPROVED BY" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="APPROVED BY" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{row.original.approvedBy}</span>
-                    </div>
+                    <span title={row.original.approvedBy} className="font-medium text-sm truncate max-w-[110px] block">
+                        {row.original.approvedBy}
+                    </span>
                 ),
-                size: 150,
+                enableSorting: false,
+                size: 110,
             },
 
             {
                 id: "actions",
-                header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
                         <button
                             onClick={() => handleViewDisposal(row.original.id)}
                             className="text-gray-500 hover:text-green-600 cursor-pointer"
@@ -264,7 +272,7 @@ const AssetsDisposalLog = () => {
                     </div>
                 ),
                 enableSorting: false,
-                size: 120,
+                size: 85,
             },
         ],
         [canEdit, canDelete, navigate],
@@ -458,13 +466,21 @@ const AssetsDisposalLog = () => {
                         <div className="px-6 py-4 text-sm text-gray-500 bg-white">Loading disposal records...</div>
                     )}
 
-                    <DataGrid table={table} recordCount={filteredDisposalData.length} className="rounded-2xl">
+                    <DataGrid
+                        table={table}
+                        recordCount={filteredDisposalData.length}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
+                            <CardTable className="w-full overflow-x-hidden">
+                                <DataGridTable />
                             </CardTable>
                             <CardFooter className="bg-[#EFF4FF4D] border-t border-[#C3C6D1] rounded-b-2xl">
                                 <DataGridPagination />

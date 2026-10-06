@@ -275,6 +275,13 @@ const ViewManualAdjustment = () => {
     adjustment.subOutlet?.subOutletName ||
     'Main Store';
 
+  const subLocationName =
+    adjustment.subLocationName ||
+    adjustment.subLocation?.subLocationName ||
+    adjustment.subLocation?.locationName ||
+    adjustment.subLocation?.name ||
+    '—';
+
   const createdByName =
     adjustment.createdByName ||
     adjustment.createdByUserName ||
@@ -440,21 +447,24 @@ const ViewManualAdjustment = () => {
           <SectionHeader icon={Calendar} title="Origin & Location Details" />
           <div className="px-5 pb-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <InfoTile label="Manage Date" value={manageDate} icon={Calendar} />
+              <InfoTile label="Manage Date" value={manageDate} />
               <InfoTile label="Created Date" value={adjustment.createdAt || '—'} />
-              <InfoTile label="Created By" value={createdByName} icon={User} />
+              <InfoTile label="Created By" value={createdByName} />
               <InfoTile label="Last Updated By" value={updatedByName || '—'} />
               <InfoTile
                 label="Outlet / Branch"
                 value={`${outletName} ${outletCode ? `(${outletCode})` : ''}`}
-                icon={Building2}
                 className="col-span-2 sm:col-span-2"
               />
               <InfoTile
-                label="Sub-Outlet / Location"
+                label="Sub-Outlet"
                 value={subOutletName}
-                icon={Boxes}
-                className="col-span-2 sm:col-span-2"
+                className="col-span-2 sm:col-span-1"
+              />
+              <InfoTile
+                label="Sub-Location"
+                value={subLocationName}
+                className="col-span-2 sm:col-span-1"
               />
             </div>
 
@@ -610,7 +620,6 @@ const ViewManualAdjustment = () => {
           {baseUnitName && (
             <div className="border-t border-gray-100 p-4 bg-blue-50/40 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2.5">
-                <Scale size={18} className="text-[#084E92]" />
                 <div>
                   <p className="text-xs font-bold text-gray-800">Base Unit Representation</p>
                   <p className="text-[11px] text-gray-500">

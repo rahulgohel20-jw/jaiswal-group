@@ -35,13 +35,8 @@ const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-
 );
 
 const TypeBadge = ({ type }) => {
-    const styles = {
-        Fixed: "bg-blue-100 text-blue-700",
-        "Unit-to-Unit": "bg-green-100 text-green-700",
-        Movable: "bg-orange-100 text-orange-700",
-    };
     return (
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[type] || 'bg-gray-100 text-gray-700'}`}>
+        <span className="text-xs font-semibold text-gray-900 uppercase tracking-wide">
             {type}
         </span>
     );
@@ -215,7 +210,7 @@ const confirmDelete = async () => {
                 <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 70,
+            size: 36,
         },
         {
             accessorKey: "assetType",
@@ -223,7 +218,8 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="ASSET TYPE" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => <TypeBadge type={row.original.name} />,
-            size: 150,
+            enableSorting: false,
+            size: 160,
         },
 
         {
@@ -236,6 +232,8 @@ const confirmDelete = async () => {
                     {row.original.status || '—'}
                 </span>
             ),
+            enableSorting: false,
+            size: 80,
         },
         {
             id: "actions",
@@ -243,7 +241,7 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 whitespace-nowrap">
                     <Eye
                         size={18}
                         className="text-[#64748B] hover:text-green-600 cursor-pointer"
@@ -269,6 +267,7 @@ const confirmDelete = async () => {
                 </div>
             ),
             enableSorting: false,
+            size: 80,
         },
     ], [canEdit, canDelete])
     const table = useReactTable({
@@ -395,13 +394,21 @@ const confirmDelete = async () => {
             {/* Table */}
             <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
                 {loading && <p className="p-4 text-sm text-gray-500">Loading asset types...</p>}
-                <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl">
+                <DataGrid
+                    table={table}
+                    recordCount={filteredTypes.length}
+                    className="rounded-2xl"
+                    tableLayout={{
+                        dense: true,
+                        width: 'fixed',
+                        cellBorder: true,
+                        headerBorder: true,
+                        rowBorder: true,
+                    }}
+                >
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
+                        <CardTable className="w-full overflow-x-hidden">
+                            <DataGridTable />
                         </CardTable>
                     </Card>
                 </DataGrid>

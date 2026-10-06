@@ -23,7 +23,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
@@ -232,34 +231,34 @@ const CompanyListing = () => {
           <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 36,
       },
       {
         id: 'name',
         accessorFn: (row) => row.name,
         header: ({ column }) => (
-          <DataGridColumnHeader title="COMPANY" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="COMPANY NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[200px]"
+            widthClass="max-w-[160px]"
             className="font-semibold text-[#084E92]"
           />
         ),
-        size: 210,
+        size: 160,
       },
       {
         id: 'code',
         accessorFn: (row) => row.code,
         header: ({ column }) => (
-          <DataGridColumnHeader title="COMPANY CODE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.code} widthClass="max-w-[130px]" />
+          <TruncatedCell value={row.original.code} widthClass="max-w-[100px]" />
         ),
-        size: 140,
+        enableSorting: false,
+        size: 100,
       },
       {
         id: 'location',
@@ -268,20 +267,22 @@ const CompanyListing = () => {
           <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.location} widthClass="max-w-[130px]" />
+          <TruncatedCell value={row.original.location} widthClass="max-w-[110px]" />
         ),
-        size: 140,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'mobile',
         accessorFn: (row) => row.mobile,
         header: ({ column }) => (
-          <DataGridColumnHeader title="MOBILE NUMBER" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="MOBILE NO." column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.mobile} widthClass="max-w-[140px]" />
+          <TruncatedCell value={row.original.mobile} widthClass="max-w-[100px]" />
         ),
-        size: 150,
+        enableSorting: false,
+        size: 100,
       },
       {
         id: 'gstNumber',
@@ -290,9 +291,10 @@ const CompanyListing = () => {
           <DataGridColumnHeader title="GST NUMBER" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.gstNumber} widthClass="max-w-[160px]" />
+          <TruncatedCell value={row.original.gstNumber} widthClass="max-w-[120px]" />
         ),
-        size: 170,
+        enableSorting: false,
+        size: 120,
       },
       {
         id: 'status',
@@ -301,7 +303,8 @@ const CompanyListing = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 120,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'actions',
@@ -341,7 +344,7 @@ const CompanyListing = () => {
           </div>
         ),
         enableSorting: false,
-        size: 110,
+        size: 85,
       },
     ],
     [canEdit, canDelete],
@@ -399,13 +402,21 @@ const CompanyListing = () => {
               Loading companies…
             </div>
           ) : (
-            <DataGrid table={table} recordCount={filteredCompanies.length} className="rounded-2xl">
+            <DataGrid
+              table={table}
+              recordCount={filteredCompanies.length}
+              className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
+            >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                   <DataGridPagination />

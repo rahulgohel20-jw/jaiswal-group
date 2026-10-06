@@ -40,7 +40,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -511,14 +510,14 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="S.NO"
           column={column}
-          className="text-[#43474F] font-semibold my-3"
+          className="my-2 text-xs"
         />
       ),
       cell: ({ row }) => (
         <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
       ),
       enableSorting: false,
-      size: 70,
+      size: 36,
     },
     {
       id: 'assignmentId',
@@ -527,19 +526,20 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="ASSIGNMENT ID"
           column={column}
-          className="text-[#43474F] font-semibold my-3"
+          className="my-2 text-xs"
         />
       ),
       cell: ({ row }) => (
         <button
           type="button"
           onClick={() => setPreviewAssignment(row.original)}
-          className="font-semibold text-[#123B6D] leading-5 py-2 hover:underline cursor-pointer text-left"
+          className="font-semibold text-[#123B6D] leading-5 py-2 hover:underline cursor-pointer text-left truncate max-w-[100px]"
         >
           {row.original.assignmentId}
         </button>
       ),
-      size: 140,
+      enableSorting: false,
+      size: 100,
     },
     {
       id: 'assetCode',
@@ -548,13 +548,14 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="ASSET ID"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs"
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 py-1">{row.original.assetCode}</span>
+        <span className="text-gray-700 py-1 truncate max-w-[75px] block">{row.original.assetCode}</span>
       ),
-      size: 110,
+      enableSorting: false,
+      size: 75,
     },
     {
       id: 'itemName',
@@ -563,15 +564,16 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="ITEM NAME"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs"
         />
       ),
       cell: ({ row }) => (
-        <span className="font-semibold text-gray-800 py-1">
+        <span title={row.original.itemName} className="font-semibold text-gray-800 py-1 truncate max-w-[120px] block">
           {row.original.itemName}
         </span>
       ),
-      size: 160,
+      enableSorting: false,
+      size: 120,
     },
     {
       id: 'assignee',
@@ -580,17 +582,18 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="ASSIGNED TO"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs"
         />
       ),
       cell: ({ row }) => (
-        <div className="py-1">
-          <p className="font-semibold text-gray-800 leading-tight">
+        <div className="py-1 truncate max-w-[100px]">
+          <p title={row.original.assignedTo} className="font-semibold text-gray-800 leading-tight truncate">
             {row.original.assignedTo}
           </p>
         </div>
       ),
-      size: 170,
+      enableSorting: false,
+      size: 100,
     },
     {
       id: 'outlet',
@@ -599,13 +602,14 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="OUTLET"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs"
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 py-1">{row.original.companiesName}</span>
+        <span title={row.original.companiesName} className="text-gray-700 py-1 truncate max-w-[95px] block">{row.original.companiesName}</span>
       ),
-      size: 140,
+      enableSorting: false,
+      size: 95,
     },
     {
       id: 'subOutlet',
@@ -614,28 +618,30 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="SUB OUTLET"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs"
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 py-1">{row.original.subOutletName}</span>
+        <span title={row.original.subOutletName} className="text-gray-700 py-1 truncate max-w-[95px] block">{row.original.subOutletName}</span>
       ),
-      size: 140,
+      enableSorting: false,
+      size: 95,
     },
     {
       id: 'assignedDate',
       accessorFn: (row) => row.assignedDate,
       header: ({ column }) => (
         <DataGridColumnHeader
-          title="ASSIGNED DATE"
+          title="ASSIGN DATE"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs whitespace-nowrap"
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 py-1">{row.original.assignedDate}</span>
+        <span className="text-gray-700 py-1 whitespace-nowrap">{row.original.assignedDate}</span>
       ),
-      size: 130,
+      enableSorting: false,
+      size: 85,
     },
     {
       id: 'qty',
@@ -644,15 +650,16 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="QTY"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs whitespace-nowrap"
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 font-medium py-1">
+        <span className="text-gray-700 font-medium py-1 whitespace-nowrap">
           {row.original.qty}
         </span>
       ),
-      size: 70,
+      enableSorting: false,
+      size: 45,
     },
     {
       id: 'status',
@@ -661,11 +668,12 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="STATUS"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs whitespace-nowrap"
         />
       ),
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
-      size: 120,
+      enableSorting: false,
+      size: 75,
     },
     {
       id: 'actions',
@@ -673,11 +681,11 @@ const AssignAssets = () => {
         <DataGridColumnHeader
           title="ACTIONS"
           column={column}
-          className="text-[#43474F] font-semibold"
+          className="my-2 text-xs whitespace-nowrap"
         />
       ),
       cell: ({ row }) => (
-        <div className="flex items-center gap-3 py-1">
+        <div className="flex items-center gap-3 py-1 whitespace-nowrap">
           <button
             type="button"
             onClick={() => setPreviewAssignment(row.original)}
@@ -707,7 +715,7 @@ const AssignAssets = () => {
         </div>
       ),
       enableSorting: false,
-      size: 110,
+      size: 75,
     },
   ], [canEdit, canDelete]);
 
@@ -830,13 +838,17 @@ const AssignAssets = () => {
             table={table}
             recordCount={filteredAssignments.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
-              <CardTable>
-                <ScrollArea>
-                  <DataGridTable />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
+              <CardTable className="w-full overflow-x-hidden">
+                <DataGridTable />
               </CardTable>
               <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                 <DataGridPagination />

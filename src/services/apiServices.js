@@ -490,6 +490,60 @@ export const deleteSubOutletById = (id) => {
   return DELETE(`/sub-outlet/delete/${id}`);
 };
 
+// ---- Sub-Location APIs ----
+
+export const getAllSubLocations = () => {
+  return GET('/sub-location/get-all');
+};
+
+export const getAllActiveSubLocations = () => {
+  return GET('/sub-location/get-all-active');
+};
+
+export const getAllSubLocationsByOrganizationId = (organizationId) => {
+  return GET(`/sub-location/get-all-by-organization/${organizationId}`);
+};
+
+export const getAllSubLocationsBySubOutletId = (subOutletId) => {
+  return GET(`/sub-location/get-all-by-sub-outlet/${subOutletId}`);
+};
+
+export const getAllSubLocationsGroupedByOrganizationId = (organizationId) => {
+  return GET(`/sub-location/get-all-grouped-by-organization/${organizationId}`);
+};
+
+export const getSubLocationsByType = (params) => {
+  return GET('/sub-location/get-by-type', params);
+};
+
+export const getBySubOutletIdAndType = (paramsOrSubOutletId, locationType) => {
+  if (typeof paramsOrSubOutletId === 'object' && paramsOrSubOutletId !== null) {
+    return GET('/sub-location/get-by-type', paramsOrSubOutletId);
+  }
+  return GET('/sub-location/get-by-type', { subOutletId: paramsOrSubOutletId, locationType });
+};
+
+export const getSubLocationsGroupedBySubOutletId = (subOutletId) => {
+  return GET(`/sub-location/get-grouped-by-sub-outlet/${subOutletId}`);
+};
+
+export const getSubLocationById = (id) => {
+  return GET(`/sub-location/get/${id}`);
+};
+
+export const saveSubLocation = (payload) => {
+  return POST('/sub-location/save', payload);
+};
+
+export const updateSubLocation = (payload) => {
+  const id = payload?.id;
+  return PUT(`/sub-location/update?id=${id}`, payload, { id });
+};
+
+export const deleteSubLocationById = (id) => {
+  return DELETE(`/sub-location/delete/${id}`);
+};
+
 export const getAllRawMaterialCategoryType = () => {
   return GET(`/rawmaterialcattype/getall`);
 };
@@ -614,14 +668,36 @@ export const getAllRawMaterialItems = (
   organizationId = "",
   subOutletId = ""
 ) => {
-  let url = `/rawmaterial/getall?rawMateriaCatlId=${rawMateriaCatlId}&unitid=${unitid}&isActive=${isActive}&pageNo=${pageNo}&pageSize=${pageSize}&rawMaterialName=${encodeURIComponent(rawMaterialName)}`;
+  const params = [];
+  if (
+    rawMateriaCatlId !== null &&
+    rawMateriaCatlId !== undefined &&
+    rawMateriaCatlId !== "" &&
+    rawMateriaCatlId !== 0 &&
+    rawMateriaCatlId !== "0"
+  ) {
+    params.push(`rawMateriaCatlId=${encodeURIComponent(rawMateriaCatlId)}`);
+  }
+  if (isActive !== null && isActive !== undefined && isActive !== "") {
+    params.push(`isActive=${encodeURIComponent(isActive)}`);
+  }
+  if (pageNo !== null && pageNo !== undefined && pageNo !== "") {
+    params.push(`pageNo=${encodeURIComponent(pageNo)}`);
+  }
+  if (pageSize !== null && pageSize !== undefined && pageSize !== "") {
+    params.push(`pageSize=${encodeURIComponent(pageSize)}`);
+  }
+  if (rawMaterialName) {
+    params.push(`rawMaterialName=${encodeURIComponent(rawMaterialName)}`);
+  }
   if (organizationId) {
-    url += `&organizationId=${organizationId}`;
+    params.push(`organizationId=${encodeURIComponent(organizationId)}`);
   }
   if (subOutletId) {
-    url += `&subOutletId=${subOutletId}`;
+    params.push(`subOutletId=${encodeURIComponent(subOutletId)}`);
   }
-  return GET(url);
+  const queryString = params.length > 0 ? `?${params.join("&")}` : "";
+  return GET(`/rawmaterial/getall${queryString}`);
 };
 export const addRawMaterialItem = (formData) => {
   return POST("/rawmaterial/add", formData);
@@ -1248,6 +1324,7 @@ export const saveTransfer = (payload) => {
 export const updateDraftTransfer = (id, payload) => {
   return PUT(`/stock-transfer/update/${id}`, payload);
 };
+export const updateTransfer = updateDraftTransfer;
 
 export const resolveTransferDiscrepancy = (id, payload) => {
   return POST(`/stock-transfer/resolve-discrepancy/${id}`, payload);
@@ -1257,7 +1334,7 @@ export const resolveTransferDiscrepancy = (id, payload) => {
 export const getAdjustmentById = (id) => {
   return GET(`/stock-adjustment/${id}`);
 };
-
+  
 export const cancelAdjustment = (id, params = {}) => {
   const queryParams = typeof params === 'object' ? params : params ? { userId: params } : {};
   const data = typeof params === 'object' ? params : null;
@@ -1336,3 +1413,22 @@ export const updatePurchaseInvoice = (id, payload) => {
 export const updatePurchaseInvoiceStatus = (id, status, userId) => {
   return POST(`/purchase-invoice/status/${id}`, null, { params: { status, userId } });
 }
+
+// ---- Stock Ledger APIs ----
+export const getLedgerList = (params = {}) => {
+  const queryParams = { ...params };
+  Object.keys(queryParams).forEach((key) => {
+    if (queryParams[key] === undefined || queryParams[key] === null || queryParams[key] === '') {
+      delete queryParams[key];
+    }
+  });
+  return GET('/stock-ledger/list', queryParams);
+};
+
+export const getLedgerListFiltered = (payload = {}) => {
+  return POST('/stock-ledger/filter-list', payload);
+};
+
+export const getLedgerById = (id) => {
+  return GET(`/stock-ledger/${id}`);
+};

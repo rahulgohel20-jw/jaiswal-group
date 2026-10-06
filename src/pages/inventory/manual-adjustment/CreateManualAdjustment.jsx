@@ -20,12 +20,14 @@ import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
+import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
 import { useNavigate, Link } from 'react-router';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import {
   getAllRawMaterialCategory,
   getAllRawMaterialItems,
   getAllSubOutlets,
+  getAllSubLocationsBySubOutletId,
   getOrganizationByType,
   saveAdjustment,
   postAdjustment,
@@ -48,18 +50,29 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 const extractStockInfo = (item) => {
   const stockObj = item?.currentStock;
   let currentStock = 0;
-  let unitName = item?.unit?.nameEnglish || item?.unitName || item?.unit || 'Units';
-  let unitId = item?.unitId ?? item?.unit?.id ?? 0;
+  let unitName =
+    item?.currentStock?.unitName ||
+    item?.currentStock?.unitSymbol ||
+    item?.unit?.nameEnglish ||
+    item?.unitName ||
+    item?.unit ||
+    'Units';
+  let unitId =
+    item?.currentStock?.unitId ??
+    item?.unitId ??
+    item?.unit?.id ??
+    0;
 
   if (typeof stockObj === 'object' && stockObj !== null) {
     currentStock = Number(stockObj.currentStock ?? 0);
-    if (stockObj.unitName) unitName = stockObj.unitName;
-    else if (stockObj.unitSymbol) unitName = stockObj.unitSymbol;
-    if (stockObj.unitId != null) unitId = stockObj.unitId;
   } else if (typeof stockObj === 'number') {
     currentStock = stockObj;
+  } else if (item?.availableStock != null) {
+    currentStock = Number(item.availableStock);
+  } else if (item?.actualStock != null) {
+    currentStock = Number(item.actualStock);
   } else {
-    currentStock = Number(item?.closingStock ?? item?.opbStock ?? item?.stock ?? item?.availableStock ?? item?.actualStock ?? 0);
+    currentStock = 0;
   }
 
   return { currentStock, unitName, unitId };
@@ -155,13 +168,16 @@ const CreateManualAdjustment = () => {
   const [manageDate, setManageDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [outlet, setOutlet] = useState('');
   const [subOutlet, setSubOutlet] = useState('');
+  const [subLocation, setSubLocation] = useState('');
   const [category, setCategory] = useState('');
 
   /* Auxiliary data */
   const [allOutlets, setAllOutlets] = useState([]);
   const [subUnits, setSubUnits] = useState([]);
+  const [subLocations, setSubLocations] = useState([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [subUnitsLoading, setSubUnitsLoading] = useState(false);
+  const [subLocationsLoading, setSubLocationsLoading] = useState(false);
 
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -225,6 +241,40 @@ const CreateManualAdjustment = () => {
     fetchSubUnits();
   }, []);
 
+  /* 3. Fetch Sub-Locations when Sub-Outlet changes */
+  useEffect(() => {
+    if (!subOutlet) {
+      setSubLocations([]);
+      setSubLocation('');
+      return;
+    }
+    let isMounted = true;
+    setSubLocationsLoading(true);
+    getAllSubLocationsBySubOutletId(subOutlet)
+      .then((res) => {
+        const raw = res?.data?.data ?? res?.data;
+        const list = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.content)
+          ? raw.content
+          : Array.isArray(res?.data?.content)
+          ? res.data.content
+          : [];
+        if (isMounted) setSubLocations(list);
+      })
+      .catch((err) => {
+        console.warn('Failed to load sub locations:', err);
+        if (isMounted) setSubLocations([]);
+      })
+      .finally(() => {
+        if (isMounted) setSubLocationsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [subOutlet]);
+
   /* Outlet Options based on Role Scope */
   const outletOptions = useMemo(() => {
     if (isCompanyUser) {
@@ -261,6 +311,16 @@ const CreateManualAdjustment = () => {
       }));
   }, [subUnits, outlet, isOutletUser, effectiveOutletId]);
 
+  /* Sub-Location Options based on selected Sub-Outlet */
+  const subLocationOptions = useMemo(() => {
+    return subLocations.map((loc) => ({
+      value: String(loc.id),
+      label: `${loc.subLocationName || loc.locationName || loc.name || `Sub Location #${loc.id}`}${
+        loc.locationType || loc.type ? ` (${loc.locationType || loc.type})` : ''
+      }`,
+    }));
+  }, [subLocations]);
+
   /* 3. Fetch Raw Material Categories only when Outlet is selected/resolved */
   const fetchCategories = useCallback(async () => {
     const activeOutlet = outlet || (isOutletUser ? effectiveOutletId : '');
@@ -296,20 +356,66 @@ const CreateManualAdjustment = () => {
     }
   }, [outlet, isOutletUser, effectiveOutletId, fetchCategories]);
 
-  /* 4. Fetch Raw Material Items when Category or Outlet changes */
+  const categoryOptions = useMemo(() => [
+    { value: '', label: 'All Categories' },
+    ...categories,
+  ], [categories]);
+
+  /* 4. Fetch Raw Material Items when Category, Outlet, Sub-Outlet, or Sub-Location changes */
   const fetchItems = useCallback(async () => {
-    if (!category) {
+    const targetOrg = outlet || (isOutletUser ? effectiveOutletId : '') || getOrgIdFromToken() || '';
+    if (!targetOrg) {
       setItems([]);
       return;
     }
 
     setItemsLoading(true);
     try {
-      const targetOrg = outlet || (isOutletUser ? effectiveOutletId : '') || getOrgIdFromToken() || '';
       const targetSub = subOutlet || '';
-      const res = await getAllRawMaterialItems(Number(category), 0, '', '', '', '', targetOrg, targetSub);
+      const targetSubLocation = subLocation || '';
+      const catId = category && category !== 'ALL' && category !== '0' ? Number(category) : null;
+      const res = await getAllRawMaterialItems(catId, 0, true, '', '', '', targetOrg, targetSub);
       const raw = res?.data?.data?.['Raw Material Details'] || res?.data?.data || res?.data || [];
-      const rawList = Array.isArray(raw) ? raw : [];
+      let rawList = Array.isArray(raw) ? raw : [];
+
+      if (targetOrg && rawList.length > 0) {
+        try {
+          const params = {
+            itemIds: rawList.map((r) => r.id),
+            itemType: 'RAW_MATERIAL',
+            organizationId: Number(targetOrg),
+          };
+          if (targetSub) {
+            params.subOutletId = Number(targetSub);
+          }
+          if (targetSubLocation) {
+            params.subLocationId = Number(targetSubLocation);
+          }
+          const stockRes = await getCurrentStockListGet(params);
+          const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
+          const stockList = Array.isArray(stockData)
+            ? stockData
+            : Array.isArray(stockData?.content)
+            ? stockData.content
+            : Array.isArray(stockData?.list)
+            ? stockData.list
+            : [];
+          if (stockList.length > 0) {
+            rawList = rawList.map((item) => {
+              const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
+              if (matched) {
+                return {
+                  ...item,
+                  currentStock: matched,
+                };
+              }
+              return item;
+            });
+          }
+        } catch (stockErr) {
+          console.error('Failed to fetch stock list in fetchItems:', stockErr);
+        }
+      }
 
       const mapped = rawList.map((item) => {
         const { currentStock, unitName, unitId } = extractStockInfo(item);
@@ -318,11 +424,17 @@ const CreateManualAdjustment = () => {
           id: item.id,
           sku: item.sku || item.itemCode || item.code || `RM-${String(item.id).padStart(4, '0')}`,
           itemName: item.nameEnglish || item.name || `Item #${item.id}`,
+          nameEnglish: item.nameEnglish || item.name || `Item #${item.id}`,
+          itemCode: item.sku || item.itemCode || item.code || '',
+          code: item.sku || item.itemCode || item.code || '',
           category: item.rawMaterialCat?.nameEnglish || item.rawMaterialCategoryName || '',
           unit: unitName,
           unitId: unitId,
           unitRate: rate,
+          price: rate,
+          supplierRate: rate,
           actualStock: currentStock,
+          currentStock: currentStock,
           originalData: item,
         };
       });
@@ -352,21 +464,21 @@ const CreateManualAdjustment = () => {
     } finally {
       setItemsLoading(false);
     }
-  }, [category, outlet, subOutlet, isOutletUser, effectiveOutletId]);
+  }, [category, outlet, subOutlet, subLocation, isOutletUser, effectiveOutletId]);
 
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
 
-  /* Dynamic stock recalculation when source organization or sub-outlet changes */
-  const handleSourceOrgChange = async (targetOrgId, targetSubOutletId) => {
-    if (!category) return;
+  /* Dynamic stock recalculation when source organization, sub-outlet, or sub-location changes */
+  const handleSourceOrgChange = async (targetOrgId, targetSubOutletId, targetSubLocationId) => {
     setItemsLoading(true);
     try {
+      const catId = category && category !== 'ALL' && category !== '0' ? Number(category) : null;
       const res = await getAllRawMaterialItems(
-        Number(category),
+        catId,
         0,
-        '',
+        true,
         '',
         '',
         '',
@@ -374,7 +486,46 @@ const CreateManualAdjustment = () => {
         targetSubOutletId || ''
       );
       const raw = res?.data?.data?.['Raw Material Details'] || res?.data?.data || res?.data || [];
-      const rawList = Array.isArray(raw) ? raw : [];
+      let rawList = Array.isArray(raw) ? raw : [];
+
+      if (targetOrgId && rawList.length > 0) {
+        try {
+          const params = {
+            itemIds: rawList.map((r) => r.id),
+            itemType: 'RAW_MATERIAL',
+            organizationId: Number(targetOrgId),
+          };
+          if (targetSubOutletId) {
+            params.subOutletId = Number(targetSubOutletId);
+          }
+          if (targetSubLocationId) {
+            params.subLocationId = Number(targetSubLocationId);
+          }
+          const stockRes = await getCurrentStockListGet(params);
+          const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
+          const stockList = Array.isArray(stockData)
+            ? stockData
+            : Array.isArray(stockData?.content)
+            ? stockData.content
+            : Array.isArray(stockData?.list)
+            ? stockData.list
+            : [];
+          if (stockList.length > 0) {
+            rawList = rawList.map((item) => {
+              const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
+              if (matched) {
+                return {
+                  ...item,
+                  currentStock: matched,
+                };
+              }
+              return item;
+            });
+          }
+        } catch (stockErr) {
+          console.error('Failed to fetch stock list in handleSourceOrgChange:', stockErr);
+        }
+      }
 
       const mapped = rawList.map((item) => {
         const { currentStock, unitName, unitId } = extractStockInfo(item);
@@ -383,11 +534,17 @@ const CreateManualAdjustment = () => {
           id: item.id,
           sku: item.sku || item.itemCode || item.code || `RM-${String(item.id).padStart(4, '0')}`,
           itemName: item.nameEnglish || item.name || `Item #${item.id}`,
+          nameEnglish: item.nameEnglish || item.name || `Item #${item.id}`,
+          itemCode: item.sku || item.itemCode || item.code || '',
+          code: item.sku || item.itemCode || item.code || '',
           category: item.rawMaterialCat?.nameEnglish || item.rawMaterialCategoryName || '',
           unit: unitName,
           unitId: unitId,
           unitRate: rate,
+          price: rate,
+          supplierRate: rate,
           actualStock: currentStock,
+          currentStock: currentStock,
           originalData: item,
         };
       });
@@ -404,6 +561,9 @@ const CreateManualAdjustment = () => {
           };
           if (targetSubOutletId) {
             params.subOutletId = Number(targetSubOutletId);
+          }
+          if (targetSubLocationId) {
+            params.subLocationId = Number(targetSubLocationId);
           }
           const stockRes = await getCurrentStockListGet(params);
           const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
@@ -468,12 +628,14 @@ const CreateManualAdjustment = () => {
         type: 'outlet',
         targetOrgId: newOutlet,
         targetSubOutletId: '',
+        targetSubLocationId: '',
         targetName,
       });
     } else {
       setOutlet(newOutlet);
       setSubOutlet('');
-      handleSourceOrgChange(newOutlet, '');
+      setSubLocation('');
+      handleSourceOrgChange(newOutlet, '', '');
     }
   };
 
@@ -488,25 +650,53 @@ const CreateManualAdjustment = () => {
         type: 'subOutlet',
         targetOrgId: parentOrg,
         targetSubOutletId: newSub,
+        targetSubLocationId: '',
         targetName,
       });
     } else {
       setSubOutlet(newSub);
-      handleSourceOrgChange(parentOrg, newSub);
+      setSubLocation('');
+      handleSourceOrgChange(parentOrg, newSub, '');
+    }
+  };
+
+  const handleSubLocationChange = (newSubLoc) => {
+    if (String(newSubLoc) === String(subLocation)) return;
+    const parentOrg = outlet || (isOutletUser ? effectiveOutletId : '');
+    const locObj = subLocations.find((l) => String(l.id) === String(newSubLoc));
+    const targetName = locObj?.subLocationName || locObj?.locationName || locObj?.name || (newSubLoc ? 'selected sub-location' : 'all sub-locations');
+
+    if (rows.length > 0) {
+      setPendingOrgChange({
+        type: 'subLocation',
+        targetOrgId: parentOrg,
+        targetSubOutletId: subOutlet,
+        targetSubLocationId: newSubLoc,
+        targetName,
+      });
+    } else {
+      setSubLocation(newSubLoc);
+      handleSourceOrgChange(parentOrg, subOutlet, newSubLoc);
     }
   };
 
   const handleConfirmOrgChange = async () => {
     if (!pendingOrgChange) return;
-    const { type, targetOrgId, targetSubOutletId } = pendingOrgChange;
+    const { type, targetOrgId, targetSubOutletId, targetSubLocationId } = pendingOrgChange;
     if (type === 'outlet') {
       setOutlet(targetOrgId);
       setSubOutlet('');
+      setSubLocation('');
+      await handleSourceOrgChange(targetOrgId, '', '');
     } else if (type === 'subOutlet') {
       setSubOutlet(targetSubOutletId);
+      setSubLocation('');
+      await handleSourceOrgChange(targetOrgId, targetSubOutletId, '');
+    } else if (type === 'subLocation') {
+      setSubLocation(targetSubLocationId);
+      await handleSourceOrgChange(targetOrgId, targetSubOutletId, targetSubLocationId);
     }
     setPendingOrgChange(null);
-    await handleSourceOrgChange(targetOrgId, targetSubOutletId);
   };
 
   const handleCancelOrgChange = () => {
@@ -639,6 +829,7 @@ const CreateManualAdjustment = () => {
       const payload = {
         organizationId: Number(targetOutletId),
         subOutletId: subOutlet ? Number(subOutlet) : null,
+        subLocationId: subLocation ? Number(subLocation) : null,
         adjustmentDate: manageDate,
         remarks: 'Manual Stock Adjustment',
         postDirectly: Boolean(postDirectly),
@@ -707,7 +898,7 @@ const CreateManualAdjustment = () => {
         />
 
         {/* Adjustment Details Card */}
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-[#E2E8F0]">
             <div className="w-9 h-9 rounded-lg bg-[#EFF4FF] flex items-center justify-center shrink-0">
               <SlidersHorizontal size={16} className="text-[#084E92]" />
@@ -719,10 +910,10 @@ const CreateManualAdjustment = () => {
           </div>
 
           <div className="p-6 space-y-5">
-            {/* Row 1: Date, Outlet, Sub-Outlet */}
+            {/* Row 1: Date, Outlet, Sub-Outlet, Sub-Location */}
             <div
               className={`grid grid-cols-1 sm:grid-cols-2 ${
-                isOutletUser ? 'lg:grid-cols-2' : 'lg:grid-cols-3'
+                isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
               } gap-4`}
             >
               <div>
@@ -776,17 +967,36 @@ const CreateManualAdjustment = () => {
                   }
                 />
               </div>
+
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                  SUB-LOCATION <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
+                </label>
+                <SearchableSelect
+                  options={subLocationOptions}
+                  value={subLocation}
+                  onChange={(e) => handleSubLocationChange(e.target.value)}
+                  disabled={!subOutlet || subLocationsLoading}
+                  placeholder={
+                    !subOutlet
+                      ? 'Select Sub-Outlet first'
+                      : subLocationsLoading
+                      ? 'Loading sub locations...'
+                      : 'Select Sub-Location'
+                  }
+                />
+              </div>
             </div>
 
             {/* Row 2: Category & Search/Add Item */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
               <div>
                 <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                  CATEGORY <span className="text-red-500">*</span>
+                  CATEGORY <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <SearchableSelect
-                  options={categories}
-                  value={category}
+                  options={categoryOptions}
+                  value={category || ''}
                   onChange={(e) => {
                     setCategory(e.target.value);
                   }}
@@ -796,37 +1006,28 @@ const CreateManualAdjustment = () => {
                       ? 'Select Outlet first'
                       : categoriesLoading
                       ? 'Loading categories...'
-                      : 'Select Category'
+                      : 'All Categories'
                   }
                 />
                 {categoriesError && <p className="text-xs text-red-500 mt-1">{categoriesError}</p>}
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                  SEARCH & ADD ITEM
-                </label>
-                <SearchableSelect
-                  options={itemOptions}
-                  value=""
-                  onChange={(e) => {
-                    const selectedItem = items.find(
-                      (item) => String(item.id) === String(e.target.value)
-                    );
-                    if (selectedItem) {
-                      handleAddItem(selectedItem);
-                    }
-                  }}
-                  disabled={(!isOutletUser && !outlet) || !category || itemsLoading}
+                <RawMaterialSearchPicker
+                  items={items}
+                  alreadyAddedIds={rows.map((r) => r.id)}
+                  onSelect={handleAddItem}
+                  disabled={(!isOutletUser && !outlet) || itemsLoading}
+                  loading={itemsLoading}
                   placeholder={
                     !isOutletUser && !outlet
                       ? 'Select Outlet first'
-                      : !category
-                      ? 'Select Category first'
                       : itemsLoading
                       ? 'Loading items...'
-                      : 'Search item by SKU or name...'
+                      : 'Search raw material by SKU, name, or code...'
                   }
+                  label="SEARCH & ADD ITEM"
+                  isSticky={false}
                 />
               </div>
             </div>

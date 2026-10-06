@@ -22,7 +22,12 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -196,87 +201,86 @@ const SingleSelectDropdown = ({
   );
 };
 
-const AssignedUnitsTooltip = ({ units }) => {
-  const wrapperRef = useRef(null);
-  const hideTimerRef = useRef(null);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [showAbove, setShowAbove] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
+const AssignedUnitsModal = ({
+  isOpen,
+  onClose,
+  vendor,
+  units,
+  onRemoveUnit,
+  canDelete,
+}) => {
+  const [search, setSearch] = useState('');
 
-  const clearHideTimer = () => {
-    if (hideTimerRef.current) {
-      clearTimeout(hideTimerRef.current);
-      hideTimerRef.current = null;
-    }
-  };
+  if (!isOpen || !vendor) return null;
 
-  const updatePosition = () => {
-    if (!wrapperRef.current) return;
-
-    const rect = wrapperRef.current.getBoundingClientRect();
-    const tooltipHeight = 220;
-    const gap = 8;
-
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-
-    const above = spaceBelow < tooltipHeight + gap && spaceAbove > tooltipHeight + gap;
-
-    setShowAbove(above);
-
-    setPosition({
-      left: rect.left,
-      top: above ? rect.top - tooltipHeight - gap : rect.bottom + gap,
-    });
-  };
-
-  const handleMouseEnter = () => {
-    clearHideTimer();
-    updatePosition();
-    setShowTooltip(true);
-  };
-
-  const handleMouseLeave = () => {
-    clearHideTimer();
-
-    hideTimerRef.current = setTimeout(() => {
-      setShowTooltip(false);
-    }, 300);
-  };
-
-  useEffect(() => {
-    return () => clearHideTimer();
-  }, []);
+  const filtered = (units || []).filter((u) =>
+    (u.name || '').toLowerCase().includes(search.trim().toLowerCase())
+  );
 
   return (
-    <>
-      <div ref={wrapperRef} className="relative inline-flex" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-        <span className="inline-flex items-center bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-semibold px-2.5 py-1 rounded-full cursor-help">
-          ...
-        </span>
-      </div>
-
-      {showTooltip && (
-        <div className="fixed z-99999" style={{ left: position.left, top: position.top }} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-          <div className="relative bg-[#1F2937] text-white rounded-lg shadow-xl border border-gray-700 px-3 py-2.5 min-w-50 max-w-70">
-            <div className="text-[11px] font-semibold text-gray-300 uppercase tracking-wide mb-1.5 pb-1.5 border-b border-gray-600">
-              Assigned Units
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
+        <DialogHeader className="space-y-1 pb-3 border-b border-gray-100 pr-8">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#084E92] flex items-center justify-center shrink-0">
+                <Building2 size={16} />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-bold text-gray-900 truncate">
+                  Assigned Units
+                </DialogTitle>
+                <p className="text-xs text-gray-500 truncate">{vendor.name}</p>
+              </div>
             </div>
+            <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-[#084E92] border border-blue-100 rounded-full shrink-0">
+              {units?.length || 0} Units
+            </span>
+          </div>
+        </DialogHeader>
 
-            <div className="max-h-48 overflow-y-auto">
-              {units.map((u, index) => (
-                <div key={u.id} className="flex items-start gap-2 py-0.5 text-xs">
-                  <span className="text-gray-400 min-w-4.5">{index + 1}.</span>
-                  <span className="text-white wrap-break-word">{u.name}</span>
+        <div className="my-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search assigned units..."
+              className="w-full pl-8.5 pr-3 py-2 text-xs border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#084E92]/20 focus:border-[#084E92]"
+            />
+          </div>
+        </div>
+
+        <div className="max-h-72 overflow-y-auto pr-1">
+          {filtered.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-8">
+              {search ? 'No matching units found.' : 'No units assigned.'}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {filtered.map((unit) => (
+                <div
+                  key={unit.id}
+                  className="flex items-center gap-1.5 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-3 py-1.5 rounded-full group transition hover:bg-[#E0EDFA]"
+                >
+                  <span>{unit.name}</span>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveUnit(vendor.id, unit)}
+                      className="p-0.5 text-gray-400 hover:text-red-600 rounded-full cursor-pointer transition"
+                      title={`Remove ${unit.name}`}
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
-
-            <span className={`absolute left-4 w-0 h-0 border-l-[5px] border-r-[5px] border-transparent ${showAbove ? 'top-full border-t-[5px] border-t-[#1F2937]' : 'bottom-full border-b-[5px] border-b-[#1F2937]'}`} />
-          </div>
+          )}
         </div>
-      )}
-    </>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -537,6 +541,7 @@ const VendorUnitMapping = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [viewingVendorModal, setViewingVendorModal] = useState(null);
 
   useEffect(() => {
     const fetchVendors = async () => {
@@ -687,8 +692,17 @@ const VendorUnitMapping = () => {
           deleteTarget.vendorId,
           deleteTarget.unitId,
         );
+        if (viewingVendorModal && viewingVendorModal.vendor?.id === deleteTarget.vendorId) {
+          setViewingVendorModal((prev) => ({
+            ...prev,
+            units: (prev.units || []).filter((u) => u.id !== deleteTarget.unitId),
+          }));
+        }
       } else {
         await deleteVendorOutletMappingByVendor(deleteTarget.vendorId);
+        if (viewingVendorModal && viewingVendorModal.vendor?.id === deleteTarget.vendorId) {
+          setViewingVendorModal(null);
+        }
       }
       await fetchMappings();
     } catch (err) {
@@ -709,7 +723,7 @@ const VendorUnitMapping = () => {
           <DataGridColumnHeader
             title="S.NO"
             column={column}
-            className="text-gray-500 font-semibold"
+            className="text-gray-500 font-semibold whitespace-nowrap"
           />
         ),
         cell: ({ row }) => (
@@ -718,46 +732,43 @@ const VendorUnitMapping = () => {
           </span>
         ),
         enableSorting: false,
-        size: 70,
+        size: 36,
       },
       {
         id: 'vendor',
         accessorFn: (row) => row.vendor?.name,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Vendor Name" column={column} />
+          <DataGridColumnHeader title="Vendor Name" column={column} className="whitespace-nowrap" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-[#084E92] flex items-center justify-center text-xs font-semibold shrink-0">
-              {(row.original.vendor?.name || 'V').charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-gray-900 leading-none truncate">
-                {row.original.vendor?.name}
-              </p>
-            </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-900 leading-none truncate">
+              {row.original.vendor?.name}
+            </p>
           </div>
         ),
-        size: 220,
+        enableSorting: false,
+        size: 190,
       },
       {
         id: 'gstRegisteredName',
         accessorFn: (row) => row.vendor?.gstRegisteredName,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Registered Company Name" column={column} />
+          <DataGridColumnHeader title="Registered Company Name" column={column} className="whitespace-nowrap" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.vendor?.gstRegisteredName || '—'}
-            widthClass="max-w-[200px]"
+            widthClass="max-w-[170px]"
           />
         ),
-        size: 200,
+        enableSorting: false,
+        size: 180,
       },
       {
         id: 'units',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Assigned Units" column={column} />
+          <DataGridColumnHeader title="Assigned Units" column={column} className="whitespace-nowrap" />
         ),
         cell: ({ row }) => {
           const rowUnits = row.original.units || [];
@@ -771,7 +782,7 @@ const VendorUnitMapping = () => {
               {visibleUnits.map((u) => (
                 <span
                   key={u.id}
-                  className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full"
+                  className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap"
                 >
                   {u.name}
 
@@ -788,18 +799,29 @@ const VendorUnitMapping = () => {
               ))}
 
               {hasMore && (
-                <AssignedUnitsTooltip units={rowUnits} />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewingVendorModal({
+                      vendor: row.original.vendor,
+                      units: rowUnits,
+                    })
+                  }
+                  className="inline-flex items-center bg-[#F0F6FC] hover:bg-[#E0EDFA] text-[#084E92] border border-[#E0EDFA] text-xs font-semibold px-2 py-0.5 rounded-full cursor-pointer transition whitespace-nowrap"
+                >
+                  +{remainingUnits.length} more
+                </button>
               )}
             </div>
           );
         },
         enableSorting: false,
-        size: 300,
+        size: 280,
       },
       {
         id: 'actions',
         header: () => (
-          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
             Actions
           </span>
         ),
@@ -812,7 +834,7 @@ const VendorUnitMapping = () => {
             />
           ) : null,
         enableSorting: false,
-        size: 90,
+        size: 60,
       },
     ],
     [canDelete, pagination, units],
@@ -825,7 +847,6 @@ const VendorUnitMapping = () => {
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    columnResizeMode: 'onChange',
   });
 
   if (!canView) {
@@ -843,7 +864,7 @@ const VendorUnitMapping = () => {
 
         {/* Vendor Mapping Details */}
         {(canAdd || canEdit) && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-2xs mt-4 mb-6">
+          <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-2xs mt-4 mb-6">
             {(unitsError || mappingsError) && (
               <p className="text-xs text-red-500 mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100">{unitsError || mappingsError}</p>
             )}
@@ -939,21 +960,38 @@ const VendorUnitMapping = () => {
             <p className="text-sm text-gray-400 p-4">Loading mappings...</p>
           )}
 
-          <DataGrid table={table} recordCount={filteredMappings.length}>
-            <Card className="rounded-t-none border-t-0">
-              <CardTable>
-                <ScrollArea>
-                  <DataGridTable />
-                  <ScrollBar orientation="horizontal" />
-                </ScrollArea>
+          <DataGrid
+            table={table}
+            recordCount={filteredMappings.length}
+            className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
+          >
+            <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <CardTable className="w-full overflow-x-hidden">
+                <DataGridTable />
               </CardTable>
-              <CardFooter>
+              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                 <DataGridPagination />
               </CardFooter>
             </Card>
           </DataGrid>
         </div>
       </div>
+
+      <AssignedUnitsModal
+        isOpen={!!viewingVendorModal}
+        onClose={() => setViewingVendorModal(null)}
+        vendor={viewingVendorModal?.vendor}
+        units={viewingVendorModal?.units}
+        onRemoveUnit={openRemoveUnitConfirm}
+        canDelete={canDelete}
+      />
 
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}

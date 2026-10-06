@@ -52,11 +52,11 @@ const STATUS_TEXT_COLORS = {
 };
 
 const formatStatusLabel = (status) => {
-  if (!status) return 'Pending Discrepancy Approval';
+  if (!status) return 'Discrepancy Approval';
   const s = String(status).toUpperCase().replace(/[\s_]/g, '');
-  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Pending Discrepancy Approval';
+  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Discrepancy Approval';
   if (s === 'DISCREPANCYPENDING') return 'Discrepancy Pending';
-  if (s === 'DISCREPANCYRESOLVED') return 'Discrepancy Resolved';
+  if (s === 'DISCREPANCYRESOLVED') return 'Resolved';
   if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
   return status;
 };
@@ -290,7 +290,8 @@ const StockTransferDiscrepancyApproval = () => {
         cell: ({ row }) => (
           <span className="text-gray-500 font-semibold text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
-        size: 70,
+        enableSorting: false,
+        size: 40,
       },
       {
         id: 'transferCode',
@@ -301,11 +302,13 @@ const StockTransferDiscrepancyApproval = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.transferCode}
+            maxWidth="max-w-[125px]"
             onClick={() => handleView(row.original)}
             className="text-xs font-bold text-[#084E92] hover:underline cursor-pointer"
           />
         ),
-        size: 150,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: 'transferDate',
@@ -319,7 +322,8 @@ const StockTransferDiscrepancyApproval = () => {
           <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => <span className="text-gray-700 text-xs font-medium">{row.original.transferDate}</span>,
-        size: 110,
+        enableSorting: false,
+        size: 80,
       },
       {
         id: 'fromOutlet',
@@ -329,13 +333,14 @@ const StockTransferDiscrepancyApproval = () => {
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5">
-            <TruncatedCell value={row.original.fromOutlet} widthClass="max-w-[150px]" className="font-semibold text-gray-900 text-xs" />
+            <TruncatedCell value={row.original.fromOutlet} widthClass="max-w-[165px]" className="font-semibold text-gray-900 text-xs" />
             {row.original.fromSubOutlet && row.original.fromSubOutlet !== '—' && (
-              <span className="text-[11px] text-gray-500">Sub: {row.original.fromSubOutlet}</span>
+              <span className="text-[11px] text-gray-500 truncate max-w-[165px]" title={row.original.fromSubOutlet}>Sub: {row.original.fromSubOutlet}</span>
             )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 175,
       },
       {
         id: 'toOutlet',
@@ -345,28 +350,30 @@ const StockTransferDiscrepancyApproval = () => {
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5">
-            <TruncatedCell value={row.original.toOutlet} widthClass="max-w-[150px]" className="font-semibold text-gray-900 text-xs" />
+            <TruncatedCell value={row.original.toOutlet} widthClass="max-w-[165px]" className="font-semibold text-gray-900 text-xs" />
             {row.original.toSubOutlet && row.original.toSubOutlet !== '—' && (
-              <span className="text-[11px] text-gray-500">Sub: {row.original.toSubOutlet}</span>
+              <span className="text-[11px] text-gray-500 truncate max-w-[165px]" title={row.original.toSubOutlet}>Sub: {row.original.toSubOutlet}</span>
             )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 175,
       },
       {
         id: 'discrepancySummary',
         header: ({ column }) => (
-          <DataGridColumnHeader title="SHORTAGE SUMMARY" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader title="SHORTAGE" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
               <AlertTriangle size={12} className="text-amber-600 shrink-0" />
               {row.original.discrepancyCount} {row.original.discrepancyCount === 1 ? 'item' : 'items'} short
             </span>
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'status',
@@ -374,36 +381,41 @@ const StockTransferDiscrepancyApproval = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
-        cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 240,
+        cell: ({ row }) => (
+          <div className="whitespace-nowrap pr-1">
+            <StatusBadge status={row.original.status} />
+          </div>
+        ),
+        enableSorting: false,
+        size: 90,
       },
       {
         id: 'actions',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-bold uppercase text-xs text-right pr-4" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-bold uppercase text-xs text-right pr-2" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-2 pr-2">
+          <div className="flex items-center justify-end gap-1.5 pr-1">
             <button
               type="button"
               onClick={() => handleView(row.original)}
-              className="p-1.5 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+              className="p-1 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
               title="View Transfer Details"
             >
-              <Eye size={16} />
+              <Eye size={15} />
             </button>
             <button
               type="button"
               onClick={() => handleResolve(row.original)}
-              className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
+              className="p-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
               title="Review & Resolve Discrepancy"
             >
-              <CheckCircle2 size={16} />
+              <CheckCircle2 size={15} />
             </button>
           </div>
         ),
         enableSorting: false,
-        size: 110,
+        size: 65,
       },
     ],
     [handleResolve, handleView]
@@ -524,19 +536,16 @@ const StockTransferDiscrepancyApproval = () => {
               recordCount={filteredTransfers.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
+                width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <div className="min-w-[1100px]">
-                      <DataGridTable />
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F8FAFC] rounded-b-2xl border-t border-[#E2E8F0] py-2.5">
                   <DataGridPagination />

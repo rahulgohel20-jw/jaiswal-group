@@ -24,7 +24,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
@@ -65,10 +64,10 @@ const extractValue = (e) => {
 /* ---------- Badges & UI helpers (Matching PurchaseRequisitionList) ---------- */
 
 const STATUS_TEXT_COLORS = {
-  DRAFT: 'text-gray-600',
-  Draft: 'text-gray-600',
-  POSTED: 'text-emerald-600',
-  Posted: 'text-emerald-600',
+  DRAFT: 'text-gray-700',
+  Draft: 'text-gray-700',
+  POSTED: 'text-emerald-700',
+  Posted: 'text-emerald-700',
   CANCELLED: 'text-rose-600',
   Cancelled: 'text-rose-600',
   CANCELED: 'text-rose-600',
@@ -84,7 +83,7 @@ const StatusBadge = ({ status = 'DRAFT' }) => {
       : raw === 'CANCELLED' || raw === 'CANCELED'
       ? 'Cancelled'
       : status;
-  const color = STATUS_TEXT_COLORS[raw] || 'text-gray-600';
+  const color = STATUS_TEXT_COLORS[raw] || 'text-gray-700';
 
   return (
     <span className={`font-semibold text-xs whitespace-nowrap ${color}`}>
@@ -103,35 +102,40 @@ const TruncatedCell = ({
   </span>
 );
 
-const UNIT_BADGE_STYLES = {
-  MT: 'bg-gray-100 text-gray-700 border-gray-200',
-  PCS: 'bg-blue-50 text-[#084E92] border-blue-200',
-  PIECES: 'bg-blue-50 text-[#084E92] border-blue-200',
-  BOX: 'bg-amber-50 text-amber-700 border-amber-200',
-  KG: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  KILOGRAM: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  KILOGRAMS: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  LTR: 'bg-purple-50 text-purple-700 border-purple-200',
-  LITRE: 'bg-purple-50 text-purple-700 border-purple-200',
-  LITRES: 'bg-purple-50 text-purple-700 border-purple-200',
-  MTR: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-  METER: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-  METERS: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-  GRAM: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  GRAMS: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  G: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+const UNIT_SYMBOL_MAP = {
+  KILOGRAM: 'KG',
+  KILOGRAMS: 'KG',
+  KG: 'KG',
+  GRAM: 'GM',
+  GRAMS: 'GM',
+  G: 'GM',
+  LITRE: 'LTR',
+  LITRES: 'LTR',
+  LITER: 'LTR',
+  LITERS: 'LTR',
+  LTR: 'LTR',
+  PIECES: 'PCS',
+  PIECE: 'PCS',
+  PCS: 'PCS',
+  BOX: 'BOX',
+  BOXES: 'BOX',
+  METER: 'MTR',
+  METERS: 'MTR',
+  MTR: 'MTR',
+  MT: 'MT',
 };
 
-const UnitBadge = ({ unit }) => {
-  const label = unit || 'Units';
-  const key = String(label).toUpperCase().trim();
+const UnitBadge = ({ unit, symbol }) => {
+  const raw = String(symbol || unit || '').trim();
+  const key = raw.toUpperCase();
+  const display = UNIT_SYMBOL_MAP[key] || (raw.length > 6 ? raw.slice(0, 5) : raw) || '—';
+
   return (
     <span
-      className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-mono font-medium uppercase border whitespace-nowrap ${
-        UNIT_BADGE_STYLES[key] || 'bg-gray-100 text-gray-600 border-gray-200'
-      }`}
+      title={raw}
+      className="text-xs font-semibold text-gray-700 uppercase whitespace-nowrap block truncate"
     >
-      {label}
+      {display}
     </span>
   );
 };
@@ -147,10 +151,10 @@ const parseDateToTimestamp = (dateStr) => {
   return isNaN(t) ? 0 : t;
 };
 
-/* Single unified adjustment delta cell */
+/* Single unified adjustment delta cell without background box */
 const AdjustmentDeltaCell = ({ delta }) => {
   if (delta === null || delta === undefined || isNaN(delta)) {
-    return <span className="text-gray-400 text-xs font-mono">—</span>;
+    return <span className="text-gray-400 text-xs font-medium">—</span>;
   }
   const num = Number(delta);
   const formatted = Math.abs(num).toLocaleString('en-IN', {
@@ -160,20 +164,20 @@ const AdjustmentDeltaCell = ({ delta }) => {
 
   if (num > 0) {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+      <span className="text-xs font-bold text-emerald-600 whitespace-nowrap">
         +{formatted}
       </span>
     );
   }
   if (num < 0) {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold font-mono bg-rose-50 text-rose-700 border border-rose-200 whitespace-nowrap">
+      <span className="text-xs font-bold text-rose-600 whitespace-nowrap">
         -{formatted}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium font-mono bg-gray-50 text-gray-500 border border-gray-200 whitespace-nowrap">
+    <span className="text-xs font-medium text-gray-400 whitespace-nowrap">
       0.00
     </span>
   );
@@ -422,6 +426,13 @@ const ManualAdjustmentScreenListing = () => {
           organizationCode: item.organizationCode || '',
           subOutletId: item.subOutletId,
           subOutletName: item.subOutletName || '',
+          subLocationId: item.subLocationId || item.subLocation?.id || null,
+          subLocationName:
+            item.subLocationName ||
+            item.subLocation?.subLocationName ||
+            item.subLocation?.locationName ||
+            item.subLocation?.name ||
+            '',
           itemType: item.itemType || 'RAW_MATERIAL',
           itemId: item.itemId || item.id,
           itemName: item.itemName || `Item #${item.itemId || item.id || idx + 1}`,
@@ -491,7 +502,8 @@ const ManualAdjustmentScreenListing = () => {
         row.itemName?.toLowerCase().includes(term) ||
         row.remarks?.toLowerCase().includes(term) ||
         row.adjustmentCode?.toLowerCase().includes(term) ||
-        row.subOutletName?.toLowerCase().includes(term)
+        row.subOutletName?.toLowerCase().includes(term) ||
+        row.subLocationName?.toLowerCase().includes(term)
       );
     });
   }, [search, statusFilter, selectedSubOutletId, adjustments]);
@@ -672,11 +684,11 @@ const ManualAdjustmentScreenListing = () => {
           const isSelected = selectedRowIds.includes(row.original.id);
 
           if (!isDraft) {
-            return <div className="w-4 h-4" />;
+            return <div className="w-3.5 h-3.5" />;
           }
 
           return (
-            <div className="flex items-center justify-center p-1">
+            <div className="flex items-center justify-center p-0.5">
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -687,13 +699,13 @@ const ManualAdjustmentScreenListing = () => {
                     setSelectedRowIds((prev) => prev.filter((id) => id !== row.original.id));
                   }
                 }}
-                className="w-4 h-4 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 cursor-pointer"
+                className="w-3.5 h-3.5 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 cursor-pointer"
               />
             </div>
           );
         },
         enableSorting: false,
-        size: 45,
+        size: 36,
       },
       {
         id: 'srNo',
@@ -701,12 +713,12 @@ const ManualAdjustmentScreenListing = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 font-mono text-xs">
+          <span className="text-gray-500 text-xs font-semibold">
             {String(row.index + 1).padStart(2, '0')}
           </span>
         ),
         enableSorting: false,
-        size: 70,
+        size: 45,
       },
       {
         id: 'itemName',
@@ -715,34 +727,55 @@ const ManualAdjustmentScreenListing = () => {
           <DataGridColumnHeader title="ITEM NAME" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <div>
-            <span className="font-semibold text-[#084E92] block text-xs">
+          <div className="min-w-0">
+            <span
+              className="font-semibold text-gray-900 block text-xs truncate"
+              title={row.original.itemName}
+            >
               {row.original.itemName}
             </span>
-            {row.original.subOutletName && (
-              <span className="text-[11px] text-gray-400 block truncate max-w-[200px]">
-                {row.original.subOutletName}
-              </span>
+            {(row.original.subOutletName || row.original.subLocationName) && (
+              <div className="flex flex-col gap-0.5 mt-0.5 max-w-[200px]">
+                {row.original.subOutletName && (
+                  <span
+                    className="text-[11px] text-gray-500 block truncate"
+                    title={row.original.subOutletName}
+                  >
+                    {row.original.subOutletName}
+                  </span>
+                )}
+                {row.original.subLocationName && (
+                  <span
+                    className="text-[11px] text-[#084E92] font-medium block truncate"
+                    title={row.original.subLocationName}
+                  >
+                    ↳ {row.original.subLocationName}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         ),
-        size: 210,
+        enableSorting: false,
+        size: 215,
       },
       {
         id: 'manageDate',
         accessorFn: (row) => row.adjustmentDate,
-        sortingFn: (rowA, rowB, columnId) => {
-          const valA = parseDateToTimestamp(rowA.getValue(columnId) || rowA.original.createdAt);
-          const valB = parseDateToTimestamp(rowB.getValue(columnId) || rowB.original.createdAt);
-          return valA - valB;
-        },
         header: ({ column }) => (
-          <DataGridColumnHeader title="MANAGE DATE" column={column} className="text-xs" />
+          <DataGridColumnHeader title="DATE" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => (
-          <TruncatedCell value={row.original.adjustmentDate} widthClass="max-w-[120px]" />
-        ),
-        size: 130,
+        cell: ({ row }) => {
+          const raw = row.original.adjustmentDate || '—';
+          const dateOnly = raw.includes(' ') ? raw.split(' ')[0] : raw;
+          return (
+            <span className="text-xs text-gray-600 whitespace-nowrap">
+              {dateOnly}
+            </span>
+          );
+        },
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'unit',
@@ -750,24 +783,26 @@ const ManualAdjustmentScreenListing = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="UNIT" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <UnitBadge unit={row.original.unit} />,
-        size: 140,
+        cell: ({ row }) => <UnitBadge unit={row.original.unit} symbol={row.original.unitSymbol} />,
+        enableSorting: false,
+        size: 60,
       },
       {
         id: 'actualStock',
         accessorFn: (row) => row.actualStock,
         header: ({ column }) => (
-          <DataGridColumnHeader title="ST BEFORE ADJ" column={column} className="text-xs" />
+          <DataGridColumnHeader title="BEFORE ADJ" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-700 text-xs font-mono font-medium">
+          <span className="text-gray-700 text-xs font-medium whitespace-nowrap">
             {Number(row.original.actualStock || 0).toLocaleString('en-IN', {
                minimumFractionDigits: 2,
                maximumFractionDigits: 2,
              })}
           </span>
         ),
-        size: 140,
+        enableSorting: false,
+        size: 90,
       },
       {
         id: 'unitRate',
@@ -776,34 +811,33 @@ const ManualAdjustmentScreenListing = () => {
           <DataGridColumnHeader title="RATE (₹)" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-800 text-xs font-mono font-medium">
-            ₹{Number(row.original.unitRate || 0).toLocaleString('en-IN', {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
+          <span className="text-gray-800 text-xs font-medium whitespace-nowrap">
+            ₹{Number(row.original.unitRate || 0).toFixed(2)}
           </span>
         ),
-        size: 110,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'physicalStock',
         accessorFn: (row) => row.physicalStock,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="ST AFTER ADJ"
+            title="AFTER ADJ"
             column={column}
             className="text-xs"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-900 text-xs font-mono font-semibold">
+          <span className="text-gray-900 text-xs font-semibold whitespace-nowrap">
             {Number(row.original.physicalStock || 0).toLocaleString('en-IN', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             })}
           </span>
         ),
-        size: 140,
+        enableSorting: false,
+        size: 90,
       },
       {
         id: 'adjustment',
@@ -814,7 +848,8 @@ const ManualAdjustmentScreenListing = () => {
         cell: ({ row }) => (
           <AdjustmentDeltaCell delta={row.original.adjustmentQuantity} />
         ),
-        size: 130,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'status',
@@ -823,40 +858,27 @@ const ManualAdjustmentScreenListing = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 120,
-      },
-      {
-        id: 'remarks',
-        accessorFn: (row) => row.remarks,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="REMARKS" column={column} className="text-xs" />
-        ),
-        cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.remarks || '—'}
-            widthClass="max-w-[150px]"
-          />
-        ),
-        size: 150,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'actions',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="text-xs" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-xs" />
         ),
         cell: ({ row }) => {
           const statusUpper = String(row.original.status).toUpperCase();
           const isDraft = statusUpper === 'DRAFT';
 
           return (
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <div className="flex items-center gap-1 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() => navigate(`/inventory/manual-adjustment/view/${row.original.id}`)}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                 title="View Voucher"
               >
-                <Eye size={17} />
+                <Eye size={16} />
               </button>
               {isDraft && (canEdit || canAdd) && (
                 <>
@@ -864,22 +886,22 @@ const ManualAdjustmentScreenListing = () => {
                     type="button"
                     onClick={() => handlePost(row.original.id)}
                     disabled={postingId === row.original.id}
-                    className="text-[#084E92] hover:text-[#073e77] cursor-pointer p-1 rounded hover:bg-blue-50 transition disabled:opacity-50"
+                    className="text-[#084E92] hover:text-[#073e77] cursor-pointer p-0.5 rounded hover:bg-blue-50 transition disabled:opacity-50"
                     title="Post Adjustment"
                   >
                     {postingId === row.original.id ? (
-                      <Loader2 size={16} className="animate-spin" />
+                      <Loader2 size={15} className="animate-spin" />
                     ) : (
-                      <CheckCircle2 size={17} />
+                      <CheckCircle2 size={16} />
                     )}
                   </button>
                   <button
                     type="button"
                     onClick={() => handleOpenCancelModal(row.original)}
-                    className="text-gray-400 hover:text-rose-600 cursor-pointer p-1 rounded hover:bg-rose-50 transition"
+                    className="text-gray-400 hover:text-rose-600 cursor-pointer p-0.5 rounded hover:bg-rose-50 transition"
                     title="Cancel Adjustment"
                   >
-                    <XCircle size={17} />
+                    <XCircle size={16} />
                   </button>
                 </>
               )}
@@ -887,7 +909,7 @@ const ManualAdjustmentScreenListing = () => {
           );
         },
         enableSorting: false,
-        size: 110,
+        size: 85,
       },
     ],
     [navigate, postingId, canEdit, canAdd, selectedRowIds, handlePost, handleOpenCancelModal]
@@ -992,16 +1014,6 @@ const ManualAdjustmentScreenListing = () => {
               <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
-
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={handleClearFilters}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer px-1.5 py-0.5"
-            >
-              Clear filters
-            </button>
-          )}
         </div>
 
         {/* Bulk Actions Banner */}
@@ -1062,20 +1074,16 @@ const ManualAdjustmentScreenListing = () => {
               recordCount={filteredAdjustments.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <div className="min-w-[1300px]">
-                      <DataGridTable />
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+              <Card className="rounded-2xl border-0 shadow-none">
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />

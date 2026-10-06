@@ -275,15 +275,14 @@ const UnitListing = () => {
           <DataGridColumnHeader
             title="S.NO"
             column={column}
-            className="my-2 text-xs"
+            className="my-2 text-xs whitespace-nowrap"
           />
         ),
         cell: ({ row }) => (
           <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 70,
-        minSize: 60,
+        size: 36,
       },
       {
         id: 'name',
@@ -292,17 +291,18 @@ const UnitListing = () => {
           <DataGridColumnHeader
             title="UNIT NAME"
             column={column}
-            className="my-2 text-xs"
+            className="my-2 text-xs whitespace-nowrap"
           />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[190px]"
-            className="font-semibold text-[#084E92]"
+            widthClass="max-w-[170px]"
+            className="font-semibold text-gray-900"
           />
         ),
-        size: 200,
+        enableSorting: false,
+        size: 170,
       },
       {
         id: 'code',
@@ -311,13 +311,14 @@ const UnitListing = () => {
           <DataGridColumnHeader
             title="UNIT CODE"
             column={column}
-            className="my-2 text-xs"
+            className="my-2 text-xs whitespace-nowrap"
           />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.code} widthClass="max-w-[130px]" />
+          <TruncatedCell value={row.original.code} widthClass="max-w-[100px]" />
         ),
-        size: 140,
+        enableSorting: false,
+        size: 100,
       },
       {
         id: 'location',
@@ -326,16 +327,17 @@ const UnitListing = () => {
           <DataGridColumnHeader
             title="LOCATION"
             column={column}
-            className="my-2 text-xs"
+            className="my-2 text-xs whitespace-nowrap"
           />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.location}
-            widthClass="max-w-[130px]"
+            widthClass="max-w-[110px]"
           />
         ),
-        size: 140,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'email',
@@ -344,16 +346,17 @@ const UnitListing = () => {
           <DataGridColumnHeader
             title="CONTACT EMAIL"
             column={column}
-            className="my-2 text-xs"
+            className="my-2 text-xs whitespace-nowrap"
           />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.email}
-            widthClass="max-w-[190px]"
+            widthClass="max-w-[160px]"
           />
         ),
-        size: 200,
+        enableSorting: false,
+        size: 160,
       },
       {
         id: 'mobile',
@@ -362,16 +365,17 @@ const UnitListing = () => {
           <DataGridColumnHeader
             title="MOBILE NUMBER"
             column={column}
-            className="my-2 text-xs"
+            className="my-2 text-xs whitespace-nowrap"
           />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.mobile}
-            widthClass="max-w-[140px]"
+            widthClass="max-w-[105px]"
           />
         ),
-        size: 150,
+        enableSorting: false,
+        size: 105,
       },
       {
         id: 'status',
@@ -380,11 +384,12 @@ const UnitListing = () => {
           <DataGridColumnHeader
             title="STATUS"
             column={column}
-            className="my-2 text-xs"
+            className="my-2 text-xs whitespace-nowrap"
           />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 120,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'actions',
@@ -392,7 +397,7 @@ const UnitListing = () => {
           <DataGridColumnHeader
             title="ACTIONS"
             column={column}
-            className="my-2 text-xs"
+            className="my-2 text-xs whitespace-nowrap"
           />
         ),
         cell: ({ row }) => (
@@ -428,7 +433,7 @@ const UnitListing = () => {
           </div>
         ),
         enableSorting: false,
-        size: 110,
+        size: 75,
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -511,13 +516,17 @@ const UnitListing = () => {
               table={table}
               recordCount={filteredUnits.length}
               className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                   <DataGridPagination />

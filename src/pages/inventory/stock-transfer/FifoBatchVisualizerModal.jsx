@@ -58,8 +58,10 @@ const FifoBatchVisualizerModal = ({
   unitId,
   fromOrganizationId,
   fromSubOutletId,
+  fromSubLocationId,
   toOrganizationId,
   toSubOutletId,
+  toSubLocationId,
   itemName = 'Item',
   fromOutletName = 'Source Outlet',
   toOutletName = 'Destination Outlet',
@@ -154,7 +156,9 @@ const FifoBatchVisualizerModal = ({
             unitId: safeUnitId,
             toOrganizationId: Number(toOrganizationId),
             ...(fromSubOutletId != null && fromSubOutletId !== '' ? { fromSubOutletId: Number(fromSubOutletId) } : {}),
+            ...(fromSubLocationId != null && fromSubLocationId !== '' ? { fromSubLocationId: Number(fromSubLocationId) } : {}),
             ...(toSubOutletId != null && toSubOutletId !== '' ? { toSubOutletId: Number(toSubOutletId) } : {}),
+            ...(toSubLocationId != null && toSubLocationId !== '' ? { toSubLocationId: Number(toSubLocationId) } : {}),
           };
 
           const res = await getBatchFlow(params);
@@ -301,11 +305,24 @@ const FifoBatchVisualizerModal = ({
 
   // View-mode specific source batches (transferred batches)
   const viewTransferredBatches = useMemo(() => {
-    const explicitBatches = Array.isArray(item?.selectedBatches) && item.selectedBatches.length > 0
-      ? item.selectedBatches
-      : Array.isArray(item?.batchBreakdown) && item.batchBreakdown.length > 0
-      ? item.batchBreakdown
-      : null;
+    const explicitBatches =
+      Array.isArray(item?.selectedBatches) && item.selectedBatches.length > 0
+        ? item.selectedBatches
+        : Array.isArray(item?.batchBreakdown) && item.batchBreakdown.length > 0
+        ? item.batchBreakdown
+        : Array.isArray(item?.batches) && item.batches.length > 0
+        ? item.batches
+        : item?.batchNumber
+        ? [
+            {
+              batchNumber: item.batchNumber,
+              expiryDate: item.expiryDate || '',
+              quantity: item.quantity || item.dispatchedQuantity || item.requestedQuantity || initialQty,
+              sourceStockBatchId: item.sourceStockBatchId,
+              unitRate: item.unitRate || item.rate || 0,
+            },
+          ]
+        : null;
 
     if (explicitBatches) {
       return explicitBatches.map((b, idx) => ({
@@ -324,7 +341,7 @@ const FifoBatchVisualizerModal = ({
     }
 
     return [];
-  }, [item?.selectedBatches, item?.batchBreakdown, sourceBatches]);
+  }, [item?.selectedBatches, item?.batchBreakdown, item?.batches, item?.batchNumber, item?.quantity, item?.dispatchedQuantity, item?.requestedQuantity, initialQty, sourceBatches]);
 
   // Destination recreated layers:
   // - In batch selection mode: dynamically created strictly from the currently selected source batches.
@@ -417,7 +434,7 @@ const FifoBatchVisualizerModal = ({
         `Only ${targetRequiredQty - toAllocate} ${effectiveUnit} available across all batches. Requested is ${targetRequiredQty} ${effectiveUnit}.`
       );
     } else {
-      toast.success(`Auto-allocated ${targetRequiredQty} ${effectiveUnit} via FIFO.`);
+      toast.success(`Auto-allocated ${targetRequiredQty} ${effectiveUnit} via FEFO.`);
     }
   };
 
@@ -594,7 +611,7 @@ const FifoBatchVisualizerModal = ({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-base font-bold text-gray-900">
-                  {allowBatchSelection ? 'Batch Allocation & FIFO Flow' : 'FIFO Transferred Batch Flow & Recreation'}
+                  {allowBatchSelection ? 'Batch Allocation & FEFO Flow' : 'FEFO Transferred Batch Flow & Recreation'}
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-[#084E92] border border-blue-200">
                   {effectiveItemName}
@@ -716,7 +733,7 @@ const FifoBatchVisualizerModal = ({
           {loading ? (
             <div className="py-20 flex flex-col items-center justify-center gap-2 text-gray-400 bg-white rounded-xl border border-gray-200">
               <Loader2 className="w-8 h-8 animate-spin text-[#084E92]" />
-              <p className="text-xs font-semibold text-gray-700">Loading batch details & FIFO rate layers...</p>
+              <p className="text-xs font-semibold text-gray-700">Loading batch details & FEFO rate layers...</p>
             </div>
           ) : targetRequiredQty <= 0 && allowBatchSelection ? (
             <div className="py-16 flex flex-col items-center justify-center gap-2 text-gray-400 bg-white rounded-xl border border-dashed border-gray-200">
@@ -770,78 +787,86 @@ const FifoBatchVisualizerModal = ({
                           <div
                             key={bId}
                             onClick={() => handleCheckboxToggle(batch)}
-                            className={`p-3 rounded-xl border transition flex flex-col gap-2 cursor-pointer ${
+                            className={`rounded-xl border transition-all flex flex-col cursor-pointer overflow-hidden ${
                               isSelected
-                                ? 'border-[#084E92] bg-blue-50/40 shadow-xs ring-1 ring-[#084E92]/20'
+                                ? 'border-[#084E92] bg-blue-50/20 shadow-xs ring-1 ring-[#084E92]/30'
                                 : available <= 0
                                 ? 'border-gray-200 bg-gray-50/60 opacity-50 cursor-not-allowed'
-                                : 'border-gray-200 bg-white hover:border-blue-300'
+                                : 'border-gray-200 bg-white hover:border-[#084E92]/40 hover:shadow-xs'
                             }`}
                           >
-                            {/* Top Row: Checkbox + Batch Number on Left; Right-Aligned Expires First / Full Qty on Right */}
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    type="button"
-                                    disabled={available <= 0}
-                                    onClick={() => handleCheckboxToggle(batch)}
-                                    className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition border cursor-pointer ${
-                                      isSelected
-                                        ? 'bg-[#084E92] border-[#084E92] text-white'
-                                        : 'bg-white border-gray-300 hover:border-gray-400 text-transparent'
-                                    }`}
-                                  >
-                                    <Check size={12} strokeWidth={3} />
-                                  </button>
-                                </div>
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="text-xs font-bold text-gray-900 truncate font-mono">
-                                    {batchLabel}
-                                  </span>
-                                  {batch.referenceCode && (
-                                    <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded font-mono shrink-0 border border-gray-200">
-                                      {batch.referenceCode}
+                            {/* Top Section: Row 1 & Row 2 */}
+                            <div className="p-3 space-y-2">
+                              {/* Row 1: Checkbox + Batch Number + Ref Code on Left; Expires First on Right */}
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                      type="button"
+                                      disabled={available <= 0}
+                                      onClick={() => handleCheckboxToggle(batch)}
+                                      className={`w-4.5 h-4.5 rounded-md flex items-center justify-center transition border cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-[#084E92] border-[#084E92] text-white'
+                                          : 'bg-white border-gray-300 hover:border-gray-400 text-transparent'
+                                      }`}
+                                    >
+                                      <Check size={12} strokeWidth={3} />
+                                    </button>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                                    <span className="text-xs font-bold text-gray-900 truncate font-mono" title={batchLabel}>
+                                      {batchLabel}
                                     </span>
-                                  )}
+                                    {batch.referenceCode && batch.referenceCode !== batchLabel && (
+                                      <span className="text-[11px] text-gray-400 font-mono">
+                                        ({batch.referenceCode})
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
+
+                                {/* Right side of Row 1: Expires First */}
+                                {isEarliestExpiry && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#084E92] border border-blue-200 shrink-0">
+                                    <Clock size={11} className="text-[#084E92]" />
+                                    Expires First
+                                  </span>
+                                )}
                               </div>
 
-                              {/* Right-aligned tags */}
-                              <div className="flex items-center gap-1.5 shrink-0">
+                              {/* Row 2: Expiry on Left; Rate on Right */}
+                              <div className="flex items-center justify-between gap-2 text-xs text-gray-600 pl-7">
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <Calendar size={12} className="text-gray-400" />
+                                  <span className="text-gray-500">Expiry:</span>
+                                  <strong className="text-gray-800 font-semibold">{expiryDateStr}</strong>
+                                </div>
+
+                                <div className="shrink-0 text-xs text-gray-600">
+                                  <span className="text-gray-500">Rate: </span>
+                                  <strong className="text-gray-900 font-semibold font-mono">₹{rate.toFixed(2)}</strong>
+                                  <span className="text-[10.5px] text-gray-500">/{effectiveUnit}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Row 3: Dedicated Footer Bar for Available Stock & Selection Status */}
+                            <div
+                              className={`px-3 py-2 border-t flex items-center justify-between text-xs transition-colors ${
+                                isSelected
+                                  ? 'bg-blue-50/50 border-blue-100'
+                                  : 'bg-gray-50/70 border-gray-100'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-gray-500">Available:</span>
+                                <strong className="text-gray-900 font-bold font-mono">{available} {effectiveUnit}</strong>
                                 {canFulfillEntirely && !isSelected && (
                                   <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                     Full Qty
                                   </span>
                                 )}
-                                {isEarliestExpiry && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#084E92] border border-blue-200">
-                                    <Clock size={10} className="text-[#084E92]" />
-                                    Expires First
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Bottom Row: Expiry, Available & Rate on Left; Allocated Input on Right */}
-                            <div className="flex items-center justify-between gap-2 text-[10.5px] text-gray-500 pl-7">
-                              <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                                <span className="flex items-center gap-0.5 shrink-0">
-                                  <Calendar size={11} className="text-gray-400" />
-                                  Expiry: <strong className="text-gray-800 font-semibold ml-0.5">{expiryDateStr}</strong>
-                                </span>
-
-                                <span className="text-gray-300">·</span>
-
-                                <span className="shrink-0">
-                                  Available: <strong className="text-gray-900 font-semibold">{available} {effectiveUnit}</strong>
-                                </span>
-
-                                <span className="text-gray-300">·</span>
-
-                                <span className="shrink-0">
-                                  Rate: <strong className="text-gray-900 font-semibold">₹{rate.toFixed(2)}/{effectiveUnit}</strong>
-                                </span>
                               </div>
 
                               <div
@@ -849,11 +874,14 @@ const FifoBatchVisualizerModal = ({
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 {isSelected ? (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold text-[#084E92] bg-blue-50 border border-blue-200">
-                                    {allocatedQty} {effectiveUnit}
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold text-white bg-[#084E92] shadow-2xs">
+                                    <Check size={11} strokeWidth={3} />
+                                    Selected: {allocatedQty} {effectiveUnit}
                                   </span>
                                 ) : (
-                                  <span className="text-[10.5px] text-gray-400 font-medium">Unselected</span>
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10.5px] font-medium text-gray-500 bg-white border border-gray-200">
+                                    Unselected
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -885,9 +913,9 @@ const FifoBatchVisualizerModal = ({
                                 <span className="text-xs font-bold text-gray-900 truncate font-mono">
                                   {batchLabel}
                                 </span>
-                                {batch.referenceCode && (
-                                  <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded font-mono shrink-0 border border-gray-200">
-                                    {batch.referenceCode}
+                                {batch.referenceCode && batch.referenceCode !== batchLabel && (
+                                  <span className="text-[11px] text-gray-400 font-mono">
+                                    ({batch.referenceCode})
                                   </span>
                                 )}
                               </div>
@@ -929,7 +957,7 @@ const FifoBatchVisualizerModal = ({
                     <div className="p-8 text-center text-xs text-gray-400 border border-dashed rounded-lg">
                       {allowBatchSelection
                         ? 'Select batch(es) from the source panel to preview destination recreated layers.'
-                        : 'Destination FIFO rate layers will appear here.'}
+                        : 'Destination FEFO rate layers will appear here.'}
                     </div>
                   ) : (
                     destinationLayers.map((layer, idx) => {
@@ -957,8 +985,8 @@ const FifoBatchVisualizerModal = ({
                                     : layer.layerTitle || `Layer ${layer.layerIndex || idx + 1}`}
                                 </span>
                                 {layer.sourceReferenceCode && (
-                                  <span className="text-[10px] text-[#084E92] bg-white border border-blue-200 px-1.5 py-0.2 rounded font-mono shrink-0">
-                                    {layer.sourceReferenceCode}
+                                  <span className="text-[11px] text-gray-400 font-mono">
+                                    ({layer.sourceReferenceCode})
                                   </span>
                                 )}
                               </div>

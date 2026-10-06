@@ -436,6 +436,11 @@ export const MENU_SIDEBAR = [
     path: '/sub-units',
   },
   {
+    title: 'Sub Locations',
+    icon: MapPinned,
+    path: '/sub-locations',
+  },
+  {
     title: 'Department',
     icon: Group,
     children: [{ title: 'Departments', path: '/department' }],
