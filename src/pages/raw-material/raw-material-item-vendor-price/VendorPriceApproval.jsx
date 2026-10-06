@@ -1,16 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
+    Building2,
     CheckCircle2,
-    ChevronRight,
     ClipboardList,
     Clock,
     Eye,
-    Search,
+    Loader2,
+    Plus,
     XCircle,
-    Check,
-    ChevronDown,
-    X,
 } from 'lucide-react';
 import {
     getCoreRowModel,
@@ -19,6 +17,8 @@ import {
 } from '@tanstack/react-table';
 import { Container } from '@/components/common/container';
 import { SearchBar } from '@/components/common/SearchBar';
+import { PageHeader } from '@/components/common/PageHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
@@ -26,229 +26,30 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
-import { Input } from '@/components/ui/input';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
-import { getVendorPriceApprovals } from '../../../services/apiServices';
+import { getAllVendorPriceConfigurations } from '../../../services/apiServices';
 import { useOrgScope } from '../../../hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
+import SearchableSelect from '../../../utils/SearchableSelect';
 
 const STATUS_STYLES = {
     PENDING: { label: 'Pending', color: 'text-amber-600' },
     APPROVED: { label: 'Approved', color: 'text-emerald-600' },
     REJECTED: { label: 'Rejected', color: 'text-rose-600' },
-};
-
-const inputCls =
-    'w-full border border-[#C3C6D1] rounded-xl px-3.5 py-2 text-sm text-gray-800 bg-white ' +
-    'placeholder-gray-400 outline-none transition-all duration-150 focus:border-[#084E92] focus:ring-2 focus:ring-[#084E92]/15 hover:border-gray-400';
-
-const errorInputCls =
-    'w-full border border-red-400 rounded-xl px-3.5 py-2 text-sm text-gray-800 bg-white ' +
-    'placeholder-gray-400 outline-none transition-all duration-150 focus:border-red-500 focus:ring-2 focus:ring-red-500/15';
-
-const SearchableSelect = ({
-    value,
-    onChange,
-    options = [],
-    placeholder = 'Select...',
-    disabled = false,
-    hasError = false,
-    name,
-    isClearable = true,
-}) => {
-    const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState('');
-
-    const selectedOption = options.find(
-        (option) => String(option.value) === String(value)
-    );
-
-    const selectedLabel = selectedOption?.label || '';
-
-    const filteredOptions = options.filter((option) =>
-        String(option.label || '')
-            .toLowerCase()
-            .includes(search.trim().toLowerCase())
-    );
-
-    const handleSelect = (option) => {
-        const isAlreadySelected = String(value) === String(option.value);
-        onChange({
-            target: {
-                name,
-                value: isAlreadySelected ? '' : String(option.value),
-            },
-        });
-        setSearch('');
-        setOpen(false);
-    };
-
-    const handleClear = (e) => {
-        if (e) {
-            e.stopPropagation();
-            e.preventDefault();
-        }
-        onChange({
-            target: {
-                name,
-                value: '',
-            },
-        });
-        setSearch('');
-        setOpen(false);
-    };
-
-    const handleInputChange = (e) => {
-        const inputValue = e.target.value;
-        setSearch(inputValue);
-        setOpen(true);
-        if (inputValue !== selectedLabel) {
-            onChange({
-                target: {
-                    name,
-                    value: '',
-                },
-            });
-        }
-    };
-
-    const handleInputClick = () => {
-        if (disabled) return;
-        setOpen(true);
-        setSearch('');
-    };
-
-    const handleOpenChange = (nextOpen) => {
-        if (disabled) return;
-        setOpen(nextOpen);
-        setSearch('');
-    };
-
-    const hasValue =
-        value !== undefined &&
-        value !== null &&
-        String(value).trim() !== '' &&
-        String(value).trim() !== '0';
-
-    return (
-        <Popover open={open} onOpenChange={handleOpenChange} modal={false}>
-            <PopoverTrigger asChild>
-                <div className="relative w-full group">
-                    <Input
-                        name={name}
-                        value={open ? search : selectedLabel}
-                        disabled={disabled}
-                        placeholder={placeholder}
-                        onClick={handleInputClick}
-                        onChange={handleInputChange}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck={false}
-                        aria-autocomplete="none"
-                        data-form-type="other"
-                        data-lpignore="true"
-                        data-1p-ignore="true"
-                        data-bwignore="true"
-                        className={
-                            hasError
-                                ? `${errorInputCls} ${hasValue ? 'pr-14' : 'pr-8'} h-10`
-                                : `${inputCls} ${hasValue ? 'pr-14' : 'pr-8'} h-10`
-                        }
-                    />
-
-                    {hasValue && !disabled && isClearable && (
-                        <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={handleClear}
-                            className="absolute right-8 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition cursor-pointer z-10"
-                            title="Clear selection"
-                        >
-                            <X size={14} />
-                        </button>
-                    )}
-
-                    <ChevronDown
-                        size={16}
-                        className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-200 ${disabled
-                                ? 'text-gray-300'
-                                : open
-                                    ? 'text-[#084E92] rotate-180'
-                                    : 'text-gray-400 group-hover:text-gray-600'
-                            }`}
-                    />
-                </div>
-            </PopoverTrigger>
-
-            <PopoverContent
-                side="bottom"
-                align="start"
-                sideOffset={4}
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                className="p-1.5 w-(--radix-popover-trigger-width) min-w-50 overflow-hidden z-100 bg-white rounded-xl shadow-xl shadow-slate-900/10 border border-slate-200/90 ring-1 ring-black/3"
-            >
-                <div className="max-h-56 overflow-y-auto space-y-0.5 pr-0.5">
-                    {hasValue && isClearable && (
-                        <button
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={handleClear}
-                            className="w-full text-left px-3 py-2 text-xs rounded-lg text-rose-600 hover:bg-rose-50 flex items-center gap-1.5 font-medium transition cursor-pointer mb-1 border-b border-gray-100"
-                        >
-                            <X size={13} className="shrink-0" />
-                            Clear selection
-                        </button>
-                    )}
-
-                    {filteredOptions.length > 0 ? (
-                        filteredOptions.map((option) => {
-                            const isSelected = String(value) === String(option.value);
-
-                            return (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={() => handleSelect(option)}
-                                    className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-between gap-2 ${isSelected
-                                            ? 'bg-blue-50/90 text-[#084E92] font-semibold shadow-xs'
-                                            : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-normal'
-                                        }`}
-                                >
-                                    <span className="truncate">{option.label}</span>
-                                    {isSelected ? (
-                                        <span className="flex items-center gap-1 text-[11px] text-[#084E92] bg-blue-100/80 px-2 py-0.5 rounded-md font-semibold shrink-0">
-                                            <Check className="w-3 h-3 stroke-[2.5]" />
-                                            Selected
-                                        </span>
-                                    ) : null}
-                                </button>
-                            );
-                        })
-                    ) : (
-                        <div className="px-3 py-4 text-xs text-gray-400 text-center flex flex-col items-center justify-center gap-1">
-                            <Search className="w-4 h-4 text-gray-300" />
-                            <span>No options found</span>
-                        </div>
-                    )}
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
 };
 
 const StatusBadge = ({ status }) => {
@@ -261,99 +62,70 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const OutletTooltip = ({ outletNames }) => {
-    const wrapperRef = useRef(null);
-    const [showAbove, setShowAbove] = useState(false);
+// Clean List Modal (No Search)
+const OutletsModal = ({ isOpen, onClose, rowData }) => {
+    if (!isOpen || !rowData) return null;
 
-    const visibleOutlets = outletNames.slice(0, 2);
-    const hasMore = outletNames.length > 2;
-
-    const handleMoreHover = () => {
-        if (!wrapperRef.current) return;
-
-        const rect = wrapperRef.current.getBoundingClientRect();
-        const tooltipHeight = 220;
-        const gap = 0;
-
-        setShowAbove(
-            window.innerHeight - rect.bottom < tooltipHeight + gap &&
-            rect.top > tooltipHeight + gap
-        );
-    };
-
-    const getDisplayName = (name, index) => {
-        if (index === 0) {
-            return name.length > 22 ? `${name.slice(0, 22)}...` : name;
-        }
-        return name.length > 10 ? `${name.slice(0, 10)}...` : name;
-    };
+    const outletList = rowData.outletNames || [];
 
     return (
-        <div ref={wrapperRef} className="relative flex items-center whitespace-nowrap py-2 max-w-full">
-            <div className="flex items-center min-w-0 max-w-full">
-                {visibleOutlets.map((name, index) => {
-                    const displayName = getDisplayName(name, index);
-                    const isTruncated = displayName !== name;
-
-                    return (
-                        <React.Fragment key={`${name}-${index}`}>
-                            {index > 0 && <span className="text-gray-500 mr-1">,</span>}
-
-                            <div className="relative group/outlet shrink-0">
-                                <span className="font-medium text-gray-800 whitespace-nowrap">
-                                    {displayName}
-                                </span>
-
-                                {isTruncated && (
-                                    <div className="invisible opacity-0 group-hover/outlet:visible group-hover/outlet:opacity-100 transition-all duration-200 pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-9999 whitespace-nowrap bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl">
-                                        {name}
-                                        <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-gray-900 rotate-45" />
-                                    </div>
-                                )}
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-gray-100">
+                <DialogHeader className="pb-3 border-b border-gray-100">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#084E92] flex items-center justify-center shrink-0">
+                                <Building2 size={18} />
                             </div>
-                        </React.Fragment>
-                    );
-                })}
-
-                {hasMore && (
-                    <>
-                        <span className="text-gray-500 ml-1">,</span>
-
-                        <div
-                            className="relative group/more shrink-0 ml-1"
-                            onMouseEnter={handleMoreHover}
-                        >
-                            <span className="font-bold text-[#084E92] cursor-help whitespace-nowrap">
-                                ...
-                            </span>
-
-                            <div
-                                className={`invisible opacity-0 group-hover/more:visible group-hover/more:opacity-100 transition-all duration-200 pointer-events-auto absolute left-0 z-9999 min-w-48 max-w-64 bg-gray-900/95 text-white rounded-xl p-3 shadow-xl text-xs ${showAbove ? 'bottom-full mb-2' : 'top-full mt-2'
-                                    }`}
-                            >
-                                <p className="font-semibold text-gray-300 border-b border-gray-700/80 pb-1 mb-1.5 text-[11px] uppercase tracking-wider">
-                                    Linked Outlets ({outletNames.length})
+                            <div className="min-w-0">
+                                <DialogTitle className="text-base font-bold text-gray-900 truncate">
+                                    Assigned Outlets
+                                </DialogTitle>
+                                <p className="text-xs text-gray-500 truncate mt-0.5">
+                                    {rowData.materialName} &bull; {rowData.vendorName}
                                 </p>
-
-                                <ul className="space-y-1 max-h-48 overflow-y-auto pr-1">
-                                    {outletNames.map((name, idx) => (
-                                        <li key={`${name}-${idx}`} className="flex items-start gap-1.5 leading-snug">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
-                                            <span className="wrap-break-word">{name}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-
-                                <div
-                                    className={`absolute left-5 w-2.5 h-2.5 bg-gray-900/95 rotate-45 -z-10 ${showAbove ? '-bottom-1' : '-top-1'
-                                        }`}
-                                />
                             </div>
                         </div>
-                    </>
-                )}
-            </div>
-        </div>
+                        <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-[#084E92] rounded-full border border-blue-100 shrink-0">
+                            {outletList.length} Total
+                        </span>
+                    </div>
+                </DialogHeader>
+
+                {/* Numbered Row List */}
+                <div className="py-2 max-h-72 overflow-y-auto divide-y divide-gray-100 pr-1">
+                    {outletList.length === 0 ? (
+                        <p className="text-xs text-gray-400 text-center py-8">
+                            No outlets assigned.
+                        </p>
+                    ) : (
+                        outletList.map((name, index) => (
+                            <div
+                                key={`${name}-${index}`}
+                                className="flex items-center gap-3 py-2.5 px-2 hover:bg-slate-50/70 rounded-lg transition"
+                            >
+                                <span className="w-5 h-5 rounded-md bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center shrink-0">
+                                    {index + 1}
+                                </span>
+                                <span className="text-xs sm:text-sm font-medium text-gray-800 break-words leading-tight">
+                                    {name}
+                                </span>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                <DialogFooter className="pt-3 border-t border-gray-100">
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition cursor-pointer"
+                    >
+                        Close
+                    </button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 };
 
@@ -370,7 +142,6 @@ const VendorPriceApproval = () => {
         retry: retryScope,
     } = useOrgScope();
 
-    // Map organization options from useOrgScope
     const orgOptions = useMemo(() => {
         if (!Array.isArray(scopedOutlets) || scopedOutlets.length === 0) {
             return [];
@@ -405,88 +176,8 @@ const VendorPriceApproval = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All Status');
     const [selectedOrgId, setSelectedOrgId] = useState('');
-    const [stats, setStats] = useState({
-        total: 0,
-        pending: 0,
-        approved: 0,
-        rejected: 0,
-    });
+    const [viewingOutletsModal, setViewingOutletsModal] = useState(null);
 
-    // 1. Permanent global stats
-    const fetchGlobalStats = useCallback(async () => {
-        if (orgScopeLoading || scopeError) return;
-
-        try {
-            const res = await getVendorPriceApprovals(1, 1000, '', '');
-            const rawMaterials = res?.data?.data?.['Raw Material Details'] || [];
-
-            const groups = new Map();
-
-            const addToGroup = (material, vendor, entry) => {
-                if (
-                    allowedOutletIdSet &&
-                    entry.outletId &&
-                    !allowedOutletIdSet.has(String(entry.outletId))
-                ) {
-                    return;
-                }
-
-                const key = [
-                    material.id,
-                    vendor.vendorId,
-                    entry.fromDate,
-                    entry.toDate,
-                    Number(entry.price),
-                    entry.status,
-                ].join('|');
-
-                const existing = groups.get(key);
-
-                if (existing) {
-                    if (!existing.outletIds.includes(entry.outletId)) {
-                        existing.outletIds.push(entry.outletId);
-                    }
-                } else {
-                    groups.set(key, {
-                        status: entry.status,
-                        outletIds: [entry.outletId],
-                    });
-                }
-            };
-
-            rawMaterials.forEach((material) => {
-                (material.vendorPriceConfigs || []).forEach((vendor) => {
-                    const outletPrices = vendor.outletPrices || [];
-
-                    if (outletPrices.length > 0) {
-                        outletPrices.forEach((outlet) => {
-                            addToGroup(material, vendor, {
-                                outletId: outlet.organizationId,
-                                status: (outlet.status || vendor.status || 'PENDING').toUpperCase(),
-                            });
-                        });
-                    } else {
-                        addToGroup(material, vendor, {
-                            outletId: vendor.organizationId || null,
-                            status: (vendor.status || 'PENDING').toUpperCase(),
-                        });
-                    }
-                });
-            });
-
-            const allGroups = Array.from(groups.values());
-            setStats({
-                total: allGroups.length,
-                pending: allGroups.filter((r) => r.status === 'PENDING').length,
-                approved: allGroups.filter((r) => r.status === 'APPROVED').length,
-                rejected: allGroups.filter((r) => r.status === 'REJECTED').length,
-            });
-        } catch (err) {
-            console.error('Failed to load global approval statistics:', err);
-        }
-    }, [orgScopeLoading, allowedOutletIdSet]);
-
-    // 2. Fetch data via API based on status & organization filter
     const fetchApprovalData = useCallback(
         async (selectedStatus = statusFilter, selectedOrg = selectedOrgId) => {
             if (orgScopeLoading || scopeError) return;
@@ -498,17 +189,25 @@ const VendorPriceApproval = () => {
                 const normalizedStatus =
                     selectedStatus === 'All Status' ? '' : selectedStatus.toUpperCase();
 
-                const res = await getVendorPriceApprovals(1, 1000, '', normalizedStatus);
-                const rawMaterials = res?.data?.data?.['Raw Material Details'] || [];
+                const queryParams = {};
+                if (normalizedStatus) {
+                    queryParams.status = normalizedStatus;
+                }
+
+                const res = await getAllVendorPriceConfigurations(queryParams);
+
+                const configurations =
+                    res?.data?.vendorPriceConfigurations ||
+                    res?.data?.data?.vendorPriceConfigurations ||
+                    [];
 
                 const groups = new Map();
 
-                const addToGroup = (material, vendor, entry) => {
+                const addToGroup = (config, entry) => {
                     if (normalizedStatus && entry.status !== normalizedStatus) {
                         return;
                     }
 
-                    // Scope-based enforcement
                     if (
                         allowedOutletIdSet &&
                         entry.outletId &&
@@ -517,14 +216,13 @@ const VendorPriceApproval = () => {
                         return;
                     }
 
-                    // Organization Filter selection
                     if (selectedOrg && String(entry.outletId) !== String(selectedOrg)) {
                         return;
                     }
 
                     const key = [
-                        material.id,
-                        vendor.vendorId,
+                        config.rawMaterialId,
+                        config.vendorId,
                         entry.fromDate,
                         entry.toDate,
                         Number(entry.price),
@@ -540,11 +238,11 @@ const VendorPriceApproval = () => {
                         }
                     } else {
                         groups.set(key, {
-                            id: vendor.id,
-                            materialId: material.id,
-                            materialName: material.nameEnglish || '',
-                            vendorId: vendor.vendorId,
-                            vendorName: vendor.vendorName || '',
+                            id: config.id,
+                            materialId: config.rawMaterialId,
+                            materialName: config.rawMaterialNameEnglish || '',
+                            vendorId: config.vendorId,
+                            vendorName: config.vendorName || '',
                             fromDate: entry.fromDate,
                             toDate: entry.toDate,
                             price: entry.price,
@@ -555,39 +253,40 @@ const VendorPriceApproval = () => {
                     }
                 };
 
-                rawMaterials.forEach((material) => {
-                    (material.vendorPriceConfigs || []).forEach((vendor) => {
-                        const outletPrices = vendor.outletPrices || [];
+                configurations.forEach((config) => {
+                    const outletPrices = config.outletPrices || [];
 
-                        if (outletPrices.length > 0) {
-                            outletPrices.forEach((outlet) => {
-                                addToGroup(material, vendor, {
-                                    outletId: outlet.organizationId,
-                                    outletName: outlet.organizationName || '',
-                                    price: outlet.price ?? vendor.price ?? 0,
-                                    fromDate: outlet.fromDate || vendor.fromDate || '',
-                                    toDate: outlet.toDate || vendor.toDate || '',
-                                    status: (outlet.status || vendor.status || 'PENDING').toUpperCase(),
-                                });
+                    if (outletPrices.length > 0) {
+                        outletPrices.forEach((outlet) => {
+                            addToGroup(config, {
+                                outletId: outlet.organizationId,
+                                outletName: outlet.organizationName || '',
+                                price: outlet.price ?? config.price ?? 0,
+                                fromDate: outlet.fromDate || config.fromDate || '',
+                                toDate: outlet.toDate || config.toDate || '',
+                                status: (outlet.status || config.status || 'PENDING').toUpperCase(),
                             });
-                        } else {
-                            addToGroup(material, vendor, {
-                                outletId: vendor.organizationId || null,
-                                outletName: vendor.organizationName || '',
-                                price: vendor.price ?? 0,
-                                fromDate: vendor.fromDate || '',
-                                toDate: vendor.toDate || '',
-                                status: (vendor.status || 'PENDING').toUpperCase(),
-                            });
-                        }
-                    });
+                        });
+                    } else {
+                        addToGroup(config, {
+                            outletId: config.organizationId || null,
+                            outletName: config.organizationName || '',
+                            price: config.price ?? 0,
+                            fromDate: config.fromDate || '',
+                            toDate: config.toDate || '',
+                            status: (config.status || 'PENDING').toUpperCase(),
+                        });
+                    }
                 });
 
-                const mapped = Array.from(groups.values()).map((g) => ({
-                    ...g,
-                    outletIds: g.outletIds.filter((o) => o !== null && o !== undefined),
-                    outletName: g.outletNames.filter(Boolean).join(', '),
-                }));
+                const mapped = Array.from(groups.values())
+                    .map((g) => ({
+                        ...g,
+                        outletIds: g.outletIds.filter((o) => o !== null && o !== undefined),
+                        outletNames: g.outletNames.filter(Boolean),
+                        outletName: g.outletNames.filter(Boolean).join(', '),
+                    }))
+                    .sort((a, b) => Number(b.id) - Number(a.id));
 
                 setAllApprovalRows(mapped);
             } catch (err) {
@@ -598,20 +297,30 @@ const VendorPriceApproval = () => {
                 setLoading(false);
             }
         },
-        [statusFilter, selectedOrgId, orgScopeLoading, allowedOutletIdSet]
+        [statusFilter, selectedOrgId, orgScopeLoading, scopeError, allowedOutletIdSet]
     );
-
-    useEffect(() => {
-        if (!orgScopeLoading) {
-            fetchGlobalStats();
-        }
-    }, [orgScopeLoading, fetchGlobalStats]);
 
     useEffect(() => {
         if (!orgScopeLoading) {
             fetchApprovalData(statusFilter, selectedOrgId);
         }
     }, [statusFilter, selectedOrgId, orgScopeLoading, fetchApprovalData]);
+
+    const stats = useMemo(() => {
+        let total = allApprovalRows.length;
+        let pending = 0;
+        let approved = 0;
+        let rejected = 0;
+
+        allApprovalRows.forEach((row) => {
+            const statusKey = String(row.status || '').toUpperCase();
+            if (statusKey === 'PENDING') pending += 1;
+            else if (statusKey === 'APPROVED') approved += 1;
+            else if (statusKey === 'REJECTED') rejected += 1;
+        });
+
+        return { total, pending, approved, rejected };
+    }, [allApprovalRows]);
 
     const filteredRows = useMemo(() => {
         const term = searchTerm.trim().toLowerCase();
@@ -647,8 +356,9 @@ const VendorPriceApproval = () => {
             .filter((id) => id != null && (!allowedOutletIdSet || allowedOutletIdSet.has(String(id))))
             .map(String);
 
-        navigate(`/material/items/approve/${row.materialId}`, {
+        navigate(`/material/vendor-price-association/approve/${row.materialId}`, {
             state: {
+                materialId: String(row.materialId),
                 vendorId: String(row.vendorId),
                 configId: row.id,
                 outletIds,
@@ -658,17 +368,24 @@ const VendorPriceApproval = () => {
                 price: row.price,
                 fromDate: row.fromDate,
                 toDate: row.toDate,
+                status: row.status,
             },
         });
     };
 
-    // Pass the row status and vendorId to View Mode
     const handleView = (row) => {
-        navigate(`/material/items/view/${row.materialId}`, {
+        const outletIds = (row.outletIds || [])
+            .filter((id) => id != null && (!allowedOutletIdSet || allowedOutletIdSet.has(String(id))))
+            .map(String);
+
+        navigate(`/material/vendor-price-association/view/${row.materialId}`, {
             state: {
                 from: 'vendor-price-approval',
+                materialId: String(row.materialId),
                 status: row.status,
-                vendorId: row.vendorId,
+                vendorId: String(row.vendorId),
+                configId: row.id,
+                outletIds,
             },
         });
     };
@@ -681,7 +398,7 @@ const VendorPriceApproval = () => {
                     <DataGridColumnHeader
                         title="S.NO"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="py-6"
                     />
                 ),
                 cell: ({ row }) => (
@@ -690,7 +407,7 @@ const VendorPriceApproval = () => {
                     </span>
                 ),
                 enableSorting: false,
-                size: 70,
+                size: 40,
             },
             {
                 accessorKey: 'materialName',
@@ -734,27 +451,50 @@ const VendorPriceApproval = () => {
                     />
                 ),
                 cell: ({ row }) => {
-                    const outletNames = (row.original.outletNames || [])
-                        .filter(Boolean)
-                        .map(String);
+                    const rawOutlets =
+                        row.original.outletNames && row.original.outletNames.length > 0
+                            ? row.original.outletNames
+                            : (row.original.outletName || '')
+                                .split(',')
+                                .map((s) => s.trim())
+                                .filter(Boolean);
 
-                    const fallbackNames =
-                        outletNames.length > 0
-                            ? outletNames
-                            : row.original.outletName
-                                ? row.original.outletName
-                                    .split(',')
-                                    .map((s) => s.trim())
-                                    .filter(Boolean)
-                                : [];
-
-                    if (fallbackNames.length === 0) {
+                    if (rawOutlets.length === 0) {
                         return <span className="text-gray-400 py-2">—</span>;
                     }
 
-                    return <OutletTooltip outletNames={fallbackNames} />;
+                    const visibleOutlets = rawOutlets.slice(0, 2);
+                    const remainingCount = rawOutlets.length - 2;
+
+                    return (
+                        <div className="flex items-center gap-1.5 py-2 max-w-full">
+                            <span
+                                className="text-gray-800 font-medium text-xs sm:text-sm truncate"
+                                title={rawOutlets.join(', ')}
+                            >
+                                {visibleOutlets.join(', ')}
+                            </span>
+
+                            {remainingCount > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setViewingOutletsModal({
+                                            materialName: row.original.materialName,
+                                            vendorName: row.original.vendorName,
+                                            outletNames: rawOutlets,
+                                        })
+                                    }
+                                    className="inline-flex items-center text-[#084E92] bg-[#EFF4FF] hover:bg-[#DCE7FC] px-2 py-0.5 rounded-md font-semibold text-[11px] cursor-pointer transition shrink-0 whitespace-nowrap"
+                                    title="Click to view all outlets"
+                                >
+                                    +{remainingCount} more
+                                </button>
+                            )}
+                        </div>
+                    );
                 },
-                size: 250,
+                size: 260,
             },
             {
                 accessorKey: 'price',
@@ -786,7 +526,7 @@ const VendorPriceApproval = () => {
                     <DataGridColumnHeader
                         title="ACTIONS"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="py-4"
                     />
                 ),
                 cell: ({ row }) => (
@@ -814,7 +554,7 @@ const VendorPriceApproval = () => {
                         )}
                     </div>
                 ),
-                size: 130,
+                size: 80,
             },
         ],
         [canEdit, allowedOutletIdSet]
@@ -874,6 +614,15 @@ const VendorPriceApproval = () => {
                 <PageHeader
                     title="Vendor Price Approval"
                     description="Review vendor pricing submitted per outlet and approve or hold each price before it takes effect."
+                    actions={
+                        canEdit && (
+                            <HeaderActionButton
+                                to="/material/vendor-price-association"
+                                icon={Plus}
+                                label="Associate Vendor Price"
+                            />
+                        )
+                    }
                 />
 
                 <PageErrorAlert
@@ -882,14 +631,12 @@ const VendorPriceApproval = () => {
                         if (scopeError) {
                             retryScope?.();
                         } else {
-                            fetchGlobalStats();
                             fetchApprovalData(statusFilter, selectedOrgId);
                         }
                     }}
                     className="my-3"
                 />
 
-                {/* Global Stat Cards */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 mt-4">
                     {STATS.map((item) => (
                         <div
@@ -911,21 +658,22 @@ const VendorPriceApproval = () => {
                     ))}
                 </div>
 
-                {/* Search, Organization Filter (Hidden for outlet users), and Status Filter */}
                 <div className="flex flex-col gap-4 mt-6">
                     <div
                         className={`grid grid-cols-1 ${isOutletUser ? 'md:grid-cols-3' : 'md:grid-cols-4'
                             } gap-4`}
                     >
-                        {/* Search Input: Spans 2 columns */}
                         <SearchBar
                             value={searchTerm}
                             onChange={handleSearchChange}
+                            onClear={() => {
+                                setSearchTerm('');
+                                setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                            }}
                             placeholder="Search by material, vendor or outlet..."
                             wrapperClassName="md:col-span-2"
                         />
 
-                        {/* SearchableSelect for Organization / Outlet: Rendered ONLY if NOT an outlet user */}
                         {!isOutletUser && (
                             <div>
                                 <SearchableSelect
@@ -939,7 +687,6 @@ const VendorPriceApproval = () => {
                             </div>
                         )}
 
-                        {/* Status Filter */}
                         <div className={isOutletUser ? 'md:col-span-1' : ''}>
                             <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
                                 <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm">
@@ -956,12 +703,24 @@ const VendorPriceApproval = () => {
                     </div>
                 </div>
 
-                {/* Table */}
-                <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                    {loading && (
-                        <p className="p-4 text-sm text-gray-500">Loading vendor price approvals...</p>
-                    )}
-                    <DataGrid table={table} recordCount={filteredRows.length} className="rounded-2xl">
+                <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
+                    {loading ? (
+                        <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
+                            <Loader2 size={16} className="animate-spin" />
+                            Loading...
+                        </div>
+                    ) : (<DataGrid
+                        table={table}
+                        recordCount={filteredRows.length}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>
@@ -974,8 +733,15 @@ const VendorPriceApproval = () => {
                             </CardFooter>
                         </Card>
                     </DataGrid>
+                    )}
                 </div>
             </div>
+
+            <OutletsModal
+                isOpen={!!viewingOutletsModal}
+                onClose={() => setViewingOutletsModal(null)}
+                rowData={viewingOutletsModal}
+            />
         </Container>
     );
 };

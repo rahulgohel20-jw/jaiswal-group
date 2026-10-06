@@ -718,6 +718,9 @@ export const getRawMaterialById = (id) => {
 export const deleteRawMaterialItemById = (id) => {
   return DELETE(`/rawmaterial/delete?id=${id}`);
 };
+export const getAllRawMaterial = () => {
+  return GET('/rawmaterial/get?isActive=true');
+}
 //Raw material item Vendor price approval API
 export const getVendorPriceApprovals = (
   pageNo = 1,
@@ -740,13 +743,28 @@ export const approveVendorPricing = (priceConfigIds) => {
   return PUT(`/raw-material-vendor-price/vendorpricing/approve?${query}`);
 };
 
-export const rejectVendorPricing = (outletPriceIds) => {
+export const rejectVendorPricing = (outletPriceIds, remarks = '') => {
   const ids = (Array.isArray(outletPriceIds) ? outletPriceIds : [outletPriceIds]).filter(
     (id) => id !== null && id !== undefined && id !== ''
   );
-  const query = ids.map((id) => `outletPriceIds=${encodeURIComponent(id)}`).join('&');
-  return PUT(`/raw-material-vendor-price/vendorpricing/reject?${query}`);
+  const params = ids.map((id) => `outletPriceIds=${encodeURIComponent(id)}`);
+  const trimmedRemarks = String(remarks ?? '').trim();
+  if (trimmedRemarks) {
+    params.push(`remarks=${encodeURIComponent(trimmedRemarks)}`);
+  }
+  return PUT(`/raw-material-vendor-price/vendorpricing/reject?${params.join('&')}`);
 };
+
+export const saveBulkVendorPrice =  (payload) => {
+    return POST('/raw-material-vendor-price/vendorpricing/bulk', payload);
+}
+export const getVendorPricesByRawMaterialId = (rawMaterialId) => {
+    return GET(`/raw-material-vendor-price/get-by-raw-material/${rawMaterialId}`);
+};
+export const getAllVendorPriceConfigurations = (params = {}) => {
+    return GET('/raw-material-vendor-price/getall', params);
+};
+
 // ---- User Rights: Pages APIs ----
 // Add these alongside the other exports in apiServices.js
 export const getPages = (isAdminRights = false, isCombine = true) => {
@@ -1432,3 +1450,175 @@ export const getLedgerListFiltered = (payload = {}) => {
 export const getLedgerById = (id) => {
   return GET(`/stock-ledger/${id}`);
 };
+// Kitchen Menu Item API
+export const addKitchenMenuItem = (data) => {
+  return axiosInstance.post('/kitchenmenuitems/add', data);
+};
+
+export const getAllKitchenMenuItem = (params) => {
+  return axiosInstance.get('/kitchenmenuitems/getall', {
+    params,
+  });
+};
+
+export const getKitchenMenuItemById = (id) => {
+  return GET(`/kitchenmenuitems/getbyid?id=${id}`);
+};
+
+export const updateKitchenMenuItem = (data) => {
+  return axiosInstance.put('/kitchenmenuitems/update', data);
+};
+
+export const deleteKitchenMenuItemById = (id) => {
+  return DELETE(`/kitchenmenuitems/deletebyid?id=${id}`);
+};
+
+export const getAllExistingItems = (isCaptainRecipe = false) => {
+  return GET('/kitchenmenuitems/getallexistingitems', { isCaptainRecipe });
+};
+
+export const updateKitchenMenuItemStatus = (id, isActive) => {
+  return PUT(`/kitchenmenuitems/updatestatus?id=${id}&isActive=${isActive}`);
+};
+
+export const updateKitchenMenuItemCategory = (data) => {
+  return axiosInstance.put('/kitchenmenuitems/updatemenuitemcategory', data);
+};
+
+export const updateKitchenMenuItemSubCategory = (data) => {
+  return axiosInstance.put('/kitchenmenuitems/updatemenusubcategory', data);
+};
+
+export const deleteKitchenMenuItemRawMaterialById = (ids) => {
+  return axiosInstance.delete('/kitchenmenuitems/deleteitemrawmaterialbyid', {
+    data: { id: ids },
+  });
+};
+
+export const getKitchenMenuItemRawMaterialByMenuId = (menuItemId, isSync) => {
+  return GET('/kitchenmenuitems/getmenuitemrawmaterialbymenuid', { menuItemId, isSync });
+};
+export const getMenuItemRawMaterialByMenuIdAndOrgId = (menuItemId, orgId, isSync = true) => {
+  return GET(
+    `/kitchenmenuitems/getmenuitemrawmaterialbymenuidandorgid?isSync=${isSync}&menuItemId=${menuItemId}&org_id=${orgId}`
+  );
+};
+export const getKitchenMenuItemCaptainReceipeByMenuIdAndOrgId = (menuItemId, orgId, isSync = true) => {
+  return GET(
+    `/kitchenmenuitems/getmenuitemcaptainreceipebymenuidandorgid?isSync=${isSync}&menuItemId=${menuItemId}&org_id=${orgId}`
+  );
+};
+export const getItemRawMaterialByRawMaterial = (rawMaterialId) => {
+  return GET('/kitchenmenuitems/getitemrawmaterialbyrawmaterial', { rawMaterialId });
+};
+
+export const syncAllKitchenItemRawMaterialRate = () => {
+  return GET('/kitchenmenuitems/syncallitemrawmaterialrate');
+};
+
+export const getKitchenMenuItemCaptainReceipeByMenuId = (menuItemId, isSync) => {
+  return GET('/kitchenmenuitems/getmenuitemcaptainreceipebymenuid', { menuItemId, isSync });
+};
+
+export const syncAllKitchenCaptainReceipeRate = () => {
+  return GET('/kitchenmenuitems/syncallcaptainreceiperate');
+};
+
+//Recipe API
+export const createKitchenMenuItemRecipe = (payload) => {
+    return POST("/kitchenmenuitemrawmaterial/create", payload);
+};
+
+export const getKitchenMenuItemRecipe = ({ menuItemId, orgId, subOutletId } = {}) => {
+    const params = {};
+    if (menuItemId !== null && menuItemId !== undefined && menuItemId !== '' && Number.isFinite(Number(menuItemId))) {
+        params.menuItemId = Number(menuItemId);
+    }
+
+    if (orgId !== null && orgId !== undefined && orgId !== '' && Number.isFinite(Number(orgId))) {
+        params.orgId = Number(orgId);
+    }
+
+    if (subOutletId !== null && subOutletId !== undefined && subOutletId !== '' && Number.isFinite(Number(subOutletId))) {
+        params.subOutletId = Number(subOutletId);
+    }
+
+    return GET("/kitchenmenuitemrawmaterial/get", params);
+};
+
+export const updateKitchenMenuItemRecipe = (payload) => {
+    return PUT("/kitchenmenuitemrawmaterial/update", payload); 
+};
+export const deleteKitchenMenuItemRecipe = ({ menuItemId, orgId, subOutletId } = {}) => {
+    const params = {
+        menuItemId: Number(menuItemId),
+        orgId: Number(orgId),
+    };
+
+    if (subOutletId !== null && subOutletId !== undefined && subOutletId !== '') {
+        params.subOutletId = Number(subOutletId);
+    }
+
+    return DELETE("/kitchenmenuitemrawmaterial/delete", params);
+};
+
+export const getRawMaterialByType = (rawMaterialCatTypeId) => {
+    return GET(`/rawmaterial/getRawMaterialByType?rawMaterialCatTypeId=${rawMaterialCatTypeId}`);
+};
+
+//Kitchen-captain Recipe API
+export const addKitchenCaptainReceipeMaster = (data) => {
+  return axiosInstance.post('/kitchen-captain-receipe-master/add-update', data);
+};
+export const deleteKitchenCaptainReceipeById = (id) => {
+  return axiosInstance.delete(`/kitchen-captain-receipe-master/deletebyid?id=${id}`);
+};
+export const getAllKitchenCaptainReceipeByOrgId = (orgId, status) => {
+  const params = { orgId };
+  if (typeof status === 'boolean') {
+    params.status = status;
+  }
+  return GET('/kitchen-captain-receipe-master/getallbyorgid', params);
+};
+export const getKitchenCaptainReceipeById = (id) => {
+  return GET('/kitchen-captain-receipe-master/getbyid', { id });
+};
+export const getKitchenCaptainReceipeByIdAndOrg = (id, orgId) => {
+  return GET('/kitchen-captain-receipe-master/getbyidandorg', { id, orgId });
+};
+export const syncAllCaptainReceipeRawMaterial = () => {
+  return GET('/kitchen-captain-receipe-master/syncallcaptainreceiperawmaterial');
+};
+export const updateKitchenCaptainReceipeStatusById = (id, status) => {
+  return PUT(`/kitchen-captain-receipe-master/updatestatusbyid?id=${id}&status=${status}`);
+};
+
+//Kitchen Menu Category APIs
+export const getAllKitchenMenuCategory = (params = {}) => {
+  return GET('/kitchenmenucategory/getall', params);
+};
+
+export const getKitchenMenuCategoryById = (id) => {
+  return GET('/kitchenmenucategory/getid', { id });
+};
+
+export const addKitchenMenuCategory = (formData) => {
+  return axiosInstance.post('/kitchenmenucategory/add', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const updateKitchenMenuCategory = (formData) => {
+  return axiosInstance.put('/kitchenmenucategory/update', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const deleteKitchenMenuCategoryById = (id) => {
+  return DELETE('/kitchenmenucategory/deletebyid', { id });
+};
+
+export const updateKitchenMenuCategoryStatus = ({ id, isActive }) => {
+  return PUT(`/kitchenmenucategory/updatestatus?id=${id}&isActive=${isActive}`);
+};
+
