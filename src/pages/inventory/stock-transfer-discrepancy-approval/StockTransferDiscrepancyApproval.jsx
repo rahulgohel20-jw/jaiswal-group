@@ -66,7 +66,10 @@ const StatusBadge = ({ status = 'PENDING_DISCREPANCY_APPROVAL' }) => {
   const key = String(status).toUpperCase();
   const color = STATUS_TEXT_COLORS[key] || STATUS_TEXT_COLORS[status] || 'text-gray-600';
   return (
-    <span className={`text-xs font-semibold whitespace-nowrap shrink-0 ${color}`}>
+    <span
+      title={label}
+      className={`text-xs font-semibold truncate block max-w-[110px] ${color}`}
+    >
       {label}
     </span>
   );
@@ -308,7 +311,7 @@ const StockTransferDiscrepancyApproval = () => {
           />
         ),
         enableSorting: false,
-        size: 130,
+        size: 135,
       },
       {
         id: 'transferDate',
@@ -323,7 +326,7 @@ const StockTransferDiscrepancyApproval = () => {
         ),
         cell: ({ row }) => <span className="text-gray-700 text-xs font-medium">{row.original.transferDate}</span>,
         enableSorting: false,
-        size: 80,
+        size: 85,
       },
       {
         id: 'fromOutlet',
@@ -332,15 +335,15 @@ const StockTransferDiscrepancyApproval = () => {
           <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="flex flex-col gap-0.5">
-            <TruncatedCell value={row.original.fromOutlet} widthClass="max-w-[165px]" className="font-semibold text-gray-900 text-xs" />
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <TruncatedCell value={row.original.fromOutlet} widthClass="max-w-[160px]" className="font-semibold text-gray-900 text-xs" />
             {row.original.fromSubOutlet && row.original.fromSubOutlet !== '—' && (
-              <span className="text-[11px] text-gray-500 truncate max-w-[165px]" title={row.original.fromSubOutlet}>Sub: {row.original.fromSubOutlet}</span>
+              <span className="text-[11px] text-gray-500 truncate max-w-[160px]" title={row.original.fromSubOutlet}>Sub: {row.original.fromSubOutlet}</span>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 175,
+        size: 165,
       },
       {
         id: 'toOutlet',
@@ -349,15 +352,15 @@ const StockTransferDiscrepancyApproval = () => {
           <DataGridColumnHeader title="TO OUTLET" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="flex flex-col gap-0.5">
-            <TruncatedCell value={row.original.toOutlet} widthClass="max-w-[165px]" className="font-semibold text-gray-900 text-xs" />
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <TruncatedCell value={row.original.toOutlet} widthClass="max-w-[160px]" className="font-semibold text-gray-900 text-xs" />
             {row.original.toSubOutlet && row.original.toSubOutlet !== '—' && (
-              <span className="text-[11px] text-gray-500 truncate max-w-[165px]" title={row.original.toSubOutlet}>Sub: {row.original.toSubOutlet}</span>
+              <span className="text-[11px] text-gray-500 truncate max-w-[160px]" title={row.original.toSubOutlet}>Sub: {row.original.toSubOutlet}</span>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 175,
+        size: 165,
       },
       {
         id: 'discrepancySummary',
@@ -365,12 +368,9 @@ const StockTransferDiscrepancyApproval = () => {
           <DataGridColumnHeader title="SHORTAGE" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-1.5 whitespace-nowrap">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-              <AlertTriangle size={12} className="text-amber-600 shrink-0" />
-              {row.original.discrepancyCount} {row.original.discrepancyCount === 1 ? 'item' : 'items'} short
-            </span>
-          </div>
+          <span className="text-xs font-semibold text-gray-700 whitespace-nowrap">
+            {row.original.discrepancyCount} {row.original.discrepancyCount === 1 ? 'item' : 'items'} short
+          </span>
         ),
         enableSorting: false,
         size: 110,
@@ -382,12 +382,12 @@ const StockTransferDiscrepancyApproval = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="whitespace-nowrap pr-1">
+          <div className="whitespace-nowrap">
             <StatusBadge status={row.original.status} />
           </div>
         ),
         enableSorting: false,
-        size: 90,
+        size: 115,
       },
       {
         id: 'actions',
@@ -415,7 +415,7 @@ const StockTransferDiscrepancyApproval = () => {
           </div>
         ),
         enableSorting: false,
-        size: 65,
+        size: 75,
       },
     ],
     [handleResolve, handleView]
@@ -544,7 +544,7 @@ const StockTransferDiscrepancyApproval = () => {
               }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable className="w-full overflow-x-hidden">
+                <CardTable className="w-full overflow-x-auto">
                   <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F8FAFC] rounded-b-2xl border-t border-[#E2E8F0] py-2.5">
