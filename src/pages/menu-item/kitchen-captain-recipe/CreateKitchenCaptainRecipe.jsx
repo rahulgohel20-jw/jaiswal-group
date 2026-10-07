@@ -581,7 +581,7 @@ const CreateKitchenCaptainRecipe = ({
                   </div>
                 )}
 
-                <div>
+                {/* <div>
                   <label className={label}>Sub Outlet</label>
                   <SearchableSelect
                     name="subOutletId"
@@ -596,7 +596,7 @@ const CreateKitchenCaptainRecipe = ({
                     disabled={isViewOnly || (!form.outletId && !isOutletUser)}
                     isClearable={true}
                   />
-                </div>
+                </div> */}
               </div>
 
               {/* Quick Add Ingredient */}
