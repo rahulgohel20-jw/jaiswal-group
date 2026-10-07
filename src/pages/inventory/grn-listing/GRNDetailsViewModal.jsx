@@ -353,9 +353,9 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                     <tr className="border-b border-gray-200 text-[10px] sm:text-[11px] font-bold tracking-wider text-[#64748B] uppercase">
                       <th className="text-center px-3 py-3 w-10">#</th>
                       <th className="text-left px-3.5 py-3 min-w-[180px]">Item Name</th>
-                      <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[160px]">Batch No</th>
-                      <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[120px]">Best Before</th>
                       <th className="text-center px-3 py-3 whitespace-nowrap min-w-[90px]">Unit</th>
+                      <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[160px]">Batch No</th>
+                      <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[120px]">Best Before</th> 
                       <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[90px]">Appr. Qty</th>
                       <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[85px]">Ret. Qty</th>
                       <th className="text-center px-3.5 py-3 whitespace-nowrap min-w-[140px]">Return Status</th>
@@ -394,6 +394,11 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                               )}
                             </div>
                           </td>
+                           <td className="px-3 py-3 text-center text-gray-600">
+                            <span className="inline-block bg-gray-100 px-2.5 py-1 rounded-md text-[11px] font-medium text-gray-700 whitespace-nowrap">
+                              {item.unit || '-'}
+                            </span>
+                          </td>
                           <td className="px-3.5 py-3 text-left whitespace-nowrap">
                             {item.batchNo || item.batchNumber ? (
                               <span className="inline-block font-mono text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md whitespace-nowrap select-all">
@@ -411,11 +416,6 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                             ) : (
                               <span className="text-gray-400 text-xs">—</span>
                             )}
-                          </td>
-                          <td className="px-3 py-3 text-center text-gray-600">
-                            <span className="inline-block bg-gray-100 px-2.5 py-1 rounded-md text-[11px] font-medium text-gray-700 whitespace-nowrap">
-                              {item.unit || '-'}
-                            </span>
                           </td>
                           <td className="px-3.5 py-3 text-right">
                             <span className="font-bold text-xs text-emerald-600">
