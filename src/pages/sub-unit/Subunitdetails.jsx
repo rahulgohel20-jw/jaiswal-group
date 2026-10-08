@@ -267,14 +267,14 @@ const SubUnitDetails = () => {
 
       {/* Sections */}
       <div className="space-y-6">
-        {/* Parent Outlet Information */}
+        {/* Parent Unit Information */}
         <SectionCard
-          title="Parent Outlet"
+          title="Parent Unit"
           icon={Store}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InfoCard label="Outlet Name" value={outletName} />
-            <InfoCard label="Outlet Code" value={outletCode} />
+            <InfoCard label="Unit Name" value={outletName} />
+            <InfoCard label="Unit Code" value={outletCode} />
           </div>
         </SectionCard>
 
@@ -285,7 +285,7 @@ const SubUnitDetails = () => {
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <InfoCard label="Type" value={raw.subOutletType || raw.type || raw.locationType || "LOCATION"} />
-            <InfoCard label="Sub Outlet Name" value={subOutletName} />
+            <InfoCard label="Sub Unit Name" value={subOutletName} />
             <InfoCard label="Contact Person" value={contactPerson} />
             <InfoCard label="Contact Number" value={contactNumber} />
             <InfoCard label="Email" value={email} />

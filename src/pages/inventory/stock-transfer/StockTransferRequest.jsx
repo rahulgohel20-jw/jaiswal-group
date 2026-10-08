@@ -2419,18 +2419,18 @@ const StockTransferRequest = () => {
                 </div>
               )}
 
-              {/* Row 1 & 2: Outlets & Locations (3 Columns per Row) */}
+              {/* Row 1 & 2: Units & Locations (3 Columns per Row) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-                {/* From Outlet */}
+                {/* From Unit */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    From Outlet {!isOutletUser && <span className="text-red-500">*</span>}
+                    From Unit {!isOutletUser && <span className="text-red-500">*</span>}
                   </label>
                   {isOutletUser ? (
                     <div className="h-10 mt-1.5 px-3.5 flex items-center rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700">
                       {scopeUnits?.find((u) => String(u.id) === String(effectiveOutletId))?.name ||
                         units?.find((u) => String(u.id) === String(effectiveOutletId))?.name ||
-                        'Current Outlet'}
+                        'Current Unit'}
                     </div>
                   ) : (
                     <SearchableSelect
@@ -2443,8 +2443,8 @@ const StockTransferRequest = () => {
                         isGroupUser && !selectedCompany
                           ? 'Select company first'
                           : unitsLoading
-                          ? 'Loading outlets...'
-                          : 'Select outlet'
+                          ? 'Loading units...'
+                          : 'Select unit'
                       }
                     />
                   )}
@@ -2463,7 +2463,7 @@ const StockTransferRequest = () => {
                     disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || (!isOutletUser && !fromOutlet) || subUnitsLoading}
                     placeholder={
                       !isOutletUser && !fromOutlet
-                        ? 'Select outlet first'
+                        ? 'Select unit first'
                         : subUnitsLoading
                         ? 'Loading sub-units...'
                         : 'Select sub-unit'
@@ -2494,10 +2494,10 @@ const StockTransferRequest = () => {
                   />
                 </div>
 
-                {/* To Outlet */}
+                {/* To Unit */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    To Outlet <span className="text-red-500">*</span>
+                    To Unit <span className="text-red-500">*</span>
                   </label>
                   <SearchableSelect
                     className="mt-1.5"
@@ -2514,8 +2514,8 @@ const StockTransferRequest = () => {
                       isGroupUser && !selectedCompany
                         ? 'Select company first'
                         : unitsLoading
-                        ? 'Loading outlets...'
-                        : 'Select outlet'
+                        ? 'Loading units...'
+                        : 'Select unit'
                     }
                   />
                 </div>
@@ -2537,7 +2537,7 @@ const StockTransferRequest = () => {
                     disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || !toOutlet || subUnitsLoading}
                     placeholder={
                       !toOutlet
-                        ? 'Select outlet first'
+                        ? 'Select unit first'
                         : subUnitsLoading
                         ? 'Loading sub-units...'
                         : 'Select sub-unit'

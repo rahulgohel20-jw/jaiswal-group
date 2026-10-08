@@ -378,7 +378,7 @@ export default function ApprovalView({
           <div className="grid grid-cols-1 sm:grid-cols-5 gap-6">
             <InfoField label="PR code" value={requisition?.code || requisition?.prCode} mono accent />
             <InfoField label="PR date" value={requisition?.date || requisition?.prDate} />
-            <InfoField label="Outlet" value={requisition?.outlet || requisition?.outletName} />
+            <InfoField label="Unit" value={requisition?.outlet || requisition?.outletName} />
             <InfoField label="Sub-Unit / Location" value={requisition?.subOutletName || requisition?.locationName} />
             <InfoField label="Required by" value={requisition?.requiredDate || requisition?.prRequiredDate} />
           </div>

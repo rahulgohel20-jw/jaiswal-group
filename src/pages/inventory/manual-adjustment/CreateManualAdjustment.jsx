@@ -894,24 +894,24 @@ const CreateManualAdjustment = () => {
                 </div>
               </div>
 
-              {/* Outlet: Only rendered for non-outlet users */}
+              {/* Unit: Only rendered for non-unit users */}
               {!isOutletUser && (
                 <div>
                   <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                    OUTLET <span className="text-red-500">*</span>
+                    UNIT <span className="text-red-500">*</span>
                   </label>
                   <SearchableSelect
                     options={outletOptions}
                     value={outlet}
                     onChange={(e) => handleOutletChange(e.target.value)}
-                    placeholder={unitsLoading ? 'Loading outlets...' : 'Select Outlet'}
+                    placeholder={unitsLoading ? 'Loading units...' : 'Select Unit'}
                   />
                 </div>
               )}
 
               <div>
                 <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                  SUB-OUTLET <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
+                  SUB-UNIT <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
                 </label>
                 <SearchableSelect
                   options={subOutletOptions}
@@ -920,10 +920,10 @@ const CreateManualAdjustment = () => {
                   disabled={(!isOutletUser && !outlet) || subUnitsLoading}
                   placeholder={
                     !isOutletUser && !outlet
-                      ? 'Select Outlet first'
+                      ? 'Select Unit first'
                       : subUnitsLoading
-                      ? 'Loading sub outlets...'
-                      : 'Select Sub-Outlet'
+                      ? 'Loading sub units...'
+                      : 'Select Sub-Unit'
                   }
                 />
               </div>
@@ -939,7 +939,7 @@ const CreateManualAdjustment = () => {
                   disabled={!subOutlet || subLocationsLoading}
                   placeholder={
                     !subOutlet
-                      ? 'Select Sub-Outlet first'
+                      ? 'Select Sub-Unit first'
                       : subLocationsLoading
                       ? 'Loading sub locations...'
                       : 'Select Sub-Location'

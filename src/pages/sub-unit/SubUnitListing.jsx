@@ -515,7 +515,7 @@ const SubUnitListing = () => {
               }}
               options={units.map((unit) => ({
                 value: String(unit.id),
-                label: unit.name || unit.companyNameEnglish || unit.companyName || `Outlet #${unit.id}`,
+                label: unit.name || unit.companyNameEnglish || unit.companyName || `Unit #${unit.id}`,
               }))}
               placeholder="Select Unit"
             />

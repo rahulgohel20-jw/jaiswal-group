@@ -659,7 +659,7 @@ const StockTransfer = () => {
         id: 'fromOutlet',
         accessorFn: (row) => row.fromOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="FROM UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -679,7 +679,7 @@ const StockTransfer = () => {
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="TO OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="TO UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -893,7 +893,7 @@ const StockTransfer = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onClear={() => setSearch('')}
-                placeholder="Search transfer code, item, outlet, vehicle..."
+                placeholder="Search transfer code, item, unit, vehicle..."
               />
             </div>
             <div className="w-[160px] shrink-0">
@@ -901,9 +901,9 @@ const StockTransfer = () => {
             </div>
           </div>
 
-          {/* Row 2: Location Filters (From Outlet, From Sub-Outlet, To Outlet, To Sub-Outlet) */}
+          {/* Row 2: Location Filters (From Unit, From Sub-Unit, To Unit, To Sub-Unit) */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
-            {/* 1. From Outlet: only for Company & Group Users */}
+            {/* 1. From Unit: only for Company & Group Users */}
             {!isOutletUser && (
               <SearchableSelect
                 name="fromOutlet"
@@ -913,21 +913,21 @@ const StockTransfer = () => {
                   setSelectedFromSubOutletId('');
                 }}
                 options={displayOutletOptions}
-                placeholder="From Outlet..."
+                placeholder="From Unit..."
               />
             )}
 
-            {/* 2. From Sub-Outlet: based on From Outlet */}
+            {/* 2. From Sub-Unit: based on From Unit */}
             <SearchableSelect
               name="fromSubOutlet"
               value={selectedFromSubOutletId}
               onChange={(e) => setSelectedFromSubOutletId(e.target.value)}
               options={fromSubOutletOptions}
               disabled={!isOutletUser && !selectedFromOutletId}
-              placeholder={!isOutletUser && !selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
+              placeholder={!isOutletUser && !selectedFromOutletId ? 'Select From Unit' : 'From Sub-Unit...'}
             />
 
-            {/* 3. To Outlet: for all users */}
+            {/* 3. To Unit: for all users */}
             <SearchableSelect
               name="toOutlet"
               value={selectedToOutletId}
@@ -936,17 +936,17 @@ const StockTransfer = () => {
                 setSelectedToSubOutletId('');
               }}
               options={toOutletOptions}
-              placeholder="To Outlet..."
+              placeholder="To Unit..."
             />
 
-            {/* 4. To Sub-Outlet: based on To Outlet */}
+            {/* 4. To Sub-Unit: based on To Unit */}
             <SearchableSelect
               name="toSubOutlet"
               value={selectedToSubOutletId}
               onChange={(e) => setSelectedToSubOutletId(e.target.value)}
               options={toSubOutletOptions}
               disabled={!selectedToOutletId}
-              placeholder={!selectedToOutletId ? 'Select To Outlet' : 'To Sub-Outlet...'}
+              placeholder={!selectedToOutletId ? 'Select To Unit' : 'To Sub-Unit...'}
             />
           </div>
         </div>

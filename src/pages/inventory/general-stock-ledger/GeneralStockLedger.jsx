@@ -718,11 +718,11 @@ const GeneralStockLedger = () => {
             </div>
           )}
 
-          {/* 2. Outlet Selection (Compulsory, Hidden for Outlet user, visible for Group & Company users) */}
+          {/* 2. Unit Selection (Compulsory, Hidden for Unit user, visible for Group & Company users) */}
           {!isOutletUser && (
             <div>
               <label className="text-xs font-semibold text-[#43474F] mb-1.5 block">
-                Outlet <span className="text-red-500">*</span>
+                Unit <span className="text-red-500">*</span>
               </label>
               <SearchableSelect
                 options={outletOptions}
@@ -736,19 +736,19 @@ const GeneralStockLedger = () => {
                 disabled={(isGroupUser && !company) || loadingOutlets}
                 placeholder={
                   loadingOutlets
-                    ? 'Loading outlets...'
+                    ? 'Loading units...'
                     : isGroupUser && !company
                     ? 'Select Company first'
-                    : 'Select Outlet'
+                    : 'Select Unit'
                 }
               />
             </div>
           )}
 
-          {/* 3. Sub-Outlet Selection (Optional) */}
+          {/* 3. Sub-Unit Selection (Optional) */}
           <div>
             <label className="text-xs font-semibold text-[#43474F] mb-1.5 block">
-              Sub-Outlet <span className="text-gray-400 font-normal">(Optional)</span>
+              Sub-Unit <span className="text-gray-400 font-normal">(Optional)</span>
             </label>
             <SearchableSelect
               options={subOutletOptions}
@@ -761,10 +761,10 @@ const GeneralStockLedger = () => {
               disabled={!outlet || loadingSubOutlets}
               placeholder={
                 !outlet
-                  ? 'Select Outlet first'
+                  ? 'Select Unit first'
                   : loadingSubOutlets
                   ? 'Loading...'
-                  : 'Select Sub-Outlet'
+                  : 'Select Sub-Unit'
               }
             />
           </div>

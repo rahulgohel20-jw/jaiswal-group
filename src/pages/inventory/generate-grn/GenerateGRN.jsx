@@ -66,7 +66,7 @@ const TruncatedCell = ({
 
 function UnitDropdown({ units, selectedUnitId, onChange }) {
   const options = [
-    { value: '', label: 'All Outlets' },
+    { value: '', label: 'All Units' },
     ...units.map((u) => ({ value: String(u.id), label: u.name })),
   ];
   return (
@@ -76,7 +76,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ? String(selectedUnitId) : ''}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+        placeholder={units.length === 0 ? 'No units available' : 'All Units'}
         disabled={units.length === 0}
       />
     </div>
@@ -159,7 +159,8 @@ const GenerateGRN = () => {
     setPoError(null);
     try {
       const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
-      const res = await getPurchaseOrdersByOutlet(outletId);
+      const statusParam = statusFilter === 'ALL' ? 'APPROVED,CLOSED' : statusFilter;
+      const res = await getPurchaseOrdersByOutlet(outletId, statusParam);
       const raw = res?.data?.data ?? res?.data ?? res ?? [];
       const rawList = Array.isArray(raw) ? raw : [];
 
@@ -214,7 +215,7 @@ const GenerateGRN = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, effectiveOutletId, filterRowsByScope]);
+  }, [scopeLoading, scopeError, effectiveOutletId, statusFilter, filterRowsByScope]);
 
   useEffect(() => {
     loadData();
@@ -260,7 +261,7 @@ const GenerateGRN = () => {
         const outletMatch = item.outletId && first.outletId ? item.outletId === first.outletId : item.outlet === first.outlet;
         const vendorMatch = item.vendorId && first.vendorId ? item.vendorId === first.vendorId : item.vendorName === first.vendorName;
         if (!outletMatch || !vendorMatch) {
-          toast.error('Only Purchase Orders from the same Outlet and Vendor can be combined into a single GRN.');
+          toast.error('Only Purchase Orders from the same Unit and Vendor can be combined into a single GRN.');
           return prev;
         }
       }
@@ -427,7 +428,7 @@ const GenerateGRN = () => {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET" column={column} className="text-xs" />
+          <DataGridColumnHeader title="UNIT" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <span className="text-xs text-gray-800 font-medium block truncate max-w-[120px]" title={row.original.outlet}>
@@ -604,7 +605,7 @@ const GenerateGRN = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              placeholder="Search PO Code, Outlet, Raised By..."
+              placeholder="Search PO Code, Unit, Raised By..."
             />
           </div>
 

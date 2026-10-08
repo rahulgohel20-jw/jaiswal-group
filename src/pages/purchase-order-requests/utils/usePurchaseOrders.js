@@ -60,6 +60,12 @@ const normalizePo = (po) => {
     vendorId: po.vendorId,
     vendorName: po.vendorName ?? '',
     billTo: po.billTo ?? null,
+    shipTo: po.shipTo ?? null,
+    supplierAddress: po.supplierAddress ?? null,
+    gstNumber: po.gstNumber ?? '',
+    panNumber: po.panNumber ?? '',
+    gstRegisteredName: po.gstRegisteredName ?? '',
+    gstVerified: po.gstVerified ?? false,
     isGstApplicable:
       po.isGstApplicable !== undefined && po.isGstApplicable !== null
         ? Boolean(po.isGstApplicable)

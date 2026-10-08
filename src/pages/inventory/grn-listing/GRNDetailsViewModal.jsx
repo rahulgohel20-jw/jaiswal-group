@@ -149,6 +149,27 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
     .join('')
     .toUpperCase();
 
+  const subLocationDisplay =
+    (typeof grn?.subLocation === 'string' ? grn.subLocation : null) ||
+    grn?.subLocationName ||
+    grn?.subLocation?.subLocationName ||
+    grn?.subLocation?.locationName ||
+    grn?.subLocation?.name ||
+    grn?.locationName ||
+    (typeof grn?.items?.[0]?.subLocation === 'string' ? grn.items[0].subLocation : null) ||
+    grn?.items?.[0]?.subLocationName ||
+    grn?.items?.[0]?.subLocation?.subLocationName ||
+    grn?.items?.[0]?.subLocation?.locationName ||
+    grn?.items?.[0]?.subLocation?.name ||
+    grn?.items?.[0]?.locationName ||
+    (typeof grn?.details?.[0]?.subLocation === 'string' ? grn.details[0].subLocation : null) ||
+    grn?.details?.[0]?.subLocationName ||
+    grn?.details?.[0]?.subLocation?.subLocationName ||
+    grn?.details?.[0]?.subLocation?.locationName ||
+    grn?.details?.[0]?.subLocation?.name ||
+    grn?.details?.[0]?.locationName ||
+    null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
       <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col border border-gray-100">
@@ -229,34 +250,42 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                 )}
               </InfoCard>
 
-              <InfoCard label="Outlet Name">
+              <InfoCard label="Unit Name">
                 <div className="flex items-center gap-2">
-                  <Store size={15} className="text-[#084E92] shrink-0" />
+                  {/* <Store size={15} className="text-[#084E92] shrink-0" /> */}
                   <p className="text-sm font-semibold text-gray-800 truncate">{grn?.outletName || '—'}</p>
                 </div>
               </InfoCard>
 
               {grn?.subOutletName ? (
-                <InfoCard label="Sub-outlet (Sublet)">
+                <InfoCard label="Sub-Unit">
                   <div className="flex items-center gap-2">
-                    <CornerDownRight size={15} className="text-[#084E92] shrink-0" />
+                    {/* <CornerDownRight size={15} className="text-[#084E92] shrink-0" /> */}
                     <p className="text-sm font-semibold text-gray-800 truncate">{grn.subOutletName}</p>
+                  </div>
+                </InfoCard>
+              ) : null}
+
+              {subLocationDisplay ? (
+                <InfoCard label="Sub-Location">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{subLocationDisplay}</p>
                   </div>
                 </InfoCard>
               ) : null}
 
               <InfoCard label="Vendor Name">
                 <div className="flex items-center gap-2">
-                  <Building2 size={15} className="text-[#084E92] shrink-0" />
+                  {/* <Building2 size={15} className="text-[#084E92] shrink-0" /> */}
                   <p className="text-sm font-semibold text-gray-800 truncate">{grn?.vendorName || '—'}</p>
                 </div>
               </InfoCard>
 
               <InfoCard label="Raised By">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-blue-100 text-[#084E92] text-[10px] font-bold flex items-center justify-center shrink-0">
+                  {/* <span className="w-5 h-5 rounded-full bg-blue-100 text-[#084E92] text-[10px] font-bold flex items-center justify-center shrink-0">
                     {raisedByInitials}
-                  </span>
+                  </span> */}
                   <p className="text-sm font-semibold text-gray-800 truncate">{grn?.raisedBy || '—'}</p>
                 </div>
               </InfoCard>
@@ -353,10 +382,10 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                     <tr className="border-b border-gray-200 text-[10px] sm:text-[11px] font-bold tracking-wider text-[#64748B] uppercase">
                       <th className="text-center px-3 py-3 w-10">#</th>
                       <th className="text-left px-3.5 py-3 min-w-[180px]">Item Name</th>
+                      <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[90px]">Appr. Qty</th>
                       <th className="text-center px-3 py-3 whitespace-nowrap min-w-[90px]">Unit</th>
                       <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[160px]">Batch No</th>
                       <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[120px]">Best Before</th> 
-                      <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[90px]">Appr. Qty</th>
                       <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[85px]">Ret. Qty</th>
                       <th className="text-center px-3.5 py-3 whitespace-nowrap min-w-[140px]">Return Status</th>
                       <th className="text-center px-3.5 py-3 whitespace-nowrap min-w-[100px]">Status</th>
@@ -375,7 +404,7 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                           <td className="px-3.5 py-3 font-semibold text-gray-900">
                             <div>
                               <p className="text-xs text-gray-900">{item.name}</p>
-                              {(item.poCode || item.prCode) && (
+                              {(item.poCode || item.prCode || item.subLocationName || item.subLocation) && (
                                 <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                   {item.poCode && (
                                     <span className="text-[10px] font-mono font-medium text-[#084E92] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
@@ -387,12 +416,22 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                                       {item.prCode}
                                     </span>
                                   )}
+                                  {(item.subLocationName || (typeof item.subLocation === 'string' ? item.subLocation : null)) && (
+                                    <span className="text-[10px] font-medium text-blue-700 bg-blue-50/60 px-1.5 py-0.5 rounded border border-blue-200" title="Received at Sub-Location">
+                                      {item.subLocationName || item.subLocation}
+                                    </span>
+                                  )}
                                 </div>
                               )}
                               {item.remarks && (
                                 <p className="text-[10px] text-gray-500 italic mt-0.5">{item.remarks}</p>
                               )}
                             </div>
+                          </td>
+                            <td className="px-3.5 py-3 text-right">
+                            <span className="font-bold text-xs text-emerald-600">
+                              {item.acceptedQuantity ?? '-'}
+                            </span>
                           </td>
                            <td className="px-3 py-3 text-center text-gray-600">
                             <span className="inline-block bg-gray-100 px-2.5 py-1 rounded-md text-[11px] font-medium text-gray-700 whitespace-nowrap">
@@ -417,11 +456,7 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                               <span className="text-gray-400 text-xs">—</span>
                             )}
                           </td>
-                          <td className="px-3.5 py-3 text-right">
-                            <span className="font-bold text-xs text-emerald-600">
-                              {item.acceptedQuantity ?? '-'}
-                            </span>
-                          </td>
+                        
                           <td className="px-3.5 py-3 text-right">
                             <span className="font-bold text-xs text-amber-700">
                               {returnQty > 0 ? returnQty : '0'}

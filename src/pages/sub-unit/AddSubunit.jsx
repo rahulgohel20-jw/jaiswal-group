@@ -233,7 +233,7 @@ function unwrapList(res, hints = []) {
 // Outlet objects carry the name under companyNameEnglish, not `name`
 const getOrgLabel = (o) => (o ? o.companyNameEnglish || o.companyCode || String(o.id ?? "") : "");
 
-const nextSubUnitCode = (outletCode) => (outletCode ? `${outletCode}-SU01` : "Select an outlet first");
+const nextSubUnitCode = (outletCode) => (outletCode ? `${outletCode}-SU01` : "Select a unit first");
 
 const SUB_OUTLET_TYPE_OPTIONS = [
   { value: "LOCATION", label: "LOCATION" },
@@ -517,7 +517,7 @@ const AddSubUnit = () => {
   const handleOutletChange = (e) => {
     setLocationTouched(false);
     set("outletId", e.target.value);
-    setErrorFor("outletId", validateRequired(e.target.value, "Outlet"));
+    setErrorFor("outletId", validateRequired(e.target.value, "Unit"));
   };
 
   const requiredFields = ["subOutletName", "email", "addressLine1", "pincode"];
@@ -528,10 +528,10 @@ const AddSubUnit = () => {
     const typeErr = validateRequired(form.subOutletType, "Type");
     if (typeErr) next.subOutletType = typeErr;
 
-    const outletErr = validateRequired(form.outletId, "Outlet");
+    const outletErr = validateRequired(form.outletId, "Unit");
     if (outletErr) next.outletId = outletErr;
 
-    const nameErr = validateRequired(form.subOutletName, "Sub Outlet Name");
+    const nameErr = validateRequired(form.subOutletName, "Sub Unit Name");
     if (nameErr) next.subOutletName = nameErr;
 
     const addressErr = validateRequired(form.addressLine1, "Address Line 1");
@@ -624,8 +624,8 @@ const AddSubUnit = () => {
       <SectionCard className="mt-4">
         <SectionHeader
           icon={Store}
-          title="Type & Parent Outlet"
-          subtitle="The sub unit will be registered under this outlet"
+          title="Type & Parent Unit"
+          subtitle="The sub unit will be registered under this unit"
           open={openSections.outlet}
           onToggle={() => toggleSection("outlet")}
         />
@@ -646,7 +646,7 @@ const AddSubUnit = () => {
               </div>
 
               <div>
-                <Label required>Outlet</Label>
+                <Label required>Unit</Label>
                 <SearchableSelect
                   name="outletId"
                   value={form.outletId}
@@ -654,8 +654,8 @@ const AddSubUnit = () => {
                   options={outletOptions}
                   placeholder={
                     loadingOutlets
-                      ? "Loading outlets..."
-                      : "Select Outlet"
+                      ? "Loading units..."
+                      : "Select Unit"
                   }
                   disabled={loadingOutlets}
                   hasError={!!errors.outletId}
@@ -682,7 +682,7 @@ const AddSubUnit = () => {
         {openSections.info && (
           <div className="px-6 py-6 space-y-5">
             <div>
-              <Label required>Sub Outlet Name</Label>
+              <Label required>Sub Unit Name</Label>
               <input
                 value={form.subOutletName}
                 onChange={(e) => {

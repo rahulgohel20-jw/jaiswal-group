@@ -288,7 +288,7 @@ const OpbStockCreateRequest = () => {
         const selectedOutletId = Number(outlet || effectiveOutletId);
 
         if (!selectedOutletId) {
-            notify.error('Please select Outlet');
+            notify.error('Please select Unit');
             return;
         }
 
@@ -382,7 +382,7 @@ const OpbStockCreateRequest = () => {
                             {
                                 !isOutletUser && <div>
                                     <label className="text-xs font-medium text-gray-600">
-                                        Outlet
+                                        Unit
                                     </label>
 
                                     <SearchableSelect
@@ -396,7 +396,7 @@ const OpbStockCreateRequest = () => {
                                             setSubOutlet('');
                                             setSubLocation('');
                                         }}
-                                        placeholder={ 'Select Outlet' }
+                                        placeholder={ 'Select Unit' }
                                     />
 
                                     {orgScopeError && (
@@ -410,7 +410,7 @@ const OpbStockCreateRequest = () => {
 
                             <div>
                                 <label className="text-xs font-medium text-gray-600">
-                                    Sub-Outlet <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
+                                    Sub-Unit <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
                                 </label>
 
                                 <SearchableSelect
@@ -424,10 +424,10 @@ const OpbStockCreateRequest = () => {
                                     disabled={!outlet || subUnitsLoading}
                                     placeholder={
                                         !outlet
-                                            ? 'Select Outlet first'
+                                            ? 'Select Unit first'
                                             : subUnitsLoading
-                                                ? 'Loading sub outlets...'
-                                                : 'Select Sub-Outlet'
+                                                ? 'Loading sub-units...'
+                                                : 'Select Sub-Unit'
                                     }
                                 />
                             </div>

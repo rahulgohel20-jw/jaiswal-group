@@ -109,7 +109,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ?? ''}
         onChange={(e) => onChange(e.target.value)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'Select outlet...'}
+        placeholder={units.length === 0 ? 'No units available' : 'Select unit...'}
         disabled={units.length === 0}
       />
     </div>
@@ -407,7 +407,7 @@ const PurchaseOrderRequest = () => {
       {
         accessorKey: 'outlet',
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
         enableSorting: false,

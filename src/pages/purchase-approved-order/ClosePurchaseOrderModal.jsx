@@ -40,7 +40,7 @@ export const ClosePurchaseOrderModal = ({
         <div className="p-5 space-y-4">
           {po?.outlet && (
             <div className="bg-[#F9FAFC] border border-[#E7EAF0] rounded-xl px-3.5 py-2.5 text-xs text-[#475467]">
-              <span className="text-[#98A2B3] font-medium">Outlet: </span>
+              <span className="text-[#98A2B3] font-medium">Unit: </span>
               <span className="font-semibold text-[#101828]">{po.outlet}</span>
             </div>
           )}

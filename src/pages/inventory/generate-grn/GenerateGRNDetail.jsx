@@ -672,12 +672,9 @@ const GenerateGRNDetail = () => {
     setGenerating(true);
     try {
       await createGrn(formData);
-      toast.success('GRN generated successfully!');
       navigate('/inventory/grn-listing');
     } catch (err) {
       console.error('Failed to create GRN:', err);
-      const msg = err?.response?.data?.message || err?.message || 'Failed to generate GRN.';
-      toast.error(msg);
     } finally {
       setGenerating(false);
     }
@@ -798,12 +795,12 @@ const GenerateGRNDetail = () => {
             </div>
           </div>
 
-          {/* Row 2: Outlet Name & Sub-unit / Location */}
+          {/* Row 2: Unit Name & Sub-unit / Location */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <div className="min-w-0">
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Outlet Name</label>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Unit Name</label>
               <div className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 flex items-center bg-gray-50">
-                <span className="text-xs sm:text-sm font-medium text-gray-800 truncate">{po.outletName || po.outlet || `Outlet #${po.outletId}`}</span>
+                <span className="text-xs sm:text-sm font-medium text-gray-800 truncate">{po.outletName || po.outlet || `Unit #${po.outletId}`}</span>
               </div>
             </div>
 
@@ -817,9 +814,9 @@ const GenerateGRNDetail = () => {
                 disabled={loadingSubOutlets}
                 className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 text-xs sm:text-sm font-medium text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
               >
-                <option value="">None (Direct to {po.outletName || po.outlet || 'Outlet'})</option>
+                <option value="">None (Direct to {po.outletName || po.outlet || 'Unit'})</option>
                 {sortedSubOutlets.map((sub) => {
-                  const name = sub.subOutletName || sub.name || `Sub-outlet #${sub.id}`;
+                  const name = sub.subOutletName || sub.name || `Sub-unit #${sub.id}`;
                   const type = sub.subOutletType || sub.type || sub.locationType;
                   return (
                     <option key={sub.id} value={sub.id}>
@@ -919,13 +916,13 @@ const GenerateGRNDetail = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="min-w-0">
               <label className="text-xs font-medium text-gray-600 mb-1 block">
-                Shipping Details (Outlet Address)
+                Shipping Details (Unit Address)
               </label>
               <div className="border border-gray-200 rounded-lg p-2.5 flex items-start gap-2 bg-white min-h-[52px] shadow-2xs">
                 <MapPin size={15} className="text-[#084E92] mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-gray-900 truncate">
-                    {po?.shipTo?.companyNameEnglish || po?.outletName || 'Outlet'}
+                    {po?.shipTo?.companyNameEnglish || po?.outletName || 'Unit'}
                   </p>
                   <p className="text-[11px] text-gray-600 mt-0.5 leading-snug line-clamp-2">
                     {shippingAddress}

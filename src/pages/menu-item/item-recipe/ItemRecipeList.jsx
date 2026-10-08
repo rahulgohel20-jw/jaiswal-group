@@ -342,7 +342,7 @@ const ItemRecipeList = () => {
                 accessorFn: (row) => row.outlet,
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="Outlet"
+                        title="Unit"
                         column={column}
                         className="text-[#43474F] font-semibold uppercase text-sm"
                     />
@@ -542,8 +542,8 @@ const ItemRecipeList = () => {
                                         options={outletFilterOptions}
                                         placeholder={
                                             isCompanyUser
-                                                ? `All Outlets (${selfOrg?.companyNameEnglish || 'Company'})`
-                                                : 'All Outlets'
+                                                ? `All Units (${selfOrg?.companyNameEnglish || 'Company'})`
+                                                : 'All Units'
                                         }
                                         isClearable={true}
                                     />

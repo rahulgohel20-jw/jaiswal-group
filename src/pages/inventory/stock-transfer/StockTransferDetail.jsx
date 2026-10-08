@@ -427,8 +427,8 @@ const StockTransferDetail = () => {
       toOrganizationId: transfer?.toOrganizationId || transfer?.toOutletId,
       toSubOutletId: transfer?.toSubOutletId,
       toSubLocationId: transfer?.toSubLocationId,
-      fromOutletName: transfer?.fromOrganizationName || transfer?.fromOutletName || transfer?.fromOutlet || 'Source Outlet',
-      toOutletName: transfer?.toOrganizationName || transfer?.toOutletName || transfer?.toOutlet || 'Destination Outlet',
+      fromOutletName: transfer?.fromOrganizationName || transfer?.fromOutletName || transfer?.fromOutlet || 'Source Unit',
+      toOutletName: transfer?.toOrganizationName || transfer?.toOutletName || transfer?.toOutlet || 'Destination Unit',
       selectedBatches: rowItem.batches || rowItem.selectedBatches || [],
       batchBreakdown: rowItem.batches || rowItem.batchBreakdown || [],
       batches: rowItem.batches || [],
@@ -745,7 +745,7 @@ const StockTransferDetail = () => {
                   <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Origin (Source)</h3>
                 </div>
                 <div>
-                  <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Outlet</label>
+                  <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Unit</label>
                   <p className="text-sm font-bold text-gray-900 mt-0.5">
                     {transfer?.fromOrganizationName || transfer?.fromOutletName || transfer?.fromOutlet || '—'}
                   </p>
@@ -799,7 +799,7 @@ const StockTransferDetail = () => {
                   <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Destination</h3>
                 </div>
                 <div>
-                  <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Outlet</label>
+                  <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Unit</label>
                   <p className="text-sm font-bold text-gray-900 mt-0.5">
                     {transfer?.toOrganizationName || transfer?.toOutletName || transfer?.toOutlet || '—'}
                   </p>

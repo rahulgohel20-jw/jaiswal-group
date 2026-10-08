@@ -452,12 +452,12 @@ const ViewManualAdjustment = () => {
               <InfoTile label="Created By" value={createdByName} />
               <InfoTile label="Last Updated By" value={updatedByName || '—'} />
               <InfoTile
-                label="Outlet / Branch"
+                label="Unit / Branch"
                 value={`${outletName} ${outletCode ? `(${outletCode})` : ''}`}
                 className="col-span-2 sm:col-span-2"
               />
               <InfoTile
-                label="Sub-Outlet"
+                label="Sub-Unit"
                 value={subOutletName}
                 className="col-span-2 sm:col-span-1"
               />

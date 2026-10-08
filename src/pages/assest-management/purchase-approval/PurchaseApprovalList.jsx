@@ -155,7 +155,7 @@ export default function ListView({ onOpen }) {
         {/* Header */}
         <PageHeader
           title="Purchase Approval"
-          description="Manage and review pending purchase requisitions from various outlets for final authorization."
+          description="Manage and review pending purchase requisitions from various units for final authorization."
         />
 
       {/* Stat cards */}
@@ -190,7 +190,7 @@ export default function ListView({ onOpen }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onClear={() => setQuery("")}
-            placeholder="Search PR code, outlet or manager..."
+            placeholder="Search PR code, unit or manager..."
           />
         </div>
         <button className="cursor-pointer h-10 px-4 rounded-xl border border-[#C3C6D1] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors">
@@ -216,7 +216,7 @@ export default function ListView({ onOpen }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#F9FAFC] border-b border-[#E7EAF0]">
-              {["S.No", "PR Code", "Date", "Raised by", "Outlet name", "Status", "Actions"].map(
+              {["S.No", "PR Code", "Date", "Raised by", "Unit name", "Status", "Actions"].map(
                 (h) => (
                   <th
                     key={h}

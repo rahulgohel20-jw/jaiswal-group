@@ -362,7 +362,7 @@ const OpbStockCreateRequestListing = () => {
                 accessorFn: (row) => row.organizationName,
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="Outlet"
+                        title="Unit"
                         column={column}
                         className="text-[#43474F] font-semibold uppercase text-sm"
                     />
@@ -375,7 +375,7 @@ const OpbStockCreateRequestListing = () => {
                 accessorFn: (row) => row.subOutletName,
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="Sub-Outlet"
+                        title="Sub-Unit"
                         column={column}
                         className="text-[#43474F] font-semibold uppercase text-sm"
                     />
@@ -455,7 +455,7 @@ const OpbStockCreateRequestListing = () => {
                 {/* Search */}
                 <SearchBar
                     isStandalone={true}
-                    placeholder="Search by Request Code, Outlet, or Sub-Outlet..."
+                    placeholder="Search by Request Code, Unit, or Sub-Unit..."
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     onClear={() => setSearchInput('')}

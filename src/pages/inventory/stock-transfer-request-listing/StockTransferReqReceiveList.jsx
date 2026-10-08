@@ -653,7 +653,7 @@ const StockTransferReqReceiveList = () => {
         id: 'fromOutlet',
         accessorFn: (row) => row.fromOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="FROM UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -677,7 +677,7 @@ const StockTransferReqReceiveList = () => {
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="TO OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="TO UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -875,7 +875,7 @@ const StockTransferReqReceiveList = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onClear={() => setSearch('')}
-                placeholder="Search by transfer code, item, outlet, vehicle..."
+                placeholder="Search by transfer code, item, unit, vehicle..."
               />
             </div>
             <div className="w-[160px] shrink-0">
@@ -885,7 +885,7 @@ const StockTransferReqReceiveList = () => {
 
           {/* Row 2: Location Filters */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
-            {/* 1. From Outlet Dropdown: for all users (shows sibling outlets for outlet user, descendant outlets for company/group) */}
+            {/* 1. From Unit Dropdown: for all users (shows sibling units for unit user, descendant units for company/group) */}
             <SearchableSelect
               name="fromOutlet"
               value={selectedFromOutletId}
@@ -894,20 +894,20 @@ const StockTransferReqReceiveList = () => {
                 setSelectedFromSubOutletId('');
               }}
               options={fromOutletOptions}
-              placeholder="From Outlet..."
+              placeholder="From Unit..."
             />
 
-            {/* 2. From Sub-Outlet: based on selected From Outlet */}
+            {/* 2. From Sub-Unit: based on selected From Unit */}
             <SearchableSelect
               name="fromSubOutlet"
               value={selectedFromSubOutletId}
               onChange={(e) => setSelectedFromSubOutletId(e.target.value)}
               options={fromSubOutletOptions}
               disabled={!selectedFromOutletId}
-              placeholder={!selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
+              placeholder={!selectedFromOutletId ? 'Select From Unit' : 'From Sub-Unit...'}
             />
 
-            {/* 3. To Outlet Dropdown: only for Company & Group Users (Hidden for Outlet User) */}
+            {/* 3. To Unit Dropdown: only for Company & Group Users (Hidden for Unit User) */}
             {!isOutletUser && (
               <SearchableSelect
                 name="toOutlet"
@@ -917,18 +917,18 @@ const StockTransferReqReceiveList = () => {
                   setSelectedToSubOutletId('');
                 }}
                 options={displayOutletOptions}
-                placeholder="To Outlet..."
+                placeholder="To Unit..."
               />
             )}
 
-            {/* 4. To Sub-Outlet: based on effectiveOutletId for outlet users, or selectedToOutletId for others */}
+            {/* 4. To Sub-Unit: based on effectiveOutletId for unit users, or selectedToOutletId for others */}
             <SearchableSelect
               name="toSubOutlet"
               value={selectedToSubOutletId}
               onChange={(e) => setSelectedToSubOutletId(e.target.value)}
               options={toSubOutletOptions}
               disabled={!isOutletUser && !selectedToOutletId}
-              placeholder={!isOutletUser && !selectedToOutletId ? 'Select To Outlet' : 'To Sub-Outlet...'}
+              placeholder={!isOutletUser && !selectedToOutletId ? 'Select To Unit' : 'To Sub-Unit...'}
             />
           </div>
         </div>

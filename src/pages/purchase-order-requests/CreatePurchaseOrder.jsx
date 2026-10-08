@@ -354,13 +354,20 @@ const CreatePurchaseOrder = () => {
 
   // Fetch or update supplier address dynamically whenever selected vendor changes
   useEffect(() => {
+    // If editing existing PO and poRecord is still loading, wait for it
+    if (isEditingExistingPo && !poRecord) {
+      return;
+    }
+
     const currentVendorId = commonVendorId || poRecord?.vendorId || state?.vendorId || Object.values(vendorMap).find(Boolean);
     if (!currentVendorId) {
       setFetchedVendorAddress(null);
       return;
     }
 
-    if (poRecord?.supplierAddress && String(poRecord.vendorId) === String(currentVendorId) && !fetchedVendorAddress) {
+    // If poRecord already has supplierAddress for this vendor, use it directly without API call
+    if (poRecord?.supplierAddress && String(poRecord.vendorId) === String(currentVendorId)) {
+      setFetchedVendorAddress(null);
       return;
     }
 
@@ -396,17 +403,24 @@ const CreatePurchaseOrder = () => {
     return () => {
       isCancelled = true;
     };
-  }, [commonVendorId, poRecord?.vendorId, poRecord?.supplierAddress, state?.vendorId, vendorMap]);
+  }, [commonVendorId, isEditingExistingPo, poRecord, state?.vendorId, vendorMap]);
 
   // Fetch or update outlet shipping address whenever selected outlet changes
   useEffect(() => {
+    // If editing existing PO and poRecord is still loading, wait for it
+    if (isEditingExistingPo && !poRecord) {
+      return;
+    }
+
     const outletId = activeOutletId || selectedOutletId || poRecord?.outletId || state?.outletId || pr?.outletId;
     if (!outletId) {
       setFetchedShipTo(null);
       return;
     }
 
-    if (poRecord?.shipTo && String(poRecord.outletId) === String(outletId) && !fetchedShipTo) {
+    // If poRecord already has shipTo for this outlet, use it directly without API call
+    if (poRecord?.shipTo && String(poRecord.outletId) === String(outletId)) {
+      setFetchedShipTo(null);
       return;
     }
 
@@ -440,7 +454,7 @@ const CreatePurchaseOrder = () => {
     return () => {
       isCancelled = true;
     };
-  }, [activeOutletId, selectedOutletId, poRecord?.outletId, poRecord?.shipTo, state?.outletId, pr?.outletId]);
+  }, [activeOutletId, isEditingExistingPo, poRecord, selectedOutletId, state?.outletId, pr?.outletId]);
 
   const reviewMode = state?.reviewMode;
   const isApproveMode = reviewMode === 'approve';
@@ -774,6 +788,26 @@ const CreatePurchaseOrder = () => {
     });
   };
 
+  const handleItemDiscountChange = (rawMaterialId, value) => {
+    const v = value === '' ? '' : Math.max(0, Math.min(100, Number(value)));
+    setDiscountMap((prev) => {
+      const next = { ...prev, [rawMaterialId]: v };
+      let sub = 0;
+      let disc = 0;
+      includedItems.forEach((item) => {
+        const q = Number(poQtyMap[item.rawMaterialId]) || 0;
+        const p = Number(priceMap[item.rawMaterialId]) || 0;
+        const d = item.rawMaterialId === rawMaterialId ? (Number(v) || 0) : (Number(next[item.rawMaterialId]) || 0);
+        const base = q * p;
+        sub += base;
+        disc += (base * d) / 100;
+      });
+      const effectivePct = sub > 0 ? Number(((disc / sub) * 100).toFixed(2)) : (Number(v) || 0);
+      setOverallDiscountPercentage(effectivePct);
+      return next;
+    });
+  };
+
   const handleGlobalVendorChange = async (vendorId) => {
     if (!vendorId) {
       setCommonVendorId('');
@@ -888,7 +922,7 @@ const CreatePurchaseOrder = () => {
         setFetchedVendorAddress(newBillTo);
 
         const outletId = activeOutletId || selectedOutletId || poRecord?.outletId || state?.outletId || pr?.outletId;
-        let currentShipTo = shipTo;
+        let currentShipTo = shipTo || poRecord?.shipTo;
         if (!currentShipTo && outletId) {
           const companyRes = await getCompanyById(Number(outletId));
           const c = companyRes?.data?.data ?? companyRes?.data;
@@ -1195,7 +1229,8 @@ const CreatePurchaseOrder = () => {
     const baseline = isEditingExistingPo
       ? (poRecord?.details || []).map((d, idx) => ({
         rawMaterialId: d.rawMaterialId,
-        prDetailId: d.prDetailId != null ? Number(d.prDetailId) : (d.id != null ? Number(d.id) : null),
+        poDetailId: d.id != null ? Number(d.id) : null,
+        prDetailId: d.prDetailId != null ? Number(d.prDetailId) : null,
         srNo: String(idx + 1).padStart(2, '0'),
         itemName: d.rawMaterialName,
         unit: d.uomName,
@@ -1203,10 +1238,11 @@ const CreatePurchaseOrder = () => {
         uomName: d.uomName,
         approvedQty: d.quantity,
         remarks: d.remarks || '',
-        source: 'pr',
+        source: d.prDetailId ? 'pr' : 'manual',
       }))
       : (pr?.details || []).map((d, idx) => ({
         rawMaterialId: d.rawMaterialId,
+        poDetailId: null,
         prDetailId: d.id != null ? Number(d.id) : (d.prDetailId != null ? Number(d.prDetailId) : null),
         srNo: String(idx + 1).padStart(2, '0'),
         itemName: d.rawMaterialName,
@@ -1219,6 +1255,7 @@ const CreatePurchaseOrder = () => {
       }));
     const fromManual = manualItems.map((m, idx) => ({
       rawMaterialId: m.rawMaterialId,
+      poDetailId: null,
       prDetailId: null,
       srNo: String(baseline.length + idx + 1).padStart(2, '0'),
       itemName: m.itemName,
@@ -1539,11 +1576,14 @@ const CreatePurchaseOrder = () => {
         const unitPrice = Number(priceMap[item.rawMaterialId]) || 0;
         const currentUom = uomMap[item.rawMaterialId] || { uomId: item.uomId, uomName: item.uomName || item.unit };
         const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {};
+        const poDetailId = item.poDetailId != null ? Number(item.poDetailId) : (isEditingExistingPo && item.id != null ? Number(item.id) : undefined);
+        const validPrDetailId = item.prDetailId != null ? Number(item.prDetailId) : undefined;
         const discountPercentage = Number(discountMap[item.rawMaterialId]) || 0;
         const discountAmount = Number((calc.discountAmt || 0).toFixed(2));
 
         if (isGeneratePo || !isGstApplicable) {
           return {
+            ...(poDetailId ? { id: poDetailId } : {}),
             uomId: currentUom.uomId,
             uomName: currentUom.uomName,
             rawMaterialId: item.rawMaterialId,
@@ -1568,7 +1608,7 @@ const CreatePurchaseOrder = () => {
             sgstAmount: 0,
             igst: 0,
             igstAmount: 0,
-            prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
+            ...(validPrDetailId ? { prDetailId: validPrDetailId } : {}),
             remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
             termsAndConditions: termsAndConditions || null,
           };
@@ -1607,6 +1647,7 @@ const CreatePurchaseOrder = () => {
         }
 
         return {
+          ...(poDetailId ? { id: poDetailId } : {}),
           uomId: currentUom.uomId,
           uomName: currentUom.uomName,
           rawMaterialId: item.rawMaterialId,
@@ -1631,7 +1672,7 @@ const CreatePurchaseOrder = () => {
           sgstAmount: sgstAmount,
           igst: igstRate,
           igstAmount: igstAmount,
-          prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
+          ...(validPrDetailId ? { prDetailId: validPrDetailId } : {}),
           remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
           termsAndConditions: termsAndConditions || null,
         };
@@ -1640,8 +1681,7 @@ const CreatePurchaseOrder = () => {
 
     if (isGeneratePo) {
       return {
-        purchaseRequisitionId: reqId,
-        prId: reqId,
+        ...(reqId ? { purchaseRequisitionId: reqId, prId: reqId } : {}),
         outletId,
         subOutletId: activeSubOutletId ? Number(activeSubOutletId) : undefined,
         subOutletName: activeSubOutletName,
@@ -1651,8 +1691,9 @@ const CreatePurchaseOrder = () => {
         termsAndConditions: termsAndConditions || null,
         discountPercentage: Number(overallDiscountPercentage) || 0,
         discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
+        roundOff: calculatedTotals.roundOff,
         subtotal: Number(calculatedTotals.subtotal.toFixed(2)),
-        totalAmount: Number(calculatedTotals.netAmount.toFixed(2)),
+        totalAmount: calculatedTotals.netAmount != null ? Number(calculatedTotals.netAmount.toFixed(2)) : undefined,
         vendorId: firstVendorId ? Number(firstVendorId) : undefined,
         status,
         userId,
@@ -1664,8 +1705,7 @@ const CreatePurchaseOrder = () => {
     }
 
     return {
-      purchaseRequisitionId: reqId,
-      prId: reqId,
+      ...(reqId ? { purchaseRequisitionId: reqId, prId: reqId } : {}),
       outletId,
       subOutletId: activeSubOutletId ? Number(activeSubOutletId) : undefined,
       subOutletName: activeSubOutletName,
@@ -1677,7 +1717,7 @@ const CreatePurchaseOrder = () => {
       discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
       subtotal: Number(calculatedTotals.subtotal.toFixed(2)),
       roundOff: calculatedTotals.roundOff,
-      totalAmount: calculatedTotals.netAmount,
+      totalAmount: calculatedTotals.netAmount != null ? Number(calculatedTotals.netAmount.toFixed(2)) : undefined,
       vendorId: firstVendorId ? Number(firstVendorId) : undefined,
       status,
       userId,
@@ -1920,7 +1960,7 @@ const CreatePurchaseOrder = () => {
         <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm mt-6">
           <div className="px-6 py-5 border-b border-[#E2E8F0]">
             <div className="flex items-center gap-2">
-              <Info size={18} className="text-[#0B5CAD]" />
+              {/* <Info size={18} className="text-[#0B5CAD]" /> */}
               <h2 className="text-xl font-semibold text-[#1E293B]">Purchase Order Information</h2>
             </div>
           </div>
@@ -1986,11 +2026,11 @@ const CreatePurchaseOrder = () => {
                           disabled={vendorsLoading || isRejectMode}
                         />
                       </div>
-                      {!isRejectMode && (
+                      {/* {!isRejectMode && (
                         <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
                           <Plus size={18} className="text-[#0B5CAD]" />
                         </button>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 </div>
@@ -2075,7 +2115,7 @@ const CreatePurchaseOrder = () => {
                   {hasOutletDropdownAccess && (
                     <div>
                       <label className="text-xs font-medium text-[#475569] mb-1 block">
-                        Outlet <span className="text-red-500">*</span>
+                        Unit <span className="text-red-500">*</span>
                       </label>
                       <SearchableSelect
                         name="outletId"
@@ -2088,7 +2128,7 @@ const CreatePurchaseOrder = () => {
                           value: String(o.id),
                           label: `${o.name}${o.code ? ` (${o.code})` : ''}`,
                         }))}
-                        placeholder={outletsLoading ? 'Loading outlets...' : 'Select outlet...'}
+                        placeholder={outletsLoading ? 'Loading units...' : 'Select unit...'}
                         disabled={outletsLoading || isReadOnly || isSwitchingVendor}
                       />
                     </div>
@@ -2106,7 +2146,7 @@ const CreatePurchaseOrder = () => {
                         value: String(s.id),
                         label: `${s.name || s.subOutletName || s.locationName || ''}${s.shortCode || s.code ? ` (${s.shortCode || s.code})` : ''}`,
                       }))}
-                      placeholder={subOutletsLoading ? 'Loading locations...' : (!activeOutletId ? 'Select outlet first' : 'Select location (Optional)...')}
+                      placeholder={subOutletsLoading ? 'Loading locations...' : (!activeOutletId ? 'Select unit first' : 'Select location (Optional)...')}
                       disabled={subOutletsLoading || !activeOutletId || isReadOnly || isSwitchingVendor}
                     />
                   </div>
@@ -2201,7 +2241,7 @@ const CreatePurchaseOrder = () => {
                 <div>
                   <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-[#084E92]" />
+                      {/* <Building2 className="w-4 h-4 text-[#084E92]" /> */}
                       <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
                         Supplier Details (Vendor)
                       </span>
@@ -2260,7 +2300,7 @@ const CreatePurchaseOrder = () => {
                 <div>
                   <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
                     <div className="flex items-center gap-2">
-                      <Receipt className="w-4 h-4 text-[#084E92]" />
+                      {/* <Receipt className="w-4 h-4 text-[#084E92]" /> */}
                       <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
                         Bill To (Invoicing Entity)
                       </span>
@@ -2315,7 +2355,7 @@ const CreatePurchaseOrder = () => {
                 <div>
                   <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
                     <div className="flex items-center gap-2">
-                      <Truck className="w-4 h-4 text-[#084E92]" />
+                      {/* <Truck className="w-4 h-4 text-[#084E92]" /> */}
                       <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
                         Ship To (Outlet Delivery Address)
                       </span>
@@ -2392,7 +2432,7 @@ const CreatePurchaseOrder = () => {
                     onSelect={handleAddRawMaterialItem}
                     loading={rawMaterialsLoading}
                     disabled={!activeOutletId}
-                    placeholder={!activeOutletId ? 'Please select an outlet first to search raw materials...' : 'Search raw material by name or code...'}
+                    placeholder={!activeOutletId ? 'Please select a unit first to search raw materials...' : 'Search raw material by name or code...'}
                     label={null}
                     isSticky={false}
                   />
@@ -2698,12 +2738,8 @@ const CreatePurchaseOrder = () => {
                             onKeyDown={(e) => {
                               if (e.key === '-' || e.key === 'e') e.preventDefault();
                             }}
-                            onChange={(e) => {
-                              const v = e.target.value === '' ? '' : Math.max(0, Math.min(100, Number(e.target.value)));
-                              setDiscountMap((prev) => ({
-                                ...prev,
-                                [item.rawMaterialId]: v,
-                              }));
+                            onChange={(e) =>{
+                                handleItemDiscountChange(item.rawMaterialId, e.target.value);
                             }}
                             disabled={isReadOnly}
                             onWheel={(e) => {
@@ -2824,7 +2860,7 @@ const CreatePurchaseOrder = () => {
                 <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mb-6">
                   <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                      <PlusCircle size={16} className="text-[#084E92]" />
+                      {/* <PlusCircle size={16} className="text-[#084E92]" /> */}
                       <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
                         Other Costing / Charges (Transportation, Handling, etc.)
                       </h3>
@@ -2898,7 +2934,7 @@ const CreatePurchaseOrder = () => {
                   <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">
                     <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-gray-100">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92] flex items-center gap-1.5">
-                        <Receipt className="w-4 h-4" />
+                    
                         Tax Breakdown {isInterState ? '(Inter-State IGST)' : '(Intra-State CGST + SGST)'}
                       </h3>
                       <span className="text-[10px] font-semibold bg-blue-50 text-[#084E92] px-2.5 py-0.5 rounded-full border border-blue-100">

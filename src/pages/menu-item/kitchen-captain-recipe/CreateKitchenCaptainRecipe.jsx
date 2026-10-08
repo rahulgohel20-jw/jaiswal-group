@@ -564,14 +564,14 @@ const CreateKitchenCaptainRecipe = ({
               >
                 {!isOutletUser && (
                   <div>
-                    <label className={label}>Outlet*</label>
+                    <label className={label}>Unit*</label>
                     <SearchableSelect
                       name="outletId"
                       value={form.outletId}
                       onChange={handleFormChange}
                       options={orgOptions}
                       placeholder={
-                        isCompanyUser ? "Select Company Outlet" : "Select Outlet"
+                        isCompanyUser ? "Select Company Unit" : "Select Unit"
                       }
                       disabled={isViewOnly}
                       hasError={!!errors.outletId}
@@ -629,14 +629,14 @@ const CreateKitchenCaptainRecipe = ({
                     {!isOutletUser && (
                       <div>
                         <label className="block text-xs font-semibold text-[#084E92] uppercase mb-1">
-                          Outlet (Fetch Rate)
+                          Unit (Fetch Rate)
                         </label>
                         <SearchableSelect
                           name="quickOutletId"
                           value={quick.outletId}
                           onChange={handleSelectQuickOutlet}
                           options={orgOptions}
-                          placeholder="Select Outlet"
+                          placeholder="Select Unit"
                           isClearable={true}
                         />
                       </div>

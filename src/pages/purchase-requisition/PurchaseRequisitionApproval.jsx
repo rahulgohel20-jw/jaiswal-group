@@ -339,7 +339,7 @@ function ListView({ onApprove, onReject, onView }) {
         id: "outlet",
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
         enableSorting: false,
@@ -460,7 +460,7 @@ function ListView({ onApprove, onReject, onView }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onClear={() => setQuery('')}
-              placeholder="Search PR code or outlet..."
+              placeholder="Search PR code or unit..."
             />
           </div>
           {showUnitDropdown && (

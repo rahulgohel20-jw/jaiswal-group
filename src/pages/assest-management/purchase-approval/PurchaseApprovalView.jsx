@@ -145,7 +145,7 @@ const PurchaseRequisitionView = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <InfoTile label="Created Date" value={row.date} />
               <InfoTile label="Required Date" value={row.requiredDate} />
-              <InfoTile label="Outlet / Branch" value={row.outlet} icon={Building2} className="col-span-2" />
+              <InfoTile label="Unit / Branch" value={row.outlet} icon={Building2} className="col-span-2" />
             </div>
 
             {row.remarks && (

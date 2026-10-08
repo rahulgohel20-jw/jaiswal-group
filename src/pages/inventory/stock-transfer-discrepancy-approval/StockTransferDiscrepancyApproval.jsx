@@ -390,7 +390,7 @@ const StockTransferDiscrepancyApproval = () => {
         id: 'fromOutlet',
         accessorFn: (row) => row.fromOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader title="FROM UNIT" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -407,7 +407,7 @@ const StockTransferDiscrepancyApproval = () => {
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="TO OUTLET" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader title="TO UNIT" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -528,7 +528,7 @@ const StockTransferDiscrepancyApproval = () => {
             iconColor="#2952E3"
           />
           <StatCard
-            label="Active Outlets with Issues"
+            label="Active Units with Issues"
             value={new Set(transfers.map((t) => t.toOutletId).filter(Boolean)).size}
             icon={ArrowLeftRight}
             iconBg="#ECFDF3"
@@ -536,7 +536,7 @@ const StockTransferDiscrepancyApproval = () => {
           />
         </div>
 
-        {/* Filters Bar - Long Search bar & Single Outlet Dropdown */}
+        {/* Filters Bar - Long Search bar & Single Unit Dropdown */}
         <div className="bg-white border border-[#E7EAF0] rounded-2xl p-3.5 shadow-2xs">
           <div className="flex flex-col sm:flex-row items-center gap-3">
             {/* Long Search Bar */}
@@ -545,18 +545,18 @@ const StockTransferDiscrepancyApproval = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onClear={() => setSearch('')}
-                placeholder="Search transfer code, outlet, vehicle, driver..."
+                placeholder="Search transfer code, unit, vehicle, driver..."
               />
             </div>
 
-            {/* Single Outlet Filter - Only visible for Company and Group users, hidden for Outlet users */}
+            {/* Single Unit Filter - Only visible for Company and Group users, hidden for Unit users */}
             {!isOutletUser && (
               <div className="w-full sm:w-72 shrink-0">
                 <SearchableSelect
                   options={outletSelectOptions}
                   value={selectedOutletId}
                   onChange={(e) => setSelectedOutletId(e.target.value)}
-                  placeholder="All Outlets"
+                  placeholder="All Units"
                   className="w-full"
                 />
               </div>

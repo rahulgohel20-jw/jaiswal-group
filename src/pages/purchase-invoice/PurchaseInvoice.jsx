@@ -141,7 +141,7 @@ const PurchaseInvoice = () => {
         const targetOutletId = selectedUnitId || effectiveOutletId;
 
         if (!targetOutletId || !selectedVendorId) {
-            toast.error('Please select outlet and vendor.');
+            toast.error('Please select unit and vendor.');
             return;
         }
 
@@ -501,7 +501,7 @@ const PurchaseInvoice = () => {
                 id: 'organizationName',
                 accessorFn: (row) => row.organizationName,
                 header: ({ column }) => (
-                    <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+                    <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
                 ),
                 cell: ({ row }) => <TruncatedCell value={row.original.organizationName} widthClass="max-w-[180px]" />,
                 size: 160,
@@ -579,7 +579,7 @@ const PurchaseInvoice = () => {
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-5 mb-5">
                         <div className="col-span-2">
                             <label className="text-sm font-semibold text-[#101828] mb-1.5 block">
-                                Outlet <span className="text-red-500">*</span>
+                                Unit <span className="text-red-500">*</span>
                             </label>
                             {showUnitDropdown ? (
                                 <SearchableSelect
@@ -589,7 +589,7 @@ const PurchaseInvoice = () => {
                                         setSelectedUnitId(e.target.value ? Number(e.target.value) : null)
                                     }
                                     options={outletOptions}
-                                    placeholder={scopeLoading ? 'Loading outlets...' : 'Select outlet'}
+                                    placeholder={scopeLoading ? 'Loading units...' : 'Select unit'}
                                     disabled={scopeLoading || outletOptions.length === 0}
                                 />
                             ) : (
@@ -693,11 +693,11 @@ const PurchaseInvoice = () => {
                     ) : !searched ? (
                         <div className="flex flex-col items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
                             <Search size={22} />
-                            Select an outlet and vendor, then click Search GRN.
+                            Select a unit and vendor, then click Search GRN.
                         </div>
                     ) : filteredRows.length === 0 ? (
                         <div className="flex items-center justify-center py-16 text-[#98A2B3] text-sm">
-                            No GRNs found for this outlet and vendor.
+                            No GRNs found for this unit and vendor.
                         </div>
                     ) : (
                         <DataGrid

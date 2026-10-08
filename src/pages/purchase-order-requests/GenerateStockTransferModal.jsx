@@ -593,7 +593,7 @@ export const GenerateStockTransferModal = ({
             <div className="px-5 py-3.5 bg-blue-50/40 border-b border-blue-50 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#084E92]">
                 <GitFork className="w-4 h-4 text-[#084E92]" />
-                OUTLET & SUBOUTLET CONFIGURATION
+                UNIT & SUB-UNIT CONFIGURATION
               </div>
             </div>
 
@@ -605,10 +605,10 @@ export const GenerateStockTransferModal = ({
                   Origin (Source)
                 </div>
 
-                {/* From Outlet */}
+                {/* From Unit */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    From Outlet <span className="text-red-500">*</span>
+                    From Unit <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -627,7 +627,7 @@ export const GenerateStockTransferModal = ({
                         errors.fromOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
                       }`}
                     >
-                      <option value="">Select From Outlet</option>
+                      <option value="">Select From Unit</option>
                       {(outlets.length > 0 ? outlets : availableFromOutlets).map((o) => (
                         <option key={o.id} value={o.id}>
                           {o.name}
@@ -709,10 +709,10 @@ export const GenerateStockTransferModal = ({
                   Destination (To)
                 </div>
 
-                {/* To Outlet */}
+                {/* To Unit */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    To Outlet <span className="text-red-500">*</span>
+                    To Unit <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -731,7 +731,7 @@ export const GenerateStockTransferModal = ({
                         errors.toOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
                       }`}
                     >
-                      <option value="">Select To Outlet</option>
+                      <option value="">Select To Unit</option>
                       {outlets.map((o) => (
                         <option key={o.id} value={o.id}>
                           {o.name}

@@ -445,7 +445,7 @@ const PurchaseOrderDetail = () => {
               <InfoTile label="Expected Delivery Date" value={po?.expectedDeliveryDate || '—'} />
               <InfoTile label="Created By" value={po?.createdByName || po?.raisedBy || '—'} />
               <InfoTile label="Last Updated By" value={po?.updatedByName || (po?.updatedBy ? String(po?.updatedBy) : '—')} />
-              <InfoTile label="Outlet / Branch" value={po?.outlet || po?.outletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
+              <InfoTile label="Unit / Branch" value={po?.outlet || po?.outletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
               <InfoTile label="Sub-Unit / Location" value={po?.subOutletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
             </div>
 
@@ -606,7 +606,7 @@ const PurchaseOrderDetail = () => {
                 <div className="flex items-center gap-2">
                   <Truck className="w-4 h-4 text-[#084E92]" />
                   <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
-                    Ship To (Outlet Delivery Address)
+                    Ship To (Unit Delivery Address)
                   </span>
                 </div>
               </div>
@@ -614,7 +614,7 @@ const PurchaseOrderDetail = () => {
               {shipTo ? (
                 <div className="space-y-1 text-xs text-gray-700">
                   <p className="font-bold text-sm text-gray-900">
-                    {shipTo.companyNameEnglish || po?.outlet || 'Outlet'}
+                    {shipTo.companyNameEnglish || po?.outlet || 'Unit'}
                     {shipTo.companyCode ? ` (${shipTo.companyCode})` : ''}
                   </p>
                   {shipTo.addressEnglish && <p>{shipTo.addressEnglish}</p>}
@@ -649,7 +649,7 @@ const PurchaseOrderDetail = () => {
                 </div>
               ) : (
                 <div className="text-xs text-gray-500 space-y-1">
-                  <p className="font-semibold text-gray-800">{po?.outlet || 'Outlet'}</p>
+                  <p className="font-semibold text-gray-800">{po?.outlet || 'Unit'}</p>
                   <p className="text-gray-400 italic">No detailed shipping address record available.</p>
                 </div>
               )}

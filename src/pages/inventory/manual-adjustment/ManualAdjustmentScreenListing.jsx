@@ -951,7 +951,7 @@ const ManualAdjustmentScreenListing = () => {
                   setSelectedOutletId(val);
                   setSelectedSubOutletId('');
                 }}
-                placeholder={unitsLoading ? 'Loading outlets...' : 'Select outlet...'}
+                placeholder={unitsLoading ? 'Loading units...' : 'Select unit...'}
                 disabled={unitsLoading}
                 isClearable={true}
               />
@@ -966,10 +966,10 @@ const ManualAdjustmentScreenListing = () => {
               onChange={(e) => setSelectedSubOutletId(extractValue(e))}
               placeholder={
                 !selectedOutletId && !isOutletUser
-                  ? 'Select an outlet first...'
+                  ? 'Select a unit first...'
                   : subUnitsLoading
-                  ? 'Loading sub-outlets...'
-                  : 'Select sub-outlet...'
+                  ? 'Loading sub-units...'
+                  : 'Select sub-unit...'
               }
               disabled={(!selectedOutletId && !isOutletUser) || subUnitsLoading}
               isClearable={true}

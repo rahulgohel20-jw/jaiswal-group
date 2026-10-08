@@ -686,7 +686,7 @@ const AddPurchaseRequisition = () => {
     {hasOutletDropdownAccess && (
       <div>
         <label className={labelCls}>
-          Outlet <span className="text-red-500">*</span>
+          Unit <span className="text-red-500">*</span>
         </label>
 
         {outletFieldIsEditable ? (
@@ -698,7 +698,7 @@ const AddPurchaseRequisition = () => {
                       value: String(o.id),
                       label: `${o.name}${o.code ? ` (${o.code})` : ''}`,
                     }))}
-                    placeholder={outletsLoading ? 'Loading outlets...' : 'Select outlet'}
+                    placeholder={outletsLoading ? 'Loading units...' : 'Select unit'}
                     disabled={outletsLoading || !outletFieldIsEditable}
                     hasError={!!errors.outletId}
                   />
@@ -733,7 +733,7 @@ const AddPurchaseRequisition = () => {
             subOutletsLoading
               ? 'Loading locations...'
               : !outletId
-              ? 'Select outlet first'
+              ? 'Select unit first'
               : subOutlets.length === 0
               ? 'No locations found'
               : 'Select location (Optional)'
@@ -807,7 +807,7 @@ const AddPurchaseRequisition = () => {
               onSelect={handleAddItem}
               loading={rawMaterialsLoading}
               disabled={!effectiveOutletId}
-              placeholder={!effectiveOutletId ? 'Please select an outlet first to search raw materials...' : 'Search raw material by name or code...'}
+              placeholder={!effectiveOutletId ? 'Please select a unit first to search raw materials...' : 'Search raw material by name or code...'}
               isSticky={true}
             />
           )}

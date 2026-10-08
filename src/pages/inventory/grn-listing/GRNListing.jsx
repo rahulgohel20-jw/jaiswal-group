@@ -73,7 +73,7 @@ const TruncatedCell = ({
 
 function UnitDropdown({ units, selectedUnitId, onChange }) {
   const options = [
-    { value: '', label: 'All Outlets' },
+    { value: '', label: 'All Units' },
     ...units.map((u) => ({ value: String(u.id), label: u.name })),
   ];
   return (
@@ -83,7 +83,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ? String(selectedUnitId) : ''}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+        placeholder={units.length === 0 ? 'No units available' : 'All Units'}
         disabled={units.length === 0}
       />
     </div>
@@ -217,6 +217,16 @@ const GRNListing = () => {
           raisedBy: g.createdByName || g.raisedBy || g.userName || g.createdBy || '—',
           outlet: g.organizationName || g.outletName || g.orgName || (g.orgId ? `Outlet #${g.orgId}` : '—'),
           outletId: g.orgId || g.outletId,
+          subOutletName: g.subOutletName || g.subOutlet?.subOutletName || g.subOutlet?.name || null,
+          subLocationName:
+            g.subLocationName ||
+            g.subLocation?.subLocationName ||
+            g.subLocation?.locationName ||
+            g.subLocation?.name ||
+            g.locationName ||
+            g.details?.[0]?.subLocationName ||
+            g.details?.[0]?.subLocation?.name ||
+            null,
           vendorName: g.vendorName || (g.vendorId ? `Vendor #${g.vendorId}` : '—'),
           itemsReceived: Array.isArray(g.details) ? g.details.length : g.itemsReceived ?? 0,
           status: g.status || 'Verified',
@@ -253,6 +263,27 @@ const GRNListing = () => {
         ? detailed.purchaseOrderIds.filter(Boolean)
         : (detailed.purchaseOrderId ? [detailed.purchaseOrderId] : (row.purchaseOrderIds || []));
 
+      const subOutletName =
+        detailed.subOutletName ||
+        detailed.subOutlet?.subOutletName ||
+        detailed.subOutlet?.name ||
+        row.subOutletName ||
+        null;
+
+      const subLocationName =
+        detailed.subLocationName ||
+        detailed.subLocation?.subLocationName ||
+        detailed.subLocation?.locationName ||
+        detailed.subLocation?.name ||
+        detailed.locationName ||
+        detailed.details?.[0]?.subLocationName ||
+        detailed.details?.[0]?.subLocation?.locationName ||
+        detailed.details?.[0]?.subLocation?.name ||
+        detailed.details?.[0]?.locationName ||
+        row.subLocationName ||
+        (typeof row.subLocation === 'string' ? row.subLocation : null) ||
+        null;
+
       const items = (detailed.details || row.details || []).map((d, index) => ({
         id: d.id || index + 1,
         name: d.rawMaterialName || d.itemName || `Item #${d.rawMaterialId || d.purchaseOrderDetailId || index + 1}`,
@@ -269,6 +300,14 @@ const GRNListing = () => {
         isPoDetailClosed: Boolean(d.isPoDetailClosed),
         batchNo: d.batchNo || d.batchNumber || null,
         useByDate: d.useByDate || d.bestBeforeDate || d.expiryDate || null,
+        subOutletName: d.subOutletName || d.subOutlet?.subOutletName || d.subOutlet?.name || null,
+        subLocationName:
+          d.subLocationName ||
+          d.subLocation?.subLocationName ||
+          d.subLocation?.locationName ||
+          d.subLocation?.name ||
+          d.locationName ||
+          null,
       }));
 
       setGrnTarget({
@@ -281,7 +320,9 @@ const GRNListing = () => {
         purchaseOrderCodes: poCodesList,
         date: formatDateShort(detailed.grnDate || detailed.date || row.rawDate),
         outletName: detailed.organizationName || detailed.outletName || row.outlet,
-        subOutletName: detailed.subOutletName || detailed.subOutlet?.subOutletName || null,
+        subOutletName: subOutletName,
+        subLocationName: subLocationName,
+        subLocation: subLocationName,
         vendorName: detailed.vendorName || row.vendorName,
         status: detailed.status || row.status || 'Verified',
         raisedBy: detailed.createdByName || detailed.raisedBy || row.raisedBy,
@@ -301,7 +342,9 @@ const GRNListing = () => {
         purchaseOrderCodes: row.purchaseOrderCodes || [],
         date: row.grnDate,
         outletName: row.outlet,
-        subOutletName: null,
+        subOutletName: row.subOutletName || null,
+        subLocationName: row.subLocationName || (typeof row.subLocation === 'string' ? row.subLocation : null) || null,
+        subLocation: row.subLocationName || (typeof row.subLocation === 'string' ? row.subLocation : null) || null,
         vendorName: row.vendorName,
         status: row.status || 'Verified',
         raisedBy: row.raisedBy,
@@ -323,6 +366,8 @@ const GRNListing = () => {
           isPoDetailClosed: Boolean(d.isPoDetailClosed),
           batchNo: d.batchNo || d.batchNumber || null,
           useByDate: d.useByDate || d.bestBeforeDate || d.expiryDate || null,
+          subOutletName: d.subOutletName || d.subOutlet?.subOutletName || null,
+          subLocationName: d.subLocationName || d.subLocation?.subLocationName || d.locationName || null,
         })),
       });
     } finally {
@@ -484,7 +529,7 @@ const GRNListing = () => {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET" column={column} className="text-xs" />
+          <DataGridColumnHeader title="UNIT" column={column} className="text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[130px]" className="text-xs" />,
         enableSorting: false,
@@ -584,7 +629,7 @@ const GRNListing = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              placeholder="Search GRN Code, PO Code, Outlet..."
+              placeholder="Search GRN Code, PO Code, Unit..."
             />
           </div>
 

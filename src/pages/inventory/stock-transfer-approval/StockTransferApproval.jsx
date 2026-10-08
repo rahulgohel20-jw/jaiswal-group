@@ -700,7 +700,7 @@ const StockTransferApproval = () => {
         id: 'fromOutlet',
         accessorFn: (row) => row.fromOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="FROM UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -720,7 +720,7 @@ const StockTransferApproval = () => {
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="TO OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="TO UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -894,7 +894,7 @@ const StockTransferApproval = () => {
       <div className="pt-2 pb-6 space-y-4">
         <PageHeader
           title="Stock Transfer Approval (STR)"
-          description="Review, edit, approve, or reject stock transfer requests submitted by outlets and suboutlets."
+          description="Review, edit, approve, or reject stock transfer requests submitted by units and sub-units."
           actions={
             canAdd && (
               <HeaderActionButton to="/inventory/stock-transfer-request">
@@ -950,7 +950,7 @@ const StockTransferApproval = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onClear={() => setSearch('')}
-                placeholder="Search transfer code, item, outlet, vehicle, driver..."
+                placeholder="Search transfer code, item, unit, vehicle, driver..."
               />
             </div>
             <div className="w-[200px] shrink-0">
@@ -958,9 +958,9 @@ const StockTransferApproval = () => {
             </div>
           </div>
 
-          {/* Row 2: Location Filters (From Outlet, From Sub-Outlet, To Outlet, To Sub-Outlet) */}
+          {/* Row 2: Location Filters (From Unit, From Sub-Unit, To Unit, To Sub-Unit) */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
-            {/* 1. From Outlet */}
+            {/* 1. From Unit */}
             {!isOutletUser && (
               <SearchableSelect
                 name="fromOutlet"
@@ -970,21 +970,21 @@ const StockTransferApproval = () => {
                   setSelectedFromSubOutletId('');
                 }}
                 options={displayOutletOptions}
-                placeholder="From Outlet..."
+                placeholder="From Unit..."
               />
             )}
 
-            {/* 2. From Sub-Outlet */}
+            {/* 2. From Sub-Unit */}
             <SearchableSelect
               name="fromSubOutlet"
               value={selectedFromSubOutletId}
               onChange={(e) => setSelectedFromSubOutletId(e.target.value)}
               options={fromSubOutletOptions}
               disabled={!isOutletUser && !selectedFromOutletId}
-              placeholder={!isOutletUser && !selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
+              placeholder={!isOutletUser && !selectedFromOutletId ? 'Select From Unit' : 'From Sub-Unit...'}
             />
 
-            {/* 3. To Outlet */}
+            {/* 3. To Unit */}
             <SearchableSelect
               name="toOutlet"
               value={selectedToOutletId}
@@ -993,17 +993,17 @@ const StockTransferApproval = () => {
                 setSelectedToSubOutletId('');
               }}
               options={toOutletOptions}
-              placeholder="To Outlet..."
+              placeholder="To Unit..."
             />
 
-            {/* 4. To Sub-Outlet */}
+            {/* 4. To Sub-Unit */}
             <SearchableSelect
               name="toSubOutlet"
               value={selectedToSubOutletId}
               onChange={(e) => setSelectedToSubOutletId(e.target.value)}
               options={toSubOutletOptions}
               disabled={!selectedToOutletId}
-              placeholder={!selectedToOutletId ? 'Select To Outlet' : 'To Sub-Outlet...'}
+              placeholder={!selectedToOutletId ? 'Select To Unit' : 'To Sub-Unit...'}
             />
           </div>
         </div>
@@ -1052,18 +1052,18 @@ const StockTransferApproval = () => {
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500">
                 Are you sure you want to approve transfer request ?
-                Once approved, the originating outlet can dispatch the items to the destination outlet.
+                Once approved, the originating unit can dispatch the items to the destination unit.
               </DialogDescription>
             </DialogHeader>
 
             {targetApproveTransfer && (
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 my-2 text-xs space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">From Outlet:</span>
+                  <span className="text-gray-500">From Unit:</span>
                   <span className="font-semibold text-gray-800">{targetApproveTransfer.fromOutlet}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">To Outlet:</span>
+                  <span className="text-gray-500">To Unit:</span>
                   <span className="font-semibold text-gray-800">{targetApproveTransfer.toOutlet}</span>
                 </div>
                 <div className="flex justify-between">

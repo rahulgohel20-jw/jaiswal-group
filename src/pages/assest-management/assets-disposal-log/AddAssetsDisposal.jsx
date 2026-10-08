@@ -72,7 +72,7 @@ const orgTypeLabel = (orgType) => {
         case OrgTypes.SUB_COMPANY:
             return "Company";
         case OrgTypes.OUTLET:
-            return "Outlet";
+            return "Unit";
         default:
             return orgType ?? "";
     }

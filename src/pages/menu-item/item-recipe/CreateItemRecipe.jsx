@@ -1533,7 +1533,7 @@ const CreateItemRecipe = () => {
         const selectedOutletId = Number(outlet);
 
         if (!selectedOutletId) {
-            notify.error("Please select an Outlet");
+            notify.error("Please select a Unit");
             return;
         }
         if (!selectedMenuItem) {
@@ -1657,7 +1657,7 @@ const CreateItemRecipe = () => {
                 <SectionCard className="mt-4">
                     <SectionHeader
                         icon={Menu}
-                        title="Select Menu Item & Outlet"
+                        title="Select Menu Item & Unit"
                         open={openSections.select}
                         onToggle={() => toggleSection("select")}
                     />
@@ -1686,7 +1686,7 @@ const CreateItemRecipe = () => {
                                 </div>
 
                                 <div>
-                                    <Label required>Outlet</Label>
+                                    <Label required>Unit</Label>
                                     <SearchableSelect
                                         name="recipeOutlet"
                                         options={outletOptions}
@@ -1703,8 +1703,8 @@ const CreateItemRecipe = () => {
                                         }}
                                         placeholder={
                                             orgScopeLoading
-                                                ? "Loading outlets..."
-                                                : "Select Outlet"
+                                                ? "Loading units..."
+                                                : "Select Unit"
                                         }
                                     />
                                     {orgScopeError && (
@@ -1765,7 +1765,7 @@ const CreateItemRecipe = () => {
 
                             {!isReady && (
                                 <p className="mt-4 text-xs text-gray-400">
-                                    Please select both a Menu Item and an Outlet to load or create a recipe.
+                                    Please select both a Menu Item and a Unit to load or create a recipe.
                                 </p>
                             )}
                         </div>

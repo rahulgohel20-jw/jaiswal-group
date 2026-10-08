@@ -81,7 +81,7 @@ const formatDate = (val) => {
 
 function UnitDropdown({ units, selectedUnitId, onChange }) {
   const options = [
-    { value: '', label: 'All Outlets' },
+    { value: '', label: 'All Units' },
     ...units.map((u) => ({ value: String(u.id), label: u.name })),
   ];
   return (
@@ -91,7 +91,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ? String(selectedUnitId) : ''}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+        placeholder={units.length === 0 ? 'No units available' : 'All Units'}
         disabled={units.length === 0}
       />
     </div>
@@ -631,7 +631,7 @@ const ReturnReplacementList = () => {
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Outlet"
+            title="Unit"
             column={column}
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
@@ -651,7 +651,7 @@ const ReturnReplacementList = () => {
         accessorFn: (row) => row.subOutletName,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Sub Outlet"
+            title="Sub Unit"
             column={column}
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
@@ -837,7 +837,7 @@ const ReturnReplacementList = () => {
         <div className="flex items-center gap-2.5 flex-wrap">
           <div className="flex-1 min-w-[220px]">
             <SearchBar
-              placeholder="Search by Item, PR, PO, GRN, or Outlet..."
+              placeholder="Search by Item, PR, PO, GRN, or Unit..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onClear={() => setSearch('')}

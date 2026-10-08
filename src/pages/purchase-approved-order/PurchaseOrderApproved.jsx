@@ -482,7 +482,7 @@ const PurchaseOrderApproval = () => {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
         enableSorting: false,
@@ -685,7 +685,7 @@ const PurchaseOrderApproval = () => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onClear={() => setQuery('')}
-              placeholder="Search PO code or outlet..."
+              placeholder="Search PO code or unit..."
             />
           </div>
           {showUnitDropdown && (

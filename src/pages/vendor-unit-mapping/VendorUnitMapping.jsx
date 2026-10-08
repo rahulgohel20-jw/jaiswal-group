@@ -504,7 +504,7 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
       entry.units.push(
         unitsById.get(outletId) ?? {
           id: outletId,
-          name: outletName || `Outlet ${outletId}`,
+          name: outletName || `Unit ${outletId}`,
         },
       );
     }
