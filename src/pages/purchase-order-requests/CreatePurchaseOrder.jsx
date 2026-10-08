@@ -47,10 +47,8 @@ import {
   getActiveVendorPriceConfigsByDate,
   getVendorPriceConfigsByVendorId,
   getAllRawMaterialItems,
-  getCurrentStockListGet,
   getVendorById,
   getCompanyById,
-  getAllSubOutletsByOrganization,
 } from '@/services/apiServices';
 import {
   getUserIdFromToken,
@@ -268,9 +266,11 @@ const CreatePurchaseOrder = () => {
     orgType,
     units: outlets,
     selectedUnitId: orgScopeOutletId,
+    getSubOutlets,
   } = useOrgScope();
 
   const hasOutletDropdownAccess = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
+  const isOutletUser = orgType === OrgTypes.OUTLET || orgType === 'OUTLET' || (!hasOutletDropdownAccess && !outletsLoading);
   const [selectedOutletId, setSelectedOutletId] = useState(
     state?.outletId != null ? String(state.outletId) : '',
   );
@@ -285,36 +285,18 @@ const CreatePurchaseOrder = () => {
     (poRecord?.outletId != null ? String(poRecord.outletId) : '') ||
     (pr?.outletId != null ? String(pr.outletId) : '') ||
     (state?.outletId != null ? String(state.outletId) : '') ||
-    (orgScopeOutletId != null ? String(orgScopeOutletId) : '');
+    (isOutletUser ? (orgScopeOutletId != null ? String(orgScopeOutletId) : (getOrgIdFromToken() ? String(getOrgIdFromToken()) : '')) : '');
 
-  // Fetch subOutlets for activeOutletId
+  // Populate subOutlets from useOrgScope for activeOutletId
   useEffect(() => {
     if (!activeOutletId) {
       setSubOutlets([]);
       return;
     }
-    let isCancelled = false;
-    const fetchSubs = async () => {
-      setSubOutletsLoading(true);
-      try {
-        const res = await getAllSubOutletsByOrganization(activeOutletId);
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        const safeList = Array.isArray(list) ? list : [];
-        if (!isCancelled) {
-          setSubOutlets(safeList);
-        }
-      } catch (err) {
-        console.error('Failed to load sub-outlets:', err);
-        if (!isCancelled) setSubOutlets([]);
-      } finally {
-        if (!isCancelled) setSubOutletsLoading(false);
-      }
-    };
-    fetchSubs();
-    return () => {
-      isCancelled = true;
-    };
-  }, [activeOutletId]);
+    const list = getSubOutlets(activeOutletId);
+    setSubOutlets(Array.isArray(list) ? list : []);
+    setSubOutletsLoading(false);
+  }, [activeOutletId, getSubOutlets]);
 
   useEffect(() => {
     if (pr?.subOutletId && !selectedSubOutletId) {
@@ -747,18 +729,13 @@ const CreatePurchaseOrder = () => {
 
   useEffect(() => {
     (async () => {
+      const targetOrg = activeOutletId;
+      if (!targetOrg) {
+        setRawMaterials([]);
+        return;
+      }
       setRawMaterialsLoading(true);
       try {
-        const targetOrg =
-          activeOutletId ||
-          selectedOutletId ||
-          poRecord?.outletId ||
-          poRecord?.organizationId ||
-          pr?.outletId ||
-          state?.outletId ||
-          orgScopeOutletId ||
-          getOrgIdFromToken() ||
-          '';
         const targetSub =
           selectedSubOutletId ||
           poRecord?.subOutletId ||
@@ -767,64 +744,22 @@ const CreatePurchaseOrder = () => {
           '';
         const res = await getAllRawMaterialItems(0, 0, true, '', '', '', targetOrg, targetSub);
         const raw = res?.data?.data?.['Raw Material Details'] || res?.data?.['Raw Material Details'] || [];
-        let rawItems = Array.isArray(raw) ? raw : [];
-
-        if (targetOrg && rawItems.length > 0) {
-          try {
-            const stockParams = {
-              itemIds: rawItems.map((r) => r.id),
-              itemType: 'RAW_MATERIAL',
-              organizationId: Number(targetOrg),
-            };
-            if (targetSub) {
-              stockParams.subOutletId = Number(targetSub);
-            }
-            const stockRes = await getCurrentStockListGet(stockParams);
-            const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
-            const stockList = Array.isArray(stockData)
-              ? stockData
-              : Array.isArray(stockData?.content)
-              ? stockData.content
-              : Array.isArray(stockData?.list)
-              ? stockData.list
-              : [];
-
-            if (stockList.length > 0) {
-              rawItems = rawItems.map((item) => {
-                const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
-                if (matched) {
-                  return {
-                    ...item,
-                    currentStock: matched,
-                  };
-                }
-                return item;
-              });
-            }
-          } catch (stockErr) {
-            console.error('Failed to fetch stock list in CreatePurchaseOrder:', stockErr);
-          }
-        }
+        const rawItems = Array.isArray(raw) ? raw : [];
 
         setRawMaterials(rawItems);
       } catch (err) {
         console.error('Failed to load raw materials', err);
+        setRawMaterials([]);
       } finally {
         setRawMaterialsLoading(false);
       }
     })();
   }, [
     activeOutletId,
-    selectedOutletId,
     selectedSubOutletId,
-    poRecord?.organizationId,
-    poRecord?.outletId,
     poRecord?.subOutletId,
-    pr?.outletId,
     pr?.subOutletId,
-    state?.outletId,
     state?.subOutletId,
-    orgScopeOutletId,
   ]);
 
   const handleOverallDiscountChange = (value) => {
@@ -2452,10 +2387,12 @@ const CreatePurchaseOrder = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
                 <div className="w-full max-w-lg">
                   <RawMaterialSearchPicker
-                    items={rawMaterials}
+                    items={activeOutletId ? rawMaterials : []}
                     alreadyAddedIds={alreadyAddedIds}
                     onSelect={handleAddRawMaterialItem}
                     loading={rawMaterialsLoading}
+                    disabled={!activeOutletId}
+                    placeholder={!activeOutletId ? 'Please select an outlet first to search raw materials...' : 'Search raw material by name or code...'}
                     label={null}
                     isSticky={false}
                   />

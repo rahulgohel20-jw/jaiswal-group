@@ -63,7 +63,7 @@ import {
   const StatusBadge = ({ status }) => (
     <span
       title={status || '—'}
-      className={`font-semibold text-xs truncate block max-w-full ${
+      className={`font-semibold text-xs whitespace-nowrap ${
         STATUS_TEXT_COLORS[status] || 'text-gray-600'
       }`}
     >
@@ -397,7 +397,7 @@ import {
           ),
           cell: ({ row }) => <StatusBadge status={row.original.status} />,
           enableSorting: false,
-          size: 80,
+          size: 155,
         },
         {
           id: 'action',

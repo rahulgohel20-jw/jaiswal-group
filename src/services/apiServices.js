@@ -214,6 +214,18 @@ export const getCityByState = (stateId) => {
   return GET('/city/getbystateid', { stateId });
 };
 
+// --- Hierarchy Invalidation Event Trigger ---
+const triggerHierarchyInvalidation = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('invalidate-org-hierarchy'));
+  }
+};
+
+// --- Organization Hierarchy API ---
+export const getOrganizationHierarchy = (organizationId) => {
+  return GET('/organization/hierarchy', { organizationId });
+};
+
 // ---Company API and Unit API
 export const getRegisteredCompany = () => {
   return GET('/organization/get-all');
@@ -224,21 +236,28 @@ export const getActiveCompany = () => {
 export const getCompanyById = (id) => {
   return GET(`/organization/get/${id}`);
 };
-export const createCompany = (formData) => {
-  return POST('/organization/save', formData);
+export const createCompany = async (formData) => {
+  const res = await POST('/organization/save', formData);
+  triggerHierarchyInvalidation();
+  return res;
 };
 export const saveOrganization = createCompany;
 
-export const updateCompany = (data) =>
-  axiosInstance.put('/organization/update', data, {
+export const updateCompany = async (data) => {
+  const res = await axiosInstance.put('/organization/update', data, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
+  triggerHierarchyInvalidation();
+  return res;
+};
 export const updateOrganization = updateCompany;
 
-export const deleteCompany = (id) => {
-  return DELETE(`/organization/delete/${id}`);
+export const deleteCompany = async (id) => {
+  const res = await DELETE(`/organization/delete/${id}`);
+  triggerHierarchyInvalidation();
+  return res;
 };
 
 export const getOrganizationByType = (orgType) => {
@@ -478,16 +497,22 @@ export const getSubOutletById = (id) => {
   return GET(`/sub-outlet/get/${id}`);
 };
 
-export const saveSubOutlet = (payload) => {
-  return POST('/sub-outlet/save', payload);
+export const saveSubOutlet = async (payload) => {
+  const res = await POST('/sub-outlet/save', payload);
+  triggerHierarchyInvalidation();
+  return res;
 };
 
-export const updateSubOutlet = ({ id, ...payload }) => {
-  return PUT('/sub-outlet/update', payload, { id });
+export const updateSubOutlet = async ({ id, ...payload }) => {
+  const res = await PUT('/sub-outlet/update', payload, { id });
+  triggerHierarchyInvalidation();
+  return res;
 };
 
-export const deleteSubOutletById = (id) => {
-  return DELETE(`/sub-outlet/delete/${id}`);
+export const deleteSubOutletById = async (id) => {
+  const res = await DELETE(`/sub-outlet/delete/${id}`);
+  triggerHierarchyInvalidation();
+  return res;
 };
 
 // ---- Sub-Location APIs ----
@@ -531,17 +556,23 @@ export const getSubLocationById = (id) => {
   return GET(`/sub-location/get/${id}`);
 };
 
-export const saveSubLocation = (payload) => {
-  return POST('/sub-location/save', payload);
+export const saveSubLocation = async (payload) => {
+  const res = await POST('/sub-location/save', payload);
+  triggerHierarchyInvalidation();
+  return res;
 };
 
-export const updateSubLocation = (payload) => {
+export const updateSubLocation = async (payload) => {
   const id = payload?.id;
-  return PUT(`/sub-location/update?id=${id}`, payload, { id });
+  const res = await PUT(`/sub-location/update?id=${id}`, payload, { id });
+  triggerHierarchyInvalidation();
+  return res;
 };
 
-export const deleteSubLocationById = (id) => {
-  return DELETE(`/sub-location/delete/${id}`);
+export const deleteSubLocationById = async (id) => {
+  const res = await DELETE(`/sub-location/delete/${id}`);
+  triggerHierarchyInvalidation();
+  return res;
 };
 
 export const getAllRawMaterialCategoryType = () => {

@@ -32,8 +32,6 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import {
   getAdjustmentList,
-  getAllSubOutlets,
-  getOrganizationByType,
   postAdjustment,
   postBulkAdjustment,
   cancelAdjustment,
@@ -201,6 +199,7 @@ const ManualAdjustmentScreenListing = () => {
     isGroupUser,
     units: scopeUnits,
     effectiveOutletId,
+    getSubOutlets,
   } = useOrgScope();
 
   // Filter States
@@ -248,54 +247,33 @@ const ManualAdjustmentScreenListing = () => {
     }
   }, [isOutletUser, effectiveOutletId, scopeLoading]);
 
-  /* 1. Fetch Outlets */
+  /* 1. Outlets from scope */
   useEffect(() => {
-    const fetchOutlets = async () => {
-      setUnitsLoading(true);
-      try {
-        const res = await getOrganizationByType(OrgTypes.OUTLET);
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        const mapped = (Array.isArray(list) ? list : []).map((o) => ({
+    if (Array.isArray(scopeUnits)) {
+      setAllOutlets(
+        scopeUnits.map((o) => ({
           id: o.id,
-          name: o.companyNameEnglish || o.name || `Outlet #${o.id}`,
-          code: o.companyCode || o.code || '',
-        }));
-        setAllOutlets(mapped);
-      } catch (err) {
-        console.error('Failed to load outlets:', err);
-        setAllOutlets([]);
-      } finally {
-        setUnitsLoading(false);
-      }
-    };
-    fetchOutlets();
-  }, []);
+          name: o.name || `Outlet #${o.id}`,
+          code: o.code || '',
+        }))
+      );
+      setUnitsLoading(false);
+    }
+  }, [scopeUnits]);
 
-  /* 2. Fetch Sub-Outlets */
+  /* 2. Sub-Outlets from scope */
   useEffect(() => {
-    const fetchSubUnits = async () => {
-      setSubUnitsLoading(true);
-      try {
-        const res = await getAllSubOutlets();
-        const raw = res?.data?.data || res?.data?.content || res?.data || [];
-        const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((item) => ({
-          id: item.id,
-          name: item.subOutletName || item.name || `Sub-Outlet #${item.id}`,
-          code: item.subOutletCode || item.code || '',
-          organizationId: item.organizationId ?? item.outletId ?? item.outlet?.id,
-          status: item.status || (item.isActive !== false ? 'active' : 'inactive'),
-        }));
-        setSubUnits(mapped);
-      } catch (err) {
-        console.error('Failed to load sub-outlets:', err);
-        setSubUnits([]);
-      } finally {
-        setSubUnitsLoading(false);
-      }
-    };
-    fetchSubUnits();
-  }, []);
+    const list = getSubOutlets(selectedOutletId || effectiveOutletId);
+    const mapped = (Array.isArray(list) ? list : []).map((item) => ({
+      id: item.id,
+      name: item.subOutletName || item.name || `Sub-Outlet #${item.id}`,
+      code: item.subOutletCode || item.code || '',
+      organizationId: item.organizationId ?? item.outletId ?? item.outlet?.id,
+      status: item.status || (item.isActive !== false ? 'active' : 'inactive'),
+    }));
+    setSubUnits(mapped);
+    setSubUnitsLoading(false);
+  }, [selectedOutletId, effectiveOutletId, getSubOutlets]);
 
   /* Outlet Options based on Role Scope */
   const outletOptions = useMemo(() => {

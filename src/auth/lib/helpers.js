@@ -69,6 +69,11 @@ const removeAuth = () => {
     localStorage.removeItem('userData');
     localStorage.removeItem('userId');
     sessionStorage.clear();
+    try {
+      import('@/store/orgHierarchyStore').then(({ orgHierarchyStore }) => {
+        orgHierarchyStore?.reset?.();
+      }).catch(() => {});
+    } catch {}
   } catch (error) {
     console.error('AUTH LOCAL STORAGE REMOVE ERROR', error);
   }

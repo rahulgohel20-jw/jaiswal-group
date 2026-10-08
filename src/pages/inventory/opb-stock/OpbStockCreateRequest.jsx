@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
-import { getAllRawMaterialCategory, getAllRawMaterialItems, getAllSubOutlets, getAllSubLocationsBySubOutletId, saveOpb } from '@/services/apiServices';
+import { getAllRawMaterialCategory, getAllRawMaterialItems, saveOpb } from '@/services/apiServices';
 import AddRawMaterialCategoryModal from '../../raw-material/row-material-categories/AddRowMaterialCategoryModel';
 import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -19,10 +19,10 @@ const mapCategory = (item) => ({
 const userId = getUserIdFromToken();
 const normalizeSubUnit = (item) => ({
     id: item.id,
-    name: item.subOutletName || '',
-    code: item.companyCode || '',
-    organizationId: item.organizationId,
-    status: item.isActive ? 'active' : 'inactive',
+    name: item.subOutletName || item.name || '',
+    code: item.companyCode || item.code || '',
+    organizationId: item.organizationId || item.outletId,
+    status: item.isActive !== false ? 'active' : 'inactive',
     originalData: item,
 });
 
@@ -40,6 +40,8 @@ const OpbStockCreateRequest = () => {
         selectedUnitId,
         setSelectedUnitId,
         effectiveOutletId,
+        getSubOutlets,
+        getSubLocations,
     } = useOrgScope();
 
     const [createdDate, setCreatedDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -83,34 +85,16 @@ const OpbStockCreateRequest = () => {
         }
     }, [isOutletUser, selectedUnitId]);
 
-    const fetchSubUnits = useCallback(async () => {
+    const fetchSubUnits = useCallback(() => {
         if (!outlet) {
             setSubUnits([]);
             return;
         }
-
-        setSubUnitsLoading(true);
-
-        try {
-            const res = await getAllSubOutlets();
-
-            const list = res?.data?.data || res?.data?.content || res?.data || [];
-            const subOutletList = Array.isArray(list) ? list : [];
-
-            const filteredSubOutlets = subOutletList
-                .filter((sub) => sub.isActive)
-                .filter((sub) => Number(sub.organizationId) === Number(outlet))
-                .map(normalizeSubUnit);
-
-            setSubUnits(filteredSubOutlets);
-        } catch (err) {
-            console.error('Failed to load sub outlets:', err);
-            notify.error('Failed to load sub outlets');
-            setSubUnits([]);
-        } finally {
-            setSubUnitsLoading(false);
-        }
-    }, [outlet]);
+        const list = getSubOutlets(outlet);
+        const safeList = Array.isArray(list) ? list : [];
+        setSubUnits(safeList.map(normalizeSubUnit));
+        setSubUnitsLoading(false);
+    }, [outlet, getSubOutlets]);
 
     useEffect(() => {
         fetchSubUnits();
@@ -132,34 +116,10 @@ const OpbStockCreateRequest = () => {
             setSubLocation('');
             return;
         }
-
-        let isMounted = true;
-        setSubLocationsLoading(true);
-
-        getAllSubLocationsBySubOutletId(subOutlet)
-            .then((res) => {
-                const raw = res?.data?.data ?? res?.data;
-                const list = Array.isArray(raw)
-                    ? raw
-                    : Array.isArray(raw?.content)
-                    ? raw.content
-                    : Array.isArray(res?.data?.content)
-                    ? res.data.content
-                    : [];
-                if (isMounted) setSubLocations(list);
-            })
-            .catch((err) => {
-                console.error('Failed to load sub locations:', err);
-                if (isMounted) setSubLocations([]);
-            })
-            .finally(() => {
-                if (isMounted) setSubLocationsLoading(false);
-            });
-
-        return () => {
-            isMounted = false;
-        };
-    }, [subOutlet]);
+        const locs = getSubLocations(subOutlet);
+        setSubLocations(Array.isArray(locs) ? locs : []);
+        setSubLocationsLoading(false);
+    }, [subOutlet, getSubLocations]);
 
     const subLocationOptions = useMemo(
         () =>

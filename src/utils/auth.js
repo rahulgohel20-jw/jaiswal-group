@@ -4,9 +4,16 @@ import { getAuth } from '@/auth/lib/helpers';
 export const getOrgIdFromToken = () => {
   try {
     const auth = getAuth();
-    if (!auth?.token) return null;
-    const decoded = jwtDecode(auth.token);
-    return decoded?.organizationId ?? null;
+    let token = auth?.token;
+    if (!token && typeof window !== 'undefined') {
+      token =
+        localStorage.getItem('userToken') ||
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('token');
+    }
+    if (!token) return null;
+    const decoded = jwtDecode(token);
+    return decoded?.organizationId ?? decoded?.orgId ?? null;
   } catch (err) {
     console.error('Failed to decode auth token', err);
     return null;

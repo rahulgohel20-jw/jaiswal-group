@@ -1,14 +1,11 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import {
-  Search,
   Filter,
   ClipboardList,
   CheckCircle2,
   XCircle,
-  ChevronRight,
   Loader2,
-  AlertTriangle,
   Eye,
 } from "lucide-react";
 import { Container } from "@/components/common/container";
@@ -20,7 +17,6 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import SearchableSelect from "@/utils/SearchableSelect";
 import { getPurchaseRequisitionsByOutlet } from "@/services/apiServices";
 import { useOrgScope } from "@/hooks/useOrgScope";
-import { OrgTypes } from "@/constants/orgTypes";
 import { PR_STATUS, PR_STATUS_LIST, getStatusLabel } from './utils/prStatus';
 import {
   getCoreRowModel,
@@ -380,7 +376,7 @@ function ListView({ onApprove, onReject, onView }) {
         ),
         cell: ({ row }) => <StatusPill status={row.original.status} />,
         enableSorting: false,
-        size: 80,
+        size: 155,
       },
       {
         id: "action",
@@ -395,7 +391,7 @@ function ListView({ onApprove, onReject, onView }) {
               <button
                 type="button"
                 onClick={() => onApprove(r)}
-                className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded hover:bg-emerald-50 transition"
+                className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded-md hover:bg-emerald-50 transition"
                 title="Approve PR"
               >
                 <CheckCircle2 size={18} />
@@ -403,7 +399,7 @@ function ListView({ onApprove, onReject, onView }) {
               <button
                 type="button"
                 onClick={() => onReject(r)}
-                className="text-rose-500 hover:text-rose-700 cursor-pointer p-1 rounded hover:bg-rose-50 transition"
+                className="text-rose-500 hover:text-rose-700 cursor-pointer p-1 rounded-md hover:bg-rose-50 transition"
                 title="Reject PR"
               >
                 <XCircle size={18} />
@@ -414,7 +410,7 @@ function ListView({ onApprove, onReject, onView }) {
               <button
                 type="button"
                 onClick={() => onView(r)}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                className="text-gray-500 hover:text-emerald-600 cursor-pointer p-1 rounded-md hover:bg-emerald-50 transition"
                 title="View PR"
               >
                 <Eye size={18} />
@@ -423,7 +419,7 @@ function ListView({ onApprove, onReject, onView }) {
           );
         },
         enableSorting: false,
-        size: 75,
+        size: 90,
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -30,6 +30,7 @@ import {
 import SearchableSelect from "../../utils/SearchableSelect";
 import { PageHeader } from '@/components/common/PageHeader';
 import { Container } from '@/components/common/container';
+import { invalidateOrgHierarchy } from "@/utils/hierarchyUtils";
 
 const inputCls =
   "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
@@ -588,6 +589,7 @@ const AddSubUnit = () => {
         await saveSubOutlet(payload);
         notify.success("Sub Unit Added Successfully");
       }
+      invalidateOrgHierarchy();
       navigate("/sub-units");
     } catch (err) {
       console.error("Sub unit save error:", err.response?.data || err.message);

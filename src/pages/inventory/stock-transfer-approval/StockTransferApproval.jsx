@@ -46,7 +46,6 @@ import {
   approveTransfer,
   rejectTransfer,
   deleteDraftTransfer,
-  getAllSubOutlets,
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '@/utils/auth';
 import {
@@ -272,24 +271,31 @@ const StockTransferApproval = () => {
     retry: retryScope,
     isOutletUser,
     isCompanyUser,
-    units,
+    units = [],
+    subOutlets: scopeSubOutlets,
+    subLocations: scopeSubLocations,
     selectedUnitId,
     effectiveOutletId,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
-  // Fetch Sub-units
-  useEffect(() => {
-    const loadSubUnits = async () => {
-      try {
-        const res = await getAllSubOutlets();
-        const raw = res?.data?.data || res?.data || [];
-        setSubUnits(Array.isArray(raw) ? raw : []);
-      } catch (err) {
-        console.error('Failed to load sub-units in StockTransferApproval:', err);
-      }
-    };
-    loadSubUnits();
-  }, []);
+  // Fast lookup maps for sub-outlets and sub-locations
+  const subOutletMap = useMemo(() => {
+    const map = {};
+    (scopeSubOutlets || []).forEach((s) => {
+      map[String(s.id)] = s.subOutletName || s.name || s.label;
+    });
+    return map;
+  }, [scopeSubOutlets]);
+
+  const subLocationMap = useMemo(() => {
+    const map = {};
+    (scopeSubLocations || []).forEach((l) => {
+      map[String(l.id)] = l.locationName || l.subLocationName || l.name || l.label;
+    });
+    return map;
+  }, [scopeSubLocations]);
 
   // Available outlets for dropdowns (strictly scoped outlets for logged-in user)
   const displayOutletOptions = useMemo(() => {
@@ -304,26 +310,22 @@ const StockTransferApproval = () => {
 
   // From Sub-outlet options
   const fromSubOutletOptions = useMemo(() => {
-    const targetId = isOutletUser ? effectiveOutletId : selectedFromOutletId;
+    const targetId = isOutletUser ? effectiveOutletId : (selectedFromOutletId || selectedUnitId || effectiveOutletId);
     if (!targetId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(targetId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, isOutletUser, effectiveOutletId, selectedFromOutletId]);
+    return (getSubOutlets(targetId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId]);
 
   // To Sub-outlet options
   const toSubOutletOptions = useMemo(() => {
     if (!selectedToOutletId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(selectedToOutletId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, selectedToOutletId]);
+    return (getSubOutlets(selectedToOutletId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, selectedToOutletId]);
 
   // Fetch Transfers from API
   const fetchTransfers = useCallback(async () => {
@@ -362,31 +364,56 @@ const StockTransferApproval = () => {
           0
         );
 
+        const fromSubOutletId = item.fromSubOutletId || item.fromSubOutlet?.id || item.fromSubOrgId || null;
+        const toSubOutletId = item.toSubOutletId || item.toSubOutlet?.id || item.toSubOrgId || null;
+        const fromSubLocationId = item.fromSubLocationId || item.fromSubLocation?.id || null;
+        const toSubLocationId = item.toSubLocationId || item.toSubLocation?.id || null;
+
+        const fromSubOutletName =
+          item.fromSubOutletName ||
+          item.fromSubOutlet?.name ||
+          item.fromSubOutlet?.subOutletName ||
+          (fromSubOutletId ? subOutletMap[String(fromSubOutletId)] : '') ||
+          '';
+
+        const toSubOutletName =
+          item.toSubOutletName ||
+          item.toSubOutlet?.name ||
+          item.toSubOutlet?.subOutletName ||
+          (toSubOutletId ? subOutletMap[String(toSubOutletId)] : '') ||
+          '';
+
+        const fromSubLocationName =
+          item.fromSubLocationName ||
+          item.fromSubLocation?.name ||
+          item.fromSubLocation?.locationName ||
+          item.fromSubLocation?.subLocationName ||
+          (fromSubLocationId ? subLocationMap[String(fromSubLocationId)] : '') ||
+          '';
+
+        const toSubLocationName =
+          item.toSubLocationName ||
+          item.toSubLocation?.name ||
+          item.toSubLocation?.locationName ||
+          item.toSubLocation?.subLocationName ||
+          (toSubLocationId ? subLocationMap[String(toSubLocationId)] : '') ||
+          '';
+
         return {
           id: item.id,
           transferCode: item.transferCode || item.code || `TRF-${String(item.id).padStart(4, '0')}`,
           fromOrganizationId: item.fromOrganizationId || item.fromOutletId,
-          fromSubOutletId: item.fromSubOutletId || null,
-          fromSubLocationId: item.fromSubLocationId || null,
+          fromSubOutletId,
+          fromSubLocationId,
           fromOutlet: item.fromOrganizationName || item.fromOutletName || item.fromOutlet || '—',
-          fromSubOutlet:
-            item.fromSubOutletId && item.fromSubOutletName && item.fromSubOutletName !== 'Main Store'
-              ? item.fromSubOutletName
-              : !item.fromSubOutletId
-              ? ''
-              : item.fromSubOutletName || item.fromSubOutlet || '',
-          fromSubLocation: item.fromSubLocationName || item.fromSubLocation || '',
+          fromSubOutlet: fromSubOutletName,
+          fromSubLocation: fromSubLocationName,
           toOrganizationId: item.toOrganizationId || item.toOutletId,
-          toSubOutletId: item.toSubOutletId || null,
-          toSubLocationId: item.toSubLocationId || null,
+          toSubOutletId,
+          toSubLocationId,
           toOutlet: item.toOrganizationName || item.toOutletName || item.toOutlet || '—',
-          toSubOutlet:
-            item.toSubOutletId && item.toSubOutletName && item.toSubOutletName !== 'Main Store'
-              ? item.toSubOutletName
-              : !item.toSubOutletId
-              ? ''
-              : item.toSubOutletName || item.toSubOutlet || '',
-          toSubLocation: item.toSubLocationName || item.toSubLocation || '',
+          toSubOutlet: toSubOutletName,
+          toSubLocation: toSubLocationName,
           status: item.status || (item.isDraft ? 'Draft' : 'Draft'),
           isDraft: Boolean(item.isDraft),
           transferDate: item.transferDate || item.createdAt || '—',
@@ -412,7 +439,7 @@ const StockTransferApproval = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId, statusFilter]);
+  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId, statusFilter, subOutletMap, subLocationMap]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {

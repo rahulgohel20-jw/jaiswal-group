@@ -100,7 +100,7 @@ function StatusPill({ status }) {
     <span
       style={{ color: meta.fg }}
       title={getPoStatusLabel(status)}
-      className="text-xs font-semibold truncate block max-w-full"
+      className="text-xs font-semibold whitespace-nowrap"
     >
       {getPoStatusLabel(status)}
     </span>
@@ -239,19 +239,14 @@ const PurchaseOrderApproval = () => {
     list: allPos,
     loading: poLoading,
     error: poError,
-    fetchByOutletandStatus,
+    fetchByOutlet,
   } = usePurchaseOrders();
 
   const currentUnitId = effectiveOutletId;
 
-  const targetStatus = useMemo(() => {
-    if (!statusFilter || statusFilter === ALL_STATUS) return APPROVER_VISIBLE_STATUSES;
-    return statusFilter;
-  }, [statusFilter]);
-
   const loadData = () => {
     if (scopeLoading || scopeError) return;
-    fetchByOutletandStatus(currentUnitId, targetStatus);
+    fetchByOutlet(currentUnitId);
   };
 
   useEffect(() => {
@@ -259,7 +254,7 @@ const PurchaseOrderApproval = () => {
       loadData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeLoading, scopeError, currentUnitId, targetStatus]);
+  }, [scopeLoading, scopeError, currentUnitId]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -526,7 +521,7 @@ const PurchaseOrderApproval = () => {
         ),
         cell: ({ row }) => <StatusPill status={row.original.rawStatus} />,
         enableSorting: false,
-        size: 80,
+        size: 155,
       },
       {
         id: 'action',

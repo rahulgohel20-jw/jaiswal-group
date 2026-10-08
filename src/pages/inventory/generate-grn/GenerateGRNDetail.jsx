@@ -21,11 +21,10 @@ import {
   createGrn,
   getPOByIdAndOpenItem,
   getPOByidandopenitems,
-  getAllSubOutletsByOrganization,
-  getAllSubLocationsBySubOutletId,
   getGrnById,
   getGrnDetailById,
 } from '@/services/apiServices';
+import { useOrgScope } from '@/hooks/useOrgScope';
 import { getUserIdFromToken } from '@/utils/auth';
 import { getTodayInputDate } from '@/utils/GetCurrentToday';
 import { toast } from 'sonner';
@@ -120,47 +119,29 @@ const GenerateGRNDetail = () => {
     setSelectedSubLocationId('');
   };
 
+  const { getSubOutlets, getSubLocations } = useOrgScope();
+
+  useEffect(() => {
+    const orgId = po?.outletId || po?.orgId;
+    if (orgId) {
+      const rawSubs = getSubOutlets(orgId);
+      if (Array.isArray(rawSubs) && rawSubs.length > 0) {
+        setSubOutlets(rawSubs);
+      }
+      setLoadingSubOutlets(false);
+    }
+  }, [po?.outletId, po?.orgId, getSubOutlets]);
+
   useEffect(() => {
     if (!selectedSubOutletId) {
       setSubLocations([]);
       setSelectedSubLocationId('');
       return;
     }
-
-    let isMounted = true;
-    const fetchSubLocations = async () => {
-      setLoadingSubLocations(true);
-      try {
-        const res = await getAllSubLocationsBySubOutletId(selectedSubOutletId);
-        const rawData = res?.data?.data ?? res?.data;
-        const list = Array.isArray(rawData)
-          ? rawData
-          : Array.isArray(rawData?.content)
-            ? rawData.content
-            : Array.isArray(res?.data?.content)
-              ? res.data.content
-              : [];
-        if (isMounted) {
-          setSubLocations(list);
-        }
-      } catch (err) {
-        console.warn('Failed to load sub-locations for sub-outlet:', err);
-        if (isMounted) {
-          setSubLocations([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoadingSubLocations(false);
-        }
-      }
-    };
-
-    fetchSubLocations();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedSubOutletId]);
+    const locs = getSubLocations(selectedSubOutletId);
+    setSubLocations(Array.isArray(locs) ? locs : []);
+    setLoadingSubLocations(false);
+  }, [selectedSubOutletId, getSubLocations]);
 
   const [grnDate, setGrnDate] = useState(getTodayInputDate());
   const [remarks, setRemarks] = useState('');
@@ -288,20 +269,12 @@ const GenerateGRNDetail = () => {
 
       setResolvedGrnCode(dynamicGrnCode || '');
 
-      // Fetch sub-outlets for this organization / outlet
+      // Populate sub-outlets for this organization / outlet
       const orgId = normalizedPo.outletId || normalizedPo.orgId;
       if (orgId) {
-        try {
-          setLoadingSubOutlets(true);
-          const subRes = await getAllSubOutletsByOrganization(orgId);
-          const rawSubs = subRes?.data?.data ?? subRes?.data ?? subRes ?? [];
-          setSubOutlets(Array.isArray(rawSubs) ? rawSubs : []);
-        } catch (subErr) {
-          console.warn('Failed to load sub-outlets for organization:', subErr);
-          setSubOutlets([]);
-        } finally {
-          setLoadingSubOutlets(false);
-        }
+        const rawSubs = getSubOutlets(orgId);
+        setSubOutlets(Array.isArray(rawSubs) ? rawSubs : []);
+        setLoadingSubOutlets(false);
       }
 
       // Populate line items
@@ -612,6 +585,9 @@ const GenerateGRNDetail = () => {
       }
     }
 
+    const subOutletId = selectedSubOutletId ? Number(selectedSubOutletId) : null;
+    const subLocationId = selectedSubLocationId ? Number(selectedSubLocationId) : null;
+
     // Validate details
     const detailsPayload = activeItems.map((item) => {
       const apprQty = Number(item.approvedQty) || 0;
@@ -636,6 +612,8 @@ const GenerateGRNDetail = () => {
         isPoDetailClosed: Boolean(item.isPoDetailClosed),
         batchNo: item.batchNo ? item.batchNo.trim() : null,
         useByDate: formattedUseByDate,
+        subOutletId: subOutletId,
+        subLocationId: subLocationId,
       };
     });
 
@@ -654,9 +632,6 @@ const GenerateGRNDetail = () => {
       if (!d || !m || !y) return grnDate;
       return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
     })();
-
-    const subOutletId = selectedSubOutletId ? Number(selectedSubOutletId) : null;
-    const subLocationId = selectedSubLocationId ? Number(selectedSubLocationId) : null;
 
     const effectivePoIds = (po.poIds && po.poIds.length > 0)
       ? po.poIds.map(Number)
@@ -794,8 +769,8 @@ const GenerateGRNDetail = () => {
               <label className="text-xs font-medium text-gray-600 mb-1 block">
                 PO Code{poCodesList.length > 1 ? 's' : ''}
               </label>
-              <div className="min-h-[34px] border border-gray-200 rounded-lg p-1 px-1.5 flex items-center bg-[#F8FAFC] w-fit max-w-full">
-                <div className={`w-fit ${poCodesList.length > 1 ? 'inline-grid grid-cols-2 gap-1.5' : 'flex items-center'}`}>
+              <div className="w-full min-h-[34px] border border-gray-200 rounded-lg p-1 px-2.5 flex items-center bg-[#F8FAFC]">
+                <div className="flex flex-wrap items-center gap-1.5 w-full">
                   {poCodesList.map((code, idx) => (
                     <span
                       key={idx}

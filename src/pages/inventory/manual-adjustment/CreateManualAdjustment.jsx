@@ -26,9 +26,6 @@ import { useOrgScope } from '@/hooks/useOrgScope';
 import {
   getAllRawMaterialCategory,
   getAllRawMaterialItems,
-  getAllSubOutlets,
-  getAllSubLocationsBySubOutletId,
-  getOrganizationByType,
   saveAdjustment,
   postAdjustment,
   postBulkAdjustment,
@@ -162,6 +159,8 @@ const CreateManualAdjustment = () => {
     isGroupUser,
     units: scopeUnits,
     effectiveOutletId,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
   /* Header fields */
@@ -205,75 +204,36 @@ const CreateManualAdjustment = () => {
     }
   }, [isOutletUser, effectiveOutletId, scopeLoading]);
 
-  /* 1. Fetch Outlets */
+  /* 1. Outlets from scope */
   useEffect(() => {
-    const fetchOutlets = async () => {
-      setUnitsLoading(true);
-      try {
-        const res = await getOrganizationByType(OrgTypes.OUTLET);
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        setAllOutlets((Array.isArray(list) ? list : []).map(normalizeUnit));
-      } catch (err) {
-        console.error('Failed to load outlets:', err);
-        setAllOutlets([]);
-      } finally {
-        setUnitsLoading(false);
-      }
-    };
-    fetchOutlets();
-  }, []);
+    if (Array.isArray(scopeUnits)) {
+      setAllOutlets(scopeUnits.map(normalizeUnit));
+      setUnitsLoading(false);
+    }
+  }, [scopeUnits]);
 
-  /* 2. Fetch Sub-Outlets */
+  /* 2. Sub-Outlets from scope */
   useEffect(() => {
-    const fetchSubUnits = async () => {
-      setSubUnitsLoading(true);
-      try {
-        const res = await getAllSubOutlets();
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        setSubUnits((Array.isArray(list) ? list : []).map(normalizeSubUnit));
-      } catch (err) {
-        console.error('Failed to load sub outlets:', err);
-        setSubUnits([]);
-      } finally {
-        setSubUnitsLoading(false);
-      }
-    };
-    fetchSubUnits();
-  }, []);
+    if (!outlet) {
+      setSubUnits([]);
+      return;
+    }
+    const list = getSubOutlets(outlet);
+    setSubUnits((Array.isArray(list) ? list : []).map(normalizeSubUnit));
+    setSubUnitsLoading(false);
+  }, [outlet, getSubOutlets]);
 
-  /* 3. Fetch Sub-Locations when Sub-Outlet changes */
+  /* 3. Sub-Locations when Sub-Outlet changes */
   useEffect(() => {
     if (!subOutlet) {
       setSubLocations([]);
       setSubLocation('');
       return;
     }
-    let isMounted = true;
-    setSubLocationsLoading(true);
-    getAllSubLocationsBySubOutletId(subOutlet)
-      .then((res) => {
-        const raw = res?.data?.data ?? res?.data;
-        const list = Array.isArray(raw)
-          ? raw
-          : Array.isArray(raw?.content)
-          ? raw.content
-          : Array.isArray(res?.data?.content)
-          ? res.data.content
-          : [];
-        if (isMounted) setSubLocations(list);
-      })
-      .catch((err) => {
-        console.warn('Failed to load sub locations:', err);
-        if (isMounted) setSubLocations([]);
-      })
-      .finally(() => {
-        if (isMounted) setSubLocationsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [subOutlet]);
+    const locs = getSubLocations(subOutlet);
+    setSubLocations(Array.isArray(locs) ? locs : []);
+    setSubLocationsLoading(false);
+  }, [subOutlet, getSubLocations]);
 
   /* Outlet Options based on Role Scope */
   const outletOptions = useMemo(() => {

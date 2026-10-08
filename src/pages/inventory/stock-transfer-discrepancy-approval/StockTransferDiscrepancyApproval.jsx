@@ -131,10 +131,29 @@ const StockTransferDiscrepancyApproval = () => {
     selectedCompanyId,
     effectiveOutletId,
     units = [],
+    subOutlets: scopeSubOutlets = [],
+    subLocations: scopeSubLocations = [],
     loading: scopeLoading,
     error: scopeError,
     retry: retryScope,
   } = useOrgScope();
+
+  // Fast lookup maps for sub-outlets and sub-locations
+  const subOutletMap = useMemo(() => {
+    const map = {};
+    (scopeSubOutlets || []).forEach((s) => {
+      map[String(s.id)] = s.subOutletName || s.name || s.label;
+    });
+    return map;
+  }, [scopeSubOutlets]);
+
+  const subLocationMap = useMemo(() => {
+    const map = {};
+    (scopeSubLocations || []).forEach((l) => {
+      map[String(l.id)] = l.locationName || l.subLocationName || l.name || l.label;
+    });
+    return map;
+  }, [scopeSubLocations]);
 
   // State
   const [transfers, setTransfers] = useState([]);
@@ -186,6 +205,41 @@ const StockTransferDiscrepancyApproval = () => {
           t.remarks ||
           '—';
 
+        const fromSubOutletId = t.fromSubOutletId || t.fromSubOutlet?.id || t.fromSubOrgId || null;
+        const toSubOutletId = t.toSubOutletId || t.toSubOutlet?.id || t.toSubOrgId || null;
+        const fromSubLocationId = t.fromSubLocationId || t.fromSubLocation?.id || null;
+        const toSubLocationId = t.toSubLocationId || t.toSubLocation?.id || null;
+
+        const fromSubOutletName =
+          t.fromSubOutletName ||
+          t.fromSubOutlet?.name ||
+          t.fromSubOutlet?.subOutletName ||
+          (fromSubOutletId ? subOutletMap[String(fromSubOutletId)] : '') ||
+          '';
+
+        const toSubOutletName =
+          t.toSubOutletName ||
+          t.toSubOutlet?.name ||
+          t.toSubOutlet?.subOutletName ||
+          (toSubOutletId ? subOutletMap[String(toSubOutletId)] : '') ||
+          '';
+
+        const fromSubLocationName =
+          t.fromSubLocationName ||
+          t.fromSubLocation?.name ||
+          t.fromSubLocation?.locationName ||
+          t.fromSubLocation?.subLocationName ||
+          (fromSubLocationId ? subLocationMap[String(fromSubLocationId)] : '') ||
+          '';
+
+        const toSubLocationName =
+          t.toSubLocationName ||
+          t.toSubLocation?.name ||
+          t.toSubLocation?.locationName ||
+          t.toSubLocation?.subLocationName ||
+          (toSubLocationId ? subLocationMap[String(toSubLocationId)] : '') ||
+          '';
+
         return {
           id: t.id,
           index: idx + 1,
@@ -197,12 +251,16 @@ const StockTransferDiscrepancyApproval = () => {
             : '—',
           fromOutlet: t.fromOrganizationName || t.fromOutletName || t.fromOrganization?.name || '—',
           fromOutletId: t.fromOrganizationId || t.fromOutletId || t.fromOrganization?.id,
-          fromSubOutlet: t.fromSubOutletName || t.fromSubOutlet?.name || '—',
-          fromSubOutletId: t.fromSubOutletId || t.fromSubOutlet?.id,
+          fromSubOutlet: fromSubOutletName || '—',
+          fromSubOutletId,
+          fromSubLocation: fromSubLocationName || '—',
+          fromSubLocationId,
           toOutlet: t.toOrganizationName || t.toOutletName || t.toOrganization?.name || '—',
           toOutletId: t.toOrganizationId || t.toOutletId || t.toOrganization?.id,
-          toSubOutlet: t.toSubOutletName || t.toSubOutlet?.name || '—',
-          toSubOutletId: t.toSubOutletId || t.toSubOutlet?.id,
+          toSubOutlet: toSubOutletName || '—',
+          toSubOutletId,
+          toSubLocation: toSubLocationName || '—',
+          toSubLocationId,
           vehicleNumber: t.vehicleNumber || '—',
           driverName: t.driverName || '—',
           driverContact: t.driverContact || '',
@@ -223,7 +281,7 @@ const StockTransferDiscrepancyApproval = () => {
     } finally {
       setLoading(false);
     }
-  }, [isCompanyUser, isGroupUser, selectedCompanyId]);
+  }, [isCompanyUser, isGroupUser, selectedCompanyId, subOutletMap, subLocationMap]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {

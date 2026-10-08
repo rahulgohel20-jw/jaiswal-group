@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Plus,
   Eye,
@@ -27,16 +27,16 @@ import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
-import { SearchBar } from '@/components/common/SearchBar';
 import {
-  getAllSubOutlets,
   getSubOutletById,
   deleteSubOutletById,
-  getOrganizationByType,
+  getAllActiveSubOutlets,
 } from "../../services/apiServices";
 import { notify } from "@/utils/toast";
 import { PageErrorAlert } from "@/components/common/PageErrorAlert";
+import { SearchBar } from "@/components/common/SearchBar";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { useOrgScope } from "@/hooks/useOrgScope";
 import {
   Select,
   SelectContent,
@@ -49,11 +49,16 @@ import SearchableSelect from "../../utils/SearchableSelect";
 
 const extractArray = (res) => {
   if (!res) return [];
-  const raw = res?.data?.data ?? res?.data;
+  const raw =
+    res?.data?.data?.['Sub Outlet Details'] ??
+    res?.data?.['Sub Outlet Details'] ??
+    res?.data?.data ??
+    res?.data ??
+    res ??
+    [];
   if (Array.isArray(raw)) return raw;
   if (Array.isArray(raw?.content)) return raw.content;
   if (Array.isArray(res?.data?.content)) return res.data.content;
-  if (Array.isArray(res?.data)) return res.data;
   return [];
 };
 
@@ -149,6 +154,16 @@ function StatusDropdown({ value, onChange }) {
 const SubUnitListing = () => {
   const navigate = useNavigate();
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Units');
+  const {
+    units: scopeUnits,
+    outlets: scopeOutlets,
+    subOutlets: scopeSubOutlets,
+    loading: scopeLoading,
+    error: scopeError,
+    retry: retryScope,
+    refetchHierarchy,
+  } = useOrgScope();
+
   const [subUnits, setSubUnits] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -164,53 +179,43 @@ const SubUnitListing = () => {
   const [unitFilter, setUnitFilter] = useState("");
   const [units, setUnits] = useState([]);
 
-  useEffect(() => {
-    const fetchUnits = async () => {
-      try {
-        const res = await getOrganizationByType(OrgTypes.OUTLET);
-        const list = extractArray(res);
-        setUnits(list);
-      } catch (error) {
-        console.error("Failed to load units:", error);
-      }
-    };
-
-    fetchUnits();
-  }, []);
-
   const normalizeSubUnit = (item) => ({
     id: item.id,
-    name: item.subOutletName || "",
-    code: item.subOutletCode || "",
+    name: item.subOutletName || item.name || "",
+    code: item.subOutletCode || item.code || "",
     type: item.subOutletType || item.type || item.locationType || "LOCATION",
     location: item.cityName || "",
     email: item.email || "",
     mobile: item.contactNumber || "",
-    organizationId: item.organizationId || item.orgId || "",
+    organizationId: item.organizationId || item.orgId || item.outletId || "",
     contactPerson: item.contactPerson || "",
-    status: item.isActive ? "active" : "inactive",
+    status: item.isActive !== false ? "active" : "inactive",
     originalData: item,
   });
 
-  const fetchSubUnits = async () => {
+  useEffect(() => {
+    const list = (scopeOutlets && scopeOutlets.length > 0) ? scopeOutlets : (scopeUnits || []);
+    setUnits(list);
+  }, [scopeOutlets, scopeUnits]);
+
+  const fetchSubUnits = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const res = await getAllSubOutlets();
-      const list = extractArray(res);
-      setSubUnits(list.map(normalizeSubUnit));
+      const res = await getAllActiveSubOutlets();
+      const rawList = extractArray(res);
+      setSubUnits(rawList.map(normalizeSubUnit));
     } catch (err) {
-      console.error(err);
-      setError("Failed to load sub units.");
+      console.error('Failed to fetch sub units:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load sub units');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSubUnits();
-  }, []);
+  }, [fetchSubUnits]);
 
   const handleViewClick = async (subUnit) => {
     try {
@@ -259,10 +264,13 @@ const SubUnitListing = () => {
     setDeleteLoading(true);
     try {
       await deleteSubOutletById(deleteTarget.id);
+      notify.success("Sub unit deleted successfully");
       closeDeleteConfirm();
       fetchSubUnits();
+      refetchHierarchy?.();
     } catch (err) {
       console.error("Failed to delete sub unit:", err);
+      notify.error(err?.response?.data?.message || "Failed to delete sub unit");
     } finally {
       setDeleteLoading(false);
     }
@@ -507,7 +515,7 @@ const SubUnitListing = () => {
               }}
               options={units.map((unit) => ({
                 value: String(unit.id),
-                label: unit.companyNameEnglish,
+                label: unit.name || unit.companyNameEnglish || unit.companyName || `Outlet #${unit.id}`,
               }))}
               placeholder="Select Unit"
             />

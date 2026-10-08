@@ -29,7 +29,7 @@ import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
-import { getTransferList, getAllSubOutlets } from '@/services/apiServices';
+import { getTransferList } from '@/services/apiServices';
 import FifoBatchVisualizerModal from '../stock-transfer/FifoBatchVisualizerModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
@@ -251,23 +251,30 @@ const StockTransferReqReceiveList = () => {
     isOutletUser,
     isCompanyUser,
     units,
+    subOutlets: scopeSubOutlets,
+    subLocations: scopeSubLocations,
     selectedUnitId,
     effectiveOutletId,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
-  // Load Sub-units
-  useEffect(() => {
-    const loadSubUnits = async () => {
-      try {
-        const res = await getAllSubOutlets();
-        const raw = res?.data?.data || res?.data || [];
-        setSubUnits(Array.isArray(raw) ? raw : []);
-      } catch (err) {
-        console.error('Failed to load sub-units in Receive list:', err);
-      }
-    };
-    loadSubUnits();
-  }, []);
+  // Fast lookup maps for sub-outlets and sub-locations
+  const subOutletMap = useMemo(() => {
+    const map = {};
+    (scopeSubOutlets || []).forEach((s) => {
+      map[String(s.id)] = s.subOutletName || s.name || s.label;
+    });
+    return map;
+  }, [scopeSubOutlets]);
+
+  const subLocationMap = useMemo(() => {
+    const map = {};
+    (scopeSubLocations || []).forEach((l) => {
+      map[String(l.id)] = l.locationName || l.subLocationName || l.name || l.label;
+    });
+    return map;
+  }, [scopeSubLocations]);
 
   // Available outlets for dropdowns (strictly scoped outlets for logged in user)
   const displayOutletOptions = useMemo(() => {
@@ -280,28 +287,25 @@ const StockTransferReqReceiveList = () => {
     );
   }, [displayOutletOptions, isOutletUser, effectiveOutletId]);
 
-  // From Sub-outlet options (dependent on selectedFromOutletId)
+  // From Sub-outlet options (dependent on selectedFromOutletId or selectedUnitId)
   const fromSubOutletOptions = useMemo(() => {
-    if (!selectedFromOutletId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(selectedFromOutletId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, selectedFromOutletId]);
-
-  // To Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedToOutletId
-  const toSubOutletOptions = useMemo(() => {
-    const targetId = isOutletUser ? effectiveOutletId : selectedToOutletId;
+    const targetId = selectedFromOutletId || (isOutletUser ? effectiveOutletId : '');
     if (!targetId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(targetId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, isOutletUser, effectiveOutletId, selectedToOutletId]);
+    return (getSubOutlets(targetId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, selectedFromOutletId, isOutletUser, effectiveOutletId]);
+
+  // To Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedToOutletId or selectedUnitId
+  const toSubOutletOptions = useMemo(() => {
+    const targetId = isOutletUser ? effectiveOutletId : (selectedToOutletId || selectedUnitId || effectiveOutletId);
+    if (!targetId) return [];
+    return (getSubOutlets(targetId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, isOutletUser, effectiveOutletId, selectedToOutletId, selectedUnitId]);
 
   // Fetch Receive Transfers from API
   const fetchReceiveTransfers = useCallback(async () => {
@@ -370,31 +374,56 @@ const StockTransferReqReceiveList = () => {
         );
         const variance = totalAccQty > 0 ? totalAccQty - totalReqQty : null;
 
+        const fromSubOutletId = item.fromSubOutletId || item.fromSubOutlet?.id || item.fromSubOrgId || null;
+        const toSubOutletId = item.toSubOutletId || item.toSubOutlet?.id || item.toSubOrgId || null;
+        const fromSubLocationId = item.fromSubLocationId || item.fromSubLocation?.id || null;
+        const toSubLocationId = item.toSubLocationId || item.toSubLocation?.id || null;
+
+        const fromSubOutletName =
+          item.fromSubOutletName ||
+          item.fromSubOutlet?.name ||
+          item.fromSubOutlet?.subOutletName ||
+          (fromSubOutletId ? subOutletMap[String(fromSubOutletId)] : '') ||
+          '';
+
+        const toSubOutletName =
+          item.toSubOutletName ||
+          item.toSubOutlet?.name ||
+          item.toSubOutlet?.subOutletName ||
+          (toSubOutletId ? subOutletMap[String(toSubOutletId)] : '') ||
+          '';
+
+        const fromSubLocationName =
+          item.fromSubLocationName ||
+          item.fromSubLocation?.name ||
+          item.fromSubLocation?.locationName ||
+          item.fromSubLocation?.subLocationName ||
+          (fromSubLocationId ? subLocationMap[String(fromSubLocationId)] : '') ||
+          '';
+
+        const toSubLocationName =
+          item.toSubLocationName ||
+          item.toSubLocation?.name ||
+          item.toSubLocation?.locationName ||
+          item.toSubLocation?.subLocationName ||
+          (toSubLocationId ? subLocationMap[String(toSubLocationId)] : '') ||
+          '';
+
         return {
           id: item.id,
           transferCode: item.transferCode || item.code || `TRF-${String(item.id).padStart(4, '0')}`,
           fromOrganizationId: item.fromOrganizationId || item.fromOutletId,
-          fromSubOutletId: item.fromSubOutletId || null,
-          fromSubLocationId: item.fromSubLocationId || null,
+          fromSubOutletId,
+          fromSubLocationId,
           fromOutlet: item.fromOrganizationName || item.fromOutletName || item.fromOutlet || '—',
-          fromSubOutlet:
-            item.fromSubOutletId && item.fromSubOutletName && item.fromSubOutletName !== 'Main Store'
-              ? item.fromSubOutletName
-              : !item.fromSubOutletId
-              ? ''
-              : item.fromSubOutletName || item.fromSubOutlet || '',
-          fromSubLocation: item.fromSubLocationName || item.fromSubLocation || '',
+          fromSubOutlet: fromSubOutletName,
+          fromSubLocation: fromSubLocationName,
           toOrganizationId: item.toOrganizationId || item.toOutletId,
-          toSubOutletId: item.toSubOutletId || null,
-          toSubLocationId: item.toSubLocationId || null,
+          toSubOutletId,
+          toSubLocationId,
           toOutlet: item.toOrganizationName || item.toOutletName || item.toOutlet || '—',
-          toSubOutlet:
-            item.toSubOutletId && item.toSubOutletName && item.toSubOutletName !== 'Main Store'
-              ? item.toSubOutletName
-              : !item.toSubOutletId
-              ? ''
-              : item.toSubOutletName || item.toSubOutlet || '',
-          toSubLocation: item.toSubLocationName || item.toSubLocation || '',
+          toSubOutlet: toSubOutletName,
+          toSubLocation: toSubLocationName,
           status: item.status || 'In Transit',
           transferDate: item.transferDate || item.createdAt || '—',
           vehicleNumber: item.vehicleNumber || '—',
@@ -429,7 +458,7 @@ const StockTransferReqReceiveList = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedToOutletId, selectedFromOutletId, selectedUnitId]);
+  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedToOutletId, selectedFromOutletId, selectedUnitId, subOutletMap, subLocationMap]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {
