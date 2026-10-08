@@ -6,9 +6,7 @@ import {
     Home,
     Building2,
     MapPin,
-    Package,
     Hash,
-    IndianRupee,
 } from 'lucide-react';
 import {
     Dialog,
@@ -85,10 +83,10 @@ const OpbStockRequestDetailsModal = ({
         >
             <DialogContent
                 showCloseButton={false}
-                className="p-0 gap-0 max-w-3xl rounded-2xl overflow-hidden"
+                className="p-0 gap-0 max-w-3xl max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
             >
-                {/* Header */}
-                <div className="flex items-start justify-between px-6 pt-6 pb-5 border-b border-[#E2E8F0]">
+                {/* Header (shrink-0 keeps it fixed at top) */}
+                <div className="flex items-start justify-between px-6 pt-6 pb-5 border-b border-[#E2E8F0] shrink-0 bg-white">
                     <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-xl bg-[#EFF4FF] flex items-center justify-center shrink-0">
                             <Archive
@@ -123,7 +121,8 @@ const OpbStockRequestDetailsModal = ({
                     </button>
                 </div>
 
-                <ScrollArea className="max-h-[70vh]">
+                {/* Scroll Area with explicit flex container sizing */}
+                <ScrollArea className="flex-1 overflow-y-auto">
                     <div className="px-6 py-5 space-y-5">
 
                         {/* Request Details */}

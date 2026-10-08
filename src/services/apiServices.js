@@ -1053,10 +1053,16 @@ export const deleteAssignAsset = (id) => {
 export const getAssignedAssetsByOrgAndSubOutlet = (orgId, subOutletId = 0) => {
   return GET(`/assets/assigned-by-location?organizationId=${orgId}&subOutletId=${subOutletId}`);
 }
-export const getAssignmentsByAssetId = (id) => {
-  return GET(`/assets/assignments?assetId=${id}`);
-}
+export const getAssignmentsByAssetId = (ids) => {
+ 
+  if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+    return GET('/assets/assignments');
+  }
+  const idArray = Array.isArray(ids) ? ids : [ids];
+  const queryString = idArray.map((id) => `ids=${encodeURIComponent(id)}`).join('&');
 
+  return GET(`/assets/assignments?${queryString}`);
+};
 
 // ---- Purchase Requisition APIs ----
 
@@ -1426,17 +1432,9 @@ export const getCurrentStockListGet = (params = {}) => {
 export const saveOpb = (payload, userId) => {
   return POST(`/stock-opb/save?userId=${userId}`, payload);
 }
-export const getOpbList = ({ itemType = '', organizationId = '', pageNo = 1, pageSize = 10, search = '', status = '', subOutletId = '', } = {}) => {
-  return GET('/stock-opb/list', {
-    itemType,
-    organizationId,
-    pageNo,
-    pageSize,
-    search,
-    status,
-    subOutletId,
-  });
-};
+export const getOpbList = (params) => {
+  return GET('/stock-opb/list', params);
+}
 export const getOpbById = (id) => {
   return GET(`/stock-opb/${id}`);
 };//Purchase Invoice API

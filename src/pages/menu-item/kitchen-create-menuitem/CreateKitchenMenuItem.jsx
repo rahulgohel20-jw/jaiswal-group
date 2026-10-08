@@ -213,10 +213,6 @@ const CreateKitchenMenuItem = () => {
             notify.error("Price must be positive");
             return false;
         }
-        if (Number(form.sequence) <= 0) {
-            notify.error("Sequence must be positive");
-            return false;
-        }
 
         setSaving(true);
         try {
@@ -296,16 +292,16 @@ const CreateKitchenMenuItem = () => {
                                     />
                                 </div>
                                 <div className="col-span-2">
-                                    <Label>Slogan</Label>
+                                    <Label>Description</Label>
                                     <input
                                         name="slogan"
                                         value={form.slogan}
                                         onChange={handleChange}
-                                        placeholder="Enter Slogan"
+                                        placeholder="Enter Description"
                                         className={inputCls}
                                     />
                                 </div>
-                                <div>
+                                <div className="col-span-2">
                                     <Label>Price</Label>
                                     <input
                                         name="price"
@@ -314,18 +310,6 @@ const CreateKitchenMenuItem = () => {
                                         type="number"
                                         onWheel={(e) => e.currentTarget.blur()}
                                         placeholder="Enter Price"
-                                        className={inputCls}
-                                    />
-                                </div>
-                                <div>
-                                    <Label required>Sequence</Label>
-                                    <input
-                                        name="sequence"
-                                        value={form.sequence}
-                                        onChange={handleChange}
-                                        type="number"
-                                        onWheel={(e) => e.currentTarget.blur()}
-                                        placeholder="Enter Sequence"
                                         className={inputCls}
                                     />
                                 </div>

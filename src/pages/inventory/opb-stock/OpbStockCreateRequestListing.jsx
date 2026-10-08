@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getCoreRowModel,
     getPaginationRowModel,
+    getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
-import { Search, ChevronRight, ChevronLeft, Eye, Plus } from 'lucide-react';
+import { Eye, Plus, Loader2 } from 'lucide-react';
 import { Card, CardTable, CardFooter } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -12,23 +13,26 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
-import { Link } from 'react-router';
 import OpbStockRequestDetailsModal from './OpbStockRequestDetailsModal';
-import { getEmployeeById, getOpbById, getOpbList } from '../../../services/apiServices';
+import { getOpbById, getOpbList, getAllSubOutlets } from '../../../services/apiServices';
 import { useOrgScope } from '../../../hooks/useOrgScope';
 import HeaderActionButton from '../../../components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
+import { CodeCell } from '@/components/common/CodeCell';
+import SearchableSelect from '@/utils/SearchableSelect';
 
 const STATUS_TEXT_COLORS = {
     DRAFT: 'text-amber-600',
     POSTED: 'text-emerald-600',
-    CANCELLED: 'text-rose-600'
+    CANCELLED: 'text-rose-600',
+    REJECTED: 'text-rose-600',
 };
 
 const StatusBadge = ({ status }) => {
-    const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
+    const key = String(status || '').toUpperCase();
+    const color = STATUS_TEXT_COLORS[key] || 'text-gray-600';
     return (
         <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
             {status || '—'}
@@ -36,54 +40,113 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const Pill = ({ children }) => (
-    <span className="inline-block px-2.5 py-1 rounded-md bg-gray-100 text-xs text-gray-600 whitespace-nowrap">
-        {children}
-    </span>
-);
-const employeeNameCache = new Map();
-const OpbStockCreateRequestListing = () => {
 
+const UNIT_SYMBOL_MAP = {
+    KILOGRAM: 'KG',
+    KILOGRAMS: 'KG',
+    KG: 'KG',
+    GRAM: 'GM',
+    GRAMS: 'GM',
+    GM: 'GM',
+    LITRE: 'LTR',
+    LITRES: 'LTR',
+    LTR: 'LTR',
+    MILLILITRE: 'ML',
+    ML: 'ML',
+    PIECE: 'PCS',
+    PIECES: 'PCS',
+    PCS: 'PCS',
+    PACKET: 'PKT',
+    PKT: 'PKT',
+    BOX: 'BOX',
+    BAG: 'BAG',
+    NOS: 'NOS',
+};
+
+const formatUnit = (unit) => {
+    if (!unit) return '';
+    const clean = String(unit).trim().toUpperCase();
+    return UNIT_SYMBOL_MAP[clean] || unit;
+};
+
+const PAGE_SIZE = 10;
+
+const parseDateToTimestamp = (dateStr) => {
+    if (!dateStr || dateStr === '—') return 0;
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(dateStr)) {
+        const parts = dateStr.split('/');
+        return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0])).getTime() || 0;
+    }
+    const t = new Date(dateStr).getTime();
+    return isNaN(t) ? 0 : t;
+};
+
+const OpbStockCreateRequestListing = () => {
     const {
         loading: orgScopeLoading,
         error: orgScopeError,
         retry: retryScope,
         isOutletUser,
-        isCompanyUser,
+        units,
         effectiveOutletId,
-        units: scopedOutlets,
     } = useOrgScope();
 
-    const allowedOutletIdSet = useMemo(() => {
-        if (orgScopeLoading) return null;
-
-        if (isOutletUser && effectiveOutletId) {
-            return new Set([String(effectiveOutletId)]);
-        }
-
-        if (isCompanyUser && Array.isArray(scopedOutlets)) {
-            return new Set(
-                scopedOutlets
-                    .filter((outlet) => outlet?.id != null && String(outlet.id).toUpperCase() !== 'ALL')
-                    .map((outlet) => String(outlet.id))
-            );
-        }
-
-        return null;
-    }, [orgScopeLoading, isOutletUser, isCompanyUser, effectiveOutletId, scopedOutlets]);
-
-    const [allRequests, setAllRequests] = useState([]);
+    const [requests, setRequests] = useState([]);
+    const [totalElements, setTotalElements] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Search and Filters
     const [searchInput, setSearchInput] = useState('');
     const [search, setSearch] = useState('');
+    const [subUnits, setSubUnits] = useState([]);
+    const [selectedOutletId, setSelectedOutletId] = useState('');
+    const [selectedSubOutletId, setSelectedSubOutletId] = useState('');
 
-    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
-    const [employeeMap, setEmployeeMap] = useState({});
+    const [sorting, setSorting] = useState([]);
 
+    // Fetch Sub-Outlets list
+    useEffect(() => {
+        const loadSubUnits = async () => {
+            try {
+                const res = await getAllSubOutlets();
+                const raw = res?.data?.data || res?.data || [];
+                setSubUnits(Array.isArray(raw) ? raw : []);
+            } catch (err) {
+                console.error('Failed to load sub-units:', err);
+            }
+        };
+        loadSubUnits();
+    }, []);
+
+    // Outlet options dropdown
+    const outletOptions = useMemo(() => {
+        if (!Array.isArray(units)) return [];
+        return units
+            .filter((u) => u?.id != null && String(u.id).toUpperCase() !== 'ALL')
+            .map((u) => ({
+                value: String(u.id),
+                label: `${u.name}${u.code ? ` (${u.code})` : ''}`,
+            }));
+    }, [units]);
+
+    // Sub-Outlet options dropdown (filtered by selected or effective outlet)
+    const subOutletOptions = useMemo(() => {
+        const activeOutletId = isOutletUser ? effectiveOutletId : selectedOutletId;
+        if (!activeOutletId) return [];
+
+        return subUnits
+            .filter((s) => String(s.organizationId) === String(activeOutletId))
+            .map((s) => ({
+                value: String(s.id),
+                label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+            }));
+    }, [subUnits, isOutletUser, effectiveOutletId, selectedOutletId]);
+
+    // Debounce search input
     useEffect(() => {
         const timer = setTimeout(() => {
             setSearch(searchInput.trim());
@@ -93,266 +156,197 @@ const OpbStockCreateRequestListing = () => {
         return () => clearTimeout(timer);
     }, [searchInput]);
 
-
-    useEffect(() => {
-        if (allRequests.length === 0) return;
-
-        const uniqueIds = [...new Set(allRequests.map((r) => r.createdBy).filter(Boolean))];
-        const idsToFetch = uniqueIds.filter((id) => !employeeNameCache.has(id));
-
-        const applyMap = () => {
-            const map = {};
-            uniqueIds.forEach((id) => {
-                map[id] = employeeNameCache.get(id) || '-';
-            });
-            setEmployeeMap(map);
-        };
-
-        if (idsToFetch.length === 0) {
-            applyMap();
-            return;
-        }
-
-        (async () => {
-            await Promise.all(
-                idsToFetch.map(async (id) => {
-                    try {
-                        const response = await getEmployeeById(id);
-                        employeeNameCache.set(id, response?.data?.data?.fullName || '-');
-                    } catch (error) {
-                        console.error(`Failed to fetch employee ${id}:`, error);
-                        employeeNameCache.set(id, '-');
-                    }
-                })
-            );
-            applyMap();
-        })();
-    }, [allRequests]);
-    const fetchAllOpb = useCallback(async () => {
+    // Single server-side API call
+    const fetchOpbList = useCallback(async () => {
         if (orgScopeLoading || orgScopeError) return;
         setLoading(true);
         setError(null);
 
         try {
-            const probe = await getOpbList({ pageNo: 1, pageSize: 1 });
-            const total = Number(probe?.data?.totalElements) || 0;
+            const params = {
+                pageNo: pagination.pageIndex + 1,
+                pageSize: pagination.pageSize,
+            };
 
-            if (total === 0) {
-                setAllRequests([]);
-                return;
+            const targetOrgId = isOutletUser && effectiveOutletId ? effectiveOutletId : selectedOutletId;
+            if (targetOrgId) {
+                params.organizationId = Number(targetOrgId);
             }
 
-            const response = await getOpbList({ pageNo: 1, pageSize: total });
+            if (selectedSubOutletId) {
+                params.subOutletId = Number(selectedSubOutletId);
+            }
 
-            setAllRequests(response?.data?.data || []);
-        } catch (error) {
-            console.error('Failed to load OPB list:', error);
-            setError(error?.response?.data?.message || error?.message || 'Failed to load OPB list');
-            setAllRequests([]);
+            if (search) {
+                params.search = search;
+            }
+
+            const response = await getOpbList(params);
+            const data = response?.data?.data || response?.data?.content || response?.data || [];
+            const total = Number(response?.data?.totalElements ?? response?.data?.total ?? data.length);
+
+            setRequests(Array.isArray(data) ? data : []);
+            setTotalElements(total);
+        } catch (err) {
+            console.error('Failed to load OPB list:', err);
+            setError(err?.response?.data?.message || err?.message || 'Failed to load OPB list');
+            setRequests([]);
+            setTotalElements(0);
         } finally {
             setLoading(false);
         }
-    }, [orgScopeLoading, orgScopeError]);
+    }, [
+        pagination.pageIndex,
+        pagination.pageSize,
+        search,
+        selectedOutletId,
+        selectedSubOutletId,
+        orgScopeLoading,
+        orgScopeError,
+        isOutletUser,
+        effectiveOutletId,
+    ]);
 
     useEffect(() => {
         if (!orgScopeLoading && !orgScopeError) {
-            fetchAllOpb();
+            fetchOpbList();
         }
-    }, [fetchAllOpb, orgScopeLoading, orgScopeError]);
-
-    const filteredRequests = useMemo(() => {
-        if (orgScopeLoading) return [];
-
-        const scopedRequests = allRequests.filter((request) => {
-            if (!allowedOutletIdSet) return true;
-
-            return (
-                request.organizationId != null &&
-                allowedOutletIdSet.has(String(request.organizationId))
-            );
-        });
-
-        const term = search.toLowerCase();
-
-        if (!term) return scopedRequests;
-
-        return scopedRequests.filter((r) =>
-            r.opbCode?.toLowerCase().includes(term) ||
-            r.organizationName?.toLowerCase().includes(term) ||
-            r.subOutletName?.toLowerCase().includes(term)
-        );
-    }, [allRequests, search, orgScopeLoading, allowedOutletIdSet]);
-
-    const totalElements = filteredRequests.length;
-
-
-    const requests = useMemo(() => {
-        const start = pagination.pageIndex * pagination.pageSize;
-        return filteredRequests.slice(start, start + pagination.pageSize);
-    }, [filteredRequests, pagination]);
+    }, [fetchOpbList, orgScopeLoading, orgScopeError]);
 
     const handleViewRequest = async (request) => {
         try {
             const response = await getOpbById(request.id);
             const opbDetails = response?.data?.data;
-
-            if (!opbDetails) {
-                return;
+            if (opbDetails) {
+                setSelectedRequest(opbDetails);
+                setDetailsOpen(true);
             }
-
-            setSelectedRequest(opbDetails);
-            setDetailsOpen(true);
-        } catch (error) {
-            console.error('Failed to fetch OPB details:', error);
+        } catch (err) {
+            console.error('Failed to fetch OPB details:', err);
         }
     };
 
     const columns = useMemo(
         () => [
             {
-                id: 'srNo',
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="S.NO"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <span className="text-gray-500 text-xs"> {String(
-                        pagination.pageIndex * pagination.pageSize +
-                        row.index +
-                        1
-                    ).padStart(2, '0')}</span>
-                ),
-                enableSorting: false,
-                size: 80,
-            },
-            {
                 id: 'opbCode',
                 accessorFn: (row) => row.opbCode,
                 header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Request Code"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
+                    <DataGridColumnHeader title="REQUEST CODE" column={column} className="text-xs font-bold" />
                 ),
                 cell: ({ row }) => (
-                    <p className="text-[#084E92] font-medium text-xs">
-                        {row.original.opbCode}
-                    </p>
-                ),
-                size: 250,
-            },
-            {
-                id: 'itemType',
-                accessorFn: (row) => row.itemType,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Item Type"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                    <CodeCell
+                        code={row.original.opbCode}
+                        maxWidth="max-w-[140px]"
+                        onClick={() => handleViewRequest(row.original)}
                     />
                 ),
-                cell: ({ row }) => <span className="text-gray-700 text-xs">{row.original.itemType}</span>,
-                size: 120,
+                enableSorting: false,
+                size: 150,
+            },
+            {
+                id: 'opbDate',
+                accessorFn: (row) => row.opbDate,
+                sortingFn: (rowA, rowB, columnId) => {
+                    const valA = parseDateToTimestamp(rowA.getValue(columnId) || rowA.original.createdAt);
+                    const valB = parseDateToTimestamp(rowB.getValue(columnId) || rowB.original.createdAt);
+                    return valA - valB;
+                },
+                header: ({ column }) => (
+                    <DataGridColumnHeader title="DATE" column={column} className="text-xs font-bold" />
+                ),
+                cell: ({ row }) => (
+                    <span className="text-gray-700 text-xs font-medium block truncate max-w-21.25">
+                        {row.original.opbDate || '—'}
+                    </span>
+                ),
+                enableSorting: true,
+                size: 90,
+            },
+            {
+                id: 'outletLocation',
+                header: ({ column }) => (
+                    <DataGridColumnHeader title="OUTLET / LOCATION" column={column} className="text-xs font-bold" />
+                ),
+                cell: ({ row }) => (
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                        <div
+                            className="font-semibold text-xs text-gray-900 truncate max-w-40"
+                            title={row.original.organizationName}
+                        >
+                            {row.original.organizationName || '—'}
+                        </div>
+                        {row.original.subOutletName && (
+                            <div
+                                className="text-[11px] text-gray-500 font-medium truncate max-w-40"
+                                title={row.original.subOutletName}
+                            >
+                                {row.original.subOutletName}
+                            </div>
+                        )}
+                        {row.original.subLocationName && (
+                            <div
+                                className="text-[10px] text-blue-600 font-medium truncate max-w-40"
+                                title={row.original.subLocationName}
+                            >
+                                ↳ {row.original.subLocationName}
+                            </div>
+                        )}
+                    </div>
+                ),
+                enableSorting: false,
+                size: 170,
             },
             {
                 id: 'itemName',
                 accessorFn: (row) => row.itemName,
                 header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Item Name"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
+                    <DataGridColumnHeader title="ITEM DESCRIPTION" column={column} className="text-xs font-bold" />
                 ),
                 cell: ({ row }) => (
-                    <p className="text-[#084E92] font-medium text-xs capitalize" >
-                        {row.original.itemName}
-                    </p>
+                    <div className="min-w-0">
+                        <span
+                            className="text-xs font-bold text-[#0F172A] block truncate max-w-32.5 capitalize"
+                            title={row.original.itemName}
+                        >
+                            {row.original.itemName || '-'}
+                        </span>
+                    </div>
                 ),
-                size: 170,
-            },
-            {
-                id: 'createdBy',
-                accessorFn: (row) => row.createdBy,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Added By"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <span className="text-gray-700 text-xs">
-                        {employeeMap[row.original.createdBy] || '-'}
-                    </span>
-                ),
-                size: 140,
-            },
-            {
-                id: 'opbDate',
-                accessorFn: (row) => row.opbDate,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Created Date"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
-                ),
-                cell: ({ row }) => <span className="text-gray-500 text-xs">{row.original.opbDate}</span>,
-                size: 120,
-            },
-            {
-                id: 'expiryDate',
-                accessorFn: (row) => row.expiryDate,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Expiry Date"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
-                ),
-                cell: ({ row }) => <span className="text-gray-500 text-xs">{row.original.expiryDate}</span>,
-                size: 130,
+                enableSorting: true,
+                size: 150,
             },
             {
                 id: 'batchNumber',
                 accessorFn: (row) => row.batchNumber,
+                sortingFn: (rowA, rowB) => {
+                    const valA = parseDateToTimestamp(rowA.original.expiryDate);
+                    const valB = parseDateToTimestamp(rowB.original.expiryDate);
+                    return valA - valB;
+                },
                 header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Batch Number"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
+                    <DataGridColumnHeader title="BATCH / EXPIRY" column={column} className="text-xs font-bold" />
                 ),
-                cell: ({ row }) => <Pill>{row.original.batchNumber}</Pill>,
-                size: 150,
-            },
-            {
-                id: 'unitName',
-                accessorFn: (row) => row.unitName,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Unit"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
+                cell: ({ row }) => (
+                    <div className="flex flex-col gap-0.5">
+                        <span className="font-semibold text-xs text-gray-800 whitespace-nowrap">
+                            {row.original.batchNumber || '-'}
+                        </span>
+                        {row.original.expiryDate && (
+                            <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                                Exp: {row.original.expiryDate}
+                            </span>
+                        )}
+                    </div>
                 ),
-                cell: ({ row }) => <Pill>{row.original.unitName}</Pill>,
-                size: 90,
+                enableSorting: true,
+                size: 190,
             },
             {
                 id: 'quantity',
-                accessorFn: (row) => row.quantity,
+                accessorFn: (row) => Number(row.quantity || 0),
                 header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="OPB"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
+                    <DataGridColumnHeader title="OPB QTY" column={column} className="text-xs font-bold" />
                 ),
                 cell: ({ row }) => <span className="text-gray-700 text-xs">{row.original.quantity}</span>,
                 size: 70,
@@ -367,12 +361,12 @@ const OpbStockCreateRequestListing = () => {
                         className="text-[#43474F] font-semibold uppercase text-sm"
                     />
                 ),
-                cell: ({ row }) => <span className="text-gray-700 text-xs">{row.original.organizationName}</span>,
-                size: 150,
+                enableSorting: false,
+                size: 90,
             },
             {
-                id: 'subOutletName',
-                accessorFn: (row) => row.subOutletName,
+                id: 'createdBy',
+                accessorFn: (row) => row.createdByName || row.createdBy,
                 header: ({ column }) => (
                     <DataGridColumnHeader
                         title="Sub-Unit"
@@ -380,61 +374,68 @@ const OpbStockCreateRequestListing = () => {
                         className="text-[#43474F] font-semibold uppercase text-sm"
                     />
                 ),
-                cell: ({ row }) => <span className="text-gray-700 text-xs">{row.original.subOutletName}</span>,
-                size: 150,
+                cell: ({ row }) => (
+                    <span className="text-gray-700 text-xs block truncate max-w-27.5" title={row.original.createdByName || row.original.createdBy}>
+                        {row.original.createdByName || row.original.createdBy || '—'}
+                    </span>
+                ),
+                enableSorting: false,
+                size: 120,
             },
             {
                 id: 'status',
                 accessorFn: (row) => row.status,
                 header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Status"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
+                    <DataGridColumnHeader title="STATUS" column={column} className="text-xs font-bold" />
                 ),
-                cell: ({ row }) => <StatusBadge status={row.original.status} />,
-                size: 120,
+                cell: ({ row }) => (
+                    <div className="flex items-center whitespace-nowrap">
+                        <StatusBadge status={row.original.status} />
+                    </div>
+                ),
+                enableSorting: false,
+                size: 95,
             },
             {
                 id: 'actions',
                 header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Action"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
+                    <DataGridColumnHeader title="ACTION" column={column} className="text-xs font-bold" />
                 ),
                 cell: ({ row }) => (
-                    <button
-                        type="button"
-                        onClick={() => handleViewRequest(row.original)}
-                        className="text-gray-400 hover:text-gray-600 cursor-pointer"
-                    >
-                        <Eye size={18} />
-                    </button>
+                    <div className="flex items-center gap-1 whitespace-nowrap">
+                        <button
+                            type="button"
+                            onClick={() => handleViewRequest(row.original)}
+                            className="p-1 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                            title="View Request Details"
+                        >
+                            <Eye size={15} />
+                        </button>
+                    </div>
                 ),
                 enableSorting: false,
-                size: 70,
+                size: 65,
             },
         ],
-        [pagination.pageIndex, pagination.pageSize, employeeMap]
+        [pagination.pageIndex, pagination.pageSize]
     );
 
     const table = useReactTable({
         data: requests,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         manualPagination: true,
         pageCount: Math.max(1, Math.ceil(totalElements / pagination.pageSize)),
         onPaginationChange: setPagination,
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
     });
 
     return (
         <Container>
-            <div className="pt-2 pb-6 space-y-3.5">
+            <div className="pt-2 pb-6 space-y-4">
                 <PageHeader
                     title="OPB Stock Create Request Listing"
                     actions={
@@ -449,7 +450,7 @@ const OpbStockCreateRequestListing = () => {
 
                 <PageErrorAlert
                     error={orgScopeError || error}
-                    onRetry={orgScopeError ? retryScope : fetchAllOpb}
+                    onRetry={orgScopeError ? retryScope : fetchOpbList}
                 />
 
                 {/* Search */}
@@ -461,27 +462,39 @@ const OpbStockCreateRequestListing = () => {
                     onClear={() => setSearchInput('')}
                 />
 
-                {/* Table */}
-                <div className="w-full my-4 border border-[#E2E8F0] rounded-2xl overflow-hidden">
-                    <DataGrid table={table} recordCount={totalElements} loading={loading} className="rounded-2xl"
-                        tableLayout={{
-                            width: 'fixed',
-                            cellBorder: true,
-                            headerBorder: true,
-                            rowBorder: true,
-                        }}>
-                        <Card className="rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
-                            </CardTable>
-                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                                <DataGridPagination />
-                            </CardFooter>
-                        </Card>
-                    </DataGrid>
+                {/* Table Card */}
+                <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
+                    {loading || orgScopeLoading ? (
+                        <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
+                            <Loader2 size={18} className="animate-spin text-[#084E92]" />
+                            Loading OPB requests…
+                        </div>
+                    ) : (
+                        <DataGrid
+                            table={table}
+                            recordCount={totalElements}
+                            className="rounded-2xl"
+                            tableLayout={{
+                                dense: true,
+                                width: 'fixed',
+                                cellBorder: true,
+                                headerBorder: true,
+                                rowBorder: true,
+                            }}
+                        >
+                            <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
+                                <CardTable className="w-full overflow-x-auto">
+                                    <ScrollArea>
+                                        <DataGridTable />
+                                        <ScrollBar orientation="horizontal" />
+                                    </ScrollArea>
+                                </CardTable>
+                                <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
+                                    <DataGridPagination />
+                                </CardFooter>
+                            </Card>
+                        </DataGrid>
+                    )}
                 </div>
             </div>
 

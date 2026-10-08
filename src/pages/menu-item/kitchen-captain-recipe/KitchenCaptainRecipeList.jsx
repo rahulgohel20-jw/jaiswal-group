@@ -5,6 +5,7 @@ import { notify } from '@/utils/toast';
 import {
     getCoreRowModel,
     getPaginationRowModel,
+    getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -112,6 +113,7 @@ const KitchenCaptainRecipeList = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+    const [sorting, setSorting] = useState([]);
     const [openRecipe, setOpenRecipe] = useState(false);
     const [editData, setEditData] = useState(null);
     const [syncing, setSyncing] = useState(false);
@@ -348,6 +350,7 @@ const KitchenCaptainRecipeList = () => {
                         {row.original.outletName}
                     </span>
                 ),
+                enableSorting: false,
                 size: 180,
             },
             {
@@ -365,6 +368,7 @@ const KitchenCaptainRecipeList = () => {
                         {row.original.unitName || '-'}
                     </span>
                 ),
+                enableSorting: false,
                 size: 110,
             },
             {
@@ -380,6 +384,8 @@ const KitchenCaptainRecipeList = () => {
                 cell: ({ row }) => (
                     <span className="text-gray-700">{row.original.rate != null ? `₹${Number(row.original.rate).toFixed(2)}` : '-'}</span>
                 ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.rate ?? 0) - Number(rowB.original.rate ?? 0),
                 size: 100,
             },
             {
@@ -395,6 +401,8 @@ const KitchenCaptainRecipeList = () => {
                 cell: ({ row }) => (
                     <span className="text-gray-700">{row.original.weight ?? '-'}</span>
                 ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.weight ?? 0) - Number(rowB.original.weight ?? 0),
                 size: 100,
             },
             {
@@ -449,6 +457,7 @@ const KitchenCaptainRecipeList = () => {
                         )}
                     </label>
                 ),
+                enableSorting: false,
                 size: 110,
             },
             {
@@ -499,10 +508,12 @@ const KitchenCaptainRecipeList = () => {
     const table = useReactTable({
         data: filteredRecipes,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
     });
 
     if (canView === false) {
@@ -554,22 +565,25 @@ const KitchenCaptainRecipeList = () => {
 
                 {/* Filter and Search Bar Row */}
                 <div className="bg-white mt-4">
-                    <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
+                    <div className="flex flex-col md:flex-row gap-4">
                         {/* Standardized SearchBar */}
-                        <SearchBar
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-                            }}
-                            onClear={() => {
-                                setSearch('');
-                                setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-                            }}
-                            placeholder="Search recipe or outlet..."
-                        />
+                        <div className="w-full md:w-[70%]">
+                            <SearchBar
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                }}
+                                onClear={() => {
+                                    setSearch('');
+                                    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                }}
+                                placeholder="Search recipe or outlet..."
+                                wrapperClassName="w-full"
+                            />
+                        </div>
 
-                        <div className={`grid ${isOutletUser ? 'grid-cols-1' : 'sm:grid-cols-2'} gap-4 grid-cols-1`}>
+                        <div className={`w-full md:w-[30%] grid ${isOutletUser ? 'grid-cols-1' : 'sm:grid-cols-2'} gap-4 grid-cols-1`}>
                             {/* Searchable Select Outlet Filter (Hidden for Outlet Users) */}
                             {!isOutletUser && (
                                 <div className="w-full">

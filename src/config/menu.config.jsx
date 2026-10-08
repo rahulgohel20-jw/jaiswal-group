@@ -556,7 +556,7 @@ export const MENU_SIDEBAR = [
           { title: 'Conditions Master', path: '/assets/conditions' },
           { title: 'Status Master', path: '/assets/status' },
           { title: 'Asset Brand Master', path: '/assets/asset-brand' },
-          { title: 'Measure of unit Master', path: '/assets/asset-unit' },
+          { title: 'Unit of Measure Master', path: '/assets/asset-unit' },
         ],
       },
       { title: 'Assets', path: '/assets/all-assets' },

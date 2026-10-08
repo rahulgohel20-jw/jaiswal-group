@@ -5,6 +5,7 @@ import { notify } from '@/utils/toast';
 import {
     getCoreRowModel,
     getPaginationRowModel,
+    getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -40,6 +41,7 @@ const CaptainRecipeList = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+    const [sorting, setSorting] = useState([]);
     const [openRecipe, setOpenRecipe] = useState(false);
     const [editData, setEditData] = useState(null);
     const [syncing, setSyncing] = useState(false);
@@ -247,6 +249,7 @@ const CaptainRecipeList = () => {
                 cell: ({ row }) => (
                     <span className="text-gray-700 uppercase">{row.original.unitName || '-'}</span>
                 ),
+                enableSorting: false,
                 size: 120,
             },
 
@@ -263,6 +266,8 @@ const CaptainRecipeList = () => {
                 cell: ({ row }) => (
                     <span className="text-gray-700">{row.original.rate ?? '-'}</span>
                 ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.rate ?? 0) - Number(rowB.original.rate ?? 0),
                 size: 120,
             },
 
@@ -279,6 +284,8 @@ const CaptainRecipeList = () => {
                 cell: ({ row }) => (
                     <span className="text-gray-700">{row.original.weight ?? '-'}</span>
                 ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.weight ?? 0) - Number(rowB.original.weight ?? 0),
                 size: 120,
             },
 
@@ -331,6 +338,7 @@ const CaptainRecipeList = () => {
                         )}
                     </label>
                 ),
+                enableSorting: false,
                 size: 120,
             },
 
@@ -370,10 +378,12 @@ const CaptainRecipeList = () => {
     const table = useReactTable({
         data: filteredRecipes,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
     });
 
     return (
@@ -421,7 +431,7 @@ const CaptainRecipeList = () => {
 
                 <div className="bg-white mt-4">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div className="relative w-full md:w-96">
+                        <div className="relative w-full md:w-[70%]">
                             <Search
                                 size={18}
                                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"

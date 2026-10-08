@@ -3,6 +3,7 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { notify } from '@/utils/toast';
 import {
     getCoreRowModel,
+    getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -79,6 +80,7 @@ const ItemRecipeList = () => {
 
     // UI & Server states
     const [rowSelection, setRowSelection] = useState({});
+    const [sorting, setSorting] = useState([]);
     const [loading, setLoading] = useState(false);
     const [recipes, setRecipes] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
@@ -352,6 +354,7 @@ const ItemRecipeList = () => {
                         {row.original.outlet}
                     </span>
                 ),
+                enableSorting: false,
                 size: 180,
             },
             {
@@ -369,6 +372,8 @@ const ItemRecipeList = () => {
                         {row.original.weight ?? 0}
                     </span>
                 ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.weight ?? 0) - Number(rowB.original.weight ?? 0),
                 size: 120,
             },
             {
@@ -386,6 +391,7 @@ const ItemRecipeList = () => {
                         {row.original.unit || '-'}
                     </span>
                 ),
+                enableSorting: false,
                 size: 120,
             },
             {
@@ -465,14 +471,16 @@ const ItemRecipeList = () => {
     const table = useReactTable({
         data: recipes,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination, rowSelection, sorting },
         onPaginationChange: handlePaginationChange,
         onRowSelectionChange: setRowSelection,
+        onSortingChange: setSorting,
         enableRowSelection: true,
         manualPagination: true,
         rowCount: totalCount,
         pageCount: Math.ceil(totalCount / pageSize) || 1,
         getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
     });
 
     if (canView === false) {
@@ -550,6 +558,30 @@ const ItemRecipeList = () => {
                                 </div>
                             )}
                         </div>
+
+                        {!isOutletUser && (
+                            <div className="w-full md:w-[30%]">
+                                <SearchableSelect
+                                    name="outletFilter"
+                                    value={outletFilter}
+                                    onChange={(e) => {
+                                        const val = e?.target?.value ?? e?.value ?? '';
+                                        setFilters((prev) => ({
+                                            ...prev,
+                                            outletId: val,
+                                            page: 0,
+                                        }));
+                                    }}
+                                    options={outletFilterOptions}
+                                    placeholder={
+                                        isCompanyUser
+                                            ? `All Outlets (${selfOrg?.companyNameEnglish || 'Company'})`
+                                            : 'All Outlets'
+                                    }
+                                    isClearable={true}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
 
