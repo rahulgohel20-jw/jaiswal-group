@@ -265,7 +265,7 @@ const AssetPreviewDetail = ({ asset, onClose }) => {
                 <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Depreciation</p>
                 <p className="text-sm font-semibold mt-1 flex items-center gap-1 text-red-600">
                   <TrendingDown className="w-3.5 h-3.5" />
-                  {data.depreciationPercent != null ? `${data.depreciationPercent}%/annum` : '—'}
+                  {data.depreciationPercentage != null ? `${data.depreciationPercentage}% (p.a)` : '-'}
                 </p>
               </div>
             </div>

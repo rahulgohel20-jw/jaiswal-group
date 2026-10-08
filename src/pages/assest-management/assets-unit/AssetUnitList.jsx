@@ -56,7 +56,7 @@ const normalizeUnit = (u) => ({
 });
 
 const AssetUnitList = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Measure of unit Master');
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Unit of Measure Master');
 
     const [units, setUnits] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -287,14 +287,14 @@ const AssetUnitList = () => {
     });
 
     if (!canView) {
-        return <AccessDenied pageTitle="Measure of unit Master" />;
+        return <AccessDenied pageTitle="Unit of Measure Master" />;
     }
 
     return (
        <Container>
          <div className="pt-2 pb-6 mx-auto space-y-4">
             <PageHeader
-                title="Measure of Unit Master"
+                title="Unit of Measure Master"
                 actions={
                     canAdd && (
                         <HeaderActionButton onClick={handleAddClick}>
