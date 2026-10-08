@@ -21,11 +21,10 @@ import {
   createGrn,
   getPOByIdAndOpenItem,
   getPOByidandopenitems,
-  getAllSubOutletsByOrganization,
-  getAllSubLocationsBySubOutletId,
   getGrnById,
   getGrnDetailById,
 } from '@/services/apiServices';
+import { useOrgScope } from '@/hooks/useOrgScope';
 import { getUserIdFromToken } from '@/utils/auth';
 import { getTodayInputDate } from '@/utils/GetCurrentToday';
 import { toast } from 'sonner';
@@ -120,47 +119,29 @@ const GenerateGRNDetail = () => {
     setSelectedSubLocationId('');
   };
 
+  const { getSubOutlets, getSubLocations } = useOrgScope();
+
+  useEffect(() => {
+    const orgId = po?.outletId || po?.orgId;
+    if (orgId) {
+      const rawSubs = getSubOutlets(orgId);
+      if (Array.isArray(rawSubs) && rawSubs.length > 0) {
+        setSubOutlets(rawSubs);
+      }
+      setLoadingSubOutlets(false);
+    }
+  }, [po?.outletId, po?.orgId, getSubOutlets]);
+
   useEffect(() => {
     if (!selectedSubOutletId) {
       setSubLocations([]);
       setSelectedSubLocationId('');
       return;
     }
-
-    let isMounted = true;
-    const fetchSubLocations = async () => {
-      setLoadingSubLocations(true);
-      try {
-        const res = await getAllSubLocationsBySubOutletId(selectedSubOutletId);
-        const rawData = res?.data?.data ?? res?.data;
-        const list = Array.isArray(rawData)
-          ? rawData
-          : Array.isArray(rawData?.content)
-            ? rawData.content
-            : Array.isArray(res?.data?.content)
-              ? res.data.content
-              : [];
-        if (isMounted) {
-          setSubLocations(list);
-        }
-      } catch (err) {
-        console.warn('Failed to load sub-locations for sub-outlet:', err);
-        if (isMounted) {
-          setSubLocations([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoadingSubLocations(false);
-        }
-      }
-    };
-
-    fetchSubLocations();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedSubOutletId]);
+    const locs = getSubLocations(selectedSubOutletId);
+    setSubLocations(Array.isArray(locs) ? locs : []);
+    setLoadingSubLocations(false);
+  }, [selectedSubOutletId, getSubLocations]);
 
   const [grnDate, setGrnDate] = useState(getTodayInputDate());
   const [remarks, setRemarks] = useState('');
@@ -288,20 +269,12 @@ const GenerateGRNDetail = () => {
 
       setResolvedGrnCode(dynamicGrnCode || '');
 
-      // Fetch sub-outlets for this organization / outlet
+      // Populate sub-outlets for this organization / outlet
       const orgId = normalizedPo.outletId || normalizedPo.orgId;
       if (orgId) {
-        try {
-          setLoadingSubOutlets(true);
-          const subRes = await getAllSubOutletsByOrganization(orgId);
-          const rawSubs = subRes?.data?.data ?? subRes?.data ?? subRes ?? [];
-          setSubOutlets(Array.isArray(rawSubs) ? rawSubs : []);
-        } catch (subErr) {
-          console.warn('Failed to load sub-outlets for organization:', subErr);
-          setSubOutlets([]);
-        } finally {
-          setLoadingSubOutlets(false);
-        }
+        const rawSubs = getSubOutlets(orgId);
+        setSubOutlets(Array.isArray(rawSubs) ? rawSubs : []);
+        setLoadingSubOutlets(false);
       }
 
       // Populate line items
@@ -612,6 +585,9 @@ const GenerateGRNDetail = () => {
       }
     }
 
+    const subOutletId = selectedSubOutletId ? Number(selectedSubOutletId) : null;
+    const subLocationId = selectedSubLocationId ? Number(selectedSubLocationId) : null;
+
     // Validate details
     const detailsPayload = activeItems.map((item) => {
       const apprQty = Number(item.approvedQty) || 0;
@@ -636,6 +612,8 @@ const GenerateGRNDetail = () => {
         isPoDetailClosed: Boolean(item.isPoDetailClosed),
         batchNo: item.batchNo ? item.batchNo.trim() : null,
         useByDate: formattedUseByDate,
+        subOutletId: subOutletId,
+        subLocationId: subLocationId,
       };
     });
 
@@ -654,9 +632,6 @@ const GenerateGRNDetail = () => {
       if (!d || !m || !y) return grnDate;
       return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
     })();
-
-    const subOutletId = selectedSubOutletId ? Number(selectedSubOutletId) : null;
-    const subLocationId = selectedSubLocationId ? Number(selectedSubLocationId) : null;
 
     const effectivePoIds = (po.poIds && po.poIds.length > 0)
       ? po.poIds.map(Number)
@@ -697,12 +672,9 @@ const GenerateGRNDetail = () => {
     setGenerating(true);
     try {
       await createGrn(formData);
-      toast.success('GRN generated successfully!');
       navigate('/inventory/grn-listing');
     } catch (err) {
       console.error('Failed to create GRN:', err);
-      const msg = err?.response?.data?.message || err?.message || 'Failed to generate GRN.';
-      toast.error(msg);
     } finally {
       setGenerating(false);
     }
@@ -794,8 +766,8 @@ const GenerateGRNDetail = () => {
               <label className="text-xs font-medium text-gray-600 mb-1 block">
                 PO Code{poCodesList.length > 1 ? 's' : ''}
               </label>
-              <div className="min-h-[34px] border border-gray-200 rounded-lg p-1 px-1.5 flex items-center bg-[#F8FAFC] w-fit max-w-full">
-                <div className={`w-fit ${poCodesList.length > 1 ? 'inline-grid grid-cols-2 gap-1.5' : 'flex items-center'}`}>
+              <div className="w-full min-h-[34px] border border-gray-200 rounded-lg p-1 px-2.5 flex items-center bg-[#F8FAFC]">
+                <div className="flex flex-wrap items-center gap-1.5 w-full">
                   {poCodesList.map((code, idx) => (
                     <span
                       key={idx}
@@ -823,12 +795,12 @@ const GenerateGRNDetail = () => {
             </div>
           </div>
 
-          {/* Row 2: Outlet Name & Sub-unit / Location */}
+          {/* Row 2: Unit Name & Sub-unit / Location */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <div className="min-w-0">
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Outlet Name</label>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Unit Name</label>
               <div className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 flex items-center bg-gray-50">
-                <span className="text-xs sm:text-sm font-medium text-gray-800 truncate">{po.outletName || po.outlet || `Outlet #${po.outletId}`}</span>
+                <span className="text-xs sm:text-sm font-medium text-gray-800 truncate">{po.outletName || po.outlet || `Unit #${po.outletId}`}</span>
               </div>
             </div>
 
@@ -842,9 +814,9 @@ const GenerateGRNDetail = () => {
                 disabled={loadingSubOutlets}
                 className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 text-xs sm:text-sm font-medium text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
               >
-                <option value="">None (Direct to {po.outletName || po.outlet || 'Outlet'})</option>
+                <option value="">None (Direct to {po.outletName || po.outlet || 'Unit'})</option>
                 {sortedSubOutlets.map((sub) => {
-                  const name = sub.subOutletName || sub.name || `Sub-outlet #${sub.id}`;
+                  const name = sub.subOutletName || sub.name || `Sub-unit #${sub.id}`;
                   const type = sub.subOutletType || sub.type || sub.locationType;
                   return (
                     <option key={sub.id} value={sub.id}>
@@ -944,13 +916,13 @@ const GenerateGRNDetail = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="min-w-0">
               <label className="text-xs font-medium text-gray-600 mb-1 block">
-                Shipping Details (Outlet Address)
+                Shipping Details (Unit Address)
               </label>
               <div className="border border-gray-200 rounded-lg p-2.5 flex items-start gap-2 bg-white min-h-[52px] shadow-2xs">
                 <MapPin size={15} className="text-[#084E92] mt-0.5 shrink-0" />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-gray-900 truncate">
-                    {po?.shipTo?.companyNameEnglish || po?.outletName || 'Outlet'}
+                    {po?.shipTo?.companyNameEnglish || po?.outletName || 'Unit'}
                   </p>
                   <p className="text-[11px] text-gray-600 mt-0.5 leading-snug line-clamp-2">
                     {shippingAddress}

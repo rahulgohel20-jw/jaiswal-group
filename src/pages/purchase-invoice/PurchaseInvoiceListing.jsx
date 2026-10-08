@@ -300,7 +300,7 @@ const PurchaseInvoiceListing = () => {
         {
             id: 'outletName',
             accessorFn: row => row.outletName,
-            header: ({ column }) => <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />,
+            header: ({ column }) => <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <ChipCell value={row.original.outletName} />,
             size: 150,
         },
@@ -401,7 +401,7 @@ const PurchaseInvoiceListing = () => {
                                         setSelectedUnitId(raw ? String(raw) : '');
                                     }}
                                     options={units.map(u => ({ value: String(u.id), label: u.name }))}
-                                    placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+                                    placeholder={units.length === 0 ? 'No units available' : 'All Units'}
                                     disabled={units.length === 0}
                                 />
                             </div>

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { loginUser } from '@/services/apiServices';
+import { orgHierarchyStore } from '@/store/orgHierarchyStore';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -41,6 +42,9 @@ export default function LoginPage() {
     saveAuth(payload);
     const user = payload?.user || payload?.data || payload;
     setUser(user);
+
+    // Explicitly fetch and warm up hierarchy on login
+    orgHierarchyStore.fetchHierarchy(true);
 
     const next = searchParams.get('next');
     navigate(next || '/companies', { replace: true });

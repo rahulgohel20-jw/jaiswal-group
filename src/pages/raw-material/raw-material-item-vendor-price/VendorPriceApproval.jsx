@@ -445,7 +445,7 @@ const VendorPriceApproval = () => {
                 accessorKey: 'outletName',
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="OUTLET NAME"
+                        title="UNIT NAME"
                         column={column}
                         className="text-[#43474F] font-semibold py-4 text-sm"
                     />
@@ -670,7 +670,7 @@ const VendorPriceApproval = () => {
                                 setSearchTerm('');
                                 setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                             }}
-                            placeholder="Search by material, vendor or outlet..."
+                            placeholder="Search by material, vendor or unit..."
                             wrapperClassName="md:col-span-2"
                         />
 
@@ -681,7 +681,7 @@ const VendorPriceApproval = () => {
                                     value={selectedOrgId}
                                     onChange={handleOrgChange}
                                     options={orgOptions}
-                                    placeholder="All Outlets"
+                                    placeholder="All Units"
                                     isClearable={true}
                                 />
                             </div>

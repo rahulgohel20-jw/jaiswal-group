@@ -46,7 +46,6 @@ import {
   approveTransfer,
   rejectTransfer,
   deleteDraftTransfer,
-  getAllSubOutlets,
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '@/utils/auth';
 import {
@@ -272,24 +271,31 @@ const StockTransferApproval = () => {
     retry: retryScope,
     isOutletUser,
     isCompanyUser,
-    units,
+    units = [],
+    subOutlets: scopeSubOutlets,
+    subLocations: scopeSubLocations,
     selectedUnitId,
     effectiveOutletId,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
-  // Fetch Sub-units
-  useEffect(() => {
-    const loadSubUnits = async () => {
-      try {
-        const res = await getAllSubOutlets();
-        const raw = res?.data?.data || res?.data || [];
-        setSubUnits(Array.isArray(raw) ? raw : []);
-      } catch (err) {
-        console.error('Failed to load sub-units in StockTransferApproval:', err);
-      }
-    };
-    loadSubUnits();
-  }, []);
+  // Fast lookup maps for sub-outlets and sub-locations
+  const subOutletMap = useMemo(() => {
+    const map = {};
+    (scopeSubOutlets || []).forEach((s) => {
+      map[String(s.id)] = s.subOutletName || s.name || s.label;
+    });
+    return map;
+  }, [scopeSubOutlets]);
+
+  const subLocationMap = useMemo(() => {
+    const map = {};
+    (scopeSubLocations || []).forEach((l) => {
+      map[String(l.id)] = l.locationName || l.subLocationName || l.name || l.label;
+    });
+    return map;
+  }, [scopeSubLocations]);
 
   // Available outlets for dropdowns (strictly scoped outlets for logged-in user)
   const displayOutletOptions = useMemo(() => {
@@ -304,26 +310,22 @@ const StockTransferApproval = () => {
 
   // From Sub-outlet options
   const fromSubOutletOptions = useMemo(() => {
-    const targetId = isOutletUser ? effectiveOutletId : selectedFromOutletId;
+    const targetId = isOutletUser ? effectiveOutletId : (selectedFromOutletId || selectedUnitId || effectiveOutletId);
     if (!targetId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(targetId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, isOutletUser, effectiveOutletId, selectedFromOutletId]);
+    return (getSubOutlets(targetId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId]);
 
   // To Sub-outlet options
   const toSubOutletOptions = useMemo(() => {
     if (!selectedToOutletId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(selectedToOutletId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, selectedToOutletId]);
+    return (getSubOutlets(selectedToOutletId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, selectedToOutletId]);
 
   // Fetch Transfers from API
   const fetchTransfers = useCallback(async () => {
@@ -362,31 +364,56 @@ const StockTransferApproval = () => {
           0
         );
 
+        const fromSubOutletId = item.fromSubOutletId || item.fromSubOutlet?.id || item.fromSubOrgId || null;
+        const toSubOutletId = item.toSubOutletId || item.toSubOutlet?.id || item.toSubOrgId || null;
+        const fromSubLocationId = item.fromSubLocationId || item.fromSubLocation?.id || null;
+        const toSubLocationId = item.toSubLocationId || item.toSubLocation?.id || null;
+
+        const fromSubOutletName =
+          item.fromSubOutletName ||
+          item.fromSubOutlet?.name ||
+          item.fromSubOutlet?.subOutletName ||
+          (fromSubOutletId ? subOutletMap[String(fromSubOutletId)] : '') ||
+          '';
+
+        const toSubOutletName =
+          item.toSubOutletName ||
+          item.toSubOutlet?.name ||
+          item.toSubOutlet?.subOutletName ||
+          (toSubOutletId ? subOutletMap[String(toSubOutletId)] : '') ||
+          '';
+
+        const fromSubLocationName =
+          item.fromSubLocationName ||
+          item.fromSubLocation?.name ||
+          item.fromSubLocation?.locationName ||
+          item.fromSubLocation?.subLocationName ||
+          (fromSubLocationId ? subLocationMap[String(fromSubLocationId)] : '') ||
+          '';
+
+        const toSubLocationName =
+          item.toSubLocationName ||
+          item.toSubLocation?.name ||
+          item.toSubLocation?.locationName ||
+          item.toSubLocation?.subLocationName ||
+          (toSubLocationId ? subLocationMap[String(toSubLocationId)] : '') ||
+          '';
+
         return {
           id: item.id,
           transferCode: item.transferCode || item.code || `TRF-${String(item.id).padStart(4, '0')}`,
           fromOrganizationId: item.fromOrganizationId || item.fromOutletId,
-          fromSubOutletId: item.fromSubOutletId || null,
-          fromSubLocationId: item.fromSubLocationId || null,
+          fromSubOutletId,
+          fromSubLocationId,
           fromOutlet: item.fromOrganizationName || item.fromOutletName || item.fromOutlet || '—',
-          fromSubOutlet:
-            item.fromSubOutletId && item.fromSubOutletName && item.fromSubOutletName !== 'Main Store'
-              ? item.fromSubOutletName
-              : !item.fromSubOutletId
-              ? ''
-              : item.fromSubOutletName || item.fromSubOutlet || '',
-          fromSubLocation: item.fromSubLocationName || item.fromSubLocation || '',
+          fromSubOutlet: fromSubOutletName,
+          fromSubLocation: fromSubLocationName,
           toOrganizationId: item.toOrganizationId || item.toOutletId,
-          toSubOutletId: item.toSubOutletId || null,
-          toSubLocationId: item.toSubLocationId || null,
+          toSubOutletId,
+          toSubLocationId,
           toOutlet: item.toOrganizationName || item.toOutletName || item.toOutlet || '—',
-          toSubOutlet:
-            item.toSubOutletId && item.toSubOutletName && item.toSubOutletName !== 'Main Store'
-              ? item.toSubOutletName
-              : !item.toSubOutletId
-              ? ''
-              : item.toSubOutletName || item.toSubOutlet || '',
-          toSubLocation: item.toSubLocationName || item.toSubLocation || '',
+          toSubOutlet: toSubOutletName,
+          toSubLocation: toSubLocationName,
           status: item.status || (item.isDraft ? 'Draft' : 'Draft'),
           isDraft: Boolean(item.isDraft),
           transferDate: item.transferDate || item.createdAt || '—',
@@ -412,7 +439,7 @@ const StockTransferApproval = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId, statusFilter]);
+  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedFromOutletId, selectedUnitId, statusFilter, subOutletMap, subLocationMap]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {
@@ -673,7 +700,7 @@ const StockTransferApproval = () => {
         id: 'fromOutlet',
         accessorFn: (row) => row.fromOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="FROM UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -693,7 +720,7 @@ const StockTransferApproval = () => {
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="TO OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="TO UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -867,7 +894,7 @@ const StockTransferApproval = () => {
       <div className="pt-2 pb-6 space-y-4">
         <PageHeader
           title="Stock Transfer Approval (STR)"
-          description="Review, edit, approve, or reject stock transfer requests submitted by outlets and suboutlets."
+          description="Review, edit, approve, or reject stock transfer requests submitted by units and sub-units."
           actions={
             canAdd && (
               <HeaderActionButton to="/inventory/stock-transfer-request">
@@ -923,7 +950,7 @@ const StockTransferApproval = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onClear={() => setSearch('')}
-                placeholder="Search transfer code, item, outlet, vehicle, driver..."
+                placeholder="Search transfer code, item, unit, vehicle, driver..."
               />
             </div>
             <div className="w-[200px] shrink-0">
@@ -931,9 +958,9 @@ const StockTransferApproval = () => {
             </div>
           </div>
 
-          {/* Row 2: Location Filters (From Outlet, From Sub-Outlet, To Outlet, To Sub-Outlet) */}
+          {/* Row 2: Location Filters (From Unit, From Sub-Unit, To Unit, To Sub-Unit) */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
-            {/* 1. From Outlet */}
+            {/* 1. From Unit */}
             {!isOutletUser && (
               <SearchableSelect
                 name="fromOutlet"
@@ -943,21 +970,21 @@ const StockTransferApproval = () => {
                   setSelectedFromSubOutletId('');
                 }}
                 options={displayOutletOptions}
-                placeholder="From Outlet..."
+                placeholder="From Unit..."
               />
             )}
 
-            {/* 2. From Sub-Outlet */}
+            {/* 2. From Sub-Unit */}
             <SearchableSelect
               name="fromSubOutlet"
               value={selectedFromSubOutletId}
               onChange={(e) => setSelectedFromSubOutletId(e.target.value)}
               options={fromSubOutletOptions}
               disabled={!isOutletUser && !selectedFromOutletId}
-              placeholder={!isOutletUser && !selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
+              placeholder={!isOutletUser && !selectedFromOutletId ? 'Select From Unit' : 'From Sub-Unit...'}
             />
 
-            {/* 3. To Outlet */}
+            {/* 3. To Unit */}
             <SearchableSelect
               name="toOutlet"
               value={selectedToOutletId}
@@ -966,17 +993,17 @@ const StockTransferApproval = () => {
                 setSelectedToSubOutletId('');
               }}
               options={toOutletOptions}
-              placeholder="To Outlet..."
+              placeholder="To Unit..."
             />
 
-            {/* 4. To Sub-Outlet */}
+            {/* 4. To Sub-Unit */}
             <SearchableSelect
               name="toSubOutlet"
               value={selectedToSubOutletId}
               onChange={(e) => setSelectedToSubOutletId(e.target.value)}
               options={toSubOutletOptions}
               disabled={!selectedToOutletId}
-              placeholder={!selectedToOutletId ? 'Select To Outlet' : 'To Sub-Outlet...'}
+              placeholder={!selectedToOutletId ? 'Select To Unit' : 'To Sub-Unit...'}
             />
           </div>
         </div>
@@ -1025,18 +1052,18 @@ const StockTransferApproval = () => {
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500">
                 Are you sure you want to approve transfer request ?
-                Once approved, the originating outlet can dispatch the items to the destination outlet.
+                Once approved, the originating unit can dispatch the items to the destination unit.
               </DialogDescription>
             </DialogHeader>
 
             {targetApproveTransfer && (
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 my-2 text-xs space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">From Outlet:</span>
+                  <span className="text-gray-500">From Unit:</span>
                   <span className="font-semibold text-gray-800">{targetApproveTransfer.fromOutlet}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-500">To Outlet:</span>
+                  <span className="text-gray-500">To Unit:</span>
                   <span className="font-semibold text-gray-800">{targetApproveTransfer.toOutlet}</span>
                 </div>
                 <div className="flex justify-between">

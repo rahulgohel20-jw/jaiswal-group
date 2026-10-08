@@ -8,14 +8,13 @@ import {
   CheckCircle2,
   Loader2,
   ChevronLeft,
+  ChevronRight,
   ScrollText,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   getAllRawMaterialItems,
-  getCurrentStockListGet,
-  getAllSubOutletsByOrganization,
 } from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { getUserIdFromToken } from '@/utils/auth';
@@ -61,10 +60,17 @@ const getAvailableStock = (item) => {
 };
 
 const getStockTone = (stock, minStock) => {
-  if (stock == null) return { dot: 'bg-gray-300', text: 'text-gray-400' };
-  if (minStock && stock <= minStock) return { dot: 'bg-red-500', text: 'text-gray-700' };
-  if (minStock && stock <= minStock * 2) return { dot: 'bg-amber-500', text: 'text-gray-700' };
-  return { dot: 'bg-emerald-500', text: 'text-gray-700' };
+  if (stock === null || stock === undefined || stock === '') {
+    return { dot: 'bg-gray-400', badge: 'bg-gray-50 text-gray-600 border-gray-200', text: 'text-gray-600' };
+  }
+  const num = Number(stock);
+  if (isNaN(num) || num <= 0) {
+    return { dot: 'bg-rose-500', badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700' };
+  }
+  if (minStock != null && minStock !== '' && num <= Number(minStock)) {
+    return { dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200', text: 'text-amber-700' };
+  }
+  return { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: 'text-emerald-700' };
 };
 
 const DETAILS_PAGE_SIZE = 5;
@@ -112,6 +118,7 @@ const AddPurchaseRequisition = () => {
     orgType,
     units: outlets, // [{ id, name, code }]
     selectedUnitId: orgScopeOutletId,
+    getSubOutlets,
   } = useOrgScope();
 
   const hasOutletDropdownAccess = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
@@ -147,82 +154,44 @@ const AddPurchaseRequisition = () => {
   const [isOutletConfirmOpen, setIsOutletConfirmOpen] = useState(false);
   const [outletChangeLoading, setOutletChangeLoading] = useState(false);
 
+  const isOutletUser = orgType === OrgTypes.OUTLET || orgType === 'OUTLET' || (!hasOutletDropdownAccess && !outletsLoading);
+  const effectiveOutletId =
+    outletId ||
+    (isOutletUser ? String(orgScopeOutletId || getOrgIdFromToken() || '') : '');
+
   // Sync outletId for OUTLET users in create mode
   useEffect(() => {
-    if (!isEditMode && !copyPrId && !outletId && orgScopeOutletId) {
+    if (!isEditMode && !copyPrId && !outletId && isOutletUser && orgScopeOutletId) {
       setOutletId(String(orgScopeOutletId));
     }
-  }, [isEditMode, copyPrId, outletId, orgScopeOutletId]);
+  }, [isEditMode, copyPrId, outletId, isOutletUser, orgScopeOutletId]);
 
   /* ---- Load sub-outlets (locations) with organization scope ---- */
-  const fetchSubOutlets = useCallback(async (targetOrgId) => {
+  const fetchSubOutlets = useCallback((targetOrgId) => {
     if (!targetOrgId) {
       setSubOutlets([]);
       return [];
     }
-    setSubOutletsLoading(true);
-    try {
-      const res = await getAllSubOutletsByOrganization(targetOrgId);
-      const list = res?.data?.data || res?.data?.content || res?.data || [];
-      const safeList = Array.isArray(list) ? list : [];
-      setSubOutlets(safeList);
-      return safeList;
-    } catch (err) {
-      console.error('Failed to load sub-outlets/locations:', err);
-      setSubOutlets([]);
-      return [];
-    } finally {
-      setSubOutletsLoading(false);
-    }
-  }, []);
+    const list = getSubOutlets(targetOrgId);
+    const safeList = Array.isArray(list) ? list : [];
+    setSubOutlets(safeList);
+    return safeList;
+  }, [getSubOutlets]);
 
   /* ---- Load raw materials with organization & sub-location scope ---- */
   const fetchRawMaterials = useCallback(
     async (targetOrgId, targetSubOutletId) => {
+      const orgId = targetOrgId !== undefined ? targetOrgId : effectiveOutletId;
+      if (!orgId) {
+        setRawMaterials([]);
+        return [];
+      }
       setRawMaterialsLoading(true);
       try {
-        const orgId = targetOrgId !== undefined ? targetOrgId : (outletId || orgScopeOutletId || '');
         const subId = targetSubOutletId !== undefined ? targetSubOutletId : (subOutletId || '');
         const res = await getAllRawMaterialItems(null, 0, true, '', '', '', orgId, subId);
         const list = res?.data?.data?.['Raw Material Details'] || res?.data?.['Raw Material Details'] || [];
-        let rawItems = Array.isArray(list) ? list : [];
-
-        if (orgId && rawItems.length > 0) {
-          try {
-            const stockParams = {
-              itemIds: rawItems.map((r) => r.id),
-              itemType: 'RAW_MATERIAL',
-              organizationId: Number(orgId),
-            };
-            if (subId) {
-              stockParams.subOutletId = Number(subId);
-            }
-            const stockRes = await getCurrentStockListGet(stockParams);
-            const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
-            const stockList = Array.isArray(stockData)
-              ? stockData
-              : Array.isArray(stockData?.content)
-              ? stockData.content
-              : Array.isArray(stockData?.list)
-              ? stockData.list
-              : [];
-
-            if (stockList.length > 0) {
-              rawItems = rawItems.map((item) => {
-                const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
-                if (matched) {
-                  return {
-                    ...item,
-                    currentStock: matched,
-                  };
-                }
-                return item;
-              });
-            }
-          } catch (stockErr) {
-            console.error('Failed to fetch stock list for raw materials:', stockErr);
-          }
-        }
+        const rawItems = Array.isArray(list) ? list : [];
 
         setRawMaterials(rawItems);
         return rawItems;
@@ -234,19 +203,21 @@ const AddPurchaseRequisition = () => {
         setRawMaterialsLoading(false);
       }
     },
-    [outletId, subOutletId, orgScopeOutletId],
+    [effectiveOutletId, subOutletId],
   );
 
   /* ---- Initial load of raw materials & sub-outlets in create mode ---- */
   useEffect(() => {
     if (!isEditMode && !copyPrId) {
-      const initialOrg = outletId || orgScopeOutletId || '';
-      if (initialOrg) {
-        fetchRawMaterials(initialOrg, subOutletId);
-        fetchSubOutlets(initialOrg);
+      if (effectiveOutletId) {
+        fetchRawMaterials(effectiveOutletId, subOutletId);
+        fetchSubOutlets(effectiveOutletId);
+      } else {
+        setRawMaterials([]);
+        setSubOutlets([]);
       }
     }
-  }, [isEditMode, copyPrId, outletId, orgScopeOutletId, fetchRawMaterials, fetchSubOutlets]);
+  }, [isEditMode, copyPrId, effectiveOutletId, fetchRawMaterials, fetchSubOutlets, subOutletId]);
 
   /* ---- Edit mode or Copy mode: load the existing PR and pre-fill ---- */
   useEffect(() => {
@@ -282,50 +253,18 @@ const AddPurchaseRequisition = () => {
         // Fetch raw materials for this outlet & sub-unit/location
         const updatedRMs = await fetchRawMaterials(effectiveOrgId, effectiveSubId);
 
-        // Fetch current stock for existing items
-        let stockList = [];
-        const itemIds = (pr.details || []).map((d) => d.rawMaterialId).filter(Boolean);
-        if (effectiveOrgId && itemIds.length > 0) {
-          try {
-            const stockParams = {
-              itemIds,
-              itemType: 'RAW_MATERIAL',
-              organizationId: Number(effectiveOrgId),
-            };
-            if (effectiveSubId) {
-              stockParams.subOutletId = Number(effectiveSubId);
-            }
-            const stockRes = await getCurrentStockListGet(stockParams);
-            const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
-            stockList = Array.isArray(stockData)
-              ? stockData
-              : Array.isArray(stockData?.content)
-              ? stockData.content
-              : Array.isArray(stockData?.list)
-              ? stockData.list
-              : [];
-          } catch (stockErr) {
-            console.error('Failed to fetch stock list in edit mode', stockErr);
-          }
-        }
-
         setDetails(
           (pr.details || []).map((d) => {
-            const matchedStock = stockList.find(
-              (s) => Number(s.itemId || s.id) === Number(d.rawMaterialId),
-            );
             const matchedRaw = updatedRMs.find((r) => Number(r.id) === Number(d.rawMaterialId));
-            const availStock =
-              matchedStock != null
-                ? Number(matchedStock.currentStock ?? 0)
-                : matchedRaw
-                ? getAvailableStock(matchedRaw)
-                : (d.availableStock ?? 0);
+            const availStock = matchedRaw ? getAvailableStock(matchedRaw) : (d.availableStock ?? 0);
             const stockUnit =
-              matchedStock?.unitName ||
-              matchedStock?.unitSymbol ||
               matchedRaw?.currentStock?.unitName ||
               matchedRaw?.currentStock?.unitSymbol ||
+              matchedRaw?.unit?.nameEnglish ||
+              matchedRaw?.unit?.symbolEnglish ||
+              matchedRaw?.unitName ||
+              matchedRaw?.unitSymbol ||
+              d.stockUnit ||
               '';
 
             const allowedUnits =
@@ -374,43 +313,17 @@ const AddPurchaseRequisition = () => {
     const updatedRMs = await fetchRawMaterials(newOrgId, '');
 
     if (details.length > 0 && newOrgId) {
-      const itemIds = details.map((d) => d.rawMaterialId).filter(Boolean);
-      let stockList = [];
-      try {
-        const stockRes = await getCurrentStockListGet({
-          itemIds,
-          itemType: 'RAW_MATERIAL',
-          organizationId: Number(newOrgId),
-        });
-        const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
-        stockList = Array.isArray(stockData)
-          ? stockData
-          : Array.isArray(stockData?.content)
-          ? stockData.content
-          : Array.isArray(stockData?.list)
-          ? stockData.list
-          : [];
-      } catch (stockErr) {
-        console.error('Failed to fetch stock list on outlet change', stockErr);
-      }
-
       setDetails((prev) =>
         prev.map((d) => {
-          const matchedStock = stockList.find(
-            (s) => Number(s.itemId || s.id) === Number(d.rawMaterialId),
-          );
           const matchedRaw = updatedRMs.find((r) => Number(r.id) === Number(d.rawMaterialId));
-          const availStock =
-            matchedStock != null
-              ? Number(matchedStock.currentStock ?? 0)
-              : matchedRaw
-              ? getAvailableStock(matchedRaw)
-              : 0;
+          const availStock = matchedRaw ? getAvailableStock(matchedRaw) : 0;
           const stockUnit =
-            matchedStock?.unitName ||
-            matchedStock?.unitSymbol ||
             matchedRaw?.currentStock?.unitName ||
             matchedRaw?.currentStock?.unitSymbol ||
+            matchedRaw?.unit?.nameEnglish ||
+            matchedRaw?.unit?.symbolEnglish ||
+            matchedRaw?.unitName ||
+            matchedRaw?.unitSymbol ||
             d.stockUnit ||
             '';
 
@@ -430,47 +343,17 @@ const AddPurchaseRequisition = () => {
     const updatedRMs = await fetchRawMaterials(activeOrgId, newSubId);
 
     if (details.length > 0 && activeOrgId) {
-      const itemIds = details.map((d) => d.rawMaterialId).filter(Boolean);
-      let stockList = [];
-      try {
-        const stockParams = {
-          itemIds,
-          itemType: 'RAW_MATERIAL',
-          organizationId: Number(activeOrgId),
-        };
-        if (newSubId) {
-          stockParams.subOutletId = Number(newSubId);
-        }
-        const stockRes = await getCurrentStockListGet(stockParams);
-        const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
-        stockList = Array.isArray(stockData)
-          ? stockData
-          : Array.isArray(stockData?.content)
-          ? stockData.content
-          : Array.isArray(stockData?.list)
-          ? stockData.list
-          : [];
-      } catch (stockErr) {
-        console.error('Failed to fetch stock list on location change', stockErr);
-      }
-
       setDetails((prev) =>
         prev.map((d) => {
-          const matchedStock = stockList.find(
-            (s) => Number(s.itemId || s.id) === Number(d.rawMaterialId),
-          );
           const matchedRaw = updatedRMs.find((r) => Number(r.id) === Number(d.rawMaterialId));
-          const availStock =
-            matchedStock != null
-              ? Number(matchedStock.currentStock ?? 0)
-              : matchedRaw
-              ? getAvailableStock(matchedRaw)
-              : 0;
+          const availStock = matchedRaw ? getAvailableStock(matchedRaw) : 0;
           const stockUnit =
-            matchedStock?.unitName ||
-            matchedStock?.unitSymbol ||
             matchedRaw?.currentStock?.unitName ||
             matchedRaw?.currentStock?.unitSymbol ||
+            matchedRaw?.unit?.nameEnglish ||
+            matchedRaw?.unit?.symbolEnglish ||
+            matchedRaw?.unitName ||
+            matchedRaw?.unitSymbol ||
             d.stockUnit ||
             '';
 
@@ -803,7 +686,7 @@ const AddPurchaseRequisition = () => {
     {hasOutletDropdownAccess && (
       <div>
         <label className={labelCls}>
-          Outlet <span className="text-red-500">*</span>
+          Unit <span className="text-red-500">*</span>
         </label>
 
         {outletFieldIsEditable ? (
@@ -815,7 +698,7 @@ const AddPurchaseRequisition = () => {
                       value: String(o.id),
                       label: `${o.name}${o.code ? ` (${o.code})` : ''}`,
                     }))}
-                    placeholder={outletsLoading ? 'Loading outlets...' : 'Select outlet'}
+                    placeholder={outletsLoading ? 'Loading units...' : 'Select unit'}
                     disabled={outletsLoading || !outletFieldIsEditable}
                     hasError={!!errors.outletId}
                   />
@@ -850,7 +733,7 @@ const AddPurchaseRequisition = () => {
             subOutletsLoading
               ? 'Loading locations...'
               : !outletId
-              ? 'Select outlet first'
+              ? 'Select unit first'
               : subOutlets.length === 0
               ? 'No locations found'
               : 'Select location (Optional)'
@@ -919,10 +802,12 @@ const AddPurchaseRequisition = () => {
         <SectionCard className="mt-5 p-5 sm:p-6">
           {canPerformEdit && (
             <RawMaterialSearchPicker
-              items={rawMaterials}
+              items={effectiveOutletId ? rawMaterials : []}
               alreadyAddedIds={alreadyAddedIds}
               onSelect={handleAddItem}
               loading={rawMaterialsLoading}
+              disabled={!effectiveOutletId}
+              placeholder={!effectiveOutletId ? 'Please select a unit first to search raw materials...' : 'Search raw material by name or code...'}
               isSticky={true}
             />
           )}
@@ -932,152 +817,206 @@ const AddPurchaseRequisition = () => {
           )}
           {errors.details && <p className="text-xs text-red-500 mt-2">{errors.details}</p>}
 
-          <div className="mt-4 overflow-x-auto rounded-xl border border-gray-100">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                  <th className="text-left font-semibold px-4 py-3 w-16">Sr. No.</th>
-                  <th className="text-left font-semibold px-4 py-3">Item Name</th>
-                  <th className="text-left font-semibold px-4 py-3">
-                    Unit <span className="text-red-500">*</span>
-                  </th>
-                  <th className="text-left font-semibold px-4 py-3">Available Stock</th>
-                  <th className="text-left font-semibold px-4 py-3 w-32">Quantity</th>
-                  {canPerformEdit && <th className="text-left font-semibold px-4 py-3 w-16">Action</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {details.length === 0 ? (
-                  <tr>
-                    <td colSpan={canPerformEdit ? 6 : 5} className="px-4 py-10 text-center text-gray-400">
-                      No items added yet — search above to add raw materials.
-                    </td>
+          <div className="mt-4 overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/90 border-b border-gray-200 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                    <th className="px-4 py-3 text-center w-16">Sr.</th>
+                    <th className="px-4 py-3">Item Details</th>
+                    <th className="px-4 py-3 min-w-[170px]">
+                      Unit <span className="text-rose-500">*</span>
+                    </th>
+                    <th className="px-4 py-3 min-w-[180px]">Available Stock</th>
+                    <th className="px-4 py-3 w-36">
+                      Quantity <span className="text-rose-500">*</span>
+                    </th>
+                    {canPerformEdit && <th className="px-4 py-3 text-center w-16">Action</th>}
                   </tr>
-                ) : (
-                  pagedDetails.map((d, i) => {
-                    const tone = getStockTone(d.availableStock, d.minStock);
-                    const missingUnit = !d.uomId || !d.uomName;
-                    return (
-                      <tr key={d.rawMaterialId} className="border-t border-gray-100">
-                        <td className="px-4 py-4 text-gray-400">
-                          {String(detailsPage * DETAILS_PAGE_SIZE + i + 1).padStart(2, '0')}
-                        </td>
-                        <td className="px-4 py-4">
-                          <p className="font-semibold text-[#084E92]">{d.rawMaterialName}</p>
-                          {d.category && (
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
-                              {d.category}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 min-w-[160px]">
-                          {missingUnit ? (
-                            <span className="text-xs font-medium text-red-500">Missing unit</span>
-                          ) : canPerformEdit ? (
-                            (() => {
-                              const rm = rawMaterials.find((r) => r.id === d.rawMaterialId);
-                              const allowedList = d.allowedUnits?.length
-                                ? d.allowedUnits
-                                : (Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
-                                    ? rm.allowedUnits
-                                    : (rm?.unit ? [rm.unit] : []));
-
-                              let options = allowedList.map((u) => ({
-                                value: String(u.id),
-                                label: u.nameEnglish || u.symbolEnglish || `Unit #${u.id}`,
-                              }));
-
-                              if (d.uomId && !options.some((opt) => String(opt.value) === String(d.uomId))) {
-                                options = [
-                                  { value: String(d.uomId), label: d.uomName || `Unit #${d.uomId}` },
-                                  ...options,
-                                ];
-                              }
-
-                              return (
-                                <div className="min-w-[130px] max-w-[190px]">
-                                  <SearchableSelect
-                                    name={`unit-${d.rawMaterialId}`}
-                                    value={d.uomId ? String(d.uomId) : ''}
-                                    onChange={(e) => updateUnit(d.rawMaterialId, e.target.value)}
-                                    options={options}
-                                    placeholder="Select unit"
-                                    disabled={!canPerformEdit}
-                                    hasError={!d.uomId || !d.uomName}
-                                  />
-                                </div>
-                              );
-                            })()
-                          ) : (
-                            <span className="text-gray-600">{d.uomName}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`} />
-                            <span className={tone.text}>
-                              {d.availableStock != null
-                                ? `${Number(d.availableStock).toFixed(2)}${d.stockUnit ? ` ${d.stockUnit}` : ''}`
-                                : '—'}
-                            </span>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {details.length === 0 ? (
+                    <tr>
+                      <td colSpan={canPerformEdit ? 6 : 5} className="px-4 py-12 text-center text-gray-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                            <Search className="w-5 h-5" />
                           </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <input
-                            type="number"
-                            min="1"
-                            value={d.quantity}
-                            disabled={!canPerformEdit}
-                            onChange={(e) => updateQuantity(d.rawMaterialId, e.target.value)}
-                            className={`${inputCls} py-1.5 disabled:bg-gray-50 disabled:text-gray-500`}
-                          />
-                        </td>
-                        {canPerformEdit && (
-                          <td className="px-4 py-4">
-                            <button
-                              type="button"
-                              onClick={() => removeDetail(d.rawMaterialId)}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 transition cursor-pointer bg-transparent border-0"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                          <p className="font-medium text-slate-600">No items added yet</p>
+                          <p className="text-[11px] text-slate-400">Search and select raw materials above to add them to this requisition.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    pagedDetails.map((d, i) => {
+                      const tone = getStockTone(d.availableStock, d.minStock);
+                      const missingUnit = !d.uomId || !d.uomName;
+                      const displayUnit = d.stockUnit || d.uomName || '';
+                      const stockVal = Number(d.availableStock ?? 0);
 
-          {details.length > 0 && (
-            <div className="flex items-center justify-between mt-3">
-              <p className="text-xs text-gray-400">
-                Showing {pagedDetails.length} of {details.length} items added to this requisition.
-              </p>
-              {pageCount > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setDetailsPage((p) => Math.max(0, p - 1))}
-                    disabled={detailsPage === 0}
-                    className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDetailsPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={detailsPage === pageCount - 1}
-                    className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+                      return (
+                        <tr
+                          key={d.rawMaterialId}
+                          className="hover:bg-slate-50/70 transition-colors group"
+                        >
+                          {/* Serial Number */}
+                          <td className="px-4 py-3.5 text-center align-middle">
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-slate-100 text-[11px] font-semibold text-slate-600 font-mono">
+                              {String(detailsPage * DETAILS_PAGE_SIZE + i + 1).padStart(2, '0')}
+                            </span>
+                          </td>
+
+                          {/* Item Details */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className="flex flex-col">
+                              <span className="font-semibold text-slate-900 text-xs">
+                                {d.rawMaterialName}
+                              </span>
+                              {d.category && (
+                                <span className="inline-flex items-center w-fit px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200/60 mt-1">
+                                  {d.category}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Unit Selector */}
+                          <td className="px-4 py-3.5 align-middle">
+                            {missingUnit ? (
+                              <span className="text-xs font-medium text-rose-500">Missing unit</span>
+                            ) : canPerformEdit ? (
+                              (() => {
+                                const rm = rawMaterials.find((r) => r.id === d.rawMaterialId);
+                                const allowedList = d.allowedUnits?.length
+                                  ? d.allowedUnits
+                                  : (Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
+                                      ? rm.allowedUnits
+                                      : (rm?.unit ? [rm.unit] : []));
+
+                                let options = allowedList.map((u) => ({
+                                  value: String(u.id),
+                                  label: u.nameEnglish || u.symbolEnglish || `Unit #${u.id}`,
+                                }));
+
+                                if (d.uomId && !options.some((opt) => String(opt.value) === String(d.uomId))) {
+                                  options = [
+                                    { value: String(d.uomId), label: d.uomName || `Unit #${d.uomId}` },
+                                    ...options,
+                                  ];
+                                }
+
+                                return (
+                                  <div className="min-w-[130px] max-w-[180px]">
+                                    <SearchableSelect
+                                      name={`unit-${d.rawMaterialId}`}
+                                      value={d.uomId ? String(d.uomId) : ''}
+                                      onChange={(e) => updateUnit(d.rawMaterialId, e.target.value)}
+                                      options={options}
+                                      placeholder="Select unit"
+                                      disabled={!canPerformEdit}
+                                      isClearable={false}
+                                      hasError={!d.uomId || !d.uomName}
+                                    />
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <span className="inline-block px-2.5 py-1 rounded-md bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium">
+                                {d.uomName}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Available Stock */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium ${tone.badge}`}>
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${tone.dot}`} />
+                              <span>
+                                {d.availableStock != null
+                                  ? `${Number(d.availableStock).toFixed(2)}${displayUnit ? ` ${displayUnit}` : ''}`
+                                  : '—'}
+                              </span>
+                              {stockVal <= 0 && (
+                                <span className="text-[10px] opacity-80">
+                                  (0.00)
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Quantity */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className="relative max-w-[110px]">
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="any"
+                                value={d.quantity}
+                                disabled={!canPerformEdit}
+                                onChange={(e) => updateQuantity(d.rawMaterialId, e.target.value)}
+                                className="w-full h-9 px-3 text-xs font-semibold text-slate-800 bg-white border border-gray-200 rounded-lg outline-none transition focus:border-[#084E92] focus:ring-2 focus:ring-[#084E92]/15 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400"
+                                placeholder="0"
+                              />
+                            </div>
+                          </td>
+
+                          {/* Action */}
+                          {canPerformEdit && (
+                            <td className="px-4 py-3.5 text-center align-middle">
+                              <button
+                                type="button"
+                                onClick={() => removeDetail(d.rawMaterialId)}
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                title="Remove item"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {details.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-slate-50/60">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-[#084E92] border border-blue-200/60">
+                    {details.length} {details.length === 1 ? 'Item' : 'Items'}
+                  </span>
+                  <p className="text-xs text-slate-500">
+                    Showing {pagedDetails.length} of {details.length} items
+                  </p>
+                </div>
+                {pageCount > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsPage((p) => Math.max(0, p - 1))}
+                      disabled={detailsPage === 0}
+                      className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-xs font-semibold text-slate-600 px-1">
+                      {detailsPage + 1} / {pageCount}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDetailsPage((p) => Math.min(pageCount - 1, p + 1))}
+                      disabled={detailsPage === pageCount - 1}
+                      className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </SectionCard>
 
         {/* Footer actions */}

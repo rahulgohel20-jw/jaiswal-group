@@ -47,6 +47,7 @@ import {
 import FifoBatchVisualizerModal from './FifoBatchVisualizerModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { useOrgScope } from '@/hooks/useOrgScope';
 
 const STATUS_STYLES = {
   Draft: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -132,6 +133,27 @@ const StockTransferDetail = () => {
   const receivePermissions = usePagePermissions(['STR Received', 'Stock Transfer Request Received', 'Stock Transfer Receive', 'STR Receive']);
   const approvalPermissions = usePagePermissions(['STR Approval', 'Stock Transfer Approval', 'Stock Transfer Request Approval']);
   const canView = transferPermissions.canView || receivePermissions.canView || approvalPermissions.canView;
+  const {
+    subOutlets: scopeSubOutlets = [],
+    subLocations: scopeSubLocations = [],
+  } = useOrgScope();
+
+  // Fast lookup maps for sub-outlets and sub-locations
+  const subOutletMap = React.useMemo(() => {
+    const map = {};
+    (scopeSubOutlets || []).forEach((s) => {
+      map[String(s.id)] = s.subOutletName || s.name || s.label;
+    });
+    return map;
+  }, [scopeSubOutlets]);
+
+  const subLocationMap = React.useMemo(() => {
+    const map = {};
+    (scopeSubLocations || []).forEach((l) => {
+      map[String(l.id)] = l.locationName || l.subLocationName || l.name || l.label;
+    });
+    return map;
+  }, [scopeSubLocations]);
 
   const [transfer, setTransfer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -405,8 +427,8 @@ const StockTransferDetail = () => {
       toOrganizationId: transfer?.toOrganizationId || transfer?.toOutletId,
       toSubOutletId: transfer?.toSubOutletId,
       toSubLocationId: transfer?.toSubLocationId,
-      fromOutletName: transfer?.fromOrganizationName || transfer?.fromOutletName || transfer?.fromOutlet || 'Source Outlet',
-      toOutletName: transfer?.toOrganizationName || transfer?.toOutletName || transfer?.toOutlet || 'Destination Outlet',
+      fromOutletName: transfer?.fromOrganizationName || transfer?.fromOutletName || transfer?.fromOutlet || 'Source Unit',
+      toOutletName: transfer?.toOrganizationName || transfer?.toOutletName || transfer?.toOutlet || 'Destination Unit',
       selectedBatches: rowItem.batches || rowItem.selectedBatches || [],
       batchBreakdown: rowItem.batches || rowItem.batchBreakdown || [],
       batches: rowItem.batches || [],
@@ -723,23 +745,43 @@ const StockTransferDetail = () => {
                   <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Origin (Source)</h3>
                 </div>
                 <div>
-                  <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Outlet</label>
+                  <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Unit</label>
                   <p className="text-sm font-bold text-gray-900 mt-0.5">
                     {transfer?.fromOrganizationName || transfer?.fromOutletName || transfer?.fromOutlet || '—'}
                   </p>
                 </div>
-                {transfer?.fromSubOutletId && transfer?.fromSubOutletName && transfer.fromSubOutletName !== 'Main Store' && (
-                  <div>
-                    <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Sub-Unit / Location</label>
-                    <p className="text-xs font-bold text-gray-800 mt-0.5">{transfer.fromSubOutletName}</p>
-                  </div>
-                )}
-                {(transfer?.fromSubLocationName || transfer?.fromSubLocation) && (
-                  <div>
-                    <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Sub-Location</label>
-                    <p className="text-xs font-bold text-gray-800 mt-0.5">{transfer.fromSubLocationName || transfer.fromSubLocation}</p>
-                  </div>
-                )}
+                {(() => {
+                  const fromSubOutletId = transfer?.fromSubOutletId || transfer?.fromSubOutlet?.id;
+                  const fromSubOutletName =
+                    transfer?.fromSubOutletName ||
+                    transfer?.fromSubOutlet?.name ||
+                    transfer?.fromSubOutlet?.subOutletName ||
+                    (fromSubOutletId ? subOutletMap[String(fromSubOutletId)] : '') ||
+                    '';
+                  return fromSubOutletName && fromSubOutletName !== 'Main Store' ? (
+                    <div>
+                      <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Sub-Unit / Location</label>
+                      <p className="text-xs font-bold text-gray-800 mt-0.5">{fromSubOutletName}</p>
+                    </div>
+                  ) : null;
+                })()}
+                {(() => {
+                  const fromSubLocationId = transfer?.fromSubLocationId || transfer?.fromSubLocation?.id;
+                  const fromSubLocationName =
+                    transfer?.fromSubLocationName ||
+                    transfer?.fromSubLocation?.name ||
+                    transfer?.fromSubLocation?.locationName ||
+                    transfer?.fromSubLocation?.subLocationName ||
+                    transfer?.fromSubLocation ||
+                    (fromSubLocationId ? subLocationMap[String(fromSubLocationId)] : '') ||
+                    '';
+                  return fromSubLocationName ? (
+                    <div>
+                      <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Sub-Location</label>
+                      <p className="text-xs font-bold text-gray-800 mt-0.5">{fromSubLocationName}</p>
+                    </div>
+                  ) : null;
+                })()}
                 {transfer?.requestedAt && (
                   <div className="pt-2.5 border-t border-gray-100">
                     <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">Requested Date & Time</label>
@@ -757,23 +799,43 @@ const StockTransferDetail = () => {
                   <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Destination</h3>
                 </div>
                 <div>
-                  <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Outlet</label>
+                  <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Unit</label>
                   <p className="text-sm font-bold text-gray-900 mt-0.5">
                     {transfer?.toOrganizationName || transfer?.toOutletName || transfer?.toOutlet || '—'}
                   </p>
                 </div>
-                {transfer?.toSubOutletId && transfer?.toSubOutletName && transfer.toSubOutletName !== 'Main Store' && (
-                  <div>
-                    <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Sub-Unit / Location</label>
-                    <p className="text-xs font-bold text-gray-800 mt-0.5">{transfer.toSubOutletName}</p>
-                  </div>
-                )}
-                {(transfer?.toSubLocationName || transfer?.toSubLocation) && (
-                  <div>
-                    <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Sub-Location</label>
-                    <p className="text-xs font-bold text-gray-800 mt-0.5">{transfer.toSubLocationName || transfer.toSubLocation}</p>
-                  </div>
-                )}
+                {(() => {
+                  const toSubOutletId = transfer?.toSubOutletId || transfer?.toSubOutlet?.id;
+                  const toSubOutletName =
+                    transfer?.toSubOutletName ||
+                    transfer?.toSubOutlet?.name ||
+                    transfer?.toSubOutlet?.subOutletName ||
+                    (toSubOutletId ? subOutletMap[String(toSubOutletId)] : '') ||
+                    '';
+                  return toSubOutletName && toSubOutletName !== 'Main Store' ? (
+                    <div>
+                      <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Sub-Unit / Location</label>
+                      <p className="text-xs font-bold text-gray-800 mt-0.5">{toSubOutletName}</p>
+                    </div>
+                  ) : null;
+                })()}
+                {(() => {
+                  const toSubLocationId = transfer?.toSubLocationId || transfer?.toSubLocation?.id;
+                  const toSubLocationName =
+                    transfer?.toSubLocationName ||
+                    transfer?.toSubLocation?.name ||
+                    transfer?.toSubLocation?.locationName ||
+                    transfer?.toSubLocation?.subLocationName ||
+                    transfer?.toSubLocation ||
+                    (toSubLocationId ? subLocationMap[String(toSubLocationId)] : '') ||
+                    '';
+                  return toSubLocationName ? (
+                    <div>
+                      <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Sub-Location</label>
+                      <p className="text-xs font-bold text-gray-800 mt-0.5">{toSubLocationName}</p>
+                    </div>
+                  ) : null;
+                })()}
                 {isRejected ? (
                   (transfer?.rejectedAt ||
                     transfer?.rejectedDate ||

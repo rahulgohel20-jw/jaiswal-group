@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Plus,
   Eye,
@@ -27,13 +27,9 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { SearchBar } from '@/components/common/SearchBar';
 import { useOrgScope } from "@/hooks/useOrgScope";
 import {
-  getAllSubLocations,
-  getAllSubLocationsByOrganizationId,
   getSubLocationById,
   deleteSubLocationById,
-  getOrganizationByType,
-  getAllSubOutlets,
-  getAllSubOutletsByOrganization,
+  getAllActiveSubLocations,
 } from "../../services/apiServices";
 import { notify } from "@/utils/toast";
 import { PageErrorAlert } from "@/components/common/PageErrorAlert";
@@ -50,11 +46,16 @@ import SearchableSelect from "../../utils/SearchableSelect";
 
 const extractArray = (res) => {
   if (!res) return [];
-  const raw = res?.data?.data ?? res?.data;
+  const raw =
+    res?.data?.data?.['Sub Location Details'] ??
+    res?.data?.['Sub Location Details'] ??
+    res?.data?.data ??
+    res?.data ??
+    res ??
+    [];
   if (Array.isArray(raw)) return raw;
   if (Array.isArray(raw?.content)) return raw.content;
   if (Array.isArray(res?.data?.content)) return res.data.content;
-  if (Array.isArray(res?.data)) return res.data;
   return [];
 };
 
@@ -142,7 +143,15 @@ const SubLocationListing = () => {
     showUnitDropdown,
     effectiveOutletId,
     units: scopeUnits,
+    outlets: scopeOutlets,
+    subOutlets: scopeSubOutlets,
+    subLocations: scopeSubLocations,
     selfOrg,
+    filterRowsByScope,
+    loading: scopeLoading,
+    error: scopeError,
+    retry: retryScope,
+    refetchHierarchy,
   } = useOrgScope();
 
   const [subLocations, setSubLocations] = useState([]);
@@ -177,42 +186,17 @@ const SubLocationListing = () => {
     }
   }, [location.state]);
 
-  // Fetch Units (Parent Outlets) only for users with Unit dropdown access
+  // Sync Units and SubUnits from scope
   useEffect(() => {
-    if (showUnitDropdown) {
-      const fetchUnits = async () => {
-        try {
-          const res = await getOrganizationByType(OrgTypes.OUTLET);
-          const list = extractArray(res);
-          setUnits(list);
-        } catch (err) {
-          console.error("Failed to load units:", err);
-        }
-      };
-      fetchUnits();
+    const list = (scopeOutlets && scopeOutlets.length > 0) ? scopeOutlets : (scopeUnits || []);
+    setUnits(list);
+  }, [scopeOutlets, scopeUnits]);
+
+  useEffect(() => {
+    if (scopeSubOutlets) {
+      setSubUnits(scopeSubOutlets);
     }
-  }, [showUnitDropdown]);
-
-  // Fetch Sub Units (Parent Sub Outlets)
-  useEffect(() => {
-    const fetchSubUnitsList = async () => {
-      try {
-        if (!showUnitDropdown && effectiveOutletId) {
-          const res = await getAllSubOutletsByOrganization(effectiveOutletId);
-          const list = extractArray(res);
-          setSubUnits(list);
-        } else {
-          const res = await getAllSubOutlets();
-          const list = extractArray(res);
-          setSubUnits(list);
-        }
-      } catch (err) {
-        console.error("Failed to load sub units:", err);
-      }
-    };
-
-    fetchSubUnitsList();
-  }, [showUnitDropdown, effectiveOutletId]);
+  }, [scopeSubOutlets]);
 
   // Map of unit/sub-unit IDs to names for quick fallback lookup
   const unitMap = useMemo(() => {
@@ -236,8 +220,8 @@ const SubLocationListing = () => {
 
   const normalizeSubLocation = (item) => ({
     id: item.id,
-    name: item.locationName || item.name || "",
-    shortCode: item.shortCode || "",
+    name: item.locationName || item.subLocationName || item.name || "",
+    shortCode: item.shortCode || item.code || "",
     type: item.locationType || item.type || "STORE",
     organizationId: item.organizationId || item.orgId || item.unitId || "",
     subOutletId: item.subOutletId || item.subUnitId || "",
@@ -248,35 +232,29 @@ const SubLocationListing = () => {
     email: item.email || "",
     address: item.address || "",
     pincode: item.pincode || "",
-    status: item.isActive ? "active" : "inactive",
+    status: item.isActive !== false ? "active" : "inactive",
     originalData: item,
   });
 
-  const fetchSubLocations = async () => {
+  const fetchSubLocations = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      let res;
-      if (!showUnitDropdown && effectiveOutletId) {
-        res = await getAllSubLocationsByOrganizationId(effectiveOutletId);
-      } else {
-        res = await getAllSubLocations();
-      }
-
-      const list = extractArray(res);
-      setSubLocations(list.map(normalizeSubLocation));
+      const res = await getAllActiveSubLocations();
+      const rawList = extractArray(res);
+      const filtered = filterRowsByScope(rawList);
+      setSubLocations(filtered.map(normalizeSubLocation));
     } catch (err) {
-      console.error("Failed to fetch sub locations:", err);
-      setError("Failed to load sub locations.");
+      console.error('Failed to fetch sub locations:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load sub locations');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterRowsByScope, unitMap, subUnitMap]);
 
   useEffect(() => {
     fetchSubLocations();
-  }, [showUnitDropdown, effectiveOutletId, unitMap, subUnitMap]);
+  }, [fetchSubLocations]);
 
   const handleViewClick = async (item) => {
     try {
@@ -325,10 +303,13 @@ const SubLocationListing = () => {
     setDeleteLoading(true);
     try {
       await deleteSubLocationById(deleteTarget.id);
+      notify.success("Sub location deleted successfully");
       closeDeleteConfirm();
       fetchSubLocations();
+      refetchHierarchy?.();
     } catch (err) {
       console.error("Failed to delete sub location:", err);
+      notify.error(err?.response?.data?.message || "Failed to delete sub location");
     } finally {
       setDeleteLoading(false);
     }
@@ -594,7 +575,7 @@ const SubLocationListing = () => {
                 }}
                 options={units.map((unit) => ({
                   value: String(unit.id),
-                  label: unit.companyNameEnglish,
+                  label: unit.name || unit.companyNameEnglish || unit.companyName || `Outlet #${unit.id}`,
                 }))}
                 placeholder="Select Unit"
               />

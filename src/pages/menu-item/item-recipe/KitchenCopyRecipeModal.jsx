@@ -498,10 +498,10 @@ const KitchenCopyRecipeModal = ({
               />
             </div>
 
-            {/* 2. Outlet Selection */}
+            {/* 2. Unit Selection */}
             <div>
               <label className="mb-1.5 block text-[12px] font-semibold text-gray-700">
-                Select Outlet <span className="text-red-500">*</span>
+                Select Unit <span className="text-red-500">*</span>
               </label>
               <SearchableSelect
                 name="outletId"
@@ -517,7 +517,7 @@ const KitchenCopyRecipeModal = ({
                 }}
                 options={outletOptions}
                 placeholder={
-                  orgScopeLoading ? "Loading outlets..." : "Select outlet"
+                  orgScopeLoading ? "Loading units..." : "Select unit"
                 }
                 disabled={orgScopeLoading || (isOutletUser && Boolean(ownOutletId))}
               />

@@ -60,6 +60,12 @@ const normalizePo = (po) => {
     vendorId: po.vendorId,
     vendorName: po.vendorName ?? '',
     billTo: po.billTo ?? null,
+    shipTo: po.shipTo ?? null,
+    supplierAddress: po.supplierAddress ?? null,
+    gstNumber: po.gstNumber ?? '',
+    panNumber: po.panNumber ?? '',
+    gstRegisteredName: po.gstRegisteredName ?? '',
+    gstVerified: po.gstVerified ?? false,
     isGstApplicable:
       po.isGstApplicable !== undefined && po.isGstApplicable !== null
         ? Boolean(po.isGstApplicable)
@@ -140,32 +146,25 @@ export const usePurchaseOrders = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Fetch POs for an outlet filtered to one or more rawStatus values.
-  // Accepts either a single status string or an array of statuses — the
-  // outlet endpoint only takes one status per call, so for a group that
-  // maps to several rawStatuses (e.g. "Approved" = IN_PROGRESS + APPROVED)
-  // this fires one call per status and merges the results.
+  // Fetch POs for an outlet in a single API call (without passing status).
+  // Returns all POs for the outlet, allowing instant client-side filtering by status.
   const fetchByOutletandStatus = useCallback(async (outletId, status) => {
     const finalOutletId = outletId === 'ALL' || !outletId ? 0 : outletId;
-    const statuses = Array.isArray(status) ? status : (status ? [status] : []);
 
     setLoading(true);
     setError(null);
     try {
-      let raw = [];
-      if (statuses.length <= 1) {
-        const res = await getPurchaseOrdersByOutlet(finalOutletId, statuses[0]);
-        const responseData = res?.data?.data !== undefined && res?.data?.data !== null ? res?.data?.data : res?.data;
-        raw = Array.isArray(responseData) ? responseData : [];
-      } else {
-        const results = await Promise.all(
-          statuses.map((s) => getPurchaseOrdersByOutlet(finalOutletId, s)),
-        );
-        raw = results.flatMap((res) => {
-          const responseData = res?.data?.data !== undefined && res?.data?.data !== null ? res?.data?.data : res?.data;
-          return Array.isArray(responseData) ? responseData : [];
-        });
-      }
+      const statusParam =
+        typeof status === 'string' && status !== 'ALL' && status !== ''
+          ? status
+          : undefined;
+
+      const res = await getPurchaseOrdersByOutlet(finalOutletId, statusParam);
+      const responseData =
+        res?.data?.data !== undefined && res?.data?.data !== null
+          ? res?.data?.data
+          : res?.data;
+      const raw = Array.isArray(responseData) ? responseData : [];
       const data = raw.filter((po) => po && po.id).map(normalizePo);
       setList(data);
       return data;
@@ -176,6 +175,10 @@ export const usePurchaseOrders = () => {
       setLoading(false);
     }
   }, []);
+
+  const fetchByOutlet = useCallback(async (outletId) => {
+    return fetchByOutletandStatus(outletId);
+  }, [fetchByOutletandStatus]);
 
   const fetchApprovedRequestsByOutlet = useCallback(async (outletId) => {
     const finalOutletId = outletId === 'ALL' || !outletId ? 0 : outletId;
@@ -368,6 +371,7 @@ export const usePurchaseOrders = () => {
     logsLoading,
     logsError,
     fetchAuditLogs,
+    fetchByOutlet,
     fetchByOutletandStatus,
     fetchApprovedRequestsByOutlet,
     fetchByStatuses,

@@ -310,7 +310,7 @@ const PurchaseOrderDetailsModal = ({
                                     />
 
                                     <SummaryField
-                                        label="Outlet Name"
+                                        label="Unit Name"
                                         value={order?.outlet}
                                     />
 

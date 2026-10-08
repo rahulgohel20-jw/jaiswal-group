@@ -39,6 +39,11 @@ export function AuthProvider({ children }) {
     setAuth(enriched);
     if (enriched) {
       authHelper.setAuth(enriched);
+      try {
+        import('@/store/orgHierarchyStore').then(({ orgHierarchyStore }) => {
+          orgHierarchyStore?.fetchHierarchy?.(true);
+        }).catch(() => {});
+      } catch {}
     } else {
       authHelper.removeAuth();
     }
@@ -62,6 +67,11 @@ export function AuthProvider({ children }) {
     if (storedAuth) {
       const user = storedAuth?.user || storedAuth?.data || storedAuth;
       setCurrentUser(user || undefined);
+      try {
+        import('@/store/orgHierarchyStore').then(({ orgHierarchyStore }) => {
+          orgHierarchyStore?.fetchHierarchy?.();
+        }).catch(() => {});
+      } catch {}
       return user;
     }
 

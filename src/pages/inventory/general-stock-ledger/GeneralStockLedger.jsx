@@ -25,11 +25,6 @@ import { notify } from '@/utils/toast';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { getOrgIdFromToken } from '@/utils/auth';
 import {
-  getAllSubOutletsByOrganization,
-  getAllSubLocationsByOrganizationId,
-  getAllSubLocationsBySubOutletId,
-  getOrganizationByType,
-  getChildrenByParentId,
   getLedgerList,
   getLedgerListFiltered,
   getAllRawMaterialItems,
@@ -136,6 +131,9 @@ const GeneralStockLedger = () => {
     units: scopedOutlets,
     effectiveOutletId,
     selfOrg,
+    companies: scopeCompanies,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
   // Dropdown lists
@@ -188,7 +186,6 @@ const GeneralStockLedger = () => {
       setSearch(searchInput.trim());
       setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     }, 400);
-
     return () => clearTimeout(handler);
   }, [searchInput]);
 
@@ -197,21 +194,8 @@ const GeneralStockLedger = () => {
     if (scopeLoading) return;
 
     if (isGroupUser) {
-      // Group user: load all companies
-      const fetchCompanies = async () => {
-        setLoadingCompanies(true);
-        try {
-          const res = await getOrganizationByType(OrgTypes.SUB_COMPANY);
-          const list = res?.data?.data || res?.data?.content || res?.data || [];
-          setCompanies(Array.isArray(list) ? list.map(normalizeCompany) : []);
-        } catch (err) {
-          console.error('Failed to load companies:', err);
-          setCompanies([]);
-        } finally {
-          setLoadingCompanies(false);
-        }
-      };
-      fetchCompanies();
+      setCompanies((scopeCompanies || []).map(normalizeCompany));
+      setLoadingCompanies(false);
     } else if (isCompanyUser) {
       // Company user: company is fixed to user's company (Company dropdown hidden)
       const userCompanyId = selfOrg?.id || getOrgIdFromToken();
@@ -237,10 +221,10 @@ const GeneralStockLedger = () => {
       }
       setOutlets(scopedOutlets.map(normalizeOutlet));
     }
-  }, [scopeLoading, isGroupUser, isCompanyUser, isOutletUser, selfOrg, scopedOutlets, effectiveOutletId]);
+  }, [scopeLoading, isGroupUser, isCompanyUser, isOutletUser, selfOrg, scopedOutlets, effectiveOutletId, scopeCompanies]);
 
   // Handle Company change (Group user only)
-  const handleCompanyChange = async (newCompanyId) => {
+  const handleCompanyChange = (newCompanyId) => {
     setCompany(newCompanyId);
     setOutlet('');
     setSubOutlet('');
@@ -252,21 +236,15 @@ const GeneralStockLedger = () => {
       return;
     }
 
-    setLoadingOutlets(true);
-    try {
-      const res = await getChildrenByParentId(newCompanyId);
-      const list = res?.data?.data || res?.data?.content || res?.data || [];
-      const mapped = (Array.isArray(list) ? list : []).map(normalizeOutlet);
-      setOutlets(mapped);
-      if (mapped.length === 1) {
-        setOutlet(String(mapped[0].id));
-      }
-    } catch (err) {
-      console.error('Failed to load outlets for company:', err);
-      setOutlets([]);
-    } finally {
-      setLoadingOutlets(false);
+    const filtered = (scopedOutlets || []).filter(
+      (o) => Number(o.subCompanyId || o.parentId) === Number(newCompanyId)
+    );
+    const mapped = filtered.map(normalizeOutlet);
+    setOutlets(mapped);
+    if (mapped.length === 1) {
+      setOutlet(String(mapped[0].id));
     }
+    setLoadingOutlets(false);
   };
 
   // Fetch Sub-Outlets when Outlet changes
@@ -279,22 +257,10 @@ const GeneralStockLedger = () => {
       return;
     }
 
-    const fetchSubOutletsData = async () => {
-      setLoadingSubOutlets(true);
-      try {
-        const res = await getAllSubOutletsByOrganization(outlet);
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        setSubOutlets((Array.isArray(list) ? list : []).map(normalizeSubOutlet));
-      } catch (err) {
-        console.error('Failed to load sub-outlets:', err);
-        setSubOutlets([]);
-      } finally {
-        setLoadingSubOutlets(false);
-      }
-    };
-
-    fetchSubOutletsData();
-  }, [outlet]);
+    const list = getSubOutlets(outlet);
+    setSubOutlets((Array.isArray(list) ? list : []).map(normalizeSubOutlet));
+    setLoadingSubOutlets(false);
+  }, [outlet, getSubOutlets]);
 
   // Fetch Sub-Locations on selecting Sub-Outlet
   useEffect(() => {
@@ -304,23 +270,10 @@ const GeneralStockLedger = () => {
       return;
     }
 
-    const fetchSubLocationsData = async () => {
-      setLoadingSubLocations(true);
-      try {
-        const res = await getAllSubLocationsBySubOutletId(subOutlet);
-        const rawData = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
-        const list = Array.isArray(rawData) ? rawData : [];
-        setSubLocations(list.map(normalizeSubLocation));
-      } catch (err) {
-        console.error('Failed to load sub-locations:', err);
-        setSubLocations([]);
-      } finally {
-        setLoadingSubLocations(false);
-      }
-    };
-
-    fetchSubLocationsData();
-  }, [subOutlet]);
+    const list = getSubLocations(subOutlet);
+    setSubLocations((Array.isArray(list) ? list : []).map(normalizeSubLocation));
+    setLoadingSubLocations(false);
+  }, [subOutlet, getSubLocations]);
 
   // Fetch Raw Materials (Fetch all raw materials)
   const fetchRawMaterials = useCallback(async () => {
@@ -765,11 +718,11 @@ const GeneralStockLedger = () => {
             </div>
           )}
 
-          {/* 2. Outlet Selection (Compulsory, Hidden for Outlet user, visible for Group & Company users) */}
+          {/* 2. Unit Selection (Compulsory, Hidden for Unit user, visible for Group & Company users) */}
           {!isOutletUser && (
             <div>
               <label className="text-xs font-semibold text-[#43474F] mb-1.5 block">
-                Outlet <span className="text-red-500">*</span>
+                Unit <span className="text-red-500">*</span>
               </label>
               <SearchableSelect
                 options={outletOptions}
@@ -783,19 +736,19 @@ const GeneralStockLedger = () => {
                 disabled={(isGroupUser && !company) || loadingOutlets}
                 placeholder={
                   loadingOutlets
-                    ? 'Loading outlets...'
+                    ? 'Loading units...'
                     : isGroupUser && !company
                     ? 'Select Company first'
-                    : 'Select Outlet'
+                    : 'Select Unit'
                 }
               />
             </div>
           )}
 
-          {/* 3. Sub-Outlet Selection (Optional) */}
+          {/* 3. Sub-Unit Selection (Optional) */}
           <div>
             <label className="text-xs font-semibold text-[#43474F] mb-1.5 block">
-              Sub-Outlet <span className="text-gray-400 font-normal">(Optional)</span>
+              Sub-Unit <span className="text-gray-400 font-normal">(Optional)</span>
             </label>
             <SearchableSelect
               options={subOutletOptions}
@@ -808,10 +761,10 @@ const GeneralStockLedger = () => {
               disabled={!outlet || loadingSubOutlets}
               placeholder={
                 !outlet
-                  ? 'Select Outlet first'
+                  ? 'Select Unit first'
                   : loadingSubOutlets
                   ? 'Loading...'
-                  : 'Select Sub-Outlet'
+                  : 'Select Sub-Unit'
               }
             />
           </div>

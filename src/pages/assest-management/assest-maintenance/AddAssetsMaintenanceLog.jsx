@@ -31,7 +31,7 @@ const STATUS_OPTIONS = [
 const ORG_TYPE_META = {
     GROUP: { label: 'Group', icon: Users },
     SUB_COMPANY: { label: 'Company', icon: Building2 },
-    OUTLET: { label: 'Outlet', icon: Store },
+    OUTLET: { label: 'Unit', icon: Store },
 };
 const orgTypeLabel = (orgType) => ORG_TYPE_META[orgType]?.label ?? '—';
 

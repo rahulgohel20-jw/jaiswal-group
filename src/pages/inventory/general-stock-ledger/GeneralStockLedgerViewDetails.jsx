@@ -214,7 +214,7 @@ const GeneralStockLedgerViewDetails = () => {
 
             {ledgerRecord.fromOrganizationName && (
               <div className="text-xs text-gray-500 font-medium">
-                Outlet: <strong className="text-gray-900 font-semibold">{ledgerRecord.fromOrganizationName}</strong>
+                Unit: <strong className="text-gray-900 font-semibold">{ledgerRecord.fromOrganizationName}</strong>
               </div>
             )}
           </div>
@@ -358,7 +358,7 @@ const GeneralStockLedgerViewDetails = () => {
                   </h3>
                 </div>
                 <div>
-                  <span className="text-[11px] text-gray-400 font-medium">Organization / Outlet</span>
+                  <span className="text-[11px] text-gray-400 font-medium">Organization / Unit</span>
                   <p className="text-sm font-bold text-gray-900">
                     {ledgerRecord.fromOrganizationName || 'External Location'}
                   </p>
@@ -366,7 +366,7 @@ const GeneralStockLedgerViewDetails = () => {
                 {(ledgerRecord.fromSubOutletName || ledgerRecord.fromSubLocationName) && (
                   <div className="pt-2 border-t border-gray-200/60 grid grid-cols-2 gap-3">
                     <div>
-                      <span className="text-[11px] text-gray-400 font-medium">Sub-Outlet</span>
+                      <span className="text-[11px] text-gray-400 font-medium">Sub-Unit</span>
                       <p className="text-xs font-semibold text-gray-800">
                         {ledgerRecord.fromSubOutletName || '—'}
                       </p>
@@ -392,7 +392,7 @@ const GeneralStockLedgerViewDetails = () => {
                   </h3>
                 </div>
                 <div>
-                  <span className="text-[11px] text-blue-400 font-medium">Organization / Outlet</span>
+                  <span className="text-[11px] text-blue-400 font-medium">Organization / Unit</span>
                   <p className="text-sm font-bold text-gray-900">
                     {ledgerRecord.toOrganizationName || 'External Location'}
                   </p>
@@ -400,7 +400,7 @@ const GeneralStockLedgerViewDetails = () => {
                 {(ledgerRecord.toSubOutletName || ledgerRecord.toSubLocationName) && (
                   <div className="pt-2 border-t border-blue-100 grid grid-cols-2 gap-3">
                     <div>
-                      <span className="text-[11px] text-blue-400 font-medium">Sub-Outlet</span>
+                      <span className="text-[11px] text-blue-400 font-medium">Sub-Unit</span>
                       <p className="text-xs font-semibold text-gray-800">
                         {ledgerRecord.toSubOutletName || '—'}
                       </p>
@@ -418,16 +418,16 @@ const GeneralStockLedgerViewDetails = () => {
           </SectionCard>
         ) : (
           <SectionCard
-            title="Location & Outlet"
+            title="Location & Unit"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <InfoCard
-                label="Organization / Outlet"
+                label="Organization / Unit"
                 value={ledgerRecord.fromOrganizationName || ledgerRecord.toOrganizationName || '—'}
                 valueClassName="text-gray-900 font-bold"
               />
               <InfoCard
-                label="Sub-Outlet"
+                label="Sub-Unit"
                 value={ledgerRecord.fromSubOutletName || ledgerRecord.toSubOutletName || '—'}
               />
               <InfoCard

@@ -20,12 +20,11 @@ import {
 import {
   getSubOutletById,
   deleteSubOutletById,
-  getAllSubLocationsBySubOutletId,
-  getAllSubLocations,
 } from "@/services/apiServices";
 import { notify } from "@/utils/toast";
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
+import { useOrgScope } from '@/hooks/useOrgScope';
 
 const extractArray = (res) => {
   if (!res) return [];
@@ -107,6 +106,7 @@ const SubUnitDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
+  const { getSubLocations } = useOrgScope();
 
   const [subUnit, setSubUnit] = useState(location.state?.subUnit ?? null);
   const [loading, setLoading] = useState(!location.state?.subUnit);
@@ -160,38 +160,9 @@ const SubUnitDetails = () => {
     const unitId = rawData?.id || params.id;
     if (!unitId) return;
 
-    let isMounted = true;
-    setLoadingSubLocations(true);
-
-    (async () => {
-      try {
-        let res;
-        try {
-          res = await getAllSubLocationsBySubOutletId(unitId);
-        } catch {
-          res = await getAllSubLocations();
-        }
-        const all = extractArray(res);
-        // Filter for this sub unit if getAllSubLocations was used as fallback
-        const matching = all.filter(
-          (loc) => String(loc.subOutletId || loc.subUnitId) === String(unitId)
-        );
-        if (isMounted) {
-          setSubLocations(matching.length > 0 ? matching : all.filter(
-            (loc) => String(loc.subOutletId) === String(unitId)
-          ));
-        }
-      } catch (err) {
-        console.error("Failed to load sub locations for sub unit:", err);
-      } finally {
-        if (isMounted) setLoadingSubLocations(false);
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [subUnit, params.id]);
+    const list = getSubLocations(unitId) || [];
+    setSubLocations(list);
+  }, [subUnit, params.id, getSubLocations]);
 
   if (loading) {
     return (
@@ -296,14 +267,14 @@ const SubUnitDetails = () => {
 
       {/* Sections */}
       <div className="space-y-6">
-        {/* Parent Outlet Information */}
+        {/* Parent Unit Information */}
         <SectionCard
-          title="Parent Outlet"
+          title="Parent Unit"
           icon={Store}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InfoCard label="Outlet Name" value={outletName} />
-            <InfoCard label="Outlet Code" value={outletCode} />
+            <InfoCard label="Unit Name" value={outletName} />
+            <InfoCard label="Unit Code" value={outletCode} />
           </div>
         </SectionCard>
 
@@ -314,7 +285,7 @@ const SubUnitDetails = () => {
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <InfoCard label="Type" value={raw.subOutletType || raw.type || raw.locationType || "LOCATION"} />
-            <InfoCard label="Sub Outlet Name" value={subOutletName} />
+            <InfoCard label="Sub Unit Name" value={subOutletName} />
             <InfoCard label="Contact Person" value={contactPerson} />
             <InfoCard label="Contact Number" value={contactNumber} />
             <InfoCard label="Email" value={email} />

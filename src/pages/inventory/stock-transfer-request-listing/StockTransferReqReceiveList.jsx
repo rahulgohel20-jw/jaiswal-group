@@ -29,7 +29,7 @@ import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
-import { getTransferList, getAllSubOutlets } from '@/services/apiServices';
+import { getTransferList } from '@/services/apiServices';
 import FifoBatchVisualizerModal from '../stock-transfer/FifoBatchVisualizerModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
@@ -251,23 +251,30 @@ const StockTransferReqReceiveList = () => {
     isOutletUser,
     isCompanyUser,
     units,
+    subOutlets: scopeSubOutlets,
+    subLocations: scopeSubLocations,
     selectedUnitId,
     effectiveOutletId,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
-  // Load Sub-units
-  useEffect(() => {
-    const loadSubUnits = async () => {
-      try {
-        const res = await getAllSubOutlets();
-        const raw = res?.data?.data || res?.data || [];
-        setSubUnits(Array.isArray(raw) ? raw : []);
-      } catch (err) {
-        console.error('Failed to load sub-units in Receive list:', err);
-      }
-    };
-    loadSubUnits();
-  }, []);
+  // Fast lookup maps for sub-outlets and sub-locations
+  const subOutletMap = useMemo(() => {
+    const map = {};
+    (scopeSubOutlets || []).forEach((s) => {
+      map[String(s.id)] = s.subOutletName || s.name || s.label;
+    });
+    return map;
+  }, [scopeSubOutlets]);
+
+  const subLocationMap = useMemo(() => {
+    const map = {};
+    (scopeSubLocations || []).forEach((l) => {
+      map[String(l.id)] = l.locationName || l.subLocationName || l.name || l.label;
+    });
+    return map;
+  }, [scopeSubLocations]);
 
   // Available outlets for dropdowns (strictly scoped outlets for logged in user)
   const displayOutletOptions = useMemo(() => {
@@ -280,28 +287,25 @@ const StockTransferReqReceiveList = () => {
     );
   }, [displayOutletOptions, isOutletUser, effectiveOutletId]);
 
-  // From Sub-outlet options (dependent on selectedFromOutletId)
+  // From Sub-outlet options (dependent on selectedFromOutletId or selectedUnitId)
   const fromSubOutletOptions = useMemo(() => {
-    if (!selectedFromOutletId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(selectedFromOutletId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, selectedFromOutletId]);
-
-  // To Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedToOutletId
-  const toSubOutletOptions = useMemo(() => {
-    const targetId = isOutletUser ? effectiveOutletId : selectedToOutletId;
+    const targetId = selectedFromOutletId || (isOutletUser ? effectiveOutletId : '');
     if (!targetId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(targetId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, isOutletUser, effectiveOutletId, selectedToOutletId]);
+    return (getSubOutlets(targetId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, selectedFromOutletId, isOutletUser, effectiveOutletId]);
+
+  // To Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedToOutletId or selectedUnitId
+  const toSubOutletOptions = useMemo(() => {
+    const targetId = isOutletUser ? effectiveOutletId : (selectedToOutletId || selectedUnitId || effectiveOutletId);
+    if (!targetId) return [];
+    return (getSubOutlets(targetId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, isOutletUser, effectiveOutletId, selectedToOutletId, selectedUnitId]);
 
   // Fetch Receive Transfers from API
   const fetchReceiveTransfers = useCallback(async () => {
@@ -370,31 +374,56 @@ const StockTransferReqReceiveList = () => {
         );
         const variance = totalAccQty > 0 ? totalAccQty - totalReqQty : null;
 
+        const fromSubOutletId = item.fromSubOutletId || item.fromSubOutlet?.id || item.fromSubOrgId || null;
+        const toSubOutletId = item.toSubOutletId || item.toSubOutlet?.id || item.toSubOrgId || null;
+        const fromSubLocationId = item.fromSubLocationId || item.fromSubLocation?.id || null;
+        const toSubLocationId = item.toSubLocationId || item.toSubLocation?.id || null;
+
+        const fromSubOutletName =
+          item.fromSubOutletName ||
+          item.fromSubOutlet?.name ||
+          item.fromSubOutlet?.subOutletName ||
+          (fromSubOutletId ? subOutletMap[String(fromSubOutletId)] : '') ||
+          '';
+
+        const toSubOutletName =
+          item.toSubOutletName ||
+          item.toSubOutlet?.name ||
+          item.toSubOutlet?.subOutletName ||
+          (toSubOutletId ? subOutletMap[String(toSubOutletId)] : '') ||
+          '';
+
+        const fromSubLocationName =
+          item.fromSubLocationName ||
+          item.fromSubLocation?.name ||
+          item.fromSubLocation?.locationName ||
+          item.fromSubLocation?.subLocationName ||
+          (fromSubLocationId ? subLocationMap[String(fromSubLocationId)] : '') ||
+          '';
+
+        const toSubLocationName =
+          item.toSubLocationName ||
+          item.toSubLocation?.name ||
+          item.toSubLocation?.locationName ||
+          item.toSubLocation?.subLocationName ||
+          (toSubLocationId ? subLocationMap[String(toSubLocationId)] : '') ||
+          '';
+
         return {
           id: item.id,
           transferCode: item.transferCode || item.code || `TRF-${String(item.id).padStart(4, '0')}`,
           fromOrganizationId: item.fromOrganizationId || item.fromOutletId,
-          fromSubOutletId: item.fromSubOutletId || null,
-          fromSubLocationId: item.fromSubLocationId || null,
+          fromSubOutletId,
+          fromSubLocationId,
           fromOutlet: item.fromOrganizationName || item.fromOutletName || item.fromOutlet || '—',
-          fromSubOutlet:
-            item.fromSubOutletId && item.fromSubOutletName && item.fromSubOutletName !== 'Main Store'
-              ? item.fromSubOutletName
-              : !item.fromSubOutletId
-              ? ''
-              : item.fromSubOutletName || item.fromSubOutlet || '',
-          fromSubLocation: item.fromSubLocationName || item.fromSubLocation || '',
+          fromSubOutlet: fromSubOutletName,
+          fromSubLocation: fromSubLocationName,
           toOrganizationId: item.toOrganizationId || item.toOutletId,
-          toSubOutletId: item.toSubOutletId || null,
-          toSubLocationId: item.toSubLocationId || null,
+          toSubOutletId,
+          toSubLocationId,
           toOutlet: item.toOrganizationName || item.toOutletName || item.toOutlet || '—',
-          toSubOutlet:
-            item.toSubOutletId && item.toSubOutletName && item.toSubOutletName !== 'Main Store'
-              ? item.toSubOutletName
-              : !item.toSubOutletId
-              ? ''
-              : item.toSubOutletName || item.toSubOutlet || '',
-          toSubLocation: item.toSubLocationName || item.toSubLocation || '',
+          toSubOutlet: toSubOutletName,
+          toSubLocation: toSubLocationName,
           status: item.status || 'In Transit',
           transferDate: item.transferDate || item.createdAt || '—',
           vehicleNumber: item.vehicleNumber || '—',
@@ -429,7 +458,7 @@ const StockTransferReqReceiveList = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedToOutletId, selectedFromOutletId, selectedUnitId]);
+  }, [scopeLoading, scopeError, isOutletUser, effectiveOutletId, selectedToOutletId, selectedFromOutletId, selectedUnitId, subOutletMap, subLocationMap]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {
@@ -624,7 +653,7 @@ const StockTransferReqReceiveList = () => {
         id: 'fromOutlet',
         accessorFn: (row) => row.fromOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="FROM UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -648,7 +677,7 @@ const StockTransferReqReceiveList = () => {
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="TO OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="TO UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -846,7 +875,7 @@ const StockTransferReqReceiveList = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onClear={() => setSearch('')}
-                placeholder="Search by transfer code, item, outlet, vehicle..."
+                placeholder="Search by transfer code, item, unit, vehicle..."
               />
             </div>
             <div className="w-[160px] shrink-0">
@@ -856,7 +885,7 @@ const StockTransferReqReceiveList = () => {
 
           {/* Row 2: Location Filters */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
-            {/* 1. From Outlet Dropdown: for all users (shows sibling outlets for outlet user, descendant outlets for company/group) */}
+            {/* 1. From Unit Dropdown: for all users (shows sibling units for unit user, descendant units for company/group) */}
             <SearchableSelect
               name="fromOutlet"
               value={selectedFromOutletId}
@@ -865,20 +894,20 @@ const StockTransferReqReceiveList = () => {
                 setSelectedFromSubOutletId('');
               }}
               options={fromOutletOptions}
-              placeholder="From Outlet..."
+              placeholder="From Unit..."
             />
 
-            {/* 2. From Sub-Outlet: based on selected From Outlet */}
+            {/* 2. From Sub-Unit: based on selected From Unit */}
             <SearchableSelect
               name="fromSubOutlet"
               value={selectedFromSubOutletId}
               onChange={(e) => setSelectedFromSubOutletId(e.target.value)}
               options={fromSubOutletOptions}
               disabled={!selectedFromOutletId}
-              placeholder={!selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
+              placeholder={!selectedFromOutletId ? 'Select From Unit' : 'From Sub-Unit...'}
             />
 
-            {/* 3. To Outlet Dropdown: only for Company & Group Users (Hidden for Outlet User) */}
+            {/* 3. To Unit Dropdown: only for Company & Group Users (Hidden for Unit User) */}
             {!isOutletUser && (
               <SearchableSelect
                 name="toOutlet"
@@ -888,18 +917,18 @@ const StockTransferReqReceiveList = () => {
                   setSelectedToSubOutletId('');
                 }}
                 options={displayOutletOptions}
-                placeholder="To Outlet..."
+                placeholder="To Unit..."
               />
             )}
 
-            {/* 4. To Sub-Outlet: based on effectiveOutletId for outlet users, or selectedToOutletId for others */}
+            {/* 4. To Sub-Unit: based on effectiveOutletId for unit users, or selectedToOutletId for others */}
             <SearchableSelect
               name="toSubOutlet"
               value={selectedToSubOutletId}
               onChange={(e) => setSelectedToSubOutletId(e.target.value)}
               options={toSubOutletOptions}
               disabled={!isOutletUser && !selectedToOutletId}
-              placeholder={!isOutletUser && !selectedToOutletId ? 'Select To Outlet' : 'To Sub-Outlet...'}
+              placeholder={!isOutletUser && !selectedToOutletId ? 'Select To Unit' : 'To Sub-Unit...'}
             />
           </div>
         </div>

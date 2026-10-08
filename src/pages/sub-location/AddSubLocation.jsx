@@ -11,9 +11,6 @@ import {
   Check,
 } from "lucide-react";
 import {
-  getOrganizationByType,
-  getAllSubOutlets,
-  getAllSubOutletsByOrganization,
   getSubOutletById,
   saveSubLocation,
   updateSubLocation,
@@ -35,6 +32,7 @@ import SearchableSelect from "../../utils/SearchableSelect";
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Switch } from '@/components/ui/switch';
+import { invalidateOrgHierarchy } from "@/utils/hierarchyUtils";
 
 const inputCls =
   "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
@@ -274,16 +272,19 @@ const AddSubLocation = () => {
     loading: scopeLoading,
     showUnitDropdown,
     effectiveOutletId,
+    units: scopeUnits,
+    outlets: scopeOutlets,
+    subOutlets: scopeSubOutlets,
   } = useOrgScope();
 
   const editingSubLocation = location.state?.subLocation ?? null;
   const isEditMode = !!editingSubLocation;
 
   const [units, setUnits] = useState([]);
-  const [loadingUnits, setLoadingUnits] = useState(true);
+  const [loadingUnits, setLoadingUnits] = useState(false);
 
   const [subUnits, setSubUnits] = useState([]);
-  const [loadingSubUnits, setLoadingSubUnits] = useState(true);
+  const [loadingSubUnits, setLoadingSubUnits] = useState(false);
 
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
@@ -337,50 +338,20 @@ const AddSubLocation = () => {
     }
   }, [scopeLoading, showUnitDropdown, effectiveOutletId]);
 
-  // Load parent Units if dropdown is enabled
+  // Load parent Units
   useEffect(() => {
-    if (scopeLoading) return;
-    if (showUnitDropdown) {
-      getOrganizationByType(OrgTypes.OUTLET)
-        .then((res) => {
-          const list =
-            res?.data?.data ||
-            res?.data?.content ||
-            res?.data ||
-            [];
-          setUnits(Array.isArray(list) ? list : []);
-        })
-        .catch((err) => console.error("Failed to load units", err))
-        .finally(() => setLoadingUnits(false));
-    } else {
-      setLoadingUnits(false);
-    }
-  }, [scopeLoading, showUnitDropdown]);
+    const list = (scopeOutlets && scopeOutlets.length > 0) ? scopeOutlets : (scopeUnits || []);
+    setUnits(list);
+    setLoadingUnits(false);
+  }, [scopeOutlets, scopeUnits]);
 
   // Load Sub Units (Parent Sub Outlets)
   useEffect(() => {
-    if (scopeLoading) return;
-    const fetchSubUnitsData = async () => {
-      setLoadingSubUnits(true);
-      try {
-        if (!showUnitDropdown && effectiveOutletId) {
-          const res = await getAllSubOutletsByOrganization(effectiveOutletId);
-          const list = res?.data?.data || res?.data || [];
-          setSubUnits(Array.isArray(list) ? list : []);
-        } else {
-          const res = await getAllSubOutlets();
-          const list = res?.data?.data || res?.data?.content || res?.data || [];
-          setSubUnits(Array.isArray(list) ? list : []);
-        }
-      } catch (err) {
-        console.error("Failed to load sub units", err);
-      } finally {
-        setLoadingSubUnits(false);
-      }
-    };
-
-    fetchSubUnitsData();
-  }, [scopeLoading, showUnitDropdown, effectiveOutletId]);
+    if (scopeSubOutlets) {
+      setSubUnits(scopeSubOutlets);
+      setLoadingSubUnits(false);
+    }
+  }, [scopeSubOutlets]);
 
   // If in edit mode, populate form and load country / state / city
   useEffect(() => {
@@ -689,6 +660,7 @@ const AddSubLocation = () => {
         await saveSubLocation(payload);
         notify.success("Sub Location Added Successfully");
       }
+      invalidateOrgHierarchy();
       navigate("/sub-locations");
     } catch (err) {
       console.error("Sub location save error:", err.response?.data || err.message);

@@ -63,7 +63,7 @@ import {
   const StatusBadge = ({ status }) => (
     <span
       title={status || '—'}
-      className={`font-semibold text-xs truncate block max-w-full ${
+      className={`font-semibold text-xs whitespace-nowrap ${
         STATUS_TEXT_COLORS[status] || 'text-gray-600'
       }`}
     >
@@ -94,7 +94,7 @@ import {
           value={selectedUnitId ?? ''}
           onChange={(e) => onChange(e.target.value)}
           options={options}
-          placeholder={units.length === 0 ? 'No outlets available' : 'Select outlet...'}
+          placeholder={units.length === 0 ? 'No units available' : 'Select unit...'}
           disabled={units.length === 0}
         />
       </div>
@@ -360,7 +360,7 @@ import {
           id: 'outlet',
           accessorFn: (row) => row.outlet,
           header: ({ column }) => (
-            <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+            <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
           enableSorting: false,
@@ -397,7 +397,7 @@ import {
           ),
           cell: ({ row }) => <StatusBadge status={row.original.status} />,
           enableSorting: false,
-          size: 80,
+          size: 155,
         },
         {
           id: 'action',
@@ -497,7 +497,7 @@ import {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onClear={() => setSearchQuery('')}
-                placeholder="Search PR Code, Outlet..."
+                placeholder="Search PR Code, Unit..."
               />
             </div>
 

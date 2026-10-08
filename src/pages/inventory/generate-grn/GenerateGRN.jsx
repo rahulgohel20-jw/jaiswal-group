@@ -2,7 +2,7 @@
 // File: src/pages/inventory/generate-grn/GenerateGRN.jsx
 // ============================================
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -10,8 +10,6 @@ import {
 } from '@tanstack/react-table';
 import {
   FileText,
-  Search,
-  ChevronRight,
   Filter,
   Loader2,
   Eye,
@@ -26,7 +24,7 @@ import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import SearchableSelect from '@/utils/SearchableSelect';
-import { getPOsByOutlet, getPurchaseOrdersByOutlet } from '@/services/apiServices';
+import { getPurchaseOrdersByOutlet } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
@@ -68,7 +66,7 @@ const TruncatedCell = ({
 
 function UnitDropdown({ units, selectedUnitId, onChange }) {
   const options = [
-    { value: '', label: 'All Outlets' },
+    { value: '', label: 'All Units' },
     ...units.map((u) => ({ value: String(u.id), label: u.name })),
   ];
   return (
@@ -78,7 +76,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ? String(selectedUnitId) : ''}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+        placeholder={units.length === 0 ? 'No units available' : 'All Units'}
         disabled={units.length === 0}
       />
     </div>
@@ -161,89 +159,54 @@ const GenerateGRN = () => {
     setPoError(null);
     try {
       const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+      const statusParam = statusFilter === 'ALL' ? 'APPROVED,CLOSED' : statusFilter;
+      const res = await getPurchaseOrdersByOutlet(outletId, statusParam);
+      const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      const rawList = Array.isArray(raw) ? raw : [];
 
-      let rawList = [];
-      if (statusFilter === 'ALL') {
-        try {
-          const res = await getPurchaseOrdersByOutlet(outletId, '');
-          const data = res?.data?.data ?? res?.data ?? [];
-          if (Array.isArray(data) && data.length > 0) {
-            rawList = data;
-          } else {
-            throw new Error('Fallback to parallel');
-          }
-        } catch {
-          const [appRes, closedRes] = await Promise.all([
-            getPurchaseOrdersByOutlet(outletId, 'APPROVED').catch(() => ({ data: [] })),
-            getPurchaseOrdersByOutlet(outletId, 'CLOSED').catch(() => ({ data: [] })),
-          ]);
-          const appData = appRes?.data?.data ?? appRes?.data ?? [];
-          const closedData = closedRes?.data?.data ?? closedRes?.data ?? [];
-          rawList = [
-            ...(Array.isArray(appData) ? appData : []),
-            ...(Array.isArray(closedData) ? closedData : []),
-          ];
-        }
-      } else {
-        let response;
-        try {
-          response = await getPOsByOutlet(outletId, statusFilter);
-        } catch (apiErr) {
-          response = await getPurchaseOrdersByOutlet(outletId, statusFilter);
-        }
-        const raw = response?.data?.data ?? response?.data ?? response ?? [];
-        rawList = Array.isArray(raw) ? raw : [];
-      }
+      const normalized = rawList.map((item) => {
+        const prCode =
+          item.prcode ||
+          item.prCode ||
+          item.purchaseRequisitionCode ||
+          item.details?.[0]?.prcode ||
+          item.details?.[0]?.prCode ||
+          item.prPoMapping?.[0]?.prcode ||
+          '—';
 
-      const normalized = rawList
-        .filter((item) => {
-          if (statusFilter === 'ALL') return true;
-          const s = String(item.status || 'APPROVED').toUpperCase();
-          return s === statusFilter.toUpperCase();
-        })
-        .map((item) => {
-          const prCode =
-            item.prcode ||
-            item.prCode ||
-            item.purchaseRequisitionCode ||
-            item.details?.[0]?.prcode ||
-            item.details?.[0]?.prCode ||
-            item.prPoMapping?.[0]?.prcode ||
-            '—';
+        const deliveryDateRaw =
+          item.expectedDeliveryDate ||
+          item.deliveryDate ||
+          item.targetDeliveryDate ||
+          item.deliveryScheduleDate ||
+          '';
 
-          const deliveryDateRaw =
-            item.expectedDeliveryDate ||
-            item.deliveryDate ||
-            item.targetDeliveryDate ||
-            item.deliveryScheduleDate ||
-            '';
+        const vendorName =
+          item.vendorName ||
+          item.vendor?.name ||
+          item.vendor?.companyName ||
+          item.vendor?.tradeName ||
+          item.details?.[0]?.vendorName ||
+          item.poVendorName ||
+          (item.vendorId ? `Vendor #${item.vendorId}` : '—');
 
-          const vendorName =
-            item.vendorName ||
-            item.vendor?.name ||
-            item.vendor?.companyName ||
-            item.vendor?.tradeName ||
-            item.details?.[0]?.vendorName ||
-            item.poVendorName ||
-            (item.vendorId ? `Vendor #${item.vendorId}` : '—');
-
-          return {
-            id: item.id,
-            prCode: prCode,
-            poCode: item.purchaseOrderCode || item.poCode || `PO-${item.id}`,
-            date: formatDate(item.poDate || item.date || item.createdAt),
-            rawDate: item.poDate || item.date || item.createdAt,
-            deliveryDate: formatDate(deliveryDateRaw),
-            outlet: item.organizationName || item.outletName || item.outlet || (item.outletId ? `Outlet #${item.outletId}` : '—'),
-            outletId: item.outletId || item.orgId,
-            raisedBy: item.createdByName || item.raisedBy || item.createdBy || '—',
-            status: item.status || 'APPROVED',
-            rawStatus: item.status || 'APPROVED',
-            vendorId: item.vendorId || item.vendor?.id || item.details?.[0]?.vendorId,
-            vendorName: vendorName,
-            details: item.details || [],
-          };
-        });
+        return {
+          id: item.id,
+          prCode: prCode,
+          poCode: item.purchaseOrderCode || item.poCode || `PO-${item.id}`,
+          date: formatDate(item.poDate || item.date || item.createdAt),
+          rawDate: item.poDate || item.date || item.createdAt,
+          deliveryDate: formatDate(deliveryDateRaw),
+          outlet: item.organizationName || item.outletName || item.outlet || (item.outletId ? `Outlet #${item.outletId}` : '—'),
+          outletId: item.outletId || item.orgId,
+          raisedBy: item.createdByName || item.raisedBy || item.createdBy || '—',
+          status: item.status || 'APPROVED',
+          rawStatus: item.status || 'APPROVED',
+          vendorId: item.vendorId || item.vendor?.id || item.details?.[0]?.vendorId,
+          vendorName: vendorName,
+          details: item.details || [],
+        };
+      });
 
       const scopedRows = filterRowsByScope(normalized);
       setList(scopedRows);
@@ -298,7 +261,7 @@ const GenerateGRN = () => {
         const outletMatch = item.outletId && first.outletId ? item.outletId === first.outletId : item.outlet === first.outlet;
         const vendorMatch = item.vendorId && first.vendorId ? item.vendorId === first.vendorId : item.vendorName === first.vendorName;
         if (!outletMatch || !vendorMatch) {
-          toast.error('Only Purchase Orders from the same Outlet and Vendor can be combined into a single GRN.');
+          toast.error('Only Purchase Orders from the same Unit and Vendor can be combined into a single GRN.');
           return prev;
         }
       }
@@ -465,7 +428,7 @@ const GenerateGRN = () => {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET" column={column} className="text-xs" />
+          <DataGridColumnHeader title="UNIT" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <span className="text-xs text-gray-800 font-medium block truncate max-w-[120px]" title={row.original.outlet}>
@@ -642,7 +605,7 @@ const GenerateGRN = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onClear={() => setSearchQuery('')}
-              placeholder="Search PO Code, Outlet, Raised By..."
+              placeholder="Search PO Code, Unit, Raised By..."
             />
           </div>
 

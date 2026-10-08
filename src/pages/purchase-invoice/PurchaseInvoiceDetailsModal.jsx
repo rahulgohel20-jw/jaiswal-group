@@ -529,7 +529,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                 value={vendorName || invoice.vendorName || '—'}
                             />
                             <InfoTile
-                                label="Receiving Outlet"
+                                label="Receiving Unit"
                                 value={
                                     organizationName ||
                                     invoice.organizationName ||
@@ -676,7 +676,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                 <div className="flex items-center gap-2">
                                     <Truck className="h-4 w-4 text-[#084E92]" />
                                     <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
-                                        Ship To (Outlet Delivery Address)
+                                        Ship To (Unit Delivery Address)
                                     </span>
                                 </div>
                             </div>
@@ -687,7 +687,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                         {shipTo.companyNameEnglish ||
                                             invoice.organizationName ||
                                             invoice.outletName ||
-                                            'Outlet'}
+                                            'Unit'}
                                         {shipTo.companyCode
                                             ? ` (${shipTo.companyCode})`
                                             : ''}
@@ -754,7 +754,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                         {organizationName ||
                                             invoice.organizationName ||
                                             invoice.outletName ||
-                                            'Outlet'}
+                                            'Unit'}
                                     </p>
                                     <p className="italic text-gray-400">
                                         No detailed shipping address record available.

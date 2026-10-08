@@ -26,9 +26,6 @@ import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router';
 import {
   getAllRawMaterialItems,
-  getAllSubOutlets,
-  getAllSubLocationsBySubOutletId,
-  getOrganizationByType,
   saveTransfer,
   updateDraftTransfer,
   updateTransfer,
@@ -38,7 +35,6 @@ import {
   dispatchTransfer,
   getCurrentStockListGet,
   getCompanyById,
-  getChildrenByParentId,
   resolveTransferDiscrepancy,
 } from '@/services/apiServices';
 import { getUserIdFromToken, getOrgIdFromToken } from '@/utils/auth';
@@ -344,9 +340,14 @@ const StockTransferRequest = () => {
     isOutletUser,
     isCompanyUser,
     isGroupUser,
+    companies: scopeCompanies,
     units: scopeUnits,
+    subOutlets: scopeSubOutlets,
     effectiveOutletId,
     loading: scopeLoading,
+    getSubOutlets,
+    getSubLocations,
+    getChildren,
   } = useOrgScope();
 
   // Form State (Header common fields)
@@ -435,25 +436,9 @@ const StockTransferRequest = () => {
       setFromSubLocation('');
       return;
     }
-    let isMounted = true;
-    setFromSubLocationsLoading(true);
-    getAllSubLocationsBySubOutletId(fromSubOutlet)
-      .then((res) => {
-        const list = extractArray(res);
-        if (isMounted) setFromSubLocations(list);
-      })
-      .catch((err) => {
-        console.warn('Failed to load fromSubLocations:', err);
-        if (isMounted) setFromSubLocations([]);
-      })
-      .finally(() => {
-        if (isMounted) setFromSubLocationsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [fromSubOutlet]);
+    const list = getSubLocations(fromSubOutlet) || [];
+    setFromSubLocations(list);
+  }, [fromSubOutlet, getSubLocations]);
 
   // Fetch To Sub Locations when toSubOutlet changes
   useEffect(() => {
@@ -462,25 +447,9 @@ const StockTransferRequest = () => {
       setToSubLocation('');
       return;
     }
-    let isMounted = true;
-    setToSubLocationsLoading(true);
-    getAllSubLocationsBySubOutletId(toSubOutlet)
-      .then((res) => {
-        const list = extractArray(res);
-        if (isMounted) setToSubLocations(list);
-      })
-      .catch((err) => {
-        console.warn('Failed to load toSubLocations:', err);
-        if (isMounted) setToSubLocations([]);
-      })
-      .finally(() => {
-        if (isMounted) setToSubLocationsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [toSubOutlet]);
+    const list = getSubLocations(toSubOutlet) || [];
+    setToSubLocations(list);
+  }, [toSubOutlet, getSubLocations]);
 
   // FIFO Visualizer & Batch Selection Modal State
   const [visualizerModalOpen, setVisualizerModalOpen] = useState(false);
@@ -490,74 +459,40 @@ const StockTransferRequest = () => {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // 1. Fetch Companies and Outlets based on logged-in user scope
-  const fetchCompanies = async () => {
-    setCompaniesLoading(true);
-    try {
-      const orgId = getOrgIdFromToken();
-      let compList = [];
-      if (orgId) {
-        const res = await getChildrenByParentId(orgId);
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        compList = Array.isArray(list) ? list : [];
-      }
-      if (compList.length === 0) {
-        const res = await getOrganizationByType(OrgTypes.SUB_COMPANY);
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        compList = Array.isArray(list) ? list : [];
-      }
-      setCompanies(compList.map(normalizeCompany));
-    } catch (err) {
-      console.error('Failed to load companies:', err);
-      setCompanies([]);
-    } finally {
-      setCompaniesLoading(false);
-    }
-  };
-
-  // For Group user: load outlets dynamically when selectedCompany changes
+  // Sync Companies from scope
   useEffect(() => {
-    if (!isGroupUser || !selectedCompany) {
-      if (isGroupUser) setUnits([]);
-      return;
+    if (scopeCompanies && scopeCompanies.length > 0) {
+      setCompanies(scopeCompanies.map(normalizeCompany));
     }
-    const loadCompanyOutlets = async () => {
-      setUnitsLoading(true);
-      try {
-        const res = await getChildrenByParentId(selectedCompany);
-        const children = res?.data?.data ?? res?.data ?? res ?? [];
-        const outletList = [];
-        for (const child of Array.isArray(children) ? children : []) {
-          const type = (child?.orgType || child?.organizationType || '').toUpperCase().replace(/[\s_-]/g, '_');
-          if (type === OrgTypes.OUTLET || type === 'OUTLET') {
-            outletList.push(normalizeUnit(child));
-          }
-        }
-        setUnits(outletList);
-      } catch (err) {
-        console.error('Failed to load company outlets for selectedCompany:', selectedCompany, err);
-        setUnits([]);
-      } finally {
-        setUnitsLoading(false);
-      }
-    };
-    loadCompanyOutlets();
-  }, [isGroupUser, selectedCompany]);
+  }, [scopeCompanies]);
 
-  const fetchSubUnits = async () => {
-    setSubUnitsLoading(true);
-    try {
-      const res = await getAllSubOutlets();
-      const list = res?.data?.data || res?.data?.content || res?.data || [];
-      const subOutletList = Array.isArray(list) ? list : [];
-      setSubUnits(subOutletList.map(normalizeSubUnit));
-    } catch (err) {
-      console.error('Failed to load sub outlets:', err);
-      setSubUnits([]);
-    } finally {
-      setSubUnitsLoading(false);
+  // Sync SubUnits from scope
+  useEffect(() => {
+    if (scopeSubOutlets && scopeSubOutlets.length > 0) {
+      setSubUnits(scopeSubOutlets.map(normalizeSubUnit));
     }
-  };
+  }, [scopeSubOutlets]);
+
+  // For Group user: load outlets dynamically when selectedCompany changes; for others, sync scopeUnits
+  useEffect(() => {
+    if (isGroupUser) {
+      if (!selectedCompany) {
+        setUnits([]);
+        return;
+      }
+      const children = getChildren(selectedCompany) || [];
+      const outletList = [];
+      for (const child of Array.isArray(children) ? children : []) {
+        const type = (child?.orgType || child?.organizationType || '').toUpperCase().replace(/[\s_-]/g, '_');
+        if (type === OrgTypes.OUTLET || type === 'OUTLET') {
+          outletList.push(normalizeUnit(child));
+        }
+      }
+      setUnits(outletList);
+    } else if (scopeUnits && scopeUnits.length > 0) {
+      setUnits(scopeUnits.map(normalizeUnit));
+    }
+  }, [isGroupUser, selectedCompany, scopeUnits, getChildren]);
 
   // 2. Fetch Raw Material Items with organization and sub-outlet scope
   const fetchAllItems = useCallback(async (orgId, subId) => {
@@ -844,11 +779,6 @@ const StockTransferRequest = () => {
   const handleCancelOrgChange = () => {
     setPendingOrgChange(null);
   };
-
-  useEffect(() => {
-    fetchCompanies();
-    fetchSubUnits();
-  }, []);
 
   // For Outlet Users: Auto-set From Outlet and load items once scope is resolved
   useEffect(() => {
@@ -2489,18 +2419,18 @@ const StockTransferRequest = () => {
                 </div>
               )}
 
-              {/* Row 1 & 2: Outlets & Locations (3 Columns per Row) */}
+              {/* Row 1 & 2: Units & Locations (3 Columns per Row) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-                {/* From Outlet */}
+                {/* From Unit */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    From Outlet {!isOutletUser && <span className="text-red-500">*</span>}
+                    From Unit {!isOutletUser && <span className="text-red-500">*</span>}
                   </label>
                   {isOutletUser ? (
                     <div className="h-10 mt-1.5 px-3.5 flex items-center rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700">
-                      {scopedUnits?.find((u) => String(u.id) === String(effectiveOutletId))?.name ||
+                      {scopeUnits?.find((u) => String(u.id) === String(effectiveOutletId))?.name ||
                         units?.find((u) => String(u.id) === String(effectiveOutletId))?.name ||
-                        'Current Outlet'}
+                        'Current Unit'}
                     </div>
                   ) : (
                     <SearchableSelect
@@ -2513,8 +2443,8 @@ const StockTransferRequest = () => {
                         isGroupUser && !selectedCompany
                           ? 'Select company first'
                           : unitsLoading
-                          ? 'Loading outlets...'
-                          : 'Select outlet'
+                          ? 'Loading units...'
+                          : 'Select unit'
                       }
                     />
                   )}
@@ -2533,7 +2463,7 @@ const StockTransferRequest = () => {
                     disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || (!isOutletUser && !fromOutlet) || subUnitsLoading}
                     placeholder={
                       !isOutletUser && !fromOutlet
-                        ? 'Select outlet first'
+                        ? 'Select unit first'
                         : subUnitsLoading
                         ? 'Loading sub-units...'
                         : 'Select sub-unit'
@@ -2564,10 +2494,10 @@ const StockTransferRequest = () => {
                   />
                 </div>
 
-                {/* To Outlet */}
+                {/* To Unit */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    To Outlet <span className="text-red-500">*</span>
+                    To Unit <span className="text-red-500">*</span>
                   </label>
                   <SearchableSelect
                     className="mt-1.5"
@@ -2584,8 +2514,8 @@ const StockTransferRequest = () => {
                       isGroupUser && !selectedCompany
                         ? 'Select company first'
                         : unitsLoading
-                        ? 'Loading outlets...'
-                        : 'Select outlet'
+                        ? 'Loading units...'
+                        : 'Select unit'
                     }
                   />
                 </div>
@@ -2607,7 +2537,7 @@ const StockTransferRequest = () => {
                     disabled={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode || !toOutlet || subUnitsLoading}
                     placeholder={
                       !toOutlet
-                        ? 'Select outlet first'
+                        ? 'Select unit first'
                         : subUnitsLoading
                         ? 'Loading sub-units...'
                         : 'Select sub-unit'

@@ -181,7 +181,7 @@ const KitchenCaptainRecipeList = () => {
                     item.outletName ||
                     item.organizationName ||
                     (itemOrgId ? outletNameMap.get(Number(itemOrgId)) : null) ||
-                    (itemOrgId ? `Outlet #${itemOrgId}` : '-');
+                    (itemOrgId ? `Unit #${itemOrgId}` : '-');
 
                 return {
                     id: item.id,
@@ -340,7 +340,7 @@ const KitchenCaptainRecipeList = () => {
                 accessorFn: (row) => row.outletName,
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="OUTLET"
+                        title="UNIT"
                         column={column}
                         className="text-[#43474F] font-semibold"
                     />
@@ -594,8 +594,8 @@ const KitchenCaptainRecipeList = () => {
                                         options={outletFilterOptions}
                                         placeholder={
                                             isCompanyUser
-                                                ? `All Outlets (${selfOrg?.companyNameEnglish || 'Company'})`
-                                                : 'All Outlets'
+                                                ? `All Units (${selfOrg?.companyNameEnglish || 'Company'})`
+                                                : 'All Units'
                                         }
                                         isClearable={true}
                                     />

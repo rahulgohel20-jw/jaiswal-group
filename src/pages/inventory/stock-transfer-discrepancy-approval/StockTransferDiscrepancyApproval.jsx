@@ -131,10 +131,29 @@ const StockTransferDiscrepancyApproval = () => {
     selectedCompanyId,
     effectiveOutletId,
     units = [],
+    subOutlets: scopeSubOutlets = [],
+    subLocations: scopeSubLocations = [],
     loading: scopeLoading,
     error: scopeError,
     retry: retryScope,
   } = useOrgScope();
+
+  // Fast lookup maps for sub-outlets and sub-locations
+  const subOutletMap = useMemo(() => {
+    const map = {};
+    (scopeSubOutlets || []).forEach((s) => {
+      map[String(s.id)] = s.subOutletName || s.name || s.label;
+    });
+    return map;
+  }, [scopeSubOutlets]);
+
+  const subLocationMap = useMemo(() => {
+    const map = {};
+    (scopeSubLocations || []).forEach((l) => {
+      map[String(l.id)] = l.locationName || l.subLocationName || l.name || l.label;
+    });
+    return map;
+  }, [scopeSubLocations]);
 
   // State
   const [transfers, setTransfers] = useState([]);
@@ -186,6 +205,41 @@ const StockTransferDiscrepancyApproval = () => {
           t.remarks ||
           '—';
 
+        const fromSubOutletId = t.fromSubOutletId || t.fromSubOutlet?.id || t.fromSubOrgId || null;
+        const toSubOutletId = t.toSubOutletId || t.toSubOutlet?.id || t.toSubOrgId || null;
+        const fromSubLocationId = t.fromSubLocationId || t.fromSubLocation?.id || null;
+        const toSubLocationId = t.toSubLocationId || t.toSubLocation?.id || null;
+
+        const fromSubOutletName =
+          t.fromSubOutletName ||
+          t.fromSubOutlet?.name ||
+          t.fromSubOutlet?.subOutletName ||
+          (fromSubOutletId ? subOutletMap[String(fromSubOutletId)] : '') ||
+          '';
+
+        const toSubOutletName =
+          t.toSubOutletName ||
+          t.toSubOutlet?.name ||
+          t.toSubOutlet?.subOutletName ||
+          (toSubOutletId ? subOutletMap[String(toSubOutletId)] : '') ||
+          '';
+
+        const fromSubLocationName =
+          t.fromSubLocationName ||
+          t.fromSubLocation?.name ||
+          t.fromSubLocation?.locationName ||
+          t.fromSubLocation?.subLocationName ||
+          (fromSubLocationId ? subLocationMap[String(fromSubLocationId)] : '') ||
+          '';
+
+        const toSubLocationName =
+          t.toSubLocationName ||
+          t.toSubLocation?.name ||
+          t.toSubLocation?.locationName ||
+          t.toSubLocation?.subLocationName ||
+          (toSubLocationId ? subLocationMap[String(toSubLocationId)] : '') ||
+          '';
+
         return {
           id: t.id,
           index: idx + 1,
@@ -197,12 +251,16 @@ const StockTransferDiscrepancyApproval = () => {
             : '—',
           fromOutlet: t.fromOrganizationName || t.fromOutletName || t.fromOrganization?.name || '—',
           fromOutletId: t.fromOrganizationId || t.fromOutletId || t.fromOrganization?.id,
-          fromSubOutlet: t.fromSubOutletName || t.fromSubOutlet?.name || '—',
-          fromSubOutletId: t.fromSubOutletId || t.fromSubOutlet?.id,
+          fromSubOutlet: fromSubOutletName || '—',
+          fromSubOutletId,
+          fromSubLocation: fromSubLocationName || '—',
+          fromSubLocationId,
           toOutlet: t.toOrganizationName || t.toOutletName || t.toOrganization?.name || '—',
           toOutletId: t.toOrganizationId || t.toOutletId || t.toOrganization?.id,
-          toSubOutlet: t.toSubOutletName || t.toSubOutlet?.name || '—',
-          toSubOutletId: t.toSubOutletId || t.toSubOutlet?.id,
+          toSubOutlet: toSubOutletName || '—',
+          toSubOutletId,
+          toSubLocation: toSubLocationName || '—',
+          toSubLocationId,
           vehicleNumber: t.vehicleNumber || '—',
           driverName: t.driverName || '—',
           driverContact: t.driverContact || '',
@@ -223,7 +281,7 @@ const StockTransferDiscrepancyApproval = () => {
     } finally {
       setLoading(false);
     }
-  }, [isCompanyUser, isGroupUser, selectedCompanyId]);
+  }, [isCompanyUser, isGroupUser, selectedCompanyId, subOutletMap, subLocationMap]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {
@@ -332,7 +390,7 @@ const StockTransferDiscrepancyApproval = () => {
         id: 'fromOutlet',
         accessorFn: (row) => row.fromOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader title="FROM UNIT" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -349,7 +407,7 @@ const StockTransferDiscrepancyApproval = () => {
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="TO OUTLET" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader title="TO UNIT" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
@@ -470,7 +528,7 @@ const StockTransferDiscrepancyApproval = () => {
             iconColor="#2952E3"
           />
           <StatCard
-            label="Active Outlets with Issues"
+            label="Active Units with Issues"
             value={new Set(transfers.map((t) => t.toOutletId).filter(Boolean)).size}
             icon={ArrowLeftRight}
             iconBg="#ECFDF3"
@@ -478,7 +536,7 @@ const StockTransferDiscrepancyApproval = () => {
           />
         </div>
 
-        {/* Filters Bar - Long Search bar & Single Outlet Dropdown */}
+        {/* Filters Bar - Long Search bar & Single Unit Dropdown */}
         <div className="bg-white border border-[#E7EAF0] rounded-2xl p-3.5 shadow-2xs">
           <div className="flex flex-col sm:flex-row items-center gap-3">
             {/* Long Search Bar */}
@@ -487,18 +545,18 @@ const StockTransferDiscrepancyApproval = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onClear={() => setSearch('')}
-                placeholder="Search transfer code, outlet, vehicle, driver..."
+                placeholder="Search transfer code, unit, vehicle, driver..."
               />
             </div>
 
-            {/* Single Outlet Filter - Only visible for Company and Group users, hidden for Outlet users */}
+            {/* Single Unit Filter - Only visible for Company and Group users, hidden for Unit users */}
             {!isOutletUser && (
               <div className="w-full sm:w-72 shrink-0">
                 <SearchableSelect
                   options={outletSelectOptions}
                   value={selectedOutletId}
                   onChange={(e) => setSelectedOutletId(e.target.value)}
-                  placeholder="All Outlets"
+                  placeholder="All Units"
                   className="w-full"
                 />
               </div>

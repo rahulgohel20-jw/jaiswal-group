@@ -416,7 +416,7 @@ const RawMaterialBarcode = () => {
   const fetchBatches = useCallback(
     async (pageIndex = pagination.pageIndex, pageSize = pagination.pageSize) => {
       if (!outletId) {
-        notify.error("Please select an Outlet first");
+        notify.error("Please select a Unit first");
         return;
       }
       if (selectedMaterialIds.length === 0) {
@@ -632,7 +632,7 @@ const RawMaterialBarcode = () => {
         accessorFn: (row) => row.subOutletName || row.subUnitName || "",
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="SUB OUTLET"
+            title="SUB UNIT"
             column={column}
             className="my-2 text-xs"
           />
@@ -754,10 +754,10 @@ const RawMaterialBarcode = () => {
         {/* First Row: 4 Cascading Searchable Fields + List Button */}
         <div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end">
-            {/* 1. Outlet (Required) */}
+            {/* 1. Unit (Required) */}
             <div className="lg:col-span-3">
               <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                Outlet <span className="text-red-500">*</span>
+                Unit <span className="text-red-500">*</span>
               </label>
               <SearchableSelect
                 name="outletId"
@@ -765,14 +765,14 @@ const RawMaterialBarcode = () => {
                 disabled={!showUnitDropdown || orgScopeLoading}
                 onChange={(e) => handleOutletChange(e.target.value)}
                 options={outletOptions}
-                placeholder="Select Outlet *"
+                placeholder="Select Unit *"
               />
             </div>
 
-            {/* 2. Sub Outlet */}
+            {/* 2. Sub Unit */}
             <div className="lg:col-span-2">
               <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                Sub Outlet
+                Sub Unit
               </label>
               <SearchableSelect
                 name="subOutletId"
@@ -781,9 +781,9 @@ const RawMaterialBarcode = () => {
                 onChange={(e) => handleSubOutletChange(e.target.value)}
                 options={subOutlets.map((so) => ({
                   value: String(so.id),
-                  label: so.subOutletName || so.name || `Sub Outlet #${so.id}`,
+                  label: so.subOutletName || so.name || `Sub Unit #${so.id}`,
                 }))}
-                placeholder="All Sub Outlets"
+                placeholder="All Sub Units"
               />
             </div>
 
@@ -832,7 +832,7 @@ const RawMaterialBarcode = () => {
                 }`}
                 title={
                   !outletId
-                    ? "Select an Outlet"
+                    ? "Select a Unit"
                     : selectedMaterialIds.length === 0
                     ? "Select Raw Material"
                     : "Click to list stock batches"
@@ -875,7 +875,7 @@ const RawMaterialBarcode = () => {
                 Ready to Fetch Batches
               </h4>
               <p className="text-xs text-gray-500 max-w-sm mt-0.5">
-                Select an Outlet and Raw Material(s), then click the <strong>List</strong> button to load stock batches.
+                Select a Unit and Raw Material(s), then click the <strong>List</strong> button to load stock batches.
               </p>
             </div>
           ) : batches.length === 0 ? (

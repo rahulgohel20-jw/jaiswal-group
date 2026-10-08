@@ -57,12 +57,12 @@ const GenerateGrnInvoice = () => {
         const raw = res?.data?.data || res?.data?.content || res?.data || [];
         setOutlets(Array.isArray(raw) ? raw.map(o => ({
           id: o.id,
-          name: o.companyNameEnglish || o.name || `Outlet #${o.id}`,
+          name: o.companyNameEnglish || o.name || `Unit #${o.id}`,
           stateId: o.stateId ?? o.state?.id
         })) : []);
       } catch (err) {
         console.error(err);
-        toast.error('Failed to load outlets');
+        toast.error('Failed to load units');
       } finally {
         setOutletsLoading(false);
       }
@@ -569,12 +569,12 @@ const GenerateGrnInvoice = () => {
     }
 
     if (!selectedOutletId) {
-      toast.error('Outlet is missing');
+      toast.error('Unit is missing');
       return;
     }
 
     if (vendorStateId == null || outletStateId == null) {
-      toast.error('Vendor or outlet state is missing');
+      toast.error('Vendor or unit state is missing');
       return;
     }
 
@@ -754,7 +754,7 @@ const GenerateGrnInvoice = () => {
             </div>
 
             <div className="min-w-0">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Outlet</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Unit</label>
               <div className="w-full h-10 px-3 flex items-center rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-700 truncate">
                 {outletsLoading ? 'Loading...' : outletName}
               </div>

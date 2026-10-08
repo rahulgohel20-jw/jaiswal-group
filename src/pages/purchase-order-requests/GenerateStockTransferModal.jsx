@@ -11,9 +11,6 @@ import {
   Package,
 } from 'lucide-react';
 import {
-  getOrganizationByType,
-  getAllSubOutletsByOrganization,
-  getAllSubLocationsBySubOutletId,
   saveTransfer,
   getCurrentStockListGet,
   getAllRawMaterialItems,
@@ -36,8 +33,11 @@ export const GenerateStockTransferModal = ({
     isCompanyUser,
     isGroupUser,
     units: scopedUnits,
+    outlets: scopedOutlets,
     effectiveOutletId,
     loading: scopeLoading,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
   const [items, setItems] = useState([]);
@@ -267,39 +267,16 @@ export const GenerateStockTransferModal = ({
     };
   }, [isOpen]);
 
-  // Load all outlets (for Group user or destination outlet selection)
+  // Map all outlets for selection
   useEffect(() => {
     if (!isOpen) return;
-    let isCancelled = false;
-    setLoadingOutlets(true);
-    getOrganizationByType(OrgTypes.OUTLET)
-      .then((res) => {
-        if (isCancelled) return;
-        const raw =
-          res?.data?.data ??
-          res?.data?.organizations ??
-          res?.data?.outlets ??
-          res?.data ??
-          res ??
-          [];
-        const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((o) => ({
-          id: String(o.id),
-          name: o.companyNameEnglish || o.name || o.companyName || `Outlet #${o.id}`,
-        }));
-        setOutlets(mapped);
-      })
-      .catch((err) => {
-        console.error('Failed to load outlets for stock transfer:', err);
-      })
-      .finally(() => {
-        if (!isCancelled) setLoadingOutlets(false);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen]);
+    const list = (scopedOutlets && scopedOutlets.length > 0) ? scopedOutlets : (scopedUnits || []);
+    const mapped = list.map((o) => ({
+      id: String(o.id),
+      name: o.companyNameEnglish || o.name || o.companyName || `Outlet #${o.id}`,
+    }));
+    setOutlets(mapped);
+  }, [isOpen, scopedOutlets, scopedUnits]);
 
   // Load sub-outlets for "From Outlet" (without auto-selecting first item)
   useEffect(() => {
@@ -310,31 +287,13 @@ export const GenerateStockTransferModal = ({
       setFromSubLocationId('');
       return;
     }
-    let isCancelled = false;
-    setLoadingFromSubs(true);
-    getAllSubOutletsByOrganization(fromOutletId)
-      .then((res) => {
-        if (isCancelled) return;
-        const raw = res?.data?.data ?? res?.data ?? res ?? [];
-        const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((s) => ({
-          id: String(s.id),
-          name: s.subOutletName || s.name || s.subOutlet || `Sub-Outlet #${s.id}`,
-        }));
-        setFromSubOutlets(mapped);
-      })
-      .catch((err) => {
-        console.warn('Failed to load sub-outlets for fromOutlet:', err);
-        if (!isCancelled) setFromSubOutlets([]);
-      })
-      .finally(() => {
-        if (!isCancelled) setLoadingFromSubs(false);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen, fromOutletId]);
+    const list = getSubOutlets(fromOutletId) || [];
+    const mapped = list.map((s) => ({
+      id: String(s.id),
+      name: s.subOutletName || s.name || s.subOutlet || `Sub-Outlet #${s.id}`,
+    }));
+    setFromSubOutlets(mapped);
+  }, [isOpen, fromOutletId, getSubOutlets]);
 
   // Load sub-locations for "From Sub-Outlet"
   useEffect(() => {
@@ -343,37 +302,13 @@ export const GenerateStockTransferModal = ({
       setFromSubLocationId('');
       return;
     }
-    let isCancelled = false;
-    setLoadingFromSubLocations(true);
-    getAllSubLocationsBySubOutletId(fromSubOutletId)
-      .then((res) => {
-        if (isCancelled) return;
-        const raw =
-          res?.data?.data?.content ??
-          res?.data?.content ??
-          res?.data?.data ??
-          res?.data ??
-          res ??
-          [];
-        const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((s) => ({
-          id: String(s.id),
-          name: s.locationName || s.name || `Sub-Location #${s.id}`,
-        }));
-        setFromSubLocations(mapped);
-      })
-      .catch((err) => {
-        console.warn('Failed to load sub-locations for fromSubOutlet:', err);
-        if (!isCancelled) setFromSubLocations([]);
-      })
-      .finally(() => {
-        if (!isCancelled) setLoadingFromSubLocations(false);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen, fromSubOutletId]);
+    const list = getSubLocations(fromSubOutletId) || [];
+    const mapped = list.map((s) => ({
+      id: String(s.id),
+      name: s.locationName || s.name || `Sub-Location #${s.id}`,
+    }));
+    setFromSubLocations(mapped);
+  }, [isOpen, fromSubOutletId, getSubLocations]);
 
   // Load sub-outlets for "To Outlet" (without auto-selecting first item)
   useEffect(() => {
@@ -384,31 +319,13 @@ export const GenerateStockTransferModal = ({
       setToSubLocationId('');
       return;
     }
-    let isCancelled = false;
-    setLoadingToSubs(true);
-    getAllSubOutletsByOrganization(toOutletId)
-      .then((res) => {
-        if (isCancelled) return;
-        const raw = res?.data?.data ?? res?.data ?? res ?? [];
-        const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((s) => ({
-          id: String(s.id),
-          name: s.subOutletName || s.name || s.subOutlet || `Sub-Outlet #${s.id}`,
-        }));
-        setToSubOutlets(mapped);
-      })
-      .catch((err) => {
-        console.warn('Failed to load sub-outlets for toOutlet:', err);
-        if (!isCancelled) setToSubOutlets([]);
-      })
-      .finally(() => {
-        if (!isCancelled) setLoadingToSubs(false);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen, toOutletId]);
+    const list = getSubOutlets(toOutletId) || [];
+    const mapped = list.map((s) => ({
+      id: String(s.id),
+      name: s.subOutletName || s.name || s.subOutlet || `Sub-Outlet #${s.id}`,
+    }));
+    setToSubOutlets(mapped);
+  }, [isOpen, toOutletId, getSubOutlets]);
 
   // Load sub-locations for "To Sub-Outlet"
   useEffect(() => {
@@ -417,37 +334,13 @@ export const GenerateStockTransferModal = ({
       setToSubLocationId('');
       return;
     }
-    let isCancelled = false;
-    setLoadingToSubLocations(true);
-    getAllSubLocationsBySubOutletId(toSubOutletId)
-      .then((res) => {
-        if (isCancelled) return;
-        const raw =
-          res?.data?.data?.content ??
-          res?.data?.content ??
-          res?.data?.data ??
-          res?.data ??
-          res ??
-          [];
-        const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((s) => ({
-          id: String(s.id),
-          name: s.locationName || s.name || `Sub-Location #${s.id}`,
-        }));
-        setToSubLocations(mapped);
-      })
-      .catch((err) => {
-        console.warn('Failed to load sub-locations for toSubOutlet:', err);
-        if (!isCancelled) setToSubLocations([]);
-      })
-      .finally(() => {
-        if (!isCancelled) setLoadingToSubLocations(false);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen, toSubOutletId]);
+    const list = getSubLocations(toSubOutletId) || [];
+    const mapped = list.map((s) => ({
+      id: String(s.id),
+      name: s.locationName || s.name || `Sub-Location #${s.id}`,
+    }));
+    setToSubLocations(mapped);
+  }, [isOpen, toSubOutletId, getSubLocations]);
 
   // Stable key for item IDs
   const itemIdsKey = useMemo(() => {
@@ -700,7 +593,7 @@ export const GenerateStockTransferModal = ({
             <div className="px-5 py-3.5 bg-blue-50/40 border-b border-blue-50 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#084E92]">
                 <GitFork className="w-4 h-4 text-[#084E92]" />
-                OUTLET & SUBOUTLET CONFIGURATION
+                UNIT & SUB-UNIT CONFIGURATION
               </div>
             </div>
 
@@ -712,10 +605,10 @@ export const GenerateStockTransferModal = ({
                   Origin (Source)
                 </div>
 
-                {/* From Outlet */}
+                {/* From Unit */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    From Outlet <span className="text-red-500">*</span>
+                    From Unit <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -734,7 +627,7 @@ export const GenerateStockTransferModal = ({
                         errors.fromOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
                       }`}
                     >
-                      <option value="">Select From Outlet</option>
+                      <option value="">Select From Unit</option>
                       {(outlets.length > 0 ? outlets : availableFromOutlets).map((o) => (
                         <option key={o.id} value={o.id}>
                           {o.name}
@@ -816,10 +709,10 @@ export const GenerateStockTransferModal = ({
                   Destination (To)
                 </div>
 
-                {/* To Outlet */}
+                {/* To Unit */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    To Outlet <span className="text-red-500">*</span>
+                    To Unit <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
@@ -838,7 +731,7 @@ export const GenerateStockTransferModal = ({
                         errors.toOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
                       }`}
                     >
-                      <option value="">Select To Outlet</option>
+                      <option value="">Select To Unit</option>
                       {outlets.map((o) => (
                         <option key={o.id} value={o.id}>
                           {o.name}

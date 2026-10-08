@@ -93,7 +93,7 @@ const StatusBadge = ({ status }) => {
   const color = STATUS_TEXT_COLORS[status] || 'text-gray-700';
   const label = status === 'TO BE GENERATED' ? 'Pending PO' : (status || '—');
   return (
-    <span title={status || '—'} className={`text-xs font-semibold truncate block max-w-full ${color}`}>
+    <span title={status || '—'} className={`text-xs font-semibold whitespace-nowrap ${color}`}>
       {label}
     </span>
   );
@@ -109,7 +109,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ?? ''}
         onChange={(e) => onChange(e.target.value)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'Select outlet...'}
+        placeholder={units.length === 0 ? 'No units available' : 'Select unit...'}
         disabled={units.length === 0}
       />
     </div>
@@ -227,13 +227,12 @@ const PurchaseOrderRequest = () => {
     remove,
   } = usePurchaseOrders();
 
-  // Real POs — fetched per active status group (see the PO effect below) and
-  // cached per group so switching filters doesn't lose data already fetched.
+  // Real POs — fetched in a single call without status parameter.
   const {
     list: poRawList,
     loading: poLoading,
     error: poError,
-    fetchByOutletandStatus,
+    fetchByOutlet,
   } = usePurchaseOrders();
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
@@ -244,60 +243,27 @@ const PurchaseOrderRequest = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
-  const [poCache, setPoCache] = useState({});
 
   const currentUnitId = effectiveOutletId;
   const isAwaitingPoOnly = activeGroup === AWAITING_PO_GROUP;
   const isAllGroups = activeGroup === ALL_GROUP;
 
-  // Manual/full refresh (used by the error banner's Retry and after a
-  // reject/delete action) — refetches both the PR-approved list and
-  // whichever PO group is currently active.
+  // Manual/full refresh
   const loadData = () => {
     if (scopeLoading) return;
-    if (isAllGroups || isAwaitingPoOnly) {
-      fetchApprovedRequestsByOutlet(currentUnitId);
-    }
-    if (!isAwaitingPoOnly) {
-      const statuses = isAllGroups ? [] : (GROUP_TO_STATUSES[activeGroup] || []);
-      fetchByOutletandStatus(currentUnitId, statuses);
-    }
+    fetchApprovedRequestsByOutlet(currentUnitId);
+    fetchByOutlet(currentUnitId);
   };
 
-  // ---- Stage 1: Approved PRs with no PO yet (Awaiting PO) ----
   useEffect(() => {
     if (scopeLoading) return;
-    if (isAllGroups || isAwaitingPoOnly) {
-      fetchApprovedRequestsByOutlet(currentUnitId);
-    }
-  }, [scopeLoading, currentUnitId, activeGroup, isAllGroups, isAwaitingPoOnly, fetchApprovedRequestsByOutlet]);
-
-  // ---- Stage 2: POs per group ----
-  useEffect(() => {
-    if (scopeLoading) return;
-    if (isAwaitingPoOnly) return;
-    const statuses = isAllGroups ? [] : (GROUP_TO_STATUSES[activeGroup] || []);
-    fetchByOutletandStatus(currentUnitId, statuses);
-  }, [scopeLoading, currentUnitId, activeGroup, isAwaitingPoOnly, isAllGroups, fetchByOutletandStatus]);
-
-  // Merge freshly-fetched POs into the per-group cache
-  useEffect(() => {
-    if (isAwaitingPoOnly) return;
-    if (!poRawList) return;
-    setPoCache((prev) => ({
-      ...prev,
-      [activeGroup]: poRawList,
-    }));
-  }, [poRawList, activeGroup, isAwaitingPoOnly]);
+    fetchApprovedRequestsByOutlet(currentUnitId);
+    fetchByOutlet(currentUnitId);
+  }, [scopeLoading, currentUnitId, fetchApprovedRequestsByOutlet, fetchByOutlet]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [search, activeGroup, currentUnitId]);
-
-  // Clear the per-group cache whenever the outlet changes so stale data never leaks.
-  useEffect(() => {
-    setPoCache({});
-  }, [currentUnitId]);
 
   const handleReject = async (row) => {
     setRejectingId(row.id);
@@ -338,11 +304,6 @@ const PurchaseOrderRequest = () => {
         userId,
         actionBy,
       });
-      setPoCache((prev) => ({
-        ...prev,
-        DRAFT: (prev.DRAFT || []).filter((p) => p.id !== deleteTarget.id),
-        ALL: (prev.ALL || []).filter((p) => p.id !== deleteTarget.id),
-      }));
       closeDeleteConfirm();
       loadData();
     } catch (err) {
@@ -363,27 +324,25 @@ const PurchaseOrderRequest = () => {
       expectedDeliveryDate: r.requiredDate,
     }));
 
+    const formattedPos = (poRawList || []).map((p) => ({
+      ...p,
+      stage: STAGE.PO,
+      group: PO_STATUS_GROUP[p.rawStatus] || 'UNKNOWN',
+      displayStatus: getPoStatusLabel(p.rawStatus),
+    }));
+
     let result = [];
     if (isAwaitingPoOnly) {
       result = formattedPrs;
+    } else if (isAllGroups) {
+      result = [...formattedPrs, ...formattedPos];
     } else {
-      const currentGroupPos = poCache[activeGroup] || [];
-      const formattedPos = currentGroupPos.map((p) => ({
-        ...p,
-        stage: STAGE.PO,
-        group: PO_STATUS_GROUP[p.rawStatus] || 'UNKNOWN',
-        displayStatus: getPoStatusLabel(p.rawStatus),
-      }));
-
-      if (isAllGroups) {
-        result = [...formattedPrs, ...formattedPos];
-      } else {
-        result = formattedPos;
-      }
+      const allowedStatuses = GROUP_TO_STATUSES[activeGroup] || [];
+      result = formattedPos.filter((p) => allowedStatuses.includes(p.rawStatus));
     }
 
     return filterRowsByScope(result);
-  }, [isAwaitingPoOnly, isAllGroups, prList, poCache, activeGroup, filterRowsByScope]);
+  }, [isAwaitingPoOnly, isAllGroups, prList, poRawList, activeGroup, filterRowsByScope]);
 
   // Unified columns suitable for both PRs (Awaiting PO) and POs
   const columns = useMemo(() => {
@@ -448,7 +407,7 @@ const PurchaseOrderRequest = () => {
       {
         accessorKey: 'outlet',
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
         enableSorting: false,
@@ -484,7 +443,7 @@ const PurchaseOrderRequest = () => {
         ),
         cell: ({ row }) => <StatusBadge status={row.original.displayStatus} />,
         enableSorting: false,
-        size: 80,
+        size: 155,
       },
       {
         id: 'actions',
@@ -571,16 +530,23 @@ const PurchaseOrderRequest = () => {
   }, [rejectingId, canAdd, canEdit, canDelete]);
 
   const groupCounts = useMemo(() => {
-    return {
+    const counts = {
       AWAITING_PO: prList.length,
-      DRAFT: (poCache.DRAFT || []).length,
-      PENDING_APPROVAL: (poCache.PENDING_APPROVAL || []).length,
-      IN_PROGRESS: (poCache.IN_PROGRESS || []).length,
-      APPROVED: (poCache.APPROVED || []).length,
-      CLOSED: (poCache.CLOSED || []).length,
-      REJECTED: (poCache.REJECTED || []).length,
+      DRAFT: 0,
+      PENDING_APPROVAL: 0,
+      IN_PROGRESS: 0,
+      APPROVED: 0,
+      CLOSED: 0,
+      REJECTED: 0,
     };
-  }, [prList, poCache]);
+    (poRawList || []).forEach((p) => {
+      const group = PO_STATUS_GROUP[p.rawStatus];
+      if (group && counts[group] !== undefined) {
+        counts[group] += 1;
+      }
+    });
+    return counts;
+  }, [prList, poRawList]);
 
   const filteredRequests = useMemo(() => {
     const keyword = search.toLowerCase().trim();

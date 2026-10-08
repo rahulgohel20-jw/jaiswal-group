@@ -67,7 +67,7 @@ const extractArray = (res) => {
 
 const ASSIGN_TYPE_META = {
   individual: { label: 'Individual', className: 'bg-purple-100 text-purple-700' },
-  company_outlet: { label: 'Company/Outlet', className: 'bg-sky-100 text-sky-700' },
+  company_outlet: { label: 'Company/Unit', className: 'bg-sky-100 text-sky-700' },
 };
 
 
@@ -206,7 +206,7 @@ const AssignmentPreviewDrawer = ({
               </div>
               <div className="col-span-2">
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                  Location / Outlet
+                  Location / Unit
                 </p>
                 <p className="text-xs font-semibold text-gray-800 mt-1">
                   {assignment.location}
@@ -600,7 +600,7 @@ const AssignAssets = () => {
       accessorFn: (row) => row.companiesName,
       header: ({ column }) => (
         <DataGridColumnHeader
-          title="OUTLET"
+          title="UNIT"
           column={column}
           className="my-2 text-xs"
         />
@@ -616,7 +616,7 @@ const AssignAssets = () => {
       accessorFn: (row) => row.subOutletName,
       header: ({ column }) => (
         <DataGridColumnHeader
-          title="SUB OUTLET"
+          title="SUB UNIT"
           column={column}
           className="my-2 text-xs"
         />
@@ -781,14 +781,14 @@ const AssignAssets = () => {
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Outlet */}
+              {/* Unit */}
               <div>
                 <Select value={outletInput} onValueChange={setOutletInput}>
                   <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
-                    <SelectValue placeholder="All Outlets" />
+                    <SelectValue placeholder="All Units" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="All">All Outlets</SelectItem>
+                    <SelectItem value="All">All Units</SelectItem>
                     {outletOptions.map((name) => (
                       <SelectItem key={name} value={name}>
                         {name}

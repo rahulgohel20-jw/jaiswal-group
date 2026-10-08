@@ -353,8 +353,8 @@ const TableOutletMultiSelect = ({
                     {selected.length > 3 ? (
                         <span className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-[11px] font-semibold px-2 py-0.5 rounded-md">
                             {isAllSelected
-                                ? `All Outlets (${options.length})`
-                                : `Selected Outlets (${selected.length})`}
+                                ? `All Units (${options.length})`
+                                : `Selected Units (${selected.length})`}
                             {!disabled && (
                                 <X
                                     size={11}
@@ -369,7 +369,7 @@ const TableOutletMultiSelect = ({
                     ) : (
                         selected.map((selectedId) => {
                             const unitObj = options.find((o) => String(o.id) === String(selectedId));
-                            const unitName = unitObj?.name || `Outlet #${selectedId}`;
+                            const unitName = unitObj?.name || `Unit #${selectedId}`;
 
                             return (
                                 <span
@@ -399,9 +399,9 @@ const TableOutletMultiSelect = ({
                         disabled={disabled}
                         placeholder={
                             options.length === 0
-                                ? 'No mapped outlet'
+                                ? 'No mapped unit'
                                 : selected.length === 0
-                                    ? 'Select or search outlet...'
+                                    ? 'Select or search unit...'
                                     : ''
                         }
                         onClick={(e) => {
@@ -443,7 +443,7 @@ const TableOutletMultiSelect = ({
             >
                 {filteredOptions.length === 0 ? (
                     <p className="px-3 py-2 text-gray-400 text-center">
-                        {options.length === 0 ? 'No mapped outlets available for you.' : 'No outlets found.'}
+                        {options.length === 0 ? 'No mapped units available for you.' : 'No units found.'}
                     </p>
                 ) : (
                     <>
@@ -455,7 +455,7 @@ const TableOutletMultiSelect = ({
                                     onChange={toggleSelectAll}
                                     className="accent-[#00376C] rounded"
                                 />
-                                All Outlets ({options.length})
+                                All Units ({options.length})
                             </label>
                         )}
 
@@ -1192,7 +1192,7 @@ const VendorPriceAssociation = () => {
             if (unmappedRows.length > 0) {
                 const errs = {};
                 unmappedRows.forEach((r) => {
-                    errs[r.rowId] = 'Vendor is not mapped to your outlet. Remove this row.';
+                    errs[r.rowId] = 'Vendor is not mapped to your unit. Remove this row.';
                 });
                 setSupplierErrors((prev) => ({ ...prev, ...errs }));
                 return;
@@ -1222,7 +1222,7 @@ const VendorPriceAssociation = () => {
         if (missingOutletRows.length > 0) {
             const errs = {};
             missingOutletRows.forEach((row) => {
-                errs[row.rowId] = 'At least one outlet is required';
+                errs[row.rowId] = 'At least one unit is required';
             });
             setSupplierErrors((prev) => ({ ...prev, ...errs }));
             return;
@@ -1234,7 +1234,7 @@ const VendorPriceAssociation = () => {
                 (oid) => !isVendorMappedToOutlet(row.supplierId, oid)
             );
             if (invalidOutlets.length > 0) {
-                unmappedOutletErrs[row.rowId] = 'One or more selected outlets are not mapped to this vendor.';
+                unmappedOutletErrs[row.rowId] = 'One or more selected units are not mapped to this vendor.';
             }
         });
 

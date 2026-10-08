@@ -147,13 +147,13 @@ const OpbStockRequestDetailsModal = ({
 
                                 <FieldCard
                                     icon={Home}
-                                    label="Outlet"
+                                    label="Unit"
                                     value={request.organizationName}
                                 />
 
                                 <FieldCard
                                     icon={Building2}
-                                    label="Sub-Outlet"
+                                    label="Sub-Unit"
                                     value={request.subOutletName}
                                 />
 

@@ -348,10 +348,18 @@ const OpbStockCreateRequestListing = () => {
                 header: ({ column }) => (
                     <DataGridColumnHeader title="OPB QTY" column={column} className="text-xs font-bold" />
                 ),
-                cell: ({ row }) => (
-                    <span className="font-bold text-xs text-gray-800 whitespace-nowrap">
-                        {row.original.quantity} {formatUnit(row.original.unitSymbol || row.original.unitName)}
-                    </span>
+                cell: ({ row }) => <span className="text-gray-700 text-xs">{row.original.quantity}</span>,
+                size: 70,
+            },
+            {
+                id: 'organizationName',
+                accessorFn: (row) => row.organizationName,
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="Unit"
+                        column={column}
+                        className="text-[#43474F] font-semibold uppercase text-sm"
+                    />
                 ),
                 enableSorting: false,
                 size: 90,
@@ -360,7 +368,11 @@ const OpbStockCreateRequestListing = () => {
                 id: 'createdBy',
                 accessorFn: (row) => row.createdByName || row.createdBy,
                 header: ({ column }) => (
-                    <DataGridColumnHeader title="ADDED BY" column={column} className="text-xs font-bold" />
+                    <DataGridColumnHeader
+                        title="Sub-Unit"
+                        column={column}
+                        className="text-[#43474F] font-semibold uppercase text-sm"
+                    />
                 ),
                 cell: ({ row }) => (
                     <span className="text-gray-700 text-xs block truncate max-w-27.5" title={row.original.createdByName || row.original.createdBy}>
@@ -441,54 +453,14 @@ const OpbStockCreateRequestListing = () => {
                     onRetry={orgScopeError ? retryScope : fetchOpbList}
                 />
 
-                {/* Filter Bar: Search + Outlet + Sub-Outlet */}
-                <div className="space-y-3">
-                    <div className={`grid grid-cols-1 ${isOutletUser ? ' md:grid-cols-2' : ' md:grid-cols-3'} gap-2.5`}>
-                        {/* Search Input */}
-                        <div>
-                            <SearchBar
-                                isStandalone={false}
-                                placeholder="Search by Request Code, Item, Outlet..."
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                onClear={() => setSearchInput('')}
-                                wrapperClassName="w-full"
-                            />
-                        </div>
-
-                        {/* Outlet Filter (Hidden for Outlet-locked Users) */}
-                        {!isOutletUser && (
-                            <div>
-                                <SearchableSelect
-                                    name="outlet"
-                                    value={selectedOutletId}
-                                    onChange={(e) => {
-                                        setSelectedOutletId(e.target.value);
-                                        setSelectedSubOutletId('');
-                                        setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-                                    }}
-                                    options={outletOptions}
-                                    placeholder="All Outlets..."
-                                />
-                            </div>
-                        )}
-
-                        {/* Sub-Outlet Filter */}
-                        <div>
-                            <SearchableSelect
-                                name="subOutlet"
-                                value={selectedSubOutletId}
-                                onChange={(e) => {
-                                    setSelectedSubOutletId(e.target.value);
-                                    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-                                }}
-                                options={subOutletOptions}
-                                disabled={!isOutletUser && !selectedOutletId}
-                                placeholder={!isOutletUser && !selectedOutletId ? 'Select Outlet First' : 'All Sub-Outlets...'}
-                            />
-                        </div>
-                    </div>
-                </div>
+                {/* Search */}
+                <SearchBar
+                    isStandalone={true}
+                    placeholder="Search by Request Code, Unit, or Sub-Unit..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onClear={() => setSearchInput('')}
+                />
 
                 {/* Table Card */}
                 <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">

@@ -100,7 +100,7 @@ function StatusPill({ status }) {
     <span
       style={{ color: meta.fg }}
       title={getPoStatusLabel(status)}
-      className="text-xs font-semibold truncate block max-w-full"
+      className="text-xs font-semibold whitespace-nowrap"
     >
       {getPoStatusLabel(status)}
     </span>
@@ -239,19 +239,14 @@ const PurchaseOrderApproval = () => {
     list: allPos,
     loading: poLoading,
     error: poError,
-    fetchByOutletandStatus,
+    fetchByOutlet,
   } = usePurchaseOrders();
 
   const currentUnitId = effectiveOutletId;
 
-  const targetStatus = useMemo(() => {
-    if (!statusFilter || statusFilter === ALL_STATUS) return APPROVER_VISIBLE_STATUSES;
-    return statusFilter;
-  }, [statusFilter]);
-
   const loadData = () => {
     if (scopeLoading || scopeError) return;
-    fetchByOutletandStatus(currentUnitId, targetStatus);
+    fetchByOutlet(currentUnitId);
   };
 
   useEffect(() => {
@@ -259,7 +254,7 @@ const PurchaseOrderApproval = () => {
       loadData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeLoading, scopeError, currentUnitId, targetStatus]);
+  }, [scopeLoading, scopeError, currentUnitId]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -487,7 +482,7 @@ const PurchaseOrderApproval = () => {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
         enableSorting: false,
@@ -526,7 +521,7 @@ const PurchaseOrderApproval = () => {
         ),
         cell: ({ row }) => <StatusPill status={row.original.rawStatus} />,
         enableSorting: false,
-        size: 80,
+        size: 155,
       },
       {
         id: 'action',
@@ -690,7 +685,7 @@ const PurchaseOrderApproval = () => {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onClear={() => setQuery('')}
-              placeholder="Search PO code or outlet..."
+              placeholder="Search PO code or unit..."
             />
           </div>
           {showUnitDropdown && (

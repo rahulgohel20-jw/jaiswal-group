@@ -6,10 +6,10 @@ const OutletChangeConfirmModal = ({
   isOpen,
   onClose,
   onConfirm,
-  outletName = 'selected outlet',
+  outletName = 'selected unit',
   itemCount = 0,
   loading = false,
-  title = 'Change Outlet & Update Stock?',
+  title = 'Change Unit & Update Stock?',
   description,
 }) => {
   if (!isOpen) return null;
@@ -47,7 +47,7 @@ const OutletChangeConfirmModal = ({
           <p className="text-xs text-gray-600 leading-relaxed">
             {description || (
               <>
-                Changing the outlet to <strong className="text-gray-900">{outletName}</strong> will recalculate and update the available stock for the <strong className="text-gray-900">{itemCount} item{itemCount !== 1 ? 's' : ''}</strong> currently in your list. Do you want to proceed?
+                Changing the unit to <strong className="text-gray-900">{outletName}</strong> will recalculate and update the available stock for the <strong className="text-gray-900">{itemCount} item{itemCount !== 1 ? 's' : ''}</strong> currently in your list. Do you want to proceed?
               </>
             )}
           </p>
