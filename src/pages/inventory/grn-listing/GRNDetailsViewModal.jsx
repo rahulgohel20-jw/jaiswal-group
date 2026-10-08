@@ -18,9 +18,9 @@ import { useExportReport } from '@/hooks/useExportReport';
 import { toast } from 'sonner';
 
 const InfoCard = ({ label, children, className = '' }) => (
-  <div className={`border border-gray-200 rounded-xl px-4 py-3 bg-[#FDFDFE] shadow-2xs ${className}`}>
-    <p className="text-[11px] font-semibold tracking-wide text-gray-500 uppercase">{label}</p>
-    <div className="mt-1">{children}</div>
+  <div className={`border border-gray-200 rounded-lg px-3 py-2 bg-[#FDFDFE] shadow-2xs ${className}`}>
+    <p className="text-[10px] font-semibold tracking-wide text-gray-500 uppercase">{label}</p>
+    <div className="mt-0.5">{children}</div>
   </div>
 );
 
@@ -171,21 +171,21 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
     null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white w-full max-w-5xl rounded-2xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col border border-gray-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+      <div className="bg-white w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col border border-gray-100">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4.5 border-b border-gray-100 shrink-0 bg-white">
+        <div className="flex items-start justify-between px-5 py-3.5 border-b border-gray-100 shrink-0 bg-white">
           <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-lg font-bold text-gray-900">GRN Details View</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-base font-bold text-gray-900">GRN Details View</h2>
               {grn?.status && <StatusPill status={grn?.status} />}
             </div>
-            <p className="text-xs text-gray-500 mt-1 font-mono">{grn?.grnCode}</p>
+            <p className="text-xs text-gray-500 mt-0.5 font-mono">{grn?.grnCode}</p>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition cursor-pointer shrink-0"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
@@ -193,44 +193,43 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
 
         {/* Body (scrollable) */}
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-2">
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400 gap-2">
             <div className="w-6 h-6 border-2 border-[#084E92] border-t-transparent rounded-full animate-spin" />
             <p className="text-sm">Loading GRN details...</p>
           </div>
         ) : (
-          <div className="px-6 py-5 space-y-5 overflow-y-auto">
+          <div className="px-5 py-4 space-y-4 overflow-y-auto">
             {/* Top info grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
-              {/* GRN Code spans 2 columns for clear visibility */}
-              <InfoCard label="GRN Code" className="sm:col-span-2">
-                <p className="text-sm font-bold text-[#084E92] font-mono tracking-tight select-all">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              <InfoCard label="GRN Code">
+                <p className="text-xs font-bold text-[#084E92] font-mono tracking-tight select-all truncate" title={grn?.grnCode}>
                   {grn?.grnCode || '—'}
                 </p>
               </InfoCard>
 
               <InfoCard label="GRN Date">
-                <p className="text-sm font-medium text-gray-800">{grn?.date || '—'}</p>
+                <p className="text-xs font-semibold text-gray-800">{grn?.date || '—'}</p>
               </InfoCard>
 
               <InfoCard label={grn?.poCodes && grn.poCodes.length > 1 ? "PO Codes" : "PO Code"}>
                 {grn?.poCodes && grn.poCodes.length > 1 ? (
-                  <div className="flex flex-wrap gap-1.5 mt-0.5">
+                  <div className="flex flex-wrap gap-1 mt-0.5">
                     {grn.poCodes.map((code, idx) => {
                       const poId = grn.purchaseOrderIds?.[idx];
                       return poId ? (
                         <Link
                           key={idx}
                           to={`/purchase/purchase-order-detail/${poId}`}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#084E92] bg-blue-50 border border-blue-200 hover:bg-blue-100 px-2 py-0.5 rounded transition"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 hover:bg-blue-100 px-1.5 py-0.5 rounded transition"
                           title={`View PO ${code}`}
                         >
                           <span>{code}</span>
-                          <ExternalLink size={11} />
+                          <ExternalLink size={10} />
                         </Link>
                       ) : (
                         <span
                           key={idx}
-                          className="inline-block text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded font-mono"
+                          className="inline-block text-[11px] font-semibold text-gray-800 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded font-mono"
                         >
                           {code}
                         </span>
@@ -240,58 +239,42 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
                 ) : grn?.purchaseOrderId ? (
                   <Link
                     to={`/purchase/purchase-order-detail/${grn.purchaseOrderId}`}
-                    className="flex items-center gap-1.5 text-sm font-bold text-[#084E92] hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-[#084E92] hover:underline truncate"
                   >
-                    <span>{grn.poCode}</span>
-                    <ExternalLink size={13} />
+                    <span className="truncate">{grn.poCode}</span>
+                    <ExternalLink size={11} className="shrink-0" />
                   </Link>
                 ) : (
-                  <p className="text-sm font-bold text-gray-800">{grn?.poCode || '—'}</p>
+                  <p className="text-xs font-bold text-gray-800 truncate">{grn?.poCode || '—'}</p>
                 )}
               </InfoCard>
 
               <InfoCard label="Unit Name">
-                <div className="flex items-center gap-2">
-                  {/* <Store size={15} className="text-[#084E92] shrink-0" /> */}
-                  <p className="text-sm font-semibold text-gray-800 truncate">{grn?.outletName || '—'}</p>
-                </div>
+                <p className="text-xs font-semibold text-gray-800 truncate" title={grn?.outletName}>{grn?.outletName || '—'}</p>
               </InfoCard>
 
               {grn?.subOutletName ? (
                 <InfoCard label="Sub-Unit">
-                  <div className="flex items-center gap-2">
-                    {/* <CornerDownRight size={15} className="text-[#084E92] shrink-0" /> */}
-                    <p className="text-sm font-semibold text-gray-800 truncate">{grn.subOutletName}</p>
-                  </div>
+                  <p className="text-xs font-semibold text-gray-800 truncate" title={grn.subOutletName}>{grn.subOutletName}</p>
                 </InfoCard>
               ) : null}
 
               {subLocationDisplay ? (
                 <InfoCard label="Sub-Location">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{subLocationDisplay}</p>
-                  </div>
+                  <p className="text-xs font-semibold text-gray-800 truncate" title={subLocationDisplay}>{subLocationDisplay}</p>
                 </InfoCard>
               ) : null}
 
               <InfoCard label="Vendor Name">
-                <div className="flex items-center gap-2">
-                  {/* <Building2 size={15} className="text-[#084E92] shrink-0" /> */}
-                  <p className="text-sm font-semibold text-gray-800 truncate">{grn?.vendorName || '—'}</p>
-                </div>
+                <p className="text-xs font-semibold text-gray-800 truncate" title={grn?.vendorName}>{grn?.vendorName || '—'}</p>
               </InfoCard>
 
               <InfoCard label="Raised By">
-                <div className="flex items-center gap-2">
-                  {/* <span className="w-5 h-5 rounded-full bg-blue-100 text-[#084E92] text-[10px] font-bold flex items-center justify-center shrink-0">
-                    {raisedByInitials}
-                  </span> */}
-                  <p className="text-sm font-semibold text-gray-800 truncate">{grn?.raisedBy || '—'}</p>
-                </div>
+                <p className="text-xs font-semibold text-gray-800 truncate" title={grn?.raisedBy}>{grn?.raisedBy || '—'}</p>
               </InfoCard>
 
               {grn?.remarks ? (
-                <InfoCard label="Remarks" className="sm:col-span-2 md:col-span-3">
+                <InfoCard label="Remarks" className="col-span-2 sm:col-span-3">
                   <p className="text-xs text-gray-700 italic">{grn.remarks}</p>
                 </InfoCard>
               ) : null}
@@ -299,61 +282,61 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
 
             {/* Attached Invoices & Documents */}
             {images.length > 0 && (
-              <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-2xs">
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <FileCheck size={16} className="text-[#084E92]" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+              <div className="border border-gray-200 rounded-lg p-3 bg-white shadow-2xs">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                  <div className="flex items-center gap-1.5">
+                    <FileCheck size={14} className="text-[#084E92]" />
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-gray-700">
                       Attached Invoices &amp; Documents
                     </h3>
                   </div>
-                  <span className="text-xs font-semibold text-gray-500">
+                  <span className="text-[11px] font-semibold text-gray-500">
                     {images.length} {images.length === 1 ? 'file' : 'files'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {images.map((img, idx) => {
                     const fileName = getFileNameFromUrl(img.path || img.filePath);
                     return (
                       <div
                         key={img.id || idx}
-                        className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition"
+                        className="flex items-center justify-between gap-2 p-2 rounded-lg border border-gray-200 bg-gray-50/50 hover:bg-gray-50 transition"
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#084E92] flex items-center justify-center shrink-0">
-                            <FileText size={16} />
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-md bg-blue-100 text-[#084E92] flex items-center justify-center shrink-0">
+                            <FileText size={14} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-semibold text-gray-800 truncate max-w-[180px]" title={fileName}>
+                            <p className="text-xs font-semibold text-gray-800 truncate max-w-[160px]" title={fileName}>
                               {fileName}
                             </p>
-                            <p className="text-[10px] text-gray-400">
+                            <p className="text-[10px] text-gray-400 truncate">
                               {img.fileType || img.moduleName || 'Invoice Document'}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           {img.path && (
                             <a
                               href={img.path}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:text-[#084E92] hover:border-[#084E92] transition"
+                              className="w-6 h-6 rounded-md bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:text-[#084E92] hover:border-[#084E92] transition"
                               title="View document"
                             >
-                              <Eye size={13} />
+                              <Eye size={12} />
                             </a>
                           )}
                           {img.path && (
                             <button
                               type="button"
                               onClick={() => handleDownloadFile(img.path, fileName)}
-                              className="w-7 h-7 rounded-lg bg-[#084E92] text-white flex items-center justify-center hover:bg-[#073e77] transition cursor-pointer shadow-2xs"
+                              className="w-6 h-6 rounded-md bg-[#084E92] text-white flex items-center justify-center hover:bg-[#073e77] transition cursor-pointer shadow-2xs"
                               title="Download document"
                             >
-                              <Download size={13} />
+                              <Download size={12} />
                             </button>
                           )}
                         </div>
@@ -365,121 +348,118 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
             )}
 
             {/* Received Items */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-50/80 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Package size={15} className="text-[#084E92]" />
+            <div className="border border-gray-200 rounded-lg overflow-hidden shadow-2xs">
+              <div className="flex items-center justify-between px-3.5 py-2.5 bg-gray-50/80 border-b border-gray-200">
+                <div className="flex items-center gap-1.5">
+                  <Package size={14} className="text-[#084E92]" />
                   <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">Received Items</h3>
                 </div>
-                <span className="text-xs font-semibold text-[#084E92] bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-0.5">
+                <span className="text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-100 rounded-md px-2 py-0.5">
                   Total: {items.length} {items.length === 1 ? 'Item' : 'Items'}
                 </span>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[920px] text-xs">
+              <div>
+                <table className="w-full table-fixed text-xs">
                   <thead className="bg-[#F8FAFC]">
-                    <tr className="border-b border-gray-200 text-[10px] sm:text-[11px] font-bold tracking-wider text-[#64748B] uppercase">
-                      <th className="text-center px-3 py-3 w-10">#</th>
-                      <th className="text-left px-3.5 py-3 min-w-[180px]">Item Name</th>
-                      <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[90px]">Appr. Qty</th>
-                      <th className="text-center px-3 py-3 whitespace-nowrap min-w-[90px]">Unit</th>
-                      <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[160px]">Batch No</th>
-                      <th className="text-left px-3.5 py-3 whitespace-nowrap min-w-[120px]">Best Before</th> 
-                      <th className="text-right px-3.5 py-3 whitespace-nowrap min-w-[85px]">Ret. Qty</th>
-                      <th className="text-center px-3.5 py-3 whitespace-nowrap min-w-[140px]">Return Status</th>
-                      <th className="text-center px-3.5 py-3 whitespace-nowrap min-w-[100px]">Status</th>
+                    <tr className="border-b border-gray-200 text-[10px] font-bold tracking-wider text-[#64748B] uppercase">
+                      <th className="text-center px-2 py-2 w-8">#</th>
+                      <th className="text-left px-2.5 py-2 w-[34%]">Items</th>
+                      <th className="text-left px-2 py-2 w-[22%]">Batch / Expiry</th>
+                      <th className="text-right px-2 py-2 w-[14%]">Appr. Qty</th>
+                      <th className="text-right px-2 py-2 w-[16%]">Ret. Qty</th>
+                      <th className="text-center px-2 py-2 w-[14%]">Status</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-100">
                     {items.map((item, idx) => {
                       const returnQty = Number(item.returnQuantity ?? item.rejectedQuantity ?? 0);
                       const returnStatus = item.returnReplacementStatus;
 
                       return (
-                        <tr key={item.id ?? idx} className="border-t border-gray-100 hover:bg-[#F8FAFC]/60 transition">
-                          <td className="px-3 py-3 text-center text-gray-400 font-medium">
+                        <tr key={item.id ?? idx} className="hover:bg-[#F8FAFC]/60 transition">
+                          <td className="px-2 py-2.5 text-center text-gray-400 font-medium text-[11px]">
                             {String(idx + 1).padStart(2, '0')}
                           </td>
-                          <td className="px-3.5 py-3 font-semibold text-gray-900">
-                            <div>
-                              <p className="text-xs text-gray-900">{item.name}</p>
+                          <td className="px-2.5 py-2.5 font-semibold text-gray-900 align-top">
+                            <div className="pr-1">
+                              <p className="text-xs text-gray-900 font-semibold leading-snug break-words">{item.name}</p>
                               {(item.poCode || item.prCode || item.subLocationName || item.subLocation) && (
-                                <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                <div className="flex flex-wrap items-center gap-1 mt-1">
                                   {item.poCode && (
-                                    <span className="text-[10px] font-mono font-medium text-[#084E92] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                    <span className="text-[9px] font-mono font-medium text-[#084E92] bg-blue-50 px-1 py-0.2 rounded border border-blue-100">
                                       {item.poCode}
                                     </span>
                                   )}
                                   {item.prCode && (
-                                    <span className="text-[10px] font-mono font-medium text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">
+                                    <span className="text-[9px] font-mono font-medium text-gray-600 bg-gray-100 px-1 py-0.2 rounded border border-gray-200">
                                       {item.prCode}
                                     </span>
                                   )}
                                   {(item.subLocationName || (typeof item.subLocation === 'string' ? item.subLocation : null)) && (
-                                    <span className="text-[10px] font-medium text-blue-700 bg-blue-50/60 px-1.5 py-0.5 rounded border border-blue-200" title="Received at Sub-Location">
+                                    <span className="text-[9px] font-medium text-blue-700 bg-blue-50/60 px-1 py-0.2 rounded border border-blue-200" title="Received at Sub-Location">
                                       {item.subLocationName || item.subLocation}
                                     </span>
                                   )}
                                 </div>
                               )}
                               {item.remarks && (
-                                <p className="text-[10px] text-gray-500 italic mt-0.5">{item.remarks}</p>
+                                <p className="text-[10px] text-gray-500 italic mt-0.5 break-words">{item.remarks}</p>
                               )}
                             </div>
                           </td>
-                            <td className="px-3.5 py-3 text-right">
-                            <span className="font-bold text-xs text-emerald-600">
-                              {item.acceptedQuantity ?? '-'}
-                            </span>
-                          </td>
-                           <td className="px-3 py-3 text-center text-gray-600">
-                            <span className="inline-block bg-gray-100 px-2.5 py-1 rounded-md text-[11px] font-medium text-gray-700 whitespace-nowrap">
-                              {item.unit || '-'}
-                            </span>
-                          </td>
-                          <td className="px-3.5 py-3 text-left whitespace-nowrap">
+                          <td className="px-2 py-2.5 text-left align-top">
                             {item.batchNo || item.batchNumber ? (
-                              <span className="inline-block font-mono text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md whitespace-nowrap select-all">
+                              <span className="inline-block font-mono text-[10px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded select-all break-all">
                                 {item.batchNo || item.batchNumber}
                               </span>
                             ) : (
                               <span className="text-gray-400 text-xs">—</span>
                             )}
-                          </td>
-                          <td className="px-3.5 py-3 text-left whitespace-nowrap">
                             {item.useByDate || item.bestBeforeDate || item.expiryDate ? (
-                              <span className="inline-block font-mono text-[11px] font-semibold text-gray-700 bg-gray-50 border border-gray-200 px-2.5 py-1 rounded-md whitespace-nowrap">
-                                {formatDateDDMMYYYY(item.useByDate || item.bestBeforeDate || item.expiryDate)}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400 text-xs">—</span>
-                            )}
+                              <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                Exp: {formatDateDDMMYYYY(item.useByDate || item.bestBeforeDate || item.expiryDate)}
+                              </p>
+                            ) : null}
                           </td>
-                        
-                          <td className="px-3.5 py-3 text-right">
-                            <span className="font-bold text-xs text-amber-700">
-                              {returnQty > 0 ? returnQty : '0'}
+                          <td className="px-2 py-2.5 text-right align-top whitespace-nowrap">
+                            <span className="font-bold text-xs text-emerald-600">
+                              {item.acceptedQuantity ?? '-'}
                             </span>
-                          </td>
-                          <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                            {returnQty > 0 || returnStatus ? (
-                              <span className="inline-block text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md whitespace-nowrap">
-                                {returnStatus === 'RETURN_REQUESTED'
-                                  ? 'Return'
-                                  : returnStatus === 'RETURN_REPLACEMENT_REQUESTED' || returnStatus === 'RETURN_OR_REPLACEMENT'
-                                    ? 'Return & Replacement'
-                                    : returnStatus === 'RETURN_REPLACEMENT_COMPLETED'
-                                      ? 'Completed'
-                                      : returnStatus || 'Return'}
+                            {item.unit && (
+                              <span className="text-[10px] text-gray-500 font-medium ml-1">
+                                {item.unit}
                               </span>
-                            ) : (
-                              <span className="text-gray-400 text-xs">—</span>
                             )}
                           </td>
-                          <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md whitespace-nowrap border border-emerald-100">
-                              <CheckCircle2 size={11} />
+                          <td className="px-2 py-2.5 text-right align-top">
+                            <div className="whitespace-nowrap">
+                              <span className={`font-bold text-xs ${returnQty > 0 ? 'text-amber-700' : 'text-gray-400'}`}>
+                                {returnQty > 0 ? returnQty : '0'}
+                              </span>
+                              {returnQty > 0 && item.unit && (
+                                <span className="text-[10px] text-gray-500 font-medium ml-1">
+                                  {item.unit}
+                                </span>
+                              )}
+                            </div>
+                            {(returnQty > 0 || returnStatus) && (
+                              <div className="mt-0.5">
+                                <span className="inline-block text-[9px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded leading-tight">
+                                  {returnStatus === 'RETURN_REQUESTED'
+                                    ? 'Return'
+                                    : returnStatus === 'RETURN_REPLACEMENT_REQUESTED' || returnStatus === 'RETURN_OR_REPLACEMENT'
+                                      ? 'Ret. & Repl.'
+                                      : returnStatus === 'RETURN_REPLACEMENT_COMPLETED'
+                                        ? 'Completed'
+                                        : returnStatus || 'Return'}
+                                </span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5 text-center align-top whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                              <CheckCircle2 size={10} />
                               {item.status || 'Received'}
                             </span>
                           </td>
@@ -489,7 +469,7 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
 
                     {items.length === 0 && (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-xs text-gray-400">
+                        <td colSpan={6} className="px-4 py-8 text-center text-xs text-gray-400">
                           No items found in this GRN
                         </td>
                       </tr>
@@ -502,12 +482,12 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-3.5 border-t border-gray-100 shrink-0 bg-[#F9FAFC]">
+        <div className="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-gray-100 shrink-0 bg-[#F9FAFC]">
           <button
             type="button"
             onClick={handleClose}
             disabled={isExporting || acknowledging}
-            className="px-5 py-2 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
+            className="px-4 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-50"
           >
             Close
           </button>
@@ -515,16 +495,16 @@ const GRNDetailsViewModal = ({ isOpen, onClose, grn, onPrint, onAcknowledge, ack
             type="button"
             onClick={handlePrint}
             disabled={isExporting || acknowledging || loading}
-            className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs disabled:opacity-60"
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs disabled:opacity-60"
           >
             {isExporting ? (
               <>
-                <Loader2 size={13} className="animate-spin" />
+                <Loader2 size={12} className="animate-spin" />
                 <span>Exporting...</span>
               </>
             ) : (
               <>
-                <Download size={13} />
+                <Download size={12} />
                 <span>Print Report</span>
               </>
             )}

@@ -43,12 +43,11 @@ import {
   getAllGrnDetailsByStatus,
   getAllGrns,
   getGrnByOutletOrStatus,
-  getAllActiveSubOutlets,
-  getAllActiveSubLocations,
   getPOByIdAndOpenItem,
 } from '@/services/apiServices';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
+import { useOrgHierarchyStore } from '@/store/orgHierarchyStore';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
@@ -214,7 +213,7 @@ const TruncatedCell = ({
 
 const ReturnReplacementList = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Return and Replacement');
+  const { canAdd, canEdit, canView } = usePagePermissions('Return and Replacement');
   const { canAdd: canGenerateGrn } = usePagePermissions('Generate GRN');
 
   const {
@@ -225,9 +224,43 @@ const ReturnReplacementList = () => {
     selectedUnitId,
     setSelectedUnitId,
     effectiveOutletId,
-    filterRowsByScope,
     retry: retryScope,
   } = useOrgScope();
+
+  const hierarchyState = useOrgHierarchyStore();
+  const parsedScope = hierarchyState.parsedScope;
+
+  const { outletMapById, outletMapByName, subOutletMapById, subOutletMapByName, subLocationMapById } = useMemo(() => {
+    const oIdMap = new Map();
+    const oNameMap = new Map();
+    const sIdMap = new Map();
+    const sNameMap = new Map();
+    const lIdMap = new Map();
+
+    (parsedScope?.outlets || []).forEach((o) => {
+      if (o.id != null) oIdMap.set(Number(o.id), o);
+      const name = (o.name || o.outletName || '').trim().toLowerCase();
+      if (name) oNameMap.set(name, o);
+    });
+
+    (parsedScope?.subOutlets || []).forEach((s) => {
+      if (s.id != null) sIdMap.set(Number(s.id), s);
+      const name = (s.subOutletName || s.name || '').trim().toLowerCase();
+      if (name) sNameMap.set(name, s);
+    });
+
+    (parsedScope?.subLocations || []).forEach((l) => {
+      if (l.id != null) lIdMap.set(Number(l.id), l);
+    });
+
+    return {
+      outletMapById: oIdMap,
+      outletMapByName: oNameMap,
+      subOutletMapById: sIdMap,
+      subOutletMapByName: sNameMap,
+      subLocationMapById: lIdMap,
+    };
+  }, [parsedScope]);
 
   const [search, setSearch] = useState('');
   const [records, setRecords] = useState([]);
@@ -248,12 +281,10 @@ const ReturnReplacementList = () => {
         : (Number(effectiveOutletId) || Number(getOrgIdFromToken()) || 0);
       const statusParam = statusFilter === 'ALL' ? '' : statusFilter;
 
-      // Fetch details, GRN headers, subOutlets and subLocations concurrently to enrich data
-      const [res, grnsRes, subOutletsRes, subLocationsRes] = await Promise.all([
+      // Fetch details and GRN headers concurrently (Sub-outlets & Sub-locations are resolved from hierarchy store)
+      const [res, grnsRes] = await Promise.all([
         getAllGrnDetailsByStatus(statusParam, outletOrCompanyId).catch(() => getAllGrnDetailsByStatus(statusParam, 0).catch(() => getAllGrnDetailsByStatus())),
         getGrnByOutletOrStatus(outletOrCompanyId, '').catch(() => getAllGrns().catch(() => null)),
-        getAllActiveSubOutlets().catch(() => null),
-        getAllActiveSubLocations().catch(() => null),
       ]);
 
       const raw = res?.data?.data ?? res?.data ?? res ?? [];
@@ -268,22 +299,6 @@ const ReturnReplacementList = () => {
         if (g.id) grnMapById.set(Number(g.id), g);
       });
 
-      const subOutletsList = Array.isArray(subOutletsRes?.data?.data ?? subOutletsRes?.data)
-        ? (subOutletsRes?.data?.data ?? subOutletsRes?.data)
-        : [];
-      const subOutletsMap = new Map();
-      subOutletsList.forEach((s) => {
-        if (s.id) subOutletsMap.set(Number(s.id), s.subOutletName || s.name || '');
-      });
-
-      const subLocationsList = Array.isArray(subLocationsRes?.data?.data ?? subLocationsRes?.data)
-        ? (subLocationsRes?.data?.data ?? subLocationsRes?.data)
-        : [];
-      const subLocationsMap = new Map();
-      subLocationsList.forEach((l) => {
-        if (l.id) subLocationsMap.set(Number(l.id), l.subLocationName || l.locationName || l.name || '');
-      });
-
       const list = rawList.map((item, index) => {
         const rawStatus =
           item.returnReplacementStatus ||
@@ -294,7 +309,7 @@ const ReturnReplacementList = () => {
           (item.grnCode ? grnMapByCode.get(String(item.grnCode).trim().toLowerCase()) : null) ||
           (item.grnId ? grnMapById.get(Number(item.grnId)) : null);
 
-        const outletNameStr =
+        const rawOutletName =
           item.outletName ||
           item.organizationName ||
           matchedGrn?.organizationName ||
@@ -302,17 +317,6 @@ const ReturnReplacementList = () => {
           item.purchaseOrder?.outletName ||
           item.purchaseOrder?.organizationName ||
           '';
-
-        // Match unit from units list by name if outletId is not directly in item
-        let matchedUnitId = undefined;
-        if (outletNameStr && Array.isArray(units)) {
-          const matched = units.find(
-            (u) => (u.name || '').trim().toLowerCase() === outletNameStr.trim().toLowerCase()
-          );
-          if (matched) {
-            matchedUnitId = Number(matched.id);
-          }
-        }
 
         const rawOutletId =
           item.outletId ??
@@ -325,7 +329,7 @@ const ReturnReplacementList = () => {
           item.grn?.orgId ??
           item.grn?.outletId ??
           item.purchaseOrder?.organizationId ??
-          matchedUnitId;
+          null;
 
         const rawSubOutletId =
           item.subOutletId ??
@@ -338,23 +342,6 @@ const ReturnReplacementList = () => {
           item.grn?.subOutletId ??
           null;
 
-        const subOutletNameStr =
-          item.subOutletName ||
-          item.subUnitName ||
-          item.locationName ||
-          item.subOutlet?.subOutletName ||
-          item.subOutlet?.name ||
-          matchedGrn?.subOutletName ||
-          matchedGrn?.subUnitName ||
-          matchedGrn?.locationName ||
-          matchedGrn?.subOutlet?.subOutletName ||
-          matchedGrn?.subOutlet?.name ||
-          (rawSubOutletId ? subOutletsMap.get(Number(rawSubOutletId)) : '') ||
-          item.purchaseOrder?.subOutletName ||
-          item.purchaseOrder?.subOutlet?.name ||
-          item.grn?.subOutletName ||
-          '';
-
         const rawSubLocationId =
           item.subLocationId ??
           item.subLocation?.id ??
@@ -364,7 +351,9 @@ const ReturnReplacementList = () => {
           item.grn?.subLocationId ??
           null;
 
-        const subLocationNameStr =
+        // 1. Resolve Sub-Location
+        const matchedSubLocation = rawSubLocationId ? subLocationMapById.get(Number(rawSubLocationId)) : null;
+        const resolvedSubLocationName =
           item.subLocationName ||
           item.subLocation?.subLocationName ||
           item.subLocation?.locationName ||
@@ -373,10 +362,90 @@ const ReturnReplacementList = () => {
           matchedGrn?.subLocation?.subLocationName ||
           matchedGrn?.subLocation?.locationName ||
           matchedGrn?.subLocation?.name ||
-          (rawSubLocationId ? subLocationsMap.get(Number(rawSubLocationId)) : '') ||
-          item.purchaseOrder?.subLocationName ||
-          item.grn?.subLocationName ||
+          matchedSubLocation?.subLocationName ||
+          matchedSubLocation?.locationName ||
+          matchedSubLocation?.name ||
           '';
+
+        // 2. Resolve Sub-Outlet
+        const subOutletFromId = rawSubOutletId ? subOutletMapById.get(Number(rawSubOutletId)) : null;
+        const subOutletFromOutletId = rawOutletId ? subOutletMapById.get(Number(rawOutletId)) : null;
+        const subOutletFromName = rawOutletName ? subOutletMapByName.get(rawOutletName.trim().toLowerCase()) : null;
+        const subOutletFromLoc = matchedSubLocation?.subOutletId ? subOutletMapById.get(Number(matchedSubLocation.subOutletId)) : null;
+
+        const matchedSubOutlet = subOutletFromId || subOutletFromOutletId || subOutletFromName || subOutletFromLoc;
+
+        let resolvedSubOutletName =
+          item.subOutletName ||
+          item.subUnitName ||
+          matchedGrn?.subOutletName ||
+          matchedGrn?.subUnitName ||
+          matchedSubOutlet?.subOutletName ||
+          matchedSubOutlet?.name ||
+          '';
+
+        // 3. Resolve Main Outlet (Unit)
+        let resolvedOutletName = '';
+        let resolvedOutletId = null;
+
+        // If we matched a sub-outlet, its parent outletId gives the true main Outlet!
+        if (matchedSubOutlet) {
+          const parentOutletId = matchedSubOutlet.outletId || matchedSubOutlet.organizationId || matchedSubOutlet.parentId;
+          if (parentOutletId && outletMapById.has(Number(parentOutletId))) {
+            const parentOutlet = outletMapById.get(Number(parentOutletId));
+            resolvedOutletName = parentOutlet.name || parentOutlet.organizationName || '';
+            resolvedOutletId = Number(parentOutlet.id);
+          }
+        }
+
+        // If outlet not yet resolved from sub-outlet parent, try rawOutletId or rawOutletName as an outlet
+        if (!resolvedOutletName) {
+          if (rawOutletId && outletMapById.has(Number(rawOutletId))) {
+            const outl = outletMapById.get(Number(rawOutletId));
+            resolvedOutletName = outl.name || '';
+            resolvedOutletId = Number(outl.id);
+          } else if (rawOutletName && outletMapByName.has(rawOutletName.trim().toLowerCase())) {
+            const outl = outletMapByName.get(rawOutletName.trim().toLowerCase());
+            resolvedOutletName = outl.name || '';
+            resolvedOutletId = Number(outl.id);
+          } else if (rawOutletName && !subOutletFromName) {
+            resolvedOutletName = rawOutletName;
+          }
+        }
+
+        // If outlet still missing, check currently selected unit or single unit in scope
+        if (!resolvedOutletName) {
+          if (selectedUnitId && selectedUnitId !== 'ALL' && outletMapById.has(Number(selectedUnitId))) {
+            const outl = outletMapById.get(Number(selectedUnitId));
+            resolvedOutletName = outl.name || '';
+            resolvedOutletId = Number(outl.id);
+          } else if (units && units.length === 1) {
+            resolvedOutletName = units[0].name;
+            resolvedOutletId = Number(units[0].id);
+          }
+        }
+
+        // Fallback
+        if (!resolvedOutletName) {
+          resolvedOutletName = rawOutletName || (rawOutletId ? `Outlet #${rawOutletId}` : '—');
+        }
+
+        // If resolvedOutletName and resolvedSubOutletName are identical, check if it's a sub-outlet
+        if (resolvedOutletName && resolvedSubOutletName && resolvedOutletName.trim().toLowerCase() === resolvedSubOutletName.trim().toLowerCase()) {
+          if (subOutletMapByName.has(resolvedOutletName.trim().toLowerCase())) {
+            const subObj = subOutletMapByName.get(resolvedOutletName.trim().toLowerCase());
+            const parentOutletId = subObj.outletId || subObj.organizationId || subObj.parentId;
+            const parentOutlet = parentOutletId ? outletMapById.get(Number(parentOutletId)) : null;
+            if (parentOutlet) {
+              resolvedOutletName = parentOutlet.name;
+              resolvedSubOutletName = subObj.subOutletName || subObj.name;
+            } else {
+              resolvedSubOutletName = '';
+            }
+          } else {
+            resolvedSubOutletName = '';
+          }
+        }
 
         const resolvedGrnId = item.grnId || item.grnHeaderId || item.grn?.id || matchedGrn?.id || item.oldGrnId;
 
@@ -388,12 +457,12 @@ const ReturnReplacementList = () => {
           purchaseOrderId: item.purchaseOrderId || item.poId || item.purchaseOrder?.id || matchedGrn?.purchaseOrderId,
           poCode: item.purchaseOrderCode || item.poCode || item.purchaseOrder?.purchaseOrderCode || item.purchaseOrder?.poCode || (item.purchaseOrderId ? `PO-${item.purchaseOrderId}` : '—'),
           prCode: item.prcode || item.prCode || item.purchaseRequisitionCode || item.purchaseOrder?.prcode || '—',
-          outletId: rawOutletId !== undefined && rawOutletId !== null ? Number(rawOutletId) : undefined,
-          outlet: outletNameStr || (rawOutletId ? `Outlet #${rawOutletId}` : '—'),
-          subOutletId: rawSubOutletId != null ? Number(rawSubOutletId) : null,
-          subOutletName: subOutletNameStr,
+          outletId: resolvedOutletId !== null ? resolvedOutletId : (rawOutletId !== undefined && rawOutletId !== null ? Number(rawOutletId) : undefined),
+          outlet: resolvedOutletName || '—',
+          subOutletId: matchedSubOutlet?.id ? Number(matchedSubOutlet.id) : (rawSubOutletId != null ? Number(rawSubOutletId) : null),
+          subOutletName: resolvedSubOutletName,
           subLocationId: rawSubLocationId != null ? Number(rawSubLocationId) : null,
-          subLocationName: subLocationNameStr,
+          subLocationName: resolvedSubLocationName,
           rawMaterialId: item.rawMaterialId,
           purchaseOrderDetailId: item.purchaseOrderDetailId,
           itemName: item.rawMaterialName || item.itemName || `Item #${item.rawMaterialId || index + 1}`,
@@ -419,7 +488,19 @@ const ReturnReplacementList = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, selectedUnitId, effectiveOutletId, statusFilter, units]);
+  }, [
+    scopeLoading,
+    scopeError,
+    selectedUnitId,
+    effectiveOutletId,
+    statusFilter,
+    units,
+    outletMapById,
+    outletMapByName,
+    subOutletMapById,
+    subOutletMapByName,
+    subLocationMapById,
+  ]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {
@@ -560,17 +641,36 @@ const ReturnReplacementList = () => {
         size: 40,
       },
       {
-        id: 'itemName',
-        accessorFn: (row) => row.itemName,
+        id: 'grnCode',
+        accessorFn: (row) => row.grnCode,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Item Description"
+            title="GRN Code"
             column={column}
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
         ),
         cell: ({ row }) => (
-          <div className="py-1 max-w-[145px]">
+          <CodeCell
+            code={row.original.grnCode}
+            maxWidth="max-w-[130px]"
+          />
+        ),
+        enableSorting: false,
+        size: 130,
+      },
+      {
+        id: 'itemName',
+        accessorFn: (row) => row.itemName,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="ITEMS"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="py-1 min-w-[130px] max-w-[160px]">
             <div
               className="font-bold text-[#084E92] text-xs hover:underline cursor-pointer truncate"
               title={row.original.itemName}
@@ -585,26 +685,7 @@ const ReturnReplacementList = () => {
           </div>
         ),
         enableSorting: false,
-        size: 145,
-      },
-      {
-        id: 'grnCode',
-        accessorFn: (row) => row.grnCode,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="GRN Code"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <CodeCell
-            code={row.original.grnCode}
-            maxWidth="max-w-[125px]"
-          />
-        ),
-        enableSorting: false,
-        size: 130,
+        size: 155,
       },
       {
         id: 'grnDate',
@@ -637,54 +718,24 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.outlet || '—'}
-            widthClass="max-w-[130px]"
-            className="text-gray-800 text-xs font-medium"
-          />
+          <div className="flex flex-col gap-0.5 min-w-0 py-1">
+            <div className="font-semibold text-xs text-gray-900 truncate max-w-[160px]" title={row.original.outlet}>
+              {row.original.outlet}
+            </div>
+            {row.original.subOutletName && (
+              <div className="text-[11px] text-gray-500 font-medium truncate max-w-[160px]" title={row.original.subOutletName}>
+                {row.original.subOutletName}
+              </div>
+            )}
+            {row.original.subLocationName && (
+              <div className="text-[10px] text-blue-600 font-medium truncate max-w-[160px]" title={row.original.subLocationName}>
+                ↳ {row.original.subLocationName}
+              </div>
+            )}
+          </div>
         ),
         enableSorting: false,
-        size: 135,
-      },
-      {
-        id: 'subOutletName',
-        accessorFn: (row) => row.subOutletName,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="Sub Unit"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.subOutletName || '—'}
-            widthClass="max-w-[115px]"
-            className="text-gray-700 text-xs font-medium"
-          />
-        ),
-        enableSorting: false,
-        size: 120,
-      },
-      {
-        id: 'subLocationName',
-        accessorFn: (row) => row.subLocationName,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="Sub Location"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.subLocationName || '—'}
-            widthClass="max-w-[110px]"
-            className="text-gray-700 text-xs font-medium"
-          />
-        ),
-        enableSorting: false,
-        size: 115,
+        size: 165,
       },
       {
         id: 'returnQuantity',
