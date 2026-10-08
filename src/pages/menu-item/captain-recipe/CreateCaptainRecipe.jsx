@@ -3,7 +3,6 @@ import {
     X,
     Zap,
     Plus,
-    RefreshCw,
     Save,
     Trash2,
     Search,
@@ -306,7 +305,7 @@ const CreateCaptainRecipe = ({ open, onClose, onSuccess, initialData = null, isV
                                 <Zap size={16} />
                                 Quick Add Ingredient
                             </div>
-                            <div className="grid grid-cols-[1fr_140px_140px_auto_auto] gap-3 items-end">
+                            <div className="grid grid-cols-[1fr_140px_140px_auto] gap-3 items-end">
                                 <div>
                                     <label className="block text-xs font-semibold text-blue-700 uppercase mb-1">
                                         Raw Material
@@ -355,13 +354,6 @@ const CreateCaptainRecipe = ({ open, onClose, onSuccess, initialData = null, isV
                                 >
                                     <Plus size={16} />
                                     Add Ingredient
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleResetQuick}
-                                    className="border border-gray-200 cursor-pointer rounded-lg h-10.5 w-10.5 flex items-center justify-center text-gray-500 hover:bg-white"
-                                >
-                                    <RefreshCw size={15} />
                                 </button>
                             </div>
                             <ErrorText>{quickError}</ErrorText>

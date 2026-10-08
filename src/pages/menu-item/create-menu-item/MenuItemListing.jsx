@@ -5,6 +5,7 @@ import { notify } from '@/utils/toast';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -62,6 +63,7 @@ const MenuItemsListing = ({ onAddNew }) => {
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState([]);
   const [rowSelection, setRowSelection] = useState({});
   const [loading, setLoading] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
@@ -384,24 +386,9 @@ useEffect(() => {
             ₹{Number(row.original.price ?? 0).toFixed(2)}
           </span>
         ),
+        sortingFn: (rowA, rowB) =>
+          Number(rowA.original.price ?? 0) - Number(rowB.original.price ?? 0),
         size: 100,
-      },
-
-      // SEQUENCE
-      {
-        id: 'sequence',
-        accessorFn: (row) => row.sequence,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="Seq."
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
-          />
-        ),
-        cell: ({ row }) => (
-          <span className="text-gray-700">{row.original.sequence}</span>
-        ),
-        size: 80,
       },
 
       // STATUS
@@ -443,6 +430,7 @@ useEffect(() => {
             />
           </label>
         ),
+        enableSorting: false,
         size: 110,
       },
 
@@ -483,14 +471,16 @@ useEffect(() => {
   const table = useReactTable({
     data: filteredItems,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination, rowSelection, sorting },
     onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
+    onSortingChange: setSorting,
     enableRowSelection: true,
     manualPagination: true,
     rowCount: totalCount,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   return (

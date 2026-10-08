@@ -609,8 +609,8 @@ const CreateKitchenCaptainRecipe = ({
                   <div
                     className={`grid gap-3 items-end ${
                       !isOutletUser
-                        ? "grid-cols-1 md:grid-cols-[1.5fr_1.2fr_100px_100px_110px_auto_auto]"
-                        : "grid-cols-1 md:grid-cols-[2fr_120px_120px_130px_auto_auto]"
+                        ? "grid-cols-1 md:grid-cols-[1.5fr_1.2fr_100px_100px_110px_auto]"
+                        : "grid-cols-1 md:grid-cols-[2fr_120px_120px_130px_auto]"
                     }`}
                   >
                     <div>
@@ -685,13 +685,6 @@ const CreateKitchenCaptainRecipe = ({
                     >
                       <Plus size={16} />
                       Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleResetQuick}
-                      className="border border-gray-200 bg-white cursor-pointer rounded-lg h-10.5 w-10.5 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition"
-                    >
-                      <RefreshCw size={15} />
                     </button>
                   </div>
                   <ErrorText>{quickError}</ErrorText>

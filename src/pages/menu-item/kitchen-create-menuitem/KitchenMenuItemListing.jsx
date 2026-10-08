@@ -4,6 +4,7 @@ import StatusConfirmModal from '@/utils/StatusConfirmModal';
 import { notify } from '@/utils/toast';
 import {
     getCoreRowModel,
+    getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -12,7 +13,6 @@ import {
     SquarePen,
     Trash2,
     XCircle,
-    RotateCcw,
     Plus,
     Loader2,
 } from 'lucide-react';
@@ -46,7 +46,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
-const StatCard = ({ label, value, icon, tone, textColor = 'text-[#1B1B1F]' }) => (
+const StatCard = ({ label, value, icon, tone, textColor = 'text-black' }) => (
     <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tone}`}>
             {icon}
@@ -93,6 +93,7 @@ const KitchenMenuItemListing = () => {
 
     // Temporary UI / Server states
     const [rowSelection, setRowSelection] = useState({});
+    const [sorting, setSorting] = useState([]);
     const [loading, setLoading] = useState(false);
     const [menuItems, setMenuItems] = useState([]);
     const [error, setError] = useState(null);
@@ -431,24 +432,9 @@ const KitchenMenuItemListing = () => {
                         ₹{Number(row.original.price ?? 0).toFixed(2)}
                     </span>
                 ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.price ?? 0) - Number(rowB.original.price ?? 0),
                 size: 100,
-            },
-            {
-                id: 'sequence',
-                accessorFn: (row) => row.sequence,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Seq."
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <span className="block px-2 text-gray-700">
-                        {row.original.sequence}
-                    </span>
-                ),
-                size: 80,
             },
             {
                 id: 'status',
@@ -474,6 +460,7 @@ const KitchenMenuItemListing = () => {
                         </label>
                     </div>
                 ),
+                enableSorting: false,
                 size: 110,
             },
             {
@@ -521,14 +508,16 @@ const KitchenMenuItemListing = () => {
     const table = useReactTable({
         data: displayedItems,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination, rowSelection, sorting },
         onPaginationChange: handlePaginationChange,
         onRowSelectionChange: setRowSelection,
+        onSortingChange: setSorting,
         enableRowSelection: true,
         manualPagination: true,
         rowCount: totalCount,
         pageCount: Math.ceil(totalCount / pageSize),
         getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
     });
 
     if (canView === false) {
@@ -571,21 +560,19 @@ const KitchenMenuItemListing = () => {
                         value={activeCount.toLocaleString()}
                         icon={<CheckCircle2 size={18} className="text-[#15803D]" />}
                         tone="bg-[#DCFCE7]"
-                        textColor="text-[#15803D]"
                     />
                     <StatCard
                         label="Inactive Recipes"
                         value={inactiveCount.toLocaleString()}
                         icon={<XCircle size={18} className="text-[#DC2626]" />}
                         tone="bg-[#FEE2E2]"
-                        textColor="text-[#DC2626]"
                     />
                 </div>
 
                 {/* Standardized SearchBar & Server Filter Controls */}
                 <div className="bg-white mt-4">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-                        <div className="md:col-span-5">
+                        <div className="md:col-span-6">
                             <SearchBar
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
@@ -639,20 +626,6 @@ const KitchenMenuItemListing = () => {
                                 placeholder="All Categories"
                                 isClearable={true}
                             />
-                        </div>
-
-                        <div className="md:col-span-1 flex items-center">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setSearchInput('');
-                                    resetFilters();
-                                }}
-                                title="Reset Filters"
-                                className="w-full h-10 flex items-center justify-center gap-1 border border-[#C3C6D1] rounded-xl text-gray-600 hover:bg-gray-50 transition cursor-pointer"
-                            >
-                                <RotateCcw size={15} />
-                            </button>
                         </div>
                     </div>
                 </div>

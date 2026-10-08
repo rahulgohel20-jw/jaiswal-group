@@ -20,9 +20,7 @@ const KitchenCreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
 
   const [formData, setFormData] = useState({
     name: "",
-    price: "",
-    sequence: "",
-    slogan: "",
+    description: "",
     image: null,
   });
   const [submitting, setSubmitting] = useState(false);
@@ -41,16 +39,14 @@ const KitchenCreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
     if (editData) {
       setFormData({
         name: editData.name || editData.nameEnglish || "",
-        price: editData.price ?? "",
-        sequence: editData.sequence ?? "",
-        slogan: editData.menuSlogan || editData.slogan || "",
+        description: editData.menuSlogan || editData.description || editData.slogan || "",
         image: null,
       });
 
       const latestImage = getLatestImage(editData.images);
       setImagePreview(latestImage);
     } else {
-      setFormData({ name: "", price: "", sequence: "", slogan: "", image: null });
+      setFormData({ name: "", description: "", image: null });
       setImagePreview("");
    
     }
@@ -80,30 +76,15 @@ const KitchenCreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
       return;
     }
 
-    if (formData.price === "" || Number(formData.price) <= 0) {
-      setError("Price must be Positive");
-      return;
-    }
-
-    if (formData.sequence === "" || Number(formData.sequence) <= 0) {
-      setError("Sequence must be Positive");
-      return;
-    }
-
     // Kitchen API has no userId param, so it is not sent
     const payload = new FormData();
     if (editData?.id) payload.append("id", editData.id);
     payload.append("nameEnglish", formData.name.trim());
     payload.append("orgId", '');
 
-    if (formData.price !== "" && formData.price !== null) {
-      payload.append("price", formData.price);
-    }
-    if (formData.sequence !== "" && formData.sequence !== null) {
-      payload.append("sequence", formData.sequence);
-    }
-    if (formData.slogan && formData.slogan.trim() !== "") {
-      payload.append("menuSlogan", formData.slogan.trim());
+    if (formData.description && formData.description.trim() !== "") {
+      payload.append("menuSlogan", formData.description.trim());
+      payload.append("description", formData.description.trim());
     }
     if (formData.image instanceof File) {
       payload.append("file", formData.image);
@@ -159,38 +140,6 @@ const KitchenCreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
             />
           </div>
 
-          {/* Price */}
-          <div>
-            <label className="block mb-1 text-gray-700 font-medium">
-              Price <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="price"
-              value={formData.price}
-              onWheel={(e) => e.currentTarget.blur()}
-              onChange={handleChange}
-              placeholder="Price"
-              className="w-full border rounded px-4 py-2 outline-none focus:border-blue-400"
-            />
-          </div>
-
-          {/* Sequence */}
-          <div>
-            <label className="block mb-1 text-gray-700 font-medium">
-              Sequence <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              name="sequence"
-              value={formData.sequence}
-              onChange={handleChange}
-              onWheel={(e) => e.currentTarget.blur()}
-              placeholder="Sequence"
-              className="w-full border rounded px-4 py-2 outline-none focus:border-blue-400"
-            />
-          </div>
-
           {/* Image */}
           <div className="col-span-2">
             <label className="block mb-1 text-gray-700 font-medium">Image</label>
@@ -225,15 +174,15 @@ const KitchenCreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
             </label>
           </div>
 
-          {/* Slogan */}
+          {/* Description */}
           <div className="col-span-2">
-            <label className="block mb-1 text-gray-700 font-medium">Slogan</label>
+            <label className="block mb-1 text-gray-700 font-medium">Description</label>
             <textarea
-              name="slogan"
-              value={formData.slogan}
+              name="description"
+              value={formData.description}
               onChange={handleChange}
               rows="2"
-              placeholder="Enter Slogan"
+              placeholder="Enter Description..."
               className="w-full border rounded px-4 py-2 outline-none focus:ring-1 focus:ring-blue-900"
             />
           </div>

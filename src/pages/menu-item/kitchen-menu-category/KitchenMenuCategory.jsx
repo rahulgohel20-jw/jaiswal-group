@@ -5,6 +5,7 @@ import { notify } from '@/utils/toast';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -50,6 +51,7 @@ const KitchenMenuCategory = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState([]);
   const [openCategory, setOpenCategory] = useState(false);
   const [editData, setEditData] = useState(null);
 
@@ -74,7 +76,6 @@ const KitchenMenuCategory = () => {
   };
 
   const fetchCategories = useCallback(async () => {
-
     setLoading(true);
     setError(null);
     try {
@@ -149,7 +150,7 @@ const KitchenMenuCategory = () => {
     );
   }, [search, categories]);
 
-  // Back to page 1 when the search or a filter changes
+  // Back to page 1 when the search or filter changes
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
   }, [search, statusFilter]);
@@ -194,13 +195,26 @@ const KitchenMenuCategory = () => {
     setOpenCategory(true);
   };
 
-  const handleOutletFilterChange = (e) => {
-    const value = e?.target?.value ?? e?.value ?? '';
-    setSelectedUnitId(value ? Number(value) : null);
-  };
-
   const columns = useMemo(
     () => [
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.NO"
+            column={column}
+            className="text-[#43474F] font-semibold"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2">
+            {String(row.index + 1).padStart(2, '0')}
+          </span>
+        ),
+        enableSorting: false,
+        size: 70,
+        minSize: 60,
+      },
       {
         id: 'image',
         accessorFn: (row) => row.image,
@@ -223,6 +237,7 @@ const KitchenMenuCategory = () => {
               N/A
             </div>
           ),
+        enableSorting: false,
         size: 55,
       },
       {
@@ -241,21 +256,6 @@ const KitchenMenuCategory = () => {
           </div>
         ),
         size: 220,
-      },
-      {
-        id: 'sequence',
-        accessorFn: (row) => row.sequence,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="SEQUENCE"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
-        ),
-        cell: ({ row }) => (
-          <span className="text-gray-700">{row.original.sequence ?? '-'}</span>
-        ),
-        size: 120,
       },
       {
         id: 'status',
@@ -296,6 +296,7 @@ const KitchenMenuCategory = () => {
             />
           </label>
         ),
+        enableSorting: false,
         size: 120,
       },
       {
@@ -341,10 +342,12 @@ const KitchenMenuCategory = () => {
   const table = useReactTable({
     data: filteredCategories,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
   if (!canView) {
     return <AccessDenied pageTitle="Categories" />;
@@ -371,29 +374,26 @@ const KitchenMenuCategory = () => {
         <PageErrorAlert error={error} onRetry={fetchCategories} className="my-3" />
 
         <div className="bg-white mt-4">
-          <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
-            {/* Search */}
-            <SearchBar
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by category name..."
-              wrapperClassName=""
-            />
-
-            <div className="grid gap-4 grid-cols-1">
-              {/* Status filter */}
-              <div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-10 w-full border-gray-300 bg-white text-sm rounded-xl">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All Status</SelectItem>
-                    <SelectItem value="true">Active</SelectItem>
-                    <SelectItem value="false">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="w-full md:w-[70%]">
+              <SearchBar
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by category name..."
+                wrapperClassName="w-full"
+              />
+            </div>
+            <div className="w-full md:w-[30%]">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-10 w-full border-[#C3C6D1] bg-white text-sm rounded-xl">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Status</SelectItem>
+                  <SelectItem value="true">Active</SelectItem>
+                  <SelectItem value="false">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
