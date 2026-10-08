@@ -339,6 +339,11 @@ const AddAsset = () => {
         if (asset.categoryId) {
           await fetchSubCategories(asset.categoryId);
         }
+
+        const loadedDepreciation = asset.depreciationPercentage != null
+          ? String(asset.depreciationPercentage)
+          : '10';
+ 
         const loadedForm = {
           ...initialFormState,
 
@@ -364,9 +369,9 @@ const AddAsset = () => {
           vendor: String(asset.vendorId || ''),
           invoiceNumber: asset.invoiceNumber || '',
 
-          purchaseCost: String(asset.purchaseCost || ''),
-          currentValue: String(asset.currentValue || ''),
-          depreciation: String(asset.depreciationPercentage || ''),
+          purchaseCost: asset.purchaseCost != null ? String(asset.purchaseCost) : '',
+          currentValue: asset.currentValue != null ? String(asset.currentValue) : '',
+          depreciation: loadedDepreciation,
 
           warrantyStart: toInputDate(asset.warrantyStartDate),
           warrantyEnd: toInputDate(asset.warrantyEndDate),
@@ -551,7 +556,7 @@ const AddAsset = () => {
     invoiceNumber: '',
     purchaseCost: '',
     currentValue: '',
-    depreciation: '',
+    depreciation: '10',
 
     warrantyStart: '',
     warrantyEnd: '',
@@ -627,7 +632,7 @@ const AddAsset = () => {
     invoiceNumber: '',
     purchaseCost: '',
     currentValue: '',
-    depreciation: '',
+    depreciation: '10',
 
     warrantyStart: '',
     warrantyEnd: '',
@@ -779,8 +784,7 @@ const AddAsset = () => {
     if (!form.status) e.status = 'Status is required';
 
     if (!form.itemName.trim()) e.itemName = 'Item name is required';
-    if (!form.brand) e.brand = 'Brand is required';
-
+    if (!form.depreciation) e.depreciation = 'Depreciation required'
     if (form.totalQty === '' || isNaN(Number(form.totalQty)) || Number(form.totalQty) < 0)
       e.totalQty = 'Total quantity must be positive';
     if (form.availableQty === '' || isNaN(Number(form.availableQty)) || Number(form.availableQty) < 0)
@@ -1005,7 +1009,7 @@ const AddAsset = () => {
   </div>
   <div>
     <div className="flex items-center justify-between gap-2 mb-3">
-      <Label required>Brand</Label>
+      <Label>Brand</Label>
       <Button className="cursor-pointer" onPress={() => setShowAddAssetBrandCategoryModal(true)}>
         <CirclePlus />
       </Button>
@@ -1017,9 +1021,7 @@ const AddAsset = () => {
       placeholder={assetBrandsLoading ? 'Loading asset brands...' : 'Select asset brand'}
       options={assetBrandOptions}
       disabled={assetBrandsLoading}
-      hasError={!!errors.brand}
     />
-    <ErrorText message={errors.brand} />
   </div>
 </div>
 
@@ -1102,16 +1104,18 @@ const AddAsset = () => {
                   />
                 </div>
                 <div>
-                  <Label>Depreciation % (p.a.)</Label>
+                  <Label required>Depreciation % (p.a.)</Label>
                   <input
                     type='number'
                     name="depreciation"
-                    value={form.depreciation}
+                    value={form.depreciation ?? ""}
                     onWheel={(e) => e.currentTarget.blur()}
                     onChange={(e) => handleAssetValueChange("depreciation", e.target.value) }
                     placeholder="10"
                     className={inputCls}
+                    hasError={!!errors.depreciation}
                   />
+                      <ErrorText message={errors.depreciation} />
                 </div>
               </div>
 
