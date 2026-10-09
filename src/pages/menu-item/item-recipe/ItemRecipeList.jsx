@@ -344,7 +344,7 @@ const ItemRecipeList = () => {
                 accessorFn: (row) => row.outlet,
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="Unit"
+                        title="Outlet"
                         column={column}
                         className="text-[#43474F] font-semibold uppercase text-sm"
                     />
@@ -518,45 +518,22 @@ const ItemRecipeList = () => {
 
                 {/* Filter and Search Bar */}
                 <div className="bg-white mt-4">
-                    <div className="grid md:grid-cols-2 grid-cols-1 gap-4">
-                        <SearchBar
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            onClear={() => {
-                                setSearchInput('');
-                                setFilters((prev) => ({
-                                    ...prev,
-                                    search: '',
-                                    page: 0,
-                                }));
-                            }}
-                            placeholder="Search by recipe or menu item..."
-                        />
-
-                        <div>
-                            {!isOutletUser && (
-                                <div className="sm:col-span-10 w-full">
-                                    <SearchableSelect
-                                        name="outletFilter"
-                                        value={outletFilter}
-                                        onChange={(e) => {
-                                            const val = e?.target?.value ?? e?.value ?? '';
-                                            setFilters((prev) => ({
-                                                ...prev,
-                                                outletId: val,
-                                                page: 0,
-                                            }));
-                                        }}
-                                        options={outletFilterOptions}
-                                        placeholder={
-                                            isCompanyUser
-                                                ? `All Units (${selfOrg?.companyNameEnglish || 'Company'})`
-                                                : 'All Units'
-                                        }
-                                        isClearable={true}
-                                    />
-                                </div>
-                            )}
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="w-full md:w-[70%]">
+                            <SearchBar
+                                value={searchInput}
+                                onChange={(e) => setSearchInput(e.target.value)}
+                                onClear={() => {
+                                    setSearchInput('');
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        search: '',
+                                        page: 0,
+                                    }));
+                                }}
+                                placeholder="Search by recipe or menu item..."
+                                wrapperClassName="w-full"
+                            />
                         </div>
 
                         {!isOutletUser && (
