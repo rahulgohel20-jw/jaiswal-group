@@ -73,10 +73,10 @@ const StatusBadge = ({ status }) => (
 // Truncates long text, reveals full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-gray-800 font-medium',
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
     {value || '—'}
   </span>
 );
@@ -242,11 +242,10 @@ const CompanyListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[160px]"
-            className="font-semibold text-[#084E92]"
+            className="font-medium text-gray-800 text-xs"
           />
         ),
-        size: 160,
+        size: 200,
       },
       {
         id: 'code',
@@ -255,22 +254,25 @@ const CompanyListing = () => {
           <DataGridColumnHeader title="CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.code} widthClass="max-w-[100px]" />
+          <TruncatedCell
+            value={row.original.code}
+            className="font-semibold text-[#084E92] text-xs"
+          />
         ),
         enableSorting: false,
-        size: 100,
+        size: 110,
       },
       {
         id: 'location',
         accessorFn: (row) => row.location,
         header: ({ column }) => (
-          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="CITY" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.location} widthClass="max-w-[110px]" />
+          <TruncatedCell value={row.original.location} />
         ),
         enableSorting: false,
-        size: 110,
+        size: 130,
       },
       {
         id: 'mobile',
@@ -279,10 +281,10 @@ const CompanyListing = () => {
           <DataGridColumnHeader title="MOBILE NO." column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.mobile} widthClass="max-w-[100px]" />
+          <TruncatedCell value={row.original.mobile} />
         ),
         enableSorting: false,
-        size: 100,
+        size: 130,
       },
       {
         id: 'gstNumber',
@@ -291,10 +293,10 @@ const CompanyListing = () => {
           <DataGridColumnHeader title="GST NUMBER" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.gstNumber} widthClass="max-w-[120px]" />
+          <TruncatedCell value={row.original.gstNumber} />
         ),
         enableSorting: false,
-        size: 120,
+        size: 150,
       },
       {
         id: 'status',

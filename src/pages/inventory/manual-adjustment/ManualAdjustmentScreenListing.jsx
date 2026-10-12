@@ -93,7 +93,7 @@ const StatusBadge = ({ status = 'DRAFT' }) => {
 const TruncatedCell = ({
   value,
   widthClass = 'max-w-[180px]',
-  className = 'text-gray-600 text-xs',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -162,20 +162,20 @@ const AdjustmentDeltaCell = ({ delta }) => {
 
   if (num > 0) {
     return (
-      <span className="text-xs font-bold text-emerald-600 whitespace-nowrap">
+      <span className="text-xs font-medium text-gray-800 whitespace-nowrap">
         +{formatted}
       </span>
     );
   }
   if (num < 0) {
     return (
-      <span className="text-xs font-bold text-rose-600 whitespace-nowrap">
+      <span className="text-xs font-medium text-gray-800 whitespace-nowrap">
         -{formatted}
       </span>
     );
   }
   return (
-    <span className="text-xs font-medium text-gray-400 whitespace-nowrap">
+    <span className="text-xs font-medium text-gray-800 whitespace-nowrap">
       0.00
     </span>
   );
@@ -691,7 +691,7 @@ const ManualAdjustmentScreenListing = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 text-xs font-semibold">
+          <span className="text-gray-500 text-xs">
             {String(row.index + 1).padStart(2, '0')}
           </span>
         ),
@@ -707,13 +707,13 @@ const ManualAdjustmentScreenListing = () => {
         cell: ({ row }) => (
           <div className="min-w-0">
             <span
-              className="font-semibold text-gray-900 block text-xs truncate"
+              className="font-medium text-gray-800 block text-xs truncate"
               title={row.original.itemName}
             >
               {row.original.itemName}
             </span>
             {(row.original.subOutletName || row.original.subLocationName) && (
-              <div className="flex flex-col gap-0.5 mt-0.5 max-w-[200px]">
+              <div className="flex flex-col gap-0.5 mt-0.5 max-w-full">
                 {row.original.subOutletName && (
                   <span
                     className="text-[11px] text-gray-500 block truncate"
@@ -724,7 +724,7 @@ const ManualAdjustmentScreenListing = () => {
                 )}
                 {row.original.subLocationName && (
                   <span
-                    className="text-[11px] text-[#084E92] font-medium block truncate"
+                    className="text-[11px] text-gray-600 font-medium block truncate"
                     title={row.original.subLocationName}
                   >
                     ↳ {row.original.subLocationName}
@@ -747,7 +747,7 @@ const ManualAdjustmentScreenListing = () => {
           const raw = row.original.adjustmentDate || '—';
           const dateOnly = raw.includes(' ') ? raw.split(' ')[0] : raw;
           return (
-            <span className="text-xs text-gray-600 whitespace-nowrap">
+            <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
               {dateOnly}
             </span>
           );
@@ -893,10 +893,16 @@ const ManualAdjustmentScreenListing = () => {
     [navigate, postingId, canEdit, canAdd, selectedRowIds, handlePost, handleOpenCancelModal]
   );
 
+  const pageCount = useMemo(() => {
+    return Math.max(1, Math.ceil(totalRecords / pagination.pageSize));
+  }, [totalRecords, pagination.pageSize]);
+
   const table = useReactTable({
     data: filteredAdjustments,
     columns,
     state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -1049,7 +1055,7 @@ const ManualAdjustmentScreenListing = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredAdjustments.length}
+              recordCount={totalRecords}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,

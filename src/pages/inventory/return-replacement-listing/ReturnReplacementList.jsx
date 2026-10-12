@@ -199,7 +199,7 @@ const StatusBadge = ({ status }) => {
 const TruncatedCell = ({
   value,
   widthClass = 'max-w-[150px]',
-  className = 'text-gray-600',
+  className = 'text-xs text-gray-800 font-medium',
   onClick,
 }) => (
   <span
@@ -672,7 +672,7 @@ const ReturnReplacementList = () => {
         cell: ({ row }) => (
           <div className="py-1 min-w-[130px] max-w-[160px]">
             <div
-              className="font-bold text-[#084E92] text-xs hover:underline cursor-pointer truncate"
+              className="font-semibold text-[#084E92] text-xs hover:underline cursor-pointer truncate"
               title={row.original.itemName}
             >
               {row.original.itemName}
@@ -698,11 +698,9 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.grnDate || '—'}
-            widthClass="max-w-[85px]"
-            className="text-gray-600 text-xs font-medium"
-          />
+          <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
+            {row.original.grnDate || '—'}
+          </span>
         ),
         enableSorting: false,
         size: 85,

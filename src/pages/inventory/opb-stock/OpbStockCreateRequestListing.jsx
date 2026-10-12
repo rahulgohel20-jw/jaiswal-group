@@ -273,7 +273,7 @@ const OpbStockCreateRequestListing = () => {
                     <DataGridColumnHeader title="DATE" column={column} className="text-xs font-bold" />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700 text-xs font-medium block truncate max-w-21.25">
+                    <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
                         {row.original.opbDate || '—'}
                     </span>
                 ),
@@ -288,14 +288,14 @@ const OpbStockCreateRequestListing = () => {
                 cell: ({ row }) => (
                     <div className="flex flex-col gap-0.5 min-w-0">
                         <div
-                            className="font-semibold text-xs text-gray-900 truncate max-w-40"
+                            className="font-medium text-xs text-gray-800 truncate max-w-full"
                             title={row.original.organizationName}
                         >
                             {row.original.organizationName || '—'}
                         </div>
                         {row.original.subOutletName && (
                             <div
-                                className="text-[11px] text-gray-500 font-medium truncate max-w-40"
+                                className="text-[11px] text-gray-500 font-medium truncate max-w-full"
                                 title={row.original.subOutletName}
                             >
                                 {row.original.subOutletName}
@@ -303,7 +303,7 @@ const OpbStockCreateRequestListing = () => {
                         )}
                         {row.original.subLocationName && (
                             <div
-                                className="text-[10px] text-blue-600 font-medium truncate max-w-40"
+                                className="text-[10px] text-gray-600 font-medium truncate max-w-full"
                                 title={row.original.subLocationName}
                             >
                                 ↳ {row.original.subLocationName}
@@ -312,7 +312,7 @@ const OpbStockCreateRequestListing = () => {
                     </div>
                 ),
                 enableSorting: false,
-                size: 170,
+                size: 200,
             },
             {
                 id: 'itemName',
@@ -323,7 +323,7 @@ const OpbStockCreateRequestListing = () => {
                 cell: ({ row }) => (
                     <div className="min-w-0">
                         <span
-                            className="text-xs font-bold text-[#0F172A] block truncate max-w-32.5 capitalize"
+                            className="text-xs font-medium text-gray-800 block truncate max-w-full capitalize"
                             title={row.original.itemName}
                         >
                             {row.original.itemName || '-'}
@@ -331,7 +331,7 @@ const OpbStockCreateRequestListing = () => {
                     </div>
                 ),
                 enableSorting: true,
-                size: 150,
+                size: 200,
             },
             {
                 id: 'batchNumber',

@@ -404,7 +404,7 @@ const VendorPriceApproval = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-2">
+                    <span className="text-gray-500 py-2 text-xs">
                         {String(row.index + 1).padStart(2, '0')}
                     </span>
                 ),
@@ -421,7 +421,10 @@ const VendorPriceApproval = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 py-2 capitalize">
+                    <div
+                        className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full"
+                        title={row.original.materialName}
+                    >
                         {row.original.materialName}
                     </div>
                 ),
@@ -438,7 +441,10 @@ const VendorPriceApproval = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="py-2 text-gray-700">
+                    <div
+                        className="py-2 text-xs text-gray-800 font-medium truncate max-w-full"
+                        title={row.original.vendorName}
+                    >
                         {row.original.vendorName || '—'}
                     </div>
                 ),
@@ -464,7 +470,7 @@ const VendorPriceApproval = () => {
                                 .filter(Boolean);
 
                     if (rawOutlets.length === 0) {
-                        return <span className="text-gray-400 py-2">—</span>;
+                        return <span className="text-gray-400 py-2 text-xs">—</span>;
                     }
 
                     const visibleOutlets = rawOutlets.slice(0, 2);
@@ -473,7 +479,7 @@ const VendorPriceApproval = () => {
                     return (
                         <div className="flex items-center gap-1.5 py-2 max-w-full">
                             <span
-                                className="text-gray-800 font-medium text-xs sm:text-sm truncate"
+                                className="text-gray-800 font-medium text-xs truncate max-w-[180px]"
                                 title={rawOutlets.join(', ')}
                             >
                                 {visibleOutlets.join(', ')}
@@ -510,7 +516,7 @@ const VendorPriceApproval = () => {
                         className="text-[#43474F] font-semibold py-4 text-sm"
                     />
                 ),
-                cell: ({ row }) => <span>₹{Number(row.original.price).toFixed(2)}</span>,
+                cell: ({ row }) => <span className="text-xs font-medium text-gray-800 py-2">₹{Number(row.original.price).toFixed(2)}</span>,
                 size: 110,
                 enableSorting: true,
             },

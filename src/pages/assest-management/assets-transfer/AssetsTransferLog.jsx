@@ -160,7 +160,7 @@ const AssetsTransferLog = () => {
                 <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 36,
@@ -171,7 +171,7 @@ const AssetsTransferLog = () => {
                 <DataGridColumnHeader title="TRANSFER ID" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="font-semibold text-[#0B5CAB]">
+                <span className="font-semibold text-xs text-[#084E92]">
                     {row.original.transferId}
                 </span>
             ),
@@ -184,7 +184,7 @@ const AssetsTransferLog = () => {
                 <DataGridColumnHeader title="FROM LOCATION" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span title={row.original.fromLocation} className="text-gray-700 truncate max-w-[120px] block">
+                <span title={row.original.fromLocation} className="text-xs text-gray-800 font-medium truncate max-w-[120px] block">
                     {row.original.fromLocation}
                 </span>
             ),
@@ -197,7 +197,7 @@ const AssetsTransferLog = () => {
                 <DataGridColumnHeader title="TO LOCATION" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span title={row.original.toLocation} className="text-gray-700 truncate max-w-[120px] block">
+                <span title={row.original.toLocation} className="text-xs text-gray-800 font-medium truncate max-w-[120px] block">
                     {row.original.toLocation}
                 </span>
             ),
@@ -210,7 +210,7 @@ const AssetsTransferLog = () => {
                 <DataGridColumnHeader title="TRANSFER DATE" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-700">{row.original.transferDate}</span>
+                <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{row.original.transferDate}</span>
             ),
             enableSorting: false,
             size: 85,
@@ -223,7 +223,7 @@ const AssetsTransferLog = () => {
             cell: ({ row }) => {
                 const name = row.original.approvedBy;
                 return (
-                    <span title={name} className='text-[#121C2A] font-semibold truncate max-w-[110px] block'>
+                    <span title={name} className="text-xs text-gray-800 font-medium truncate max-w-[110px] block">
                         {name}
                     </span>
                 );
@@ -237,7 +237,7 @@ const AssetsTransferLog = () => {
                 <DataGridColumnHeader title="RECEIVED BY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span title={row.original.receivedBy} className="text-[#121C2A] font-semibold truncate max-w-[110px] block">
+                <span title={row.original.receivedBy} className="text-xs text-gray-800 font-medium truncate max-w-[110px] block">
                     {row.original.receivedBy}
                 </span>
             ),

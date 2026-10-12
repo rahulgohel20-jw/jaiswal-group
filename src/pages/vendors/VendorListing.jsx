@@ -35,8 +35,8 @@ import { extractList, mapVendorToRow } from './vendorHelper';
 // Truncates long text within a fixed-width box, revealing the full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -187,7 +187,7 @@ const VendorList = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500">
+          <span className="text-xs text-gray-500">
             {String(row.index + 1).padStart(2, '0')}
           </span>
         ),
@@ -206,10 +206,10 @@ const VendorList = () => {
               {str(row.original.name).charAt(0).toUpperCase() || '?'}
             </div> */}
             <div className="min-w-0">
-              <p className="font-semibold text-gray-900 leading-none truncate">
+              <p className="font-medium text-xs text-gray-800 leading-none truncate">
                 {row.original.name}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-[#084E92] font-semibold mt-1">
                 {row.original.vendorCode}
               </p>
             </div>
@@ -226,10 +226,9 @@ const VendorList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.emailid}
-            widthClass="max-w-[190px]"
           />
         ),
-        size: 200,
+        size: 220,
       },
       {
         id: 'mobile',
@@ -238,11 +237,11 @@ const VendorList = () => {
           <DataGridColumnHeader title="Mobile Number" column={column} />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-600 whitespace-nowrap">
+          <span className="text-xs text-gray-800 font-medium whitespace-nowrap">
             {row.original.mobile}
           </span>
         ),
-        size: 140,
+        size: 130,
       },
       {
         id: 'company',
@@ -253,10 +252,9 @@ const VendorList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.company}
-            widthClass="max-w-[170px]"
           />
         ),
-        size: 190,
+        size: 200,
       },
       {
         id: 'actions',
@@ -361,7 +359,14 @@ const VendorList = () => {
             <DataGrid
               table={table}
               recordCount={filteredVendors.length}
-              tableLayout={{ columnsResizable: true }}
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+                columnsResizable: true,
+              }}
             >
               <Card className="rounded-t-none border-t-0">
                 <CardTable>

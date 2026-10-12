@@ -212,8 +212,8 @@ const CaptainRecipeList = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700">
-                        {row.index + 1 + pagination.pageIndex * pagination.pageSize}
+                    <span className="text-xs text-gray-500">
+                        {String(row.index + 1 + pagination.pageIndex * pagination.pageSize).padStart(2, '0')}
                     </span>
                 ),
                 enableSorting: false,
@@ -227,11 +227,11 @@ const CaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="NAME"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 capitalize">{row.original.name}</div>
+                    <div className="font-medium text-xs text-gray-800 capitalize">{row.original.name}</div>
                 ),
                 size: 220,
             },
@@ -243,11 +243,11 @@ const CaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="UNIT"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700 uppercase">{row.original.unitName || '-'}</span>
+                    <span className="text-xs text-gray-800 font-medium uppercase">{row.original.unitName || '-'}</span>
                 ),
                 enableSorting: false,
                 size: 120,

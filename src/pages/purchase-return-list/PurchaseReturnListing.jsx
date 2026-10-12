@@ -152,7 +152,7 @@ const PurchaseReturnList = () => {
         id: "sno",
         header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-xs text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
         size: 36,
@@ -162,7 +162,7 @@ const PurchaseReturnList = () => {
         accessorFn: (row) => row.invoiceNo,
         header: ({ column }) => <DataGridColumnHeader title="INVOICE NO." column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
-          <span className="font-semibold text-[#084E92]">{row.original.invoiceNo}</span>
+          <span className="font-semibold text-xs text-[#084E92]">{row.original.invoiceNo}</span>
         ),
         size: 120,
       },
@@ -170,7 +170,7 @@ const PurchaseReturnList = () => {
         id: "supplier",
         accessorFn: (row) => row.supplier,
         header: ({ column }) => <DataGridColumnHeader title="SUPPLIER" column={column} className="my-2 text-xs" />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.supplier}</span>,
+        cell: ({ row }) => <span className="text-xs text-gray-800 font-medium">{row.original.supplier}</span>,
         enableSorting: false,
         size: 140,
       },
@@ -178,7 +178,7 @@ const PurchaseReturnList = () => {
         id: "invoiceDate",
         accessorFn: (row) => row.invoiceDate,
         header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.invoiceDate}</span>,
+        cell: ({ row }) => <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{row.original.invoiceDate}</span>,
         enableSorting: false,
         size: 85,
       },
@@ -187,7 +187,7 @@ const PurchaseReturnList = () => {
         accessorFn: (row) => row.amount,
         header: ({ column }) => <DataGridColumnHeader title="AMOUNT" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
-          <span className="text-gray-700 font-medium">
+          <span className="text-xs text-gray-800 font-medium">
             ₹{Number(row.original.amount).toFixed(2)}
           </span>
         ),
@@ -199,7 +199,7 @@ const PurchaseReturnList = () => {
         accessorFn: (row) => row.payment,
         header: ({ column }) => <DataGridColumnHeader title="PAYMENT" column={column} className="my-2 text-xs" />,
         cell: ({ row }) => (
-          <span className="text-gray-600 capitalize">{row.original.payment}</span>
+          <span className="text-xs text-gray-800 font-medium capitalize">{row.original.payment}</span>
         ),
         enableSorting: false,
         size: 80,

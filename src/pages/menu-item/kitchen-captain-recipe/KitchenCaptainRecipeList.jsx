@@ -311,7 +311,7 @@ const KitchenCaptainRecipeList = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700">
+                    <span className="text-xs text-gray-500">
                         {String(row.index + 1 + pagination.pageIndex * pagination.pageSize).padStart(2, '0')}
                     </span>
                 ),
@@ -325,11 +325,11 @@ const KitchenCaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="NAME"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 capitalize">
+                    <div className="font-medium text-xs text-gray-800 capitalize">
                         {row.original.name}
                     </div>
                 ),
@@ -342,11 +342,11 @@ const KitchenCaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="UNIT"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700 font-medium">
+                    <span className="text-xs text-gray-800 font-medium">
                         {row.original.outletName}
                     </span>
                 ),
@@ -360,11 +360,11 @@ const KitchenCaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="UNIT"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700 uppercase">
+                    <span className="text-xs text-gray-800 font-medium uppercase">
                         {row.original.unitName || '-'}
                     </span>
                 ),
@@ -378,11 +378,11 @@ const KitchenCaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="RATE"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700">{row.original.rate != null ? `₹${Number(row.original.rate).toFixed(2)}` : '-'}</span>
+                    <span className="text-xs text-gray-800 font-medium">{row.original.rate != null ? `₹${Number(row.original.rate).toFixed(2)}` : '-'}</span>
                 ),
                 sortingFn: (rowA, rowB) =>
                     Number(rowA.original.rate ?? 0) - Number(rowB.original.rate ?? 0),
@@ -395,11 +395,11 @@ const KitchenCaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="WEIGHT"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700">{row.original.weight ?? '-'}</span>
+                    <span className="text-xs text-gray-800 font-medium">{row.original.weight ?? '-'}</span>
                 ),
                 sortingFn: (rowA, rowB) =>
                     Number(rowA.original.weight ?? 0) - Number(rowB.original.weight ?? 0),

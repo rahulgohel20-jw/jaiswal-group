@@ -285,13 +285,13 @@ const RoleMaster = () => {
           <table className="w-full text-sm">
             <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB]">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide border-r border-[#E5E7EB] w-16">
                   S.NO
                 </th>
-                <th className="text-left px-2 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide border-r border-[#E5E7EB]">
                   Role Name
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide w-28">
                   Actions
                 </th>
               </tr>
@@ -321,16 +321,18 @@ const RoleMaster = () => {
                     key={role.id}
                     className="border-b border-[#F0F1F3] last:border-b-0 hover:bg-[#FAFBFC]"
                   >
-                    <td className="px-4 py-3 text-[#737781]">
+                    <td className="px-4 py-3 text-gray-500 text-xs border-r border-[#F0F1F3]">
                       {String(pageStart + idx + 1).padStart(2, '0')}
                     </td>
-                    <td className="px-2 py-3">
-                      <p className="font-semibold text-[#1B1B1F]">
+                    <td className="px-4 py-3 border-r border-[#F0F1F3]">
+                      <p className="font-medium text-xs text-gray-800">
                         {role.name}
                       </p>
-                      <p className="text-xs text-[#9CA3AF]">
-                        {role.description || '—'}
-                      </p>
+                      {role.description && (
+                        <p className="text-xs text-gray-800 font-medium mt-0.5">
+                          {role.description}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-3">

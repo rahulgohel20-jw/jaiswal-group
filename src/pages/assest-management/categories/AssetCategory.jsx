@@ -185,7 +185,7 @@ const AssetCategory = () => {
                 <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 36,
@@ -197,7 +197,12 @@ const AssetCategory = () => {
                 <DataGridColumnHeader title="CATEGORY NAME" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2 truncate block">{row.original.name}</div>
+                <div
+                    className="font-medium text-xs text-gray-800 py-2 truncate block max-w-[200px]"
+                    title={row.original.name}
+                >
+                    {row.original.name}
+                </div>
             ),
             enableSorting: false,
             size: 200,

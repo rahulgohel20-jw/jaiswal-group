@@ -452,7 +452,7 @@ const PurchaseOrderDetail = () => {
               <InfoTile label="Created By" value={po?.createdByName || po?.raisedBy || '—'} />
               <InfoTile label="Last Updated By" value={po?.updatedByName || (po?.updatedBy ? String(po?.updatedBy) : '—')} />
               <InfoTile label="Unit / Branch" value={po?.outlet || po?.outletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
-              <InfoTile label="Sub-Unit / Location" value={po?.subOutletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
+              <InfoTile label="Sub-Unit" value={po?.subOutletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
             </div>
 
             {po?.remarks && (

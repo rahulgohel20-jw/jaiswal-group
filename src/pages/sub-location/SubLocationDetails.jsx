@@ -219,7 +219,7 @@ const SubLocationDetails = () => {
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <InfoCard label="Parent Unit" value={unitName} />
-              <InfoCard label="Sub Unit / Location" value={subUnitName} />
+              <InfoCard label="Sub Unit" value={subUnitName} />
             </div>
           </SectionCard>
 

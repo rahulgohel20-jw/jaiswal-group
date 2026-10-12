@@ -32,6 +32,19 @@ const mapPage = (p, index) => ({
   moduleName: p.moduleName,
 });
 
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-[220px]',
+  className = 'text-gray-800 font-medium',
+}) => (
+  <span
+    title={value}
+    className={`block truncate text-xs ${className} ${widthClass}`}
+  >
+    {value || '—'}
+  </span>
+);
+
 const PageMaster = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Pages');
 
@@ -161,7 +174,7 @@ const PageMaster = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{row.original.srNo}</span>
+          <span className="text-gray-500 py-2 text-xs">{row.original.srNo}</span>
         ),
         enableSorting: false,
         size: 90,
@@ -180,7 +193,8 @@ const PageMaster = () => {
           <button
             type="button"
             onClick={() => (canEdit ? openEditModal(row.original) : openViewModal(row.original))}
-            className="text-[#084E92] font-medium hover:underline text-left cursor-pointer"
+            className="text-gray-800 font-medium text-xs hover:underline text-left cursor-pointer truncate max-w-[250px] block"
+            title={row.original.name}
           >
             {row.original.name}
           </button>
@@ -198,7 +212,7 @@ const PageMaster = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-[#084E92]">{row.original.moduleName}</span>
+          <TruncatedCell value={row.original.moduleName} />
         ),
         size: 280,
       },
@@ -309,6 +323,13 @@ const PageMaster = () => {
             table={table}
             recordCount={filteredPages.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>

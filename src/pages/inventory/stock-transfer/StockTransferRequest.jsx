@@ -18,7 +18,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
@@ -1891,7 +1890,7 @@ const StockTransferRequest = () => {
           <span className="text-gray-500 text-xs font-semibold">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 55,
+        size: 32,
       },
       {
         id: 'itemName',
@@ -1919,30 +1918,36 @@ const StockTransferRequest = () => {
                 <button
                   type="button"
                   onClick={() => openBatchVisualizerForItem(row.original)}
-                  className="group text-left hover:text-[#084E92] transition cursor-pointer truncate max-w-full"
+                  className="group text-left transition cursor-pointer truncate max-w-full"
                   title="Click to view FIFO Rate Layers & Batches"
                 >
-                  <span className="text-xs font-bold text-[#0F172A] group-hover:text-[#084E92] group-hover:underline truncate">
+                  <span className={`text-xs font-semibold truncate ${
+                    isDiscrepancyApprovalMode
+                      ? 'text-[#084E92] hover:text-[#063d73] hover:underline'
+                      : 'text-[#0F172A] group-hover:text-[#084E92] group-hover:underline'
+                  }`}>
                     {row.original.itemName}
                   </span>
                 </button>
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                  }}
-                  onClick={() => toggleRemarkInput(row.original.rowId)}
-                  className={`p-1 rounded-md transition cursor-pointer flex-shrink-0 ${
-                    isRemarkOpen
-                      ? 'text-[#084E92] bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-200'
-                      : hasRemark
-                      ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
-                      : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                  }`}
-                  title={isRemarkOpen ? 'Hide remarks' : hasRemark ? 'View / edit remarks' : 'Add remarks'}
-                >
-                  <Pencil size={13} />
-                </button>
+                {!isDiscrepancyApprovalMode && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                    }}
+                    onClick={() => toggleRemarkInput(row.original.rowId)}
+                    className={`p-1 rounded-md transition cursor-pointer flex-shrink-0 ${
+                      isRemarkOpen
+                        ? 'text-[#084E92] bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-200'
+                        : hasRemark
+                        ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                    }`}
+                    title={isRemarkOpen ? 'Hide remarks' : hasRemark ? 'View / edit remarks' : 'Add remarks'}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                )}
               </div>
 
               {/* Show selected batch information badge if batches are selected, or quick allocation button when batch selection is allowed */}
@@ -1986,9 +1991,9 @@ const StockTransferRequest = () => {
                 </div>
               )}
 
-              {/* Stacked batch cards for read / receive modes */}
-              {(isReceiveMode || isDiscrepancyApprovalMode) && batches.length > 0 && (
-                <div className="space-y-1.5 mt-1">
+              {/* Compact batch cards for read / receive modes */}
+              {isReceiveMode && batches.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-0.5 max-w-full">
                   {batches.map((b, bIdx) => {
                     const bNum =
                       b.batchNumber ||
@@ -1999,21 +2004,18 @@ const StockTransferRequest = () => {
                     return (
                       <div
                         key={b.id || b.sourceStockBatchId || bIdx}
-                        className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-[#F0F7FF] border border-[#D9ECFF] text-xs shadow-2xs"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50/80 border border-blue-200/70 text-[10.5px] text-[#084E92] max-w-full flex-wrap leading-tight"
                       >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Boxes size={13} className="text-[#084E92] shrink-0" />
-                          <span className="font-semibold text-[#084E92] font-mono truncate">
-                            {bNum}
+                        <span className="font-semibold font-mono truncate max-w-[100px]" title={bNum}>
+                          {bNum}
+                        </span>
+                        {bQty != null && (
+                          <span className="font-medium text-blue-900 whitespace-nowrap">
+                            ({bQty} {row.original.unit})
                           </span>
-                          {bQty != null && (
-                            <span className="font-bold text-[#084E92] shrink-0">
-                              ({bQty} {row.original.unit})
-                            </span>
-                          )}
-                        </div>
+                        )}
                         {bExp && (
-                          <span className="text-[11px] text-gray-500 font-medium shrink-0 ml-2 whitespace-nowrap">
+                          <span className="text-[10px] text-gray-500 whitespace-nowrap">
                             · Exp: {bExp}
                           </span>
                         )}
@@ -2038,19 +2040,23 @@ const StockTransferRequest = () => {
           );
         },
         enableSorting: false,
-        size: 240,
+        size: isDiscrepancyApprovalMode ? 100 : 220,
       },
       {
         id: 'orderQty',
         accessorFn: (row) => Number(row.orderQty || 0),
         header: ({ column }) => (
-          <DataGridColumnHeader title="REQUESTED QUANTITY" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader
+            title={isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode ? 'REQ QTY' : 'REQUESTED QTY'}
+            column={column}
+            className="text-[#43474F] font-bold uppercase text-[11px] truncate"
+          />
         ),
         cell: ({ row }) => {
           if (isReceiveMode || isDispatchMode || isDiscrepancyApprovalMode) {
             return (
-              <span className="text-xs font-bold text-gray-800">
-                {row.original.orderQty || row.original.transferQty || '0'} {row.original.unit}
+              <span className="text-xs font-semibold text-gray-800 whitespace-nowrap">
+                {row.original.orderQty || row.original.transferQty || '0'} <span className="text-[10.5px] text-gray-500 font-normal">{row.original.unit}</span>
               </span>
             );
           }
@@ -2067,7 +2073,8 @@ const StockTransferRequest = () => {
             </div>
           );
         },
-        size: 160,
+        enableSorting: false,
+        size: isDiscrepancyApprovalMode ? 65 : isReceiveMode || isDispatchMode ? 95 : 120,
       },
     ];
 
@@ -2077,13 +2084,17 @@ const StockTransferRequest = () => {
         id: 'transferQty',
         accessorFn: (row) => Number(row.transferQty !== undefined && row.transferQty !== '' ? row.transferQty : row.orderQty || 0),
         header: ({ column }) => (
-          <DataGridColumnHeader title="TRANSFER QUANTITY" column={column} className="text-[#084E92] font-bold uppercase text-xs" />
+          <DataGridColumnHeader
+            title={isReceiveMode || isDiscrepancyApprovalMode ? 'TRANS QTY' : 'TRANSFER QTY'}
+            column={column}
+            className="text-[#43474F] font-bold uppercase text-[11px] truncate"
+          />
         ),
         cell: ({ row }) => {
           if (isReceiveMode || isDiscrepancyApprovalMode) {
             return (
-              <span className="text-xs font-bold text-[#084E92]">
-                {row.original.transferQty || row.original.orderQty || '0'} {row.original.unit}
+              <span className="text-xs font-semibold text-gray-900 whitespace-nowrap">
+                {row.original.transferQty || row.original.orderQty || '0'} <span className="text-[10.5px] text-gray-500 font-normal">{row.original.unit}</span>
               </span>
             );
           }
@@ -2104,7 +2115,8 @@ const StockTransferRequest = () => {
             </div>
           );
         },
-        size: 160,
+        enableSorting: false,
+        size: isDiscrepancyApprovalMode ? 65 : isReceiveMode ? 95 : 120,
       });
     }
 
@@ -2114,7 +2126,7 @@ const StockTransferRequest = () => {
         id: 'currentStock',
         accessorFn: (row) => Number(row.currentStock || 0),
         header: ({ column }) => (
-          <DataGridColumnHeader title="CURRENT STOCK" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader title="CURRENT STOCK" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
         ),
         cell: ({ row }) => (
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold border ${stockBadgeClass(row.original)}`}>
@@ -2124,7 +2136,8 @@ const StockTransferRequest = () => {
             {row.original.unit}
           </span>
         ),
-        size: 140,
+        enableSorting: false,
+        size: 95,
       });
     }
 
@@ -2135,7 +2148,7 @@ const StockTransferRequest = () => {
           id: 'acceptedQty',
           accessorFn: (row) => Number(row.acceptedQty || 0),
           header: ({ column }) => (
-            <DataGridColumnHeader title="ACCEPTED QTY" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+            <DataGridColumnHeader title="ACCEPTED QTY" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
           ),
           cell: ({ row }) => {
             const maxVal = Number(row.original.transferQty || row.original.orderQty || 0);
@@ -2154,13 +2167,14 @@ const StockTransferRequest = () => {
               </div>
             );
           },
-          size: 150,
+          enableSorting: false,
+          size: 105,
         },
         {
           id: 'rejectedQty',
           accessorFn: (row) => Number(row.rejectedQty || 0),
           header: ({ column }) => (
-            <DataGridColumnHeader title="DAMAGED / REJECTED QTY" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+            <DataGridColumnHeader title="DAMAGED QTY" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
           ),
           cell: ({ row }) => {
             const maxVal = Number(row.original.transferQty || row.original.orderQty || 0);
@@ -2179,7 +2193,8 @@ const StockTransferRequest = () => {
               </div>
             );
           },
-          size: 180,
+          enableSorting: false,
+          size: 110,
         }
       );
     }
@@ -2191,88 +2206,96 @@ const StockTransferRequest = () => {
           id: 'acceptedQty',
           accessorFn: (row) => Number(row.acceptedQty || 0),
           header: ({ column }) => (
-            <DataGridColumnHeader title="RECEIVED QTY" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+            <DataGridColumnHeader title="RCVD QTY" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
           ),
           cell: ({ row }) => (
-            <span className="text-xs font-semibold text-emerald-700">
-              {row.original.acceptedQty} {row.original.unit}
+            <span className="text-xs font-semibold text-emerald-700 whitespace-nowrap">
+              {row.original.acceptedQty} <span className="text-[10.5px] text-emerald-600/80 font-normal">{row.original.unit}</span>
             </span>
           ),
-          size: 130,
+          enableSorting: false,
+          size: 65,
         },
         {
           id: 'rejectedQty',
           accessorFn: (row) => Number(row.rejectedQty || 0),
           header: ({ column }) => (
-            <DataGridColumnHeader title="DAMAGED QTY" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+            <DataGridColumnHeader title="DMG QTY" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
           ),
           cell: ({ row }) => (
-            <span className="text-xs font-semibold text-rose-600">
-              {row.original.rejectedQty} {row.original.unit}
+            <span className="text-xs font-semibold text-rose-600 whitespace-nowrap">
+              {row.original.rejectedQty} <span className="text-[10.5px] text-rose-500/80 font-normal">{row.original.unit}</span>
             </span>
           ),
-          size: 130,
+          enableSorting: false,
+          size: 65,
         },
         {
           id: 'shortageQuantity',
           accessorFn: (row) => Number(row.shortageQuantity || 0),
           header: ({ column }) => (
-            <DataGridColumnHeader title="SHORT QUANTITY" column={column} className="text-[#084E92] font-bold uppercase text-xs" />
+            <DataGridColumnHeader title="SHORT QTY" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
           ),
           cell: ({ row }) => (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-              {row.original.shortageQuantity} {row.original.unit}
+            <span className="text-xs font-semibold text-amber-700 whitespace-nowrap">
+              {row.original.shortageQuantity} <span className="text-[10.5px] text-amber-600/80 font-normal">{row.original.unit}</span>
             </span>
           ),
-          size: 140,
+          enableSorting: false,
+          size: 65,
         },
         {
           id: 'discrepancyResolution',
           header: ({ column }) => (
-            <DataGridColumnHeader title="DECISION / RESOLUTION" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+            <DataGridColumnHeader title="RESOLUTION" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
           ),
           cell: ({ row }) => (
             <select
               value={row.original.discrepancyResolution || 'SENDER_STOCK'}
               onChange={(e) => updateItemField(row.original.rowId, 'discrepancyResolution', e.target.value)}
-              className="h-8.5 w-full min-w-[210px] border border-[#E2E8F0] rounded-lg px-2 text-xs font-semibold text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 cursor-pointer"
+              className="h-8.5 w-full min-w-0 border border-[#E2E8F0] rounded-lg px-1.5 text-xs font-semibold text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 cursor-pointer"
             >
               <option value="SENDER_STOCK">Add in Source Outlet Stock</option>
               <option value="RECEIVER_STOCK">Add in Destination Outlet Stock</option>
               <option value="MISCELLANEOUS_SHORTAGE">Mark as Miscellaneous Shortage</option>
             </select>
           ),
-          size: 260,
+          enableSorting: false,
+          size: 135,
         },
         {
           id: 'reasonCategory',
           header: ({ column }) => (
-            <DataGridColumnHeader title="REASON *" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+            <DataGridColumnHeader title="REASON *" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
           ),
           cell: ({ row }) => (
             <BufferedTextInput
               value={row.original.reasonCategory || ''}
               onChange={(val) => updateItemField(row.original.rowId, 'reasonCategory', val)}
               placeholder="Mandatory reason..."
-              className="h-8.5 w-full min-w-[150px] border border-[#E2E8F0] rounded-lg px-2.5 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-medium"
+              title={row.original.reasonCategory || 'Mandatory reason...'}
+              className="h-8.5 w-full min-w-0 border border-[#E2E8F0] rounded-lg px-2 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-medium"
             />
           ),
+          enableSorting: false,
           size: 180,
         },
         {
           id: 'discrepancyRemarks',
           header: ({ column }) => (
-            <DataGridColumnHeader title="ITEM REMARKS" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+            <DataGridColumnHeader title="REMARKS" column={column} className="text-[#43474F] font-bold uppercase text-[11px] truncate" />
           ),
           cell: ({ row }) => (
             <BufferedTextInput
               value={row.original.discrepancyRemarks || ''}
               onChange={(val) => updateItemField(row.original.rowId, 'discrepancyRemarks', val)}
               placeholder="Remarks..."
-              className="h-8.5 w-full min-w-[130px] border border-[#E2E8F0] rounded-lg px-2.5 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-normal"
+              title={row.original.discrepancyRemarks || 'Remarks...'}
+              className="h-8.5 w-full min-w-0 border border-[#E2E8F0] rounded-lg px-2 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-normal"
             />
           ),
-          size: 150,
+          enableSorting: false,
+          size: 180,
         }
       );
     }
@@ -2295,7 +2318,7 @@ const StockTransferRequest = () => {
           </button>
         ),
         enableSorting: false,
-        size: 60,
+        size: 45,
       });
     }
 
@@ -2357,7 +2380,7 @@ const StockTransferRequest = () => {
   }
 
   return (
-    <Container>
+    <Container width="fluid" className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 lg:px-6">
       <div className="pt-2 pb-6 mx-auto space-y-4">
         {/* Page Header */}
         <PageHeader
@@ -2453,7 +2476,7 @@ const StockTransferRequest = () => {
                 {/* From Sub-Unit / Location */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    From Sub-Unit / Location <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
+                    From Sub-Unit <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
                   </label>
                   <SearchableSelect
                     className="mt-1.5"
@@ -2523,7 +2546,7 @@ const StockTransferRequest = () => {
                 {/* To Sub-Unit / Location */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    To Sub-Unit / Location <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
+                    To Sub-Unit <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
                   </label>
                   <SearchableSelect
                     className="mt-1.5"
@@ -2687,13 +2710,21 @@ const StockTransferRequest = () => {
                 </span>
               </div>
 
-              <DataGrid table={table} recordCount={manifestItems.length} className="rounded-none border-0">
+              <DataGrid
+                table={table}
+                recordCount={manifestItems.length}
+                className="rounded-none border-0"
+                tableLayout={{
+                  dense: true,
+                  width: 'fixed',
+                  cellBorder: true,
+                  headerBorder: true,
+                  rowBorder: true,
+                }}
+              >
                 <Card className="rounded-none border-0 shadow-none">
-                  <CardTable>
-                    <ScrollArea className="max-h-[60vh] w-full">
-                      <DataGridTable />
-                      <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
+                  <CardTable className="w-full overflow-x-hidden">
+                    <DataGridTable />
                   </CardTable>
                   <CardFooter className="bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-2xl flex items-center justify-end py-3">
                     <DataGridPagination />
