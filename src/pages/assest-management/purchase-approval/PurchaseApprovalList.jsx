@@ -217,10 +217,12 @@ export default function ListView({ onOpen }) {
           <thead>
             <tr className="bg-[#F9FAFC] border-b border-[#E7EAF0]">
               {["S.No", "PR Code", "Date", "Raised by", "Unit name", "Status", "Actions"].map(
-                (h) => (
+                (h, idx, arr) => (
                   <th
                     key={h}
-                    className="text-left font-semibold text-[#667085] text-[11px] uppercase tracking-wide px-5 py-3.5"
+                    className={`text-left font-semibold text-[#667085] text-[11px] uppercase tracking-wide px-5 py-3.5 ${
+                      idx !== arr.length - 1 ? 'border-r border-[#E7EAF0]' : ''
+                    }`}
                   >
                     {h}
                   </th>
@@ -237,26 +239,26 @@ export default function ListView({ onOpen }) {
                   i !== filtered.length - 1 ? "border-b border-[#EFF1F5]" : ""
                 }`}
               >
-                <td className="px-5 py-4 text-gray-500">
+                <td className="px-5 py-4 text-xs text-gray-500 border-r border-[#EFF1F5]">
                   {String(i + 1).padStart(2, '0')}
                 </td>
-                <td className="px-5 py-4">
+                <td className="px-5 py-4 border-r border-[#EFF1F5]">
                   <span
-                    className="font-semibold text-[#2952E3] text-[13px]"
+                    className="font-semibold text-[#084E92] text-xs"
                     style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                   >
                     {r.code}
                   </span>
                 </td>
-                <td className="px-5 py-4 text-[#475467]">{r.date}</td>
-                <td className="px-5 py-4">
+                <td className="px-5 py-4 text-xs text-gray-600 font-medium whitespace-nowrap border-r border-[#EFF1F5]">{r.date}</td>
+                <td className="px-5 py-4 border-r border-[#EFF1F5]">
                   <div className="flex items-center gap-2.5">
                     <Avatar initials={r.initials} />
-                    <span className="text-[#101828] font-medium">{r.raisedBy}</span>
+                    <span className="text-gray-800 font-medium text-xs">{r.raisedBy}</span>
                   </div>
                 </td>
-                <td className="px-5 py-4 text-[#475467]">{r.outlet}</td>
-                <td className="px-5 py-4">
+                <td className="px-5 py-4 text-xs text-gray-800 font-medium border-r border-[#EFF1F5]">{r.outlet}</td>
+                <td className="px-5 py-4 border-r border-[#EFF1F5]">
                   <StatusPill status={r.status} />
                 </td>
                 <td className="px-5 py-4">

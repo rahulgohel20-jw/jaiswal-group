@@ -54,8 +54,8 @@ import { PageHeader } from '@/components/common/PageHeader';
 // Truncates long text within a fixed-width box, revealing the full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -235,7 +235,7 @@ const UserManagementList = () => {
           <div className="flex gap-3 items-center w-full min-w-0">
             <div className="flex flex-col gap-1 min-w-0">
               <span
-                className="font-semibold text-gray-800 truncate block"
+                className="font-medium text-xs text-gray-800 truncate block"
                 title={row.original.name}
               >
                 {row.original.name}
@@ -262,7 +262,10 @@ const UserManagementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.code} widthClass="max-w-[130px]" />
+          <TruncatedCell
+            value={row.original.code}
+            className="font-semibold text-xs text-[#084E92]"
+          />
         ),
         size: 150,
       },
@@ -279,10 +282,9 @@ const UserManagementList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.email}
-            widthClass="max-w-[190px]"
           />
         ),
-        size: 200,
+        size: 220,
       },
       {
         id: 'company',
@@ -297,7 +299,6 @@ const UserManagementList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.company}
-            widthClass="max-w-[170px]"
           />
         ),
         size: 180,
@@ -315,10 +316,9 @@ const UserManagementList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.department}
-            widthClass="max-w-[140px]"
           />
         ),
-        size: 150,
+        size: 160,
       },
       {
         id: 'action',

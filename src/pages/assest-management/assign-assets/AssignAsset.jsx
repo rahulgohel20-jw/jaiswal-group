@@ -3,8 +3,10 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
+import { useOrgScope } from '@/hooks/useOrgScope';
 import {
   Activity,
   ArrowLeftRight,
@@ -244,6 +246,15 @@ const AssignmentPreviewDrawer = ({
 const AssignAssets = () => {
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assigned Asset');
 
+  const {
+    isOutletUser,
+    isCompanyUser,
+    isGroupUser,
+    units,
+    effectiveOutletId,
+    allowedOutletIds,
+  } = useOrgScope();
+
   const [assignments, setAssignments] = useState([]);
   const [assets, setAssets] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -252,6 +263,7 @@ const AssignAssets = () => {
   const [loadError, setLoadError] = useState('');
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState([]);
   const [previewAssignment, setPreviewAssignment] = useState(null);
   const [actionSaving, setActionSaving] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -264,6 +276,13 @@ const AssignAssets = () => {
   const [deleteSaving, setDeleteSaving] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isOutletUser && effectiveOutletId) {
+      setOutletInput(String(effectiveOutletId));
+    }
+  }, [isOutletUser, effectiveOutletId]);
+
   const loadAll = async () => {
     try {
       setLoading(true);
@@ -337,20 +356,15 @@ const AssignAssets = () => {
     });
   }, [assignments, assets, employees, organizations]);
 
-  const outletOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          (organizations ?? [])
-            .filter(
-              (o) => o.orgType === 'OUTLET' || o.orgType === 'SUB_COMPANY',
-            )
-            .map((o) => o.companyNameEnglish)
-            .filter(Boolean),
-        ),
-      ),
-    [organizations],
-  );
+  // Outlets based on the logged-in user's permitted scope
+  const outletOptions = useMemo(() => {
+    if (!units || units.length === 0) return [];
+    return units.map((u) => ({
+      id: u.id,
+      name: u.name || u.companyNameEnglish || `Outlet #${u.id}`,
+    }));
+  }, [units]);
+
   const categoryOptions = useMemo(
     () =>
       Array.from(
@@ -359,8 +373,40 @@ const AssignAssets = () => {
     [assets],
   );
 
+  // Filter assignments by the logged-in user's organization scope
+  const scopedAssignments = useMemo(() => {
+    if (!enrichedAssignments || enrichedAssignments.length === 0) return [];
+
+    if (isOutletUser) {
+      const myOutletId = Number(effectiveOutletId || units[0]?.id || 0);
+      return enrichedAssignments.filter((item) => {
+        if (!item.companiesId) return false;
+        return (
+          Number(item.companiesId) === myOutletId ||
+          allowedOutletIds.has(Number(item.companiesId))
+        );
+      });
+    }
+
+    if (isCompanyUser) {
+      return enrichedAssignments.filter((item) => {
+        if (!item.companiesId) return false;
+        return allowedOutletIds.has(Number(item.companiesId));
+      });
+    }
+
+    return enrichedAssignments;
+  }, [
+    enrichedAssignments,
+    isOutletUser,
+    isCompanyUser,
+    effectiveOutletId,
+    units,
+    allowedOutletIds,
+  ]);
+
   const filteredAssignments = useMemo(() => {
-    return enrichedAssignments.filter((item) => {
+    return scopedAssignments.filter((item) => {
       const search = searchInput.toLowerCase().trim();
 
       const searchMatch =
@@ -368,18 +414,24 @@ const AssignAssets = () => {
         item.assignmentId.toLowerCase().includes(search) ||
         item.assetCode.toLowerCase().includes(search) ||
         item.itemName.toLowerCase().includes(search) ||
-        item.assignedTo.toLowerCase().includes(search);
+        item.assignedTo.toLowerCase().includes(search) ||
+        item.companiesName.toLowerCase().includes(search);
 
       const outletMatch =
-        outletInput === 'All' || item.location === outletInput;
+        outletInput === 'All' ||
+        String(item.companiesId) === String(outletInput) ||
+        item.companiesName === outletInput ||
+        item.location === outletInput;
+
       const categoryMatch =
         categoryInput === 'All' || item.category === categoryInput;
+
       const statusMatch = statusInput === 'All' || item.status === statusInput;
 
       return searchMatch && outletMatch && categoryMatch && statusMatch;
     });
   }, [
-    enrichedAssignments,
+    scopedAssignments,
     searchInput,
     outletInput,
     categoryInput,
@@ -393,11 +445,11 @@ const AssignAssets = () => {
   // Real, lightweight stat derivations from the loaded data. The other
   // stat cards (Pending Returns, Transfer Requests, Under Maintenance)
   // have no backing concept in the current API and stay static.
-  const totalAssignments = enrichedAssignments.length;
-  const activeAssignments = enrichedAssignments.filter(
+  const totalAssignments = scopedAssignments.length;
+  const activeAssignments = scopedAssignments.filter(
     (a) => a.status === 'Assigned',
   ).length;
-  const returnedAssignments = enrichedAssignments.filter(
+  const returnedAssignments = scopedAssignments.filter(
     (a) => a.status === 'Returned',
   ).length;
 
@@ -514,7 +566,7 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+        <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
       ),
       enableSorting: false,
       size: 36,
@@ -533,12 +585,12 @@ const AssignAssets = () => {
         <button
           type="button"
           onClick={() => setPreviewAssignment(row.original)}
-          className="font-semibold text-[#123B6D] leading-5 py-2 hover:underline cursor-pointer text-left truncate max-w-[100px]"
+          className="font-semibold text-xs text-[#084E92] leading-5 py-2 hover:underline cursor-pointer text-left truncate max-w-[100px]"
         >
           {row.original.assignmentId}
         </button>
       ),
-      enableSorting: false,
+      enableSorting: true,
       size: 100,
     },
     {
@@ -552,9 +604,9 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 py-1 truncate max-w-[75px] block">{row.original.assetCode}</span>
+        <span className="text-xs text-gray-800 font-medium py-1 truncate max-w-[75px] block">{row.original.assetCode}</span>
       ),
-      enableSorting: false,
+      enableSorting: true,
       size: 75,
     },
     {
@@ -568,11 +620,11 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span title={row.original.itemName} className="font-semibold text-gray-800 py-1 truncate max-w-[120px] block">
+        <span title={row.original.itemName} className="font-medium text-xs text-gray-800 py-1 truncate max-w-[120px] block">
           {row.original.itemName}
         </span>
       ),
-      enableSorting: false,
+      enableSorting: true,
       size: 120,
     },
     {
@@ -587,12 +639,12 @@ const AssignAssets = () => {
       ),
       cell: ({ row }) => (
         <div className="py-1 truncate max-w-[100px]">
-          <p title={row.original.assignedTo} className="font-semibold text-gray-800 leading-tight truncate">
+          <p title={row.original.assignedTo} className="font-medium text-xs text-gray-800 leading-tight truncate">
             {row.original.assignedTo}
           </p>
         </div>
       ),
-      enableSorting: false,
+      enableSorting: true,
       size: 100,
     },
     {
@@ -606,7 +658,7 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span title={row.original.companiesName} className="text-gray-700 py-1 truncate max-w-[95px] block">{row.original.companiesName}</span>
+        <span title={row.original.companiesName} className="text-xs text-gray-800 font-medium py-1 truncate max-w-[95px] block">{row.original.companiesName}</span>
       ),
       enableSorting: false,
       size: 95,
@@ -622,7 +674,7 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span title={row.original.subOutletName} className="text-gray-700 py-1 truncate max-w-[95px] block">{row.original.subOutletName}</span>
+        <span title={row.original.subOutletName} className="text-xs text-gray-800 font-medium py-1 truncate max-w-[95px] block">{row.original.subOutletName}</span>
       ),
       enableSorting: false,
       size: 95,
@@ -638,9 +690,21 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 py-1 whitespace-nowrap">{row.original.assignedDate}</span>
+        <span className="text-gray-600 font-medium text-xs py-1 whitespace-nowrap">{row.original.assignedDate}</span>
       ),
-      enableSorting: false,
+      enableSorting: true,
+      sortingFn: (rowA, rowB, columnId) => {
+        const parseDate = (d) => {
+          if (!d || d === '-' || d === '—') return 0;
+          if (d.includes('/')) {
+            const [day, month, year] = d.split('/').map(Number);
+            return new Date(year, (month || 1) - 1, day || 1).getTime() || 0;
+          }
+          const t = new Date(d).getTime();
+          return isNaN(t) ? 0 : t;
+        };
+        return parseDate(rowA.getValue(columnId)) - parseDate(rowB.getValue(columnId));
+      },
       size: 85,
     },
     {
@@ -654,11 +718,14 @@ const AssignAssets = () => {
         />
       ),
       cell: ({ row }) => (
-        <span className="text-gray-700 font-medium py-1 whitespace-nowrap">
+        <span className="text-gray-800 font-medium text-xs py-1 whitespace-nowrap">
           {row.original.qty}
         </span>
       ),
-      enableSorting: false,
+      enableSorting: true,
+      sortingFn: (rowA, rowB, columnId) => {
+        return (Number(rowA.getValue(columnId)) || 0) - (Number(rowB.getValue(columnId)) || 0);
+      },
       size: 45,
     },
     {
@@ -722,10 +789,12 @@ const AssignAssets = () => {
   const table = useReactTable({
     data: filteredAssignments,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) {
@@ -788,10 +857,10 @@ const AssignAssets = () => {
                     <SelectValue placeholder="All Units" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="All">All Units</SelectItem>
-                    {outletOptions.map((name) => (
-                      <SelectItem key={name} value={name}>
-                        {name}
+                    {!isOutletUser && <SelectItem value="All">All Units</SelectItem>}
+                    {outletOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={String(opt.id)}>
+                        {opt.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

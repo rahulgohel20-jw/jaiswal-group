@@ -40,6 +40,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { CodeCell } from '@/components/common/CodeCell';
 import { SearchBar } from '@/components/common/SearchBar';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import {
   Select,
   SelectContent,
@@ -63,7 +64,7 @@ import {
   const StatusBadge = ({ status }) => (
     <span
       title={status || '—'}
-      className={`font-semibold text-xs whitespace-nowrap ${
+      className={`font-semibold text-xs block truncate max-w-full ${
         STATUS_TEXT_COLORS[status] || 'text-gray-600'
       }`}
     >
@@ -75,11 +76,11 @@ import {
   // (mirrors TruncatedCell from UserManagementList.jsx)
   const TruncatedCell = ({
     value,
-    widthClass = 'max-w-[180px]',
-    className = 'text-gray-600',
+    widthClass = 'max-w-full',
+    className = 'text-gray-800 font-medium',
   }) => (
-    <span title={value} className={`block truncate ${widthClass} ${className}`}>
-      {value}
+    <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
+      {value || '—'}
     </span>
   );
 
@@ -223,7 +224,15 @@ import {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState(''); // default: all statuses
-    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+
+    const {
+      pagination,
+      setPagination,
+      totalElements,
+      pageCount,
+      updateFromResponse,
+      resetPage,
+    } = useServerPagination({ defaultPageSize: PAGE_SIZE });
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -234,9 +243,27 @@ import {
       setLoading(true);
       setPrError(null);
       try {
-        const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId);
-        const raw = res?.data?.data ?? res?.data ?? res ?? [];
-        const rows = Array.isArray(raw) ? raw.map(normalizeRow) : [];
+        const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+        const reqPayload = {
+          outletId,
+          status: statusFilter || undefined,
+          search: searchQuery.trim() || undefined,
+        };
+        if (pagination.pageIndex > 0) {
+          reqPayload.page = pagination.pageIndex;
+          reqPayload.size = pagination.pageSize;
+        }
+        const res = await getPurchaseRequisitionsByOutlet(reqPayload);
+        const body = res?.data || {};
+        const raw = Array.isArray(body.data)
+          ? body.data
+          : Array.isArray(body.content)
+          ? body.content
+          : Array.isArray(body)
+          ? body
+          : [];
+        updateFromResponse(res, raw.length);
+        const rows = raw.map(normalizeRow);
         const scopedRows = filterRowsByScope(rows);
         setList(scopedRows);
       } catch (err) {
@@ -244,7 +271,21 @@ import {
       } finally {
         setLoading(false);
       }
-    }, [scopeLoading, scopeError, effectiveOutletId, filterRowsByScope]);
+    }, [
+      scopeLoading,
+      scopeError,
+      effectiveOutletId,
+      statusFilter,
+      pagination.pageIndex,
+      pagination.pageSize,
+      searchQuery,
+      filterRowsByScope,
+      updateFromResponse,
+    ]);
+
+    useEffect(() => {
+      resetPage();
+    }, [searchQuery, statusFilter, effectiveOutletId, selectedUnitId, resetPage]);
 
     useEffect(() => {
       loadData();
@@ -294,8 +335,8 @@ import {
     }, [list, statusFilter, searchQuery]);
 
     useEffect(() => {
-      setPagination((p) => ({ ...p, pageIndex: 0 }));
-    }, [searchQuery, statusFilter, selectedUnitId]);
+      resetPage();
+    }, [searchQuery, statusFilter, selectedUnitId, resetPage]);
 
     const handleView = (row) => navigate(`/purchase-requisition/view/${row.id}`);
     const handleEdit = (row) => navigate(`/purchase-requisition/edit/${row.id}`, { state: row });
@@ -317,7 +358,9 @@ import {
             <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => (
-            <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+            <span className="text-gray-500 py-2 text-xs">
+              {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+            </span>
           ),
           enableSorting: false,
           size: 36,
@@ -329,10 +372,10 @@ import {
             <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => (
-            <CodeCell code={row.original.prCode} maxWidth="max-w-[130px]" />
+            <CodeCell code={row.original.prCode} maxWidth="max-w-full" className="text-xs" />
           ),
           enableSorting: false,
-          size: 130,
+          size: 195,
         },
         {
           id: 'date',
@@ -340,9 +383,9 @@ import {
           header: ({ column }) => (
             <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
           ),
-          cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[80px]" />,
+          cell: ({ row }) => <span className="text-gray-800 font-medium whitespace-nowrap text-xs">{row.original.date || '—'}</span>,
           enableSorting: false,
-          size: 75,
+          size: 85,
         },
         {
           id: 'requiredDate',
@@ -351,7 +394,7 @@ import {
             <DataGridColumnHeader title="REQ. DATE" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => (
-            <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[85px]" />
+            <span className="text-gray-800 font-medium whitespace-nowrap text-xs">{row.original.requiredDate || '—'}</span>
           ),
           enableSorting: false,
           size: 85,
@@ -362,9 +405,9 @@ import {
           header: ({ column }) => (
             <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
           ),
-          cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
+          cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-full" />,
           enableSorting: false,
-          size: 140,
+          size: 120,
         },
         {
           id: 'subOutletName',
@@ -372,9 +415,9 @@ import {
           header: ({ column }) => (
             <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
           ),
-          cell: ({ row }) => <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-[120px]" />,
+          cell: ({ row }) => <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-full" />,
           enableSorting: false,
-          size: 120,
+          size: 100,
         },
         {
           id: 'raisedBy',
@@ -384,10 +427,10 @@ import {
           ),
           cell: ({ row }) => {
             const name = row.original.raisedBy || row.original.createdByName;
-            return <TruncatedCell value={name || '—'} widthClass="max-w-[110px]" />;
+            return <TruncatedCell value={name || '—'} widthClass="max-w-full" />;
           },
           enableSorting: false,
-          size: 110,
+          size: 75,
         },
         {
           id: 'status',
@@ -397,71 +440,72 @@ import {
           ),
           cell: ({ row }) => <StatusBadge status={row.original.status} />,
           enableSorting: false,
-          size: 155,
+          size: 115,
         },
         {
           id: 'action',
           header: ({ column }) => (
             <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
           ),
+          enableSorting: false,
+          size: 75,
           cell: ({ row }) => {
             const original = row.original;
             const isRejected = original.rawStatus === PR_STATUS.REJECTED || String(original.rawStatus).toUpperCase() === 'REJECTED';
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => handleView(original)}
-                  className="text-gray-500 hover:text-green-600 cursor-pointer"
+                  className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                   title="View"
                 >
-                  <Eye size={18} />
+                  <Eye size={16} />
                 </button>
                 {canEdit && EDITABLE_STATUSES.has(original.rawStatus) && (
                   <button
                     type="button"
                     onClick={() => handleEdit(original)}
-                    className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                    className="text-gray-500 hover:text-blue-600 cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
                     title="Edit"
                   >
-                    <Pencil size={18} />
+                    <Pencil size={16} />
                   </button>
                 )}
                 {canDelete && original.rawStatus === PR_STATUS.PENDING && (
                   <button
                     type="button"
                     onClick={() => openDeleteConfirm(original)}
-                    className="text-red-300 hover:text-red-600 cursor-pointer"
+                    className="text-red-400 hover:text-red-600 cursor-pointer p-0.5 rounded hover:bg-red-50 transition"
                     title="Delete"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 )}
                 {canAdd && isRejected && (
                   <button
                     type="button"
                     onClick={() => handleCopyPr(original)}
-                    className="text-gray-500 hover:text-[#084E92] cursor-pointer"
+                    className="text-gray-500 hover:text-[#084E92] cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
                     title="Copy PR"
                   >
-                    <Copy size={18} />
+                    <Copy size={16} />
                   </button>
                 )}
               </div>
             );
           },
-          enableSorting: false,
-          size: 80,
         },
       ],
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [canAdd, canEdit, canDelete],
+      [pagination.pageIndex, pagination.pageSize, canAdd, canEdit, canDelete],
     );
 
     const table = useReactTable({
       data: filteredRows,
       columns,
       state: { pagination },
+      manualPagination: true,
+      pageCount,
       onPaginationChange: setPagination,
       getCoreRowModel: getCoreRowModel(),
       getPaginationRowModel: getPaginationRowModel(),
@@ -519,7 +563,7 @@ import {
             ) : (
               <DataGrid
                 table={table}
-                recordCount={filteredRows.length}
+                recordCount={totalElements || filteredRows.length}
                 className="rounded-2xl"
                 tableLayout={{
                   dense: true,

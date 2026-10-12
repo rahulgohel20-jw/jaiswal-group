@@ -34,14 +34,14 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const TruncatedCell = ({ value, widthClass = 'max-w-[180px]', className = 'text-gray-600 text-xs' }) => (
+const TruncatedCell = ({ value, widthClass = 'max-w-full', className = 'text-xs text-gray-800 font-medium' }) => (
     <span title={value || ''} className={`block truncate ${widthClass} ${className}`}>
         {value || '—'}
     </span>
 );
 
 const ChipCell = ({ value }) => (
-    <span title={value || ''} className="inline-block max-w-40 truncate rounded-lg border border-[#E7EAF0] bg-[#F9FAFC] px-3 py-1.5 text-[10px] font-semibold text-gray-700">
+    <span title={value || ''} className="inline-block max-w-full truncate rounded-lg border border-[#E7EAF0] bg-[#F9FAFC] px-3 py-1.5 text-[10px] font-semibold text-gray-700">
         {value || '—'}
     </span>
 );
@@ -270,7 +270,7 @@ const PurchaseInvoiceListing = () => {
                 <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-xs text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 70,
@@ -280,8 +280,8 @@ const PurchaseInvoiceListing = () => {
             id: 'invoiceCode',
             accessorFn: row => row.invoiceCode,
             header: ({ column }) => <DataGridColumnHeader title="INVOICE CODE" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <TruncatedCell value={row.original.invoiceCode} widthClass="max-w-[200px]" className="font-semibold text-[#084E92] text-xs" />,
-            size: 150,
+            cell: ({ row }) => <TruncatedCell value={row.original.invoiceCode} className="font-semibold text-[#084E92] text-xs" />,
+            size: 160,
         },
         {
             id: 'vendorInvoiceNumber',
@@ -294,7 +294,7 @@ const PurchaseInvoiceListing = () => {
             id: 'date',
             accessorFn: row => row.date,
             header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <TruncatedCell value={formatDisplayDate(row.original.date)} widthClass="max-w-[120px]" />,
+            cell: ({ row }) => <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{formatDisplayDate(row.original.date)}</span>,
             size: 110,
         },
         {
@@ -302,14 +302,14 @@ const PurchaseInvoiceListing = () => {
             accessorFn: row => row.outletName,
             header: ({ column }) => <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <ChipCell value={row.original.outletName} />,
-            size: 150,
+            size: 180,
         },
         {
             id: 'vendorName',
             accessorFn: row => row.vendorName,
             header: ({ column }) => <DataGridColumnHeader title="VENDOR NAME" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <TruncatedCell value={row.original.vendorName} widthClass="max-w-[220px]" className="font-medium text-[#101828] text-xs" />,
-            size: 180,
+            cell: ({ row }) => <TruncatedCell value={row.original.vendorName} className="font-medium text-gray-800 text-xs" />,
+            size: 220,
         },
         {
             id: 'status',
@@ -458,7 +458,18 @@ const PurchaseInvoiceListing = () => {
                             No invoices match these filters.
                         </div>
                     ) : (
-                        <DataGrid table={table} recordCount={pageInfo.totalElements} className="rounded-2xl">
+                        <DataGrid
+                            table={table}
+                            recordCount={pageInfo.totalElements}
+                            className="rounded-2xl"
+                            tableLayout={{
+                                dense: true,
+                                width: 'fixed',
+                                cellBorder: true,
+                                headerBorder: true,
+                                rowBorder: true,
+                            }}
+                        >
                             <Card className="rounded-t-none border-t-0 rounded-2xl">
                                 <CardTable>
                                     <ScrollArea>

@@ -54,7 +54,7 @@ const SectionCard = ({ children, className = "" }) => (
   </div>
 );
 
-const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
+const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle, actions }) => (
   <div
     className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 cursor-pointer select-none"
     onClick={onToggle}
@@ -66,6 +66,11 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
       <h2 className="text-sm font-bold text-gray-800 leading-none">{title}</h2>
       {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
     </div>
+    {actions && (
+      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+        {actions}
+      </div>
+    )}
     <button
       type="button"
       onClick={(e) => {
@@ -402,13 +407,16 @@ const AddSubLocation = () => {
   const unitOptions = useMemo(() => {
     const opts = units.map((u) => ({
       value: String(u.id),
-      label: u.companyNameEnglish || u.companyCode || `Unit #${u.id}`,
+      label: u.name || u.companyNameEnglish || u.organizationName || u.companyCode || u.code || `Unit #${u.id}`,
     }));
 
     if (form.organizationId && !opts.some((o) => String(o.value) === String(form.organizationId))) {
       const fallbackName =
         rawSubLocation?.organizationName ||
         rawSubLocation?.unitName ||
+        rawSubLocation?.parentOrganizationName ||
+        rawSubLocation?.parentName ||
+        rawSubLocation?.outletName ||
         `Unit #${form.organizationId}`;
       opts.unshift({ value: String(form.organizationId), label: fallbackName });
     }
@@ -419,12 +427,14 @@ const AddSubLocation = () => {
     let list = subUnits;
     if (form.organizationId && showUnitDropdown) {
       list = list.filter(
-        (su) => String(su.organizationId || su.orgId) === String(form.organizationId)
+        (su) =>
+          String(su.organizationId || su.orgId || su.parentId || su.outletId) ===
+          String(form.organizationId)
       );
     }
     const opts = list.map((su) => ({
       value: String(su.id),
-      label: su.subOutletName || su.name || `Sub Unit #${su.id}`,
+      label: su.subOutletName || su.name || su.organizationName || `Sub Unit #${su.id}`,
     }));
 
     if (form.subOutletId && !opts.some((o) => String(o.value) === String(form.subOutletId))) {
@@ -506,11 +516,15 @@ const AddSubLocation = () => {
 
   const handleUnitChange = (unitId) => {
     set("organizationId", unitId);
+    setErrorFor("organizationId", validateRequired(unitId, "Unit"));
 
     // If currently selected sub-unit does not belong to new unit, clear it
     if (form.subOutletId) {
       const su = subUnits.find((s) => String(s.id) === String(form.subOutletId));
-      if (su && String(su.organizationId || su.orgId) !== String(unitId)) {
+      if (
+        su &&
+        String(su.organizationId || su.orgId || su.parentId || su.outletId) !== String(unitId)
+      ) {
         set("subOutletId", "");
       }
     }
@@ -519,7 +533,7 @@ const AddSubLocation = () => {
   const handleSubUnitChange = async (subUnitId) => {
     setLocationTouched(false);
     set("subOutletId", subUnitId);
-    setErrorFor("subOutletId", validateRequired(subUnitId, "Sub Unit / Location"));
+    setErrorFor("subOutletId", validateRequired(subUnitId, "Sub Unit"));
 
     let matchingSubUnit = subUnits.find((su) => String(su.id) === String(subUnitId));
 
@@ -594,7 +608,7 @@ const AddSubLocation = () => {
     const unitErr = validateRequired(targetOrgId, "Unit");
     if (unitErr) next.organizationId = unitErr;
 
-    const subUnitErr = validateRequired(form.subOutletId, "Sub Unit / Location");
+    const subUnitErr = validateRequired(form.subOutletId, "Sub Unit");
     if (subUnitErr) next.subOutletId = subUnitErr;
 
     const nameErr = validateRequired(form.locationName, "Location Name");
@@ -716,13 +730,13 @@ const AddSubLocation = () => {
               <div className={`grid gap-4 ${showUnitDropdown ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1 sm:grid-cols-2 max-w-2xl"}`}>
                 {showUnitDropdown && (
                   <div>
-                    <Label required>Parent Unit</Label>
+                    <Label required>Unit</Label>
                     <SearchableSelect
                       name="organizationId"
                       value={form.organizationId}
                       onChange={(e) => handleUnitChange(e.target.value)}
                       options={unitOptions}
-                      placeholder={loadingUnits ? "Loading units..." : "Select Parent Unit"}
+                      placeholder={loadingUnits ? "Loading units..." : "Select Unit"}
                       disabled={loadingUnits}
                       hasError={!!errors.organizationId}
                     />
@@ -731,7 +745,7 @@ const AddSubLocation = () => {
                 )}
 
                 <div>
-                  <Label required>Sub Unit / Location</Label>
+                  <Label required>Sub Unit </Label>
                   <SearchableSelect
                     name="subOutletId"
                     value={form.subOutletId}
@@ -741,8 +755,8 @@ const AddSubLocation = () => {
                       loadingSubUnits
                         ? "Loading sub units..."
                         : showUnitDropdown && form.organizationId
-                          ? "Select Sub Unit / Location"
-                          : "Select Sub Unit / Location"
+                          ? "Select Sub Unit"
+                          : "Select Sub Unit"
                     }
                     disabled={loadingSubUnits}
                     hasError={!!errors.subOutletId}
@@ -764,9 +778,26 @@ const AddSubLocation = () => {
             onToggle={() => toggleSection("info")}
           />
           {openSections.info && (
-            <div className="px-6 py-6 space-y-5">
+            <div className="px-6 py-5 space-y-4">
+              <div className="flex items-center justify-end">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="subLocationActiveToggle"
+                    checked={form.isActive}
+                    onCheckedChange={(checked) => set("isActive", checked)}
+                    size="sm"
+                  />
+                  <label
+                    htmlFor="subLocationActiveToggle"
+                    className="text-xs font-semibold text-gray-700 cursor-pointer select-none"
+                  >
+                    {form.isActive ? "Active" : "Inactive"}
+                  </label>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2">
+                <div>
                   <Label required>Sub Location Name</Label>
                   <input
                     value={form.locationName}
@@ -790,11 +821,8 @@ const AddSubLocation = () => {
                     className={inputCls}
                   />
                 </div>
-              </div>
 
-              {/* Location Type Dropdown & Active Toggle */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
-                <div className="sm:col-span-1">
+                <div>
                   <Label required>Location Type</Label>
                   <SearchableSelect
                     name="locationType"
@@ -811,25 +839,6 @@ const AddSubLocation = () => {
                   <ErrorText error={errors.locationType} />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <Label>Status</Label>
-                  <div className="flex items-center gap-3 h-[42px] px-3.5 border border-gray-200 rounded-lg bg-gray-50/50">
-                    <Switch
-                      id="subLocationActive"
-                      checked={form.isActive}
-                      onCheckedChange={(checked) => set("isActive", checked)}
-                      size="sm"
-                    />
-                    <label htmlFor="subLocationActive" className="text-sm text-gray-700 cursor-pointer select-none flex items-center gap-1.5">
-                      <span className="font-semibold text-gray-800">{form.isActive ? "Active" : "Inactive"}</span>
-                      <span className="text-xs text-gray-500">— {form.isActive ? "Available for operations" : "Disabled for operations"}</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Contact Information */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div>
                   <Label>Contact Person</Label>
                   <input
@@ -839,6 +848,7 @@ const AddSubLocation = () => {
                     className={inputCls}
                   />
                 </div>
+
                 <div>
                   <Label>Contact Number</Label>
                   <input
@@ -854,6 +864,7 @@ const AddSubLocation = () => {
                   />
                   <ErrorText error={errors.contactNumber} />
                 </div>
+
                 <div>
                   <Label>Email Address</Label>
                   <input

@@ -14,6 +14,8 @@ import {
   Pencil,
   RotateCcw,
   X,
+  Copy,
+  Trash2,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -27,7 +29,7 @@ import {
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { getUserIdFromToken } from '@/utils/auth';
 import { getTodayInputDate } from '@/utils/GetCurrentToday';
-import { toast } from 'sonner';
+import { notify } from '@/utils/toast';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 
@@ -455,7 +457,7 @@ const GenerateGRNDetail = () => {
 
   const handleApprovedQtyChange = (itemId, val) => {
     if (val !== '' && Number(val) < 0) {
-      toast.error('Negative numbers are not allowed.');
+      notify.error('Negative numbers are not allowed.');
       return;
     }
     const numericVal = val === '' ? '' : Math.max(0, Number(val));
@@ -474,7 +476,7 @@ const GenerateGRNDetail = () => {
 
   const handleReturnQtyChange = (itemId, val) => {
     if (val !== '' && Number(val) < 0) {
-      toast.error('Negative numbers are not allowed.');
+      notify.error('Negative numbers are not allowed.');
       return;
     }
     const numericVal = val === '' ? '' : Math.max(0, Number(val));
@@ -537,33 +539,96 @@ const GenerateGRNDetail = () => {
     );
   };
 
+  const handleCopyItem = (itemToCopy) => {
+    const newItem = {
+      ...itemToCopy,
+      id: `copy_${itemToCopy.purchaseOrderDetailId || itemToCopy.rawMaterialId || Date.now()}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      purchaseOrderDetailId: itemToCopy.purchaseOrderDetailId,
+      purchaseOrderId: itemToCopy.purchaseOrderId,
+      poCode: itemToCopy.poCode,
+      rawMaterialId: itemToCopy.rawMaterialId,
+      itemName: itemToCopy.itemName,
+      itemCode: itemToCopy.itemCode,
+      uomName: itemToCopy.uomName,
+      orderedQty: itemToCopy.orderedQty,
+      receivedQuantity: itemToCopy.receivedQuantity,
+      recQty: 0,
+      approvedQty: 0,
+      returnQty: 0,
+      returnReplacementStatus: 'RETURN_REQUESTED',
+      isPoDetailClosed: false,
+      remarks: '',
+      isReplacementItem: Boolean(itemToCopy.isReplacementItem),
+      isCompleted: false,
+      returnGrnDetailId: itemToCopy.returnGrnDetailId,
+      oldGrnId: itemToCopy.oldGrnId,
+      batchNo: '',
+      useByDate: '',
+      isCopied: true,
+    };
+
+    setItems((prev) => {
+      const index = prev.findIndex((i) => i.id === itemToCopy.id);
+      if (index === -1) return [...prev, newItem];
+      const next = [...prev];
+      next.splice(index + 1, 0, newItem);
+      return next;
+    });
+
+    notify.success(`Copied line item for "${itemToCopy.itemName}"`);
+  };
+
+  const handleRemoveItem = (itemId) => {
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
+  };
+
   const handleGenerateGRN = async () => {
     if (!po) {
-      toast.error('Purchase order details not loaded.');
+      notify.error('Purchase order details not loaded.');
       return;
     }
 
     if (!grnDate) {
-      toast.error('Please specify a valid GRN Date.');
+      notify.error('Please specify a valid GRN Date.');
       return;
     }
 
     const todayStr = getTodayInputDate();
     if (grnDate < todayStr) {
-      toast.error('Past date is not allowed for GRN Date.');
+      notify.error('Past date is not allowed for GRN Date.');
       return;
     }
 
     if (!invoiceFile) {
-      toast.error('Please upload an invoice file.');
+      notify.error('Please upload an invoice file.');
       return;
     }
 
     // Validate quantities
     for (const item of items) {
       if (Number(item.approvedQty) < 0 || Number(item.returnQty) < 0) {
-        toast.error(`Negative quantities not allowed for ${item.itemName}.`);
+        notify.error(`Negative quantities not allowed for ${item.itemName}.`);
         return;
+      }
+    }
+
+    // Check if the same raw material has multiple copies and approved quantity is 0
+    const rawMaterialCounts = {};
+    for (const item of items) {
+      if (item.isCompleted) continue;
+      const key = item.rawMaterialId || item.purchaseOrderDetailId || item.itemName;
+      rawMaterialCounts[key] = (rawMaterialCounts[key] || 0) + 1;
+    }
+
+    for (const item of items) {
+      if (item.isCompleted) continue;
+      const key = item.rawMaterialId || item.purchaseOrderDetailId || item.itemName;
+      if (rawMaterialCounts[key] > 1) {
+        const apprQty = Number(item.approvedQty);
+        if (!apprQty || apprQty <= 0) {
+          notify.error(`Please enter quantity greater than 0 for "${item.itemName}" or remove copied raw material.`);
+          return;
+        }
       }
     }
 
@@ -573,15 +638,33 @@ const GenerateGRNDetail = () => {
     );
 
     if (activeItems.length === 0) {
-      toast.error('No pending items with quantities to generate GRN.');
+      notify.error('No pending items with quantities to generate GRN.');
       return;
     }
 
     // Validate mandatory Best Before date for active items receiving approved quantity
     for (const item of activeItems) {
       if (Number(item.approvedQty) > 0 && !item.useByDate) {
-        toast.error(`Best Before date is mandatory for "${item.itemName}".`);
+        notify.error(`Best Before date is mandatory for "${item.itemName}".`);
         return;
+      }
+    }
+
+    // Validate batch number: check if line items of the same raw material have duplicate batch numbers
+    const rawMaterialBatches = {};
+    for (const item of activeItems) {
+      const batch = item.batchNo ? item.batchNo.trim() : '';
+      if (batch) {
+        const key = item.rawMaterialId || item.purchaseOrderDetailId || item.itemName;
+        if (!rawMaterialBatches[key]) {
+          rawMaterialBatches[key] = new Set();
+        }
+        const normalizedBatch = batch.toLowerCase();
+        if (rawMaterialBatches[key].has(normalizedBatch)) {
+          notify.error(`Duplicate batch number "${batch}" found for "${item.itemName}". Please add a unique batch number or keep it blank.`);
+          return;
+        }
+        rawMaterialBatches[key].add(normalizedBatch);
       }
     }
 
@@ -618,7 +701,7 @@ const GenerateGRNDetail = () => {
     });
 
     if (detailsPayload.length === 0) {
-      toast.error('No items found to generate GRN.');
+      notify.error('No items found to generate GRN.');
       return;
     }
 
@@ -806,7 +889,7 @@ const GenerateGRNDetail = () => {
 
             <div className="min-w-0">
               <label className="text-xs font-medium text-gray-600 mb-1 block">
-                Sub-unit / Location <span className="text-gray-400 font-normal">(Optional)</span>
+                Sub-unit <span className="text-gray-400 font-normal">(Optional)</span>
               </label>
               <select
                 value={selectedSubOutletId}
@@ -1042,6 +1125,11 @@ const GenerateGRNDetail = () => {
                                 Replacement
                               </span>
                             ) : null}
+                            {item.isCopied ? (
+                              <span className="text-[9px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-1 py-0.2 rounded shrink-0">
+                                Copied
+                              </span>
+                            ) : null}
                             <button
                               type="button"
                               onClick={() => toggleItemRemarks(item.id)}
@@ -1052,6 +1140,26 @@ const GenerateGRNDetail = () => {
                             >
                               <Pencil size={10} />
                             </button>
+                            {!item.isCompleted && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyItem(item)}
+                                title="Copy line item"
+                                className="p-0.5 rounded text-gray-400 hover:text-[#084E92] hover:bg-blue-50 transition cursor-pointer shrink-0"
+                              >
+                                <Copy size={11} />
+                              </button>
+                            )}
+                            {item.isCopied && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(item.id)}
+                                title="Remove copied item"
+                                className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
                           </div>
                           {openRemarksMap[item.id] ? (
                             <div className="mt-0.5">

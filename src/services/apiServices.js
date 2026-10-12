@@ -498,19 +498,19 @@ export const getSubOutletById = (id) => {
 };
 
 export const saveSubOutlet = async (payload) => {
-  const res = await POST('/sub-outlet/save', payload);
+  const res = await POST('/sub-outlet/save', payload, { skipGlobalToast: true });
   triggerHierarchyInvalidation();
   return res;
 };
 
 export const updateSubOutlet = async ({ id, ...payload }) => {
-  const res = await PUT('/sub-outlet/update', payload, { id });
+  const res = await PUT('/sub-outlet/update', payload, { id }, { skipGlobalToast: true });
   triggerHierarchyInvalidation();
   return res;
 };
 
 export const deleteSubOutletById = async (id) => {
-  const res = await DELETE(`/sub-outlet/delete/${id}`);
+  const res = await DELETE(`/sub-outlet/delete/${id}`, {}, { skipGlobalToast: true });
   triggerHierarchyInvalidation();
   return res;
 };
@@ -557,20 +557,20 @@ export const getSubLocationById = (id) => {
 };
 
 export const saveSubLocation = async (payload) => {
-  const res = await POST('/sub-location/save', payload);
+  const res = await POST('/sub-location/save', payload, { skipGlobalToast: true });
   triggerHierarchyInvalidation();
   return res;
 };
 
 export const updateSubLocation = async (payload) => {
   const id = payload?.id;
-  const res = await PUT(`/sub-location/update?id=${id}`, payload, { id });
+  const res = await PUT(`/sub-location/update?id=${id}`, payload, { id }, { skipGlobalToast: true });
   triggerHierarchyInvalidation();
   return res;
 };
 
 export const deleteSubLocationById = async (id) => {
-  const res = await DELETE(`/sub-location/delete/${id}`);
+  const res = await DELETE(`/sub-location/delete/${id}`, {}, { skipGlobalToast: true });
   triggerHierarchyInvalidation();
   return res;
 };
@@ -1074,9 +1074,19 @@ export const getPurchaseRequisitionById = (id) => {
   return GET('/purchase-requisitions/getbyid', { id });
 };
 
-export const getPurchaseRequisitionsByOutlet = (outletId, status) => {
-  const params = { outletId };
-  if (status) params.status = status;
+export const getPurchaseRequisitionsByOutlet = (outletId, status, page, size, search) => {
+  let params = {};
+  if (typeof outletId === 'object' && outletId !== null) {
+    params = { ...outletId };
+  } else {
+    if (outletId !== undefined && outletId !== null && outletId !== 'ALL') {
+      params.outletId = outletId;
+    }
+    if (status) params.status = status;
+    if (page !== undefined && page !== null) params.page = page;
+    if (size !== undefined && size !== null) params.size = size;
+    if (search) params.search = search;
+  }
   return GET('/purchase-requisitions/getbyoutlet', params);
 };
 
@@ -1155,9 +1165,22 @@ export const getPOByIdAndOpenItem = (payload) => {
 export const getPOByIdAndOpenItems = getPOByIdAndOpenItem;
 export const getPOByidandopenitems = getPOByIdAndOpenItem;
 
-export const getPurchaseOrdersByOutlet = (outletId, status) => {
-  const params = { outletId };
-  if (status) params.status = status;
+export const getPurchaseOrdersByOutlet = (outletId, status, page, size, search) => {
+  let params = {};
+  if (typeof outletId === 'object' && outletId !== null) {
+    params = { ...outletId };
+  } else {
+    if (outletId !== undefined && outletId !== null && outletId !== 'ALL' && outletId !== 0) {
+      params.outletId = outletId;
+    }
+    if (status) params.status = status;
+    if (page !== undefined && page !== null) params.page = page;
+    if (size !== undefined && size !== null) params.size = size;
+    if (search) params.search = search;
+  }
+  if (params.outletId === 'ALL' || params.outletId === 0 || params.outletId === '0') {
+    delete params.outletId;
+  }
   return GET('/purchase-orders/getbyoutlet', params);
 };
 
@@ -1220,10 +1243,10 @@ export const getAllGrns = () => {
   return GET('/grn/getall');
 };
 
-export const getGrnByOutletOrStatus = (outletId, status) => {
+export const getGrnByOutletOrStatus = (outletId, status, page, size) => {
   let params = {};
   if (typeof outletId === 'object' && outletId !== null) {
-    params = outletId;
+    params = { ...outletId };
   } else {
     if (outletId !== undefined && outletId !== 'ALL' && outletId !== null && outletId !== 0) {
       params.outletId = outletId;
@@ -1231,12 +1254,14 @@ export const getGrnByOutletOrStatus = (outletId, status) => {
     if (status && status !== 'ALL') {
       params.status = status;
     }
+    if (page !== undefined && page !== null) params.page = page;
+    if (size !== undefined && size !== null) params.size = size;
   }
   return GET('/grn/getbyoutletorstatus', params);
 };
 
-export const getPOsByOutlet = (outletId, status) => {
-  return getPurchaseOrdersByOutlet(outletId, status);
+export const getPOsByOutlet = (outletId, status, page, size, search) => {
+  return getPurchaseOrdersByOutlet(outletId, status, page, size, search);
 };
 
 // ---- GRN Detail / Return & Replacement APIs ----

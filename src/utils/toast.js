@@ -9,7 +9,7 @@ export const getApiErrorMessage = (err, fallback = 'Something went wrong. Please
     (typeof err?.message === 'string' && err.message.toLowerCase().includes('network error'));
   if (isNetworkError) return 'Network Error';
 
-  const data = err?.response?.data;
+  const data = err?.response?.data || err?.data;
   if (data) {
     if (data.errorMessage) return data.errorMessage;
     if (data.message) return data.message;

@@ -325,11 +325,11 @@ useEffect(() => {
           />
         ),
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800 capitalize">
+          <div className="font-medium text-xs text-gray-800 capitalize">
             {row.original.name}
           </div>
         ),
-        size: 160,
+        size: 220,
       },
 
       // CATEGORY

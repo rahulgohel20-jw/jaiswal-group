@@ -269,7 +269,7 @@ const RowMaterialItemMaster = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-2">
+                    <span className="text-gray-500 py-2 text-xs">
                         {String(
                             pagination.pageIndex * pagination.pageSize + row.index + 1
                         ).padStart(2, "0")}
@@ -312,11 +312,16 @@ const RowMaterialItemMaster = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 py-2 capitalize">
+                    <button
+                        type="button"
+                        onClick={() => (canEdit ? handleEdit(row.original.id) : handleView(row.original.id))}
+                        className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full w-full text-left hover:underline block"
+                        title={row.original.name}
+                    >
                         {row.original.name}
-                    </div>
+                    </button>
                 ),
-                size: 180
+                size: 240
             },
 
             {
@@ -327,6 +332,11 @@ const RowMaterialItemMaster = () => {
                         column={column}
                         className="text-[#43474F] font-semibold py-4 text-sm"
                     />
+                ),
+                cell: ({ row }) => (
+                    <span className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full block" title={row.original.category}>
+                        {row.original.category || '—'}
+                    </span>
                 ),
                 size: 220,
             },
@@ -339,6 +349,11 @@ const RowMaterialItemMaster = () => {
                         column={column}
                         className="text-[#43474F] font-semibold py-4 text-sm"
                     />
+                ),
+                cell: ({ row }) => (
+                    <span className="font-medium text-xs text-gray-800 py-2 uppercase truncate max-w-full block" title={row.original.unit}>
+                        {row.original.unit || '—'}
+                    </span>
                 ),
                 size: 110,
             },
@@ -571,7 +586,18 @@ const RowMaterialItemMaster = () => {
                 {/* Table */}
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
-                    <DataGrid table={table} recordCount={totalItems} className="rounded-2xl">
+                    <DataGrid
+                        table={table}
+                        recordCount={totalItems}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>

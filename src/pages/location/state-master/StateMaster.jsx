@@ -133,6 +133,17 @@ const StateMaster = () => {
         }
     };
 
+// Truncates long text, reveals full value on hover
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-full',
+  className = 'text-gray-800 font-medium',
+}) => (
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
+    {value || '—'}
+  </span>
+);
+
     const columns = useMemo(
         () => [
             {
@@ -141,11 +152,11 @@ const StateMaster = () => {
                     <DataGridColumnHeader
                         title="S.NO"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 uppercase text-sm"
+                        className="text-[#43474F] font-semibold py-4 uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-2">
+                    <span className="text-gray-500 py-2 text-xs">
                         {String(row.index + 1).padStart(2, '0')}
                     </span>
                 ),
@@ -161,12 +172,16 @@ const StateMaster = () => {
                     <DataGridColumnHeader
                         title="Name"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 capitalize">{row.original.name}</div>
+                    <TruncatedCell
+                        value={row.original.name}
+                        className="font-medium text-gray-800 text-xs capitalize"
+                    />
                 ),
+                size: 260,
             },
             // ACTIONS
             {
@@ -269,6 +284,13 @@ const StateMaster = () => {
                         table={table}
                         recordCount={filteredStates.length}
                         className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
                     >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>

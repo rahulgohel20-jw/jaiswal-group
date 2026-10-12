@@ -86,10 +86,10 @@ const StatusBadge = ({ status }) => (
 // Truncates long text, reveals full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = "max-w-[180px]",
-  className = "text-gray-600",
+  widthClass = "max-w-full",
+  className = "text-gray-800 font-medium",
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
     {value || "—"}
   </span>
 );
@@ -387,25 +387,10 @@ const SubLocationListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[150px]"
-            className="font-semibold text-[#084E92]"
+            className="font-medium text-gray-800 text-xs"
           />
         ),
-        size: 150,
-      },
-      {
-        id: "type",
-        accessorFn: (row) => row.type,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="TYPE" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => (
-          <span className="font-medium text-xs text-gray-700 uppercase">
-            {row.original.type || "—"}
-          </span>
-        ),
-        enableSorting: false,
-        size: 75,
+        size: 200,
       },
       ...(showUnitDropdown
         ? [
@@ -418,11 +403,10 @@ const SubLocationListing = () => {
               cell: ({ row }) => (
                 <TruncatedCell
                   value={row.original.unitName || unitMap[String(row.original.organizationId)]}
-                  widthClass="max-w-[120px]"
                 />
               ),
               enableSorting: false,
-              size: 120,
+              size: 160,
             },
           ]
         : []),
@@ -430,16 +414,15 @@ const SubLocationListing = () => {
         id: "subUnitName",
         accessorFn: (row) => row.subUnitName,
         header: ({ column }) => (
-          <DataGridColumnHeader title="SUB UNIT / LOCATION" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="SUB UNIT" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.subUnitName || subUnitMap[String(row.original.subOutletId)]}
-            widthClass="max-w-[130px]"
           />
         ),
         enableSorting: false,
-        size: 130,
+        size: 160,
       },
       {
         id: "contactPerson",
@@ -448,10 +431,10 @@ const SubLocationListing = () => {
           <DataGridColumnHeader title="CONTACT PERSON" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.contactPerson} widthClass="max-w-[110px]" />
+          <TruncatedCell value={row.original.contactPerson} />
         ),
         enableSorting: false,
-        size: 110,
+        size: 140,
       },
       {
         id: "contactNumber",
@@ -460,10 +443,10 @@ const SubLocationListing = () => {
           <DataGridColumnHeader title="CONTACT NO." column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.contactNumber} widthClass="max-w-[100px]" />
+          <TruncatedCell value={row.original.contactNumber} />
         ),
         enableSorting: false,
-        size: 100,
+        size: 120,
       },
       {
         id: "status",
@@ -591,7 +574,7 @@ const SubLocationListing = () => {
                 setSubUnitFilter(e.target.value);
               }}
               options={filteredSubUnitOptions}
-              placeholder="Select Sub Unit / Location"
+              placeholder="Select Sub Unit"
             />
           </div>
 

@@ -28,7 +28,7 @@ import {
 import { useNavigate } from 'react-router';
 
 
-const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
+const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-xs text-gray-800 font-medium" }) => (
     <span title={value} className={`block truncate ${widthClass} ${className}`}>
         {value}
     </span>
@@ -36,7 +36,7 @@ const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-
 
 const TypeBadge = ({ type }) => {
     return (
-        <span className="text-xs font-semibold text-gray-900 uppercase tracking-wide">
+        <span className="text-xs font-medium text-gray-800 uppercase tracking-wide">
             {type}
         </span>
     );
@@ -207,7 +207,7 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-xs text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 36,

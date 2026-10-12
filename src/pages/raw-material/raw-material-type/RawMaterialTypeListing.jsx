@@ -212,7 +212,7 @@ const RawMaterialTypeListing = () => {
                     <DataGridColumnHeader title="S.NO" column={column} className="py-4" />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-4">{String(row.index + 1).padStart(2, '0')}</span>
+                    <span className="text-gray-500 py-4 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
                 ),
                 enableSorting: false,
                 size: 70,
@@ -224,7 +224,7 @@ const RawMaterialTypeListing = () => {
                     <DataGridColumnHeader title="TYPE NAME" column={column} />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 py-2 capitalize">{row.original.nameEnglish}</div>
+                    <div className="font-medium text-xs text-gray-800 py-2 capitalize">{row.original.nameEnglish}</div>
                 ),
                 size: 260,
             },
@@ -415,7 +415,18 @@ const RawMaterialTypeListing = () => {
                 {/* Table */}
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
-                    <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl ">
+                    <DataGrid
+                        table={table}
+                        recordCount={filteredTypes.length}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>

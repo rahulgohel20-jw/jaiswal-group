@@ -256,7 +256,10 @@ const StatusMasterModule = () => {
         {
             accessorKey: "srNo",
             header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} className="font-semibold" />
+                <DataGridColumnHeader title="S.NO" column={column} className="font-semibold text-[#43474F]" />
+            ),
+            cell: ({ row }) => (
+                <span className="text-gray-500 py-2 text-xs">{row.original.srNo}</span>
             ),
             enableSorting: false,
             size: 36,
@@ -268,11 +271,11 @@ const StatusMasterModule = () => {
                 <DataGridColumnHeader
                     title="STATUS NAME"
                     column={column}
-                    className="font-semibold my-3"
+                    className="font-semibold text-[#43474F]"
                 />
             ),
             cell: ({ row }) => (
-                <span className="font-medium text-[#0F172A] truncate block">
+                <span className="font-medium text-xs text-gray-800 truncate block max-w-[200px]">
                     {row.original.statusName}
                 </span>
             ),
@@ -286,7 +289,7 @@ const StatusMasterModule = () => {
                 <DataGridColumnHeader
                     title="VISIBILITY STATUS"
                     column={column}
-                    className="font-semibold"
+                    className="font-semibold text-[#43474F]"
                 />
             ),
             cell: ({ row }) => (

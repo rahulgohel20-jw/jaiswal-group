@@ -313,7 +313,7 @@ const ItemRecipeList = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="block px-2 text-gray-500">
+                    <span className="block px-2 text-xs text-gray-500">
                         {String(pageIndex * pageSize + row.index + 1).padStart(2, '0')}
                     </span>
                 ),
@@ -327,12 +327,12 @@ const ItemRecipeList = () => {
                     <DataGridColumnHeader
                         title="Menu Item"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
                     <div className="flex items-center gap-2 px-2 py-0.5">
-                        <span className="font-semibold text-gray-800 capitalize truncate max-w-xs">
+                        <span className="font-medium text-xs text-gray-800 capitalize truncate max-w-full">
                             {row.original.menuItem}
                         </span>
                     </div>
@@ -346,11 +346,11 @@ const ItemRecipeList = () => {
                     <DataGridColumnHeader
                         title="Outlet"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="block px-2 text-gray-700 capitalize truncate">
+                    <span className="block px-2 text-xs text-gray-800 font-medium capitalize truncate">
                         {row.original.outlet}
                     </span>
                 ),
@@ -364,11 +364,11 @@ const ItemRecipeList = () => {
                     <DataGridColumnHeader
                         title="Weight"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="block px-2 text-gray-700 capitalize truncate">
+                    <span className="block px-2 text-xs text-gray-800 font-medium capitalize truncate">
                         {row.original.weight ?? 0}
                     </span>
                 ),
@@ -383,11 +383,11 @@ const ItemRecipeList = () => {
                     <DataGridColumnHeader
                         title="Unit"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="block px-2 text-gray-700 capitalize truncate">
+                    <span className="block px-2 text-xs text-gray-800 font-medium capitalize truncate">
                         {row.original.unit || '-'}
                     </span>
                 ),

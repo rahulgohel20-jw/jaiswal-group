@@ -712,7 +712,7 @@ const AddUnit = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <div>
                 <Label required>Email</Label>
                 <input
@@ -757,21 +757,6 @@ const AddUnit = () => {
                   className={`${inputCls} ${errors.altMobile ? 'border-red-400' : ''}`}
                 />
                 <ErrorText error={errors.altMobile} />
-              </div>
-              <div>
-                <Label>Capacity ( Meals Per Day )</Label>
-                <input
-                  type="number"
-                  value={form.capacity}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    set('capacity', val);
-                    setErrorFor('capacity', '');
-                  }}
-                  placeholder="e.g. 200"
-                  className={`${inputCls} ${errors.capacity ? 'border-red-400' : ''}`}
-                />
-                <ErrorText error={errors.capacity} />
               </div>
             </div>
           </div>

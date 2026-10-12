@@ -42,6 +42,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { CodeCell } from '@/components/common/CodeCell';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import {
   getTransferList,
   deleteDraftTransfer,
@@ -145,7 +146,7 @@ const StatusBadge = ({ status = 'Draft' }) => {
   const key = String(status).toUpperCase();
   const color = STATUS_TEXT_COLORS[key] || STATUS_TEXT_COLORS[status] || 'text-gray-600';
   return (
-    <span title={label} className={`text-xs font-semibold truncate block max-w-[105px] ${color}`}>
+    <span title={label} className={`text-xs font-semibold truncate block max-w-full ${color}`}>
       {label}
     </span>
   );
@@ -223,7 +224,14 @@ const StockTransfer = () => {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: PAGE_SIZE });
   const [sorting, setSorting] = useState([]);
 
   // Delete modal state
@@ -323,6 +331,9 @@ const StockTransfer = () => {
     setError(null);
     try {
       const params = {};
+      if (search.trim()) {
+        params.search = search.trim();
+      }
       if (isOutletUser && effectiveOutletId) {
         params.fromOrganizationId = Number(effectiveOutletId);
       } else if (selectedFromOutletId) {
@@ -330,10 +341,27 @@ const StockTransfer = () => {
       } else if (selectedUnitId) {
         params.fromOrganizationId = Number(selectedUnitId);
       }
+      if (selectedFromSubOutletId) {
+        params.fromSubOutletId = Number(selectedFromSubOutletId);
+      }
+      if (selectedToOutletId) {
+        params.toOrganizationId = Number(selectedToOutletId);
+      }
+      if (selectedToSubOutletId) {
+        params.toSubOutletId = Number(selectedToSubOutletId);
+      }
+      if (statusFilter !== 'ALL') {
+        params.status = statusFilter;
+      }
+      if (pagination.pageIndex > 0) {
+        params.page = pagination.pageIndex;
+        params.size = pagination.pageSize;
+      }
 
       const res = await getTransferList(params);
       const rawList = res?.data?.data || res?.data?.content || res?.data || [];
       const list = Array.isArray(rawList) ? rawList : [];
+      updateFromResponse(res, list.length);
 
       const normalized = list.map((item) => {
         const itemsArr = Array.isArray(item.items)
@@ -453,9 +481,30 @@ const StockTransfer = () => {
     isOutletUser,
     effectiveOutletId,
     selectedFromOutletId,
+    selectedFromSubOutletId,
     selectedUnitId,
+    selectedToOutletId,
+    selectedToSubOutletId,
+    statusFilter,
+    search,
+    pagination.pageIndex,
+    pagination.pageSize,
     subOutletMap,
     subLocationMap,
+    updateFromResponse,
+  ]);
+
+  useEffect(() => {
+    resetPage();
+  }, [
+    search,
+    statusFilter,
+    selectedFromOutletId,
+    selectedFromSubOutletId,
+    selectedToOutletId,
+    selectedToSubOutletId,
+    selectedUnitId,
+    resetPage,
   ]);
 
   useEffect(() => {
@@ -619,10 +668,12 @@ const StockTransfer = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 py-2 text-xs">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
         ),
         enableSorting: false,
-        size: 40,
+        size: 36,
       },
       {
         id: 'transferCode',
@@ -633,27 +684,23 @@ const StockTransfer = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.transferCode}
-            maxWidth="max-w-[125px]"
+            maxWidth="max-w-full"
+            className="text-xs"
             onClick={() => navigate(`/inventory/stock-transfer-detail/${row.original.id}`)}
           />
         ),
         enableSorting: false,
-        size: 135,
+        size: 165,
       },
       {
         id: 'dateAndTime',
         accessorFn: (row) => row.transferDate,
-        sortingFn: (rowA, rowB, columnId) => {
-          const valA = parseDateToTimestamp(rowA.getValue(columnId) || rowA.original.createdAt);
-          const valB = parseDateToTimestamp(rowB.getValue(columnId) || rowB.original.createdAt);
-          return valA - valB;
-        },
         header: ({ column }) => (
           <DataGridColumnHeader title="DATE" column={column} className="text-xs font-bold" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.transferDate} widthClass="max-w-[85px]" className="text-gray-700 text-xs font-medium" />,
+        cell: ({ row }) => <span className="text-gray-700 text-xs font-medium whitespace-nowrap">{row.original.transferDate || '—'}</span>,
         enableSorting: false,
-        size: 90,
+        size: 80,
       },
       {
         id: 'fromOutlet',
@@ -663,17 +710,17 @@ const StockTransfer = () => {
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
-            <div className="font-semibold text-xs text-gray-900 truncate max-w-[160px]" title={row.original.fromOutlet}>{row.original.fromOutlet}</div>
+            <div className="font-semibold text-xs text-gray-900 truncate" title={row.original.fromOutlet}>{row.original.fromOutlet}</div>
             {row.original.fromSubOutlet && (
-              <div className="text-[11px] text-gray-500 font-medium truncate max-w-[160px]" title={row.original.fromSubOutlet}>{row.original.fromSubOutlet}</div>
+              <div className="text-[11px] text-gray-500 font-medium truncate" title={row.original.fromSubOutlet}>{row.original.fromSubOutlet}</div>
             )}
             {row.original.fromSubLocation && (
-              <div className="text-[10px] text-blue-600 font-medium truncate max-w-[160px]" title={row.original.fromSubLocation}>↳ {row.original.fromSubLocation}</div>
+              <div className="text-[10px] text-gray-500 font-medium truncate" title={row.original.fromSubLocation}>↳ {row.original.fromSubLocation}</div>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 165,
+        size: 120,
       },
       {
         id: 'toOutlet',
@@ -683,17 +730,17 @@ const StockTransfer = () => {
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
-            <div className="font-semibold text-xs text-gray-900 truncate max-w-[160px]" title={row.original.toOutlet}>{row.original.toOutlet}</div>
+            <div className="font-semibold text-xs text-gray-900 truncate" title={row.original.toOutlet}>{row.original.toOutlet}</div>
             {row.original.toSubOutlet && (
-              <div className="text-[11px] text-gray-500 font-medium truncate max-w-[160px]" title={row.original.toSubOutlet}>{row.original.toSubOutlet}</div>
+              <div className="text-[11px] text-gray-500 font-medium truncate" title={row.original.toSubOutlet}>{row.original.toSubOutlet}</div>
             )}
             {row.original.toSubLocation && (
-              <div className="text-[10px] text-blue-600 font-medium truncate max-w-[160px]" title={row.original.toSubLocation}>↳ {row.original.toSubLocation}</div>
+              <div className="text-[10px] text-gray-500 font-medium truncate" title={row.original.toSubLocation}>↳ {row.original.toSubLocation}</div>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 165,
+        size: 120,
       },
       {
         id: 'items',
@@ -704,7 +751,7 @@ const StockTransfer = () => {
         cell: ({ row }) => (
           <div className="flex items-center gap-1 min-w-0">
             <span
-              className="font-semibold text-xs text-gray-800 truncate max-w-[95px]"
+              className="font-semibold text-xs text-gray-800 truncate"
               title={row.original.primaryItemName}
             >
               {row.original.primaryItemName}
@@ -717,7 +764,7 @@ const StockTransfer = () => {
           </div>
         ),
         enableSorting: false,
-        size: 120,
+        size: 110,
       },
       {
         id: 'quantity',
@@ -731,7 +778,7 @@ const StockTransfer = () => {
           </span>
         ),
         enableSorting: false,
-        size: 85,
+        size: 70,
       },
       {
         id: 'status',
@@ -745,13 +792,15 @@ const StockTransfer = () => {
           </div>
         ),
         enableSorting: false,
-        size: 110,
+        size: 95,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader title="ACTION" column={column} className="text-xs font-bold" />
         ),
+        enableSorting: false,
+        size: 80,
         cell: ({ row }) => {
           const item = row.original;
           const rawStatus = (item.status || '').toString().trim().toUpperCase().replace(/[\s_]/g, '');
@@ -811,17 +860,25 @@ const StockTransfer = () => {
             </div>
           );
         },
-        enableSorting: false,
-        size: 95,
       },
     ],
-    [canAdd, canEdit, canDelete, canView]
+    [canAdd, canEdit, canDelete, canView, pagination.pageIndex, pagination.pageSize]
   );
 
+  const displayTransfers = useMemo(() => {
+    if (totalElements > 0 && totalElements === transfers.length && filteredTransfers.length > pagination.pageSize) {
+      const start = pagination.pageIndex * pagination.pageSize;
+      return filteredTransfers.slice(start, start + pagination.pageSize);
+    }
+    return filteredTransfers;
+  }, [filteredTransfers, totalElements, transfers.length, pagination.pageIndex, pagination.pageSize]);
+
   const table = useReactTable({
-    data: filteredTransfers,
+    data: displayTransfers,
     columns,
     state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -961,7 +1018,7 @@ const StockTransfer = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredTransfers.length}
+              recordCount={totalElements || filteredTransfers.length}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,
@@ -971,8 +1028,8 @@ const StockTransfer = () => {
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable className="w-full overflow-x-auto">
+              <Card className="rounded-2xl border-0 shadow-none">
+                <CardTable className="w-full overflow-x-hidden">
                   <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
