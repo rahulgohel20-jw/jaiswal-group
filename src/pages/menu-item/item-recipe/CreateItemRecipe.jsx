@@ -139,12 +139,12 @@ const ToggleSwitch = ({ checked, onChange, disabled }) => (
         onClick={onChange}
         className={`w-10 h-5.5 rounded-full transition-colors relative shrink-0 ${
             disabled ? "cursor-not-allowed opacity-75" : "cursor-pointer"
-        } ${checked ? "bg-[#084E92]" : "bg-gray-300"}`}
+            } ${checked ? "bg-[#084E92]" : "bg-gray-300"}`}
     >
         <span
             className={`absolute top-0.5 left-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform ${
                 checked ? "translate-x-4.5" : ""
-            }`}
+                }`}
         />
     </button>
 );
@@ -249,6 +249,7 @@ const CreateItemRecipe = () => {
     const [isExistingRecipe, setIsExistingRecipe] = useState(false);
     const [headerId, setHeaderId] = useState(location.state?.headerId ?? 0);
     const [itemWeight, setItemWeight] = useState("");
+    const [calories, setCalories] = useState("");
     const [itemUnitId, setItemUnitId] = useState("");
     const [detailsLoading, setDetailsLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -409,6 +410,7 @@ const CreateItemRecipe = () => {
         setIsExistingRecipe(false);
         setHeaderId(0);
         setItemWeight("");
+        setCalories("");
         setItemUnitId("");
         setForm(initialForm);
         setUrlError("");
@@ -474,6 +476,14 @@ const CreateItemRecipe = () => {
                             Number(h.menuItemId) === Number(menuItemVal) &&
                             Number(h.orgId) === Number(outletVal)
                     ) || headers[0];
+
+                setCalories(
+                    matchingHeader?.calories != null
+                        ? String(matchingHeader.calories)
+                        : payload?.calories != null
+                            ? String(payload.calories)
+                            : ""
+                );
 
                 const otherCostsList = Array.isArray(matchingHeader?.otherCosts)
                     ? matchingHeader.otherCosts
@@ -1314,25 +1324,6 @@ const CreateItemRecipe = () => {
                 ),
                 size: 110,
             },
-            {
-                id: "visible",
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Visible"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <ToggleSwitch
-                        checked={row.original.visible}
-                        disabled={isViewMode}
-                        onChange={() => handleToggleRawMaterialVisible(row.original.rowId)}
-                    />
-                ),
-                enableSorting: false,
-                size: 100,
-            },
             ...(!isViewMode
                 ? [
                     {
@@ -1585,6 +1576,7 @@ const CreateItemRecipe = () => {
                 headers: [
                     {
                         id: headerId || 0,
+                        calories: Number(calories) || 0,
                         instructionEnglish: form.instructionEnglish?.trim() || "",
                         instructionGujarati: form.instructionGujarati?.trim() || "",
                         instructionHindi: form.instructionHindi?.trim() || "",
@@ -1663,7 +1655,7 @@ const CreateItemRecipe = () => {
                     />
                     {openSections.select && (
                         <div className="px-6 py-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                                 <div>
                                     <Label required>Menu Item</Label>
                                     <SearchableSelect
@@ -1710,6 +1702,20 @@ const CreateItemRecipe = () => {
                                     {orgScopeError && (
                                         <p className="text-xs text-red-500 mt-1">{orgScopeError}</p>
                                     )}
+                                </div>
+                                <div>
+                                    <Label>calories</Label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        onWheel={(e) => e.currentTarget.blur()}
+                                        value={calories} 
+                                        onChange={(e) => setCalories(e.target.value)} 
+                                        placeholder="Enter calories"
+                                        disabled={!selectedMenuItem || isViewMode}
+                                        className={inputCls}
+                                    />
                                 </div>
                             </div>
 

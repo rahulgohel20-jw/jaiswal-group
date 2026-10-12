@@ -894,11 +894,11 @@ const AddAssignAsset = () => {
             </div>
 
             <div>
-              <Label>Remarks / Notes</Label>
+              <Label>Remarks / Location</Label>
               <textarea
                 value={form.remarks}
                 onChange={(e) => set('remarks', e.target.value)}
-                placeholder="Enter specific instructions or conditions for this assignment..."
+                placeholder="Enter specific note or location"
                 rows={3}
                 className={`${inputCls} resize-none`}
               />

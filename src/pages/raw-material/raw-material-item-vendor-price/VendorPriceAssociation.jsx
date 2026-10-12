@@ -74,16 +74,16 @@ const isRowPending = (row) =>
     String(row.initialStatus || row.status).toUpperCase() === 'PENDING';
 
 const STATUS_STYLES = {
-    PENDING: { label: 'Pending', className: 'bg-yellow-50 text-yellow-700' },
-    APPROVED: { label: 'Approved', className: 'bg-green-50 text-green-700' },
-    REJECTED: { label: 'Rejected', className: 'bg-red-50 text-red-700' },
+    PENDING: { label: 'Pending', className: 'text-yellow-700' },
+    APPROVED: { label: 'Approved', className: 'text-green-700' },
+    REJECTED: { label: 'Rejected', className: 'text-red-700' },
 };
 
 const StatusBadge = ({ status }) => {
     const key = String(status || 'PENDING').toUpperCase();
     const style = STATUS_STYLES[key] || STATUS_STYLES.PENDING;
     return (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap ${style.className}`}>
+        <span className={`inline-flex items-center rounded-full  text-xs font-medium whitespace-nowrap ${style.className}`}>
             {style.label}
         </span>
     );
@@ -166,8 +166,8 @@ const RawMaterialMultiSelect = ({
                     role="button"
                     tabIndex={disabled ? -1 : 0}
                     className={`min-h-10 w-full border rounded-xl px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${disabled
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none'
-                            : 'bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92] focus-within:ring-2 focus-within:ring-[#084E92]/15'
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none'
+                        : 'bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92] focus-within:ring-2 focus-within:ring-[#084E92]/15'
                         } ${hasError ? 'border-red-500! bg-red-50/20' : 'border-[#C3C6D1]'}`}
                 >
                     {selected.length > 2 ? (
@@ -346,8 +346,8 @@ const TableOutletMultiSelect = ({
                     role="button"
                     tabIndex={disabled ? -1 : 0}
                     className={`min-h-9.5 w-full min-w-55 border rounded-lg px-2.5 py-1 flex flex-wrap items-center gap-1.5 transition-all ${disabled
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none'
-                            : 'bg-white cursor-pointer hover:border-[#00376C] focus-within:border-[#00376C]'
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none'
+                        : 'bg-white cursor-pointer hover:border-[#00376C] focus-within:border-[#00376C]'
                         } ${error ? 'border-red-500! bg-red-50/20' : 'border-[#C3C6D1]'}`}
                 >
                     {selected.length > 3 ? (
@@ -1069,6 +1069,7 @@ const VendorPriceAssociation = () => {
             setSupplierErrors((prevErr) => {
                 const next = { ...prevErr };
                 delete next[rowId];
+                delete next[`${rowId}_price`];
                 delete next[`${rowId}_reason`];
                 return next;
             });
@@ -1210,7 +1211,7 @@ const VendorPriceAssociation = () => {
         if (invalidPriceRows.length > 0) {
             const errs = {};
             invalidPriceRows.forEach((r) => {
-                errs[r.rowId] = 'Valid positive price is required';
+                errs[`${r.rowId}_price`] = 'Valid positive price is required';
             });
             setSupplierErrors((prev) => ({ ...prev, ...errs }));
             return;
@@ -1372,6 +1373,8 @@ const VendorPriceAssociation = () => {
                                 onChange={(e) => {
                                     setSelectedCategoryId(String(e.target.value));
                                     setSelectedSubCategoryId('');
+                                    setSelectedMaterialIds([]);
+                                    setSupplierRows([]);
                                 }}
                                 options={categories.map((c) => ({
                                     value: String(c.id),
@@ -1390,6 +1393,8 @@ const VendorPriceAssociation = () => {
                                 isClearable={true}
                                 onChange={(e) => {
                                     setSelectedSubCategoryId(String(e.target.value));
+                                    setSelectedMaterialIds([]);
+                                    setSupplierRows([]);
                                 }}
                                 options={subCategories.map((s) => ({
                                     value: String(s.id),
@@ -1572,7 +1577,7 @@ const VendorPriceAssociation = () => {
                                                                     error={Boolean(supplierErrors[row.rowId])}
                                                                 />
                                                             )}
-                                                            {supplierErrors[row.rowId] && !supplierErrors[row.rowId]?.includes('Price') && (
+                                                            {supplierErrors[row.rowId] && (
                                                                 <p className="mt-1 text-xs text-red-500 font-medium">
                                                                     {supplierErrors[row.rowId]}
                                                                 </p>
@@ -1606,27 +1611,57 @@ const VendorPriceAssociation = () => {
                                                                 onWheel={blurOnWheel}
                                                                 onChange={(e) => updateSupplierRow(row.rowId, 'price', e.target.value)}
                                                                 placeholder="₹ 0.00"
-                                                                className={`w-full border rounded-md px-2 py-1.5 outline-none text-xs disabled:bg-gray-100 ${supplierErrors[row.rowId]?.includes('Price')
-                                                                        ? 'border-red-500 bg-red-50/20'
-                                                                        : 'border-[#C3C6D1]'
+                                                                className={`w-full border rounded-md px-2 py-1.5 outline-none text-xs disabled:bg-gray-100 ${supplierErrors[`${row.rowId}_price`]
+                                                                    ? 'border-red-500! bg-red-50/20 ring-1 ring-red-400'
+                                                                    : 'border-[#C3C6D1]'
                                                                     }`}
                                                             />
-                                                            {supplierErrors[row.rowId]?.includes('Price') && (
+                                                            {supplierErrors[`${row.rowId}_price`] && (
                                                                 <p className="text-[10px] text-red-500 font-medium mt-0.5">
-                                                                    {supplierErrors[row.rowId]}
+                                                                    {supplierErrors[`${row.rowId}_price`]}
                                                                 </p>
                                                             )}
                                                         </td>
 
-                                                        <td className="px-4 py-2.5">
-                                                            {isApprovalMode && isPending ? (
-                                                                <StatusSelect
-                                                                    status={row.status}
-                                                                    onChange={(value) => updateSupplierRow(row.rowId, 'status', value)}
-                                                                />
-                                                            ) : (
-                                                                <StatusBadge status={row.status} />
-                                                            )}
+                                                        <td className="px-4 py-2.5 min-w-44">
+                                                            <div className={`flex flex-col ${isApprovalMode && isPending && isRejectedSelected && 'flex-row'} gap-1.5 items-start`}>
+                                                                {isApprovalMode && isPending ? (
+                                                                    <StatusSelect
+                                                                        status={row.status}
+                                                                        onChange={(value) => updateSupplierRow(row.rowId, 'status', value)}
+                                                                    />
+                                                                ) : (
+                                                                    <StatusBadge status={row.status} />
+                                                                )}
+
+                                                                {/* Input box when Reject is selected in approval mode */}
+                                                                {isApprovalMode && isPending && isRejectedSelected && (
+                                                                    <div className="w-full flex flex-col gap-1">
+                                                                        <input
+                                                                            type="text"
+                                                                            value={row.rejectReason || ''}
+                                                                            onChange={(e) => updateSupplierRow(row.rowId, 'rejectReason', e.target.value)}
+                                                                            placeholder="Enter reason..."
+                                                                            className="w-full text-xs border py-1.5 px-2.5 border-red-400 rounded-md outline-none bg-white placeholder:text-gray-400"
+                                                                        />
+                                                                        {supplierErrors[`${row.rowId}_reason`] && (
+                                                                            <span className="text-[10px] text-red-500 font-medium">
+                                                                                {supplierErrors[`${row.rowId}_reason`]}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Display reason when already rejected */}
+                                                                {(!isApprovalMode || !isPending) && (isRejectedRow || isRejectedSelected) && (
+                                                                    <span
+                                                                        className="text-[11px] text-gray-600 max-w-40 truncate"
+                                                                        title={row.remarks || row.rejectReason || 'No reason provided'}
+                                                                    >
+                                                                        - {row.remarks?.trim() || row.rejectReason?.trim() || 'No reason provided'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </td>
 
                                                         {!isViewOnly && !isApprovalMode && (
@@ -1643,49 +1678,7 @@ const VendorPriceAssociation = () => {
                                                         )}
                                                     </tr>
 
-                                                    {isApprovalMode && isPending && isRejectedSelected && (
-                                                        <tr className="bg-red-50/40">
-                                                            <td colSpan={8} className="px-4 py-2">
-                                                                <div className="flex flex-col gap-1 max-w-xl">
-                                                                    <label className="text-[11px] font-semibold text-red-700 flex items-center gap-1">
-                                                                        <AlertCircle size={12} />
-                                                                        Reason for Rejection <span className="text-red-600">*</span>
-                                                                    </label>
-                                                                    <textarea
-                                                                        rows={2}
-                                                                        value={row.rejectReason || ''}
-                                                                        onChange={(e) => updateSupplierRow(row.rowId, 'rejectReason', e.target.value)}
-                                                                        placeholder="Specify reason for rejecting this vendor price..."
-                                                                        className={`w-full text-xs p-2 rounded-md border outline-none bg-white placeholder:text-gray-400 resize-none ${supplierErrors[`${row.rowId}_reason`]
-                                                                                ? 'border-red-500 ring-1 ring-red-400'
-                                                                                : 'border-red-200 focus:border-red-400'
-                                                                            }`}
-                                                                    />
-                                                                    {supplierErrors[`${row.rowId}_reason`] && (
-                                                                        <span className="text-[10px] text-red-600 font-medium">
-                                                                            {supplierErrors[`${row.rowId}_reason`]}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    )}
 
-                                                    {isRejectedRow && (!isApprovalMode || !isPending) && (
-                                                        <tr className="bg-red-50/50">
-                                                            <td colSpan={8} className="px-4 py-2.5">
-                                                                <div className="flex flex-col gap-1 max-w-xl">
-                                                                    <span className="text-[11px] font-semibold text-red-700 flex items-center gap-1">
-                                                                        <AlertCircle size={13} />
-                                                                        Reason for Rejection
-                                                                    </span>
-                                                                    <p className="text-xs text-gray-800 bg-white border border-red-200 rounded-md p-2 whitespace-pre-wrap wrap-break-word">
-                                                                        {row.remarks?.trim() || row.rejectReason?.trim() || 'No reason provided'}
-                                                                    </p>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    )}
                                                 </React.Fragment>
                                             );
                                         })}

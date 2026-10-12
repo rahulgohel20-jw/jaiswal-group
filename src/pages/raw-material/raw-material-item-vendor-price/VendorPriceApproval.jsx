@@ -14,6 +14,7 @@ import {
     getCoreRowModel,
     getPaginationRowModel,
     useReactTable,
+    getSortedRowModel
 } from '@tanstack/react-table';
 import { Container } from '@/components/common/container';
 import { SearchBar } from '@/components/common/SearchBar';
@@ -177,6 +178,7 @@ const VendorPriceApproval = () => {
     const [statusFilter, setStatusFilter] = useState('All Status');
     const [selectedOrgId, setSelectedOrgId] = useState('');
     const [viewingOutletsModal, setViewingOutletsModal] = useState(null);
+    const [sorting, setSorting] = useState([]);
 
     const fetchApprovalData = useCallback(
         async (selectedStatus = statusFilter, selectedOrg = selectedOrgId) => {
@@ -424,6 +426,7 @@ const VendorPriceApproval = () => {
                     </div>
                 ),
                 size: 180,
+                enableSorting: true,
             },
             {
                 accessorKey: 'vendorName',
@@ -440,6 +443,7 @@ const VendorPriceApproval = () => {
                     </div>
                 ),
                 size: 150,
+                enableSorting: true,
             },
             {
                 accessorKey: 'outletName',
@@ -495,6 +499,7 @@ const VendorPriceApproval = () => {
                     );
                 },
                 size: 260,
+                enableSorting: true,
             },
             {
                 accessorKey: 'price',
@@ -507,6 +512,7 @@ const VendorPriceApproval = () => {
                 ),
                 cell: ({ row }) => <span>₹{Number(row.original.price).toFixed(2)}</span>,
                 size: 110,
+                enableSorting: true,
             },
             {
                 accessorKey: 'status',
@@ -514,11 +520,12 @@ const VendorPriceApproval = () => {
                     <DataGridColumnHeader
                         title="STATUS"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold py-4 text-xs"
                     />
                 ),
                 cell: ({ row }) => <StatusBadge status={row.original.status} />,
                 size: 120,
+                enableSorting: false,
             },
             {
                 id: 'actions',
@@ -598,10 +605,12 @@ const VendorPriceApproval = () => {
     const table = useReactTable({
         data: filteredRows,
         columns,
-        state: { pagination },
+        state: { pagination,sorting },
         onPaginationChange: setPagination,
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
     });
 
     if (!canView) {

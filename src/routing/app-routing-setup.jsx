@@ -216,6 +216,11 @@ import VendorPriceAssociation from '../pages/raw-material/raw-material-item-vend
 import CreateItemRecipe from '../pages/menu-item/item-recipe/CreateItemRecipe';
 import ItemRecipeList from '../pages/menu-item/item-recipe/ItemRecipeList';
 import RawMaterialBarcode from '../pages/inventory/raw-material-barcode/RawMaterialBarcode';
+import MenuItemConsumption from '../pages/menu-item/menuitem-consumption/MenuItemConsumption';
+import CreateMenuItemConsumption from '../pages/menu-item/menuitem-consumption/CreateMenuItemConsumption';
+import RawMaterialBatchDetails from '../pages/inventory/batch-details/RawMaterialBatchDetails';
+import BrandUnitMapping from '../pages/raw-material/brand-unit-mapping/BrandUnitMapping';
+import ViewItemRecipe from '../pages/menu-item/item-recipe/ViewItemRecipe';
 
 
 export function AppRoutingSetup() {
@@ -371,7 +376,10 @@ export function AppRoutingSetup() {
             path="/material/category-brand-mapping"
             element={<RowCategoryBrandMapping />}
           />
-
+          <Route
+            path="/material/brand-unit-mapping"
+            element={<BrandUnitMapping />}
+          />
           <Route
             path="/assets/asset-transfer-log"
             element={<AssetsTransferLog />}
@@ -427,13 +435,15 @@ export function AppRoutingSetup() {
             path="/menu-item/edit-menu-item/:id"
             element={<CreateKitchenMenuItem />}
           />
-
+          <Route path="/menu-item/consumption" element={<MenuItemConsumption/>}/>
+          <Route path="/menu-item/consumption/create" element={<CreateMenuItemConsumption/>}/>
+          <Route path="/menu-item/consumption/edit/:id" element={<CreateMenuItemConsumption/>}/>
           <Route
             path="/menu-item/recipe"
             element={<ItemRecipeList />}
           />
           <Route path="/menu-item/create-recipe" element={<CreateItemRecipe/>} />
-          <Route path="/menu-item/view-recipe/:id" element={<CreateItemRecipe/>} />
+          <Route path="/menu-item/view-recipe/:id" element={<ViewItemRecipe/>} />
           <Route path="/menu-item/update-recipe/:id" element={<CreateItemRecipe/>} />
 
           <Route path="/menu-item/captain-recipe" element={<KitchenCaptainRecipeList />} />
@@ -535,6 +545,7 @@ export function AppRoutingSetup() {
           <Route path='/inventory/general-stock-ledger/view' element={<GeneralStockLedgerViewDetails />} />
 
           <Route path='/inventory/raw-material-barcode' element={<RawMaterialBarcode />} />
+          <Route path='/inventory/raw-material-batch-details' element={<RawMaterialBatchDetails />} />
 
           <Route
             path="/stocks/available-stocks"
