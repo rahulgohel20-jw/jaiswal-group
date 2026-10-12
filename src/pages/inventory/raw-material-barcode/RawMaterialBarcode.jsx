@@ -6,10 +6,12 @@ import {
   X,
   ChevronDown,
   ListFilter,
+  Printer,
 } from "lucide-react";
 import {
   getCoreRowModel,
   useReactTable,
+  getSortedRowModel,
 } from "@tanstack/react-table";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -112,9 +114,9 @@ const RawMaterialMultiSelect = ({
           tabIndex={disabled ? -1 : 0}
           className={`min-h-10 w-full border rounded-xl px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${
             disabled
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
-              : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92] focus-within:ring-2 focus-within:ring-[#084E92]/15"
-          } ${hasError ? "border-red-500! bg-red-50/20" : "border-[#C3C6D1]"}`}
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
+            : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92] focus-within:ring-2 focus-within:ring-[#084E92]/15"
+            } ${hasError ? "border-red-500! bg-red-50/20" : "border-[#C3C6D1]"}`}
         >
           {selected.length > 2 ? (
             <span className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-semibold px-2 py-0.5 rounded">
@@ -202,7 +204,7 @@ const RawMaterialMultiSelect = ({
               size={16}
               className={`text-gray-400 transition-transform ${
                 open ? "rotate-180" : ""
-              }`}
+                }`}
             />
           </div>
         </div>
@@ -264,6 +266,7 @@ const RawMaterialMultiSelect = ({
 const RawMaterialBarcode = () => {
   const { canView } = usePagePermissions("Raw Material Barcode");
   const { exporting, exportReport } = useExportReport();
+  const [sorting, setSorting] = useState([]);
 
   const {
     loading: orgScopeLoading,
@@ -295,6 +298,10 @@ const RawMaterialBarcode = () => {
   const [rowSelection, setRowSelection] = useState({});
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [totalRecords, setTotalRecords] = useState(0);
+  // Print Configuration Modal States
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printByQuantity, setPrintByQuantity] = useState(true);
+  const [batchCopiesMap, setBatchCopiesMap] = useState({});
 
   // Outlet options formatted from useOrgScope
   const outletOptions = useMemo(() => {
@@ -439,7 +446,7 @@ const RawMaterialBarcode = () => {
         };
 
         const pageParams = {
-          pageNumber: pageIndex,
+          pageNo: pageIndex,
           pageSize: pageSize,
         };
 
@@ -518,16 +525,56 @@ const RawMaterialBarcode = () => {
       .filter(Boolean);
   }, [rowSelection, batches]);
 
-  // Execute Generate Barcode via useExportReport with the required payload shape
-  const handleGenerateBarcode = async () => {
+  const handleOpenPrintModal = () => {
     if (selectedRowsList.length === 0) {
       notify.error("Please select at least one batch to generate barcodes");
       return;
     }
 
+    // Prepopulate copies with remaining/available quantity of each batch
+    const initialCopies = {};
+    selectedRowsList.forEach((row) => {
+      const id = Number(row.batchId ?? row.id ?? row.stockBatchId);
+      if (id) {
+        const remainingQty = Number(row.remainingQuantity ?? row.availableQuantity ?? 1);
+        // Use remaining quantity if > 0, otherwise default to 1
+        initialCopies[id] = remainingQty > 0 ? String(Math.floor(remainingQty)) : "1";
+      }
+    });
+
+    setBatchCopiesMap(initialCopies);
+    setPrintByQuantity(true);
+    setIsPrintModalOpen(true);
+  };
+  const handleConfirmGenerateBarcode = async () => {
     const batchIds = selectedRowsList
       .map((row) => Number(row.batchId ?? row.id ?? row.stockBatchId))
       .filter(Boolean);
+
+    let selectedBatches = [];
+
+    // When unchecked: Validate every row's copy count
+    if (!printByQuantity) {
+      for (const bId of batchIds) {
+        const rawVal = String(batchCopiesMap[bId] ?? "").trim();
+
+        if (rawVal === "") {
+          notify.error("Please enter copies for all batches");
+          return;
+        }
+
+        const numVal = Number(rawVal);
+        if (isNaN(numVal) || numVal <= 0) {
+          notify.error("Each batch copy must be greater than 0");
+          return;
+        }
+
+        selectedBatches.push({
+          batchId: bId,
+          copies: Math.floor(numVal),
+        });
+      }
+    }
 
     const itemIds = Array.from(
       new Set(
@@ -539,20 +586,26 @@ const RawMaterialBarcode = () => {
 
     const payload = {
       batchIds: batchIds,
-      copiesPerBatch: 1,
+      copiesPerBatch: 0,
       itemIds: itemIds.length > 0 ? itemIds : selectedMaterialIds,
       organizationId: Number(outletId) || 0,
-      printByQuantity: false,
+      printByQuantity: printByQuantity,
+      selectedBatches: printByQuantity ? [] : selectedBatches,
       subLocationId: Number(subLocationId) || 0,
       subOutletId: Number(subOutletId) || 0,
     };
 
-    await exportReport(payload, {
-      apiCaller: generateBarcodeForBatch,
-      fileName: `barcode_batch_${Date.now()}.pdf`,
-      openInNewTab: true,
-      errorMessage: "Failed to generate barcode.",
-    });
+    try {
+      await exportReport(payload, {
+        apiCaller: generateBarcodeForBatch,
+        fileName: `barcode_batch_${Date.now()}.pdf`,
+        openInNewTab: true,
+        errorMessage: "Failed to generate barcode.",
+      });
+      setIsPrintModalOpen(false);
+    } catch (err) {
+      console.error("Barcode export error:", err);
+    }
   };
 
   const columns = useMemo(
@@ -609,61 +662,58 @@ const RawMaterialBarcode = () => {
           />
         ),
         size: 150,
+        enableSorting: true,
       },
       {
         id: "batchCode",
-        accessorFn: (row) => row.batchCode || row.batchNumber || "",
+        accessorFn: (row) => row.batchNumber || "",
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="BATCH CODE / NO."
+            title="BATCH NUMBER"
             column={column}
             className="my-2 text-xs"
           />
         ),
         cell: ({ row }) => (
           <span className="text-xs font-semibold text-gray-700 whitespace-nowrap">
-            {row.original.batchCode || row.original.batchNumber || "-"}
+            {row.original.batchNumber || "-"}
           </span>
         ),
+        enableSorting: false,
         size: 180,
       },
       {
-        id: "subOutletName",
-        accessorFn: (row) => row.subOutletName || row.subUnitName || "",
+        id: "locationDetails",
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="SUB UNIT"
+            title="UNIT/LOCATION"
             column={column}
             className="my-2 text-xs"
           />
         ),
-        cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.subOutletName || row.original.subUnitName}
-            widthClass="max-w-[130px]"
-            className="text-xs text-gray-700"
-          />
-        ),
-        size: 130,
-      },
-      {
-        id: "subLocationName",
-        accessorFn: (row) => row.subLocationName || row.locationName || "",
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="SUB LOCATION"
-            column={column}
-            className="my-2 text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <TruncatedCell
-            value={row.original.subLocationName || row.original.locationName}
-            widthClass="max-w-[130px]"
-            className="text-xs text-gray-700"
-          />
-        ),
-        size: 130,
+        cell: ({ row }) => {
+          const unit = row.original.organizationName || row.original.locationName || "-";
+          const subUnit = row.original.subOutletName || row.original.subUnitName;
+          const subLocation = row.original.subLocationName;
+
+          // Filter out empty/null values so no "-" or empty bullets appear
+          const subDetails = [subUnit, subLocation].filter(Boolean).join(" • ");
+
+          return (
+            <div className="flex flex-col text-xs leading-relaxed max-w-55">
+              <span className="font-medium text-gray-800 truncate" title={`Unit: ${unit}`}>
+                {unit}
+              </span>
+              {subDetails ? (
+                <span className="text-gray-500 text-[11px] truncate" title={subDetails}>
+                  {subDetails}
+                </span>
+              ) : null}
+            </div>
+          );
+        },
+        enableSorting: false,
+        size: 200,
       },
       {
         id: "quantity",
@@ -680,6 +730,8 @@ const RawMaterialBarcode = () => {
             {row.original.remainingQuantity ?? row.original.availableQuantity ?? "0"}
           </span>
         ),
+        enableSorting: true,
+        sortingFn: "basic",
         size: 80,
       },
       {
@@ -697,6 +749,35 @@ const RawMaterialBarcode = () => {
             {row.original.expiryDate || row.original.expDate || "-"}
           </span>
         ),
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const parseDateToTime = (dateStr) => {
+            if (!dateStr || dateStr === "-") return 0;
+
+            // If it comes as DD/MM/YYYY or DD-MM-YYYY
+            if (typeof dateStr === "string" && dateStr.includes("/")) {
+              const parts = dateStr.split("/");
+              if (parts.length === 3) {
+                const [day, month, year] = parts.map(Number);
+                return new Date(year, month - 1, day).getTime();
+              }
+            }
+
+            // If it comes as YYYY-MM-DD or standard ISO
+            const timestamp = new Date(dateStr).getTime();
+            return isNaN(timestamp) ? 0 : timestamp;
+          };
+
+          const timeA = parseDateToTime(rowA.getValue(columnId));
+          const timeB = parseDateToTime(rowB.getValue(columnId));
+
+          // Handle empty/missing dates by pushing them to the end
+          if (!timeA) return 1;
+          if (!timeB) return -1;
+
+          // Ascending: earliest/oldest first -> latest last
+          return timeA - timeB;
+        },
         size: 100,
       },
     ],
@@ -709,9 +790,12 @@ const RawMaterialBarcode = () => {
     state: {
       pagination,
       rowSelection,
+      sorting,
     },
     enableRowSelection: true,
     manualPagination: true,
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
     pageCount: Math.ceil(totalRecords / pagination.pageSize),
     onRowSelectionChange: setRowSelection,
     onPaginationChange: handlePaginationChange,
@@ -733,7 +817,7 @@ const RawMaterialBarcode = () => {
           description="Filter stock batches and select items to generate and print barcodes."
           actions={
             <HeaderActionButton
-              onClick={handleGenerateBarcode}
+              onClick={handleOpenPrintModal}
               disabled={selectedRowsList.length === 0 || exporting}
               icon={exporting ? Loader2 : Barcode}
               iconClassName={exporting ? "animate-spin" : ""}
@@ -741,8 +825,8 @@ const RawMaterialBarcode = () => {
                 exporting
                   ? "Generating..."
                   : selectedRowsList.length > 0
-                  ? `Generate Barcode (${selectedRowsList.length})`
-                  : "Generate Barcode"
+                    ? `Generate Barcode (${selectedRowsList.length})`
+                    : "Generate Barcode"
               }
               className="h-10 px-4 text-sm"
             />
@@ -827,15 +911,15 @@ const RawMaterialBarcode = () => {
                 disabled={isListButtonDisabled}
                 className={`h-10 w-full inline-flex items-center justify-center gap-1.5 px-4 text-xs font-semibold rounded-xl transition cursor-pointer ${
                   isListButtonDisabled
-                    ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                    : "bg-[#084E92] text-white hover:bg-[#00376C] shadow-xs"
-                }`}
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-[#084E92] text-white hover:bg-[#00376C] shadow-xs"
+                  }`}
                 title={
                   !outletId
                     ? "Select a Unit"
                     : selectedMaterialIds.length === 0
-                    ? "Select Raw Material"
-                    : "Click to list stock batches"
+                      ? "Select Raw Material"
+                      : "Click to list stock batches"
                 }
               >
                 {loading ? (
@@ -912,6 +996,171 @@ const RawMaterialBarcode = () => {
           )}
         </div>
       </div>
+
+      {/* Barcode Print Configuration Modal */}
+      {isPrintModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 animate-in fade-in duration-150"
+          onClick={() => !exporting && setIsPrintModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-blue-50 text-[#084E92]">
+                  <Printer size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Barcode Print Options
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Selected Batches: {selectedRowsList.length}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={exporting}
+                onClick={() => setIsPrintModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 rounded-lg p-1 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+              <label className="flex items-start gap-3 p-3 bg-gray-50 hover:bg-gray-100/80 rounded-xl cursor-pointer border border-gray-200/60 transition">
+                <input
+                  type="checkbox"
+                  checked={printByQuantity}
+                  onChange={(e) => setPrintByQuantity(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded accent-[#084E92] cursor-pointer"
+                />
+                <div className="flex-1 text-xs">
+                  <span className="font-semibold text-gray-800 block">
+                    Print same as item quantity
+                  </span>
+                  <span className="text-gray-500 block mt-0.5">
+                    Generate barcode labels equal to each batch's remaining stock quantity.
+                  </span>
+                </div>
+              </label>
+
+              {/* Individual Batch Copies Table */}
+              {!printByQuantity && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-gray-700 block">
+                      Individual Batch Copies <span className="text-red-500">*</span>
+                    </label>
+                    <span className="text-[11px] text-gray-400">
+                      Set copies per selected batch
+                    </span>
+                  </div>
+
+                  <div className="border border-[#E2E8F0] rounded-xl overflow-hidden">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-[#EFF4FF] text-[#00376C] font-semibold uppercase text-[11px]">
+                        <tr>
+                          <th className="px-3 py-2.5">Raw Material</th>
+                          <th className="px-3 py-2.5">Batch Number</th>
+                          <th className="px-3 py-2.5 w-28 text-right">Copies *</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 bg-white">
+                        {selectedRowsList.map((row) => {
+                          const bId = Number(row.batchId ?? row.id ?? row.stockBatchId);
+                          const val = batchCopiesMap[bId] ?? "";
+                          const isInvalid = val !== "" && Number(val) <= 0;
+
+                          return (
+                            <tr key={bId} className="hover:bg-slate-50/70 transition">
+                              <td className="px-3 py-2 text-gray-800 font-medium max-w-37.5 truncate" title={row.rawMaterialNameEnglish || row.rawMaterialName || row.itemName}>
+                                {row.rawMaterialNameEnglish || row.rawMaterialName || row.itemName || "-"}
+                              </td>
+                              <td className="px-3 py-2 text-gray-600 font-medium whitespace-nowrap truncate max-w-60" title={row.batchNumber || ''}>
+                                {row.batchNumber || row.batchCode || "-"}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  value={val}
+                                  onWheel={(e) => e.currentTarget.blur()}
+                                  onKeyDown={(e) => {
+                                    // Prevent typing '-', '+', 'e', 'E', and '.'
+                                    if (["-", "+", "e", "E", "."].includes(e.key)) {
+                                      e.preventDefault();
+                                    }
+                                  }}
+                                  onChange={(e) => {
+                                    let inputVal = e.target.value.replace(/[^0-9]/g, ""); // Strip any non-numeric characters
+
+                                    // Remove leading zeros (e.g., "05" -> "5")
+                                    if (/^0\d+/.test(inputVal)) {
+                                      inputVal = inputVal.replace(/^0+/, "");
+                                    }
+
+                                    setBatchCopiesMap((prev) => ({
+                                      ...prev,
+                                      [bId]: inputVal,
+                                    }));
+                                  }}
+                                  placeholder="Qty"
+                                  className={`w-20 h-8 px-2 text-right border rounded-lg text-xs outline-none transition ${isInvalid
+                                    ? "border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500/20"
+                                    : "border-[#C3C6D1] focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20"
+                                    }`}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={exporting}
+                onClick={() => setIsPrintModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-200/60 rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={exporting}
+                onClick={handleConfirmGenerateBarcode}
+                className="px-4 py-2 text-xs font-semibold bg-[#084E92] text-white hover:bg-[#00376C] rounded-xl shadow-xs transition inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {exporting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <Barcode size={14} />
+                    Generate Barcode
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Container>
   );
 };

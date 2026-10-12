@@ -503,6 +503,7 @@ export const MENU_SIDEBAR = [
       { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'},
       { title: 'General Stock Ledger', path: '/inventory/general-stock-ledger'},
       { title: 'Raw Material Barcode', path: '/inventory/raw-material-barcode'},
+      { title: 'Raw Material Batch Details', path: '/inventory/raw-material-batch-details'},
     ],
   },
   {
@@ -517,6 +518,7 @@ export const MENU_SIDEBAR = [
       { title: 'Vendor Price Approval', path:'/material/vendor-price-approval'},
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
+      { title: 'Brand Unit Mapping', path: '/material/brand-unit-mapping' },
       {
         title: 'Category Brand Mapping',
         path: '/material/category-brand-mapping',
@@ -530,6 +532,7 @@ export const MENU_SIDEBAR = [
       { title: 'Categories', path: '/menu-item/categories' },
       // { title: 'Sub Category', path: '/menu-item/sub-category' },
       { title: 'Menu Items', path: '/menu-item/menu-items' },
+      { title: 'Menu Item Consumption', path: '/menu-item/consumption' },
       { title: 'Item Recipe', path: '/menu-item/recipe' },
       { title: 'Captain Recipe', path: '/menu-item/captain-recipe' },
     ],
@@ -631,7 +634,9 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'STR Discrepancy Approval', path: '/inventory/str-discrepancy-approval' },
       { title: 'STR Received', path: '/inventory/stock-transfer-receive-requests' },
       { title: 'OPB Stock', path: '/inventory/opb-stock-create-request-list' },
-      { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'}
+      { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'},
+      { title: 'Raw Material Barcode', path: '/inventory/raw-material-barcode'},
+      { title: 'Raw Material Batch Details', path: '/inventory/raw-material-batch-details'},
     ],
   },
   {
@@ -645,10 +650,12 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Vendor Price Approval', path:'/material/vendor-price-approval'},
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
+      { title: 'Brand Unit Mapping', path: '/material/brand-unit-mapping' },
       {
         title: 'Category Brand Mapping',
         path: '/material/category-brand-mapping',
       },
+      
     ],
   },
   {
@@ -658,6 +665,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Categories', path: '/menu-item/categories' },
       // { title: 'Sub Category', path: '/menu-item/sub-category' },
       { title: 'Menu Items', path: '/menu-item/menu-items' },
+      { title: 'Menu Item Consumption', path: '/menu-item/consumption' },
       { title: 'Item Recipe', path: '/menu-item/recipe' },
       { title: 'Captain Recipe', path: '/menu-item/captain-recipe' },
     ],

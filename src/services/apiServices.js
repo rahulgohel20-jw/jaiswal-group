@@ -1509,13 +1509,16 @@ export const getLedgerById = (id) => {
 export const listBatchesForBarcode = (payload, pageParams = {}) => {
   return POST('/stock-batch/list-for-barcode', payload, {
     params: {
-      pageNumber: pageParams.pageNumber ?? 0,
-      pageSize: pageParams.pageSize ?? 10,
+      page: pageParams.pageNo ?? 0,
+      size: pageParams.pageSize ?? 10,
     },
   });
 }
 export const generateBarcodeForBatch = (payload) => {
   return POST('/reports/generateBarcodeForBatch', payload);
+};
+export const getStockDetailsByBatchNumber = (batchNumber) => {
+  return GET(`/stock-batch/details-by-batch-number?batchNumber=${batchNumber}`);
 };
 
 // Kitchen Menu Item API
@@ -1690,3 +1693,39 @@ export const updateKitchenMenuCategoryStatus = ({ id, isActive }) => {
   return PUT(`/kitchenmenucategory/updatestatus?id=${id}&isActive=${isActive}`);
 };
 
+//Per Person MenuItem Consumption APIs
+export const getConsumptionConfigList = (params) => {
+    return GET('/kitchen-menu-item-per-person-consumption/get-config', params);
+};
+
+export const getConsumptionConfigById = (id) => {
+    return GET(`/kitchen-menu-item-per-person-consumption/${id}`);
+};
+
+export const saveOrUpdateConsumptionConfig = (payload) => {
+    return POST('/kitchen-menu-item-per-person-consumption/save-or-update', payload);
+};
+
+export const deleteConsumptionConfigById = (id) => {
+    return DELETE(`/kitchen-menu-item-per-person-consumption/delete/${id}`);
+};
+
+// === Brand Unit Mapping API Endpoints ===
+export const createBrandMapping = (data) => {
+  return POST('/brand-mapping/create', data);
+}
+export const getAllBrandMappings = () => {
+  return  GET('/brand-mapping/getall');
+}
+export const deleteBrandMappingById = (id) => {
+  return DELETE('/brand-mapping/delete', { id });
+}
+export const getBrandMappingByOutlet = (outletId) => {
+  return GET('/brand-mapping/getbyoutlet', { outletId });
+}
+export const getBrandMappingBySubOutlet = (outletId, subOutletId) => {
+  return GET('/brand-mapping/getbysuboutlet', { outletId, subOutletId });
+}
+export const deleteBrandMappingByOutletAndSubOutlet = (outletId, subOutletId) => {
+  return DELETE(`/brand-mapping/deletebyoutletidandsuboutletid?outletId=${outletId}&subOutletId=${subOutletId}`);
+}

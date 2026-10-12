@@ -229,6 +229,23 @@ const OpbStockCreateRequestListing = () => {
     const columns = useMemo(
         () => [
             {
+                id: 'sno',
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="S.NO"
+                        column={column}
+                        className="text-xs font-bold"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <span className="text-gray-500 text-xs font-medium block px-2">
+                        {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+                    </span>
+                ),
+                enableSorting: false,
+                size: 50,
+            },
+            {
                 id: 'opbCode',
                 accessorFn: (row) => row.opbCode,
                 header: ({ column }) => (
@@ -266,7 +283,7 @@ const OpbStockCreateRequestListing = () => {
             {
                 id: 'outletLocation',
                 header: ({ column }) => (
-                    <DataGridColumnHeader title="OUTLET / LOCATION" column={column} className="text-xs font-bold" />
+                    <DataGridColumnHeader title="UNIT / LOCATION" column={column} className="text-xs font-bold" />
                 ),
                 cell: ({ row }) => (
                     <div className="flex flex-col gap-0.5 min-w-0">
@@ -443,19 +460,19 @@ const OpbStockCreateRequestListing = () => {
 
                 {/* Filter Bar: Search + Outlet + Sub-Outlet */}
                 <div className="space-y-3">
-                    <div className={`grid grid-cols-1 ${isOutletUser ? ' md:grid-cols-2' : ' md:grid-cols-3'} gap-2.5`}>
+                    <div className={`grid md:grid-cols-2 grid-cols-1 gap-4`}>
                         {/* Search Input */}
                         <div>
                             <SearchBar
                                 isStandalone={false}
-                                placeholder="Search by Request Code, Item, Outlet..."
+                                placeholder="Search by Request Code, Item, Unit..."
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
                                 onClear={() => setSearchInput('')}
                                 wrapperClassName="w-full"
                             />
                         </div>
-
+                        <div className={`grid ${!isOutletUser && 'sm:grid-cols-2'}  grid-cols-1 gap-4`}>
                         {/* Outlet Filter (Hidden for Outlet-locked Users) */}
                         {!isOutletUser && (
                             <div>
@@ -468,7 +485,7 @@ const OpbStockCreateRequestListing = () => {
                                         setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                                     }}
                                     options={outletOptions}
-                                    placeholder="All Outlets..."
+                                    placeholder="All Units..."
                                 />
                             </div>
                         )}
@@ -484,8 +501,9 @@ const OpbStockCreateRequestListing = () => {
                                 }}
                                 options={subOutletOptions}
                                 disabled={!isOutletUser && !selectedOutletId}
-                                placeholder={!isOutletUser && !selectedOutletId ? 'Select Outlet First' : 'All Sub-Outlets...'}
+                                placeholder={!isOutletUser && !selectedOutletId ? 'Select Unit First' : 'All Sub-Units...'}
                             />
+                        </div>
                         </div>
                     </div>
                 </div>

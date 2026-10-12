@@ -357,6 +357,11 @@ const PurchaseOrderDetail = () => {
       amountInWords: numberToWords(roundedNet),
     };
   }, [po, isInterState, isGstApplicable]);
+  const hasAnyCess = useMemo(() => {
+  return (po?.details || []).some(
+    (item) => Number(item.cess || 0) > 0 || Number(item.cessAmount || 0) > 0
+  );
+}, [po?.details]);
 
   if (!canView) {
     return <AccessDenied pageTitle="Purchase Order Requests" />;
@@ -383,6 +388,7 @@ const PurchaseOrderDetail = () => {
       </Container>
     );
   }
+
 
   return (
     <Container>
@@ -696,7 +702,9 @@ const PurchaseOrderDetail = () => {
                     <>
                       <th className="text-center font-semibold px-2 py-3 w-20">HSN/SAC</th>
                       <th className="text-center font-semibold px-1 py-3 w-14">GST (%)</th>
-                      <th className="text-center font-semibold px-1 py-3 w-14">CESS (%)</th>
+                      {hasAnyCess && (
+                        <th className="text-center font-semibold px-1 py-3 w-14">CESS (%)</th>
+                      )}
                       <th className="text-right font-semibold px-2 py-3 w-24">Amount w/o Tax (₹)</th>
                       <th className="text-right font-semibold px-2 py-3 w-20">Tax Applied (₹)</th>
                       <th className="text-right font-semibold px-3 py-3 w-28">Total Amount (₹)</th>
@@ -711,7 +719,7 @@ const PurchaseOrderDetail = () => {
               <tbody>
                 {itemCount === 0 ? (
                   <tr>
-                    <td colSpan={isGstApplicable ? 13 : 8} className="px-5 py-14 text-center text-gray-400">
+                    <td colSpan={isGstApplicable ? (hasAnyCess ? 13 : 12) : 8} className="px-5 py-14 text-center text-gray-400">
                       <div className="flex flex-col items-center gap-2">
                         <Package className="w-6 h-6 text-gray-300" />
                         No items on this purchase order.
@@ -751,9 +759,11 @@ const PurchaseOrderDetail = () => {
                           <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">
                             {item.gstPct}%
                           </td>
-                          <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">
-                            {item.cessPct > 0 ? `${item.cessPct}%` : '0%'}
-                          </td>
+                          {hasAnyCess && (
+                            <td className="px-1 py-3 text-center text-gray-600 text-xs font-mono align-top w-14">
+                              {Number(item.cessPct || item.cess || 0) > 0 ? `${Number(item.cessPct || item.cess)}%` : '—'}
+                            </td>
+                          )}
                           <td className="px-2 py-3 text-right font-medium text-xs text-gray-700 font-mono align-top w-24 whitespace-nowrap">
                             ₹{item.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>

@@ -28,6 +28,7 @@ import SearchableSelect from '../../../utils/SearchableSelect';
 import {
     getKitchenMenuItemRecipe,
     deleteKitchenMenuItemRecipe,
+    getAllKitchenMenuItem
 } from '../../../services/apiServices';
 import { useModuleState } from '../../../hooks/useModuleState';
 import { usePagePermissions } from '@/utils/permissions';
@@ -38,6 +39,7 @@ import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 const FILTER_DEFAULTS = {
     search: '',
+    menuItemId: '',
     outletId: '',
     page: 0,
     pageSize: 10,
@@ -71,6 +73,7 @@ const ItemRecipeList = () => {
 
     const {
         search,
+        menuItemId: menuItemFilter,
         outletId: outletFilter,
         page: pageIndex,
         pageSize,
@@ -86,6 +89,56 @@ const ItemRecipeList = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [error, setError] = useState(null);
 
+    // Menu Item options state
+const [menuItems, setMenuItems] = useState([]);
+    const [menuItemsLoading, setMenuItemsLoading] = useState(false);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const loadMenuItems = async () => {
+            setMenuItemsLoading(true);
+            try {
+                const res = await getAllKitchenMenuItem({
+                    page: 1,
+                    size: 2000,
+                    isAsc: true,
+                });
+                const payload = res?.data?.data ?? res?.data ?? {};
+                const list = Array.isArray(payload.items)
+                    ? payload.items
+                    : Array.isArray(payload)
+                        ? payload
+                        : [];
+
+                const activeItems = list.filter((item) => item.isActive !== false);
+
+                if (!isCancelled) {
+                    setMenuItems(activeItems);
+                }
+            } catch (err) {
+                console.error('Failed to load menu items for dropdown:', err);
+                if (!isCancelled) {
+                    setMenuItems([]);
+                    notify.error('Failed to load menu items');
+                }
+            } finally {
+                if (!isCancelled) setMenuItemsLoading(false);
+            }
+        };
+
+        loadMenuItems();
+        return () => {
+            isCancelled = true;
+        };
+    }, []);
+
+    const menuItemOptions = useMemo(() => {
+        return menuItems.map((item) => ({
+            value: String(item.id),
+            label: item.nameEnglish || item.itemName || `Item #${item.id}`,
+        }));
+    }, [menuItems]);
     // Debounced search state
     const [searchInput, setSearchInput] = useState(search);
 
@@ -197,6 +250,9 @@ const ItemRecipeList = () => {
                 if (outletFilter && Number.isFinite(Number(outletFilter))) {
                     return Number(h.orgId) === Number(outletFilter);
                 }
+                if (menuItemFilter && Number.isFinite(Number(menuItemFilter))) {
+                    if (Number(h.menuItemId) !== Number(menuItemFilter)) return false;
+                }
                 return true;
             });
 
@@ -246,6 +302,7 @@ const ItemRecipeList = () => {
         pageIndex,
         pageSize,
         search,
+        menuItemFilter,
         isOutletUser,
         effectiveOutletId,
         outletFilter,
@@ -278,7 +335,7 @@ const ItemRecipeList = () => {
     // Execute delete API with menuItemId and orgId
     const confirmDelete = async () => {
         if (!deleteTarget?.menuItemId || !deleteTarget?.orgId) {
-            notify.error('Missing Menu Item ID or Outlet ID to delete recipe');
+            notify.error('Missing Menu Item ID or Unit ID to delete recipe');
             return;
         }
 
@@ -309,7 +366,7 @@ const ItemRecipeList = () => {
                     <DataGridColumnHeader
                         title="S.NO"
                         column={column}
-                        className="py-6 text-xs uppercase text-[#43474F] font-semibold"
+                        className="py-4 text-xs uppercase text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -318,7 +375,7 @@ const ItemRecipeList = () => {
                     </span>
                 ),
                 enableSorting: false,
-                size: 35,
+                size: 40,
             },
             {
                 id: 'menuItem',
@@ -518,8 +575,8 @@ const ItemRecipeList = () => {
 
                 {/* Filter and Search Bar */}
                 <div className="bg-white mt-4">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="w-full md:w-[70%]">
+                    <div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
+                        <div className="w-full">
                             <SearchBar
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
@@ -535,9 +592,30 @@ const ItemRecipeList = () => {
                                 wrapperClassName="w-full"
                             />
                         </div>
+                        {/* Menu Item Filter */}
+                        <div className={`grid ${!isOutletUser && 'sm:grid-cols-2'}  grid-cols-1 gap-4`}>
+                            <SearchableSelect
+                                name="menuItemFilter"
+                                value={menuItemFilter}
+                                onChange={(e) => {
+                                    const val = e?.target?.value ?? e?.value ?? '';
+                                    setFilters((prev) => ({
+                                        ...prev,
+                                        menuItemId: val,
+                                        page: 0,
+                                    }));
+                                }}
+                                options={menuItemOptions}
+                                placeholder={
+                                    menuItemsLoading ? 'Loading Menu Items...' : 'Filter by Menu Item'
+                                }
+                                isLoading={menuItemsLoading}
+                                isClearable={true}
+                            />
+                        
 
                         {!isOutletUser && (
-                            <div className="w-full md:w-[30%]">
+                            <div className="w-full ">
                                 <SearchableSelect
                                     name="outletFilter"
                                     value={outletFilter}
@@ -552,13 +630,14 @@ const ItemRecipeList = () => {
                                     options={outletFilterOptions}
                                     placeholder={
                                         isCompanyUser
-                                            ? `All Outlets (${selfOrg?.companyNameEnglish || 'Company'})`
-                                            : 'All Outlets'
+                                            ? `All Units (${selfOrg?.name || 'Company'})`
+                                            : 'All Units'
                                     }
                                     isClearable={true}
                                 />
                             </div>
                         )}
+                        </div>
                     </div>
                 </div>
 

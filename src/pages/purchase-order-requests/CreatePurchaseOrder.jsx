@@ -1081,7 +1081,8 @@ const CreatePurchaseOrder = () => {
     }
     const itemTax = item.tax != null && item.tax !== '' ? Number(item.tax) : 18;
     setGstMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? itemTax }));
-    setCessMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? (item.cess != null && item.cess !== '' ? Number(item.cess) : 0) }));
+    const itemCess = item.isCessApplicable ? (item.cess != null && item.cess !== '' ? Number(item.cess) : 0) : 0;
+    setCessMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? itemCess }));
   };
 
   const handleUnitChange = (rawMaterialId, selectedUnitId) => {
@@ -1239,6 +1240,7 @@ const CreatePurchaseOrder = () => {
         approvedQty: d.quantity,
         remarks: d.remarks || '',
         source: d.prDetailId ? 'pr' : 'manual',
+        isCessApplicable: Boolean(d.isCessApplicable),
       }))
       : (pr?.details || []).map((d, idx) => ({
         rawMaterialId: d.rawMaterialId,
@@ -1252,6 +1254,7 @@ const CreatePurchaseOrder = () => {
         approvedQty: d.quantity ?? d.orderedQuantity,
         remarks: d.remarks || '',
         source: 'pr',
+        isCessApplicable: Boolean(d.isCessApplicable),
       }));
     const fromManual = manualItems.map((m, idx) => ({
       rawMaterialId: m.rawMaterialId,
@@ -1265,6 +1268,7 @@ const CreatePurchaseOrder = () => {
       approvedQty: null,
       remarks: m.remarks || '',
       source: 'manual',
+      isCessApplicable: Boolean(m.isCessApplicable),
     }));
     return [...baseline, ...fromManual]
       .filter((item) => !deletedRawMaterialIds.has(String(item.rawMaterialId)))
@@ -1915,6 +1919,12 @@ const CreatePurchaseOrder = () => {
   if (!isEditingExistingPo && !canAdd && !isReviewMode) {
     return <AccessDenied pageTitle="Purchase Order Requests" />;
   }
+  const hasAnyCessApplicable = useMemo(() => {
+    return purchaseItems.some((item) => {
+      const rm = rawMaterials.find((r) => Number(r.id) === Number(item.rawMaterialId));
+      return Boolean(item.isCessApplicable || rm?.isCessApplicable);
+    });
+  }, [purchaseItems, rawMaterials]);
 
   return (
     <Container width="fluid" className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 lg:px-6">
@@ -2500,7 +2510,9 @@ const CreatePurchaseOrder = () => {
                     <>
                       <th className="py-2.5 px-1 text-center w-16">HSN</th>
                       <th className="py-2.5 px-0.5 text-center w-12">GST (%)</th>
-                      <th className="py-2.5 px-0.5 text-center w-12">CESS (%)</th>
+                      {hasAnyCessApplicable && (
+                        <th className="py-2.5 px-0.5 text-center w-12">CESS (%)</th>
+                      )}
                       <th className="py-2.5 px-1 text-right w-20">Taxable (₹)</th>
                       <th className="py-2.5 px-1 text-right w-16">Tax (₹)</th>
                       <th className="py-2.5 px-1.5 text-right w-20">Total (₹)</th>
@@ -2515,7 +2527,7 @@ const CreatePurchaseOrder = () => {
               <tbody className="divide-y divide-gray-100 text-xs">
                 {purchaseItems.length === 0 ? (
                   <tr>
-                    <td colSpan={(!isGeneratePo && isGstApplicable) ? 13 : 9} className="py-12 text-center">
+                    <td colSpan={(!isGeneratePo && isGstApplicable) ? (hasAnyCessApplicable ? 13 : 12) : 9} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                         <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-2.5">
                           <Package className="w-5 h-5" />
@@ -2786,26 +2798,32 @@ const CreatePurchaseOrder = () => {
                                 className="w-10 h-7.5 border border-[#E2E8F0] rounded-lg text-center text-xs px-0.5 outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                               />
                             </td>
-                            <td className="py-2 px-0.5 text-center align-top pt-1.5 w-12">
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={cessMap[item.rawMaterialId] ?? 0}
-                                onKeyDown={(e) => {
-                                  if (e.key === '-' || e.key === 'e') e.preventDefault();
-                                }}
-                                onChange={(e) => {
-                                  const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
-                                  setCessMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
-                                }}
-                                onWheel={(e) => e.currentTarget.blur()}
-                                disabled={isReadOnly}
-                                placeholder="0"
-                                className="w-10 h-7.5 border border-[#E2E8F0] rounded-lg text-center text-xs px-0.5 outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
-                              />
-                            </td>
+                           {hasAnyCessApplicable && (
+                              <td className="py-2 px-0.5 text-center align-top pt-1.5 w-12">
+                                {(item.isCessApplicable || rawMaterials.find((r) => Number(r.id) === Number(item.rawMaterialId))?.isCessApplicable) ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={cessMap[item.rawMaterialId] ?? 0}
+                                    onKeyDown={(e) => {
+                                      if (e.key === '-' || e.key === 'e') e.preventDefault();
+                                    }}
+                                    onChange={(e) => {
+                                      const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                                      setCessMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
+                                    }}
+                                    onWheel={(e) => e.currentTarget.blur()}
+                                    disabled={isReadOnly}
+                                    placeholder="0"
+                                    className="w-10 h-7.5 border border-[#E2E8F0] rounded-lg text-center text-xs px-0.5 outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                                  />
+                                ) : (
+                                  <span className="text-gray-400 font-medium">-</span>
+                                )}
+                              </td>
+                            )}
                             <td className="py-2 px-1 text-right font-medium text-xs text-gray-700 font-mono align-top pt-2 w-20 whitespace-nowrap">
                               ₹{calc.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
@@ -3400,7 +3418,7 @@ const CreatePurchaseOrder = () => {
       <DeleteConfirmModal
         isOpen={Boolean(itemToDelete)}
         onClose={() => setItemToDelete(null)}
-        onConfirm={() => {
+          onConfirm={() => {
           if (itemToDelete?.rawMaterialId) {
             handleRemoveItem(itemToDelete.rawMaterialId);
           }
