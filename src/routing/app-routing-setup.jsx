@@ -221,6 +221,7 @@ import CreateMenuItemConsumption from '../pages/menu-item/menuitem-consumption/C
 import RawMaterialBatchDetails from '../pages/inventory/batch-details/RawMaterialBatchDetails';
 import BrandUnitMapping from '../pages/raw-material/brand-unit-mapping/BrandUnitMapping';
 import ViewItemRecipe from '../pages/menu-item/item-recipe/ViewItemRecipe';
+import ViewRawMaterialItem from '../pages/raw-material/raw-material-item-master/ViewRawMaterialItem';
 
 
 export function AppRoutingSetup() {
@@ -366,7 +367,7 @@ export function AppRoutingSetup() {
           <Route path="/material/items/add" element={<AddRawMaterialItemModal />} />
           <Route path="/material/items/approve/:id" element={<AddRawMaterialItemModal />} />
           <Route path="/material/items/edit/:id" element={<AddRawMaterialItemModal />} />
-          <Route path="/material/items/view/:id" element={<AddRawMaterialItemModal />} />
+          <Route path="/material/items/view/:id" element={<ViewRawMaterialItem />} />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
           <Route
             path="/material/brand-master"

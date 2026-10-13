@@ -1,6 +1,5 @@
 import {
     Blocks,
-    ChevronRight,
     CircleCheck,
     CircleX,
     Clock,
@@ -12,7 +11,7 @@ import {
 } from 'lucide-react'
 import { SearchBar } from '@/components/common/SearchBar';
 import React, { useState, useEffect, useMemo } from 'react'
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
@@ -79,6 +78,7 @@ const RawMaterialTypeListing = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [sorting, setSorting] = useState([]);
 
     const openEditModal = (row) => {
         setEditingType(row);
@@ -227,6 +227,7 @@ const RawMaterialTypeListing = () => {
                     <div className="font-medium text-xs text-gray-800 py-2 capitalize">{row.original.nameEnglish}</div>
                 ),
                 size: 260,
+                enableSorting: true,
             },
             {
                 id: "status",
@@ -259,6 +260,7 @@ const RawMaterialTypeListing = () => {
                     </label>
                 ),
                 size: 160,
+                enableSorting: false,
             },
             {
                 id: "actions",
@@ -291,8 +293,10 @@ const RawMaterialTypeListing = () => {
     const table = useReactTable({
         data: filteredTypes,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
+        onSortingChange: setSorting,
+        getSortedRowModel: getSortedRowModel(),
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

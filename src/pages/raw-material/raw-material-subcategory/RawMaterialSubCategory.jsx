@@ -4,18 +4,16 @@ import {
     getCoreRowModel,
     getPaginationRowModel,
     useReactTable,
+    getSortedRowModel
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
 import {
     Blocks,
-    ChevronRight,
     CircleCheck,
     CircleX,
     Eye,
-    Plus,
     SquarePen,
     Trash2,
-    Upload,
 } from 'lucide-react';
 import {
     getAllRawMaterialCategory,
@@ -93,6 +91,7 @@ const RowMaterialSubCategory = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [sorting, setSorting] = useState([]);
 
     useEffect(() => {
         (async () => {
@@ -318,6 +317,7 @@ const RowMaterialSubCategory = () => {
                     </div>
                 ),
                 size: 220,
+                enableSorting: true,
             },
             {
                 id: 'categoryName',
@@ -338,6 +338,7 @@ const RowMaterialSubCategory = () => {
                     </div>
                 ),
                 size: 220,
+                enableSorting: false,
             },
             {
                 id: 'status',
@@ -375,6 +376,7 @@ const RowMaterialSubCategory = () => {
                     </label>
                 ),
                 size: 180,
+                enableSorting: false,
             },
             {
                 id: 'actions',
@@ -421,8 +423,10 @@ const RowMaterialSubCategory = () => {
     const table = useReactTable({
         data: filteredSubCategories,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
+        onSortingChange: setSorting,
+        getSortedRowModel: getSortedRowModel(),
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

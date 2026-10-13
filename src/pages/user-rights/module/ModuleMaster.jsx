@@ -4,6 +4,7 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel,
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
 import { ChevronRight, Eye, Plus, SquarePen, Trash2 } from 'lucide-react';
@@ -65,6 +66,7 @@ const ModuleMaster = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const navigate = useNavigate();
+  const [sorting, setSorting] = useState([]);
   const openViewModal = (row) => {
     setIsViewOnly(true);
     setEditingModule(row);
@@ -168,7 +170,7 @@ const ModuleMaster = () => {
         accessorFn: (row) => row.name,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Name"
+            title="NAME"
             column={column}
             className="text-[#43474F] font-semibold text-xs"
           />
@@ -183,13 +185,14 @@ const ModuleMaster = () => {
           </button>
         ),
         size: 260,
+        enableSorting: true,
       },
       {
         id: 'createdAt',
         accessorFn: (row) => row.createdAt,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="CreatedAt"
+            title="CREATED AT"
             column={column}
             className="text-[#43474F] font-semibold text-xs"
           />
@@ -200,13 +203,31 @@ const ModuleMaster = () => {
           </span>
         ),
         size: 220,
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valA = rowA.getValue(columnId);
+          const valB = rowB.getValue(columnId);
+
+          const timeA = valA ? new Date(valA).getTime() : 0;
+          const timeB = valB ? new Date(valB).getTime() : 0;
+
+          // Push null/invalid dates to the end
+          const validA = Number.isFinite(timeA) && timeA > 0;
+          const validB = Number.isFinite(timeB) && timeB > 0;
+
+          if (!validA && !validB) return 0;
+          if (!validA) return 1;
+          if (!validB) return -1;
+
+          return timeA - timeB;
+        },
       },
       {
         id: 'isActive',
         accessorFn: (row) => row.isActive,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title="STATUS"
             column={column}
             className="text-[#43474F] font-semibold text-xs"
           />
@@ -217,12 +238,13 @@ const ModuleMaster = () => {
           </span>
         ),
         size: 120,
+        enableSorting: false,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Action"
+            title="ACTIONS"
             column={column}
             className="text-[#43474F] font-semibold"
           />
@@ -278,8 +300,10 @@ const ModuleMaster = () => {
   const table = useReactTable({
     data: filteredModuleRights,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });

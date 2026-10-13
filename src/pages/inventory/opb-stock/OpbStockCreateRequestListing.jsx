@@ -254,7 +254,7 @@ const OpbStockCreateRequestListing = () => {
                 cell: ({ row }) => (
                     <CodeCell
                         code={row.original.opbCode}
-                        maxWidth="max-w-[140px]"
+                        maxWidth="max-w-[120px]"
                         onClick={() => handleViewRequest(row.original)}
                     />
                 ),
@@ -318,7 +318,7 @@ const OpbStockCreateRequestListing = () => {
                 id: 'itemName',
                 accessorFn: (row) => row.itemName,
                 header: ({ column }) => (
-                    <DataGridColumnHeader title="ITEM DESCRIPTION" column={column} className="text-xs font-bold" />
+                    <DataGridColumnHeader title="ITEM" column={column} className="text-xs font-bold" />
                 ),
                 cell: ({ row }) => (
                     <div className="min-w-0">
@@ -331,7 +331,7 @@ const OpbStockCreateRequestListing = () => {
                     </div>
                 ),
                 enableSorting: true,
-                size: 200,
+                size: 150,
             },
             {
                 id: 'batchNumber',
@@ -357,7 +357,7 @@ const OpbStockCreateRequestListing = () => {
                     </div>
                 ),
                 enableSorting: true,
-                size: 190,
+                size: 170,
             },
             {
                 id: 'quantity',
@@ -399,7 +399,7 @@ const OpbStockCreateRequestListing = () => {
                     </div>
                 ),
                 enableSorting: false,
-                size: 95,
+                size: 90,
             },
             {
                 id: 'actions',

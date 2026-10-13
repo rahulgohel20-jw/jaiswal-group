@@ -4,9 +4,10 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
-import { ChevronRight, Eye, Plus, SquarePen, Trash2 } from 'lucide-react';
+import {  Eye, SquarePen, Trash2 } from 'lucide-react';
 import { deletePage, getPages } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -60,6 +61,7 @@ const PageMaster = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const navigate = useNavigate();
+  const [sorting, setSorting] = useState([]);
 
   const openViewModal = (row) => {
     setIsViewOnly(true);
@@ -184,7 +186,7 @@ const PageMaster = () => {
         accessorFn: (row) => row.name,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Page Name"
+            title="PAGE NAME"
             column={column}
             className="text-[#43474F] font-semibold"
           />
@@ -200,13 +202,14 @@ const PageMaster = () => {
           </button>
         ),
         size: 280,
+        enableSorting: true,
       },
       {
         id: 'moduleName',
         accessorFn: (row) => row.moduleName,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Module Name"
+            title="MODULE NAME"
             column={column}
             className="text-[#43474F] font-semibold"
           />
@@ -215,12 +218,13 @@ const PageMaster = () => {
           <TruncatedCell value={row.original.moduleName} />
         ),
         size: 280,
+        enableSorting: true,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Actions"
+            title="ACTIONS"
             column={column}
             className="text-[#43474F] font-semibold"
           />
@@ -278,9 +282,11 @@ const PageMaster = () => {
   const table = useReactTable({
     data: filteredPages,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     getPaginationRowModel: getPaginationRowModel(),
   });
 

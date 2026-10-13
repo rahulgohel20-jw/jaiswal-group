@@ -5,14 +5,13 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
 import {
-  ChevronRight,
   CircleCheck,
   Eye,
   LayoutGrid,
-  Plus,
   Shapes,
   SquarePen,
   Trash2,
@@ -69,6 +68,7 @@ const RowMaterialBrandMaster = () => {
   const [activeBrandCount, setActiveBrandCount] = useState(0);
   const navigate = useNavigate();
 
+  const [sorting, setSorting] = useState([]);
   const loadAll = async () => {
     setLoading(true);
     setError(null);
@@ -297,7 +297,7 @@ const RowMaterialBrandMaster = () => {
           <DataGridColumnHeader
             title="S.NO"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm py-4"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -314,7 +314,7 @@ const RowMaterialBrandMaster = () => {
           <DataGridColumnHeader
             title="NAME"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -325,6 +325,7 @@ const RowMaterialBrandMaster = () => {
             {row.original.name}
           </span>
         ),
+        enableSorting: true,
       },
 
       {
@@ -334,7 +335,7 @@ const RowMaterialBrandMaster = () => {
           <DataGridColumnHeader
             title="STATUS"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -356,6 +357,7 @@ const RowMaterialBrandMaster = () => {
           </label>
         ),
         size: 120,
+        enableSorting: false,
       },
       {
         id: 'actions',
@@ -404,9 +406,11 @@ const RowMaterialBrandMaster = () => {
   const table = useReactTable({
     data: filteredBrands,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination, rowSelection, sorting },
     onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

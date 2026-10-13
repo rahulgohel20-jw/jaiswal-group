@@ -2,9 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Container } from "@/components/common/container";
 import { SearchBar } from "@/components/common/SearchBar";
 import {
-  ChevronRight,
   Eye,
-  Plus,
   SquarePen,
   Trash2,
 } from "lucide-react";
@@ -13,6 +11,7 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from "@tanstack/react-table";
 
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
@@ -64,6 +63,7 @@ const CityMaster = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [sorting, setSorting] = useState([]);
 
   // ---------------- FETCH CITIES ----------------
   const fetchCities = useCallback(async () => {
@@ -224,6 +224,7 @@ const TruncatedCell = ({
           />
         ),
         size: 200,
+        enableSorting: true,
       },
 
       // STATE NAME
@@ -244,6 +245,7 @@ const TruncatedCell = ({
           />
         ),
         size: 200,
+        enableSorting: true,
       },
 
       // ACTIONS
@@ -306,9 +308,12 @@ const TruncatedCell = ({
     state: {
       pagination,
       rowSelection,
+      sorting
     },
     onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

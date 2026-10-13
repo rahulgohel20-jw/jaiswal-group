@@ -6,14 +6,12 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import {
-  ChevronRight,
   Eye,
   Filter,
   Loader2,
-  Plus,
-  Search,
   SquarePen,
   Trash2,
 } from 'lucide-react';
@@ -127,6 +125,7 @@ const CompanyListing = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget,      setDeleteTarget]      = useState(null);
   const [deleteLoading,     setDeleteLoading]     = useState(false);
+   const [sorting, setSorting] = useState([]);
 
   const normalizeCompany = (item) => ({
     id:        item.id,
@@ -246,6 +245,7 @@ const CompanyListing = () => {
           />
         ),
         size: 200,
+        enableSorting: true,
       },
       {
         id: 'code',
@@ -355,10 +355,12 @@ const CompanyListing = () => {
   const table = useReactTable({
     data: filteredCompanies,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) return <AccessDenied pageTitle="Companies" />;

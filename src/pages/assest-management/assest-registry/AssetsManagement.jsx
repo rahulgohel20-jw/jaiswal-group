@@ -1,17 +1,15 @@
-import { AlertTriangle, CircleCheck, Download, Eye, Loader2, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
+import {CircleCheck, Download, Eye, Loader2, Package, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
 import React, { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link, useNavigate } from 'react-router';
 import AssetPreviewDetail from './AssetPreviewDetail';
 import { getAllAssets, deleteAsset } from '@/services/apiServices';
 import { Container } from "@/components/common/container";
-import { notify } from "@/utils/toast";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
     Select,
@@ -117,6 +115,7 @@ const AssetsManagement = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const [sorting, setSorting] = useState([]);
 
     const fetchAssets = async () => {
         setAssetsLoading(true);
@@ -307,7 +306,7 @@ const AssetsManagement = () => {
                     {row.original.assetId}
                 </div>
             ),
-            enableSorting: false,
+            enableSorting: true,
             size: 100,
         },
         {
@@ -321,7 +320,7 @@ const AssetsManagement = () => {
                     {row.original.itemName}
                 </div>
             ),
-            enableSorting: false,
+            enableSorting: true,
             size: 140,
         },
         {
@@ -373,7 +372,7 @@ const AssetsManagement = () => {
                     ₹{Number(row.original.value ?? 0).toLocaleString()}
                 </span>
             ),
-            enableSorting: false,
+            enableSorting: true,
             size: 85,
         },
         {
@@ -433,8 +432,10 @@ const AssetsManagement = () => {
     const table = useReactTable({
         data: filteredAssets,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
+        getSortedRowModel: getSortedRowModel(),
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

@@ -1,18 +1,17 @@
-import { AlertTriangle, ChevronRight, CircleCheck, CircleX, ClipboardList, Eye, ListFilter, Plus, RotateCcw, SquarePen, Trash2 } from 'lucide-react'
+import {CircleCheck, CircleX, ClipboardList, Eye, SquarePen, Trash2 } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { SearchBar } from '@/components/common/SearchBar';
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import AddRawMaterialItemModal from './AddRawMaterialItemModal';
 import { Container } from "@/components/common/container";
 import StatusConfirmModal from "@/utils/StatusConfirmModal";
 import { updateRawMaterialItemStatusById } from "@/services/apiServices";
-import { deleteRawMaterialItemById, getAllRawMaterialCategory, getAllRawMaterialItems, getRawMaterialById } from '../../../services/apiServices';
+import { deleteRawMaterialItemById, getAllRawMaterialCategory, getAllRawMaterialItems } from '../../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
     Select,
@@ -55,6 +54,7 @@ const RowMaterialItemMaster = () => {
         inactive: 0,
     });
     const [totalItems, setTotalItems] = useState(0);
+    const [sorting, setSorting] = useState([]);
     const fetchStats = useCallback(async () => {
         try {
             const res = await getAllRawMaterialItems(
@@ -265,7 +265,7 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="S.NO"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -285,7 +285,7 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="IMAGE"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -300,6 +300,7 @@ const RowMaterialItemMaster = () => {
                     )
                 ),
                 size: 100,
+                enableSorting: false,
             },
 
             {
@@ -321,7 +322,8 @@ const RowMaterialItemMaster = () => {
                         {row.original.name}
                     </button>
                 ),
-                size: 240
+                size: 240,
+                enableSorting: true,
             },
 
             {
@@ -330,7 +332,7 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="ROW MATERIAL CATEGORY"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -339,6 +341,7 @@ const RowMaterialItemMaster = () => {
                     </span>
                 ),
                 size: 220,
+                enableSorting: false,
             },
 
             {
@@ -347,7 +350,7 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="UNIT"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -356,6 +359,7 @@ const RowMaterialItemMaster = () => {
                     </span>
                 ),
                 size: 110,
+                enableSorting: false,
             },
             {
                 accessorKey: "status",
@@ -363,7 +367,7 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="STATUS"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -398,7 +402,8 @@ const RowMaterialItemMaster = () => {
 
                     </label>
                 ),
-                size: 100
+                size: 100,
+                enableSorting: false,
             },
 
             {
@@ -407,7 +412,7 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="ACTIONS"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
 
@@ -475,9 +480,11 @@ const RowMaterialItemMaster = () => {
         data: itemData,
         columns,
         state: {
-            pagination,
+            pagination, sorting
         },
         onPaginationChange: setPagination,
+        getSortedRowModel: getSortedRowModel(),
+        onSortingChange: setSorting,
         manualPagination: true,
         pageCount: Math.ceil(totalItems / pagination.pageSize),
         getCoreRowModel: getCoreRowModel(),

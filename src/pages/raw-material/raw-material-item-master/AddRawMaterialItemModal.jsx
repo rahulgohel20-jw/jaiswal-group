@@ -4,8 +4,6 @@ import { Container } from "@/components/common/container";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
   ArrowLeft,
-  ChevronDown,
-  ChevronRight,
   Plus,
   UploadCloud,
 } from 'lucide-react';
@@ -13,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import {
   addRawMaterialItem,
   getAllRawMaterialCategory,
+  getAllRawMaterialCategoryType,
   getAllRawMaterialUnits,
   getAllSubCategoryByCategoryId,
   getRawMaterialCategoryBrandsByCategoryId,
@@ -25,6 +24,7 @@ import AddRawMaterialUnit from '../raw-material-unit-master/AddRawMaterialUnit';
 import AddRawMaterialCategoryModal from '../row-material-categories/AddRowMaterialCategoryModel';
 import SearchableSelect from '../../../utils/SearchableSelect';
 import AddRawMaterialSubCategoryModal from '../raw-material-subcategory/AddRawMaterialSubCategoryModal';
+import AddRawMaterialModal from '../raw-material-type/AddRawMaterialModal';
 
 const getLatestImage = (images) => {
   if (!Array.isArray(images) || images.length === 0) return "";
@@ -33,6 +33,7 @@ const getLatestImage = (images) => {
 
 const emptyForm = {
   nameEnglish: '',
+  rawMaterialCatTypeId: '',
   rawMaterialCatId: '',
   rawMaterialSubCatId: '',
   status: 'Active',
@@ -57,6 +58,24 @@ const emptyForm = {
 };
 
 const pickDefined = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== '');
+
+const normalizeType = (data) => {
+  if (!data) return null;
+  const rawCat = data.rawMaterialCat || data.rawMaterialCategory;
+  const rawType = rawCat?.rawMaterialCatType || data.rawMaterialCatType || data.categoryType;
+  const id = pickDefined(
+    typeof rawType === 'object' ? rawType?.id : rawType,
+    data.rawMaterialCatTypeId,
+    data.categoryTypeId
+  );
+  if (id == null || id === '') return null;
+  const name =
+    (typeof rawType === 'object' ? rawType?.nameEnglish : '') ||
+    data.categoryTypeName ||
+    data.typeName ||
+    '';
+  return { id, nameEnglish: name };
+};
 
 const normalizeCategory = (data) => {
   if (!data) return null;
@@ -123,12 +142,12 @@ const SmallToggle = ({ checked, onChange, label, disabled = false }) => (
     onClick={onChange}
     className={`w-9 h-5 rounded-full flex items-center transition-all duration-300 p-0.5 shrink-0 ${
       disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
-    } ${checked ? 'bg-[#00376C]' : 'bg-gray-300'}`}
+      } ${checked ? 'bg-[#00376C]' : 'bg-gray-300'}`}
   >
     <span
       className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-all duration-300 ${
         checked ? 'translate-x-4' : 'translate-x-0'
-      }`}
+        }`}
     />
   </button>
 );
@@ -144,13 +163,16 @@ const AddRawMaterialItemModal = () => {
   const [loadingItem, setLoadingItem] = useState(Boolean(id));
   const [form, setForm] = useState(emptyForm);
 
+  const [types, setTypes] = useState([]);
   const [units, setUnits] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [subCategories, setSubCategories] = useState([]);
   const [loadingSubCategories, setLoadingSubCategories] = useState(false);
   const [brands, setBrands] = useState([]);
   const [errors, setErrors] = useState({});
 
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubCategoryModalOpen, setIsSubCategoryModalOpen] = useState(false);
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
@@ -171,6 +193,7 @@ const AddRawMaterialItemModal = () => {
   const validate = () => {
     const newErrors = {};
     if (!form.nameEnglish.trim()) newErrors.nameEnglish = 'Raw Material Name is required';
+    if (!form.rawMaterialCatTypeId) newErrors.rawMaterialCatTypeId = 'Raw Material Type is required';
     if (!form.rawMaterialCatId) newErrors.rawMaterialCatId = 'Raw Material Category is required';
     if (!form.unitId) newErrors.unitId = 'Unit is required';
 
@@ -191,6 +214,22 @@ const AddRawMaterialItemModal = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const fetchTypes = async (editType = null) => {
+    try {
+      const res = await getAllRawMaterialCategoryType();
+      const typeData = res?.data?.data?.['Raw Material Category Type Details'] || res?.data?.data || [];
+      let activeList = typeData.filter((item) => item.isActive === true);
+      if (editType?.id != null && !activeList.some((t) => String(t.id) === String(editType.id))) {
+        activeList = [...activeList, { ...editType, isActive: true }];
+      }
+      setTypes(activeList);
+      return activeList;
+    } catch (err) {
+      console.error('Failed to load types:', err);
+      return [];
+    }
+  };
+
   const fetchUnits = async (editUnit = null) => {
     try {
       const res = await getAllRawMaterialUnits();
@@ -205,17 +244,30 @@ const AddRawMaterialItemModal = () => {
     }
   };
 
-  const fetchCategories = async (editCategory = null) => {
+  const fetchCategories = async (categoryTypeId, editCategory = null) => {
+    if (!categoryTypeId) {
+      setCategories([]);
+      return [];
+    }
+    setLoadingCategories(true);
     try {
-      const res = await getAllRawMaterialCategory();
+      // Pass the primitive ID directly (do not pass an object)
+      const res = await getAllRawMaterialCategory(Number(categoryTypeId));
       const categoryData = res?.data?.data?.['Raw Material Category Details'] || res?.data?.data || [];
-      let activeList = categoryData.filter((item) => item.isActive === true);
+      let activeList = Array.isArray(categoryData)
+        ? categoryData.filter((item) => item.isActive === true)
+        : [];
       if (editCategory?.id != null && !activeList.some((c) => String(c.id) === String(editCategory.id))) {
         activeList = [...activeList, { ...editCategory, isActive: true }];
       }
       setCategories(activeList);
+      return activeList;
     } catch (err) {
       console.error('Failed to load categories:', err);
+      setCategories([]);
+      return [];
+    } finally {
+      setLoadingCategories(false);
     }
   };
 
@@ -267,11 +319,10 @@ const AddRawMaterialItemModal = () => {
       return [];
     }
   };
-
   useEffect(() => {
-    fetchUnits(normalizeUnit(editData));
-    fetchCategories(normalizeCategory(editData));
-  }, [editData?.id]);
+    fetchTypes();
+    fetchUnits();
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -303,19 +354,28 @@ const AddRawMaterialItemModal = () => {
   }, [id, navigate]);
 
   useEffect(() => {
-    if (!form.rawMaterialCatId) {
-      setSubCategories([]);
+    if (!form.rawMaterialCatTypeId) {
+      setCategories([]);
       return;
     }
-    const currentCategoryId = String(form.rawMaterialCatId);
-    const originalCategory = normalizeCategory(editData);
-    const editSubCategory =
-      originalCategory?.id != null && String(originalCategory.id) === currentCategoryId
-        ? normalizeSubCategory(editData)
-        : null;
+    fetchCategories(form.rawMaterialCatTypeId, normalizeCategory(editData));
+  }, [form.rawMaterialCatTypeId]);
 
-    fetchSubCategoriesForCategory(currentCategoryId, editSubCategory);
-  }, [form.rawMaterialCatId, editData?.id]);
+  useEffect(() => {
+    if (loadingCategories || !form.rawMaterialCatId) return;
+    const stillValid = categories.some((c) => String(c.id) === String(form.rawMaterialCatId));
+    if (!stillValid) set('rawMaterialCatId', '');
+  }, [categories, loadingCategories, form.rawMaterialCatId]);
+
+  useEffect(() => {
+    if (!form.rawMaterialCatId) {
+      setSubCategories([]);
+      setBrands([]);
+      return;
+    }
+    fetchSubCategoriesForCategory(form.rawMaterialCatId, normalizeSubCategory(editData));
+    fetchBrands(form.rawMaterialCatId, normalizeBrand(editData));
+  }, [form.rawMaterialCatId]);
 
   useEffect(() => {
     if (loadingSubCategories || !form.rawMaterialSubCatId) return;
@@ -332,61 +392,43 @@ const AddRawMaterialItemModal = () => {
   const imagePreview = form.file ? URL.createObjectURL(form.file) : form.imageUrl;
 
   useEffect(() => {
-    const loadEditData = async () => {
-      if (!editData) {
-        setForm(emptyForm);
-        setSubCategories([]);
-        return;
-      }
+    if (!editData) {
+      setForm(emptyForm);
+      return;
+    }
 
-      const category = normalizeCategory(editData);
-      const subCategory = normalizeSubCategory(editData);
-      const unit = normalizeUnit(editData);
-      const brand = normalizeBrand(editData);
-      const latestImage = getLatestImage(editData.images);
+    const type = normalizeType(editData);
+    const category = normalizeCategory(editData);
+    const subCategory = normalizeSubCategory(editData);
+    const unit = normalizeUnit(editData);
+    const brand = normalizeBrand(editData);
+    const latestImage = getLatestImage(editData.images);
 
-      const categoryId = String(category?.id ?? '');
-      const subCategoryId = String(subCategory?.id ?? '');
-
-      setForm({
-        nameEnglish: editData.nameEnglish || '',
-        rawMaterialCatId: categoryId,
-        rawMaterialSubCatId: '',
-        unitId: String(unit?.id ?? ''),
-        brandId: '',
-        supplierRate: editData.supplierRate ?? '',
-        dailyConsumption: editData.dailyConsumption ?? '',
-        opbStock: editData.opbStock ?? '',
-        minStock: editData.minStock ?? '',
-        maxStock: editData.maxStock ?? '',
-        minOrder: editData.minOrder ?? '',
-        sequence: editData.sequence ?? '',
-        weightPer100Pax: editData.weightPer100Pax ?? '',
-        hsnCode: editData.hsnCode ?? '',
-        tax: editData.tax ?? '',
-        isCessApplicable: Boolean(editData.isCessApplicable || Number(editData.cess) > 0),
-        isUsedBy: Boolean(editData.isUsedBy || editData.useByDate),
-        isGeneralFix: editData.isGeneralFix ?? false,
-        isApplyCal: editData.isApplyCal ?? false,
-        file: null,
-        imageUrl: latestImage,
-      });
-
-      if (category?.id != null) {
-        const loadedSubCategories = await fetchSubCategoriesForCategory(category.id, subCategory);
-        if (subCategory?.id != null && loadedSubCategories.some((item) => String(item.id) === String(subCategory.id))) {
-          setForm((prev) => ({ ...prev, rawMaterialSubCatId: subCategoryId }));
-        }
-
-        const loadedBrands = await fetchBrands(category.id, brand);
-        if (brand?.id != null && loadedBrands.some((b) => String(b.id) === String(brand.id))) {
-          setForm((prev) => ({ ...prev, brandId: String(brand.id) }));
-        }
-      }
-    };
-
-    loadEditData();
-  }, [editData]);
+    setForm({
+      nameEnglish: editData.nameEnglish || '',
+      rawMaterialCatTypeId: String(type?.id ?? ''),
+      rawMaterialCatId: String(category?.id ?? ''),
+      rawMaterialSubCatId: String(subCategory?.id ?? ''),
+      unitId: String(unit?.id ?? ''),
+      brandId: String(brand?.id ?? ''),
+      supplierRate: editData.supplierRate ?? '',
+      dailyConsumption: editData.dailyConsumption ?? '',
+      opbStock: editData.opbStock ?? '',
+      minStock: editData.minStock ?? '',
+      maxStock: editData.maxStock ?? '',
+      minOrder: editData.minOrder ?? '',
+      sequence: editData.sequence ?? '',
+      weightPer100Pax: editData.weightPer100Pax ?? '',
+      hsnCode: editData.hsnCode ?? '',
+      tax: editData.tax ?? '',
+      isCessApplicable: Boolean(editData.isCessApplicable || Number(editData.cess) > 0),
+      isUsedBy: Boolean(editData.isUsedBy || editData.useByDate),
+      isGeneralFix: editData.isGeneralFix ?? false,
+      isApplyCal: editData.isApplyCal ?? false,
+      file: null,
+      imageUrl: latestImage,
+    });
+  }, [editData])
 
   const handleSave = async () => {
     if (!validate()) return;
@@ -394,6 +436,7 @@ const AddRawMaterialItemModal = () => {
     try {
       const formData = new FormData();
       formData.append('nameEnglish', form.nameEnglish);
+      formData.append('rawMaterialCatTypeId', Number(form.rawMaterialCatTypeId));
       formData.append('rawMaterialCatId', Number(form.rawMaterialCatId));
       if (form.rawMaterialSubCatId !== '') formData.append('subCategoryId', Number(form.rawMaterialSubCatId));
       formData.append('unitId', Number(form.unitId));
@@ -443,18 +486,18 @@ const AddRawMaterialItemModal = () => {
         <div className="mx-auto pt-2 pb-6 space-y-3.5">
           <PageHeader
             title={
-               isViewOnly
-                  ? 'View Raw Material Item'
-                  : editData
-                    ? 'Edit Raw Material Item'
-                    : 'Add New Raw Material Item'
+              isViewOnly
+                ? 'View Raw Material Item'
+                : editData
+                  ? 'Edit Raw Material Item'
+                  : 'Add New Raw Material Item'
             }
             description={
-             isViewOnly
-                  ? 'View material properties and supplier associations'
-                  : editData
-                    ? 'Update material properties and supplier associations'
-                    : 'Configure material properties and supplier associations'
+              isViewOnly
+                ? 'View material properties and supplier associations'
+                : editData
+                  ? 'Update material properties and supplier associations'
+                  : 'Configure material properties and supplier associations'
             }
             actions={
               <button
@@ -476,23 +519,66 @@ const AddRawMaterialItemModal = () => {
                 Basic Information
               </h3>
 
-              <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                  Raw Material Name <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  disabled={isViewOnly}
-                  placeholder="e.g. High-Grade Aluminum Ingots"
-                  className="h-10 text-sm border-[#C3C6D1] rounded-lg focus-visible:ring-1 focus-visible:ring-[#00376C] disabled:bg-gray-100"
-                  value={form.nameEnglish}
-                  onChange={(e) => set('nameEnglish', e.target.value)}
-                />
-                {errors.nameEnglish && (
-                  <p className="text-red-500 text-xs mt-1">{errors.nameEnglish}</p>
-                )}
-              </div>
+              {/* Row 1: Raw Material Name, Type, and Category */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Raw Material Name <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    disabled={isViewOnly}
+                    placeholder="e.g. High-Grade Aluminum Ingots"
+                    className="h-10 text-sm border-[#C3C6D1] rounded-lg focus-visible:ring-1 focus-visible:ring-[#00376C] disabled:bg-gray-100"
+                    value={form.nameEnglish}
+                    onChange={(e) => set('nameEnglish', e.target.value)}
+                  />
+                  {errors.nameEnglish && (
+                    <p className="text-red-500 text-xs mt-1">{errors.nameEnglish}</p>
+                  )}
+                </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Type <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        disabled={isViewOnly}
+                        name="rawMaterialCatTypeId"
+                        value={form.rawMaterialCatTypeId}
+                        onChange={(e) => {
+                          const typeId = String(e.target.value);
+                          set('rawMaterialCatTypeId', typeId);
+                          set('rawMaterialCatId', '');
+                          set('rawMaterialSubCatId', '');
+                          set('brandId', '');
+                          fetchCategories(typeId);
+                        }}
+                        options={types.map((item) => ({
+                          value: String(item.id),
+                          label: item.nameEnglish,
+                        }))}
+                        placeholder="Select Type"
+                        error={!!errors.rawMaterialCatTypeId}
+                      />
+                    </div>
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setIsTypeModalOpen(true)}
+                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
+                        title="Add Type"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {errors.rawMaterialCatTypeId && (
+                    <p className="text-red-500 text-xs mt-1">{errors.rawMaterialCatTypeId}</p>
+                  )}
+                </div>
+
                 <div>
                   <label className="text-xs font-semibold text-gray-700 block mb-1.5">
                     Category <span className="text-red-500">*</span>
@@ -500,7 +586,7 @@ const AddRawMaterialItemModal = () => {
                   <div className="flex gap-1.5 items-center">
                     <div className="flex-1 min-w-0">
                       <SearchableSelect
-                        disabled={isViewOnly}
+                        disabled={isViewOnly || !form.rawMaterialCatTypeId || loadingCategories}
                         name="rawMaterialCatId"
                         value={form.rawMaterialCatId}
                         onChange={(e) => {
@@ -514,7 +600,13 @@ const AddRawMaterialItemModal = () => {
                           value: String(item.id),
                           label: item.nameEnglish,
                         }))}
-                        placeholder="Select Category"
+                        placeholder={
+                          !form.rawMaterialCatTypeId
+                            ? 'Select type first'
+                            : loadingCategories
+                              ? 'Loading...'
+                              : 'Select Category'
+                        }
                         error={!!errors.rawMaterialCatId}
                       />
                     </div>
@@ -533,7 +625,10 @@ const AddRawMaterialItemModal = () => {
                     <p className="text-red-500 text-xs mt-1">{errors.rawMaterialCatId}</p>
                   )}
                 </div>
+              </div>
 
+              {/* Row 2: Sub Category, Unit, and Brand */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-gray-700 block mb-1.5">
                     Sub Category
@@ -552,8 +647,8 @@ const AddRawMaterialItemModal = () => {
                           !form.rawMaterialCatId
                             ? 'Select category first'
                             : loadingSubCategories
-                            ? 'Loading...'
-                            : 'Select Sub Category'
+                              ? 'Loading...'
+                              : 'Select Sub Category'
                         }
                         disabled={isViewOnly || !form.rawMaterialCatId || loadingSubCategories}
                       />
@@ -754,7 +849,7 @@ const AddRawMaterialItemModal = () => {
                 }}
                 className={`border-2 border-dashed border-[#C3C6D1] bg-gray-50/60 rounded-xl h-44 flex flex-col items-center justify-center transition ${
                   isViewOnly ? 'cursor-default' : 'cursor-pointer hover:bg-gray-100/70'
-                }`}
+                  }`}
               >
                 {form.file ? (
                   <div className="flex flex-col items-center gap-2">
@@ -820,13 +915,31 @@ const AddRawMaterialItemModal = () => {
           </div>
         </div>
 
+        {isTypeModalOpen && (
+          <AddRawMaterialModal
+            isOpen={isTypeModalOpen}
+            onClose={() => setIsTypeModalOpen(false)}
+            onSaved={async (newType) => {
+              const norm = normalizeType(newType) || newType;
+              await fetchTypes(norm || null);
+              if (norm?.id != null) {
+                set('rawMaterialCatTypeId', String(norm.id));
+                set('rawMaterialCatId', '');
+                set('rawMaterialSubCatId', '');
+                set('brandId', '');
+                await fetchCategories(norm.id);
+              }
+            }}
+          />
+        )}
+
         {isCategoryModalOpen && (
           <AddRawMaterialCategoryModal
             isOpen={isCategoryModalOpen}
             onClose={() => setIsCategoryModalOpen(false)}
             onSaved={async (newCat) => {
               const norm = normalizeCategory(newCat) || newCat;
-              await fetchCategories(norm || null);
+              await fetchCategories(form.rawMaterialCatTypeId, norm || null);
               if (norm?.id != null) {
                 set('rawMaterialCatId', String(norm.id));
                 set('rawMaterialSubCatId', '');

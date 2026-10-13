@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Container } from "@/components/common/container";
 import { SearchBar } from "@/components/common/SearchBar";
-import { ChevronRight, Eye, Plus, SquarePen, Trash2 } from 'lucide-react';
+import { Eye, SquarePen, Trash2 } from 'lucide-react';
 import {
     getCoreRowModel,
     getPaginationRowModel,
     useReactTable,
+    getSortedRowModel
 } from '@tanstack/react-table';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -42,6 +43,7 @@ const StateMaster = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const [sorting, setSorting] = useState([]);
 
     const navigate = useNavigate();
     const fetchStates = useCallback(async () => {
@@ -152,7 +154,7 @@ const TruncatedCell = ({
                     <DataGridColumnHeader
                         title="S.NO"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 uppercase text-xs"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -172,7 +174,7 @@ const TruncatedCell = ({
                     <DataGridColumnHeader
                         title="Name"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-xs"
+                        className="text-[#43474F] font-semibold uppercase"
                     />
                 ),
                 cell: ({ row }) => (
@@ -182,6 +184,7 @@ const TruncatedCell = ({
                     />
                 ),
                 size: 260,
+                enableSorting: true,
             },
             // ACTIONS
             {
@@ -190,7 +193,7 @@ const TruncatedCell = ({
                     <DataGridColumnHeader
                         title="Actions"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase"
                     />
                 ),
                 cell: ({ row }) => (
@@ -230,9 +233,11 @@ const TruncatedCell = ({
     const table = useReactTable({
         data: filteredStates,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination, rowSelection, sorting },
         onPaginationChange: setPagination,
         onRowSelectionChange: setRowSelection,
+        getSortedRowModel: getSortedRowModel(),
+        onSortingChange: setSorting,
         enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),

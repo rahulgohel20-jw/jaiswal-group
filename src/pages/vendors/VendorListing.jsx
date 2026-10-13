@@ -5,16 +5,13 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import {
-  ChevronRight,
   Eye,
-  Handshake,
   Loader2,
-  Search,
   SquarePen,
   Trash2,
-  TrendingUp,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { deleteVendorById, getAllVendors } from '@/services/apiServices';
@@ -83,6 +80,7 @@ const VendorList = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // { id, itemLabel }
   const [deleteSaving, setDeleteSaving] = useState(false);
+   const [sorting, setSorting] = useState([]);
 
   const fetchVendors = async () => {
     setLoading(true);
@@ -216,6 +214,7 @@ const VendorList = () => {
           </div>
         ),
         size: 200,
+        enableSorting: true,
       },
       {
         id: 'email',
@@ -229,6 +228,7 @@ const VendorList = () => {
           />
         ),
         size: 220,
+         enableSorting: false,
       },
       {
         id: 'mobile',
@@ -242,6 +242,7 @@ const VendorList = () => {
           </span>
         ),
         size: 130,
+         enableSorting: false,
       },
       {
         id: 'company',
@@ -255,6 +256,7 @@ const VendorList = () => {
           />
         ),
         size: 200,
+         enableSorting: false,
       },
       {
         id: 'actions',
@@ -310,9 +312,11 @@ const VendorList = () => {
   const table = useReactTable({
     data: filteredVendors,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     columnResizeMode: 'onChange',
   });
