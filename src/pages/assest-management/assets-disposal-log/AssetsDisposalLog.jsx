@@ -1,15 +1,13 @@
 import {
     BadgeDollarSign,
     CalendarDays,
-    CirclePlus,
     ClipboardList,
-    Download,
     Eye,
     SquarePen,
     Trash2,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from "@tanstack/react-table";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
@@ -64,6 +62,12 @@ const DISPOSAL_TEXT_COLORS = {
     DONATION: "text-blue-600",
     RECYCLED: "text-amber-600",
 };
+const parseDateToTimestamp = (dateStr) => {
+    if (!dateStr || dateStr === "-") return 0;
+    const [day, month, year] = dateStr.split("/").map(Number);
+    if (!day || !month || !year) return 0;
+    return new Date(year, month - 1, day).getTime();
+};
 
 const DisposalBadge = ({ type }) => {
     const color = DISPOSAL_TEXT_COLORS[type] ?? "text-gray-600";
@@ -91,6 +95,7 @@ const AssetsDisposalLog = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+     const [sorting, setSorting] = useState([]);
 
     const loadDisposals = async () => {
         setLoading(true);
@@ -170,7 +175,7 @@ const AssetsDisposalLog = () => {
                 accessorKey: "assetId",
                 header: ({ column }) => <DataGridColumnHeader title="ASSET ID" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => <span className="font-semibold text-[#084E92] text-xs">{row.original.assetId}</span>,
-                enableSorting: false,
+                enableSorting: true,
                 size: 100,
             },
 
@@ -182,7 +187,7 @@ const AssetsDisposalLog = () => {
                         {row.original.assetName}
                     </span>
                 ),
-                enableSorting: false,
+                enableSorting: true,
                 size: 130,
             },
             {
@@ -205,7 +210,12 @@ const AssetsDisposalLog = () => {
                 accessorKey: "date",
                 header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.date}</span>,
-                enableSorting: false,
+                enableSorting: true,
+                sortingFn: (rowA, rowB, columnId) => {
+                    const timeA = parseDateToTimestamp(rowA.getValue(columnId));
+                    const timeB = parseDateToTimestamp(rowB.getValue(columnId));
+                    return timeA - timeB;
+                },
                 size: 85,
             },
 
@@ -221,7 +231,7 @@ const AssetsDisposalLog = () => {
                 accessorKey: "saleValue",
                 header: ({ column }) => <DataGridColumnHeader title="SALE VALUE" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => <span className="font-medium text-xs text-gray-800">{row.original.saleValue}</span>,
-                enableSorting: false,
+                enableSorting: true,
                 size: 85,
             },
 
@@ -384,8 +394,10 @@ const AssetsDisposalLog = () => {
     const table = useReactTable({
         data: filteredDisposalData,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
+        onSortingChange: setSorting,
+        getSortedRowModel: getSortedRowModel(),
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });

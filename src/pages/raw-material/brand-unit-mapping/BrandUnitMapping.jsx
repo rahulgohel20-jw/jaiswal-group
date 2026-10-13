@@ -720,7 +720,7 @@ const BrandUnitMapping = () => {
         id: 'outlet',
         accessorFn: (row) => row.outletName,
         header: ({ column }) => (
-          <DataGridColumnHeader title="Unit" column={column} className="whitespace-nowrap" />
+          <DataGridColumnHeader title="UNIT" column={column} className="whitespace-nowrap text-[#43474F] font-semibold" />
         ),
         cell: ({ row }) => (
           <div className="min-w-0">
@@ -736,7 +736,7 @@ const BrandUnitMapping = () => {
         id: 'subOutlet',
         accessorFn: (row) => row.subOutletName || '-',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Sub Unit" column={column} className="whitespace-nowrap" />
+          <DataGridColumnHeader title="SUB UNIT" column={column} className="whitespace-nowrap text-[#43474F] font-semibold" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
@@ -750,7 +750,7 @@ const BrandUnitMapping = () => {
       {
         id: 'brands',
         header: ({ column }) => (
-          <DataGridColumnHeader title="Assigned Brands" column={column} className="whitespace-nowrap" />
+          <DataGridColumnHeader title="ASSIGNED BRANDS" column={column} className="text-[#43474F] font-semibold" />
         ),
         cell: ({ row }) => {
           const rowBrands = row.original.brands || [];
@@ -795,7 +795,7 @@ const BrandUnitMapping = () => {
         id: 'actions',
         header: () => (
           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
-            Actions
+            ACTIONS
           </span>
         ),
         cell: ({ row }) =>

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router';
-import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { getCoreRowModel, useReactTable,   getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
@@ -41,6 +41,21 @@ const formatDateForComparison = (date) => {
 
     return date;
 };
+// Converts DD/MM/YYYY or YYYY-MM-DD date strings into numeric timestamps for sorting
+const parseDateToTimestamp = (dateStr) => {
+    if (!dateStr || dateStr === "-" || dateStr === "—") return 0;
+    
+    // DD/MM/YYYY
+    if (dateStr.includes("/")) {
+        const [day, month, year] = dateStr.split("/").map(Number);
+        if (!day || !month || !year) return 0;
+        return new Date(year, month - 1, day).getTime();
+    }
+    
+    // YYYY-MM-DD or standard parseable format
+    const parsed = new Date(dateStr).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+};
 const AssetsMaintenance = () => {
     const [maintenanceData, setMaintenanceData] = useState([]);
     const [statsData, setStatsData] = useState([]);
@@ -62,6 +77,7 @@ const AssetsMaintenance = () => {
     const [showViewMaintenance, setShowViewMaintenance] = useState(false);
     const [viewLoading, setViewLoading] = useState(false);
     const [viewMaintenanceData, setViewMaintenanceData] = useState(null);
+     const [sorting, setSorting] = useState([]);
 
     const fetchStatsData = async () => {
         try {
@@ -238,21 +254,38 @@ const AssetsMaintenance = () => {
                    <span className="text-gray-500 text-[11px] truncate block max-w-[120px]">{row.original.itemName || '-'}</span>
                 </div>
             ),
-            enableSorting: false,
+            enableSorting: true,
             size: 115,
         },
         {
             accessorKey: "orgName",
             header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => <span className="truncate block text-gray-800 font-medium text-xs max-w-[100px]" title={row.original.orgName}>{row.original.orgName ?? '-'}</span>,
-            enableSorting: false,
+            enableSorting: true,
             size: 95,
         },
         {
             accessorKey: "maintenanceDate",
             header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.maintenanceDate ?? '-'}</span>,
-            enableSorting: false,
+            enableSorting: true,
+            sortingFn: (rowA, rowB, columnId) => {
+                const timeA = parseDateToTimestamp(rowA.getValue(columnId));
+                const timeB = parseDateToTimestamp(rowB.getValue(columnId));
+                return timeA - timeB;
+            },
+            size: 80,
+        },
+        {
+            accessorKey: "nextServiceDate",
+            header: ({ column }) => <DataGridColumnHeader title="NEXT DUE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.nextServiceDate ?? '-'}</span>,
+            enableSorting: true,
+            sortingFn: (rowA, rowB, columnId) => {
+                const timeA = parseDateToTimestamp(rowA.getValue(columnId));
+                const timeB = parseDateToTimestamp(rowB.getValue(columnId));
+                return timeA - timeB;
+            },
             size: 80,
         },
         {
@@ -279,7 +312,7 @@ const AssetsMaintenance = () => {
             cell: ({ row }) => (
                 <span className="font-medium text-gray-800 text-xs whitespace-nowrap">₹{row.original.cost}</span>
             ),
-            enableSorting: false,
+            enableSorting: true,
             size: 80,
         },
         {
@@ -289,13 +322,7 @@ const AssetsMaintenance = () => {
             enableSorting: false,
             size: 80,
         },
-        {
-            accessorKey: "nextServiceDate",
-            header: ({ column }) => <DataGridColumnHeader title="NEXT DUE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
-            cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.nextServiceDate ?? '-'}</span>,
-            enableSorting: false,
-            size: 80,
-        },
+        
         {
             id: "actions",
             header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
@@ -343,8 +370,10 @@ const AssetsMaintenance = () => {
     const table = useReactTable({
         data: filteredMaintenanceData,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
+         getSortedRowModel: getSortedRowModel(),
+         onSortingChange: setSorting,
         manualPagination: true,
         pageCount,
         getCoreRowModel: getCoreRowModel(),
@@ -380,8 +409,8 @@ const AssetsMaintenance = () => {
                 </div>
 
                 <div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-end">
-                        <div className="col-span-1">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+                        <div className="col-span-2">
                             <label className="text-xs text-gray-500 block mb-1">Search</label>
                             <SearchBar
                                 placeholder="Asset ID, Name, Kitchen..."
@@ -390,7 +419,7 @@ const AssetsMaintenance = () => {
                             />
                         </div>
 
-                        <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="">
                             <div className="col-span-1">
                                 <label className="text-xs text-gray-500 block mb-1">Status</label>
                             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>

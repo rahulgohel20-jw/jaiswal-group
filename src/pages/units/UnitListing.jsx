@@ -5,13 +5,12 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import {
-  ChevronRight,
   Eye,
   Filter,
   Loader2,
-  Search,
   SquarePen,
   Trash2,
 } from 'lucide-react';
@@ -143,7 +142,7 @@ const UnitListing = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-
+   const [sorting, setSorting] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -300,7 +299,7 @@ const UnitListing = () => {
             className="font-medium text-gray-800 text-xs"
           />
         ),
-        enableSorting: false,
+        enableSorting: true,
         size: 220,
       },
       {
@@ -442,10 +441,12 @@ const UnitListing = () => {
   const table = useReactTable({
     data: filteredUnits,
     columns,
-    state: { pagination },
+    state: { pagination, sorting  },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) {

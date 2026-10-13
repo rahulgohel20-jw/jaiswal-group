@@ -576,7 +576,7 @@ const AssignAssets = () => {
       accessorFn: (row) => row.assignmentId,
       header: ({ column }) => (
         <DataGridColumnHeader
-          title="ASSIGNMENT ID"
+          title="ASSIGN ID"
           column={column}
           className="my-2 text-xs"
         />
@@ -684,7 +684,7 @@ const AssignAssets = () => {
       accessorFn: (row) => row.assignedDate,
       header: ({ column }) => (
         <DataGridColumnHeader
-          title="ASSIGN DATE"
+          title="DATE"
           column={column}
           className="my-2 text-xs whitespace-nowrap"
         />
@@ -726,7 +726,7 @@ const AssignAssets = () => {
       sortingFn: (rowA, rowB, columnId) => {
         return (Number(rowA.getValue(columnId)) || 0) - (Number(rowB.getValue(columnId)) || 0);
       },
-      size: 45,
+      size: 50,
     },
     {
       id: 'status',

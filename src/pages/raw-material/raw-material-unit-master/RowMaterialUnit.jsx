@@ -6,18 +6,16 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
 import {
-  ChevronRight,
   CircleCheck,
   CircleX,
   Eye,
-  Plus,
   Ruler,
   SquarePen,
   Trash2,
-  Upload,
 } from 'lucide-react';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -66,6 +64,7 @@ const RowMaterialUnit = () => {
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [sorting, setSorting] = useState([]);
 
   const navigate = useNavigate();
   const confirmStatusChange = async () => {
@@ -256,7 +255,7 @@ const RowMaterialUnit = () => {
           <DataGridColumnHeader
             title="S.No"
             column={column}
-            className="text-[#43474F] font-semibold py-4 uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -271,9 +270,9 @@ const RowMaterialUnit = () => {
         accessorKey: 'name',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Name"
+            title="NAME"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -284,14 +283,15 @@ const RowMaterialUnit = () => {
             {row.original.name}
           </span>
         ),
+        enableSorting: true,
       },
       {
-        accessorKey: 'symbol',
+        accessorKey: 'Symbol',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Symbol"
+            title="SYMBOL"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -302,6 +302,7 @@ const RowMaterialUnit = () => {
             {row.original.symbol}
           </span>
         ),
+        enableSorting: false,
       },
       {
         id: 'status',
@@ -310,9 +311,9 @@ const RowMaterialUnit = () => {
 
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title="STATUS"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
 
@@ -358,14 +359,15 @@ const RowMaterialUnit = () => {
         ),
 
         size: 120,
+        enableSorting: false,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Actions"
+            title="ACTIONS"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -406,9 +408,11 @@ const RowMaterialUnit = () => {
   const table = useReactTable({
     data: filteredUnits,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     getPaginationRowModel: getPaginationRowModel(),
   });
 

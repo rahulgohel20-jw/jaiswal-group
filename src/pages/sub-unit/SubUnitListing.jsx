@@ -1,19 +1,17 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import {
-  Plus,
   Eye,
   SquarePen,
   Trash2,
-  Search,
   Filter,
   Loader2,
-  ChevronRight,
   MapPin,
 } from "lucide-react";
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from "@tanstack/react-table";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -178,6 +176,7 @@ const SubUnitListing = () => {
 
   const [unitFilter, setUnitFilter] = useState("");
   const [units, setUnits] = useState([]);
+  const [sorting, setSorting] = useState([]);
 
   const normalizeSubUnit = (item) => ({
     id: item.id,
@@ -333,7 +332,7 @@ const SubUnitListing = () => {
             className="font-medium text-gray-800 text-xs"
           />
         ),
-        enableSorting: false,
+        enableSorting: true,
         size: 220,
       },
       {
@@ -449,9 +448,11 @@ const SubUnitListing = () => {
   const table = useReactTable({
     data: filteredSubUnits,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
+    onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
 

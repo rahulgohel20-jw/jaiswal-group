@@ -5,6 +5,7 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
 import {
@@ -112,6 +113,7 @@ const RowMaterialCategories = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [sorting, setSorting] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -305,6 +307,7 @@ const RowMaterialCategories = () => {
           </div>
         ),
         size: 220,
+        enableSorting: true,
       },
       {
         id: 'typeName',
@@ -325,6 +328,7 @@ const RowMaterialCategories = () => {
           </div>
         ),
         size: 220,
+        enableSorting: false,
       },
       {
         id: 'status',
@@ -361,6 +365,7 @@ const RowMaterialCategories = () => {
           </label>
         ),
         size: 180,
+        enableSorting: false,
       },
       {
         id: 'actions',
@@ -407,8 +412,10 @@ const RowMaterialCategories = () => {
   const table = useReactTable({
     data: filteredCategories,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
@@ -545,6 +552,7 @@ const RowMaterialCategories = () => {
               Loading raw material categories...
             </p>
           )}
+          
           <DataGrid
             table={table}
             recordCount={filteredCategories.length}

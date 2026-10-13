@@ -6,24 +6,20 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
 import {
-  AlertTriangle,
-  Building2,
-  ChevronRight,
   Eye,
-  Plus,
   SquarePen,
   Trash2,
-  UsersRound,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import {
   deleteEmployeeById,
   getActiveCompany,
   getAllEmployees,
-  getAllRoleMasterByUserId,
+  getOrganizationByType
 } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -46,6 +42,9 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
+import { OrgTypes } from '@/constants/orgTypes';
+import SearchableSelect from '../../utils/SearchableSelect';
+import { getAllDepartmentMaster } from '../../services/apiServices';
 
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
@@ -70,17 +69,31 @@ const UserManagementList = () => {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [deletingUser, setDeletingUser] = useState(null);
-  const [deleting, setDeleting] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [activeCompanies, setActiveCompanies] = useState([]);
   const [search, setSearch] = useState('');
   const [departments, setDepartments] = useState([]);
-
-
+  const [sorting, setSorting] = useState([]);
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [companies, setCompanies] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await getOrganizationByType(OrgTypes.SUB_COMPANY);
+      const list = res?.data?.data || res?.data?.content || res?.data || [];
+      const formatted = list.map((c) => ({
+        id: c.id,
+        name: c.companyNameEnglish || c.name || '',
+      }));
+      setActiveCompanies(formatted); // or setCompanies(formatted) depending on your state naming
+      setCompanies(formatted);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const fetchActiveCompanies = async () => {
     try {
@@ -96,7 +109,7 @@ const UserManagementList = () => {
   const fetchDepartmentOptions = async () => {
     try {
       const userId = getUserIdFromToken();
-      const res = await getAllRoleMasterByUserId(userId);
+      const res = await getAllDepartmentMaster(userId);
       const list = extractList(res).map((d) => ({
         id: d.id,
         name: d.name ?? d.roleName ?? d.departmentName ?? '',
@@ -124,7 +137,7 @@ const UserManagementList = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchActiveCompanies();
+    fetchCompanies();
     fetchDepartmentOptions();
   }, []);
 
@@ -141,12 +154,17 @@ const UserManagementList = () => {
           u.erpemployeecode?.toLowerCase().includes(searchText) ||
           u.company?.toLowerCase().includes(searchText);
 
+          const matchesCompany =
+          !companyFilter ||
+          companyFilter === 'all' ||
+          u.company === companyFilter;
+
         const matchesCategory =
           departmentFilter === 'all' || u.department === departmentFilter;
 
-        return matchesSearch && matchesCategory;
+        return matchesSearch && matchesCompany && matchesCategory;
       }),
-    [userData, search, departmentFilter],
+    [userData, search,companyFilter, departmentFilter],
   );
 
   useEffect(() => {
@@ -154,7 +172,7 @@ const UserManagementList = () => {
       ...prev,
       pageIndex: 0,
     }));
-  }, [search, departmentFilter]);
+  }, [search,companyFilter, departmentFilter]);
   // Edit reuses the same registration form component, switched into "update"
   // mode by the presence of state.user — the form fetches the full record
   // by id itself, so only the id needs to travel reliably here.
@@ -250,6 +268,7 @@ const UserManagementList = () => {
           </div>
         ),
         size: 160,
+        enableSorting: true,
       },
       {
         id: 'code',
@@ -268,6 +287,7 @@ const UserManagementList = () => {
           />
         ),
         size: 150,
+        enableSorting: true,
       },
       {
         id: 'email',
@@ -285,6 +305,7 @@ const UserManagementList = () => {
           />
         ),
         size: 220,
+        enableSorting: false,
       },
       {
         id: 'company',
@@ -302,6 +323,7 @@ const UserManagementList = () => {
           />
         ),
         size: 180,
+        enableSorting: false,
       },
       {
         id: 'department',
@@ -319,6 +341,7 @@ const UserManagementList = () => {
           />
         ),
         size: 160,
+        enableSorting: false,
       },
       {
         id: 'action',
@@ -367,8 +390,10 @@ const UserManagementList = () => {
   const table = useReactTable({
     data: filteredUser,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
@@ -405,24 +430,35 @@ const UserManagementList = () => {
               placeholder="Search by name, code or email..."
             />
 
-            {/* Department Filter - Right */}
-            <div>
+           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+              {/* Company Filter */}
+    
+                <SearchableSelect
+                  name="company"
+                  value={companyFilter}
+                  onChange={(e) => setCompanyFilter(e.target.value)}
+                  options={[
+                    { value: 'all', label: 'All Companies' },
+                    ...companies.map((company) => ({
+                      value: company.name,
+                      label: company.name,
+                    })),
+                  ]}
+                  placeholder="All Companies"
+                />
+
+              {/* Department Filter */}
               <Select
                 value={departmentFilter}
                 onValueChange={setDepartmentFilter}
               >
                 <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
-                  <SelectValue />
+                  <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
-
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
-
                   {departments.map((opt) => (
-                    <SelectItem
-                      key={opt.id}
-                      value={opt.name}
-                    >
+                    <SelectItem key={opt.id} value={opt.name}>
                       {opt.name}
                     </SelectItem>
                   ))}
