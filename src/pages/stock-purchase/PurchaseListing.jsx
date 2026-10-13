@@ -142,7 +142,7 @@ const PurchaseList = () => {
         id: "sno",
         header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} />,
         cell: ({ row }) => (
-          <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-xs text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
         size: 70,
@@ -150,39 +150,39 @@ const PurchaseList = () => {
       {
         id: "invoiceNo",
         accessorFn: (row) => row.invoiceNo,
-        header: ({ column }) => <DataGridColumnHeader title="Invoice No." column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="Invoice No." column={column} className="text-xs" />,
         cell: ({ row }) => (
-          <span className="font-semibold text-gray-800">{row.original.invoiceNo}</span>
+          <span className="font-semibold text-xs text-[#084E92]">{row.original.invoiceNo}</span>
         ),
       },
       {
         id: "supplier",
         accessorFn: (row) => row.supplier,
-        header: ({ column }) => <DataGridColumnHeader title="Supplier" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.supplier}</span>,
+        header: ({ column }) => <DataGridColumnHeader title="Supplier" column={column} className="text-xs" />,
+        cell: ({ row }) => <span className="text-xs text-gray-800 font-medium">{row.original.supplier}</span>,
       },
       {
         id: "invoiceDate",
         accessorFn: (row) => row.invoiceDate,
-        header: ({ column }) => <DataGridColumnHeader title="Invoice Date" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.invoiceDate}</span>,
+        header: ({ column }) => <DataGridColumnHeader title="Invoice Date" column={column} className="text-xs" />,
+        cell: ({ row }) => <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{row.original.invoiceDate}</span>,
       },
       {
         id: "amount",
         accessorFn: (row) => row.amount,
-        header: ({ column }) => <DataGridColumnHeader title="Amount" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="Amount" column={column} className="text-xs" />,
         cell: ({ row }) => (
-          <span className="text-gray-700 font-medium">
-            Rs. {Number(row.original.amount).toFixed(2)}
+          <span className="text-xs text-gray-800 font-medium">
+            ₹{Number(row.original.amount).toFixed(2)}
           </span>
         ),
       },
       {
         id: "payment",
         accessorFn: (row) => row.payment,
-        header: ({ column }) => <DataGridColumnHeader title="Payment" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="Payment" column={column} className="text-xs" />,
         cell: ({ row }) => (
-          <span className="text-gray-600 capitalize">{row.original.payment}</span>
+          <span className="text-xs text-gray-800 font-medium capitalize">{row.original.payment}</span>
         ),
       },
       {
@@ -395,7 +395,17 @@ const PurchaseList = () => {
             <EmptyState />
           </div>
         ) : (
-          <DataGrid table={table} recordCount={filteredPurchases.length}>
+          <DataGrid
+            table={table}
+            recordCount={filteredPurchases.length}
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
+          >
             <Card>
               <CardTable>
                 <ScrollArea>

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -31,6 +32,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { CodeCell } from '@/components/common/CodeCell';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
+import { useServerPagination } from '@/hooks/useServerPagination';
 
 const STATUS_TEXT_COLORS = {
   Approved: 'text-emerald-600',
@@ -151,7 +153,16 @@ const GenerateGRN = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const [sorting, setSorting] = useState([]);
+
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: PAGE_SIZE });
 
   const loadData = useCallback(async () => {
     if (scopeLoading || scopeError) return;
@@ -160,9 +171,21 @@ const GenerateGRN = () => {
     try {
       const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
       const statusParam = statusFilter === 'ALL' ? 'APPROVED,CLOSED' : statusFilter;
-      const res = await getPurchaseOrdersByOutlet(outletId, statusParam);
-      const raw = res?.data?.data ?? res?.data ?? res ?? [];
-      const rawList = Array.isArray(raw) ? raw : [];
+      const res = await getPurchaseOrdersByOutlet({
+        outletId,
+        status: statusParam,
+        page: pagination.pageIndex,
+        size: pagination.pageSize,
+        search: searchQuery.trim() || undefined,
+      });
+      const responseBody = res?.data || {};
+      const rawList = Array.isArray(responseBody.data)
+        ? responseBody.data
+        : Array.isArray(responseBody)
+        ? responseBody
+        : [];
+
+      updateFromResponse(res, rawList.length);
 
       const normalized = rawList.map((item) => {
         const prCode =
@@ -215,7 +238,17 @@ const GenerateGRN = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, effectiveOutletId, statusFilter, filterRowsByScope]);
+  }, [
+    scopeLoading,
+    scopeError,
+    effectiveOutletId,
+    statusFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+    searchQuery,
+    updateFromResponse,
+    filterRowsByScope,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -247,8 +280,8 @@ const GenerateGRN = () => {
   }, [filteredRows]);
 
   useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [searchQuery, statusFilter, selectedUnitId]);
+    resetPage();
+  }, [searchQuery, statusFilter, selectedUnitId, resetPage]);
 
   const toggleSelectPo = useCallback((item) => {
     setSelectedPos((prev) => {
@@ -534,10 +567,14 @@ const GenerateGRN = () => {
   const table = useReactTable({
     data: filteredRows,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) {
@@ -626,7 +663,7 @@ const GenerateGRN = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredRows.length}
+              recordCount={totalElements}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,

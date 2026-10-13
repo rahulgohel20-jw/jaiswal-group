@@ -27,6 +27,9 @@ export const ListView = ({
   columns = [],
   pagination = { pageIndex: 0, pageSize: 10 },
   onPaginationChange,
+  manualPagination = false,
+  pageCount,
+  recordCount,
   enableSorting = true,
   enableFiltering = true,
   enablePagination = true,
@@ -36,6 +39,8 @@ export const ListView = ({
     columns,
     state: { pagination },
     onPaginationChange,
+    manualPagination,
+    pageCount,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: enablePagination
       ? getPaginationRowModel()
@@ -44,8 +49,10 @@ export const ListView = ({
     getFilteredRowModel: enableFiltering ? getFilteredRowModel() : undefined,
   });
 
+  const effectiveRecordCount = recordCount !== undefined ? recordCount : data.length;
+
   return (
-    <DataGrid table={table} recordCount={data.length}>
+    <DataGrid table={table} recordCount={effectiveRecordCount}>
       <Card>
         <CardTable>
           <ScrollArea>

@@ -351,7 +351,7 @@ const KitchenMenuItemListing = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="block px-2 text-gray-500 py-2">
+                    <span className="block px-2 text-xs text-gray-500 py-2">
                         {String(pageIndex * pageSize + row.index + 1).padStart(2, '0')}
                     </span>
                 ),
@@ -390,15 +390,15 @@ const KitchenMenuItemListing = () => {
                     <DataGridColumnHeader
                         title="Item Name"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="block px-2 font-semibold text-gray-800 capitalize truncate max-w-50">
+                    <div className="block px-2 font-medium text-xs text-gray-800 capitalize truncate max-w-full">
                         {row.original.name}
                     </div>
                 ),
-                size: 160,
+                size: 220,
             },
             {
                 id: 'category',
@@ -407,11 +407,11 @@ const KitchenMenuItemListing = () => {
                     <DataGridColumnHeader
                         title="Category"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="block px-2 text-gray-700 capitalize truncate">
+                    <span className="block px-2 text-xs text-gray-800 font-medium capitalize truncate">
                         {row.original.category}
                     </span>
                 ),
@@ -424,11 +424,11 @@ const KitchenMenuItemListing = () => {
                     <DataGridColumnHeader
                         title="Price"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="block px-2 text-gray-700 font-medium">
+                    <span className="block px-2 text-xs text-gray-800 font-medium">
                         ₹{Number(row.original.price ?? 0).toFixed(2)}
                     </span>
                 ),

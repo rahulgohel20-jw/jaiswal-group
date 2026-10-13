@@ -224,7 +224,7 @@ const AssetsMaintenance = () => {
             id: "sno",
             header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 36,
@@ -234,8 +234,8 @@ const AssetsMaintenance = () => {
             header: ({ column }) => <DataGridColumnHeader title="ASSET IDENTITY" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
                 <div>
-                   <p className="text-gray-900 font-semibold text-xs truncate"> {row.original.assetCode}</p>
-                   <span className="text-gray-600 text-xs truncate block">{row.original.itemName || '-'}</span>
+                   <p className="text-[#084E92] font-semibold text-xs truncate max-w-[120px]" title={row.original.assetCode}> {row.original.assetCode}</p>
+                   <span className="text-gray-500 text-[11px] truncate block max-w-[120px]">{row.original.itemName || '-'}</span>
                 </div>
             ),
             enableSorting: false,
@@ -244,14 +244,14 @@ const AssetsMaintenance = () => {
         {
             accessorKey: "orgName",
             header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
-            cell: ({ row }) => <span className="truncate block text-gray-700">{row.original.orgName ?? '-'}</span>,
+            cell: ({ row }) => <span className="truncate block text-gray-800 font-medium text-xs max-w-[100px]" title={row.original.orgName}>{row.original.orgName ?? '-'}</span>,
             enableSorting: false,
             size: 95,
         },
         {
             accessorKey: "maintenanceDate",
             header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
-            cell: ({ row }) => <span className="text-gray-700 text-xs whitespace-nowrap">{row.original.maintenanceDate ?? '-'}</span>,
+            cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.maintenanceDate ?? '-'}</span>,
             enableSorting: false,
             size: 80,
         },
@@ -259,7 +259,7 @@ const AssetsMaintenance = () => {
             accessorKey: "complaint",
             header: ({ column }) => <DataGridColumnHeader title="REPORTED ISSUE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <span className="truncate block text-gray-700 text-xs" title={row.original.complaint}>{row.original.complaint || '-'}</span>
+                <span className="truncate block text-gray-800 font-medium text-xs max-w-[120px]" title={row.original.complaint}>{row.original.complaint || '-'}</span>
             ),
             enableSorting: false,
             size: 120,
@@ -268,7 +268,7 @@ const AssetsMaintenance = () => {
             accessorKey: "engineerName",
             header: ({ column }) => <DataGridColumnHeader title="ENGINEER" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <span className="truncate block text-gray-700 text-xs">{row.original.engineerName || '-'}</span>
+                <span className="truncate block text-gray-800 font-medium text-xs max-w-[100px]" title={row.original.engineerName}>{row.original.engineerName || '-'}</span>
             ),
             enableSorting: false,
             size: 95,
@@ -277,7 +277,7 @@ const AssetsMaintenance = () => {
             accessorKey: "cost",
             header: ({ column }) => <DataGridColumnHeader title="COST" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <span className="font-semibold text-gray-900 whitespace-nowrap">₹{row.original.cost}</span>
+                <span className="font-medium text-gray-800 text-xs whitespace-nowrap">₹{row.original.cost}</span>
             ),
             enableSorting: false,
             size: 80,
@@ -292,7 +292,7 @@ const AssetsMaintenance = () => {
         {
             accessorKey: "nextServiceDate",
             header: ({ column }) => <DataGridColumnHeader title="NEXT DUE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
-            cell: ({ row }) => <span className="text-gray-700 text-xs whitespace-nowrap">{row.original.nextServiceDate ?? '-'}</span>,
+            cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.nextServiceDate ?? '-'}</span>,
             enableSorting: false,
             size: 80,
         },

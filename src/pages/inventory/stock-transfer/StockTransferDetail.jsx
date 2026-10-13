@@ -760,7 +760,7 @@ const StockTransferDetail = () => {
                     '';
                   return fromSubOutletName && fromSubOutletName !== 'Main Store' ? (
                     <div>
-                      <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Sub-Unit / Location</label>
+                      <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">From Sub-Unit</label>
                       <p className="text-xs font-bold text-gray-800 mt-0.5">{fromSubOutletName}</p>
                     </div>
                   ) : null;
@@ -814,7 +814,7 @@ const StockTransferDetail = () => {
                     '';
                   return toSubOutletName && toSubOutletName !== 'Main Store' ? (
                     <div>
-                      <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Sub-Unit / Location</label>
+                      <label className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider block">To Sub-Unit</label>
                       <p className="text-xs font-bold text-gray-800 mt-0.5">{toSubOutletName}</p>
                     </div>
                   ) : null;

@@ -114,7 +114,7 @@ const SortableHeader = ({ label, sortKey, sortConfig, onSort }) => {
   const isActive = sortConfig.key === sortKey;
   return (
     <th
-      className="px-4 py-3 font-medium cursor-pointer select-none whitespace-nowrap"
+      className="px-4 py-3 font-semibold text-xs text-[#737781] uppercase cursor-pointer select-none whitespace-nowrap border-r border-gray-200"
       onClick={() => onSort(sortKey)}
     >
       <span className={`inline-flex items-center gap-1 ${isActive ? 'text-primary' : ''}`}>
@@ -328,8 +328,8 @@ const AssetItemsList = () => {
           <div className="w-full overflow-x-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-left text-xs uppercase text-gray-500 border-b">
-                  <th className="px-4 py-3 font-medium">S.NO</th>
+                <tr className="bg-[#F7F8FA] text-left text-xs uppercase text-[#737781] border-b border-gray-200">
+                  <th className="px-4 py-3 font-semibold border-r border-gray-200 w-16">S.NO</th>
                   <SortableHeader label="Asset Name" sortKey="name" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader label="Category" sortKey="category" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader
@@ -338,11 +338,11 @@ const AssetItemsList = () => {
                     sortConfig={sortConfig}
                     onSort={handleSort}
                   />
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
+                  <th className="px-4 py-3 font-semibold border-r border-gray-200 w-24">Status</th>
+                  <th className="px-4 py-3 font-semibold text-right w-24">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-gray-200">
                 {pageItems.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-16 text-center text-gray-400">
@@ -351,17 +351,17 @@ const AssetItemsList = () => {
                   </tr>
                 ) : (
                   pageItems.map((item, idx) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-500">
+                    <tr key={item.id} className="hover:bg-gray-50 border-b border-gray-200 last:border-b-0">
+                      <td className="px-4 py-3 text-xs text-gray-500 border-r border-gray-200">
                         {String(pageStart + idx + 1).padStart(2, '0')}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-primary">{item.name}</div>
-                        <div className="text-xs text-gray-400">{item.id}</div>
+                      <td className="px-4 py-3 border-r border-gray-200">
+                        <div className="font-medium text-xs text-gray-800">{item.name}</div>
+                        <div className="text-xs text-[#084E92] font-semibold font-mono mt-0.5">{item.id}</div>
                       </td>
-                      <td className="px-4 py-3 text-gray-700 font-medium">{item.category}</td>
-                      <td className="px-4 py-3 text-gray-600">{item.subCategory}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-xs text-gray-800 font-medium border-r border-gray-200">{item.category}</td>
+                      <td className="px-4 py-3 text-xs text-gray-800 font-medium border-r border-gray-200">{item.subCategory}</td>
+                      <td className="px-4 py-3 border-r border-gray-200">
                         <StatusBadge status={item.status} />
                       </td>
                       <td className="px-4 py-3">

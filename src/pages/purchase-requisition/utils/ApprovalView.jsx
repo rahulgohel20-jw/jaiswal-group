@@ -379,7 +379,7 @@ export default function ApprovalView({
             <InfoField label="PR code" value={requisition?.code || requisition?.prCode} mono accent />
             <InfoField label="PR date" value={requisition?.date || requisition?.prDate} />
             <InfoField label="Unit" value={requisition?.outlet || requisition?.outletName} />
-            <InfoField label="Sub-Unit / Location" value={requisition?.subOutletName || requisition?.locationName} />
+            <InfoField label="Sub-Unit" value={requisition?.subOutletName || requisition?.locationName} />
             <InfoField label="Required by" value={requisition?.requiredDate || requisition?.prRequiredDate} />
           </div>
 

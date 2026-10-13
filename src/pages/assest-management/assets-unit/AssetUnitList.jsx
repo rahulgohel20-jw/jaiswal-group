@@ -49,14 +49,23 @@ const StatusBadge = ({ status }) => {
 
 // Normalize backend shape into what the UI expects
 const normalizeUnit = (u) => ({
-    id: u.id,
-    name: u.name,
-    symbol: u.symbol,
-    status: typeof u.active === 'boolean' ? (u.active ? 'Active' : 'Inactive') : (u.status || 'Inactive'),
+    id: u?.id,
+    name: u?.name || u?.unitName || u?.assetUnitName || '',
+    symbol: u?.symbol || u?.unitSymbol || '',
+    description: u?.description || '',
+    status: typeof u?.active === 'boolean' ? (u.active ? 'Active' : 'Inactive') : (u?.status || (u?.isActive ? 'Active' : 'Inactive') || 'Inactive'),
+    active: typeof u?.active === 'boolean' ? u.active : (u?.isActive ?? true),
+    originalData: u,
 });
 
 const AssetUnitList = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Unit of Measure Master');
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions([
+        'Unit of Measure Master',
+        'Unit of Measure',
+        'Asset Unit',
+        'Asset Unit Master',
+        'Unit of Measurement Master',
+    ]);
 
     const [units, setUnits] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -197,10 +206,12 @@ const AssetUnitList = () => {
         setDeleteSaving(true);
         try {
             await deleteAssetUnit(deleteTarget.id);
+            notify.success("Unit deleted successfully");
             closeDeleteConfirm();
             fetchUnits();
         } catch (err) {
             console.error(err);
+            notify.error(err, "Failed to delete unit");
         } finally {
             setDeleteSaving(false);
         }
@@ -213,7 +224,7 @@ const AssetUnitList = () => {
                 <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 36,
@@ -225,7 +236,7 @@ const AssetUnitList = () => {
                 <DataGridColumnHeader title="UNIT NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-gray-900 py-2 truncate block">{row.original.name}</div>
+                <div className="font-medium text-xs text-gray-800 py-2 truncate block max-w-[180px]" title={row.original.name}>{row.original.name}</div>
             ),
             enableSorting: false,
             size: 180,
@@ -236,7 +247,7 @@ const AssetUnitList = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="SYMBOL" column={column} className="text-[#43474F] font-semibold" />
             ),
-            cell: ({ row }) => <span className="text-gray-600 truncate block">{row.original.symbol}</span>,
+            cell: ({ row }) => <span className="text-xs text-gray-800 font-medium truncate block uppercase max-w-[100px]" title={row.original.symbol}>{row.original.symbol || '—'}</span>,
             enableSorting: false,
             size: 120,
         },

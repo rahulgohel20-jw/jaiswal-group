@@ -291,7 +291,7 @@ const AssetsManagement = () => {
                 <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 36,
@@ -303,7 +303,7 @@ const AssetsManagement = () => {
                 <DataGridColumnHeader title="ASSET ID" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-[#123B6D] leading-5 py-2">
+                <div className="font-semibold text-xs text-[#084E92] leading-5 py-2 truncate max-w-[120px]" title={row.original.assetId}>
                     {row.original.assetId}
                 </div>
             ),
@@ -317,7 +317,7 @@ const AssetsManagement = () => {
                 <DataGridColumnHeader title="ITEM NAME" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <div title={row.original.itemName} className="font-medium text-gray-800 py-1 truncate max-w-[140px]">
+                <div title={row.original.itemName} className="font-medium text-xs text-gray-800 py-1 truncate max-w-[140px]">
                     {row.original.itemName}
                 </div>
             ),
@@ -331,7 +331,7 @@ const AssetsManagement = () => {
                 <DataGridColumnHeader title="CATEGORY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span title={row.original.category} className="text-gray-600 py-1 truncate block max-w-[110px]">
+                <span title={row.original.category} className="text-xs text-gray-800 font-medium py-1 truncate block max-w-[110px]">
                     {row.original.category}
                 </span>
             ),
@@ -369,7 +369,7 @@ const AssetsManagement = () => {
                 <DataGridColumnHeader title="VALUE" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="font-semibold py-1">
+                <span className="font-medium text-xs text-gray-800 py-1">
                     ₹{Number(row.original.value ?? 0).toLocaleString()}
                 </span>
             ),

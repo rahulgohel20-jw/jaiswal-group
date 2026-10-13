@@ -50,7 +50,7 @@ const StatusBadge = ({ status }) => (
 );
 
 const ConditionCell = ({ name }) => (
-  <span className="font-medium text-[#0F172A] whitespace-nowrap">{name}</span>
+  <span className="font-medium text-xs text-gray-800 truncate block max-w-[200px]">{name}</span>
 );
 
 // Normalizes whatever shape the API returns into what the table/form expect.
@@ -243,7 +243,7 @@ const ConditionMasterModule = () => {
         <DataGridColumnHeader title="S.NO" column={column} className="font-semibold text-[#43474F]" />
       ),
       cell: ({ row }) => (
-        <span className="text-[#737781]">
+        <span className="text-gray-500 py-2 text-xs">
           {row.original.srNo}
         </span>
       ),

@@ -293,7 +293,7 @@ const RowMaterialSubCategory = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-2">
+                    <span className="text-gray-500 py-2 text-xs">
                         {String(row.index + 1).padStart(2, '0')}
                     </span>
                 ),
@@ -310,7 +310,10 @@ const RowMaterialSubCategory = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 py-2 capitalize">
+                    <div
+                        className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-[200px]"
+                        title={row.original.nameEnglish}
+                    >
                         {row.original.nameEnglish}
                     </div>
                 ),
@@ -327,8 +330,11 @@ const RowMaterialSubCategory = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 py-2 capitalize">
-                        {row.original.categoryName}
+                    <div
+                        className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-[200px]"
+                        title={row.original.categoryName}
+                    >
+                        {row.original.categoryName || '—'}
                     </div>
                 ),
                 size: 220,
@@ -488,7 +494,7 @@ const RowMaterialSubCategory = () => {
                     ))}
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+                <div className="flex flex-col gap-4">
                     <div className="grid grid-cols-1 xl:grid-cols-4 sm:grid-col-2 gap-4">
                         <SearchBar
                             value={searchTerm}
@@ -501,7 +507,7 @@ const RowMaterialSubCategory = () => {
                             value={statusFilter}
                             onValueChange={(value) => setStatusFilter(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Status" />
                             </SelectTrigger>
 
@@ -524,7 +530,7 @@ const RowMaterialSubCategory = () => {
                             value={categoryFilterId}
                             onValueChange={(value) => setCategoryFilterId(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="Category" />
                             </SelectTrigger>
 
@@ -544,7 +550,7 @@ const RowMaterialSubCategory = () => {
                 </div>
 
                 {/* Table */}
-                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && (
                         <p className="p-4 text-sm text-gray-500">
                             Loading raw material sub categories...
@@ -554,6 +560,13 @@ const RowMaterialSubCategory = () => {
                         table={table}
                         recordCount={filteredSubCategories.length}
                         className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
                     >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>

@@ -161,7 +161,7 @@ const AssetsDisposalLog = () => {
                 id: "sno",
                 header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                    <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
                 ),
                 enableSorting: false,
                 size: 36,
@@ -169,7 +169,7 @@ const AssetsDisposalLog = () => {
             {
                 accessorKey: "assetId",
                 header: ({ column }) => <DataGridColumnHeader title="ASSET ID" column={column} className="my-2 text-xs" />,
-                cell: ({ row }) => <span className="font-semibold text-[#0B5CAB]">{row.original.assetId}</span>,
+                cell: ({ row }) => <span className="font-semibold text-[#084E92] text-xs">{row.original.assetId}</span>,
                 enableSorting: false,
                 size: 100,
             },
@@ -178,7 +178,7 @@ const AssetsDisposalLog = () => {
                 accessorKey: "assetName",
                 header: ({ column }) => <DataGridColumnHeader title="ASSET NAME" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <span title={row.original.assetName} className="font-semibold text-gray-900 truncate max-w-[130px] block">
+                    <span title={row.original.assetName} className="font-medium text-xs text-gray-800 truncate max-w-[130px] block">
                         {row.original.assetName}
                     </span>
                 ),
@@ -188,7 +188,7 @@ const AssetsDisposalLog = () => {
             {
                 accessorKey: "Unit",
                 header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="my-2 text-xs" />,
-                cell: ({ row }) => <span title={row.original.orgName} className="font-medium text-sm truncate max-w-[110px] block">{row.original.orgName}</span>,
+                cell: ({ row }) => <span title={row.original.orgName} className="font-medium text-xs text-gray-800 truncate max-w-[110px] block">{row.original.orgName}</span>,
                 enableSorting: false,
                 size: 110,
             },
@@ -196,7 +196,7 @@ const AssetsDisposalLog = () => {
             {
                 accessorKey: "SubUnit",
                 header: ({ column }) => <DataGridColumnHeader title="SUB UNIT" column={column} className="my-2 text-xs" />,
-                cell: ({ row }) => <span title={row.original.subOutletName} className="font-medium text-sm truncate max-w-[110px] block">{row.original.subOutletName || '-'}</span>,
+                cell: ({ row }) => <span title={row.original.subOutletName} className="font-medium text-xs text-gray-800 truncate max-w-[110px] block">{row.original.subOutletName || '-'}</span>,
                 enableSorting: false,
                 size: 110,
             },
@@ -204,7 +204,7 @@ const AssetsDisposalLog = () => {
             {
                 accessorKey: "date",
                 header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
-                cell: ({ row }) => <span className="text-gray-700">{row.original.date}</span>,
+                cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.date}</span>,
                 enableSorting: false,
                 size: 85,
             },
@@ -220,7 +220,7 @@ const AssetsDisposalLog = () => {
             {
                 accessorKey: "saleValue",
                 header: ({ column }) => <DataGridColumnHeader title="SALE VALUE" column={column} className="my-2 text-xs" />,
-                cell: ({ row }) => <span className="font-semibold text-[#111827]">{row.original.saleValue}</span>,
+                cell: ({ row }) => <span className="font-medium text-xs text-gray-800">{row.original.saleValue}</span>,
                 enableSorting: false,
                 size: 85,
             },
@@ -229,7 +229,7 @@ const AssetsDisposalLog = () => {
                 accessorKey: "approvedBy",
                 header: ({ column }) => <DataGridColumnHeader title="APPROVED BY" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <span title={row.original.approvedBy} className="font-medium text-sm truncate max-w-[110px] block">
+                    <span title={row.original.approvedBy} className="font-medium text-xs text-gray-800 truncate max-w-[110px] block">
                         {row.original.approvedBy}
                     </span>
                 ),

@@ -644,7 +644,7 @@ export const GenerateStockTransferModal = ({
                 {/* From Sub-Unit / Location */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    From Sub-Unit / Location <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                    From Sub-Unit <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
                   </label>
                   <div className="relative">
                     <select
@@ -658,7 +658,7 @@ export const GenerateStockTransferModal = ({
                           ? 'Loading sub-units...'
                           : fromSubOutlets.length === 0
                           ? 'No sub-units (Main Store)'
-                          : 'Select From Sub-Unit / Location'}
+                          : 'Select From Sub-Unit'}
                       </option>
                       {fromSubOutlets.map((s) => (
                         <option key={s.id} value={s.id}>
@@ -748,7 +748,7 @@ export const GenerateStockTransferModal = ({
                 {/* To Sub-Unit / Location */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    To Sub-Unit / Location <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                    To Sub-Unit<span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
                   </label>
                   <div className="relative">
                     <select
@@ -762,7 +762,7 @@ export const GenerateStockTransferModal = ({
                           ? 'Loading sub-units...'
                           : toSubOutlets.length === 0
                           ? 'No sub-units (Main Store)'
-                          : 'Select To Sub-Unit / Location'}
+                          : 'Select To Sub-Unit'}
                       </option>
                       {toSubOutlets.map((s) => (
                         <option key={s.id} value={s.id}>

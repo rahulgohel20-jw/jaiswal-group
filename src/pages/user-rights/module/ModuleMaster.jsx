@@ -158,7 +158,7 @@ const ModuleMaster = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{row.original.srNo}</span>
+          <span className="text-gray-500 py-2 text-xs">{row.original.srNo}</span>
         ),
         enableSorting: false,
         size: 90,
@@ -170,14 +170,14 @@ const ModuleMaster = () => {
           <DataGridColumnHeader
             title="Name"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold text-xs"
           />
         ),
         cell: ({ row }) => (
           <button
             type="button"
             onClick={() => (canEdit ? openEditModal(row.original) : openViewModal(row.original))}
-            className="text-[#084E92] font-medium hover:underline text-left cursor-pointer"
+            className="text-gray-800 font-medium text-xs hover:underline text-left cursor-pointer"
           >
             {row.original.name}
           </button>
@@ -191,11 +191,11 @@ const ModuleMaster = () => {
           <DataGridColumnHeader
             title="CreatedAt"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold text-xs"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-600">
+          <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
             {formatDate(row.original.createdAt)}
           </span>
         ),
@@ -206,13 +206,15 @@ const ModuleMaster = () => {
         accessorFn: (row) => row.isActive,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Is Active"
+            title="Status"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold text-xs"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-800">{String(row.original.isActive)}</span>
+          <span className={`font-semibold text-xs whitespace-nowrap ${row.original.isActive ? 'text-emerald-600' : 'text-gray-500'}`}>
+            {row.original.isActive ? 'Active' : 'Inactive'}
+          </span>
         ),
         size: 120,
       },
@@ -323,6 +325,13 @@ const ModuleMaster = () => {
             table={table}
             recordCount={filteredModuleRights.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>

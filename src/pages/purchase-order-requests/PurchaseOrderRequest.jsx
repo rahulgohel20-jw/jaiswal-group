@@ -2,10 +2,11 @@
 // File: src/pages/purchase-order-requests/PurchaseOrderRequest.jsx
 // ============================================
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -71,11 +72,11 @@ const ALL_PO_STATUSES = Object.keys(PO_STATUS_GROUP);
 
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-gray-800 font-medium',
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
-    {value}
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
+    {value || '—'}
   </span>
 );
 
@@ -93,7 +94,10 @@ const StatusBadge = ({ status }) => {
   const color = STATUS_TEXT_COLORS[status] || 'text-gray-700';
   const label = status === 'TO BE GENERATED' ? 'Pending PO' : (status || '—');
   return (
-    <span title={status || '—'} className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+    <span
+      title={status || '—'}
+      className={`text-xs font-semibold block truncate max-w-full ${color}`}
+    >
       {label}
     </span>
   );
@@ -227,15 +231,18 @@ const PurchaseOrderRequest = () => {
     remove,
   } = usePurchaseOrders();
 
-  // Real POs — fetched in a single call without status parameter.
+  // Real POs — fetched with optional status.
   const {
     list: poRawList,
     loading: poLoading,
     error: poError,
-    fetchByOutlet,
+    totalElements: poTotalElements,
+    totalPages: poTotalPages,
+    fetchByOutletandStatus,
   } = usePurchaseOrders();
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState([]);
   const [rowSelection, setRowSelection] = useState({});
   const [search, setSearch] = useState('');
   const [activeGroup, setActiveGroup] = useState(ALL_GROUP);
@@ -249,17 +256,37 @@ const PurchaseOrderRequest = () => {
   const isAllGroups = activeGroup === ALL_GROUP;
 
   // Manual/full refresh
-  const loadData = () => {
+  const loadData = useCallback(() => {
     if (scopeLoading) return;
-    fetchApprovedRequestsByOutlet(currentUnitId);
-    fetchByOutlet(currentUnitId);
-  };
+    const isAwaitingPo = activeGroup === AWAITING_PO_GROUP;
+    const isAll = activeGroup === ALL_GROUP;
+    const pageParam = pagination.pageIndex > 0 ? pagination.pageIndex : undefined;
+    const sizeParam = pagination.pageIndex > 0 ? pagination.pageSize : undefined;
+    const searchParam = search.trim() || undefined;
+
+    if (isAwaitingPo || isAll) {
+      fetchApprovedRequestsByOutlet(currentUnitId);
+    }
+
+    if (!isAwaitingPo) {
+      const targetStatus = isAll ? undefined : (GROUP_TO_STATUSES[activeGroup]?.[0] || activeGroup);
+      fetchByOutletandStatus(currentUnitId, targetStatus, pageParam, sizeParam, searchParam);
+    }
+  }, [
+    scopeLoading,
+    currentUnitId,
+    activeGroup,
+    pagination.pageIndex,
+    pagination.pageSize,
+    search,
+    fetchApprovedRequestsByOutlet,
+    fetchByOutletandStatus,
+  ]);
 
   useEffect(() => {
     if (scopeLoading) return;
-    fetchApprovedRequestsByOutlet(currentUnitId);
-    fetchByOutlet(currentUnitId);
-  }, [scopeLoading, currentUnitId, fetchApprovedRequestsByOutlet, fetchByOutlet]);
+    loadData();
+  }, [loadData, scopeLoading]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -353,7 +380,9 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 py-2 text-xs">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
         ),
         enableSorting: false,
         size: 36,
@@ -370,28 +399,29 @@ const PurchaseOrderRequest = () => {
           return isPrNoPo ? (
             <CodeCell
               code={codeVal}
-              maxWidth="max-w-[130px]"
+              maxWidth="max-w-full"
+              className="text-xs"
               subtitle={
-                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[10px] whitespace-nowrap font-medium text-gray-500 w-fit">
+                <span className="px-1.5 py-0.5 rounded-full bg-gray-100 text-[9px] whitespace-nowrap font-medium text-gray-500 w-fit">
                   PR AWAITING PO
                 </span>
               }
             />
           ) : (
-            <CodeCell code={codeVal} maxWidth="max-w-[130px]" />
+            <CodeCell code={codeVal} maxWidth="max-w-full" className="text-xs" />
           );
         },
         enableSorting: false,
-        size: 135,
+        size: 200,
       },
       {
         accessorKey: 'date',
         header: ({ column }) => (
           <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <span className="whitespace-nowrap text-sm text-[#475467]">{row.original.date || '—'}</span>,
+        cell: ({ row }) => <span className="whitespace-nowrap text-xs text-[#475467]">{row.original.date || '—'}</span>,
         enableSorting: false,
-        size: 75,
+        size: 85,
       },
       {
         accessorKey: 'expectedDeliveryDate',
@@ -399,7 +429,7 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="DELV. DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-sm text-[#475467]">{row.original.expectedDeliveryDate || '—'}</span>
+          <span className="whitespace-nowrap text-xs text-[#475467]">{row.original.expectedDeliveryDate || '—'}</span>
         ),
         enableSorting: false,
         size: 85,
@@ -409,9 +439,9 @@ const PurchaseOrderRequest = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-full" />,
         enableSorting: false,
-        size: 140,
+        size: 120,
       },
       {
         accessorKey: 'subOutletName',
@@ -419,10 +449,10 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-[120px]" />
+          <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-full" />
         ),
         enableSorting: false,
-        size: 120,
+        size: 100,
       },
       {
         accessorKey: 'raisedBy',
@@ -431,10 +461,10 @@ const PurchaseOrderRequest = () => {
         ),
         cell: ({ row }) => {
           const raisedBy = row.original.raisedBy || row.original.createdByName;
-          return <TruncatedCell value={raisedBy || '—'} widthClass="max-w-[110px]" />;
+          return <TruncatedCell value={raisedBy || '—'} widthClass="max-w-full" />;
         },
         enableSorting: false,
-        size: 110,
+        size: 75,
       },
       {
         accessorKey: 'displayStatus',
@@ -443,13 +473,15 @@ const PurchaseOrderRequest = () => {
         ),
         cell: ({ row }) => <StatusBadge status={row.original.displayStatus} />,
         enableSorting: false,
-        size: 155,
+        size: 120,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
         ),
+        enableSorting: false,
+        size: 75,
         cell: ({ row }) => {
           const original = row.original;
           const isRejecting = rejectingId === original.id;
@@ -459,14 +491,14 @@ const PurchaseOrderRequest = () => {
               return null;
             }
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <Link
                   to="/purchase/create-purchase-order-requests"
                   state={{ ...original, isGeneratePo: true }}
-                  className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-1 rounded hover:bg-blue-50 transition"
+                  className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
                   title="Generate PO"
                 >
-                  <Plus size={18} />
+                  <Plus size={16} />
                 </Link>
               </div>
             );
@@ -474,35 +506,35 @@ const PurchaseOrderRequest = () => {
 
           if (original.group === 'DRAFT') {
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 {canEdit && (
                   <Link
                     to={`/purchase/edit-purchase-order/${original.id}`}
                     state={original}
-                    className="text-gray-500 hover:text-blue-600 cursor-pointer p-1 rounded hover:bg-blue-50 transition"
+                    className="text-gray-500 hover:text-blue-600 cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
                     title="Continue PO"
                   >
-                    <SquarePen size={18} />
+                    <SquarePen size={16} />
                   </Link>
                 )}
                 {canDelete && (
                   <button
                     type="button"
                     onClick={() => openDeleteConfirm(original)}
-                    className="text-red-400 hover:text-red-600 cursor-pointer p-1 rounded hover:bg-red-50 transition"
+                    className="text-red-400 hover:text-red-600 cursor-pointer p-0.5 rounded hover:bg-red-50 transition"
                     title="Delete PO"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 )}
                 {!canEdit && (
                   <Link
                     to={`/purchase/purchase-order-detail/${original.id}`}
                     state={original}
-                    className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                    className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                     title="View PO"
                   >
-                    <Eye size={18} />
+                    <Eye size={16} />
                   </Link>
                 )}
               </div>
@@ -510,24 +542,21 @@ const PurchaseOrderRequest = () => {
           }
 
           return (
-            <div className="flex items-center gap-2 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
               <Link
                 to={`/purchase/purchase-order-detail/${original.id}`}
                 state={original}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                 title="View PO"
               >
-                <Eye size={18} />
+                <Eye size={16} />
               </Link>
             </div>
           );
         },
-        enableSorting: false,
-        size: 75,
       },
     ];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rejectingId, canAdd, canEdit, canDelete]);
+  }, [rejectingId, canAdd, canEdit, canDelete, pagination.pageIndex, pagination.pageSize]);
 
   const groupCounts = useMemo(() => {
     const counts = {
@@ -567,15 +596,42 @@ const PurchaseOrderRequest = () => {
     return rows.slice().sort(sortByDateDesc);
   }, [combinedList, search]);
 
+  const totalCount = useMemo(() => {
+    if (isAwaitingPoOnly) {
+      return prList.length;
+    }
+    if (isAllGroups) {
+      return (poTotalElements || poRawList.length) + prList.length;
+    }
+    return poTotalElements || poRawList.length;
+  }, [isAwaitingPoOnly, isAllGroups, prList.length, poTotalElements, poRawList.length]);
+
+  const displayRequests = useMemo(() => {
+    if (totalCount > 0 && totalCount === combinedList.length && filteredRequests.length > pagination.pageSize) {
+      const start = pagination.pageIndex * pagination.pageSize;
+      return filteredRequests.slice(start, start + pagination.pageSize);
+    }
+    return filteredRequests;
+  }, [filteredRequests, totalCount, combinedList.length, pagination.pageIndex, pagination.pageSize]);
+
+  const pageCount = useMemo(() => {
+    if (poTotalPages > 0 && !isAwaitingPoOnly) return poTotalPages;
+    return Math.max(1, Math.ceil(totalCount / pagination.pageSize));
+  }, [poTotalPages, isAwaitingPoOnly, totalCount, pagination.pageSize]);
+
   const table = useReactTable({
-    data: filteredRequests,
+    data: displayRequests,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination, rowSelection, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
+    onSortingChange: setSorting,
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   const loading = prLoading || poLoading;
@@ -664,7 +720,7 @@ const PurchaseOrderRequest = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredRequests.length}
+              recordCount={totalCount}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,

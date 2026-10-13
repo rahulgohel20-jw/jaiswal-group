@@ -83,9 +83,11 @@ const MultiSelectDropdown = ({
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
-        {label}
-      </label>
+      {label && (
+        <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
+          {label}
+        </label>
+      )}
 
       <div
         onClick={() => {
@@ -203,9 +205,11 @@ const SingleSelectSearchDropdown = ({
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
-        {label}
-      </label>
+      {label && (
+        <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
+          {label}
+        </label>
+      )}
 
       <div
         onClick={() => {
@@ -510,8 +514,11 @@ const RowCategoryBrandMapping = () => {
             className="text-[#43474F] font-semibold"
           />
         ),
-        cell: ({ row }) =>
-          pagination.pageIndex * pagination.pageSize + row.index + 1,
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2 text-xs">
+            {pagination.pageIndex * pagination.pageSize + row.index + 1}
+          </span>
+        ),
         enableSorting: false,
         size: 80,
       },
@@ -525,7 +532,10 @@ const RowCategoryBrandMapping = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-[#1B1B1F] capitalize">
+          <span
+            className="font-medium text-xs text-gray-800 capitalize truncate max-w-full block"
+            title={row.original.category?.name}
+          >
             {row.original.category?.name}
           </span>
         ),
@@ -608,80 +618,88 @@ const RowCategoryBrandMapping = () => {
           description="Map raw material categories with their respective brands."
         />
 
-        {/* Configure card */}
-        {(canAdd || canEdit) && (
-          <div className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
-              <SingleSelectSearchDropdown
-                label="Raw Material Category"
-                placeholder="Select Category..."
-                options={categories}
-                selected={selectedCategory}
-                onChange={setSelectedCategory}
-                loading={optionsLoading}
-              />
+        {/* Configure Mapping & Search / Filters in one single row */}
+        <div className="mt-4 flex flex-col xl:flex-row items-stretch xl:items-center gap-3">
+          {(canAdd || canEdit) && (
+            <>
+              <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                <div className="flex-1 min-w-[170px]">
+                  <SingleSelectSearchDropdown
+                    placeholder="Select Category..."
+                    options={categories}
+                    selected={selectedCategory}
+                    onChange={setSelectedCategory}
+                    loading={optionsLoading}
+                  />
+                </div>
 
-              <MultiSelectDropdown
-                label="Raw Material Brand"
-                placeholder="Select Brands..."
-                options={brands}
-                selected={selectedBrands}
-                onChange={setSelectedBrands}
-                loading={brandsLoading}
-              />
+                <div className="flex-1 min-w-[200px]">
+                  <MultiSelectDropdown
+                    placeholder="Select Brands..."
+                    options={brands}
+                    selected={selectedBrands}
+                    onChange={setSelectedBrands}
+                    loading={brandsLoading}
+                  />
+                </div>
 
-              <button
-                type="button"
-                onClick={handleConfigure}
-                disabled={
-                  configuring || !selectedCategory || selectedBrands.length === 0
-                }
-                className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                <Link2 size={16} />
-                {configuring ? 'Configuring...' : 'Configure'}
-              </button>
-            </div>
-          </div>
-        )}
+                <button
+                  type="button"
+                  onClick={handleConfigure}
+                  disabled={
+                    configuring || !selectedCategory || selectedBrands.length === 0
+                  }
+                  className="h-11 px-4 bg-[#084E92] text-white rounded-lg flex gap-1.5 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap shrink-0 text-sm font-medium"
+                >
+                  <Link2 size={16} />
+                  {configuring ? 'Configuring...' : 'Configure'}
+                </button>
+              </div>
 
-        {/* Search + filters card */}
-        <div className="flex flex-col gap-4 mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative border border-[#C3C6D1] rounded-lg">
+              <div className="hidden xl:block w-px h-8 bg-[#E5E7EB] shrink-0" />
+            </>
+          )}
+
+          {/* Search + filters */}
+          <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            {/* <div className="relative border border-[#C3C6D1] rounded-lg h-11 flex items-center flex-1 min-w-[170px] bg-white">
               <Search
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
                 size={18}
               />
               <input
                 placeholder="Search mappings..."
-                className="w-full pl-10 py-2 outline-none rounded-lg"
+                className="w-full pl-10 pr-3 py-2 outline-none rounded-lg text-sm bg-transparent"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
               />
+            </div> */}
+
+            <div className="flex-1 min-w-[170px]">
+              <SearchableSelect
+                name="categoryFilter"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                options={categories.map((c) => ({
+                  value: String(c.id),
+                  label: c.name,
+                }))}
+                placeholder="Filter by Category"
+              />
             </div>
 
-            <SearchableSelect
-              name="categoryFilter"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              options={categories.map((c) => ({
-                value: String(c.id),
-                label: c.name,
-              }))}
-              placeholder="Filter by Raw Material Category"
-            />
-
-            <SearchableSelect
-              name="brandFilter"
-              value={brandFilter}
-              onChange={(e) => setBrandFilter(e.target.value)}
-              options={brands.map((b) => ({
-                value: String(b.id),
-                label: b.name,
-              }))}
-              placeholder="Filter by Raw Material Brand"
-            />
+            <div className="flex-1 min-w-[170px]">
+              <SearchableSelect
+                name="brandFilter"
+                value={brandFilter}
+                onChange={(e) => setBrandFilter(e.target.value)}
+                options={brands.map((b) => ({
+                  value: String(b.id),
+                  label: b.name,
+                }))}
+                placeholder="Filter by Brand"
+              />
+            </div>
           </div>
         </div>
 
@@ -691,6 +709,13 @@ const RowCategoryBrandMapping = () => {
             table={table}
             recordCount={filteredMappings.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>

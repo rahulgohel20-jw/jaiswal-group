@@ -88,10 +88,10 @@ const StatusBadge = ({ status }) => (
 // Truncates long text, reveals full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = "max-w-[180px]",
-  className = "text-gray-600",
+  widthClass = "max-w-full",
+  className = "text-gray-800 font-medium",
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
     {value || "—"}
   </span>
 );
@@ -319,7 +319,7 @@ const SubUnitListing = () => {
           <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 36,
+        size: 40,
       },
       {
         id: "name",
@@ -330,38 +330,23 @@ const SubUnitListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[140px]"
-            className="font-semibold text-[#084E92] text-xs"
+            className="font-medium text-gray-800 text-xs"
           />
         ),
         enableSorting: false,
-        size: 150,
-      },
-      {
-        id: "type",
-        accessorFn: (row) => row.type,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="TYPE" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => (
-          <span className="text-xs font-semibold text-gray-700 uppercase whitespace-nowrap">
-            {row.original.type || "—"}
-          </span>
-        ),
-        enableSorting: false,
-        size: 85,
+        size: 220,
       },
       {
         id: "location",
         accessorFn: (row) => row.location,
         header: ({ column }) => (
-          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="CITY" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.location} widthClass="max-w-[100px]" className="text-xs text-gray-700" />
+          <TruncatedCell value={row.original.location} />
         ),
         enableSorting: false,
-        size: 110,
+        size: 130,
       },
       {
         id: "contactPerson",
@@ -370,10 +355,10 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="CONTACT PERSON" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.contactPerson} widthClass="max-w-[110px]" className="text-xs text-gray-700" />
+          <TruncatedCell value={row.original.contactPerson} />
         ),
         enableSorting: false,
-        size: 120,
+        size: 150,
       },
       {
         id: "email",
@@ -382,10 +367,10 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="EMAIL" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.email} widthClass="max-w-[120px]" className="text-xs text-gray-700" />
+          <TruncatedCell value={row.original.email} />
         ),
         enableSorting: false,
-        size: 130,
+        size: 240,
       },
       {
         id: "status",

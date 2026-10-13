@@ -2,7 +2,7 @@
 // File: src/pages/purchase-order/PurchaseOrderApproval.jsx
 // ============================================
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Search,
@@ -38,6 +38,7 @@ import { getUserIdFromToken, getUsernameFromToken } from '@/utils/auth';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import { usePagePermissions } from '@/utils/permissions';
@@ -87,7 +88,7 @@ const STATUS_META = {
 const TruncatedCell = ({
   value,
   widthClass = 'max-w-[180px]',
-  className = 'text-[#475467]',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -100,7 +101,7 @@ function StatusPill({ status }) {
     <span
       style={{ color: meta.fg }}
       title={getPoStatusLabel(status)}
-      className="text-xs font-semibold whitespace-nowrap"
+      className="text-xs font-semibold block truncate max-w-full"
     >
       {getPoStatusLabel(status)}
     </span>
@@ -204,6 +205,7 @@ const PurchaseOrderApproval = () => {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const [sorting, setSorting] = useState([]);
 
   // Close PO modal state
   const [closeModalOpen, setCloseModalOpen] = useState(false);
@@ -239,22 +241,41 @@ const PurchaseOrderApproval = () => {
     list: allPos,
     loading: poLoading,
     error: poError,
-    fetchByOutlet,
+    totalElements: poTotalElements,
+    totalPages: poTotalPages,
+    fetchByOutletandStatus,
   } = usePurchaseOrders();
 
   const currentUnitId = effectiveOutletId;
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
     if (scopeLoading || scopeError) return;
-    fetchByOutlet(currentUnitId);
-  };
+    const statusParam = statusFilter === ALL_STATUS ? undefined : statusFilter;
+    const pageParam = pagination.pageIndex > 0 ? pagination.pageIndex : undefined;
+    const sizeParam = pagination.pageIndex > 0 ? pagination.pageSize : undefined;
+    fetchByOutletandStatus(
+      currentUnitId,
+      statusParam,
+      pageParam,
+      sizeParam,
+      query.trim() || undefined
+    );
+  }, [
+    scopeLoading,
+    scopeError,
+    currentUnitId,
+    statusFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+    query,
+    fetchByOutletandStatus,
+  ]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {
       loadData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeLoading, scopeError, currentUnitId]);
+  }, [loadData, scopeLoading, scopeError]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -439,7 +460,9 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-xs text-gray-500 py-2">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
         ),
         enableSorting: false,
         size: 36,
@@ -451,10 +474,10 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <CodeCell code={row.original.poCode} maxWidth="max-w-[130px]" />
+          <CodeCell code={row.original.poCode} maxWidth="max-w-full" className="text-xs" />
         ),
         enableSorting: false,
-        size: 130,
+        size: 200,
       },
       {
         id: 'date',
@@ -462,9 +485,9 @@ const PurchaseOrderApproval = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="PO DATE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[80px]" />,
+        cell: ({ row }) => <span className="whitespace-nowrap text-xs text-gray-600 font-medium">{row.original.date || '—'}</span>,
         enableSorting: false,
-        size: 75,
+        size: 85,
       },
       {
         id: 'expectedDeliveryDate',
@@ -473,7 +496,7 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="DELV. DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.expectedDeliveryDate} widthClass="max-w-[85px]" />
+          <span className="whitespace-nowrap text-xs text-gray-600 font-medium">{row.original.expectedDeliveryDate || '—'}</span>
         ),
         enableSorting: false,
         size: 85,
@@ -484,9 +507,9 @@ const PurchaseOrderApproval = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-full" />,
         enableSorting: false,
-        size: 140,
+        size: 115,
       },
       {
         id: 'location',
@@ -495,10 +518,10 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-[120px]" />
+          <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-full" />
         ),
         enableSorting: false,
-        size: 120,
+        size: 100,
       },
       {
         id: 'raisedBy',
@@ -508,10 +531,10 @@ const PurchaseOrderApproval = () => {
         ),
         cell: ({ row }) => {
           const name = row.original.raisedBy || row.original.createdByName;
-          return <TruncatedCell value={name || '—'} widthClass="max-w-[110px]" />;
+          return <TruncatedCell value={name || '—'} widthClass="max-w-full" />;
         },
         enableSorting: false,
-        size: 110,
+        size: 75,
       },
       {
         id: 'status',
@@ -521,13 +544,15 @@ const PurchaseOrderApproval = () => {
         ),
         cell: ({ row }) => <StatusPill status={row.original.rawStatus} />,
         enableSorting: false,
-        size: 155,
+        size: 120,
       },
       {
         id: 'action',
         header: ({ column }) => (
           <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
         ),
+        enableSorting: false,
+        size: 80,
         cell: ({ row }) => {
           const po = row.original;
           const actionable = ACTIONABLE_STATUSES.includes(po.rawStatus);
@@ -536,22 +561,22 @@ const PurchaseOrderApproval = () => {
 
           if (actionable) {
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => handleApprove(po)}
-                  className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded hover:bg-emerald-50 transition"
+                  className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-0.5 rounded hover:bg-emerald-50 transition"
                   title="Approve PO"
                 >
-                  <CheckCircle2 size={18} />
+                  <CheckCircle2 size={16} />
                 </button>
                 <button
                   type="button"
                   onClick={() => handleReject(po)}
-                  className="text-rose-500 hover:text-rose-700 cursor-pointer p-1 rounded hover:bg-rose-50 transition"
+                  className="text-rose-500 hover:text-rose-700 cursor-pointer p-0.5 rounded hover:bg-rose-50 transition"
                   title="Reject PO"
                 >
-                  <XCircle size={18} />
+                  <XCircle size={16} />
                 </button>
               </div>
             );
@@ -559,14 +584,14 @@ const PurchaseOrderApproval = () => {
 
           if (editable) {
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => handleEdit(po)}
-                  className="text-gray-500 hover:text-blue-600 cursor-pointer p-1 rounded hover:bg-blue-50 transition"
+                  className="text-gray-500 hover:text-blue-600 cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
                   title="Edit PO"
                 >
-                  <Pencil size={18} />
+                  <Pencil size={16} />
                 </button>
               </div>
             );
@@ -574,56 +599,71 @@ const PurchaseOrderApproval = () => {
 
           if (isApproved) {
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => handleView(po)}
-                  className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                  className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                   title="View PO"
                 >
-                  <Eye size={18} />
+                  <Eye size={16} />
                 </button>
                 <button
                   type="button"
                   onClick={() => handleOpenCloseModal(po)}
-                  className="text-red-400 hover:text-red-600 cursor-pointer p-1 rounded hover:bg-red-50 transition"
+                  className="text-red-400 hover:text-red-600 cursor-pointer p-0.5 rounded hover:bg-red-50 transition"
                   title="Close PO"
                 >
-                  <Ban size={18} />
+                  <Ban size={16} />
                 </button>
               </div>
             );
           }
 
           return (
-            <div className="flex items-center gap-2 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() => handleView(po)}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                 title="View PO"
               >
-                <Eye size={18} />
+                <Eye size={16} />
               </button>
             </div>
           );
         },
-        enableSorting: false,
-        size: 75,
       },
     ],
-    [selectedPoId],
+    [selectedPoId, pagination.pageIndex, pagination.pageSize],
   );
 
   const { canView } = usePagePermissions('Approve Purchase Order');
 
+  const displayRows = useMemo(() => {
+    if (poTotalElements > 0 && poTotalElements === allPos.length && filtered.length > pagination.pageSize) {
+      const start = pagination.pageIndex * pagination.pageSize;
+      return filtered.slice(start, start + pagination.pageSize);
+    }
+    return filtered;
+  }, [filtered, poTotalElements, allPos.length, pagination.pageIndex, pagination.pageSize]);
+
+  const pageCount = useMemo(() => {
+    if (poTotalPages > 0) return poTotalPages;
+    return Math.max(1, Math.ceil((poTotalElements || filtered.length) / pagination.pageSize));
+  }, [poTotalPages, poTotalElements, filtered.length, pagination.pageSize]);
+
   const table = useReactTable({
-    data: filtered,
+    data: displayRows,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) {
@@ -703,7 +743,7 @@ const PurchaseOrderApproval = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filtered.length}
+              recordCount={poTotalElements || filtered.length}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,

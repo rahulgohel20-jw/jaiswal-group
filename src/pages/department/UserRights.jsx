@@ -116,13 +116,13 @@ const UserRights = () => {
           <table className="w-full text-sm">
             <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB]">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F]">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F] border-r border-[#E5E7EB] w-16">
                   Sr No#
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F]">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F] border-r border-[#E5E7EB]">
                   Role
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F]">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F] border-r border-[#E5E7EB]">
                   Created Date
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F]">
@@ -155,11 +155,13 @@ const UserRights = () => {
                     key={role.id}
                     className="border-b border-[#F0F1F3] last:border-b-0 hover:bg-[#FAFBFC]"
                   >
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-gray-500 text-xs border-r border-[#F0F1F3]">
                       {pageStart + idx + 1}
                     </td>
-                    <td className="px-4 py-3 text-gray-800">{role.name}</td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-xs font-semibold text-[#084E92] truncate max-w-[280px] border-r border-[#F0F1F3]">
+                      {role.name}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 font-medium whitespace-nowrap border-r border-[#F0F1F3]">
                       {role.createdDate}
                     </td>
                     <td className="px-4 py-3">

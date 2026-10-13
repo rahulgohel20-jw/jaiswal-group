@@ -33,6 +33,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { CodeCell } from '@/components/common/CodeCell';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import {
   getTransferList,
 } from '@/services/apiServices';
@@ -75,7 +76,7 @@ const StatusBadge = ({ status = 'PENDING_DISCREPANCY_APPROVAL' }) => {
   );
 };
 
-const TruncatedCell = ({ value, widthClass = 'max-w-[170px]', className = 'text-gray-700' }) => (
+const TruncatedCell = ({ value, widthClass = 'max-w-[170px]', className = 'text-xs text-gray-800 font-medium' }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value || '—'}
   </span>
@@ -160,6 +161,17 @@ const StockTransferDiscrepancyApproval = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Pagination & Sorting
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: PAGE_SIZE });
+  const [sorting, setSorting] = useState([]);
+
   // Filters
   const [search, setSearch] = useState('');
   const [selectedOutletId, setSelectedOutletId] = useState('');
@@ -173,10 +185,25 @@ const StockTransferDiscrepancyApproval = () => {
         status: 'PENDING_DISCREPANCY_APPROVAL',
       };
 
+      if (search.trim()) {
+        params.search = search.trim();
+      }
+
+      if (isOutletUser && effectiveOutletId) {
+        params.outletId = Number(effectiveOutletId);
+      } else if (selectedOutletId) {
+        params.outletId = Number(selectedOutletId);
+      }
+
       if (isCompanyUser && selectedCompanyId) {
         params.companyId = Number(selectedCompanyId);
       } else if (isGroupUser && selectedCompanyId) {
         params.companyId = Number(selectedCompanyId);
+      }
+
+      if (pagination.pageIndex > 0) {
+        params.page = pagination.pageIndex;
+        params.size = pagination.pageSize;
       }
 
       const res = await getTransferList(params);
@@ -274,6 +301,7 @@ const StockTransferDiscrepancyApproval = () => {
         };
       });
 
+      updateFromResponse(res, mapped.length);
       setTransfers(mapped);
     } catch (err) {
       console.error('Failed to load discrepancy stock transfers:', err);
@@ -281,7 +309,24 @@ const StockTransferDiscrepancyApproval = () => {
     } finally {
       setLoading(false);
     }
-  }, [isCompanyUser, isGroupUser, selectedCompanyId, subOutletMap, subLocationMap]);
+  }, [
+    isOutletUser,
+    effectiveOutletId,
+    selectedOutletId,
+    isCompanyUser,
+    isGroupUser,
+    selectedCompanyId,
+    pagination.pageIndex,
+    pagination.pageSize,
+    search,
+    subOutletMap,
+    subLocationMap,
+    updateFromResponse,
+  ]);
+
+  useEffect(() => {
+    resetPage();
+  }, [search, selectedOutletId, resetPage]);
 
   useEffect(() => {
     if (!scopeLoading && !scopeError) {
@@ -349,10 +394,12 @@ const StockTransferDiscrepancyApproval = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 font-semibold text-xs">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 text-xs">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
         ),
         enableSorting: false,
-        size: 40,
+        size: 36,
       },
       {
         id: 'transferCode',
@@ -363,28 +410,23 @@ const StockTransferDiscrepancyApproval = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.transferCode}
-            maxWidth="max-w-[125px]"
+            maxWidth="max-w-[120px]"
             onClick={() => handleView(row.original)}
-            className="text-xs font-bold text-[#084E92] hover:underline cursor-pointer"
+            className="text-xs font-semibold text-[#084E92] hover:underline cursor-pointer"
           />
         ),
         enableSorting: false,
-        size: 135,
+        size: 125,
       },
       {
         id: 'transferDate',
         accessorFn: (row) => row.transferDate,
-        sortingFn: (rowA, rowB) => {
-          const tA = parseDateToTimestamp(rowA.original.transferDate);
-          const tB = parseDateToTimestamp(rowB.original.transferDate);
-          return tA - tB;
-        },
         header: ({ column }) => (
           <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
-        cell: ({ row }) => <span className="text-gray-700 text-xs font-medium">{row.original.transferDate}</span>,
+        cell: ({ row }) => <span className="text-gray-600 text-xs font-medium whitespace-nowrap">{row.original.transferDate}</span>,
         enableSorting: false,
-        size: 85,
+        size: 80,
       },
       {
         id: 'fromOutlet',
@@ -394,14 +436,14 @@ const StockTransferDiscrepancyApproval = () => {
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
-            <TruncatedCell value={row.original.fromOutlet} widthClass="max-w-[160px]" className="font-semibold text-gray-900 text-xs" />
+            <TruncatedCell value={row.original.fromOutlet} widthClass="max-w-full" className="font-semibold text-gray-900 text-xs" />
             {row.original.fromSubOutlet && row.original.fromSubOutlet !== '—' && (
-              <span className="text-[11px] text-gray-500 truncate max-w-[160px]" title={row.original.fromSubOutlet}>Sub: {row.original.fromSubOutlet}</span>
+              <span className="text-[11px] text-gray-500 truncate max-w-full" title={row.original.fromSubOutlet}>Sub: {row.original.fromSubOutlet}</span>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 165,
+        size: 125,
       },
       {
         id: 'toOutlet',
@@ -411,14 +453,14 @@ const StockTransferDiscrepancyApproval = () => {
         ),
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5 min-w-0">
-            <TruncatedCell value={row.original.toOutlet} widthClass="max-w-[160px]" className="font-semibold text-gray-900 text-xs" />
+            <TruncatedCell value={row.original.toOutlet} widthClass="max-w-full" className="font-semibold text-gray-900 text-xs" />
             {row.original.toSubOutlet && row.original.toSubOutlet !== '—' && (
-              <span className="text-[11px] text-gray-500 truncate max-w-[160px]" title={row.original.toSubOutlet}>Sub: {row.original.toSubOutlet}</span>
+              <span className="text-[11px] text-gray-500 truncate max-w-full" title={row.original.toSubOutlet}>Sub: {row.original.toSubOutlet}</span>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 165,
+        size: 125,
       },
       {
         id: 'discrepancySummary',
@@ -431,7 +473,7 @@ const StockTransferDiscrepancyApproval = () => {
           </span>
         ),
         enableSorting: false,
-        size: 110,
+        size: 95,
       },
       {
         id: 'status',
@@ -445,7 +487,7 @@ const StockTransferDiscrepancyApproval = () => {
           </div>
         ),
         enableSorting: false,
-        size: 115,
+        size: 90,
       },
       {
         id: 'actions',
@@ -476,16 +518,23 @@ const StockTransferDiscrepancyApproval = () => {
         size: 75,
       },
     ],
-    [handleResolve, handleView]
+    [handleResolve, handleView, pagination.pageIndex, pagination.pageSize]
   );
 
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
-  const [sorting, setSorting] = useState([{ id: 'transferDate', desc: true }]);
+  const displayTransfers = useMemo(() => {
+    if (totalElements > 0 && totalElements === transfers.length && filteredTransfers.length > pagination.pageSize) {
+      const start = pagination.pageIndex * pagination.pageSize;
+      return filteredTransfers.slice(start, start + pagination.pageSize);
+    }
+    return filteredTransfers;
+  }, [filteredTransfers, totalElements, transfers.length, pagination.pageIndex, pagination.pageSize]);
 
   const table = useReactTable({
-    data: filteredTransfers,
+    data: displayTransfers,
     columns,
     state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -537,31 +586,29 @@ const StockTransferDiscrepancyApproval = () => {
         </div>
 
         {/* Filters Bar - Long Search bar & Single Unit Dropdown */}
-        <div className="bg-white border border-[#E7EAF0] rounded-2xl p-3.5 shadow-2xs">
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            {/* Long Search Bar */}
-            <div className="flex-1 w-full">
-              <SearchBar
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onClear={() => setSearch('')}
-                placeholder="Search transfer code, unit, vehicle, driver..."
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Long Search Bar */}
+          <div className="flex-1 w-full">
+            <SearchBar
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onClear={() => setSearch('')}
+              placeholder="Search transfer code, unit, vehicle, driver..."
+            />
+          </div>
+
+          {/* Single Unit Filter - Only visible for Company and Group users, hidden for Unit users */}
+          {!isOutletUser && (
+            <div className="w-full sm:w-72 shrink-0">
+              <SearchableSelect
+                options={outletSelectOptions}
+                value={selectedOutletId}
+                onChange={(e) => setSelectedOutletId(e.target.value)}
+                placeholder="All Units"
+                className="w-full"
               />
             </div>
-
-            {/* Single Unit Filter - Only visible for Company and Group users, hidden for Unit users */}
-            {!isOutletUser && (
-              <div className="w-full sm:w-72 shrink-0">
-                <SearchableSelect
-                  options={outletSelectOptions}
-                  value={selectedOutletId}
-                  onChange={(e) => setSelectedOutletId(e.target.value)}
-                  placeholder="All Units"
-                  className="w-full"
-                />
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Data Table */}
@@ -591,7 +638,7 @@ const StockTransferDiscrepancyApproval = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredTransfers.length}
+              recordCount={totalElements || filteredTransfers.length}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,
@@ -601,8 +648,8 @@ const StockTransferDiscrepancyApproval = () => {
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable className="w-full overflow-x-auto">
+              <Card className="rounded-2xl border-0 shadow-none">
+                <CardTable className="w-full overflow-x-hidden">
                   <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F8FAFC] rounded-b-2xl border-t border-[#E2E8F0] py-2.5">

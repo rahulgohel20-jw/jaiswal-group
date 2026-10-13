@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -39,6 +40,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { SearchBar } from '@/components/common/SearchBar';
 import { useExportReport } from '@/hooks/useExportReport';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import { toast } from 'sonner';
 import GRNDetailsViewModal from './GRNDetailsViewModal';
 
@@ -63,8 +65,8 @@ const StatusBadge = ({ status }) => {
 
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -163,7 +165,15 @@ const GRNListing = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: PAGE_SIZE });
+  const [sorting, setSorting] = useState([]);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
 
@@ -181,10 +191,21 @@ const GRNListing = () => {
       const outletParam = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
       const statusParam = statusFilter === 'ALL' ? '' : statusFilter;
 
+      const params = {};
+      if (outletParam) params.outletId = outletParam;
+      if (statusParam) params.status = statusParam;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+
+      // Only pass page/size when navigating beyond page 0:
+      if (pagination.pageIndex > 0) {
+        params.page = pagination.pageIndex;
+        params.size = pagination.pageSize;
+      }
+
       let res;
-      if (outletParam || statusParam) {
+      if (outletParam || statusParam || params.page !== undefined) {
         try {
-          res = await getGrnByOutletOrStatus(outletParam, statusParam);
+          res = await getGrnByOutletOrStatus(params);
         } catch (err) {
           res = await getAllGrns();
         }
@@ -192,8 +213,10 @@ const GRNListing = () => {
         res = await getAllGrns();
       }
 
-      const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
       const rawList = Array.isArray(raw) ? raw : [];
+
+      updateFromResponse(res, rawList.length);
 
       const normalized = rawList.map((g) => {
         const poCodesList = Array.isArray(g.purchaseOrderCodes) && g.purchaseOrderCodes.length > 0
@@ -243,7 +266,21 @@ const GRNListing = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, scopeError, effectiveOutletId, statusFilter, filterRowsByScope]);
+  }, [
+    scopeLoading,
+    scopeError,
+    effectiveOutletId,
+    statusFilter,
+    searchQuery,
+    pagination.pageIndex,
+    pagination.pageSize,
+    filterRowsByScope,
+    updateFromResponse,
+  ]);
+
+  useEffect(() => {
+    resetPage();
+  }, [searchQuery, statusFilter, selectedUnitId, effectiveOutletId, dateRange, resetPage]);
 
   useEffect(() => {
     loadData();
@@ -447,8 +484,8 @@ const GRNListing = () => {
   }, [list, searchQuery, statusFilter, dateRange]);
 
   useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [searchQuery, statusFilter, selectedUnitId, dateRange]);
+    resetPage();
+  }, [searchQuery, statusFilter, selectedUnitId, effectiveOutletId, dateRange, resetPage]);
 
   const columns = useMemo(
     () => [
@@ -458,7 +495,9 @@ const GRNListing = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 font-mono text-xs">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 font-mono text-xs">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
         ),
         enableSorting: false,
         size: 45,
@@ -472,12 +511,12 @@ const GRNListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.grnCode}
-            widthClass="max-w-[150px]"
-            className="font-semibold text-[#084E92] text-xs"
+            widthClass="max-w-full"
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
           />
         ),
-        enableSorting: true,
-        size: 160,
+        enableSorting: false,
+        size: 135,
       },
       {
         id: 'poCode',
@@ -494,17 +533,17 @@ const GRNListing = () => {
             return (
               <TruncatedCell
                 value={poCodes[0]}
-                widthClass="max-w-[120px]"
+                widthClass="max-w-full"
                 className="font-semibold text-gray-800 text-xs"
               />
             );
           }
           return (
-            <div className="flex flex-wrap gap-1 max-w-[130px]" title={poCodes.join(', ')}>
+            <div className="flex flex-wrap gap-1 max-w-full" title={poCodes.join(', ')}>
               {poCodes.map((code, idx) => (
                 <span
                   key={idx}
-                  className="inline-block font-mono text-[10px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1 py-0.5 rounded"
+                  className="inline-block font-mono text-[10px] font-semibold text-gray-800 bg-gray-100 border border-gray-200 px-1 py-0.5 rounded"
                 >
                   {code}
                 </span>
@@ -512,8 +551,8 @@ const GRNListing = () => {
             </div>
           );
         },
-        enableSorting: true,
-        size: 130,
+        enableSorting: false,
+        size: 210,
       },
       {
         id: 'grnDate',
@@ -521,8 +560,8 @@ const GRNListing = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="GRN DATE" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.grnDate} widthClass="max-w-[90px]" className="text-xs" />,
-        enableSorting: true,
+        cell: ({ row }) => <span className="text-xs text-gray-700 font-medium whitespace-nowrap">{row.original.grnDate || '—'}</span>,
+        enableSorting: false,
         size: 95,
       },
       {
@@ -531,7 +570,7 @@ const GRNListing = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="UNIT" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[130px]" className="text-xs" />,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-full" />,
         enableSorting: false,
         size: 135,
       },
@@ -541,7 +580,7 @@ const GRNListing = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="RAISED BY" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.raisedBy || '—'} widthClass="max-w-[105px]" className="text-xs" />,
+        cell: ({ row }) => <TruncatedCell value={row.original.raisedBy || '—'} widthClass="max-w-full" />,
         enableSorting: false,
         size: 110,
       },
@@ -552,7 +591,7 @@ const GRNListing = () => {
           <DataGridColumnHeader title="ITEMS" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-gray-700 text-xs whitespace-nowrap">{row.original.itemsReceived} Items</span>
+          <span className="font-medium text-gray-800 text-xs whitespace-nowrap">{row.original.itemsReceived} Items</span>
         ),
         enableSorting: false,
         size: 85,
@@ -586,16 +625,28 @@ const GRNListing = () => {
         size: 60,
       },
     ],
-    []
+    [pagination.pageIndex, pagination.pageSize]
   );
 
+  const displayRows = useMemo(() => {
+    if (totalElements > 0 && totalElements === list.length && filteredRows.length > pagination.pageSize) {
+      const start = pagination.pageIndex * pagination.pageSize;
+      return filteredRows.slice(start, start + pagination.pageSize);
+    }
+    return filteredRows;
+  }, [filteredRows, totalElements, list.length, pagination.pageIndex, pagination.pageSize]);
+
   const table = useReactTable({
-    data: filteredRows,
+    data: displayRows,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) {
@@ -700,7 +751,7 @@ const GRNListing = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredRows.length}
+              recordCount={totalElements || filteredRows.length}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,

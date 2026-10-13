@@ -75,10 +75,10 @@ const StatusBadge = ({ status }) => (
 // Truncates long text, reveals full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-gray-800 font-medium',
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
     {value || '—'}
   </span>
 );
@@ -297,12 +297,11 @@ const UnitListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[170px]"
-            className="font-semibold text-gray-900"
+            className="font-medium text-gray-800 text-xs"
           />
         ),
         enableSorting: false,
-        size: 170,
+        size: 220,
       },
       {
         id: 'code',
@@ -315,17 +314,20 @@ const UnitListing = () => {
           />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.code} widthClass="max-w-[100px]" />
+          <TruncatedCell
+            value={row.original.code}
+            className="font-semibold text-[#084E92] text-xs"
+          />
         ),
         enableSorting: false,
-        size: 100,
+        size: 110,
       },
       {
         id: 'location',
         accessorFn: (row) => row.location,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="LOCATION"
+            title="CITY"
             column={column}
             className="my-2 text-xs whitespace-nowrap"
           />
@@ -333,11 +335,10 @@ const UnitListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.location}
-            widthClass="max-w-[110px]"
           />
         ),
         enableSorting: false,
-        size: 110,
+        size: 130,
       },
       {
         id: 'email',
@@ -352,11 +353,10 @@ const UnitListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.email}
-            widthClass="max-w-[160px]"
           />
         ),
         enableSorting: false,
-        size: 160,
+        size: 220,
       },
       {
         id: 'mobile',
@@ -371,11 +371,10 @@ const UnitListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.mobile}
-            widthClass="max-w-[105px]"
           />
         ),
         enableSorting: false,
-        size: 105,
+        size: 130,
       },
       {
         id: 'status',

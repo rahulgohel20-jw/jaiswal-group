@@ -113,6 +113,38 @@ axiosInstance.interceptors.response.use(
     const method = response.config?.method?.toUpperCase();
     const skipToast = response.config?.skipGlobalToast;
     const isBlob = response.config?.responseType === 'blob' || (typeof Blob !== 'undefined' && response.data instanceof Blob);
+
+    const data = response.data;
+    const isExplicitFailure =
+      data &&
+      typeof data === 'object' &&
+      !isBlob &&
+      (data.success === false ||
+       data.isSuccess === false ||
+       data.status === false ||
+       data.status === 'FAILED' ||
+       data.status === 'ERROR' ||
+       data.status === 'error' ||
+       data.result === 'FAILED' ||
+       data.result === 'ERROR');
+
+    if (isExplicitFailure) {
+      const errMsg =
+        data.errorMessage ||
+        data.message ||
+        data.error ||
+        (data.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+        "Operation failed.";
+      if (!skipToast) {
+        toast.error(errMsg);
+      }
+      const customError = new Error(errMsg);
+      customError.response = response;
+      customError.data = data;
+      customError.isHandled = !skipToast;
+      return Promise.reject(customError);
+    }
+
     if (method && method !== 'GET' && !skipToast && !isBlob) {
       const msg = response.data?.message || response.data?.msg || "Operation completed successfully.";
       toast.success(msg);

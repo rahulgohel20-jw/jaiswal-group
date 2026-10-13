@@ -67,8 +67,8 @@ const STATUS_META = {
 // (mirrors TruncatedCell from UserManagementList.jsx)
 const TruncatedCell = ({
   value,
-  widthClass = "max-w-[180px]",
-  className = "text-[#475467]",
+  widthClass = "max-w-full",
+  className = "text-xs text-gray-800 font-medium",
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -128,35 +128,59 @@ const sortByDateDesc = (a, b) => {
   return (Number(b.id) || 0) - (Number(a.id) || 0);
 };
 
-// ---- PR fetch hook — fetches all purchase requisitions for the selected outlet.
-function useRequisitions(effectiveOutletId, filterRowsByScope, scopeLoading) {
+// ---- PR fetch hook — fetches purchase requisitions for the selected outlet with pagination.
+function useRequisitions(effectiveOutletId, filterRowsByScope, scopeLoading, pagination, query, statusFilter) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [requisitions, setRequisitions] = useState([]);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (customPage, customSize, customQuery) => {
     if (scopeLoading) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId);
-      const data = res?.data?.data ?? res?.data ?? res ?? [];
+      const pageIndex = customPage !== undefined ? customPage : pagination?.pageIndex;
+      const pageSize = customSize !== undefined ? customSize : pagination?.pageSize;
+      const search = customQuery !== undefined ? customQuery : query;
+
+      const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+      const reqPayload = {
+        outletId,
+        status: statusFilter && statusFilter !== ALL_STATUS ? statusFilter : undefined,
+        search: search ? search.trim() : undefined,
+      };
+      if (pageIndex > 0) {
+        reqPayload.page = pageIndex;
+        reqPayload.size = pageSize;
+      }
+      const res = await getPurchaseRequisitionsByOutlet(reqPayload);
+      const body = res?.data || {};
+      const data = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
       const raw = Array.isArray(data) ? data : [];
+      const total = Number(body.totalElements ?? body.totalRecords ?? body.total ?? raw.length);
+      const pages = Number(body.totalPages ?? Math.max(1, Math.ceil(total / (pageSize || 10))));
+
+      setTotalElements(total);
+      setTotalPages(pages);
+
       const mapped = raw.map(mapPr);
       const scoped = filterRowsByScope ? filterRowsByScope(mapped) : mapped;
       setRequisitions(scoped);
+      return { data: scoped, total, pages };
     } catch (err) {
       setError(err?.message || "Failed to load purchase requisitions.");
     } finally {
       setLoading(false);
     }
-  }, [effectiveOutletId, filterRowsByScope, scopeLoading]);
+  }, [effectiveOutletId, filterRowsByScope, scopeLoading, pagination?.pageIndex, pagination?.pageSize, query, statusFilter]);
 
   useEffect(() => {
     reload();
   }, [reload]);
 
-  return { loading, error, requisitions, reload };
+  return { loading, error, requisitions, totalElements, totalPages, reload };
 }
 
 function StatusPill({ status }) {
@@ -164,7 +188,8 @@ function StatusPill({ status }) {
   return (
     <span
       style={{ color: meta.fg }}
-      className="text-xs font-semibold whitespace-nowrap"
+      title={getStatusLabel(status)}
+      className="text-xs font-semibold block truncate max-w-full"
     >
       {getStatusLabel(status)}
     </span>
@@ -252,10 +277,20 @@ function ListView({ onApprove, onReject, onView }) {
     retry: retryScope,
   } = useOrgScope();
 
-  const { loading: prLoading, error: prError, requisitions, reload: reloadPr } = useRequisitions(
+  const {
+    loading: prLoading,
+    error: prError,
+    requisitions,
+    totalElements: prTotalElements,
+    totalPages: prTotalPages,
+    reload: reloadPr,
+  } = useRequisitions(
     effectiveOutletId,
     filterRowsByScope,
-    scopeLoading || Boolean(scopeError)
+    scopeLoading || Boolean(scopeError),
+    pagination,
+    query,
+    statusFilter
   );
 
   // Counts reflect whatever is currently loaded across all statuses.
@@ -291,145 +326,154 @@ function ListView({ onApprove, onReject, onView }) {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
   }, [query, statusFilter, selectedUnitId]);
 
-  const columns = useMemo(
-    () => [
-      {
-        id: "sno",
-        header: ({ column }) => (
-          <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
-        ),
-        enableSorting: false,
-        size: 36,
-      },
-      {
-        id: "code",
-        accessorFn: (row) => row.code,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => (
-          <CodeCell code={row.original.code} maxWidth="max-w-[130px]" />
-        ),
-        size: 130,
-      },
-      {
-        id: "date",
-        accessorFn: (row) => row.date,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[80px]" />,
-        enableSorting: false,
-        size: 75,
-      },
-      {
-        id: "requiredDate",
-        accessorFn: (row) => row.requiredDate,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="REQ. DATE" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[85px]" />,
-        enableSorting: false,
-        size: 85,
-      },
-      {
-        id: "outlet",
-        accessorFn: (row) => row.outlet,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[140px]" />,
-        enableSorting: false,
-        size: 140,
-      },
-      {
-        id: "subOutletName",
-        accessorFn: (row) => row.subOutletName,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-[120px]" />,
-        enableSorting: false,
-        size: 120,
-      },
-      {
-        id: "raisedBy",
-        accessorFn: (row) => row.raisedBy || row.createdByName,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => {
-          const name = row.original.raisedBy || row.original.createdByName;
-          return <TruncatedCell value={name || '—'} widthClass="max-w-[110px]" />;
+    const columns = useMemo(
+      () => [
+        {
+          id: "sno",
+          header: ({ column }) => (
+            <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => (
+            <span className="text-gray-500 py-2 text-xs">
+              {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+            </span>
+          ),
+          enableSorting: false,
+          size: 36,
         },
-        enableSorting: false,
-        size: 110,
-      },
-      {
-        id: "status",
-        accessorFn: (row) => row.status,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => <StatusPill status={row.original.status} />,
-        enableSorting: false,
-        size: 155,
-      },
-      {
-        id: "action",
-        header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => {
-          const r = row.original;
-          const actionable = ACTIONABLE_STATUSES.includes(r.status);
-          return actionable ? (
-            <div className="flex items-center gap-2 whitespace-nowrap">
-              <button
-                type="button"
-                onClick={() => onApprove(r)}
-                className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded-md hover:bg-emerald-50 transition"
-                title="Approve PR"
-              >
-                <CheckCircle2 size={18} />
-              </button>
-              <button
-                type="button"
-                onClick={() => onReject(r)}
-                className="text-rose-500 hover:text-rose-700 cursor-pointer p-1 rounded-md hover:bg-rose-50 transition"
-                title="Reject PR"
-              >
-                <XCircle size={18} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 whitespace-nowrap">
-              <button
-                type="button"
-                onClick={() => onView(r)}
-                className="text-gray-500 hover:text-emerald-600 cursor-pointer p-1 rounded-md hover:bg-emerald-50 transition"
-                title="View PR"
-              >
-                <Eye size={18} />
-              </button>
-            </div>
-          );
+        {
+          id: "code",
+          accessorFn: (row) => row.code,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => (
+            <CodeCell code={row.original.code} maxWidth="max-w-full" className="text-xs" />
+          ),
+          enableSorting: false,
+          size: 195,
         },
-        enableSorting: false,
-        size: 90,
-      },
-    ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [onApprove, onReject, onView],
-  );
+        {
+          id: "date",
+          accessorFn: (row) => row.date,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => <span className="text-gray-800 font-medium whitespace-nowrap text-xs">{row.original.date || '—'}</span>,
+          enableSorting: false,
+          size: 85,
+        },
+        {
+          id: "requiredDate",
+          accessorFn: (row) => row.requiredDate,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="REQ. DATE" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => <span className="text-gray-800 font-medium whitespace-nowrap text-xs">{row.original.requiredDate || '—'}</span>,
+          enableSorting: false,
+          size: 85,
+        },
+        {
+          id: "outlet",
+          accessorFn: (row) => row.outlet,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-full" />,
+          enableSorting: false,
+          size: 120,
+        },
+        {
+          id: "subOutletName",
+          accessorFn: (row) => row.subOutletName,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-full" />,
+          enableSorting: false,
+          size: 100,
+        },
+        {
+          id: "raisedBy",
+          accessorFn: (row) => row.raisedBy || row.createdByName,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => {
+            const name = row.original.raisedBy || row.original.createdByName;
+            return <TruncatedCell value={name || '—'} widthClass="max-w-full" />;
+          },
+          enableSorting: false,
+          size: 75,
+        },
+        {
+          id: "status",
+          accessorFn: (row) => row.status,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => <StatusPill status={row.original.status} />,
+          enableSorting: false,
+          size: 115,
+        },
+        {
+          id: "action",
+          header: ({ column }) => (
+            <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => {
+            const r = row.original;
+            const actionable = ACTIONABLE_STATUSES.includes(r.status);
+            return actionable ? (
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={() => onApprove(r)}
+                  className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-0.5 rounded-md hover:bg-emerald-50 transition"
+                  title="Approve PR"
+                >
+                  <CheckCircle2 size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onReject(r)}
+                  className="text-rose-500 hover:text-rose-700 cursor-pointer p-0.5 rounded-md hover:bg-rose-50 transition"
+                  title="Reject PR"
+                >
+                  <XCircle size={16} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={() => onView(r)}
+                  className="text-gray-500 hover:text-emerald-600 cursor-pointer p-0.5 rounded-md hover:bg-emerald-50 transition"
+                  title="View PR"
+                >
+                  <Eye size={16} />
+                </button>
+              </div>
+            );
+          },
+          enableSorting: false,
+          size: 75,
+        },
+      ],
+      [pagination.pageIndex, pagination.pageSize, onApprove, onReject, onView],
+    );
+
+  const pageCount = useMemo(() => {
+    if (prTotalPages > 0) return prTotalPages;
+    return Math.max(1, Math.ceil((prTotalElements || filtered.length) / pagination.pageSize));
+  }, [prTotalPages, prTotalElements, filtered.length, pagination.pageSize]);
 
   const table = useReactTable({
     data: filtered,
     columns,
     state: { pagination },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -480,7 +524,7 @@ function ListView({ onApprove, onReject, onView }) {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filtered.length}
+              recordCount={prTotalElements || filtered.length}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,

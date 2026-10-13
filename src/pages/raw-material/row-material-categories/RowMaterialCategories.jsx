@@ -280,7 +280,7 @@ const RowMaterialCategories = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">
+          <span className="text-gray-500 py-2 text-xs">
             {String(row.index + 1).padStart(2, '0')}
           </span>
         ),
@@ -297,7 +297,10 @@ const RowMaterialCategories = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800 py-2 capitalize">
+          <div
+            className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full"
+            title={row.original.nameEnglish}
+          >
             {row.original.nameEnglish}
           </div>
         ),
@@ -314,8 +317,11 @@ const RowMaterialCategories = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800 py-2 capitalize">
-            {row.original.typeName}
+          <div
+            className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full"
+            title={row.original.typeName}
+          >
+            {row.original.typeName || '—'}
           </div>
         ),
         size: 220,
@@ -543,6 +549,13 @@ const RowMaterialCategories = () => {
             table={table}
             recordCount={filteredCategories.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>

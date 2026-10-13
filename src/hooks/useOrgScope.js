@@ -39,8 +39,11 @@ export function useOrgScope() {
   const units = useMemo(() => {
     if (!parsedScope?.outlets) return [];
     return parsedScope.outlets.map((o) => ({
+      ...o,
       id: o.id,
-      name: o.name || `Outlet #${o.id}`,
+      name: o.name || o.companyNameEnglish || o.organizationName || `Outlet #${o.id}`,
+      companyNameEnglish: o.companyNameEnglish || o.name || o.organizationName || `Outlet #${o.id}`,
+      companyCode: o.companyCode || o.code || o.shortCode || o.organizationCode || null,
       code: o.code || o.shortCode || null,
       subCompanyId: o.parentId || null,
     }));

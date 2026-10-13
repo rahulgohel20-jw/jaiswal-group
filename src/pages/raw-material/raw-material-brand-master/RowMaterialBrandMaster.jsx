@@ -300,7 +300,11 @@ const RowMaterialBrandMaster = () => {
             className="text-[#43474F] font-semibold uppercase text-sm py-4"
           />
         ),
-        cell: ({ row }) => String(row.index + 1).padStart(2, '0'),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2 text-xs">
+            {String(row.index + 1).padStart(2, '0')}
+          </span>
+        ),
         enableSorting: false,
         size: 80,
       },
@@ -314,7 +318,10 @@ const RowMaterialBrandMaster = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-[#1B1B1F] capitalize">
+          <span
+            className="font-medium text-xs text-gray-800 capitalize truncate max-w-[220px] block"
+            title={row.original.name}
+          >
             {row.original.name}
           </span>
         ),
@@ -475,6 +482,13 @@ const RowMaterialBrandMaster = () => {
             table={table}
             recordCount={filteredBrands.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>

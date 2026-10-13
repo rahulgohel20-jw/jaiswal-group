@@ -54,8 +54,8 @@ import { useNavigate } from 'react-router';
 // Truncates long text within a fixed-width box, revealing the full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -727,7 +727,7 @@ const VendorUnitMapping = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500">
+          <span className="text-xs text-gray-500">
             {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
           </span>
         ),
@@ -742,7 +742,7 @@ const VendorUnitMapping = () => {
         ),
         cell: ({ row }) => (
           <div className="min-w-0">
-            <p className="font-semibold text-gray-900 leading-none truncate">
+            <p className="font-medium text-xs text-gray-800 leading-none truncate">
               {row.original.vendor?.name}
             </p>
           </div>
@@ -759,11 +759,10 @@ const VendorUnitMapping = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.vendor?.gstRegisteredName || '—'}
-            widthClass="max-w-[170px]"
           />
         ),
         enableSorting: false,
-        size: 180,
+        size: 220,
       },
       {
         id: 'units',

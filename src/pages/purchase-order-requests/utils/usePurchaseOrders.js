@@ -145,10 +145,11 @@ export const usePurchaseOrders = () => {
   const [current, setCurrent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
-  // Fetch POs for an outlet in a single API call (without passing status).
-  // Returns all POs for the outlet, allowing instant client-side filtering by status.
-  const fetchByOutletandStatus = useCallback(async (outletId, status) => {
+  // Fetch POs for an outlet with optional status and pagination parameters.
+  const fetchByOutletandStatus = useCallback(async (outletId, status, page, size, search) => {
     const finalOutletId = outletId === 'ALL' || !outletId ? 0 : outletId;
 
     setLoading(true);
@@ -159,15 +160,31 @@ export const usePurchaseOrders = () => {
           ? status
           : undefined;
 
-      const res = await getPurchaseOrdersByOutlet(finalOutletId, statusParam);
-      const responseData =
-        res?.data?.data !== undefined && res?.data?.data !== null
-          ? res?.data?.data
-          : res?.data;
-      const raw = Array.isArray(responseData) ? responseData : [];
+      const queryParams = {};
+      if (finalOutletId && finalOutletId !== 'ALL') {
+        queryParams.outletId = Number(finalOutletId);
+      }
+      if (statusParam) queryParams.status = statusParam;
+      if (page !== undefined && page !== null) queryParams.page = page;
+      if (size !== undefined && size !== null) queryParams.size = size;
+      if (search && typeof search === 'string' && search.trim()) queryParams.search = search.trim();
+
+      const res = await getPurchaseOrdersByOutlet(queryParams);
+      const body = res?.data || {};
+      const raw = Array.isArray(body.data)
+        ? body.data
+        : Array.isArray(body)
+        ? body
+        : [];
+      const total = Number(body.totalElements ?? raw.length);
+      const pages = Number(body.totalPages ?? Math.max(1, Math.ceil(total / (size || 10))));
+
+      setTotalElements(total);
+      setTotalPages(pages);
+
       const data = raw.filter((po) => po && po.id).map(normalizePo);
       setList(data);
-      return data;
+      return { data, total, pages };
     } catch (err) {
       setError(err?.message || 'Failed to load purchase orders.');
       throw err;
@@ -176,8 +193,8 @@ export const usePurchaseOrders = () => {
     }
   }, []);
 
-  const fetchByOutlet = useCallback(async (outletId) => {
-    return fetchByOutletandStatus(outletId);
+  const fetchByOutlet = useCallback(async (outletId, page, size, search) => {
+    return fetchByOutletandStatus(outletId, undefined, page, size, search);
   }, [fetchByOutletandStatus]);
 
   const fetchApprovedRequestsByOutlet = useCallback(async (outletId) => {
@@ -367,6 +384,8 @@ export const usePurchaseOrders = () => {
     current,
     loading,
     error,
+    totalElements,
+    totalPages,
     logs,
     logsLoading,
     logsError,

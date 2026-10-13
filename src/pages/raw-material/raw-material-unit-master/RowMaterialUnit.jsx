@@ -259,7 +259,11 @@ const RowMaterialUnit = () => {
             className="text-[#43474F] font-semibold py-4 uppercase text-sm"
           />
         ),
-        cell: ({ row }) => row.index + 1,
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2 text-xs">
+            {row.index + 1}
+          </span>
+        ),
         enableSorting: false,
         size: 80,
       },
@@ -273,9 +277,12 @@ const RowMaterialUnit = () => {
           />
         ),
         cell: ({ row }) => (
-          <p className="font-semibold text-gray-800 py-2 capitalize">
+          <span
+            className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full block"
+            title={row.original.name}
+          >
             {row.original.name}
-          </p>
+          </span>
         ),
       },
       {
@@ -288,9 +295,12 @@ const RowMaterialUnit = () => {
           />
         ),
         cell: ({ row }) => (
-          <p className="font-semibold text-gray-600 py-2 capitalize">
+          <span
+            className="font-medium text-xs text-gray-800 py-2 uppercase truncate max-w-full block"
+            title={row.original.symbol}
+          >
             {row.original.symbol}
-          </p>
+          </span>
         ),
       },
       {
@@ -478,6 +488,13 @@ const RowMaterialUnit = () => {
               table={table}
               recordCount={filteredUnits.length}
               className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
                 <CardTable>

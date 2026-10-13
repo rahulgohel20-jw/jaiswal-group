@@ -718,7 +718,7 @@ const AddPurchaseRequisition = () => {
 
     <div>
       <label className={labelCls}>
-        Sub-Unit / Location
+        Sub-Unit
       </label>
       {canPerformEdit && isPrEditable ? (
         <SearchableSelect
