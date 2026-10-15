@@ -3,6 +3,7 @@ import {
     ChevronRight,
     CircleCheck,
     CircleX,
+    Download,
     Eye,
     Plus,
     Sparkles,
@@ -38,6 +39,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 const StatusBadge = ({ status }) => {
     const color = status === "Active" ? "text-emerald-600" : "text-gray-500";
     return (
@@ -65,7 +67,7 @@ const mapSubCategory = (c, cats) => ({
 });
 
 const AssetSubCategory = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Category Master');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Sub Category Master');
     const navigate = useNavigate();
     const [subCategories, setSubCategories] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -86,6 +88,7 @@ const AssetSubCategory = () => {
 const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 const [deleteTarget, setDeleteTarget] = useState(null);
 const [deleteSaving, setDeleteSaving] = useState(false);
+const [showExportModal, setShowExportModal] = useState(false);
     const handleApplyFilter = () => {
         setAppliedFilters({
             search,
@@ -343,11 +346,19 @@ const confirmDelete = async () => {
                 <PageHeader
                     title="Asset Sub Categories"
                     actions={
-                        canAdd && (
-                            <HeaderActionButton onClick={openCreateModal}>
-                                Add Sub Category
-                            </HeaderActionButton>
-                        )
+                        <div className="flex items-center gap-3">
+                           {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openCreateModal}>
+                                    Add Sub Category
+                                </HeaderActionButton>
+                            )}
+                        </div>
                     }
                 />
 
@@ -487,7 +498,13 @@ const confirmDelete = async () => {
     itemLabel={deleteTarget?.itemLabel}
     saving={deleteSaving}
 />
-        </div>
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_subcategory"
+                    title="Export Asset Sub Category Report"
+                />
+            </div>
         </Container>
     );
 };

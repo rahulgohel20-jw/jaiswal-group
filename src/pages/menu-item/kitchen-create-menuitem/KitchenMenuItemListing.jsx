@@ -15,6 +15,7 @@ import {
     XCircle,
     Plus,
     Loader2,
+    Download,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
@@ -45,6 +46,7 @@ import { useModuleState } from '../../../hooks/useModuleState';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const StatCard = ({ label, value, icon, tone, textColor = 'text-black' }) => (
     <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
@@ -89,7 +91,7 @@ const KitchenMenuItemListing = () => {
         pageSize,
     } = filters;
 
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Menu Items');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Menu Items');
 
     // Temporary UI / Server states
     const [rowSelection, setRowSelection] = useState({});
@@ -98,6 +100,7 @@ const KitchenMenuItemListing = () => {
     const [menuItems, setMenuItems] = useState([]);
     const [error, setError] = useState(null);
     const [categoryOptions, setCategoryOptions] = useState([]);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     // Debounced search input synchronized with persistent filter state
     const [searchInput, setSearchInput] = useState(search);
@@ -531,13 +534,21 @@ const KitchenMenuItemListing = () => {
                     title="Menu Items Master"
                     description="Configure and manage kitchen menu items, pricing, categories, and item availability."
                     actions={
-                        canAdd && (
-                            <HeaderActionButton
-                                to="/menu-item/add-menu-items"
-                                icon={Plus}
-                                label="Add New Item"
-                            />
-                        )
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton
+                                    to="/menu-item/add-menu-items"
+                                    icon={Plus}
+                                    label="Add New Item"
+                                />
+                            )}
+                        </div>
                     }
                 />
 
@@ -681,6 +692,12 @@ const KitchenMenuItemListing = () => {
                     onConfirm={confirmDelete}
                     itemLabel={deleteTarget?.itemLabel}
                     saving={deleteSaving}
+                />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="k_menu_item"
+                    title="Export Menu Item Report"
                 />
             </div>
         </Container>

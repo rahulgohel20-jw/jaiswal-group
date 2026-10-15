@@ -12,6 +12,7 @@ import { SearchBar } from '@/components/common/SearchBar';
 import {
   CircleCheck,
   CircleX,
+  Download,
   Eye,
   Ruler,
   SquarePen,
@@ -44,9 +45,10 @@ import StatusConfirmModal from '../../../utils/StatusConfirmModal';
 import AddRawMaterialUnit from './AddRawMaterialUnit';
 import { useNavigate } from 'react-router';
 import { usePagePermissions } from '@/utils/permissions';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const RowMaterialUnit = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Unit Master');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Raw Material Unit Master');
 
   const [units, setUnit] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -65,6 +67,7 @@ const RowMaterialUnit = () => {
   const [statusTarget, setStatusTarget] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const navigate = useNavigate();
   const confirmStatusChange = async () => {
@@ -426,11 +429,19 @@ const RowMaterialUnit = () => {
         <PageHeader
           title="Unit of Measurement Master"
           actions={
-            canAdd && (
-              <HeaderActionButton onClick={handleAddClick}>
-                Add Unit
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={handleAddClick}>
+                  Add Unit
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -537,6 +548,12 @@ const RowMaterialUnit = () => {
         onConfirm={confirmDelete}
         itemLabel={deleteTarget?.name}
         saving={deleteLoading}
+      />
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="units"
+        title="Export Raw Material Units Report"
       />
     </Container>
   );

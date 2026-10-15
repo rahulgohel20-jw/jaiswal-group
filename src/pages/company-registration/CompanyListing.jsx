@@ -9,6 +9,7 @@ import {
   getSortedRowModel
 } from '@tanstack/react-table';
 import {
+  Download,
   Eye,
   Filter,
   Loader2,
@@ -40,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import MasterExportModal from '../../utils/MasterExportModal';
 
 /* -----------------------------------------------------------------------
  * Status badge
@@ -113,7 +115,7 @@ function StatusDropdown({ value, onChange }) {
  * -------------------------------------------------------------------- */
 const CompanyListing = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Companies');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Companies');
 
   const [companies,    setCompanies]    = useState([]);
   const [search,       setSearch]       = useState('');
@@ -125,7 +127,8 @@ const CompanyListing = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget,      setDeleteTarget]      = useState(null);
   const [deleteLoading,     setDeleteLoading]     = useState(false);
-   const [sorting, setSorting] = useState([]);
+  const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const normalizeCompany = (item) => ({
     id:        item.id,
@@ -371,11 +374,19 @@ const CompanyListing = () => {
         <PageHeader
           title="Registered Companies"
           actions={
-            canAdd && (
-              <HeaderActionButton to="/companies/registration">
-                Add New Company
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
+                icon={<Download className={`w-3.5 h-3.5`} />}
+                label="Export"
+              />}
+              {canAdd && (
+                <HeaderActionButton to="/companies/registration">
+                  Add New Company
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -431,6 +442,13 @@ const CompanyListing = () => {
         </div>
 
       </div>
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="organizations"
+        title="Export Company Report"
+        organizationType="SUB_COMPANY"
+      />
 
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}

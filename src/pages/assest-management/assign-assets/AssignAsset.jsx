@@ -14,6 +14,7 @@ import {
   ChevronRight,
   CircleCheck,
   Clock,
+  Download,
   Eye,
   MapPin,
   Package,
@@ -56,6 +57,7 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Safely pulls the array out of a response, regardless of whether the
 // service resolves to the raw axios response, an already-unwrapped
@@ -244,8 +246,8 @@ const AssignmentPreviewDrawer = ({
 };
 
 const AssignAssets = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assigned Asset');
-
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Assigned Asset');
+  const [showExportModal, setShowExportModal] = useState(false);
   const {
     isOutletUser,
     isCompanyUser,
@@ -807,11 +809,19 @@ const AssignAssets = () => {
         <PageHeader
           title="Assign Assets"
           actions={
-            canAdd && (
-              <HeaderActionButton to="/assets/assign-asset">
-                Assign Asset
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton to="/assets/assign-asset">
+                  Assign Asset
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -942,6 +952,12 @@ const AssignAssets = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.itemLabel}
           saving={deleteSaving}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="assign_asset"
+          title="Export Assign Asset Report"
         />
       </div>
     </Container>

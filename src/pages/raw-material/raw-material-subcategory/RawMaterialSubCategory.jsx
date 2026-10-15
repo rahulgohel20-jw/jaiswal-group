@@ -11,6 +11,7 @@ import {
     Blocks,
     CircleCheck,
     CircleX,
+    Download,
     Eye,
     SquarePen,
     Trash2,
@@ -40,6 +41,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { deleteRawMaterialSubCategoryById, getAllRowMaterialSubCategory, getRawMaterialSubCategoryById, saveOrUpdateRawMaterialSubCategory } from '../../../services/apiServices';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const mapSubCategory = (c) => {
     const isActive = Boolean(c.isActive ?? c.active);
@@ -64,7 +66,8 @@ const unwrapListPayload = (payload) => {
 };
 
 const RowMaterialSubCategory = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Categories');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Sub Categories');
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const [subCategoriesData, setSubCategoriesData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
@@ -468,11 +471,19 @@ const RowMaterialSubCategory = () => {
                 <PageHeader
                     title="Raw Material Sub Category Master"
                     actions={
-                        canAdd && (
-                            <HeaderActionButton onClick={openCreateModal}>
-                                Add Sub Category
-                            </HeaderActionButton>
-                        )
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openCreateModal}>
+                                    Add Sub Category
+                                </HeaderActionButton>
+                            )}
+                        </div>
                     }
                 />
 
@@ -614,6 +625,12 @@ const RowMaterialSubCategory = () => {
                     onConfirm={confirmDelete}
                     itemLabel={deleteTarget?.name}
                     saving={deleteLoading}
+                />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="raw_material_sub_category"
+                    title="Export Raw Material Sub Category Report"
                 />
             </div>
         </Container>

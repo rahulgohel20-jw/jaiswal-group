@@ -44,6 +44,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 // TODO: replace with the actual logged-in user id from your auth/session context
 const CURRENT_USER_ID = 1;
 
@@ -77,7 +78,7 @@ const normalizeStatusForm = (raw = {}) => ({
 const EMPTY_FORM = { id: null, name: "", description: "", active: true };
 
 const StatusMasterModule = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Status Master');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Status Master');
 
     const [statusData, setStatusData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
@@ -93,6 +94,7 @@ const StatusMasterModule = () => {
     const [formData, setFormData] = useState(EMPTY_FORM);
 
     const [deletingId, setDeletingId] = useState(null);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const [searchInput, setSearchInput] = useState("");
     const [statusInput, setStatusInput] = useState("All Status");
@@ -390,11 +392,19 @@ const StatusMasterModule = () => {
                 <PageHeader
                     title="Status Master"
                     actions={
-                        canAdd && (
-                            <HeaderActionButton onClick={openAddModal}>
-                                Add Status
-                            </HeaderActionButton>
-                        )
+                        <div className="flex items-center gap-3">
+                           {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openAddModal}>
+                                    Add Status
+                                </HeaderActionButton>
+                            )}
+                        </div>
                     }
                 />
 
@@ -515,6 +525,12 @@ const StatusMasterModule = () => {
                     onConfirm={confirmDelete}
                     itemLabel={deleteTarget?.itemLabel}
                     saving={deleteSaving}
+                />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_status"
+                    title="Export Asset Status Report"
                 />
             </div>
         </Container>

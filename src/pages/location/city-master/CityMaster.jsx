@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Container } from "@/components/common/container";
 import { SearchBar } from "@/components/common/SearchBar";
 import {
+  Download,
   Eye,
   SquarePen,
   Trash2,
@@ -37,10 +38,11 @@ import { PageHeader } from '@/components/common/PageHeader';
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import AddCityModel from "./AddCityModel";
 import { useNavigate } from "react-router";
+import MasterExportModal from "../../../utils/MasterExportModal";
 
 
 const CityMaster = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('City');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('City');
 
   const [search, setSearch] = useState("");
   const [cities, setCities] = useState([]);
@@ -64,6 +66,7 @@ const CityMaster = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // ---------------- FETCH CITIES ----------------
   const fetchCities = useCallback(async () => {
@@ -329,11 +332,19 @@ const TruncatedCell = ({
         <PageHeader
           title="City Master"
           actions={
-            canAdd && (
-              <HeaderActionButton onClick={openAddModal}>
-                Add City
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={openAddModal}>
+                  Add City
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -411,6 +422,12 @@ const TruncatedCell = ({
           saving={deleteSaving}
         />
 
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="cities"
+          title="Export City Report"
+        />
       </div>
     </Container>
   );

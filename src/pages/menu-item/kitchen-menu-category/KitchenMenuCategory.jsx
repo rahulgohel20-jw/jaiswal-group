@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-table';
 import {
   ChevronRight,
+  Download,
   Loader2,
   Search,
   SquarePen,
@@ -42,9 +43,10 @@ import { useNavigate } from 'react-router';
 import { SearchBar } from '@/components/common/SearchBar';
 import { PageHeader } from '@/components/common/PageHeader';
 import KitchenCreateMenuCategory from './KitchenCreateMenuCategory';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const KitchenMenuCategory = () => {
-  const { canView, canAdd, canEdit, canDelete } = usePagePermissions('Categories');
+  const { canView, canAdd, canEdit, canDelete, canExport } = usePagePermissions('Menu Categories');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categories, setCategories] = useState([]);
@@ -62,6 +64,7 @@ const KitchenMenuCategory = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const navigate = useNavigate();
 
   const openDeleteConfirm = (row) => {
@@ -358,16 +361,24 @@ const KitchenMenuCategory = () => {
         <PageHeader
           title="Menu Category Master"
           actions={
-            canAdd && (
-              <HeaderActionButton
-                onClick={() => {
-                  setEditData(null);
-                  setOpenCategory(true);
-                }}
-              >
-                Create New
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton
+                  onClick={() => {
+                    setEditData(null);
+                    setOpenCategory(true);
+                  }}
+                >
+                  Create New
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -457,6 +468,12 @@ const KitchenMenuCategory = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.itemLabel}
           saving={deleteSaving}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="k_menucategory"
+          title="Export Menu Category Report"
         />
       </div>
     </Container>

@@ -8,6 +8,7 @@ import {
   Boxes,
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
   History,
   SquarePen,
@@ -30,6 +31,7 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { PageHeader } from '@/components/common/PageHeader';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const PAGE_SIZE = 10;
 
@@ -58,7 +60,7 @@ const mapRole = (d) => ({
 
 const RoleMaster = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Roles');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Roles');
 
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +78,7 @@ const RoleMaster = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deletingRole, setDeletingRole] = useState(null);
   const [deleting, setDeleting] = useState(false);
-
+  const [showExportModal, setShowExportModal] = useState(false);
   const fetchRoles = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -238,16 +240,24 @@ const RoleMaster = () => {
         <PageHeader
           title="Role Master"
           actions={
-            canAdd && (
-              <HeaderActionButton
-                onClick={() => {
-                  setEditingRole(null);
-                  setIsAddOpen(true);
-                }}
-              >
-                Create Role
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
+                icon={<Download className={`w-3.5 h-3.5`} />}
+                label="Export"
+              />}
+              {canAdd && (
+                <HeaderActionButton
+                  onClick={() => {
+                    setEditingRole(null);
+                    setIsAddOpen(true);
+                  }}
+                >
+                  Create Role
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -434,6 +444,12 @@ const RoleMaster = () => {
           itemLabel={deletingRole?.name}
           saving={deleting}
           title="Delete Role"
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="roles"
+          title="Export Role Report"
         />
       </div>
     </Container>

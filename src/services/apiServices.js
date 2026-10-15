@@ -1729,3 +1729,9 @@ export const getBrandMappingBySubOutlet = (outletId, subOutletId) => {
 export const deleteBrandMappingByOutletAndSubOutlet = (outletId, subOutletId) => {
   return DELETE(`/brand-mapping/deletebyoutletidandsuboutletid?outletId=${outletId}&subOutletId=${subOutletId}`);
 }
+//Master Report export API
+export const exportMasterTableReport = (payload) => {
+  return POST('/master-reports/export', payload, {
+    skipGlobalToast: true,
+  });
+};

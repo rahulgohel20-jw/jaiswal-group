@@ -22,6 +22,10 @@ import {
 } from "@/components/ui/select";
 import { deleteAssetMaintenanceById, getAllAssetsMaintenance, getAllAssetsMaintenancePaginated, getAssetMaintenanceById, getAssetsMaintenanceByStatus, getByMaintenanceDateRangeAndStatus } from '../../../services/apiServices';
 import ViewMaintenanceModal from './ViewMaintenanceModal';
+import MasterExportModal from '../../../utils/MasterExportModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 const StatusBadge = ({ status }) => {
     return (
@@ -57,6 +61,7 @@ const parseDateToTimestamp = (dateStr) => {
     return isNaN(parsed) ? 0 : parsed;
 };
 const AssetsMaintenance = () => {
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Asset Maintenance');
     const [maintenanceData, setMaintenanceData] = useState([]);
     const [statsData, setStatsData] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
@@ -78,6 +83,7 @@ const AssetsMaintenance = () => {
     const [viewLoading, setViewLoading] = useState(false);
     const [viewMaintenanceData, setViewMaintenanceData] = useState(null);
      const [sorting, setSorting] = useState([]);
+     const [showExportModal, setShowExportModal] = useState(false);
 
     const fetchStatsData = async () => {
         try {
@@ -332,15 +338,15 @@ const AssetsMaintenance = () => {
                         <Eye size={18} />
                     </button>
 
-                    <Link to={`/assets/edit-maintenance-log/${row.original.id}`}>
+                    {canEdit && <Link to={`/assets/edit-maintenance-log/${row.original.id}`}>
                         <button className="text-gray-500 hover:text-blue-600 cursor-pointer py-2">
                             <SquarePen size={18} />
                         </button>
-                    </Link>
+                    </Link>}
 
-                    <button onClick={() => openDeleteConfirm(row.original)} className="text-red-300 hover:text-red-600 cursor-pointer">
+                    {canDelete && <button onClick={() => openDeleteConfirm(row.original)} className="text-red-300 hover:text-red-600 cursor-pointer">
                         <Trash2 size={18} />
-                    </button>
+                    </button>}
                 </div>
             ),
             enableSorting: false,
@@ -378,6 +384,9 @@ const AssetsMaintenance = () => {
         pageCount,
         getCoreRowModel: getCoreRowModel(),
     });
+    if (!canView) {
+        return <AccessDenied pageTitle="Asset Maintenance" />;
+    }
 
     return (
         <Container>
@@ -385,12 +394,22 @@ const AssetsMaintenance = () => {
                 <PageHeader
                     title="Maintenance Log"
                     actions={
-                        <HeaderActionButton to="/assets/add-maintenance-log">
-                            Add Maintenance Log
-                        </HeaderActionButton>
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton to="/assets/add-maintenance-log">
+                                    Add Maintenance Log
+                                </HeaderActionButton>
+                            )}
+                        </div>
                     }
                 />
-
+                <PageErrorAlert error={error} onRetry={fetchMaintenanceData} className="my-3" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
                     {STATS.map((item, index) => {
                         const Icon = item.icon;
@@ -528,7 +547,12 @@ const AssetsMaintenance = () => {
                     saving={deleteSaving}
                 />
 
-
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="asset_maintenance_log"
+                    title="Export Asset Maintenance Report"
+                />
             </div>
         </Container>
     )

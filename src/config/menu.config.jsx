@@ -529,7 +529,7 @@ export const MENU_SIDEBAR = [
     title: 'Menu Item',
     icon: ShoppingCart,
     children: [
-      { title: 'Categories', path: '/menu-item/categories' },
+      { title: 'Menu Categories', path: '/menu-item/categories' },
       // { title: 'Sub Category', path: '/menu-item/sub-category' },
       { title: 'Menu Items', path: '/menu-item/menu-items' },
       { title: 'Menu Item Consumption', path: '/menu-item/consumption' },
@@ -662,7 +662,7 @@ export const MENU_SIDEBAR_ADMIN = [
     title: 'Menu Item',
     icon: ShoppingCart,
     children: [
-      { title: 'Categories', path: '/menu-item/categories' },
+      { title: 'Menu Categories', path: '/menu-item/categories' },
       // { title: 'Sub Category', path: '/menu-item/sub-category' },
       { title: 'Menu Items', path: '/menu-item/menu-items' },
       { title: 'Menu Item Consumption', path: '/menu-item/consumption' },

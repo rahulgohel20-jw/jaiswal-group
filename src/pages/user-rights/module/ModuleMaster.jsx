@@ -7,7 +7,7 @@ import {
   getSortedRowModel,
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
-import { ChevronRight, Eye, Plus, SquarePen, Trash2 } from 'lucide-react';
+import { ChevronRight, Download, Eye, Plus, SquarePen, Trash2 } from 'lucide-react';
 import { deleteModuleRight, getModuleRights } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -24,6 +24,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddModuleRightModal from './AddModuleRightModal';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Maps a raw API module-right object (+ its row position) to the shape the table expects.
 // Adjust the ?? fallbacks once you confirm the exact field names getModuleRights returns.
@@ -52,8 +53,8 @@ const formatDate = (value) => {
 };
 
 const ModuleMaster = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Module Rights');
-
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Module Rights');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [moduleRights, setModuleRights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -318,11 +319,19 @@ const ModuleMaster = () => {
         <PageHeader
           title="Module Right Name Master"
           actions={
-            canAdd && (
-              <HeaderActionButton onClick={openCreateModal}>
-                Add Module Name
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
+                icon={<Download className={`w-3.5 h-3.5`} />}
+                label="Export"
+              />}
+              {canAdd && (
+                <HeaderActionButton onClick={openCreateModal}>
+                  Add Module Name
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -385,6 +394,12 @@ const ModuleMaster = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.name}
           saving={deleteLoading}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="userrights_module"
+          title="Export Module Rights Report"
         />
       </div>
     </Container>

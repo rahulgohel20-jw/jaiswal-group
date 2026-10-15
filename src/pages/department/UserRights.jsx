@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { getApiErrorMessage } from '@/utils/toast';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { getAllRoleMasterByUserId } from '@/services/apiServices';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -12,6 +12,8 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import PermissionsModal from './PermissionsModal';
 import { useNavigate } from 'react-router';
+import HeaderActionButton from '../../components/common/HeaderActionButton';
+import MasterExportModal from '../../utils/MasterExportModal';
 
 // Backend sends createdAt as "DD/MM/YYYY" (e.g. "06/08/2026" = 06 Aug 2026).
 // Reused verbatim from Departmentlist.jsx's date-parsing logic.
@@ -40,8 +42,8 @@ const mapRole = (row) => ({
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 const UserRights = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('User Rights');
-
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('User Rights');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -105,7 +107,16 @@ const UserRights = () => {
       <div className="pt-2 pb-6 mx-auto space-y-3.5">
         <PageHeader
           title="User Rights"
+          actions={
+            canExport && <HeaderActionButton
+              variant="outline"
+              onClick={() => setShowExportModal(true)}
+              icon={<Download className={`w-3.5 h-3.5`} />}
+              label="Export"
+            />
+          }
         />
+
 
         <PageErrorAlert
           error={error}
@@ -239,6 +250,12 @@ const UserRights = () => {
           mode={permissionsModal.mode}
           canEdit={canEdit}
           canAdd={canAdd}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="userrights"
+          title="Export User Rights Report"
         />
       </div>
     </Container>

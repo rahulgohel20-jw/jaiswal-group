@@ -15,6 +15,7 @@ import {
   Plus,
   SquarePen,
   Trash2,
+  Download,
 } from 'lucide-react';
 import {
   addDepartmentMaster,
@@ -33,6 +34,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../utils/MasterExportModal';
 
 const PAGE_SIZE = 5;
 
@@ -63,7 +65,7 @@ const mapDepartment = (d) => ({
 
 const Departmentlist = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Departments');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Departments');
 
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +84,7 @@ const Departmentlist = () => {
   const [deletingDepartment, setDeletingDepartment] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [showExportModal, setShowExportModal] = useState(false);
   const fetchDepartments = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -241,16 +244,24 @@ const Departmentlist = () => {
         <PageHeader
           title="Department Master"
           actions={
-            canAdd && (
-              <HeaderActionButton
-                onClick={() => {
-                  setEditingDepartment(null);
-                  setIsAddOpen(true);
-                }}
-              >
-                Create Department
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton
+                  onClick={() => {
+                    setEditingDepartment(null);
+                    setIsAddOpen(true);
+                  }}
+                >
+                  Create Department
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -421,6 +432,14 @@ const Departmentlist = () => {
           itemLabel={deletingDepartment?.name}
           saving={deleting}
           title="Delete Department"
+        />
+
+        {/* Master Report Export Modal */}
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="departments"
+          title="Export Department Report"
         />
       </div>
     </Container>

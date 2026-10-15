@@ -23,6 +23,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageHeader } from '@/components/common/PageHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { SearchBar } from '@/components/common/SearchBar';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
 const unwrapList = (res) => {
@@ -99,7 +100,7 @@ const ConditionBadge = ({ condition }) => {
 
 const AssetsManagement = () => {
     const navigate = useNavigate();
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assets');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Assets');
 
     const [assets, setAssets] = useState([]);
     const [assetsLoading, setAssetsLoading] = useState(true);
@@ -116,7 +117,7 @@ const AssetsManagement = () => {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
     const [sorting, setSorting] = useState([]);
-
+    const [showExportModal, setShowExportModal] = useState(false);
     const fetchAssets = async () => {
         setAssetsLoading(true);
         setAssetsError(null);
@@ -452,13 +453,21 @@ const AssetsManagement = () => {
          <div className="pt-2 pb-6 mx-auto space-y-3.5">
             <PageHeader
                 title="Assets"
-                actions={
-                    canAdd && (
-                        <HeaderActionButton to="/assets/add-asset">
-                            Add Asset
-                        </HeaderActionButton>
-                    )
-                }
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton to="/assets/add-asset">
+                                    Add Asset
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
             />
 
             <div className='flex flex-col xl:flex-row gap-4 text-[#43474F]'>
@@ -614,6 +623,12 @@ const AssetsManagement = () => {
                 itemLabel={deleteTarget?.itemLabel}
                 saving={deleteSaving}
             />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets"
+                    title="Export Assets Report"
+                />
         </div>
        </Container>
     )

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Container } from "@/components/common/container";
 import { SearchBar } from "@/components/common/SearchBar";
-import { Eye, SquarePen, Trash2 } from 'lucide-react';
+import { Download, Eye, SquarePen, Trash2 } from 'lucide-react';
 import {
     getCoreRowModel,
     getPaginationRowModel,
@@ -23,9 +23,11 @@ import { PageHeader } from '@/components/common/PageHeader';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddStateModel from './AddStateModel';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const StateMaster = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('State');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('State');
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const [search, setSearch] = useState('');
     const [states, setStates] = useState([]);
@@ -253,11 +255,19 @@ const TruncatedCell = ({
                 <PageHeader
                     title="State Master"
                     actions={
-                        canAdd && (
-                            <HeaderActionButton onClick={openAddModal}>
-                                Add State
-                            </HeaderActionButton>
-                        )
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openAddModal}>
+                                    Add State
+                                </HeaderActionButton>
+                            )}
+                        </div>
                     }
                 />
 
@@ -326,7 +336,12 @@ const TruncatedCell = ({
                     itemLabel={deleteTarget?.itemLabel}
                     saving={deleteSaving}
                 />
-
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="states"
+                    title="Export State Report"
+                />
             </div>
         </Container>
     )

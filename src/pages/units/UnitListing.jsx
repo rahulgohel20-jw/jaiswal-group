@@ -8,6 +8,7 @@ import {
   getSortedRowModel
 } from '@tanstack/react-table';
 import {
+  Download,
   Eye,
   Filter,
   Loader2,
@@ -43,6 +44,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import SearchableSelect from '../../utils/SearchableSelect';
+import MasterExportModal from "../../utils/MasterExportModal";
 
 /* -----------------------------------------------------------------------
  * Status badge — rounded-full pill style matching PurchaseRequisitionList
@@ -134,7 +136,7 @@ const normalizeUnit = (item) => ({
 
 const UnitListing = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Units');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Units');
 
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -142,12 +144,13 @@ const UnitListing = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-   const [sorting, setSorting] = useState([]);
+  const [sorting, setSorting] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [companyFilter, setCompanyFilter] = useState('');
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Defined at component level so the retry button can call it too
   const fetchCompanies = async () => {
@@ -459,11 +462,19 @@ const UnitListing = () => {
         <PageHeader
           title="Registered Units"
           actions={
-            canAdd && (
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              { canAdd && (
               <HeaderActionButton to="/units/add-unit">
                 Add New Unit
               </HeaderActionButton>
-            )
+            )}
+            </div>
           }
         />
 
@@ -486,18 +497,18 @@ const UnitListing = () => {
             />
           </div>
 
-          <div className="w-55 shrink-0">
-            <SearchableSelect
-              name="company"
-              value={companyFilter}
-              onChange={(e) => setCompanyFilter(e.target.value)}
-              options={companies.map((company) => ({
-                value: String(company.id),
-                label: company.companyNameEnglish,
-              }))}
-              placeholder="Select Company"
-            />
-          </div>
+            <div className="w-55 shrink-0">
+              <SearchableSelect
+                name="company"
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                options={companies.map((company) => ({
+                  value: String(company.id),
+                  label: company.companyNameEnglish,
+                }))}
+                placeholder="Select Company"
+              />
+            </div>
 
           <div className="w-47.5 shrink-0">
             <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
@@ -536,7 +547,13 @@ const UnitListing = () => {
           )}
         </div>
       </div>
-
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="organizations"
+        title="Export Unit Report"
+        organizationType="OUTLET"
+      />
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
         onClose={closeDeleteConfirm}

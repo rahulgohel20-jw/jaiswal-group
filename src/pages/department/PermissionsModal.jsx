@@ -16,6 +16,7 @@ const ACTIONS = [
   { key: 'edit', label: 'Edit' },
   { key: 'view', label: 'View' },
   { key: 'delete', label: 'Delete' },
+  { key: 'export', label: 'Export' },
 ];
 
 // ADJUST: normalizes getPages() into { moduleName: [ {id, name}, ... ] }.
@@ -48,14 +49,15 @@ const normalizeExistingRights = (res) => {
         edit: Boolean(r.edit),
         view: Boolean(r.view),
         delete: Boolean(r.delete),
+        export: Boolean(r.export)
       };
     });
   });
   return map;
 };
 
-const emptyRow = { add: false, edit: false, view: false, delete: false };
-const fullRow = { add: true, edit: true, view: true, delete: true };
+const emptyRow = { add: false, edit: false, view: false, delete: false, export:false };
+const fullRow = { add: true, edit: true, view: true, delete: true, export:true };
 
 const PermissionsModal = ({
   isOpen,
@@ -189,9 +191,10 @@ const PermissionsModal = ({
             edit: row.edit,
             view: row.view,
             delete: row.delete,
+            export: row.export
           };
         })
-        .filter((r) => r.add || r.edit || r.view || r.delete);
+        .filter((r) => r.add || r.edit || r.view || r.delete || r.export);
       // ADJUST: still worth confirming whether unchecked/all-false pages should
       // be included (to explicitly revoke previously granted rights) or omitted
       // entirely like this. If a role had "Edit" on a page and you uncheck it,

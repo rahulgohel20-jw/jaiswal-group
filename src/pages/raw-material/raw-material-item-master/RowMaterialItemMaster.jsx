@@ -1,4 +1,4 @@
-import {CircleCheck, CircleX, ClipboardList, Eye, SquarePen, Trash2 } from 'lucide-react'
+import { CircleCheck, CircleX, ClipboardList, Download, Eye, SquarePen, Trash2 } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { SearchBar } from '@/components/common/SearchBar';
 import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
@@ -27,9 +27,10 @@ import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { useNavigate } from 'react-router';
 import HeaderActionButton from '../../../components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const RowMaterialItemMaster = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Items');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Raw Material Items');
     const navigate = useNavigate();
     const [itemData, setItemData] = useState([]);
     const [pagination, setPagination] = useState({
@@ -54,6 +55,7 @@ const RowMaterialItemMaster = () => {
         inactive: 0,
     });
     const [totalItems, setTotalItems] = useState(0);
+    const [showExportModal, setShowExportModal] = useState(false);
     const [sorting, setSorting] = useState([]);
     const fetchStats = useCallback(async () => {
         try {
@@ -500,13 +502,21 @@ const RowMaterialItemMaster = () => {
                 <PageHeader
                     title="Raw Material Items Master"
                     actions={
-                        canAdd && (
-                            <HeaderActionButton
-                                onClick={() => navigate('/material/items/add')}
-                            >
-                                Add New Item
-                            </HeaderActionButton>
-                        )
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton
+                                    onClick={() => navigate('/material/items/add')}
+                                >
+                                    Add New Item
+                                </HeaderActionButton>
+                            )}
+                        </div>
                     }
                 />
 
@@ -634,6 +644,12 @@ const RowMaterialItemMaster = () => {
                 onConfirm={confirmDelete}
                 itemLabel={deleteTarget?.name}
                 saving={deleteLoading}
+            />
+            <MasterExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                tableName="rawmaterial"
+                title="Export Raw Material Report"
             />
         </Container>
     )

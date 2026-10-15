@@ -8,6 +8,7 @@ import {
   getSortedRowModel
 } from '@tanstack/react-table';
 import {
+  Download,
   Eye,
   Loader2,
   SquarePen,
@@ -28,6 +29,8 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SearchBar } from '@/components/common/SearchBar';
 import { extractList, mapVendorToRow } from './vendorHelper';
+import MasterExportModal from '../../utils/MasterExportModal';
+
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
 const TruncatedCell = ({
@@ -68,7 +71,7 @@ const str = (val) => String(val ?? '');
 
 const VendorList = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Vendors');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Vendors');
 
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,6 +85,7 @@ const VendorList = () => {
   const [deleteSaving, setDeleteSaving] = useState(false);
    const [sorting, setSorting] = useState([]);
 
+  const [showExportModal, setShowExportModal] = useState(false);
   const fetchVendors = async () => {
     setLoading(true);
     setError('');
@@ -331,11 +335,20 @@ const VendorList = () => {
         <PageHeader
           title="Vendor Management List"
           actions={
-            canAdd && (
-              <HeaderActionButton to="/vendors/add-vendor">
-                Add New Vendor
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton to="/vendors/add-vendor">
+                  Add New Vendor
+                </HeaderActionButton>
+              )}
+            </div>
+
           }
         />
 
@@ -388,6 +401,12 @@ const VendorList = () => {
         </div>
       </div>
 
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="vendors"
+        title="Export Vendors Report"
+      />
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
         onClose={closeDeleteConfirm}

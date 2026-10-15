@@ -14,8 +14,6 @@ import { Container } from "@/components/common/container";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
   getKitchenMenuItemRecipe,
-  getAllKitchenMenuItem,
-  getAllRawMaterialUnits,
 } from "../../../services/apiServices";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { getOrgIdFromToken } from "../../../utils/auth";
@@ -49,40 +47,7 @@ const ViewItemRecipe = () => {
 
   const [loading, setLoading] = useState(true);
   const [recipeData, setRecipeData] = useState(null);
-  const [menuItemDetails, setMenuItemDetails] = useState(null);
-  const [unitCatalog, setUnitCatalog] = useState([]);
-
-  useEffect(() => {
-    const fetchCatalog = async () => {
-      try {
-        const [unitsRes, menuRes] = await Promise.all([
-          getAllRawMaterialUnits(),
-          getAllKitchenMenuItem({ page: 1, size: 2000, isAsc: true }),
-        ]);
-
-        const rawUnits =
-          unitsRes?.data?.data?.["Unit Details"] ||
-          unitsRes?.data?.["Unit Details"] ||
-          unitsRes?.data?.data ||
-          [];
-        setUnitCatalog(Array.isArray(rawUnits) ? rawUnits : []);
-
-        const menuList =
-          menuRes?.data?.data?.items ||
-          menuRes?.data?.data ||
-          menuRes?.data ||
-          [];
-        if (Array.isArray(menuList)) {
-          const match = menuList.find((m) => String(m.id) === String(menuItemId));
-          setMenuItemDetails(match || null);
-        }
-      } catch (err) {
-        console.error("Failed to load catalog details:", err);
-      }
-    };
-    fetchCatalog();
-  }, [menuItemId]);
-
+  
   useEffect(() => {
     if (!menuItemId || !outletId) {
       setLoading(false);
@@ -153,10 +118,8 @@ const ViewItemRecipe = () => {
     return match?.name || `Outlet #${outletId}`;
   }, [units, outletId]);
 
-  const getUnitName = (id, fallback) => {
-    if (!id) return fallback || "—";
-    const match = unitCatalog.find((u) => String(u.id) === String(id));
-    return match?.nameEnglish || match?.unitName || fallback || `Unit #${id}`;
+ const getItemUnitName = (item) => {
+    return ( item?.unit?.nameEnglish || item?.unit?.symbolEnglish || item?.unitName || "—" );
   };
 
   if (loading) {
@@ -211,7 +174,7 @@ const ViewItemRecipe = () => {
             <div>
               <span className="text-xs text-gray-400 font-medium block">Menu Item</span>
               <p className="text-sm font-bold text-gray-900 mt-0.5">
-                {menuItemDetails?.nameEnglish || recipeData?.name || `Item #${menuItemId}`}
+                 {header?.menuItemName || recipeData?.name || `Item #${menuItemId}`}
               </p>
             </div>
             <div>
@@ -221,9 +184,9 @@ const ViewItemRecipe = () => {
             <div>
               <span className="text-xs text-gray-400 font-medium block">Weight</span>
               <p className="text-sm font-bold text-gray-900 mt-0.5">
-                {header?.weight ?? recipeData?.weight ?? "—"}{" "}
+                {header?.weight ?? recipeData?.weight ?? "-"}{" "}
                 <span className="text-xs font-normal text-gray-500">
-                  {getUnitName(header?.unitId ?? recipeData?.unitId)}
+                  {header?.unitName || "-"}
                 </span>
               </p>
             </div>
@@ -268,17 +231,17 @@ const ViewItemRecipe = () => {
                       <td className="py-2.5 px-4 text-center text-gray-400">
                         {String(idx + 1).padStart(2, "0")}
                       </td>
-                      <td className="py-2.5 px-4 font-semibold text-gray-900 truncate" title={rm.name || rm.rawMaterialName || rm.rawMaterial?.nameEnglish}>
-                        {rm.name || rm.rawMaterialName || rm.rawMaterial?.nameEnglish || `Material #${rm.rawMaterialId}`}
+                      <td className="py-2.5 px-4 font-semibold text-gray-900 truncate" title={rm.rawMaterial?.nameEnglish || rm.rawMaterialName || rm.name}>
+                        {rm.rawMaterial?.nameEnglish || rm.rawMaterialName || rm.name || `Material #${rm.id}`}
                       </td>
-                      <td className="py-2.5 px-4 text-gray-500 truncate" title={rm.category || rm.rawMaterial?.rawMaterialCat?.nameEnglish}>
-                        {rm.category || rm.rawMaterial?.rawMaterialCat?.nameEnglish || "-"}
+                      <td className="py-2.5 px-4 text-gray-500 truncate" title={rm.rawMaterial?.rawMaterialCat?.nameEnglish || rm.category}>
+                        {rm.rawMaterial?.rawMaterialCat?.nameEnglish || rm.category || "—"}
                       </td>
                       <td className="py-2.5 px-4 font-medium text-gray-900 truncate">
                         {rm.weight ?? "-"}
                       </td>
                       <td className="py-2.5 px-4 text-gray-600 truncate">
-                        {rm.unitName || rm.unit?.nameEnglish || getUnitName(rm.unitId)}
+                        {getItemUnitName(rm)}
                       </td>
                     </tr>
                   ))
@@ -319,7 +282,7 @@ const ViewItemRecipe = () => {
                         {cr.weight ?? "-"}
                       </td>
                       <td className="py-2.5 px-4 text-gray-600 truncate">
-                        {cr.unitName || getUnitName(cr.unitId)}
+                        {cr.unitName || "—"}
                       </td>
                     </tr>
                   ))}
@@ -349,7 +312,7 @@ const ViewItemRecipe = () => {
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-bold text-gray-900">{item.quantity}</span>{" "}
-                    <span className="text-[11px] text-gray-500">{item.unitName || getUnitName(item.unitId)}</span>
+                    <span className="text-[11px] text-gray-500">{item.unitName || "—"}</span>
                   </div>
                 </div>
               ))}

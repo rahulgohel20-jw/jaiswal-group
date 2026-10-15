@@ -7,11 +7,13 @@ import {
   Search,
   Filter,
   Loader2,
+  Download,
 } from "lucide-react";
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel,
 } from "@tanstack/react-table";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -43,6 +45,7 @@ import {
 } from '@/components/ui/select';
 import { OrgTypes } from "../../constants/orgTypes";
 import SearchableSelect from "../../utils/SearchableSelect";
+import MasterExportModal from "../../utils/MasterExportModal";
 
 const extractArray = (res) => {
   if (!res) return [];
@@ -131,7 +134,7 @@ function FilterDropdown({ value, onChange, options, placeholder = "Select" }) {
 const SubLocationListing = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions([
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions([
     'Sub Locations',
     'Sub Location',
     'Sub-Locations',
@@ -169,8 +172,10 @@ const SubLocationListing = () => {
   );
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -391,6 +396,7 @@ const SubLocationListing = () => {
           />
         ),
         size: 200,
+        enableSorting: true,
       },
       ...(showUnitDropdown
         ? [
@@ -505,9 +511,11 @@ const SubLocationListing = () => {
   const table = useReactTable({
     data: filteredSubLocations,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
+    onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
 
@@ -521,11 +529,19 @@ const SubLocationListing = () => {
         <PageHeader
           title="Sub Location Master"
           actions={
-            canAdd && (
-              <HeaderActionButton to="/sub-locations/add">
-                Add New Sub Location
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton to="/sub-locations/add">
+                  Add New Sub Location
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -638,6 +654,12 @@ const SubLocationListing = () => {
         onConfirm={confirmDelete}
         itemLabel={deleteTarget?.itemLabel}
         saving={deleteLoading}
+      />
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="sub_location_master"
+        title="Export Sub Location Report"
       />
     </Container>
   );
