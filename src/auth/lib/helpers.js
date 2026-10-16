@@ -68,6 +68,11 @@ const removeAuth = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userData');
     localStorage.removeItem('userId');
+    localStorage.removeItem('selectedCompanyId');
+    localStorage.removeItem('selectedUnitId');
+    localStorage.removeItem('selectedSubOutletId');
+    localStorage.removeItem('selectedSubLocationId');
+    localStorage.removeItem('activeScopeRole');
     sessionStorage.clear();
     try {
       import('@/store/orgHierarchyStore').then(({ orgHierarchyStore }) => {

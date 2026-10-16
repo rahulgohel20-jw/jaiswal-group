@@ -22,7 +22,7 @@ import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePurchaseRequisitions } from './utils/usePurchaseRequisitions';
 import { PR_STATUS, getStatusLabel } from './utils/prStatus';
 import PurchaseRequisitionLog from './PurchaseRequisitionLog';
-import { getUsernameFromToken } from '../../utils/auth';
+import { getOrgIdFromToken, getUsernameFromToken } from '../../utils/auth';
 import { getTodayInputDate } from '../../utils/GetCurrentToday';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
@@ -86,14 +86,6 @@ const apiDateToInputDate = (str) => {
   if (!d || !m || !y) return '';
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 };
-
-const inputDateToApiDate = (str) => {
-  if (!str) return '';
-  const [y, m, d] = str.split('-');
-  if (!d || !m || !y) return '';
-  return `${d}/${m}/${y}`;
-};
-
 
 
 /* -------------------------------------------------------------------------

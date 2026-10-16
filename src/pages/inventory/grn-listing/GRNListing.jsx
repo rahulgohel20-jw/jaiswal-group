@@ -150,6 +150,9 @@ const GRNListing = () => {
   const {
     loading: scopeLoading,
     error: scopeError,
+    isOutletUser,
+    isCompanyUser,
+    companyId,
     showUnitDropdown,
     units,
     selectedUnitId,
@@ -188,7 +191,9 @@ const GRNListing = () => {
     setLoading(true);
     setGrnError(null);
     try {
-      const outletParam = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+      const outletParam = isOutletUser
+        ? Number(effectiveOutletId)
+        : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
       const statusParam = statusFilter === 'ALL' ? '' : statusFilter;
 
       const params = {};
@@ -269,7 +274,11 @@ const GRNListing = () => {
   }, [
     scopeLoading,
     scopeError,
+    isOutletUser,
     effectiveOutletId,
+    selectedUnitId,
+    companyId,
+    isCompanyUser,
     statusFilter,
     searchQuery,
     pagination.pageIndex,
@@ -280,7 +289,7 @@ const GRNListing = () => {
 
   useEffect(() => {
     resetPage();
-  }, [searchQuery, statusFilter, selectedUnitId, effectiveOutletId, dateRange, resetPage]);
+  }, [searchQuery, statusFilter, isOutletUser, selectedUnitId, companyId, effectiveOutletId, dateRange, resetPage]);
 
   useEffect(() => {
     loadData();

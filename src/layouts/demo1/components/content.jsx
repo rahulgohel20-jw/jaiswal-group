@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router';
+import { Outlet } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Container } from '@/components/common/container';
 import { Breadcrumb } from './breadcrumb';

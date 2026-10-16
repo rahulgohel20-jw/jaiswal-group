@@ -6,20 +6,16 @@ import { ChatSheet } from '@/partials/topbar/chat-sheet';
 import { NotificationsSheet } from '@/partials/topbar/notifications-sheet';
 import { UserDropdownMenu } from '@/partials/topbar/user-dropdown-menu';
 import {
-  Bell,
-  LayoutGrid,
   Menu,
-  MessageCircleMore,
-  Search,
-  SquareChevronRight,
 } from 'lucide-react';
-import { useLocation } from 'react-router';
+import { useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useScrollPosition } from '@/hooks/use-scroll-position';
 import { Button } from '@/components/ui/button';
+import { SwitchScopeModal } from '@/components/common/SwitchScopeModal';
 import {
   Sheet,
   SheetBody,
@@ -50,11 +46,13 @@ export function Header() {
     return () => clearInterval(timer);
   }, []);
 
-  // Close sheet when route changes
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
+
   useEffect(() => {
-    setIsSidebarSheetOpen(false);
-    setIsMegaMenuSheetOpen(false);
-  }, [pathname]);
+    const handleOpen = () => setIsSwitchModalOpen(true);
+    window.addEventListener('open-switch-scope-modal', handleOpen);
+    return () => window.removeEventListener('open-switch-scope-modal', handleOpen);
+  }, []);
 
   return (
     <header
@@ -156,6 +154,11 @@ export function Header() {
                     alt="User Avatar"
                   />
                 }
+              />
+
+              <SwitchScopeModal
+                open={isSwitchModalOpen}
+                onOpenChange={setIsSwitchModalOpen}
               />
             </>
           )}
