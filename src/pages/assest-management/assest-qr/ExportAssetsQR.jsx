@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Container } from "@/components/common/container";
 import { PageHeader } from '@/components/common/PageHeader';
 import { CheckCircle2, QrCode, Trash2, X, ChevronDown } from 'lucide-react';
@@ -8,7 +8,7 @@ import {
     getAssignmentsByAssetId,
     getOrganizationByType,
     getChildrenByParentId,
-    getAllSubOutletsByOrganization,
+    getAssetUnitLocationsByOrganization,
 } from '../../../services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { getOrgIdFromToken } from '@/utils/auth';
@@ -48,18 +48,17 @@ const normalizeOutlet = (item) => ({
     status: item.isActive !== false ? 'active' : 'inactive',
 });
 
-const normalizeSubOutlet = (item) => ({
+const normalizeLocation = (item) => ({
     id: item.id,
-    name: item.subOutletName || item.name || `Sub-Outlet #${item.id}`,
-    code: item.companyCode || '',
+    name: item.locationName || item.name || `Location #${item.id}`,
     organizationId: item.organizationId,
-    status: item.isActive !== false ? 'active' : 'inactive',
+    status: item.active !== false && item.isActive !== false ? 'active' : 'inactive',
 });
 
 const AssetLabel = ({ asset, qrSize = 68 }) => (
     <div className="asset-label w-48 h-24 bg-white box-border flex items-center p-[0.04in] m-0 overflow-hidden break-inside-avoid">
         <div className="w-[0.86in] h-[0.86in] shrink-0 flex items-center justify-center p-0.5">
-            <QRCode value={getAssetQRUrl(asset)} size={qrSize} level='M' />
+            <QRCode value={getAssetQRUrl(asset)} size={qrSize} level="M" />
         </div>
 
         <div className="flex-1 min-w-0 h-full pl-[0.06in] overflow-hidden flex flex-col justify-center gap-[0.05in]">
@@ -70,7 +69,7 @@ const AssetLabel = ({ asset, qrSize = 68 }) => (
                     ? <div className="text-[5pt] font-normal leading-[1.1] uppercase">Head Office</div>
                     : ''
             }
-            <div className="text-[5pt] font-normal leading-[1.1]">{asset.remarks || ""}</div>
+            <div className="text-[5pt] font-normal leading-[1.1]">{asset.assetUnitLocationName || ""}</div>
             <div className="text-[5pt] font-semibold leading-[1.1]">{asset.categoryName || '-'}</div>
             <div className="text-[5pt] font-semibold leading-[1.1]">{toTitleCase(asset.name) || '-'}</div>
             <div className="text-[5pt] font-normal leading-[1.1]">{asset.code || '-'}</div>
@@ -78,7 +77,7 @@ const AssetLabel = ({ asset, qrSize = 68 }) => (
     </div>
 );
 
-const AssetMultiSelect = ({
+export const AssetMultiSelect = ({
     options = [],
     selected = [],
     onChange,
@@ -269,17 +268,17 @@ const ExportAssetsQR = () => {
     // Cascading dropdown lists
     const [companies, setCompanies] = useState([]);
     const [outlets, setOutlets] = useState([]);
-    const [subOutlets, setSubOutlets] = useState([]);
+    const [locations, setLocations] = useState([]);
 
     // Filter values
     const [company, setCompany] = useState('');
     const [outlet, setOutlet] = useState('');
-    const [subOutlet, setSubOutlet] = useState('');
+    const [location, setLocation] = useState('');
 
     // Filter loading states
     const [loadingCompanies, setLoadingCompanies] = useState(false);
     const [loadingOutlets, setLoadingOutlets] = useState(false);
-    const [loadingSubOutlets, setLoadingSubOutlets] = useState(false);
+    const [loadingLocations, setLoadingLocations] = useState(false);
 
     // Assets state
     const [assets, setAssets] = useState([]);
@@ -355,7 +354,7 @@ const ExportAssetsQR = () => {
     const handleCompanyChange = async (newCompanyId) => {
         setCompany(newCompanyId);
         setOutlet('');
-        setSubOutlet('');
+        setLocation('');
         setPickedAssets([]);
         setSelectedAssets([]);
 
@@ -384,33 +383,36 @@ const ExportAssetsQR = () => {
     // Fetch Sub-Outlets when Outlet changes
     useEffect(() => {
         if (!outlet) {
-            setSubOutlets([]);
-            setSubOutlet('');
+            setLocations([]);
+            setLocation('');
             return;
         }
 
-        const fetchSubOutletsData = async () => {
-            setLoadingSubOutlets(true);
+        const fetchLocationsData = async () => {
+            setLoadingLocations(true);
             try {
-                const res = await getAllSubOutletsByOrganization(outlet);
+                const res = await getAssetUnitLocationsByOrganization(outlet);
                 const list = res?.data?.data || res?.data?.content || res?.data || [];
-                setSubOutlets((Array.isArray(list) ? list : []).map(normalizeSubOutlet));
+                setLocations((Array.isArray(list) ? list : []).map(normalizeLocation));
             } catch (err) {
-                console.error('Failed to load sub-outlets:', err);
-                setSubOutlets([]);
+                console.error('Failed to load locations:', err);
+                setLocations([]);
             } finally {
-                setLoadingSubOutlets(false);
+                setLoadingLocations(false);
             }
         };
 
-        fetchSubOutletsData();
+        fetchLocationsData();
     }, [outlet]);
 
-    // Fetch Assigned Assets
-    const fetchAssignedAssets = useCallback(async (orgId, subOutletId = 0) => {
+  // Fetch Assigned Assets by Location
+    const fetchAssignedAssets = useCallback(async (orgId, locationId = 0) => {
         try {
             setAssetsLoading(true);
-            const assetRes = await getAssignedAssetsByOrgAndSubOutlet(orgId, Number(subOutletId || 0));
+            const assetRes = await getAssignedAssetsByOrgAndSubOutlet(
+                Number(orgId),
+                Number(locationId || 0)
+            );
             const rawAssets = assetRes?.data?.data ?? assetRes?.data ?? assetRes ?? [];
 
             const normalizedAssets = rawAssets.map((item) => {
@@ -423,8 +425,8 @@ const ExportAssetsQR = () => {
                     code: asset.assetCode,
                     organizationId: assignment?.companiesId ?? asset.assignOrganizationId ?? orgId,
                     organizationname: assignment?.companiesName ?? asset.organizationname ?? '',
-                    subOutletId: assignment?.subOutletId ?? asset.subOutletId ?? null,
-                    suboutletname: assignment?.suboutletname ?? asset.suboutletname ?? '',
+                    assetUnitLocationId: assignment?.assetUnitLocationId ?? asset.assetUnitLocationId ?? null,
+                    assetUnitLocationName: assignment?.assetUnitLocationName ?? assignment?.locationName ?? asset.assetUnitLocationName ?? asset.assetLocationName ?? asset.location ?? '',
                     categoryId: asset.categoryId ?? asset.category?.id,
                     categoryName: asset.categoryName ?? asset.category?.categoryName ?? asset.category?.name ?? asset.assetCategoryName ?? '',
                     department: asset.department,
@@ -460,8 +462,8 @@ const ExportAssetsQR = () => {
                     code: a.assetCode ?? a.code,
                     organizationname: a.organizationname ?? '',
                     organizationId: a.assignOrganizationId ?? null,
-                    suboutletname: a.suboutletname ?? '',
-                    subOutletId: a.subOutletId ?? null,
+                    assetUnitLocationId: a.assetUnitLocationId ?? null,
+                    assetUnitLocationName: a.assetUnitLocationName ?? a.locationName ?? a.location ?? '',
                     unitName: a.organizationname ?? '',
                     categoryId: a.categoryId ?? a.category?.id,
                     categoryName: a.categoryName ?? a.category?.name ?? '',
@@ -481,16 +483,15 @@ const ExportAssetsQR = () => {
         fetchAssets();
     }, [outlet, company]);
 
-    // Fetch assigned assets whenever Outlet or Company changes
+    // Fetch assigned assets whenever Outlet, Company, or Location changes
     useEffect(() => {
-        if (outlet) {
-            fetchAssignedAssets(Number(outlet), subOutlet ? Number(subOutlet) : 0);
-        } else if (company) {
-            fetchAssignedAssets(Number(company), 0);
+        const activeOrgId = outlet || company;
+        if (activeOrgId) {
+            fetchAssignedAssets(Number(activeOrgId), location ? Number(location) : null);
         } else if (isGroupUser) {
             setAssets(allAssets);
         }
-    }, [outlet, company, subOutlet, fetchAssignedAssets, isGroupUser, allAssets]);
+    }, [outlet, company, location, fetchAssignedAssets, isGroupUser, allAssets]);
 
     // Print listeners
     useEffect(() => {
@@ -518,7 +519,7 @@ const ExportAssetsQR = () => {
     const getAssetLocationKey = (asset) => [
         normalizeLocationValue(asset.name),
         normalizeLocationValue(asset.organizationname),
-        normalizeLocationValue(asset.suboutletname),
+        normalizeLocationValue(asset.assetUnitLocationName || asset.assetLocationName || asset.location),
     ].join('|');
 
     // 1. In AssetMultiSelect, just update pickedAssets directly (no API call inside onChange)
@@ -571,8 +572,9 @@ const ExportAssetsQR = () => {
                             const assignOrgId = String(assign.companiesId ?? assign.organizationId);
                             const matchesOrg = targetOrgIds.has(assignOrgId);
                             if (!matchesOrg) return false;
-                            if (subOutlet) {
-                                return String(assign.subOutletId) === String(subOutlet);
+                            if (location) {
+                                const assignLocationId = String(assign.assetUnitLocationId ?? assign.locationId ?? '');
+                                return assignLocationId === String(location);
                             }
                             return true;
                         });
@@ -602,8 +604,8 @@ const ExportAssetsQR = () => {
                             assignmentId: assignment.id ?? assignment.assignmentId ?? null,
                             organizationId: assignment.companiesId ?? assignment.organizationId ?? asset.organizationId ?? null,
                             organizationname: assignment.companiesName ?? assignment.organizationName ?? asset.organizationname ?? '',
-                            subOutletId: assignment.subOutletId ?? asset.subOutletId ?? null,
-                            suboutletname: assignment.suboutletname ?? assignment.subOutletName ?? '',
+                            assetUnitLocationId: assignment.assetUnitLocationId ?? assignment.locationId ?? null,
+                            assetUnitLocationName: assignment.assetUnitLocationName ?? assignment.locationName ?? asset.assetUnitLocationName ?? asset.assetLocationName ?? '',
                             quantity: assignment.quantity ?? assignment.assignedQuantity ?? 1,
                             remarks: assignment.remarks ?? "",
                             availableQuantity: assignment.availableQuantity ?? 0,
@@ -640,7 +642,8 @@ const ExportAssetsQR = () => {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [pickedAssets, targetOrgIds, subOutlet, outlet, company, assets.length, companies]);
+    }, [pickedAssets, targetOrgIds, location, outlet, company, assets.length, companies]);
+
     // Printable assets
     const printableAssets = useMemo(() => {
         let list = selectedAssets;
@@ -650,8 +653,8 @@ const ExportAssetsQR = () => {
                 const orgId = String(asset.organizationId);
                 return !asset.organizationId || targetOrgIds.has(orgId);
             });
-            if (subOutlet) {
-                list = list.filter((asset) => String(asset.subOutletId) === String(subOutlet));
+            if (location) {
+                list = list.filter((asset) => String(asset.assetUnitLocationId) === String(location));
             }
         }
 
@@ -664,7 +667,7 @@ const ExportAssetsQR = () => {
                 printIndex: index,
             }));
         });
-    }, [selectedAssets, targetOrgIds, subOutlet]);
+    }, [selectedAssets, targetOrgIds, location]);
 
     const openDeleteConfirm = (row) => {
         setDeleteTarget({
@@ -718,15 +721,15 @@ const ExportAssetsQR = () => {
         [outlets]
     );
 
-    const subOutletOptions = useMemo(
+    const locationOptions = useMemo(
         () =>
-            subOutlets
-                .filter((s) => s.status === 'active')
-                .map((s) => ({
-                    value: String(s.id),
-                    label: s.name,
+            locations
+                .filter((l) => l.status === 'active')
+                .map((l) => ({
+                    value: String(l.id),
+                    label: l.name,
                 })),
-        [subOutlets]
+        [locations]
     );
 
     if (!canView) {
@@ -787,7 +790,7 @@ const ExportAssetsQR = () => {
 
             <div className="print:hidden">
                 <Container>
-                    <div className='pt-2 pb-6 mx-auto space-y-4'>
+                    <div className="pt-2 pb-6 mx-auto space-y-4">
                         <PageHeader title="Export Assets QR" />
 
                         <div className="grid grid-cols-1 lg:grid-cols-[450px_1fr] gap-5 mt-6 items-stretch lg:h-[calc(100vh-13rem)]">
@@ -824,7 +827,7 @@ const ExportAssetsQR = () => {
                                                 disabled={(isGroupUser && !company) || loadingOutlets}
                                                 onChange={(e) => {
                                                     setOutlet(e.target.value);
-                                                    setSubOutlet('');
+                                                    setLocation('');
                                                     setPickedAssets([]);
                                                     setSelectedAssets([]);
                                                 }}
@@ -844,24 +847,24 @@ const ExportAssetsQR = () => {
                                     {/* 3. Sub-Outlet Filter (Optional, depends on Outlet)*/}
                                     <div>
                                         <label className="text-xs font-medium text-[#475569] mb-1.5 block">
-                                            Sub-Unit 
+                                            Location 
                                         </label>
                                         <SearchableSelect
-                                            name="subOutlet"
-                                            value={subOutlet}
-                                            disabled={!outlet || loadingSubOutlets}
+                                            name="location"
+                                            value={location}
+                                            disabled={!outlet || loadingLocations}
                                             onChange={(e) => {
-                                                setSubOutlet(e.target.value);
+                                                setLocation(e.target.value);
                                                 setPickedAssets([]);
                                                 setSelectedAssets([]);
                                             }}
-                                            options={subOutletOptions}
+                                            options={locationOptions}
                                             placeholder={
                                                 !outlet
                                                     ? "Select Unit first"
-                                                    : loadingSubOutlets
-                                                        ? "Loading sub-units..."
-                                                        : "Select Sub-Unit"
+                                                    : loadingLocations
+                                                        ? "Loading locations..."
+                                                        : "Select Location"
                                             }
                                             isClearable={true}
                                         />
@@ -919,7 +922,7 @@ const ExportAssetsQR = () => {
                                         </div>
                                     ) : (
                                         printableAssets.map((a, index) => (
-                                            <div key={`${a.rowKey}-${a.printIndex}-${index}`} className='flex gap-2 items-center justify-between'>
+                                            <div key={`${a.rowKey}-${a.printIndex}-${index}`} className="flex gap-2 items-center justify-between">
                                                 <div className="flex items-center gap-3 border border-[#E5E7EB] rounded-lg p-3 w-full">
                                                     <div className="w-18 h-18 shrink-0 rounded-lg border border-[#E2E8F0] flex items-center justify-center overflow-hidden">
                                                         <div className="w-14 h-14 shrink-0 rounded-lg p-1 border border-[#E2E8F0] flex items-center justify-center overflow-hidden">
@@ -938,7 +941,7 @@ const ExportAssetsQR = () => {
                                                                 <span className='uppercase'>{a.organizationname}</span>
                                                             ) : a.organizationname === 'Jaiswal Group' ? 'HEAD OFFICE' : ''}
                                                         </p>
-                                                        <p className="text-sm text-gray-600 capitalize mb-1">{a.remarks || ""}</p>
+                                                        <p className="text-sm text-gray-600 capitalize mb-1">{a.assetUnitLocationName || ""}</p>
                                                         <p className="text-sm text-gray-600 capitalize mb-1">{a.categoryName}</p>
                                                         <p className="text-sm font-medium text-[#1B1B1F] capitalize truncate mb-1">{toTitleCase(a.name) || '-'}</p>
                                                         <span className="bg-[#F1F5F9] text-[#64748B] font-bold tracking-wide px-1.5 py-0.5 rounded text-xs">

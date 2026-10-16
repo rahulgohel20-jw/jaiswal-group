@@ -10,6 +10,7 @@ import {
 import { SearchBar } from '@/components/common/SearchBar';
 import {
   CircleCheck,
+  Download,
   Eye,
   LayoutGrid,
   Shapes,
@@ -44,9 +45,10 @@ import {
 import AddRawMaterialBrand from './AddRawMaterialBrand';
 import { useNavigate } from 'react-router';
 import { usePagePermissions } from '@/utils/permissions';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const RowMaterialBrandMaster = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Brand Master');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Raw Material Brand Master');
 
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,7 @@ const RowMaterialBrandMaster = () => {
   const navigate = useNavigate();
 
   const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
   const loadAll = async () => {
     setLoading(true);
     setError(null);
@@ -426,11 +429,19 @@ const RowMaterialBrandMaster = () => {
         <PageHeader
           title="Raw Material Brand Master"
           actions={
-            canAdd && (
-              <HeaderActionButton onClick={handleAddClick}>
-                Create Brand
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={handleAddClick}>
+                  Create Brand
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -532,6 +543,12 @@ const RowMaterialBrandMaster = () => {
         onConfirm={confirmDelete}
         itemLabel={deleteTarget?.name}
         saving={deleteLoading}
+      />
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="raw_material_brand"
+        title="Export Raw Material Brand Report"
       />
     </Container>
   );

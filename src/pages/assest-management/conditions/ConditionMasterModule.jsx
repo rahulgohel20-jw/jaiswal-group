@@ -32,6 +32,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 
 const STATUS_COLORS = {
@@ -65,7 +66,7 @@ const normalizeCondition = (raw = {}, index = 0) => ({
 const EMPTY_FORM = { id: null, name: "", status: "Active" };
 
 const ConditionMasterModule = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Conditions Master');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Conditions Master');
 
   const [conditions, setConditions] = useState([]);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
@@ -87,6 +88,7 @@ const ConditionMasterModule = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const navigate = useNavigate();
 
@@ -377,12 +379,19 @@ const ConditionMasterModule = () => {
         <PageHeader
           title="Condition Master"
           actions={
-            canAdd && (
-              <HeaderActionButton onClick={openAddModal}>
-                Add Condition
-              </HeaderActionButton>
-            )
-          }
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={openAddModal}>
+                  Add Condition
+                </HeaderActionButton>
+              )}
+            </div>}
         />
 
         <PageErrorAlert error={listError} onRetry={loadConditions} className="my-3" />
@@ -503,6 +512,12 @@ const ConditionMasterModule = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.itemLabel}
           saving={deleteSaving}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="assets_condition"
+          title="Export Asset Condition Report"
         />
       </div>
     </Container>

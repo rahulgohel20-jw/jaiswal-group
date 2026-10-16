@@ -7,7 +7,7 @@ import {
   getSortedRowModel
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
-import {  Eye, SquarePen, Trash2 } from 'lucide-react';
+import {  Download, Eye, SquarePen, Trash2 } from 'lucide-react';
 import { deletePage, getPages } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -24,6 +24,7 @@ import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddPageModal from './AddPageModal';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Maps a raw API page object (+ its row position) to the shape the table expects
 const mapPage = (p, index) => ({
@@ -47,7 +48,7 @@ const TruncatedCell = ({
 );
 
 const PageMaster = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Pages');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Pages');
 
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +63,7 @@ const PageMaster = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const navigate = useNavigate();
   const [sorting, setSorting] = useState([]);
-
+  const [showExportModal, setShowExportModal] = useState(false);
   const openViewModal = (row) => {
     setIsViewOnly(true);
     setEditingPage(row);
@@ -300,11 +301,19 @@ const PageMaster = () => {
         <PageHeader
           title="Page Master"
           actions={
-            canAdd && (
-              <HeaderActionButton onClick={openCreateModal}>
-                Add Page
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
+                icon={<Download className={`w-3.5 h-3.5`} />}
+                label="Export"
+              />}
+              {canAdd && (
+                <HeaderActionButton onClick={openCreateModal}>
+                  Add Page
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -365,6 +374,12 @@ const PageMaster = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.name}
           saving={deleteLoading}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="userrights_pages"
+          title="Export Pages Report"
         />
       </div>
     </Container>

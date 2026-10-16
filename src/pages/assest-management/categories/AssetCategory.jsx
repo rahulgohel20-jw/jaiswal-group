@@ -3,6 +3,7 @@ import {
     ChevronRight,
     CircleCheck,
     CircleX,
+    Download,
     Eye,
     Plus,
     SquarePen,
@@ -38,6 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 
 const StatusBadge = ({ status }) => {
@@ -61,7 +63,7 @@ const mapCategory = (c) => ({
 });
 
 const AssetCategory = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Category Master');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Category Master');
     const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -77,6 +79,7 @@ const AssetCategory = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, itemLabel: row.name });
@@ -263,14 +266,22 @@ const AssetCategory = () => {
          <div className="pt-2 pb-6 mx-auto space-y-4">
             <PageHeader
                 title="Asset Categories"
-                actions={
-                    canAdd && (
-                        <HeaderActionButton onClick={openCreateModal}>
-                            Add Category
-                        </HeaderActionButton>
-                    )
-                }
-            />
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openCreateModal}>
+                                    Add Category
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
+                />
 
             <PageErrorAlert error={error} onRetry={fetchCategories} className="my-3" />
 
@@ -376,7 +387,13 @@ const AssetCategory = () => {
     itemLabel={deleteTarget?.itemLabel}
     saving={deleteSaving}
 />
-        </div>
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_category"
+                    title="Export Asset Category Report"
+                />
+            </div>
        </Container>
     );
 };

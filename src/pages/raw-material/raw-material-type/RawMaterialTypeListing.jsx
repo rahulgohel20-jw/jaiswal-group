@@ -3,6 +3,7 @@ import {
     CircleCheck,
     CircleX,
     Clock,
+    Download,
     Eye,
     Plus,
     SquarePen,
@@ -43,6 +44,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 
 const mapType = (t) => ({
@@ -54,7 +56,7 @@ const mapType = (t) => ({
 });
 
 const RawMaterialTypeListing = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Types');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Types');
     const navigate = useNavigate();
     const [types, setTypes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -79,6 +81,7 @@ const RawMaterialTypeListing = () => {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [sorting, setSorting] = useState([]);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const openEditModal = (row) => {
         setEditingType(row);
@@ -357,11 +360,19 @@ const RawMaterialTypeListing = () => {
                 <PageHeader
                     title="Raw Material Type Master"
                     actions={
-                        canAdd && (
-                            <HeaderActionButton onClick={openCreateModal}>
-                                Add Type
-                            </HeaderActionButton>
-                        )
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openCreateModal}>
+                                    Add Type
+                                </HeaderActionButton>
+                            )}
+                        </div>
                     }
                 />
 
@@ -473,6 +484,12 @@ const RawMaterialTypeListing = () => {
                     onConfirm={confirmDelete}
                     itemLabel={deleteTarget?.name}
                     saving={deleteLoading}
+                />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="raw_material_category_type"
+                    title="Export Raw Material Type Report"
                 />
             </div>
         </Container>

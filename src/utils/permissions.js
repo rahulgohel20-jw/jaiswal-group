@@ -123,12 +123,14 @@ export const getUserPermissions = (userOrAuth) => {
           const addVal = page.add ?? page.isAdd ?? page.canAdd ?? page.addRight ?? page.is_add;
           const editVal = page.edit ?? page.isEdit ?? page.canEdit ?? page.editRight ?? page.is_edit;
           const deleteVal = page.delete ?? page.isDelete ?? page.canDelete ?? page.deleteRight ?? page.is_delete;
+          const exportVal = page.export ?? page.isExport ?? page.canExport ?? page.exportRight ?? page.is_export;
 
           const rightObj = {
             view: toBool(viewVal),
             add: toBool(addVal),
             edit: toBool(editVal),
             delete: toBool(deleteVal),
+            export: toBool(exportVal),
             pageName: pageName,
             pageId: page.pageid ?? page.pageId ?? page.id,
             moduleId: moduleGroup.moduleId,
@@ -158,7 +160,7 @@ const PAGE_ALIASES = {
 
   const getPageRights = (pageName) => {
     if (!pageName) {
-      return { view: false, add: false, edit: false, delete: false, hasAccess: false };
+      return { view: false, add: false, edit: false, delete: false, export:false, hasAccess: false };
     }
 
     const rawList = Array.isArray(pageName) ? pageName : [pageName];
@@ -185,6 +187,7 @@ const PAGE_ALIASES = {
           add: toBool(rights.add),
           edit: toBool(rights.edit),
           delete: toBool(rights.delete),
+          export: toBool(rights.export),
           hasAccess: toBool(rights.view),
         };
       }
@@ -207,15 +210,15 @@ const PAGE_ALIASES = {
     });
 
     if (isEventRelated) {
-      return { view: true, add: true, edit: true, delete: true, hasAccess: true };
+      return { view: true, add: true, edit: true, delete: true, export:true, hasAccess: true };
     }
 
     // If no explicit rights and user is Admin, grant full access
     if (isAdmin) {
-      return { view: true, add: true, edit: true, delete: true, hasAccess: true };
+      return { view: true, add: true, edit: true, delete: true, export:true, hasAccess: true };
     }
 
-    return { view: false, add: false, edit: false, delete: false, hasAccess: false };
+    return { view: false, add: false, edit: false, delete: false, export:false, hasAccess: false };
   };
 
 
@@ -294,6 +297,7 @@ export const usePagePermissions = (pageName) => {
       canEdit: Boolean(rights.edit),
       canDelete: Boolean(rights.delete),
       hasAccess: Boolean(rights.view),
+      canExport: Boolean(rights.export),
       isAdmin,
       rights,
     };

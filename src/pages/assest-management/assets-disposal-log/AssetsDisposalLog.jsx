@@ -2,6 +2,7 @@ import {
     BadgeDollarSign,
     CalendarDays,
     ClipboardList,
+    Download,
     Eye,
     SquarePen,
     Trash2,
@@ -23,6 +24,7 @@ import { HeaderActionButton } from "@/components/common/HeaderActionButton";
 import { SearchBar } from "@/components/common/SearchBar";
 import { getAllAssetsDisposal, deleteAssetDisposalById, getAssetDisposalById } from "../../../services/apiServices";
 import ViewDisposalModal from "./ViewDisposalModal";
+import MasterExportModal from "../../../utils/MasterExportModal";
 
 const FETCH_ALL_PAGE_SIZE = 1000;
 
@@ -79,7 +81,7 @@ const DisposalBadge = ({ type }) => {
 };
 
 const AssetsDisposalLog = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions("Asset Disposal");
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions("Asset Disposal");
     const navigate = useNavigate();
 
     const [disposalData, setDisposalData] = useState([]);
@@ -96,6 +98,7 @@ const AssetsDisposalLog = () => {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
      const [sorting, setSorting] = useState([]);
+     const [showExportModal, setShowExportModal] = useState(false);
 
     const loadDisposals = async () => {
         setLoading(true);
@@ -412,11 +415,19 @@ const AssetsDisposalLog = () => {
                 <PageHeader
                     title="Asset Disposal Log"
                     actions={
-                        canAdd && (
-                            <HeaderActionButton to="/assets/add-disposal">
-                                New Disposal Entry
-                            </HeaderActionButton>
-                        )
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton to="/assets/add-disposal">
+                                    New Disposal Entry
+                                </HeaderActionButton>
+                            )}
+                        </div>
                     }
                 />
 
@@ -527,6 +538,12 @@ const AssetsDisposalLog = () => {
                 onConfirm={confirmDelete}
                 itemLabel={deleteTarget?.itemLabel}
                 saving={deleteSaving}
+            />
+            <MasterExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                tableName="asset_disposal"
+                title="Export Asset Disposal Report"
             />
         </Container>
     );

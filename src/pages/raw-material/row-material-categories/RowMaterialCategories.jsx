@@ -13,6 +13,7 @@ import {
   ChevronRight,
   CircleCheck,
   CircleX,
+  Download,
   Eye,
   Plus,
   SquarePen,
@@ -48,6 +49,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Maps raw API row into the shape the table/UI expects.
 // Handles the nested `rawMaterialCatType` object the backend returns.
@@ -81,7 +83,7 @@ const unwrapListPayload = (payload) => {
 };
 
 const RowMaterialCategories = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Categories');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Categories');
   const navigate = useNavigate();
 
   // NOTE: RawMaterialCategoryDetailsModal.jsx also needs its
@@ -114,6 +116,7 @@ const RowMaterialCategories = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -457,11 +460,19 @@ const RowMaterialCategories = () => {
         <PageHeader
           title="Raw Material Category Master"
           actions={
-            canAdd && (
-              <HeaderActionButton onClick={openCreateModal}>
-                Add Category
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+             {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={openCreateModal}>
+                  Add Category
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -607,6 +618,12 @@ const RowMaterialCategories = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.name}
           saving={deleteLoading}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="raw_material_category"
+          title="Export Raw Material Category Report"
         />
       </div>
     </Container>

@@ -131,7 +131,7 @@ const OutletsModal = ({ isOpen, onClose, rowData }) => {
 };
 
 const VendorPriceApproval = () => {
-    const { canEdit, canView } = usePagePermissions('Vendor Price Approval');
+    const { canAdd, canEdit, canView } = usePagePermissions('Vendor Price Approval');
     const navigate = useNavigate();
 
     const {
@@ -630,7 +630,7 @@ const VendorPriceApproval = () => {
                     title="Vendor Price Approval"
                     description="Review vendor pricing submitted per outlet and approve or hold each price before it takes effect."
                     actions={
-                        canEdit && (
+                        canAdd && (
                             <HeaderActionButton
                                 to="/material/vendor-price-association"
                                 icon={Plus}

@@ -26,6 +26,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 
 const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-xs text-gray-800 font-medium" }) => (
@@ -52,7 +53,7 @@ const mapAssetType = (t) => ({
 });
 
 const AssetsType = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assets Type Master');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Assets Type Master');
     const navigate = useNavigate();
     const [type, setType] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -64,6 +65,7 @@ const AssetsType = () => {
     const [searchInput, setSearchInput] = useState("");
     const [typeInput, setTypeInput] = useState("All");
     const [transferInput, setTransferInput] = useState("Any");
+    const [showExportModal, setShowExportModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 const [deleteTarget, setDeleteTarget] = useState(null);
 const [deleteSaving, setDeleteSaving] = useState(false);
@@ -290,11 +292,19 @@ const confirmDelete = async () => {
                 <PageHeader
                     title="Assign Asset Types"
                     actions={
-                        canAdd && (
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
                             <HeaderActionButton onClick={openCreateModal}>
                                 Add Asset Type
                             </HeaderActionButton>
-                        )
+                        )}
+                        </div>
                     }
                 />
 
@@ -434,9 +444,15 @@ const confirmDelete = async () => {
     onClose={closeDeleteConfirm}
     onConfirm={confirmDelete}
     itemLabel={deleteTarget?.itemLabel}
-    saving={deleteSaving}
-/>
-        </div>
+                    saving={deleteSaving}
+                />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_type"
+                    title="Export Asset Type Report"
+                />
+            </div>
         </Container>
     );
 };

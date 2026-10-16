@@ -9,6 +9,7 @@ import {
     useReactTable,
 } from '@tanstack/react-table';
 import {
+    Download,
     Loader2,
     Plus,
     RefreshCw,
@@ -47,6 +48,7 @@ import SearchableSelect from '../../../utils/SearchableSelect';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const KitchenCaptainRecipeList = () => {
     const {
@@ -63,7 +65,8 @@ const KitchenCaptainRecipeList = () => {
         retry: retryScope,
     } = useOrgScope();
 
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Captain Recipe');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Captain Recipe');
+     const [showExportModal, setShowExportModal] = useState(false);
     const navigate = useNavigate();
 
     // Map to lookup outlet names from orgId (only name without code)
@@ -529,6 +532,12 @@ const KitchenCaptainRecipeList = () => {
                     description="Configure and manage kitchen captain recipes and constituent raw materials across outlets."
                     actions={
                         <div className="flex items-center gap-2.5">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
                             <HeaderActionButton
                                 variant="outline"
                                 onClick={handleSync}
@@ -683,6 +692,12 @@ const KitchenCaptainRecipeList = () => {
                     itemLabel={deleteTarget?.itemLabel}
                     saving={deleteSaving}
                 />
+                  <MasterExportModal
+                                isOpen={showExportModal}
+                                onClose={() => setShowExportModal(false)}
+                                tableName="k_captain_receipe_master"
+                                title="Export Captain Recipe Report"
+                     />
             </div>
         </Container>
     );

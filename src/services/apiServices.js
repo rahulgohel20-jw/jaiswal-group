@@ -1060,8 +1060,8 @@ export const updateAssignAsset = (payload) => {
 export const deleteAssignAsset = (id) => {
   return DELETE('/assign-assets/delete', { id });
 };
-export const getAssignedAssetsByOrgAndSubOutlet = (orgId, subOutletId = 0) => {
-  return GET(`/assets/assigned-by-location?organizationId=${orgId}&subOutletId=${subOutletId}`);
+export const getAssignedAssetsByOrgAndSubOutlet = (orgId, assetUnitLocationId = 0) => {
+  return GET(`/assets/assigned-by-location?organizationId=${orgId}&assetUnitLocationId=${assetUnitLocationId}`);
 }
 export const getAssignmentsByAssetId = (ids) => {
  
@@ -1739,3 +1739,43 @@ export const getBrandMappingBySubOutlet = (outletId, subOutletId) => {
 export const deleteBrandMappingByOutletAndSubOutlet = (outletId, subOutletId) => {
   return DELETE(`/brand-mapping/deletebyoutletidandsuboutletid?outletId=${outletId}&subOutletId=${subOutletId}`);
 }
+//Master Report export API
+export const exportMasterTableReport = (payload) => {
+  return POST('/master-reports/export', payload, {
+    skipGlobalToast: true,
+  });
+};
+//Asset Location Master API
+export const getAssetUnitLocationById = (id) => {
+  return GET('/asset-unit-locations/get', { id });
+};
+export const getAllAssetUnitLocations = () => {
+  return GET('/asset-unit-locations/getall');
+};
+
+export const getAllActiveAssetUnitLocations = () => {
+  return GET('/asset-unit-locations/getallactive');
+};
+
+export const getAllActiveAssetUnitLocationsPaginated = (page = 0, size = 10) => {
+  return GET('/asset-unit-locations/getallactive/page', { page, size });
+};
+
+export const getAssetUnitLocationsByOrganization = (organizationId) => {
+  return GET('/asset-unit-locations/getbyorganization', { organizationId });
+};
+
+export const createAssetUnitLocation = (data) => {
+  return POST('/asset-unit-locations/create', data);
+};
+
+export const updateAssetUnitLocation = (id, data) => {
+  return PUT(`/asset-unit-locations/update?id=${id}`, data);
+};
+
+export const deleteAssetUnitLocationById = (id) => {
+  return DELETE(`/asset-unit-locations/delete?id=${id}`);
+};
+export const getUnassignedAssets = () => {
+  return GET("/assets/unassigned");
+};

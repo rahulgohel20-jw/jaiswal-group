@@ -6,6 +6,7 @@ import {
   Filter,
   Loader2,
   MapPin,
+  Download,
 } from "lucide-react";
 import {
   getCoreRowModel,
@@ -44,6 +45,7 @@ import {
 } from '@/components/ui/select';
 import { OrgTypes } from "../../constants/orgTypes";
 import SearchableSelect from "../../utils/SearchableSelect";
+import MasterExportModal from "../../utils/MasterExportModal";
 
 const extractArray = (res) => {
   if (!res) return [];
@@ -151,7 +153,7 @@ function StatusDropdown({ value, onChange }) {
 
 const SubUnitListing = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Units');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Sub Units');
   const {
     units: scopeUnits,
     outlets: scopeOutlets,
@@ -169,6 +171,7 @@ const SubUnitListing = () => {
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -181,12 +184,12 @@ const SubUnitListing = () => {
   const normalizeSubUnit = (item) => ({
     id: item.id,
     name: item.subOutletName || item.name || "",
-    code: item.subOutletCode || item.code || "",
+    code: item.subOutletCode || item.code || item.shortCode || "",
     type: item.subOutletType || item.type || item.locationType || "LOCATION",
-    location: item.cityName || "",
-    email: item.email || "",
-    mobile: item.contactNumber || "",
-    organizationId: item.organizationId || item.orgId || item.outletId || "",
+    location: item.cityName || item.locationName || "",
+    email: item.email || item.emailid || item.contactEmail || "",
+    mobile: item.contactNumber || item.mobilenumber || item.mobile || "",
+    organizationId: String(item.organizationId ?? item.orgId ?? item.outletId ?? item.parentId ?? ""),
     contactPerson: item.contactPerson || "",
     status: item.isActive !== false ? "active" : "inactive",
     originalData: item,
@@ -466,11 +469,19 @@ const SubUnitListing = () => {
         <PageHeader
           title="Registered Sub Units"
           actions={
-            canAdd && (
-              <HeaderActionButton to="/sub-units/add">
-                Add New Sub Unit
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton to="/sub-units/add">
+                  Add New Sub Unit
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -492,20 +503,20 @@ const SubUnitListing = () => {
           </div>
 
           {/* Unit Filter */}
-          <div className="w-55 shrink-0">
-            <SearchableSelect
-              name="unit"
-              value={unitFilter}
+            <div className="w-55 shrink-0">
+              <SearchableSelect
+                name="unit"
+                value={unitFilter}
               onChange={(e) => {
                 setUnitFilter(e.target.value);
               }}
-              options={units.map((unit) => ({
+                options={units.map((unit) => ({
                 value: String(unit.id),
                 label: unit.name || unit.companyNameEnglish || unit.companyName || `Unit #${unit.id}`,
-              }))}
-              placeholder="Select Unit"
-            />
-          </div>
+                }))}
+                placeholder="Select Unit"
+              />
+            </div>
 
           {/* Type Filter */}
           <div className="w-40 shrink-0">
@@ -562,6 +573,12 @@ const SubUnitListing = () => {
         onConfirm={confirmDelete}
         itemLabel={deleteTarget?.itemLabel}
         saving={deleteLoading}
+      />
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="sub_outlet_master"
+        title="Export Sub Unit Report"
       />
     </Container>
   );

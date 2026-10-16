@@ -10,6 +10,7 @@ import {
 } from '@tanstack/react-table';
 import { SearchBar } from '@/components/common/SearchBar';
 import {
+  Download,
   Eye,
   SquarePen,
   Trash2,
@@ -45,6 +46,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { OrgTypes } from '@/constants/orgTypes';
 import SearchableSelect from '../../utils/SearchableSelect';
 import { getAllDepartmentMaster } from '../../services/apiServices';
+import MasterExportModal from '../../utils/MasterExportModal';
 
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
@@ -63,7 +65,7 @@ const TruncatedCell = ({
 
 const UserManagementList = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Users');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Users');
 
   const [userData, setUserData] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -79,6 +81,9 @@ const UserManagementList = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+
+  // Master Export Modal State
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const fetchCompanies = async () => {
     try {
@@ -154,7 +159,7 @@ const UserManagementList = () => {
           u.erpemployeecode?.toLowerCase().includes(searchText) ||
           u.company?.toLowerCase().includes(searchText);
 
-          const matchesCompany =
+        const matchesCompany =
           !companyFilter ||
           companyFilter === 'all' ||
           u.company === companyFilter;
@@ -203,22 +208,15 @@ const UserManagementList = () => {
     setDeleteSaving(true);
 
     try {
-      await deleteEmployeeById(deleteTarget.id);  
+      await deleteEmployeeById(deleteTarget.id);
       closeDeleteConfirm();
-      fetchUsers();          
+      fetchUsers();
     } catch (err) {
       console.error(err);
       notify.error('Failed to delete users');
     } finally {
       setDeleteSaving(false);
     }
-  };
-
-
-  const handleExport = (format) => {
-    alert(
-      `Exporting ${filteredUser.length} user(s) as ${format.toUpperCase()}`,
-    );
   };
 
   const columns = useMemo(
@@ -408,11 +406,20 @@ const UserManagementList = () => {
         <PageHeader
           title="User Management List"
           actions={
-            canAdd && (
-              <HeaderActionButton to="/users/add-user">
-                Add New User
-              </HeaderActionButton>
-            )
+            <div className="flex items-center gap-3">
+            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+
+              {canAdd && (
+                <HeaderActionButton to="/users/add-user">
+                  Add New User
+                </HeaderActionButton>
+              )}
+            </div>
           }
         />
 
@@ -430,22 +437,22 @@ const UserManagementList = () => {
               placeholder="Search by name, code or email..."
             />
 
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
               {/* Company Filter */}
     
-                <SearchableSelect
-                  name="company"
-                  value={companyFilter}
-                  onChange={(e) => setCompanyFilter(e.target.value)}
-                  options={[
-                    { value: 'all', label: 'All Companies' },
-                    ...companies.map((company) => ({
-                      value: company.name,
-                      label: company.name,
-                    })),
-                  ]}
-                  placeholder="All Companies"
-                />
+              <SearchableSelect
+                name="company"
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: 'All Companies' },
+                  ...companies.map((company) => ({
+                    value: company.name,
+                    label: company.name,
+                  })),
+                ]}
+                placeholder="All Companies"
+              />
 
               {/* Department Filter */}
               <Select
@@ -507,6 +514,14 @@ const UserManagementList = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.itemLabel}
           saving={deleteSaving}
+        />
+
+        {/* Master Report Export Modal */}
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="users"
+          title="Export Users Report"
         />
       </div>
     </Container>

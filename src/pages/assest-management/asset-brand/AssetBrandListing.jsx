@@ -3,6 +3,7 @@ import {
     ChevronRight,
     CircleCheck,
     CircleX,
+    Download,
     Eye,
     Plus,
     SquarePen,
@@ -37,6 +38,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const StatusBadge = ({ status }) => {
     const color = status === "Active" ? "text-emerald-600" : "text-gray-500";
@@ -58,7 +60,7 @@ const mapBrand = (b) => ({
 });
 
 const AssetBrandListing = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Asset Brand Master');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Asset Brand Master');
 
     const [brands, setBrands] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ const AssetBrandListing = () => {
     const [showAddBrand, setShowAddBrand] = useState(false);
     const [viewingBrand, setViewingBrand] = useState(null);
     const [editingBrand, setEditingBrand] = useState(null);
-
+    const [showExportModal, setShowExportModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
@@ -287,15 +289,23 @@ const AssetBrandListing = () => {
        <Container>
          <div className="pt-2 pb-6 mx-auto space-y-4">
             <PageHeader
-                title="Asset Brands"
-                actions={
-                    canAdd && (
-                        <HeaderActionButton onClick={openCreateModal}>
-                            Add Brand
-                        </HeaderActionButton>
-                    )
-                }
-            />
+                    title="Asset Brands"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openCreateModal}>
+                                    Add Brand
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
+                />
 
             <PageErrorAlert error={error} onRetry={fetchBrands} className="my-3" />
 
@@ -394,6 +404,12 @@ const AssetBrandListing = () => {
                     itemLabel={deleteTarget?.itemLabel}
                     saving={deleteSaving}
             />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_brand"
+                    title="Export Asset Brand Report"
+                />
         </div>
        </Container>
     );

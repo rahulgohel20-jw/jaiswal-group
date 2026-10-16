@@ -2,6 +2,7 @@ import {
     ChevronRight,
     CircleCheck,
     CircleX,
+    Download,
     Eye,
     Plus,
     Ruler,
@@ -37,6 +38,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const StatusBadge = ({ status }) => {
     const color = status === "Active" ? "text-emerald-600" : "text-gray-500";
@@ -59,7 +61,7 @@ const normalizeUnit = (u) => ({
 });
 
 const AssetUnitList = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions([
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions([
         'Unit of Measure Master',
         'Unit of Measure',
         'Asset Unit',
@@ -86,7 +88,7 @@ const AssetUnitList = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
-    
+    const [showExportModal, setShowExportModal] = useState(false);
     const navigate = useNavigate();
 
     const fetchUnits = async () => {
@@ -306,13 +308,21 @@ const AssetUnitList = () => {
          <div className="pt-2 pb-6 mx-auto space-y-4">
             <PageHeader
                 title="Unit of Measure Master"
-                actions={
-                    canAdd && (
-                        <HeaderActionButton onClick={handleAddClick}>
-                            Add Unit
-                        </HeaderActionButton>
-                    )
-                }
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={handleAddClick}>
+                                    Add Unit
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
             />
 
             <PageErrorAlert error={error} onRetry={fetchUnits} className="my-3" />
@@ -413,6 +423,12 @@ const AssetUnitList = () => {
                 itemLabel={deleteTarget?.itemLabel}
                 saving={deleteSaving}
             />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_unit"
+                    title="Export Asset Unit Report"
+                />
         </div>
        </Container>
     );
