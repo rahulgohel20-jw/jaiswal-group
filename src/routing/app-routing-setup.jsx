@@ -222,6 +222,8 @@ import RawMaterialBatchDetails from '../pages/inventory/batch-details/RawMateria
 import BrandUnitMapping from '../pages/raw-material/brand-unit-mapping/BrandUnitMapping';
 import ViewItemRecipe from '../pages/menu-item/item-recipe/ViewItemRecipe';
 import ViewRawMaterialItem from '../pages/raw-material/raw-material-item-master/ViewRawMaterialItem';
+import AssetLocation from '../pages/assest-management/asset-location/AssetLocation';
+import UnAssignedAssets from '../pages/assest-management/unassign-asset/UnAssignedAssets';
 
 
 export function AppRoutingSetup() {
@@ -398,6 +400,8 @@ export function AppRoutingSetup() {
           <Route path="/assets/edit-disposal/:id" element={<AddAssetsDisposal />} />
 
           <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
+          <Route path="/assets/asset-location" element={<AssetLocation/>} />
+          <Route path="/unassigned-assets" element={<UnAssignedAssets/>} />
 
           <Route path="/location/state" element={<StateMaster />} />
           <Route path="/location/city" element={<CityMaster />} />
