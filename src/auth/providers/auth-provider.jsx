@@ -25,9 +25,11 @@ export function AuthProvider({ children }) {
       const decoded = jwtDecode(nextAuth.token);
       return {
         ...nextAuth,
-        organizationId: decoded.organizationId,
-        departmentId: decoded.departmentId,
+        organizationId: decoded.organizationId != null ? Number(decoded.organizationId) : undefined,
+        departmentId: decoded.departmentId != null ? Number(decoded.departmentId) : undefined,
         userType: decoded.userType,
+        subOutletId: decoded.subOutletId != null ? Number(decoded.subOutletId) : undefined,
+        subLocationId: decoded.subLocationId != null ? Number(decoded.subLocationId) : undefined,
       };
     } catch {
       return nextAuth;
@@ -60,6 +62,10 @@ export function AuthProvider({ children }) {
     if (storedAuth?.token && authHelper.isTokenExpired(storedAuth.token)) {
       logout();
       return null;
+    }
+
+    if (storedAuth?.token && storedAuth.token === auth?.token) {
+      return currentUser || storedAuth?.user || storedAuth?.data || storedAuth;
     }
 
     setAuth(storedAuth);

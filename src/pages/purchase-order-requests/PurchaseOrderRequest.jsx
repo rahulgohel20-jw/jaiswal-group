@@ -242,6 +242,16 @@ const PurchaseOrderRequest = () => {
   } = usePurchaseOrders();
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+
+  const handlePaginationChange = useCallback((updater) => {
+    setPagination((old) => {
+      const next = typeof updater === 'function' ? updater(old) : updater;
+      if (next.pageSize !== old.pageSize) {
+        return { ...next, pageIndex: 0 };
+      }
+      return next;
+    });
+  }, []);
   const [sorting, setSorting] = useState([]);
   const [rowSelection, setRowSelection] = useState({});
   const [search, setSearch] = useState('');
@@ -260,8 +270,8 @@ const PurchaseOrderRequest = () => {
     if (scopeLoading) return;
     const isAwaitingPo = activeGroup === AWAITING_PO_GROUP;
     const isAll = activeGroup === ALL_GROUP;
-    const pageParam = pagination.pageIndex > 0 ? pagination.pageIndex : undefined;
-    const sizeParam = pagination.pageIndex > 0 ? pagination.pageSize : undefined;
+    const pageParam = pagination.pageIndex;
+    const sizeParam = pagination.pageSize;
     const searchParam = search.trim() || undefined;
 
     if (isAwaitingPo || isAll) {
@@ -625,7 +635,7 @@ const PurchaseOrderRequest = () => {
     state: { pagination, rowSelection, sorting },
     manualPagination: true,
     pageCount,
-    onPaginationChange: setPagination,
+    onPaginationChange: handlePaginationChange,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     enableRowSelection: true,

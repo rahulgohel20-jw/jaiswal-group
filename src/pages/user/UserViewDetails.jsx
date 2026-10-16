@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import {
   ArrowLeft,
@@ -13,8 +13,16 @@ import {
   Check,
   ChevronDown,
   Layers,
+  Store,
+  CheckCircle2,
 } from 'lucide-react';
-import { getEmployeeById } from '@/services/apiServices';
+import {
+  getEmployeeById,
+  getActiveCompany,
+  getAllActiveSubOutlets,
+  getAllActiveSubLocations,
+} from '@/services/apiServices';
+import { orgHierarchyStore } from '@/store/orgHierarchyStore';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 
@@ -131,6 +139,25 @@ const PermissionIndicator = ({ enabled, label }) => {
   );
 };
 
+const safeExtractList = (res, preferredKey) => {
+  if (!res) return [];
+  if (preferredKey) {
+    const direct =
+      res?.data?.data?.[preferredKey] ??
+      res?.data?.[preferredKey] ??
+      res?.[preferredKey];
+    if (Array.isArray(direct)) return direct;
+  }
+  const body = res?.data?.data ?? res?.data ?? res;
+  if (Array.isArray(body)) return body;
+  if (Array.isArray(body?.content)) return body.content;
+  if (body && typeof body === 'object') {
+    const key = Object.keys(body).find((k) => Array.isArray(body[k]));
+    if (key) return body[key];
+  }
+  return [];
+};
+
 const UserViewDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -178,6 +205,272 @@ const UserViewDetails = () => {
       cancelled = true;
     };
   }, [navigate, userRef?.id]);
+
+  // Lookup state to resolve names for organizations, sub-units, and sub-locations
+  const [allOrgs, setAllOrgs] = useState([]);
+  const [allSubOutlets, setAllSubOutlets] = useState([]);
+  const [allSubLocations, setAllSubLocations] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLookups = async () => {
+      try {
+        const [orgsRes, subOutletsRes, subLocationsRes] = await Promise.allSettled([
+          getActiveCompany(),
+          getAllActiveSubOutlets(),
+          getAllActiveSubLocations(),
+        ]);
+        if (!cancelled) {
+          if (orgsRes.status === 'fulfilled') {
+            setAllOrgs(safeExtractList(orgsRes.value));
+          }
+          if (subOutletsRes.status === 'fulfilled') {
+            setAllSubOutlets(safeExtractList(subOutletsRes.value, 'Sub Outlet Details'));
+          }
+          if (subLocationsRes.status === 'fulfilled') {
+            setAllSubLocations(safeExtractList(subLocationsRes.value, 'Sub Location Details'));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load org lookups for user details:', err);
+      }
+    };
+
+    fetchLookups();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const orgMap = useMemo(() => {
+    const map = new Map();
+    const storeScope = orgHierarchyStore.getState().parsedScope;
+    (storeScope?.companies || []).forEach((c) => {
+      const id = c.id ?? c.organizationId;
+      if (id) {
+        map.set(Number(id), {
+          id: Number(id),
+          name: c.companyNameEnglish || c.companyName || c.name || `Company #${id}`,
+          code: c.companyCode || c.code || '',
+          type: 'SUB_COMPANY',
+          parentId: null,
+        });
+      }
+    });
+    (storeScope?.outlets || []).forEach((o) => {
+      const id = o.id ?? o.organizationId;
+      if (id) {
+        map.set(Number(id), {
+          id: Number(id),
+          name: o.companyNameEnglish || o.companyName || o.outletName || o.name || `Unit #${id}`,
+          code: o.companyCode || o.outletCode || o.code || '',
+          type: 'UNIT',
+          parentId: o.parentId ? Number(o.parentId) : null,
+        });
+      }
+    });
+    allOrgs.forEach((o) => {
+      const id = o.id ?? o.organizationId ?? o.companyId;
+      if (id) {
+        map.set(Number(id), {
+          id: Number(id),
+          name: o.companyNameEnglish || o.companyName || o.outletName || o.name || `Org #${id}`,
+          code: o.companyCode || o.shortCode || o.code || o.outletCode || '',
+          type: o.organizationType || (o.parentId ? 'UNIT' : 'SUB_COMPANY'),
+          parentId: o.parentId ? Number(o.parentId) : null,
+        });
+      }
+    });
+    return map;
+  }, [allOrgs]);
+
+  const subOutletMap = useMemo(() => {
+    const map = new Map();
+    const storeScope = orgHierarchyStore.getState().parsedScope;
+    (storeScope?.subOutlets || []).forEach((so) => {
+      const id = so.id ?? so.subOutletId;
+      if (id) {
+        map.set(Number(id), {
+          id: Number(id),
+          name: so.subOutletName || so.name || `Sub-Unit #${id}`,
+          organizationId: Number(so.organizationId || so.outletId || 0),
+        });
+      }
+    });
+    allSubOutlets.forEach((so) => {
+      const id = so.id ?? so.subOutletId;
+      if (id) {
+        map.set(Number(id), {
+          id: Number(id),
+          name: so.subOutletName || so.name || `Sub-Unit #${id}`,
+          organizationId: Number(so.organizationId || so.outletId || 0),
+        });
+      }
+    });
+    return map;
+  }, [allSubOutlets]);
+
+  const subLocationMap = useMemo(() => {
+    const map = new Map();
+    const storeScope = orgHierarchyStore.getState().parsedScope;
+    (storeScope?.subLocations || []).forEach((sl) => {
+      const id = sl.id ?? sl.subLocationId;
+      if (id) {
+        map.set(Number(sl.id), {
+          id: Number(sl.id),
+          name: sl.locationName || sl.subLocationName || sl.name || `Sub-Location #${id}`,
+          subOutletId: Number(sl.subOutletId || sl.subUnitId || 0),
+        });
+      }
+    });
+    allSubLocations.forEach((sl) => {
+      const id = sl.id ?? sl.subLocationId;
+      if (id) {
+        map.set(Number(sl.id), {
+          id: Number(sl.id),
+          name: sl.locationName || sl.subLocationName || sl.name || `Sub-Location #${id}`,
+          subOutletId: Number(sl.subOutletId || sl.subUnitId || 0),
+        });
+      }
+    });
+    return map;
+  }, [allSubLocations]);
+
+  // Construct structured hierarchy tree with resolved names
+  const hierarchyTree = useMemo(() => {
+    const rawAssignments = Array.isArray(employee?.accessAssignments)
+      ? employee.accessAssignments
+      : Array.isArray(employee?.accessibleScope?.assignments)
+      ? employee.accessibleScope.assignments
+      : [];
+
+    const scope = employee?.accessibleScope;
+    const orgGroups = new Map();
+
+    const getOrCreateOrg = (id, fallbackName, fallbackType) => {
+      const orgId = Number(id);
+      if (!orgId) return null;
+      if (!orgGroups.has(orgId)) {
+        const found = orgMap.get(orgId);
+        const parentFound = found?.parentId ? orgMap.get(Number(found.parentId)) : null;
+        orgGroups.set(orgId, {
+          id: orgId,
+          name: found?.name || fallbackName || `Organization #${orgId}`,
+          code: found?.code || '',
+          type: found?.type || fallbackType || (found?.parentId ? 'UNIT' : 'SUB_COMPANY'),
+          parentName: parentFound?.name || null,
+          fullAccess: false,
+          subOutlets: new Map(),
+        });
+      }
+      return orgGroups.get(orgId);
+    };
+
+    // 1. Process accessAssignments
+    for (const a of rawAssignments) {
+      const orgId = Number(a.organizationId) || 0;
+      if (!orgId) continue;
+      const org = getOrCreateOrg(orgId, a.organizationName || a.companyName);
+      if (!org) continue;
+
+      const subOutletId = Number(a.subOutletId) || 0;
+      const subLocationId = Number(a.subLocationId) || 0;
+
+      if (subOutletId === 0 && subLocationId === 0) {
+        org.fullAccess = true;
+      } else if (subOutletId > 0) {
+        if (!org.subOutlets.has(subOutletId)) {
+          const soFound = subOutletMap.get(subOutletId);
+          org.subOutlets.set(subOutletId, {
+            id: subOutletId,
+            name: soFound?.name || a.subOutletName || `Sub-Unit #${subOutletId}`,
+            fullAccess: false,
+            subLocations: new Map(),
+          });
+        }
+        const subOutlet = org.subOutlets.get(subOutletId);
+
+        if (subLocationId === 0) {
+          subOutlet.fullAccess = true;
+        } else {
+          if (!subOutlet.subLocations.has(subLocationId)) {
+            const slFound = subLocationMap.get(subLocationId);
+            subOutlet.subLocations.set(subLocationId, {
+              id: subLocationId,
+              name: slFound?.name || a.subLocationName || a.locationName || `Sub-Location #${subLocationId}`,
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Also incorporate accessibleScope if present
+    if (scope) {
+      for (const c of scope.accessibleCompanies || []) {
+        const org = getOrCreateOrg(c.id ?? c.organizationId, c.name || c.companyName, 'SUB_COMPANY');
+        if (org) org.fullAccess = true;
+      }
+      for (const o of scope.accessibleOutlets || []) {
+        const org = getOrCreateOrg(o.id ?? o.organizationId, o.name || o.outletName, 'UNIT');
+        if (org && (!org.subOutlets || org.subOutlets.size === 0)) {
+          org.fullAccess = true;
+        }
+      }
+      for (const so of scope.accessibleSubOutlets || []) {
+        const orgId = Number(so.organizationId || so.outletId);
+        if (orgId) {
+          const org = getOrCreateOrg(orgId, null, 'UNIT');
+          if (org) {
+            const soId = Number(so.id ?? so.subOutletId);
+            const soFound = subOutletMap.get(soId);
+            if (soId && !org.subOutlets.has(soId)) {
+              org.subOutlets.set(soId, {
+                id: soId,
+                name: soFound?.name || so.name || so.subOutletName || `Sub-Unit #${soId}`,
+                fullAccess: true,
+                subLocations: new Map(),
+              });
+            }
+          }
+        }
+      }
+      for (const sl of scope.accessibleSubLocations || []) {
+        const soId = Number(sl.subOutletId);
+        const soFound = subOutletMap.get(soId);
+        const orgId = Number(sl.organizationId || soFound?.organizationId);
+        if (orgId && soId) {
+          const org = getOrCreateOrg(orgId, null, 'UNIT');
+          if (org) {
+            if (!org.subOutlets.has(soId)) {
+              org.subOutlets.set(soId, {
+                id: soId,
+                name: soFound?.name || `Sub-Unit #${soId}`,
+                fullAccess: false,
+                subLocations: new Map(),
+              });
+            }
+            const subOutlet = org.subOutlets.get(soId);
+            const slId = Number(sl.id ?? sl.subLocationId);
+            const slFound = subLocationMap.get(slId);
+            if (slId && !subOutlet.subLocations.has(slId)) {
+              subOutlet.subLocations.set(slId, {
+                id: slId,
+                name: slFound?.name || sl.name || sl.locationName || `Sub-Location #${slId}`,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return Array.from(orgGroups.values()).map((org) => ({
+      ...org,
+      subOutlets: Array.from(org.subOutlets.values()).map((so) => ({
+        ...so,
+        subLocations: Array.from(so.subLocations.values()),
+      })),
+    }));
+  }, [employee, orgMap, subOutletMap, subLocationMap]);
 
   const fullName = employee
     ? (employee.fullName || [employee.firstName, employee.middlename, employee.lastName].filter(Boolean).join(' '))
@@ -447,6 +740,168 @@ const UserViewDetails = () => {
                 </div>
               )}
             </SectionCard>
+
+            {/* Assigned Organization Scope */}
+            {hierarchyTree.length > 0 && (
+              <SectionCard
+                icon={Building2}
+                title="Assigned Organization Scope"
+                subtitle="Hierarchical access permissions across companies, units, sub-units, and locations."
+              >
+                <div className="space-y-4">
+                  {hierarchyTree.map((org) => {
+                    const isCompany =
+                      org.type === 'SUB_COMPANY' ||
+                      org.type === 'COMPANY' ||
+                      org.type === 'GROUP';
+                    const typeLabel = isCompany ? 'Company' : 'Unit / Outlet';
+                    const hasSubUnits = org.subOutlets && org.subOutlets.length > 0;
+
+                    return (
+                      <div
+                        key={org.id}
+                        className="border border-[#E5E7EB] rounded-2xl bg-white p-4.5 shadow-2xs hover:border-[#D1D5DB] transition-all"
+                      >
+                        {/* Organization Level Header */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#F0F1F3]">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                                isCompany
+                                  ? 'bg-blue-50 text-[#084E92]'
+                                  : 'bg-indigo-50 text-indigo-700'
+                              }`}
+                            >
+                              <Building2 className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-gray-900 text-sm tracking-tight truncate">
+                                  {org.name}
+                                </span>
+                                {org.code && (
+                                  <span className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                                    {org.code}
+                                  </span>
+                                )}
+                                <span
+                                  className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${
+                                    isCompany
+                                      ? 'bg-blue-50 text-[#084E92] border-blue-200'
+                                      : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                  }`}
+                                >
+                                  {typeLabel}
+                                </span>
+                              </div>
+                              {org.parentName && (
+                                <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                                  <span>Under Company:</span>
+                                  <span className="font-medium text-gray-600">
+                                    {org.parentName}
+                                  </span>
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Status / Scope pill on the right */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            {org.fullAccess && !hasSubUnits && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Full {isCompany ? 'Company' : 'Unit'} Access
+                              </span>
+                            )}
+                            {org.fullAccess && hasSubUnits && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Unit & Specific Sub-Units
+                              </span>
+                            )}
+                            {!org.fullAccess && hasSubUnits && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                                {org.subOutlets.length} Sub-Unit
+                                {org.subOutlets.length > 1 ? 's' : ''} Assigned
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Sub-Units Tree (if any) */}
+                        {hasSubUnits && (
+                          <div className="mt-3.5 pl-3 sm:pl-5 space-y-3 border-l-2 border-[#E5E7EB] ml-4">
+                            {org.subOutlets.map((so) => {
+                              const hasLocations =
+                                so.subLocations && so.subLocations.length > 0;
+                              return (
+                                <div
+                                  key={so.id}
+                                  className="bg-[#FAFBFC] border border-[#E9ECEF] rounded-xl p-3 space-y-2 hover:bg-white hover:border-[#DCE1E8] transition-all"
+                                >
+                                  {/* Sub-Unit Header */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                      <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center shrink-0">
+                                        <Store className="w-4 h-4" />
+                                      </div>
+                                      <span className="font-semibold text-gray-800 text-xs tracking-tight truncate">
+                                        {so.name}
+                                      </span>
+                                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                                        Sub-Unit
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      {so.fullAccess && !hasLocations && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                          All Locations
+                                        </span>
+                                      )}
+                                      {hasLocations && (
+                                        <span className="text-[11px] font-medium text-gray-500">
+                                          {so.subLocations.length} Location
+                                          {so.subLocations.length > 1 ? 's' : ''}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Sub-Locations (if any) */}
+                                  {hasLocations && (
+                                    <div className="pt-2 pl-3 sm:pl-4 border-l-2 border-dashed border-purple-200 ml-3.5">
+                                      <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                                        Assigned Sub-Locations
+                                      </p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {so.subLocations.map((sl) => (
+                                          <span
+                                            key={sl.id}
+                                            className="inline-flex items-center gap-1.5 bg-white border border-emerald-200 text-emerald-900 text-xs font-medium px-2.5 py-1 rounded-lg shadow-2xs hover:border-emerald-300 transition-colors"
+                                          >
+                                            <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
+                                            <span>{sl.name}</span>
+                                            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-1.5 py-0.2 rounded border border-emerald-100">
+                                              Location
+                                            </span>
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+            )}
 
             {/* Address Information */}
             <SectionCard icon={MapPin} title="Address Information">

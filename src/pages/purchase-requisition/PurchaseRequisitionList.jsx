@@ -214,6 +214,7 @@ import {
       selectedUnitId,
       setSelectedUnitId,
       effectiveOutletId,
+      companyId,
       filterRowsByScope,
       retry: retryScope,
     } = useOrgScope();
@@ -243,16 +244,16 @@ import {
       setLoading(true);
       setPrError(null);
       try {
-        const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+        const outletId = isOutletUser
+          ? Number(effectiveOutletId)
+          : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
         const reqPayload = {
           outletId,
           status: statusFilter || undefined,
           search: searchQuery.trim() || undefined,
+          page: pagination.pageIndex,
+          size: pagination.pageSize,
         };
-        if (pagination.pageIndex > 0) {
-          reqPayload.page = pagination.pageIndex;
-          reqPayload.size = pagination.pageSize;
-        }
         const res = await getPurchaseRequisitionsByOutlet(reqPayload);
         const body = res?.data || {};
         const raw = Array.isArray(body.data)
@@ -274,7 +275,11 @@ import {
     }, [
       scopeLoading,
       scopeError,
+      isOutletUser,
       effectiveOutletId,
+      companyId,
+      selectedUnitId,
+      isCompanyUser,
       statusFilter,
       pagination.pageIndex,
       pagination.pageSize,
@@ -285,7 +290,7 @@ import {
 
     useEffect(() => {
       resetPage();
-    }, [searchQuery, statusFilter, effectiveOutletId, selectedUnitId, resetPage]);
+    }, [searchQuery, statusFilter, isOutletUser, effectiveOutletId, selectedUnitId, companyId, resetPage]);
 
     useEffect(() => {
       loadData();

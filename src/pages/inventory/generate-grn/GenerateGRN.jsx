@@ -137,6 +137,9 @@ const GenerateGRN = () => {
   const {
     loading: scopeLoading,
     error: scopeError,
+    isOutletUser,
+    isCompanyUser,
+    companyId,
     showUnitDropdown,
     units,
     selectedUnitId,
@@ -169,7 +172,9 @@ const GenerateGRN = () => {
     setLoading(true);
     setPoError(null);
     try {
-      const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+      const outletId = isOutletUser
+        ? Number(effectiveOutletId)
+        : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
       const statusParam = statusFilter === 'ALL' ? 'APPROVED,CLOSED' : statusFilter;
       const res = await getPurchaseOrdersByOutlet({
         outletId,
@@ -241,7 +246,11 @@ const GenerateGRN = () => {
   }, [
     scopeLoading,
     scopeError,
+    isOutletUser,
     effectiveOutletId,
+    selectedUnitId,
+    companyId,
+    isCompanyUser,
     statusFilter,
     pagination.pageIndex,
     pagination.pageSize,
@@ -281,7 +290,7 @@ const GenerateGRN = () => {
 
   useEffect(() => {
     resetPage();
-  }, [searchQuery, statusFilter, selectedUnitId, resetPage]);
+  }, [searchQuery, statusFilter, isOutletUser, selectedUnitId, companyId, effectiveOutletId, resetPage]);
 
   const toggleSelectPo = useCallback((item) => {
     setSelectedPos((prev) => {

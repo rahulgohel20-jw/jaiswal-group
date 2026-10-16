@@ -21,7 +21,7 @@ import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { Container } from "@/components/common/container";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
@@ -158,18 +158,18 @@ const SubLocationListing = () => {
   } = useOrgScope();
 
   const [subLocations, setSubLocations] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [subUnits, setSubUnits] = useState([]);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [unitFilter, setUnitFilter] = useState(
-    () => location.state?.organizationId ? String(location.state.organizationId) : ""
-  );
-  const [subUnitFilter, setSubUnitFilter] = useState(
-    () => location.state?.subOutletId ? String(location.state.subOutletId) : location.state?.subUnitId ? String(location.state.subUnitId) : ""
-  );
+  const [unitFilter, setUnitFilter] = useState(() => {
+    const s = typeof window !== 'undefined' ? (window.history.state?.usr || window.history.state) : null;
+    return s?.organizationId ? String(s.organizationId) : "";
+  });
+  const [subUnitFilter, setSubUnitFilter] = useState(() => {
+    const s = typeof window !== 'undefined' ? (window.history.state?.usr || window.history.state) : null;
+    return s?.subOutletId ? String(s.subOutletId) : s?.subUnitId ? String(s.subUnitId) : "";
+  });
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [sorting, setSorting] = useState([]);
@@ -181,26 +181,13 @@ const SubLocationListing = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // Sync filters if location.state changes
-  useEffect(() => {
-    if (location.state?.subOutletId || location.state?.subUnitId) {
-      setSubUnitFilter(String(location.state.subOutletId || location.state.subUnitId));
-    }
-    if (location.state?.organizationId) {
-      setUnitFilter(String(location.state.organizationId));
-    }
-  }, [location.state]);
-
-  // Sync Units and SubUnits from scope
-  useEffect(() => {
-    const list = (scopeOutlets && scopeOutlets.length > 0) ? scopeOutlets : (scopeUnits || []);
-    setUnits(list);
+  // Derive Units and SubUnits directly from scope
+  const units = useMemo(() => {
+    return (scopeOutlets && scopeOutlets.length > 0) ? scopeOutlets : (scopeUnits || []);
   }, [scopeOutlets, scopeUnits]);
 
-  useEffect(() => {
-    if (scopeSubOutlets) {
-      setSubUnits(scopeSubOutlets);
-    }
+  const subUnits = useMemo(() => {
+    return scopeSubOutlets || [];
   }, [scopeSubOutlets]);
 
   // Map of unit/sub-unit IDs to names for quick fallback lookup
@@ -223,15 +210,15 @@ const SubLocationListing = () => {
     return map;
   }, [subUnits]);
 
-  const normalizeSubLocation = (item) => ({
+  const normalizeSubLocation = useCallback((item) => ({
     id: item.id,
     name: item.locationName || item.subLocationName || item.name || "",
     shortCode: item.shortCode || item.code || "",
     type: item.locationType || item.type || "STORE",
     organizationId: item.organizationId || item.orgId || item.unitId || "",
     subOutletId: item.subOutletId || item.subUnitId || "",
-    unitName: item.organizationName || item.unitName || unitMap[String(item.organizationId)] || "",
-    subUnitName: item.subOutletName || item.subUnitName || subUnitMap[String(item.subOutletId)] || "",
+    unitName: item.organizationName || item.unitName || unitMap[String(item.organizationId || item.orgId || item.unitId)] || "",
+    subUnitName: item.subOutletName || item.subUnitName || subUnitMap[String(item.subOutletId || item.subUnitId)] || "",
     contactPerson: item.contactPerson || "",
     contactNumber: item.contactNumber || item.mobile || "",
     email: item.email || "",
@@ -239,7 +226,7 @@ const SubLocationListing = () => {
     pincode: item.pincode || "",
     status: item.isActive !== false ? "active" : "inactive",
     originalData: item,
-  });
+  }), [unitMap, subUnitMap]);
 
   const fetchSubLocations = useCallback(async () => {
     setLoading(true);
@@ -247,19 +234,23 @@ const SubLocationListing = () => {
     try {
       const res = await getAllActiveSubLocations();
       const rawList = extractArray(res);
-      const filtered = filterRowsByScope(rawList);
-      setSubLocations(filtered.map(normalizeSubLocation));
+      setSubLocations(rawList);
     } catch (err) {
       console.error('Failed to fetch sub locations:', err);
       setError(err?.response?.data?.message || err?.message || 'Failed to load sub locations');
     } finally {
       setLoading(false);
     }
-  }, [filterRowsByScope, unitMap, subUnitMap]);
+  }, []);
 
   useEffect(() => {
     fetchSubLocations();
   }, [fetchSubLocations]);
+
+  const normalizedSubLocations = useMemo(() => {
+    const scoped = filterRowsByScope ? filterRowsByScope(subLocations) : subLocations;
+    return scoped.map(normalizeSubLocation);
+  }, [subLocations, filterRowsByScope, normalizeSubLocation]);
 
   const handleViewClick = async (item) => {
     try {
@@ -334,7 +325,7 @@ const SubLocationListing = () => {
 
   const filteredSubLocations = useMemo(
     () =>
-      subLocations.filter((item) => {
+      normalizedSubLocations.filter((item) => {
         const searchText = search.toLowerCase();
 
         const matchSearch =
@@ -363,7 +354,7 @@ const SubLocationListing = () => {
 
         return matchSearch && matchStatus && matchType && matchUnit && matchSubUnit;
       }),
-    [subLocations, search, statusFilter, typeFilter, showUnitDropdown, unitFilter, subUnitFilter],
+    [normalizedSubLocations, search, statusFilter, typeFilter, showUnitDropdown, unitFilter, subUnitFilter],
   );
 
   useEffect(() => {
