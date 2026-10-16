@@ -3,7 +3,7 @@ import axios from './axiosInstance';
 
 // ---- Auth APIs ----
 
-export const loginUser = (payload) => POST('/auth/login', payload);
+export const loginUser = (payload, config = {}) => POST('/auth/login', payload, config);
 export const changePassword = (payload) =>
   POST('/auth/change-password', payload);
 // ---- Password Reset APIs ----
@@ -222,8 +222,18 @@ const triggerHierarchyInvalidation = () => {
 };
 
 // --- Organization Hierarchy API ---
-export const getOrganizationHierarchy = (organizationId) => {
-  return GET('/organization/hierarchy', { organizationId });
+export const getOrganizationHierarchy = (organizationId, subOutletId, subLocationId) => {
+  if (typeof organizationId === 'object' && organizationId !== null) {
+    return GET('/organization/hierarchy', organizationId);
+  }
+  const params = { organizationId };
+  if (subOutletId != null && Number(subOutletId) > 0) {
+    params.subOutletId = Number(subOutletId);
+  }
+  if (subLocationId != null && Number(subLocationId) > 0) {
+    params.subLocationId = Number(subLocationId);
+  }
+  return GET('/organization/hierarchy', params);
 };
 
 // ---Company API and Unit API

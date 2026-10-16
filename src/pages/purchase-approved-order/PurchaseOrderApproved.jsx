@@ -205,6 +205,16 @@ const PurchaseOrderApproval = () => {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+
+  const handlePaginationChange = useCallback((updater) => {
+    setPagination((old) => {
+      const next = typeof updater === 'function' ? updater(old) : updater;
+      if (next.pageSize !== old.pageSize) {
+        return { ...next, pageIndex: 0 };
+      }
+      return next;
+    });
+  }, []);
   const [sorting, setSorting] = useState([]);
 
   // Close PO modal state
@@ -233,6 +243,7 @@ const PurchaseOrderApproval = () => {
     selectedUnitId,
     setSelectedUnitId,
     effectiveOutletId,
+    companyId,
     filterRowsByScope,
     retry: retryScope,
   } = useOrgScope();
@@ -246,13 +257,15 @@ const PurchaseOrderApproval = () => {
     fetchByOutletandStatus,
   } = usePurchaseOrders();
 
-  const currentUnitId = effectiveOutletId;
+  const currentUnitId = isOutletUser
+    ? Number(effectiveOutletId)
+    : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
 
   const loadData = useCallback(() => {
     if (scopeLoading || scopeError) return;
     const statusParam = statusFilter === ALL_STATUS ? undefined : statusFilter;
-    const pageParam = pagination.pageIndex > 0 ? pagination.pageIndex : undefined;
-    const sizeParam = pagination.pageIndex > 0 ? pagination.pageSize : undefined;
+    const pageParam = pagination.pageIndex;
+    const sizeParam = pagination.pageSize;
     fetchByOutletandStatus(
       currentUnitId,
       statusParam,
@@ -659,7 +672,7 @@ const PurchaseOrderApproval = () => {
     state: { pagination, sorting },
     manualPagination: true,
     pageCount,
-    onPaginationChange: setPagination,
+    onPaginationChange: handlePaginationChange,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

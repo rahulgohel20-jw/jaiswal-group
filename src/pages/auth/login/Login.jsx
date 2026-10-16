@@ -8,8 +8,10 @@ import {
   User,
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import { loginUser } from '@/services/apiServices';
 import { orgHierarchyStore } from '@/store/orgHierarchyStore';
+import OrgScopeSelectionStep from './OrgScopeSelectionStep';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -21,6 +23,7 @@ export default function LoginPage() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [pendingLoginPayload, setPendingLoginPayload] = useState(null);
 
   const validate = () => {
     const e = {};
@@ -29,9 +32,22 @@ export default function LoginPage() {
     return e;
   };
 
-  const finishLogin = (res) => {
-    const payload = res?.data?.data ?? res?.data;
+  const finishLogin = (payload, selectedScope = {}) => {
     if (!payload?.token) return;
+
+    let tokenOrgId = null;
+    let tokenSubOutletId = null;
+    let tokenSubLocationId = null;
+    let tokenOutletId = null;
+    try {
+      const decoded = jwtDecode(payload.token);
+      if (decoded?.organizationId != null) tokenOrgId = Number(decoded.organizationId);
+      if (decoded?.outletId != null) tokenOutletId = Number(decoded.outletId);
+      if (decoded?.subOutletId != null) tokenSubOutletId = Number(decoded.subOutletId);
+      if (decoded?.subLocationId != null) tokenSubLocationId = Number(decoded.subLocationId);
+    } catch (err) {
+      console.error('Failed to decode token claims:', err);
+    }
 
     if (payload.token) {
       console.log('Storing auth token in localStorage:', payload.token);
@@ -39,8 +55,53 @@ export default function LoginPage() {
       localStorage.setItem('userToken', payload.token);
     }
 
-    saveAuth(payload);
-    const user = payload?.user || payload?.data || payload;
+    if (payload?.userCode) {
+      localStorage.setItem('userCode', payload.userCode);
+      sessionStorage.setItem('userCode', payload.userCode);
+    }
+
+    // Prioritize selected outlet ID so selectedUnitId is the outletId (do not fall back to company tokenOrgId)
+    const effectiveUnitId = selectedScope?.outletId ?? tokenOutletId ?? null;
+    const effectiveSubOutletId = selectedScope?.subOutletId ?? tokenSubOutletId ?? null;
+    const effectiveSubLocationId = selectedScope?.subLocationId ?? tokenSubLocationId ?? null;
+
+    // Set selected company, outlet, sub-outlet, and sub-location in hierarchy store & storage
+    if (effectiveUnitId) {
+      orgHierarchyStore.setSelectedUnitId(effectiveUnitId);
+      localStorage.setItem('selectedUnitId', String(effectiveUnitId));
+      localStorage.setItem('activeScopeRole', 'OUTLET');
+    } else {
+      orgHierarchyStore.setSelectedUnitId(null);
+      localStorage.removeItem('selectedUnitId');
+      localStorage.setItem('activeScopeRole', 'COMPANY');
+    }
+    if (effectiveSubOutletId) {
+      orgHierarchyStore.setSelectedSubOutletId(effectiveSubOutletId);
+      localStorage.setItem('selectedSubOutletId', String(effectiveSubOutletId));
+    } else {
+      orgHierarchyStore.setSelectedSubOutletId(null);
+      localStorage.removeItem('selectedSubOutletId');
+    }
+    if (effectiveSubLocationId) {
+      orgHierarchyStore.setSelectedSubLocationId(effectiveSubLocationId);
+      localStorage.setItem('selectedSubLocationId', String(effectiveSubLocationId));
+    } else {
+      orgHierarchyStore.setSelectedSubLocationId(null);
+      localStorage.removeItem('selectedSubLocationId');
+    }
+    if (selectedScope?.companyId) {
+      localStorage.setItem('selectedCompanyId', String(selectedScope.companyId));
+    } else {
+      localStorage.removeItem('selectedCompanyId');
+    }
+
+    const enriched = {
+      ...payload,
+      selectedScope,
+    };
+
+    saveAuth(enriched);
+    const user = enriched?.user || enriched?.data || enriched;
     setUser(user);
 
     // Explicitly fetch and warm up hierarchy on login
@@ -68,7 +129,60 @@ export default function LoginPage() {
         organizationId: null,
       });
 
-      finishLogin(res);
+      const payload = res?.data?.data ?? res?.data;
+      const scope = payload?.accessibleScope;
+      const companies = scope?.accessibleCompanies || [];
+      const outlets = scope?.accessibleOutlets || [];
+      const subOutlets = scope?.accessibleSubOutlets || [];
+      const assignments = scope?.assignments || [];
+
+      // Save userCode in storage (without password) to display in workspace switcher
+      if (typeof window !== 'undefined') {
+        const effectiveUserCode = payload?.userCode || userCode.trim();
+        localStorage.setItem('userCode', effectiveUserCode);
+        sessionStorage.setItem('userCode', effectiveUserCode);
+        sessionStorage.removeItem('authCredentials');
+      }
+
+      // Check if user has multiple organizational entities, is group level, or selection is explicitly required
+      const msg = String(res?.data?.msg || res?.data?.message || '').toLowerCase();
+      const hasGroup =
+        Boolean(scope?.isGroupLevelAccess) ||
+        (scope?.accessibleGroups || []).length > 0 ||
+        companies.some((c) => {
+          const type = (c.organizationType || c.type || c.orgType || c.level || '').toUpperCase();
+          if (type === 'SUB_COMPANY' || type === 'OUTLET') return false;
+          const name = (c.companyName || c.name || '').toUpperCase().trim();
+          return type === 'GROUP' || name === 'JAISWAL GROUP';
+        });
+
+      const needsSelection =
+        Boolean(payload?.requiresOrganizationSelection) ||
+        hasGroup ||
+        msg.includes('multiple organization') ||
+        msg.includes('multiple accounts') ||
+        companies.length > 1 ||
+        outlets.length > 1 ||
+        subOutlets.length > 1 ||
+        assignments.length > 1 ||
+        (companies.length === 1 && outlets.length > 0);
+
+      if (needsSelection) {
+        setPendingLoginPayload(payload);
+        return;
+      }
+
+      if (!payload?.token) {
+        setSubmitError('Invalid login response. Please contact support.');
+        return;
+      }
+
+      const defaultScope = {
+        companyId: companies[0]?.organizationId || companies[0]?.id || null,
+        outletId: outlets[0]?.organizationId || outlets[0]?.id || null,
+        subOutletId: subOutlets[0]?.id || null,
+      };
+      finishLogin(payload, defaultScope);
     } catch (err) {
       console.error(err);
       const data = err?.response?.data;
@@ -112,116 +226,120 @@ export default function LoginPage() {
       {/* Right section — #F8F9FF background */}
       <div className="w-full lg:w-1/2 bg-[#F8F9FF] flex items-center justify-center p-6 lg:p-12">
         <div className="w-full max-w-[380px] bg-white rounded-2xl border border-[#EAECEF] shadow-[0_8px_30px_rgba(15,42,74,0.06)] p-8">
-          <h2 className="text-[20px] font-bold text-[#0F2A4A] mb-1.5">
-            Welcome Back
-          </h2>
-          <p className="text-[#8B93A1] text-[12.5px] leading-relaxed mb-6">
-            Enter your credentials to access the super admin panel.
-          </p>
+          {pendingLoginPayload ? (
+            <OrgScopeSelectionStep
+              loginData={pendingLoginPayload}
+              credentials={{ userCode: userCode.trim(), password }}
+              onSuccess={(finalPayload, selectedScope) => finishLogin(finalPayload, selectedScope)}
+              onBack={() => {
+                setPendingLoginPayload(null);
+                setSubmitError('');
+              }}
+            />
+          ) : (
+            <>
+              <h2 className="text-[20px] font-bold text-[#0F2A4A] mb-1.5">
+                Welcome Back
+              </h2>
+              <p className="text-[#8B93A1] text-[12.5px] leading-relaxed mb-6">
+                Enter your credentials to access the super admin panel.
+              </p>
 
-          {/* {requiresOrgSelection && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12px] text-blue-800">
-              <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>
-                Multiple accounts found for <strong>{email}</strong>. Please
-                select an organization below to continue.
-              </span>
-            </div>
-          )} */}
-
-          {submitError && (
-            <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] text-red-700">
-              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>{submitError}</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div>
-              <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
-                User Code
-              </label>
-              <div
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.userCode ? 'border-red-400' : 'border-[#E1E4E9]'}`}
-              >
-                <User className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
-                <input
-                  type="text"
-                  value={userCode}
-                  onChange={(e) => {
-                    setUserCode(e.target.value);
-                    if (errors.userCode)
-                      setErrors((prev) => ({ ...prev, userCode: undefined }));
-                  }}
-                  placeholder="Enter your user code"
-                  className="flex-1 outline-none text-[13px] bg-transparent text-[#0F2A4A] placeholder:text-[#B3B9C4]"
-                />
-              </div>
-              {errors.userCode && (
-                <p className="text-[11px] text-red-500 mt-1">{errors.userCode}</p>
+              {submitError && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-[12px] text-red-700">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>{submitError}</span>
+                </div>
               )}
-            </div>
 
-            <div>
-              <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
-                Password
-              </label>
-              <div
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.password ? 'border-red-400' : 'border-[#E1E4E9]'}`}
-              >
-                <Lock className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (errors.password)
-                      setErrors((prev) => ({ ...prev, password: undefined }));
-                  }}
-                  placeholder="••••••••"
-                  className="flex-1 outline-none text-[13px] bg-transparent text-[#0F2A4A] placeholder:text-[#B3B9C4]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="text-[#9AA3B2] hover:text-[#54607A] shrink-0"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-[15px] w-[15px]" />
-                  ) : (
-                    <Eye className="h-[15px] w-[15px]" />
+              <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+                <div>
+                  <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
+                    User Code
+                  </label>
+                  <div
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.userCode ? 'border-red-400' : 'border-[#E1E4E9]'}`}
+                  >
+                    <User className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
+                    <input
+                      type="text"
+                      value={userCode}
+                      onChange={(e) => {
+                        setUserCode(e.target.value);
+                        if (errors.userCode)
+                          setErrors((prev) => ({ ...prev, userCode: undefined }));
+                      }}
+                      placeholder="Enter your user code"
+                      className="flex-1 outline-none text-[13px] bg-transparent text-[#0F2A4A] placeholder:text-[#B3B9C4]"
+                    />
+                  </div>
+                  {errors.userCode && (
+                    <p className="text-[11px] text-red-500 mt-1">{errors.userCode}</p>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-[#54607A] mb-1.5">
+                    Password
+                  </label>
+                  <div
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 focus-within:border-[#1D4E89] transition-colors ${errors.password ? 'border-red-400' : 'border-[#E1E4E9]'}`}
+                  >
+                    <Lock className="h-[15px] w-[15px] text-[#9AA3B2] shrink-0" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errors.password)
+                          setErrors((prev) => ({ ...prev, password: undefined }));
+                      }}
+                      placeholder="••••••••"
+                      className="flex-1 outline-none text-[13px] bg-transparent text-[#0F2A4A] placeholder:text-[#B3B9C4]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="text-[#9AA3B2] hover:text-[#54607A] shrink-0"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-[15px] w-[15px]" />
+                      ) : (
+                        <Eye className="h-[15px] w-[15px]" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.password && (
+                    <p className="text-[11px] text-red-500 mt-1">
+                      {errors.password}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end pt-1">
+                  <Link
+                    to="/auth/forgot-password"
+                    className="text-[12px] text-[#1D4E89] font-medium hover:underline"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full bg-[#0F2A4A] hover:bg-[#123256] cursor-pointer text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
+                >
+                  {submitting ? 'Logging in...' : 'Login'}
                 </button>
-              </div>
-              {errors.password && (
-                <p className="text-[11px] text-red-500 mt-1">
-                  {errors.password}
-                </p>
-              )}
-            </div>
+              </form>
 
-            <div className="flex items-center justify-end pt-1">
-              <Link
-                to="/auth/forgot-password"
-                className="text-[12px] text-[#1D4E89] font-medium hover:underline"
-              >
-                Forgot Password?
-              </Link>
-            </div>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-[#0F2A4A] hover:bg-[#123256] cursor-pointer text-white text-[13.5px] font-semibold rounded-lg py-3 transition-colors mt-2 disabled:opacity-50"
-            >
-              {submitting ? 'Logging in...' : 'Login'}
-            </button>
-          </form>
-
-          <p className="text-center text-[10.5px] text-[#B3B9C4] mt-6">
-            © 2026 Jaiswal ERP All Rights Reserved.
-          </p>
+              <p className="text-center text-[10.5px] text-[#B3B9C4] mt-6">
+                © 2026 Jaiswal ERP All Rights Reserved.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { getOrganizationHierarchy } from '@/services/apiServices';
-import { getOrgIdFromToken } from '@/utils/auth';
+import { getOrgIdFromToken, getActiveRoleLevel, getActiveUnitId } from '@/utils/auth';
 import { parseOrgHierarchy } from '@/utils/hierarchyUtils';
 
 let state = {
@@ -9,6 +9,7 @@ let state = {
   parsedScope: null,
   selectedUnitId: null,
   selectedSubOutletId: null,
+  selectedSubLocationId: null,
 };
 
 const listeners = new Set();
@@ -63,6 +64,15 @@ export const orgHierarchyStore = {
 
   setSelectedUnitId: (id) => {
     const nextId = id ? Number(id) : null;
+    if (typeof window !== 'undefined') {
+      try {
+        if (nextId) {
+          localStorage.setItem('selectedUnitId', String(nextId));
+        } else {
+          localStorage.removeItem('selectedUnitId');
+        }
+      } catch {}
+    }
     if (state.selectedUnitId !== nextId) {
       state = { ...state, selectedUnitId: nextId, selectedSubOutletId: null };
       emitChange();
@@ -72,21 +82,55 @@ export const orgHierarchyStore = {
   setSelectedSubOutletId: (id) => {
     const nextId = id ? Number(id) : null;
     if (state.selectedSubOutletId !== nextId) {
-      state = { ...state, selectedSubOutletId: nextId };
+      state = { ...state, selectedSubOutletId: nextId, selectedSubLocationId: null };
+      emitChange();
+    }
+  },
+
+  setSelectedSubLocationId: (id) => {
+    const nextId = id ? Number(id) : null;
+    if (typeof window !== 'undefined') {
+      try {
+        if (nextId) {
+          localStorage.setItem('selectedSubLocationId', String(nextId));
+        } else {
+          localStorage.removeItem('selectedSubLocationId');
+        }
+      } catch {}
+    }
+    if (state.selectedSubLocationId !== nextId) {
+      state = { ...state, selectedSubLocationId: nextId };
       emitChange();
     }
   },
 
   fetchHierarchy: async (force = false) => {
-    const orgId = getOrgIdFromToken();
+    const activeUnit = getActiveUnitId();
+    const activeRole = getActiveRoleLevel();
+    const isUnitRole = Boolean(activeUnit && activeRole === 'OUTLET');
+    const tokenOrgId = getOrgIdFromToken();
+    const storedCompId = typeof window !== 'undefined' ? localStorage.getItem('selectedCompanyId') : null;
+
+    // When switched to unit level role, pass outletId in organizationId!
+    // When in company level role, pass companyId in organizationId!
+    const orgId = isUnitRole
+      ? Number(activeUnit)
+      : (storedCompId ? Number(storedCompId) : Number(tokenOrgId));
+
     if (!orgId) {
       return null;
     }
 
+    const storedUnitId = typeof window !== 'undefined' ? localStorage.getItem('selectedUnitId') : null;
+
     // If already in memory and not forced, restore selection if needed and exit
     if (state.parsedScope && !force) {
-      if (state.parsedScope.userLevel === 'OUTLET' && !state.selectedUnitId) {
-        state = { ...state, selectedUnitId: Number(orgId) };
+      if (isUnitRole || (state.parsedScope.userLevel === 'OUTLET' && !state.selectedUnitId)) {
+        state = {
+          ...state,
+          selectedUnitId: isUnitRole ? Number(activeUnit) : Number(orgId),
+          parsedScope: isUnitRole ? { ...state.parsedScope, userLevel: 'OUTLET' } : state.parsedScope,
+        };
         emitChange();
       }
       return state.parsedScope;
@@ -96,13 +140,21 @@ export const orgHierarchyStore = {
     if (!force) {
       const cached = loadFromSessionStorage(orgId);
       if (cached) {
-        const isOutlet = cached.userLevel === 'OUTLET';
+        const isOutlet = isUnitRole || cached.userLevel === 'OUTLET';
+        let validUnitId = isUnitRole
+          ? Number(activeUnit)
+          : (state.selectedUnitId ?? (storedUnitId ? Number(storedUnitId) : null));
+        if (!isUnitRole && validUnitId && cached.outlets && !cached.outlets.some((o) => Number(o.id) === Number(validUnitId))) {
+          if (typeof window !== 'undefined') localStorage.removeItem('selectedUnitId');
+          validUnitId = null;
+        }
+
         state = {
           ...state,
-          parsedScope: cached,
+          parsedScope: isUnitRole ? { ...cached, userLevel: 'OUTLET' } : cached,
           loading: false,
           error: null,
-          selectedUnitId: isOutlet ? Number(orgId) : state.selectedUnitId,
+          selectedUnitId: isOutlet ? Number(orgId) : validUnitId,
         };
         emitChange();
         return cached;
@@ -127,13 +179,21 @@ export const orgHierarchyStore = {
           saveToSessionStorage(orgId, parsed);
         }
 
-        const isOutlet = parsed?.userLevel === 'OUTLET';
+        const isOutlet = isUnitRole || parsed?.userLevel === 'OUTLET';
+        let validUnitId = isUnitRole
+          ? Number(activeUnit)
+          : (state.selectedUnitId ?? (storedUnitId ? Number(storedUnitId) : null));
+        if (!isUnitRole && validUnitId && parsed?.outlets && !parsed.outlets.some((o) => Number(o.id) === Number(validUnitId))) {
+          if (typeof window !== 'undefined') localStorage.removeItem('selectedUnitId');
+          validUnitId = null;
+        }
+
         state = {
           ...state,
-          parsedScope: parsed,
+          parsedScope: isUnitRole && parsed ? { ...parsed, userLevel: 'OUTLET' } : parsed,
           loading: false,
           error: null,
-          selectedUnitId: isOutlet ? Number(orgId) : state.selectedUnitId,
+          selectedUnitId: isOutlet ? Number(orgId) : validUnitId,
         };
         emitChange();
         return parsed;
@@ -228,8 +288,18 @@ export const orgHierarchyStore = {
 
   reset: () => {
     const orgId = getOrgIdFromToken();
-    if (orgId && typeof window !== 'undefined' && sessionStorage) {
-      sessionStorage.removeItem(getCacheKey(orgId));
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('selectedCompanyId');
+        localStorage.removeItem('selectedUnitId');
+        localStorage.removeItem('selectedSubOutletId');
+        localStorage.removeItem('selectedSubLocationId');
+      } catch {}
+      if (orgId && sessionStorage) {
+        try {
+          sessionStorage.removeItem(getCacheKey(orgId));
+        } catch {}
+      }
     }
     state = {
       loading: false,
@@ -237,6 +307,7 @@ export const orgHierarchyStore = {
       parsedScope: null,
       selectedUnitId: null,
       selectedSubOutletId: null,
+      selectedSubLocationId: null,
     };
     emitChange();
   },

@@ -8,7 +8,7 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  Map,
+  Map as MapIcon,
   MapPin,
   ShieldCheck,
   User,
@@ -17,6 +17,8 @@ import {
 import { useLocation, useNavigate } from 'react-router';
 import {
   getActiveCompany,
+  getAllActiveSubLocations,
+  getAllActiveSubOutlets,
   getAllCountries,                                         
   getAllDepartmentMaster,
   getAllRoleMasterByUserId,
@@ -31,7 +33,9 @@ import {
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '../../utils/auth';
 import SearchableSelect from '../../utils/SearchableSelect';
+import MultiSelectDropdown from '@/components/common/MultiSelectDropdown';
 import {
+  buildAccessAssignments,
   buildEmployeePayload,
   DEFAULT_FORM,
   deriveOrgSelection,
@@ -378,6 +382,10 @@ const UserRegistration = () => {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [allOrgs, setAllOrgs] = useState([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [allSubOutlets, setAllSubOutlets] = useState([]);
+  const [loadingSubOutlets, setLoadingSubOutlets] = useState(false);
+  const [allSubLocations, setAllSubLocations] = useState([]);
+  const [loadingSubLocations, setLoadingSubLocations] = useState(false);
 
   // Fetch GROUP-type orgs once on mount
   useEffect(() => {
@@ -423,6 +431,50 @@ const UserRegistration = () => {
       }
     };
     fetchOrgs();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch all active sub-outlets
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSubOutlets = async () => {
+      setLoadingSubOutlets(true);
+      try {
+        const res = await getAllActiveSubOutlets();
+        const list = extractList(res);
+        if (!cancelled) setAllSubOutlets(list);
+      } catch (err) {
+        console.error('Failed to load sub outlets', err);
+        if (!cancelled) setAllSubOutlets([]);
+      } finally {
+        if (!cancelled) setLoadingSubOutlets(false);
+      }
+    };
+    fetchSubOutlets();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch all active sub-locations
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSubLocations = async () => {
+      setLoadingSubLocations(true);
+      try {
+        const res = await getAllActiveSubLocations();
+        const list = extractList(res);
+        if (!cancelled) setAllSubLocations(list);
+      } catch (err) {
+        console.error('Failed to load sub locations', err);
+        if (!cancelled) setAllSubLocations([]);
+      } finally {
+        if (!cancelled) setLoadingSubLocations(false);
+      }
+    };
+    fetchSubLocations();
     return () => {
       cancelled = true;
     };
@@ -522,45 +574,180 @@ const UserRegistration = () => {
     [allOrgs, form.groupId],
   );
 
-  // Units
-  const outlets = useMemo(
-    () =>
-      form.companyId
-        ? allOrgs
-            .filter((o) => String(o.parentId) === String(form.companyId))
-            .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name }))
-        : [],
-    [allOrgs, form.companyId],
+  const selectedCompanyIdSet = useMemo(
+    () => new Set((form.selectedCompanies || []).map((c) => String(c.id))),
+    [form.selectedCompanies],
   );
 
+  const companyMap = useMemo(() => {
+    const map = new Map();
+    allOrgs.forEach((o) => map.set(String(o.id), o.companyNameEnglish || o.name));
+    return map;
+  }, [allOrgs]);
+
+  // Units under selected companies
+  const availableUnits = useMemo(() => {
+    if (selectedCompanyIdSet.size === 0) return [];
+    return allOrgs
+      .filter((o) => selectedCompanyIdSet.has(String(o.parentId)))
+      .map((u) => ({
+        id: u.id,
+        name: u.companyNameEnglish || u.name,
+        parentId: u.parentId,
+        subtitle: companyMap.get(String(u.parentId)) ? `Company: ${companyMap.get(String(u.parentId))}` : '',
+      }));
+  }, [allOrgs, selectedCompanyIdSet, companyMap]);
+
+  const selectedUnitIdSet = useMemo(
+    () => new Set((form.selectedUnits || []).map((u) => String(u.id))),
+    [form.selectedUnits],
+  );
+
+  const unitMap = useMemo(() => {
+    const map = new Map();
+    allOrgs.forEach((o) => map.set(String(o.id), o.companyNameEnglish || o.name));
+    return map;
+  }, [allOrgs]);
+
+  // Sub-Units under selected units
+  const availableSubOutlets = useMemo(() => {
+    if (selectedUnitIdSet.size === 0) return [];
+    return allSubOutlets
+      .filter((so) => {
+        const parentId = String(so.organizationId || so.outletId || so.parentId || '');
+        return selectedUnitIdSet.has(parentId);
+      })
+      .map((so) => {
+        const parentId = so.organizationId || so.outletId || so.parentId;
+        const parentName = unitMap.get(String(parentId)) || '';
+        return {
+          id: so.id,
+          name: so.subOutletName || so.name || `Sub-Unit #${so.id}`,
+          organizationId: parentId,
+          parentUnitId: parentId,
+          subtitle: parentName ? `Unit: ${parentName}` : '',
+        };
+      });
+  }, [allSubOutlets, selectedUnitIdSet, unitMap]);
+
+  const selectedSubUnitIdSet = useMemo(
+    () => new Set((form.selectedSubUnits || []).map((su) => String(su.id))),
+    [form.selectedSubUnits],
+  );
+
+  const subOutletMap = useMemo(() => {
+    const map = new Map();
+    allSubOutlets.forEach((so) =>
+      map.set(String(so.id), so.subOutletName || so.name || `Sub-Unit #${so.id}`)
+    );
+    return map;
+  }, [allSubOutlets]);
+
+  // Sub-Locations under selected sub-units
+  const availableSubLocations = useMemo(() => {
+    if (selectedSubUnitIdSet.size === 0) return [];
+    return allSubLocations
+      .filter((sl) => {
+        const subOutletId = String(sl.subOutletId || sl.subUnitId || '');
+        return selectedSubUnitIdSet.has(subOutletId);
+      })
+      .map((sl) => {
+        const subOutletId = sl.subOutletId || sl.subUnitId;
+        const parentSubOutlet = subOutletMap.get(String(subOutletId)) || '';
+        return {
+          id: sl.id,
+          name: sl.locationName || sl.name || `Sub-Location #${sl.id}`,
+          subOutletId: subOutletId,
+          parentSubOutletId: subOutletId,
+          organizationId: sl.organizationId,
+          parentUnitId: sl.organizationId,
+          subtitle: parentSubOutlet ? `Sub-Unit: ${parentSubOutlet}` : '',
+        };
+      });
+  }, [allSubLocations, selectedSubUnitIdSet, subOutletMap]);
+
   const handleGroupChange = (e) => {
-    const value = e.target.value;
-    setForm((f) => ({ ...f, groupId: value, companyId: '', outletId: '' }));
+    const value = typeof e === 'object' && e?.target ? e.target.value : String(e ?? '');
+    setForm((f) => ({
+      ...f,
+      groupId: value,
+      companyId: '',
+      outletId: '',
+      selectedCompanies: [],
+      selectedUnits: [],
+      selectedSubUnits: [],
+      selectedSubLocations: [],
+    }));
     setErrors((prev) => ({
       ...prev,
       groupId: undefined,
-      companyId: undefined,
-      outletId: undefined,
     }));
   };
 
-  const handleCompanyChange = (e) => {
-    const value = e.target.value;
-    setForm((f) => ({ ...f, companyId: value, outletId: '' }));
-    setErrors((prev) => ({
+  const handleCompaniesChange = (selected) => {
+    const newCompanyIds = new Set(selected.map((c) => String(c.id)));
+    const nextUnits = (form.selectedUnits || []).filter((u) => newCompanyIds.has(String(u.parentId)));
+    const nextUnitIds = new Set(nextUnits.map((u) => String(u.id)));
+    const nextSubUnits = (form.selectedSubUnits || []).filter((su) =>
+      nextUnitIds.has(String(su.organizationId || su.parentUnitId))
+    );
+    const nextSubUnitIds = new Set(nextSubUnits.map((su) => String(su.id)));
+    const nextSubLocations = (form.selectedSubLocations || []).filter((sl) =>
+      nextSubUnitIds.has(String(sl.subOutletId || sl.parentSubOutletId))
+    );
+
+    setForm((prev) => ({
       ...prev,
-      companyId: undefined,
-      outletId: undefined,
+      selectedCompanies: selected,
+      selectedUnits: nextUnits,
+      selectedSubUnits: nextSubUnits,
+      selectedSubLocations: nextSubLocations,
+      companyId: selected[0]?.id ? String(selected[0].id) : '',
+      outletId: nextUnits[0]?.id ? String(nextUnits[0].id) : '',
     }));
   };
 
-  const handleUnitChange = (e) => {
-    const value = e.target.value;
-    setForm((f) => ({ ...f, outletId: value }));
-    setErrors((prev) => ({ ...prev, outletId: undefined }));
+  const handleUnitsChange = (selected) => {
+    const nextUnitIds = new Set(selected.map((u) => String(u.id)));
+    const nextSubUnits = (form.selectedSubUnits || []).filter((su) =>
+      nextUnitIds.has(String(su.organizationId || su.parentUnitId))
+    );
+    const nextSubUnitIds = new Set(nextSubUnits.map((su) => String(su.id)));
+    const nextSubLocations = (form.selectedSubLocations || []).filter((sl) =>
+      nextSubUnitIds.has(String(sl.subOutletId || sl.parentSubOutletId))
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      selectedUnits: selected,
+      selectedSubUnits: nextSubUnits,
+      selectedSubLocations: nextSubLocations,
+      outletId: selected[0]?.id ? String(selected[0].id) : '',
+    }));
+  };
+
+  const handleSubUnitsChange = (selected) => {
+    const nextSubUnitIds = new Set(selected.map((su) => String(su.id)));
+    const nextSubLocations = (form.selectedSubLocations || []).filter((sl) =>
+      nextSubUnitIds.has(String(sl.subOutletId || sl.parentSubOutletId))
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      selectedSubUnits: selected,
+      selectedSubLocations: nextSubLocations,
+    }));
+  };
+
+  const handleSubLocationsChange = (selected) => {
+    setForm((prev) => ({
+      ...prev,
+      selectedSubLocations: selected,
+    }));
   };
 
   // Edit mode: fetch employee by ID and load their permissions
+  const editInitializedRef = useRef(false);
   useEffect(() => {
     setErrors({});
     setSubmitError('');
@@ -571,6 +758,7 @@ const UserRegistration = () => {
       setForm(DEFAULT_FORM);
       setEmployeeOrgId('');
       setChecks({});
+      editInitializedRef.current = false;
       return;
     }
 
@@ -607,14 +795,237 @@ const UserRegistration = () => {
     };
   }, [editingUser?.id]);
 
-  // Pre-select Group / Sub Company / Unit in edit mode
+  // Pre-select Group / Companies / Units / Sub-Units in edit mode once lists are available
   useEffect(() => {
-    if (!isEditMode || !employeeOrgId) return;
-    if (loadingGroups || loadingOrgs) return;
+    if (!isEditMode || editInitializedRef.current) return;
+    if (loadingGroups || loadingOrgs || loadingSubOutlets || loadingSubLocations || loadingUser) return;
+    if (!employeeOrgId && !form.rawAccessAssignments && !form.rawAccessibleScope) return;
 
-    const derived = deriveOrgSelection(employeeOrgId, groups, allOrgs);
-    setForm((f) => ({ ...f, ...derived }));
-  }, [isEditMode, employeeOrgId, groups, allOrgs, loadingGroups, loadingOrgs]);
+    const rawAssignments = Array.isArray(form.rawAccessAssignments)
+      ? form.rawAccessAssignments
+      : Array.isArray(form.rawAccessAssignments?.assignments)
+      ? form.rawAccessAssignments.assignments
+      : [];
+    const scope = form.rawAccessibleScope || {};
+
+    if (rawAssignments.length > 0) {
+      const compIds = new Set(
+        rawAssignments
+          .filter((a) => (a.subOutletId === 0 || !a.subOutletId) && (a.subLocationId === 0 || !a.subLocationId))
+          .map((a) => Number(a.organizationId))
+      );
+      const subUnitIds = new Set(
+        rawAssignments
+          .filter((a) => Number(a.subOutletId) > 0 && (!a.subLocationId || Number(a.subLocationId) === 0))
+          .map((a) => Number(a.subOutletId))
+      );
+      const subLocationIds = new Set(
+        rawAssignments
+          .filter((a) => Number(a.subLocationId) > 0)
+          .map((a) => Number(a.subLocationId))
+      );
+      const unitOrgIds = new Set(rawAssignments.map((a) => Number(a.organizationId)).filter(Boolean));
+
+      // Resolve the Main Group
+      const directGroup = groups.find((g) => compIds.has(Number(g.id)));
+      const parentGroup = allOrgs.find(
+        (o) => compIds.has(Number(o.id)) && groups.some((g) => String(g.id) === String(o.parentId))
+      );
+      const resolvedGroupId =
+        directGroup?.id
+          ? String(directGroup.id)
+          : parentGroup?.parentId
+          ? String(parentGroup.parentId)
+          : form.groupId || (groups[0]?.id ? String(groups[0].id) : '');
+
+      const matchedCompanies = allOrgs
+        .filter((o) => compIds.has(Number(o.id)) && String(o.parentId) === String(resolvedGroupId))
+        .map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name }));
+
+      const matchedCompanyIds = new Set(matchedCompanies.map((c) => String(c.id)));
+
+      const matchedUnits = allOrgs
+        .filter(
+          (o) =>
+            (compIds.has(Number(o.id)) || unitOrgIds.has(Number(o.id))) &&
+            matchedCompanyIds.has(String(o.parentId))
+        )
+        .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name, parentId: u.parentId }));
+
+      const matchedSubUnits = allSubOutlets
+        .filter((so) => subUnitIds.has(Number(so.id)))
+        .map((so) => ({
+          id: so.id,
+          name: so.subOutletName || so.name,
+          organizationId: so.organizationId || so.outletId,
+          parentUnitId: so.organizationId || so.outletId,
+        }));
+
+      const matchedSubLocations = allSubLocations
+        .filter((sl) => subLocationIds.has(Number(sl.id)))
+        .map((sl) => ({
+          id: sl.id,
+          name: sl.locationName || sl.name,
+          subOutletId: sl.subOutletId,
+          parentSubOutletId: sl.subOutletId,
+          organizationId: sl.organizationId,
+          parentUnitId: sl.organizationId,
+        }));
+
+      const allCompaniesForGroup = allOrgs.filter((o) => String(o.parentId) === String(resolvedGroupId));
+      const isFullGroupUser =
+        Boolean(directGroup) &&
+        (matchedCompanies.length === 0 || (allCompaniesForGroup.length > 0 && matchedCompanies.length >= allCompaniesForGroup.length)) &&
+        matchedUnits.length === 0 &&
+        matchedSubUnits.length === 0 &&
+        matchedSubLocations.length === 0;
+
+      const selCompaniesToSet = isFullGroupUser ? [] : matchedCompanies;
+
+      setForm((prev) => ({
+        ...prev,
+        groupId: resolvedGroupId,
+        selectedCompanies: selCompaniesToSet,
+        selectedUnits: matchedUnits,
+        selectedSubUnits: matchedSubUnits,
+        selectedSubLocations: matchedSubLocations,
+      }));
+      editInitializedRef.current = true;
+    } else if (scope?.accessibleCompanies?.length > 0 || scope?.accessibleOutlets?.length > 0) {
+      const normalizedCompanies = (scope.accessibleCompanies || []).map((c) => ({
+        id: c.id ?? c.companyId,
+        name: c.name ?? c.companyName ?? c.companyNameEnglish ?? '',
+        parentId: c.parentId,
+      }));
+      const normalizedUnits = (scope.accessibleOutlets || []).map((u) => ({
+        id: u.id ?? u.outletId,
+        name: u.name ?? u.outletName ?? '',
+        parentId: u.parentId ?? u.companyId,
+      }));
+      const normalizedSubUnits = (scope.accessibleSubOutlets || []).map((so) => ({
+        id: so.id ?? so.subOutletId,
+        name: so.name ?? so.subOutletName ?? '',
+        organizationId: so.organizationId ?? so.outletId,
+        parentUnitId: so.organizationId ?? so.outletId,
+      }));
+      const normalizedSubLocations = (scope.accessibleSubLocations || []).map((sl) => ({
+        id: sl.id ?? sl.subLocationId,
+        name: sl.name ?? sl.locationName ?? '',
+        subOutletId: sl.subOutletId,
+        parentSubOutletId: sl.subOutletId,
+        organizationId: sl.organizationId,
+        parentUnitId: sl.organizationId,
+      }));
+
+      const resolvedGroupId = form.groupId || (groups[0]?.id ? String(groups[0].id) : '');
+      setForm((prev) => ({
+        ...prev,
+        groupId: resolvedGroupId,
+        selectedCompanies: normalizedCompanies,
+        selectedUnits: normalizedUnits,
+        selectedSubUnits: normalizedSubUnits,
+        selectedSubLocations: normalizedSubLocations,
+      }));
+      editInitializedRef.current = true;
+    } else if (employeeOrgId) {
+      const derived = deriveOrgSelection(employeeOrgId, groups, allOrgs);
+      const selComps = derived.companyId
+        ? allOrgs
+            .filter((o) => String(o.id) === String(derived.companyId))
+            .map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name }))
+        : [];
+      const selUnits = derived.outletId
+        ? allOrgs
+            .filter((o) => String(o.id) === String(derived.outletId))
+            .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name, parentId: u.parentId }))
+        : [];
+
+      setForm((prev) => ({
+        ...prev,
+        ...derived,
+        selectedCompanies: selComps,
+        selectedUnits: selUnits,
+      }));
+      editInitializedRef.current = true;
+    }
+  }, [
+    isEditMode,
+    employeeOrgId,
+    form.rawAccessAssignments,
+    form.rawAccessibleScope,
+    form.groupId,
+    groups,
+    allOrgs,
+    allSubOutlets,
+    allSubLocations,
+    loadingGroups,
+    loadingOrgs,
+    loadingSubOutlets,
+    loadingSubLocations,
+    loadingUser,
+  ]);
+
+  // Live Access Assignments and Scope Summary
+  const currentAccessAssignments = useMemo(() => {
+    return buildAccessAssignments(form, {
+      isEditMode,
+      loggedInUserId: getUserIdFromToken(),
+      allCompanies: subCompanies,
+      allOrgs,
+    });
+  }, [form, isEditMode, subCompanies, allOrgs]);
+
+  const accessScopeSummary = useMemo(() => {
+    const compCount = form.selectedCompanies?.length || 0;
+    const unitCount = form.selectedUnits?.length || 0;
+    const subUnitCount = form.selectedSubUnits?.length || 0;
+    const subLocCount = form.selectedSubLocations?.length || 0;
+    const totalAssignments = currentAccessAssignments.length;
+
+    if (subLocCount > 0) {
+      return {
+        badge: 'Sub-Location Level Access',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        title: `${subLocCount} Sub-Locations Selected`,
+        description: `User will be assigned specific access to ${subLocCount} sub-locations across ${subUnitCount} sub-units and ${unitCount} units.`,
+        total: totalAssignments,
+      };
+    }
+    if (subUnitCount > 0) {
+      return {
+        badge: 'Sub-Unit Level Access',
+        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        title: `${subUnitCount} Sub-Units Selected`,
+        description: `User will be assigned access to ${subUnitCount} sub-units across ${unitCount} units and ${compCount} companies.`,
+        total: totalAssignments,
+      };
+    }
+    if (unitCount > 0) {
+      return {
+        badge: 'Unit Level Access',
+        badgeColor: 'bg-blue-50 text-[#084E92] border-blue-200',
+        title: `${unitCount} Units Selected`,
+        description: `User will have access to ${unitCount} selected units across ${compCount} companies.`,
+        total: totalAssignments,
+      };
+    }
+    if (compCount > 0 && (subCompanies.length === 0 || compCount < subCompanies.length)) {
+      return {
+        badge: 'Company Level Access',
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+        title: `${compCount} Companies Selected`,
+        description: `User will have full access to all units, sub-units, and sub-locations of the ${compCount} selected companies.`,
+        total: totalAssignments,
+      };
+    }
+    return {
+      badge: 'Main Group Level Access',
+      badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+      title: 'Full Enterprise Access',
+      description: `User will be granted access across Main Group and all ${subCompanies.length} companies under the group.`,
+      total: totalAssignments,
+    };
+  }, [form, currentAccessAssignments, subCompanies.length]);
 
   // Load countries once
   useEffect(() => {
@@ -722,7 +1133,7 @@ const UserRegistration = () => {
   };
 
   const handleCountryChange = (e) => {
-    const value = e.target.value;
+    const value = typeof e === 'object' && e?.target ? e.target.value : String(e ?? '');
     setForm((f) => ({ ...f, countryId: value, stateId: '', cityId: '' }));
     setStates([]);
     setCities([]);
@@ -735,14 +1146,15 @@ const UserRegistration = () => {
   };
 
   const handleStateChange = (e) => {
-    const value = e.target.value;
+    const value = typeof e === 'object' && e?.target ? e.target.value : String(e ?? '');
     setForm((f) => ({ ...f, stateId: value, cityId: '' }));
     setCities([]);
     setErrors((prev) => ({ ...prev, stateId: undefined, cityId: undefined }));
   };
 
   const handleCityChange = (e) => {
-    set('cityId', e.target.value);
+    const value = typeof e === 'object' && e?.target ? e.target.value : String(e ?? '');
+    set('cityId', value);
   };
 
   // --- Permissions Matrix Checkbox Logic ---
@@ -877,7 +1289,13 @@ const UserRegistration = () => {
     }
 
     const rightsList = buildRightsList();
-    const payload = buildEmployeePayload(form, { isEditMode, rightsList });
+    const payload = buildEmployeePayload(form, {
+      isEditMode,
+      rightsList,
+      loggedInUserId: getUserIdFromToken(),
+      allCompanies: subCompanies,
+      allOrgs,
+    });
 
     setSubmitting(true);
     setSubmitError('');
@@ -913,7 +1331,13 @@ const UserRegistration = () => {
       return;
     }
     const rightsList = buildRightsList();
-    const payload = buildEmployeePayload(form, { isEditMode: false, rightsList });
+    const payload = buildEmployeePayload(form, {
+      isEditMode: false,
+      rightsList,
+      loggedInUserId: getUserIdFromToken(),
+      allCompanies: subCompanies,
+      allOrgs,
+    });
     setSubmitting(true);
     setSubmitError('');
     try {
@@ -1100,14 +1524,14 @@ const UserRegistration = () => {
                     )}
                   </div>
 
-                  {/* Row 3 — Group / Sub Company / Unit */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Row 3 — Group */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label required>Group</Label>
                       <SearchableSelect
                         name="groupId"
                         value={form.groupId}
-                        onChange={(e) => handleGroupChange({ target: { value: e.target.value } })}
+                        onChange={handleGroupChange}
                         placeholder={loadingGroups ? 'Loading...' : 'Select Group'}
                         options={groups.map((g) => ({ value: g.id, label: g.name }))}
                         hasError={!!errors.groupId}
@@ -1116,51 +1540,124 @@ const UserRegistration = () => {
                       <ErrorText message={errors.groupId} />
                     </div>
 
+                  </div>
+
+                  {/* Hierarchical Access Control: Companies, Units, Sub-Units, Sub-Locations */}
+                  <div className="pt-2 border-t border-gray-100 space-y-4">
                     <div>
-                      <Label>Company</Label>
-                      <SearchableSelect
-                        name="companyId"
-                        value={form.companyId}
-                        onChange={(e) => handleCompanyChange({ target: { value: e.target.value } })}
-                        placeholder={
-                          loadingOrgs
-                            ? 'Loading...'
-                            : form.groupId
-                            ? 'Select Company (optional)'
-                            : 'Select group first'
-                        }
-                        options={subCompanies.map((c) => ({ value: c.id, label: c.name }))}
-                        hasError={!!errors.companyId}
-                        disabled={!form.groupId || loadingOrgs}
-                      />
-                      <ErrorText message={errors.companyId} />
-                      {/* <p className="text-[11px] text-gray-400 mt-1">
-                        Leave blank to register the user directly under the Group.
+                      <h3 className="text-sm font-bold text-gray-800">
+                        Organization Access Control
+                      </h3>
+                      {/* <p className="text-xs text-gray-400 mt-0.5">
+                        Assign specific companies, units, sub-units, or sub-locations. Sub-levels automatically cascade based on selections.
                       </p> */}
                     </div>
 
-                    <div>
-                      <Label>Unit</Label>
-                      <SearchableSelect
-                        name="outletId"
-                        value={form.outletId}
-                        onChange={(e) => handleUnitChange({ target: { value: e.target.value } })}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Companies Multi-Select */}
+                      <MultiSelectDropdown
+                        label="Companies"
                         placeholder={
                           loadingOrgs
-                            ? 'Loading...'
-                            : form.companyId
-                            ? 'Select Unit (optional)'
-                            : 'Select sub company first'
+                            ? 'Loading companies...'
+                            : form.groupId
+                            ? 'All Companies (or select specific)'
+                            : 'Select group first'
                         }
-                        options={outlets.map((u) => ({ value: u.id, label: u.name }))}
-                        hasError={!!errors.outletId}
-                        disabled={!form.companyId || loadingOrgs}
+                        searchPlaceholder="Search companies..."
+                        options={subCompanies}
+                        selected={form.selectedCompanies || []}
+                        onChange={handleCompaniesChange}
+                        loading={loadingOrgs}
+                        disabled={!form.groupId || loadingOrgs}
+                        allSelectedLabel={`All Companies (${subCompanies.length})`}
+                        emptyText="No companies available under this group."
                       />
-                      <ErrorText message={errors.outletId} />
-                      {/* <p className="text-[11px] text-gray-400 mt-1">
-                        Leave blank to register the user directly under the Sub
-                        Company.
-                      </p> */}
+
+                      {/* Units Multi-Select */}
+                      <MultiSelectDropdown
+                        label="Units
+                        "
+                        placeholder={
+                          form.selectedCompanies?.length === 0
+                            ? 'Select company first to restrict units'
+                            : availableUnits.length === 0
+                            ? 'No units in selected companies'
+                            : 'All Units (or select specific)'
+                        }
+                        searchPlaceholder="Search units..."
+                        options={availableUnits}
+                        selected={form.selectedUnits || []}
+                        onChange={handleUnitsChange}
+                        loading={loadingOrgs}
+                        disabled={form.selectedCompanies?.length === 0 || loadingOrgs}
+                        allSelectedLabel={`All Units (${availableUnits.length})`}
+                        emptyText="No units found for selected companies."
+                      />
+
+                      {/* Sub-Units Multi-Select */}
+                      <MultiSelectDropdown
+                        label="Sub-Units"
+                        placeholder={
+                          form.selectedUnits?.length === 0
+                            ? 'Select unit first to restrict sub-units'
+                            : availableSubOutlets.length === 0
+                            ? 'No sub-units in selected units'
+                            : 'All Sub-Units (or select specific)'
+                        }
+                        searchPlaceholder="Search sub-units..."
+                        options={availableSubOutlets}
+                        selected={form.selectedSubUnits || []}
+                        onChange={handleSubUnitsChange}
+                        loading={loadingSubOutlets}
+                        disabled={form.selectedUnits?.length === 0 || loadingSubOutlets}
+                        allSelectedLabel={`All Sub-Units (${availableSubOutlets.length})`}
+                        emptyText="No sub-units found for selected units."
+                      />
+
+                      {/* Sub-Locations Multi-Select */}
+                      <MultiSelectDropdown
+                        label="Sub-Locations"
+                        placeholder={
+                          form.selectedSubUnits?.length === 0
+                            ? 'Select sub-unit first to restrict sub-locations'
+                            : availableSubLocations.length === 0
+                            ? 'No sub-locations in selected sub-units'
+                            : 'All Sub-Locations (or select specific)'
+                        }
+                        searchPlaceholder="Search sub-locations..."
+                        options={availableSubLocations}
+                        selected={form.selectedSubLocations || []}
+                        onChange={handleSubLocationsChange}
+                        loading={loadingSubLocations}
+                        disabled={form.selectedSubUnits?.length === 0 || loadingSubLocations}
+                        allSelectedLabel={`All Sub-Locations (${availableSubLocations.length})`}
+                        emptyText="No sub-locations found for selected sub-units."
+                      />
+                    </div>
+
+                    {/* Live Access Scope Summary Card */}
+                    <div className="bg-[#F8F9FC] border border-blue-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${accessScopeSummary.badgeColor}`}>
+                            {accessScopeSummary.badge}
+                          </span>
+                          <span className="text-xs font-bold text-gray-800">
+                            {accessScopeSummary.title}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                          {accessScopeSummary.description}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2 self-start sm:self-center bg-white px-3 py-1.5 rounded-xl border border-gray-200">
+                        <span className="text-[11px] font-medium text-gray-500">Assignments:</span>
+                        <span className="text-xs font-bold text-[#084E92]">
+                          {accessScopeSummary.total} Total
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -1412,7 +1909,7 @@ const UserRegistration = () => {
                         <SearchableSelect
                           name="countryId"
                           value={form.countryId}
-                          onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                          onChange={handleCountryChange}
                           placeholder={loadingCountries ? 'Loading...' : 'Select Country'}
                           options={countries.map((c) => ({ value: c.id, label: c.name }))}
                           disabled={loadingCountries}
@@ -1423,7 +1920,7 @@ const UserRegistration = () => {
                         <SearchableSelect
                           name="stateId"
                           value={form.stateId}
-                          onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
+                          onChange={handleStateChange}
                           placeholder={
                             loadingStates
                               ? 'Loading...'
@@ -1442,7 +1939,7 @@ const UserRegistration = () => {
                         <SearchableSelect
                           name="cityId"
                           value={form.cityId}
-                          onChange={(e) => handleCityChange({ target: { value: e.target.value } })}
+                          onChange={handleCityChange}
                           placeholder={
                             loadingCities
                               ? 'Loading...'
@@ -1495,7 +1992,7 @@ const UserRegistration = () => {
                       onClick={() => setShowMapPicker(true)}
                       className="flex gap-1 items-end text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
                     >
-                      <Map size={15} />
+                      <MapIcon size={15} />
                       <p className="font-bold text-sm">Pick from Map</p>
                     </button>
                   </div>
@@ -1552,4 +2049,5 @@ const UserRegistration = () => {
   );
 };
 
+export { UserRegistration };
 export default UserRegistration;

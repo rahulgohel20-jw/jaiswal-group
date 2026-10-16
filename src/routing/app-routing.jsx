@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/auth/context/auth-context';
-import { useLocation } from 'react-router';
+import { useLocation } from 'react-router-dom';
 import { useLoadingBar } from 'react-top-loading-bar';
 import { AppRoutingSetup } from './app-routing-setup';
 
@@ -26,14 +26,14 @@ export function AppRouting() {
         setFirstLoad(false);
       });
     }
-  });
+  }, []);
 
   useEffect(() => {
     if (!firstLoad) {
       start('static');
       verify()
-        .catch(() => {
-          throw new Error('User verify request failed!');
+        .catch((err) => {
+          console.error('User verify request failed:', err);
         })
         .finally(() => {
           setPreviousLocation(path);
@@ -44,12 +44,14 @@ export function AppRouting() {
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location]);
+  }, [location.pathname]);
 
   useEffect(() => {
-    if (!CSS.escape(window.location.hash)) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    try {
+      if (!window.location.hash) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch {}
   }, [previousLocation]);
 
   return <AppRoutingSetup />;

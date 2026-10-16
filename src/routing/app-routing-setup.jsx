@@ -91,7 +91,7 @@ import {
   StoreClientPage,
   WishlistPage,
 } from '@/pages/store-client';
-import { Navigate, Route, Routes } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import AddAssetsMaintenanceLog from '../pages/assest-management/assest-maintenance/AddAssetsMaintenanceLog';
 import AssetsMaintenance from '../pages/assest-management/assest-maintenance/AssetsMaintenance';
 import ExportAssetsQR from '../pages/assest-management/assest-qr/ExportAssetsQR';
@@ -236,7 +236,6 @@ export function AppRoutingSetup() {
 
       <Route path="error/*" element={<ErrorRouting />} />
       {/* <Route path="auth/*" element={<AuthRouting />} />  — remove or keep only for /auth/callback etc, no longer needed for signin */}
-      <Route path="*" element={<Navigate to="/error/404" />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
@@ -316,6 +315,7 @@ export function AppRoutingSetup() {
           <Route path="/vendor-unit-mapping" element={<VendorUnitMapping />} />
 
           <Route path="/department" element={<Departmentlist />} />
+          <Route path="/departments" element={<Navigate to="/department" replace />} />
           <Route path="/user-rights" element={<UserRights />} />
 
           <Route path="/assets/all-assets" element={<AssetsManagement />} />
@@ -915,6 +915,7 @@ export function AppRoutingSetup() {
           <Route path="/auth/get-started" element={<AccountGetStartedPage />} />
         </Route>
       </Route>
+      <Route path="*" element={<Navigate to="/error/404" replace />} />
     </Routes>
   );
 }

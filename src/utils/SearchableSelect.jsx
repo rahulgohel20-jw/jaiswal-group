@@ -94,7 +94,14 @@ const SearchableSelect = ({
     setSearch("");
   };
 
-  const hasValue = value !== undefined && value !== null && String(value).trim() !== "";
+  const hasValue = Boolean(
+    selectedOption &&
+    selectedOption.value !== "" &&
+    selectedOption.value !== null &&
+    selectedOption.value !== undefined &&
+    selectedOption.value !== 0 &&
+    selectedOption.value !== "0"
+  );
 
   return (
     <Popover

@@ -8,6 +8,12 @@ export function logout(navigate) {
   localStorage.removeItem('token');
   localStorage.removeItem('userData');
   localStorage.removeItem('userId');
+  localStorage.removeItem('userCode');
+  localStorage.removeItem('selectedCompanyId');
+  localStorage.removeItem('selectedUnitId');
+  localStorage.removeItem('selectedSubOutletId');
+  localStorage.removeItem('selectedSubLocationId');
+  localStorage.removeItem('activeScopeRole');
   sessionStorage.clear();
 
   if (navigate) {

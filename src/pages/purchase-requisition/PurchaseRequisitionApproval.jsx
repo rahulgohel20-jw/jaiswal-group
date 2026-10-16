@@ -150,11 +150,9 @@ function useRequisitions(effectiveOutletId, filterRowsByScope, scopeLoading, pag
         outletId,
         status: statusFilter && statusFilter !== ALL_STATUS ? statusFilter : undefined,
         search: search ? search.trim() : undefined,
+        page: pageIndex ?? 0,
+        size: pageSize || 10,
       };
-      if (pageIndex > 0) {
-        reqPayload.page = pageIndex;
-        reqPayload.size = pageSize;
-      }
       const res = await getPurchaseRequisitionsByOutlet(reqPayload);
       const body = res?.data || {};
       const data = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
@@ -261,6 +259,16 @@ function ListView({ onApprove, onReject, onView }) {
   const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
+  const handlePaginationChange = useCallback((updater) => {
+    setPagination((old) => {
+      const next = typeof updater === 'function' ? updater(old) : updater;
+      if (next.pageSize !== old.pageSize) {
+        return { ...next, pageIndex: 0 };
+      }
+      return next;
+    });
+  }, []);
+
   const {
     loading: scopeLoading,
     error: scopeError,
@@ -273,9 +281,14 @@ function ListView({ onApprove, onReject, onView }) {
     selectedUnitId,
     setSelectedUnitId,
     effectiveOutletId,
+    companyId,
     filterRowsByScope,
     retry: retryScope,
   } = useOrgScope();
+
+  const targetOutletId = isOutletUser
+    ? Number(effectiveOutletId)
+    : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
 
   const {
     loading: prLoading,
@@ -285,7 +298,7 @@ function ListView({ onApprove, onReject, onView }) {
     totalPages: prTotalPages,
     reload: reloadPr,
   } = useRequisitions(
-    effectiveOutletId,
+    targetOutletId,
     filterRowsByScope,
     scopeLoading || Boolean(scopeError),
     pagination,
@@ -474,7 +487,7 @@ function ListView({ onApprove, onReject, onView }) {
     state: { pagination },
     manualPagination: true,
     pageCount,
-    onPaginationChange: setPagination,
+    onPaginationChange: handlePaginationChange,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });

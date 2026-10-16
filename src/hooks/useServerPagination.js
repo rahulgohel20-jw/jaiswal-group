@@ -8,10 +8,20 @@ import { useState, useCallback, useMemo } from 'react';
  * @returns {Object}
  */
 export function useServerPagination({ defaultPageSize = 10 } = {}) {
-  const [pagination, setPagination] = useState({
+  const [pagination, setPaginationState] = useState({
     pageIndex: 0,
     pageSize: defaultPageSize,
   });
+
+  const setPagination = useCallback((updater) => {
+    setPaginationState((old) => {
+      const next = typeof updater === 'function' ? updater(old) : updater;
+      if (next.pageSize !== old.pageSize) {
+        return { ...next, pageIndex: 0 };
+      }
+      return next;
+    });
+  }, []);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
