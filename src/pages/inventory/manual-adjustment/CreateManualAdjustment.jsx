@@ -33,6 +33,7 @@ import {
 } from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
+import { formatRemarks } from '@/utils/textUtils';
 import {
   Dialog,
   DialogContent,
@@ -810,7 +811,7 @@ const CreateManualAdjustment = () => {
             currentStock: actualStockVal,
             afterAdjustmentStock: physicalStockVal,
             adjustmentQuantity: absDelta,
-            remarks: row.remarks || '',
+            remarks: formatRemarks(row.remarks || ''),
           };
         }),
       };
@@ -1105,6 +1106,7 @@ const CreateManualAdjustment = () => {
                             placeholder="Enter remarks..."
                             value={row.remarks}
                             onChange={(e) => updateRow(row.id, 'remarks', e.target.value)}
+                            onBlur={() => updateRow(row.id, 'remarks', formatRemarks(row.remarks || ''))}
                             className="w-full h-9 border border-[#C3C6D1] rounded-lg px-3 outline-none text-xs text-gray-700 focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20"
                           />
                         </td>

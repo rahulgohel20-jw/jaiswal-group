@@ -3,6 +3,7 @@ import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { formatRemarks } from '@/utils/textUtils';
 import {
     Popover,
     PopoverContent,
@@ -225,7 +226,7 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
     const handleSave = (addAnother) => {
         if (!validate()) return;
 
-        onSaveTransfer?.(form);
+        onSaveTransfer?.({ ...form, reason: formatRemarks(form.reason || '') });
 
         if (addAnother) {
             setForm(emptyForm);
@@ -370,6 +371,7 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
                         <textarea
                             value={form.reason}
                             onChange={handleChange("reason")}
+                            onBlur={() => setForm((prev) => ({ ...prev, reason: formatRemarks(prev.reason) }))}
                             placeholder="Enter detailed reason for asset movement..."
                             rows={5}
                             className="w-full rounded-xl border border-[#D9E2EC] bg-[#F8F9FF80] px-4 py-3 text-sm text-[#121C2A] outline-none focus:ring-2 focus:ring-[#0B5CAB]/20 resize-none"

@@ -45,6 +45,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageHeader } from '@/components/common/PageHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { SearchBar } from '@/components/common/SearchBar';
+import { formatRemarks } from '@/utils/textUtils';
 
 const formatDateForBackend = (dateStr) => {
     if (!dateStr) return '';
@@ -1147,7 +1148,7 @@ const VendorPriceAssociation = () => {
             .forEach((r) => {
                 const priceId = r.outletPriceId || r.id;
                 if (!priceId) return;
-                const remarks = r.rejectReason.trim();
+                const remarks = formatRemarks(r.rejectReason.trim());
                 if (!rejectGroups.has(remarks)) rejectGroups.set(remarks, []);
                 rejectGroups.get(remarks).push(priceId);
             });
@@ -1641,6 +1642,7 @@ const VendorPriceAssociation = () => {
                                                                             type="text"
                                                                             value={row.rejectReason || ''}
                                                                             onChange={(e) => updateSupplierRow(row.rowId, 'rejectReason', e.target.value)}
+                                                                            onBlur={() => updateSupplierRow(row.rowId, 'rejectReason', formatRemarks(row.rejectReason || ''))}
                                                                             placeholder="Enter reason..."
                                                                             className="w-full text-xs border py-1.5 px-2.5 border-red-400 rounded-md outline-none bg-white placeholder:text-gray-400"
                                                                         />

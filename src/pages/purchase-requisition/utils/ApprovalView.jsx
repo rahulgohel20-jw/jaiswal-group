@@ -13,6 +13,7 @@ import SearchableSelect from "@/utils/SearchableSelect";
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
+import { formatRemarks } from '@/utils/textUtils';
 
 const FONT_IMPORT_URL =
   "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap";
@@ -298,7 +299,7 @@ export default function ApprovalView({
   const handleSave = async () => {
     setSaving(true);
     try {
-      await onSave?.({ details: buildDetailsPayload(), remarks: remarks.trim() });
+      await onSave?.({ details: buildDetailsPayload(), remarks: formatRemarks(remarks.trim()) });
     } catch (err) {
       console.error('Failed to save requisition', err);
     } finally {
@@ -309,7 +310,7 @@ export default function ApprovalView({
   const handleApprove = async () => {
     setApproving(true);
     try {
-      await onApprove?.({ details: buildDetailsPayload(), remarks: remarks.trim() });
+      await onApprove?.({ details: buildDetailsPayload(), remarks: formatRemarks(remarks.trim()) });
     } catch (err) {
       console.error('Failed to approve requisition', err);
     } finally {
@@ -322,7 +323,7 @@ export default function ApprovalView({
     if (remarksMissing) return;
     setRejecting(true);
     try {
-      await onReject?.({ remarks: remarks.trim() });
+      await onReject?.({ remarks: formatRemarks(remarks.trim()) });
     } catch (err) {
       console.error('Failed to reject requisition', err);
     } finally {
@@ -391,7 +392,10 @@ export default function ApprovalView({
             <input
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              onBlur={() => isReject && setRemarksTouched(true)}
+              onBlur={() => {
+                setRemarks((prev) => formatRemarks(prev));
+                if (isReject) setRemarksTouched(true);
+              }}
               placeholder={
                 isReject
                   ? "Explain why this requisition is being rejected…"

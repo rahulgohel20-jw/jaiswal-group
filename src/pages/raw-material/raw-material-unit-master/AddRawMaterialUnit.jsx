@@ -61,11 +61,12 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
               (u) =>
                 u.isParentUnit === true &&
                 u.isActive === true &&
+                u.id != null &&
                 u.id !== initialData?.id
             )
             .map((u) => ({
-              value: u.id.toString(),
-              label: u.nameEnglish,
+              value: u.id != null ? u.id.toString() : '',
+              label: u.nameEnglish || u.name || `Unit ${u.id}`,
             }))
         );
       } catch (err) {
@@ -83,19 +84,35 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
     if (!isOpen) return;
 
     if (initialData) {
+      const rawParentId =
+        initialData.parentUnit?.id ??
+        initialData.parentUnitId ??
+        initialData.parent_unit_id;
+
       setForm({
-        name: initialData.nameEnglish || '',
-        symbol: initialData.symbolEnglish || '',
+        name: initialData.nameEnglish || initialData.name || '',
+        symbol: initialData.symbolEnglish || initialData.symbol || '',
         isParentUnit: Boolean(initialData.isParentUnit),
-        decimalLimit: initialData.decimalLimit,
-        parentUnitId: initialData.parentUnit?.id?.toString() ?? '',
-        equivalent: initialData.equivalentValue ?? '',
-        rangeType: initialData.rangeType === 'STEPWISE' ? 'StepWiseRange' : 'Range',
+        decimalLimit:
+          initialData.decimalLimit != null
+            ? initialData.decimalLimit
+            : undefined,
+        parentUnitId:
+          rawParentId != null && rawParentId !== 0 ? rawParentId.toString() : '',
+        equivalent: initialData.equivalentValue ?? initialData.equivalent ?? '',
+        rangeType:
+          initialData.rangeType === 'STEPWISE' || initialData.rangeType === 'StepWiseRange'
+            ? 'StepWiseRange'
+            : 'Range',
         ranges:
           initialData.ranges?.length > 0
-            ? initialData.ranges
+            ? initialData.ranges.map((r) => ({
+                minValue: r.minValue != null ? r.minValue : '',
+                maxValue: r.maxValue != null ? r.maxValue : '',
+                roundOffValue: r.roundOffValue != null ? r.roundOffValue : '',
+              }))
             : [emptyRange()],
-        stepWiseRange: initialData.stepValue ?? '',
+        stepWiseRange: initialData.stepValue ?? initialData.stepWiseRange ?? '',
       });
     } else {
       setForm(emptyForm);
@@ -143,14 +160,14 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
 
     if (!form.name.trim()) return { message: 'Name is required.', fieldErrors: errors };
     if (!form.symbol.trim()) return { message: 'Symbol is required.', fieldErrors: errors };
-    if (form.decimalLimit === undefined || form.decimalLimit === '')
+    if (form.decimalLimit == null || form.decimalLimit === '')
       return {
         message: 'Decimal Limit For Quantity is required.',
         fieldErrors: errors,
       };
 
     if (form.rangeType === 'StepWiseRange') {
-      if (!form.stepWiseRange.toString().trim()) {
+      if (form.stepWiseRange == null || !String(form.stepWiseRange).trim()) {
         errors.stepWiseRange = 'Step Wise Range is required.';
         return { message: null, fieldErrors: errors };
       }
@@ -307,8 +324,9 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
               <Input
                 placeholder="Name"
                 className="mt-1"
-                value={form.name}
+                value={form.name ?? ''}
                 onChange={(e) => set('name', e.target.value)}
+                disabled={isViewOnly}
               />
             </div>
 
@@ -319,20 +337,22 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
               <Input
                 placeholder="Symbol"
                 className="mt-1"
-                value={form.symbol}
+                value={form.symbol ?? ''}
                 onChange={(e) => set('symbol', e.target.value)}
+                disabled={isViewOnly}
               />
             </div>
           </div>
 
           {/* Is Parent Unit */}
           <div className="flex items-center gap-3">
-            <label className="relative inline-flex cursor-pointer">
+            <label className={`relative inline-flex ${isViewOnly ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}>
               <input
                 type="checkbox"
                 checked={form.isParentUnit}
                 onChange={(e) => set('isParentUnit', e.target.checked)}
                 className="sr-only peer"
+                disabled={isViewOnly}
               />
               <div
                 className="
@@ -364,8 +384,9 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
                 Decimal Limit For Quantity <span className="text-red-500">*</span>
               </label>
               <Select
-                value={form.decimalLimit !== undefined ? form.decimalLimit.toString() : ''}
+                value={form.decimalLimit != null && form.decimalLimit !== '' ? form.decimalLimit.toString() : ''}
                 onValueChange={(value) => set('decimalLimit', Number(value))}
+                disabled={isViewOnly}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select" />
@@ -385,9 +406,9 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
                 <div>
                   <label className="text-sm font-medium">Parent Unit</label>
                   <Select
-                    value={form.parentUnitId}
+                    value={form.parentUnitId != null ? String(form.parentUnitId) : ''}
                     onValueChange={(value) => set('parentUnitId', value)}
-                    disabled={loadingParents}
+                    disabled={isViewOnly || loadingParents}
                   >
                     <SelectTrigger className="mt-1">
                       <SelectValue placeholder={loadingParents ? 'Loading...' : 'Select'} />
@@ -407,8 +428,9 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
                   <Input
                     placeholder="Enter Equivalent"
                     className="mt-1"
-                    value={form.equivalent}
+                    value={form.equivalent ?? ''}
                     onChange={(e) => set('equivalent', e.target.value)}
+                    disabled={isViewOnly}
                   />
                 </div>
               </>
@@ -418,7 +440,7 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
           {/* Range type selector */}
           <div className="flex items-center gap-6">
             {Object.entries(rangeTypeLabel).map(([value, label]) => (
-              <label key={value} className="flex items-center gap-2 cursor-pointer text-sm">
+              <label key={value} className={`flex items-center gap-2 ${isViewOnly ? 'cursor-default' : 'cursor-pointer'} text-sm`}>
                 <input
                   type="radio"
                   name="rangeType"
@@ -426,6 +448,7 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
                   checked={form.rangeType === value}
                   onChange={(e) => set('rangeType', e.target.value)}
                   className="accent-[#084E92]"
+                  disabled={isViewOnly}
                 />
                 {label}
               </label>
@@ -479,11 +502,12 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
                   type="number"
                   placeholder="Enter Step Wise Range"
                   className="mt-1 bg-white"
-                  value={form.stepWiseRange}
+                  value={form.stepWiseRange ?? ''}
                   onChange={(e) => {
                     set('stepWiseRange', e.target.value);
                     setFieldErrors((prev) => ({ ...prev, stepWiseRange: undefined }));
                   }}
+                  disabled={isViewOnly}
                 />
                 {fieldErrors.stepWiseRange && (
                   <p className="text-red-500 text-xs mt-1">{fieldErrors.stepWiseRange}</p>
@@ -503,7 +527,9 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
                       <th className="text-left font-semibold px-3 py-2">Minimum Value*</th>
                       <th className="text-left font-semibold px-3 py-2">Maximum Value*</th>
                       <th className="text-left font-semibold px-3 py-2">Round Off Value*</th>
-                      <th className="text-left font-semibold px-3 py-2 w-16">Action</th>
+                      {!isViewOnly && (
+                        <th className="text-left font-semibold px-3 py-2 w-16">Action</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -513,48 +539,55 @@ const AddRawMaterialUnit = ({ isOpen, onClose, onSaved, initialData, isViewOnly 
                         <td className="px-3 py-2">
                           <Input
                             type="number"
-                            value={range.minValue}
+                            value={range.minValue ?? ''}
                             onChange={(e) => setRangeField(index, 'minValue', e.target.value)}
+                            disabled={isViewOnly}
                           />
                         </td>
                         <td className="px-3 py-2">
                           <Input
                             type="number"
-                            value={range.maxValue}
+                            value={range.maxValue ?? ''}
                             onChange={(e) => setRangeField(index, 'maxValue', e.target.value)}
+                            disabled={isViewOnly}
                           />
                         </td>
                         <td className="px-3 py-2">
                           <Input
                             type="number"
-                            value={range.roundOffValue}
+                            value={range.roundOffValue ?? ''}
                             onChange={(e) =>
                               setRangeField(index, 'roundOffValue', e.target.value)
                             }
+                            disabled={isViewOnly}
                           />
                         </td>
-                        <td className="px-3 py-2">
-                          <Trash2
-                            size={18}
-                            className="text-red-500 cursor-pointer hover:text-red-700"
-                            onClick={() => removeRangeRow(index)}
-                          />
-                        </td>
+                        {!isViewOnly && (
+                          <td className="px-3 py-2">
+                            <Trash2
+                              size={18}
+                              className="text-red-500 cursor-pointer hover:text-red-700"
+                              onClick={() => removeRangeRow(index)}
+                            />
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="border-none bg-[#084E92] hover:bg-[#073e77] text-white flex items-center gap-2 w-fit"
-                onClick={addRangeRow}
-              >
-                <Plus className="h-4 w-4" />
-                Add Range
-              </Button>
+              {!isViewOnly && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-none bg-[#084E92] hover:bg-[#073e77] text-white flex items-center gap-2 w-fit"
+                  onClick={addRangeRow}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Range
+                </Button>
+              )}
             </>
           )}
         </div>

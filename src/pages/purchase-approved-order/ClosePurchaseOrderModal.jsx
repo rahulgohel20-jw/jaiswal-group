@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, Loader2, X } from 'lucide-react';
+import { formatRemarks } from '@/utils/textUtils';
 
 export const ClosePurchaseOrderModal = ({
   isOpen,
@@ -53,6 +54,7 @@ export const ClosePurchaseOrderModal = ({
               rows={3}
               value={reason}
               onChange={(e) => onReasonChange(e.target.value)}
+              onBlur={() => onReasonChange?.(formatRemarks(reason))}
               placeholder="Enter reason for closing this PO manually..."
               className="w-full px-3.5 py-2.5 text-sm border border-[#E7EAF0] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#C0293D]/20 focus:border-[#C0293D] resize-none placeholder:text-[#98A2B3]"
             />

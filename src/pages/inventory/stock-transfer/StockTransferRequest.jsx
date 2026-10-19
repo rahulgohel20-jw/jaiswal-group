@@ -51,6 +51,7 @@ import {
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import FifoBatchVisualizerModal from './FifoBatchVisualizerModal';
+import { formatRemarks } from '@/utils/textUtils';
 
 const extractArray = (res) => {
   if (!res) return [];
@@ -154,9 +155,20 @@ let rowIdCounter = 1;
 
 const getCurrentDate = () => new Date().toISOString().split('T')[0];
 
-const BufferedTextInput = ({ value = '', onChange, placeholder, className, autoFocus = false }) => {
+const BufferedTextInput = ({
+  value = '',
+  onChange,
+  onBlur,
+  formatOnBlur,
+  placeholder,
+  className,
+  autoFocus = false,
+  disabled = false,
+  title,
+}) => {
   const [localVal, setLocalVal] = useState(value || '');
   const isFocusedRef = React.useRef(false);
+  const inputRef = React.useRef(null);
 
   useEffect(() => {
     if (!isFocusedRef.current) {
@@ -164,17 +176,33 @@ const BufferedTextInput = ({ value = '', onChange, placeholder, className, autoF
     }
   }, [value]);
 
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [autoFocus]);
+
+  const commit = (raw) => {
+    const rawString = String(raw != null ? raw : '');
+    const formatted = typeof formatOnBlur === 'function' ? formatOnBlur(rawString) : rawString;
+    setLocalVal(formatted);
+    onChange?.(formatted);
+    onBlur?.(formatted);
+  };
+
   return (
     <input
+      ref={inputRef}
       type="text"
       value={localVal}
-      autoFocus={autoFocus}
+      disabled={disabled}
+      title={title}
       onFocus={() => {
         isFocusedRef.current = true;
       }}
       onBlur={(e) => {
         isFocusedRef.current = false;
-        onChange?.(e.target.value);
+        commit(e.target.value);
       }}
       onChange={(e) => {
         setLocalVal(e.target.value);
@@ -394,19 +422,13 @@ const StockTransferRequest = () => {
   const [sorting, setSorting] = useState([]);
   const [openRemarkRowIds, setOpenRemarkRowIds] = useState({});
 
-  const toggleRemarkInput = useCallback((rowId) => {
-    setOpenRemarkRowIds((prev) => {
-      const key = String(rowId);
-      const next = { ...prev };
-      if (next[key] || next[rowId]) {
-        delete next[key];
-        delete next[rowId];
-      } else {
-        next[key] = true;
-        next[rowId] = true;
-      }
-      return next;
-    });
+  const toggleRemarkInput = useCallback((id) => {
+    if (id === undefined || id === null) return;
+    const key = String(id);
+    setOpenRemarkRowIds((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
   }, []);
 
   // Auxiliary data
@@ -1324,13 +1346,29 @@ const StockTransferRequest = () => {
   };
 
   const handleRemoveItem = useCallback((rowId) => {
-    setManifestItems((prev) => prev.filter((row) => row.rowId !== rowId));
+    setManifestItems((prev) =>
+      prev.filter((row) => {
+        const rowIdent = row.rowId ?? row.id ?? row.itemId;
+        return (
+          String(rowIdent) !== String(rowId) &&
+          String(row.rowId) !== String(rowId) &&
+          String(row.id) !== String(rowId)
+        );
+      })
+    );
   }, []);
 
   const updateItemField = useCallback((rowId, field, value) => {
     setManifestItems((prev) =>
       prev.map((row) => {
-        if (row.rowId !== rowId) return row;
+        const rowIdent = row.rowId ?? row.id ?? row.itemId;
+        if (
+          String(rowIdent) !== String(rowId) &&
+          String(row.rowId) !== String(rowId) &&
+          String(row.id) !== String(rowId)
+        ) {
+          return row;
+        }
         const transferMax = Number(row.transferQty || row.orderQty || 0);
 
         if (field === 'acceptedQty') {
@@ -1505,7 +1543,7 @@ const StockTransferRequest = () => {
       vehicleNumber: vehicleNumber.trim(),
       driverName: driverName.trim(),
       driverContact: driverContact.trim(),
-      remarks: remarks.trim(),
+      remarks: formatRemarks(remarks.trim()),
       transferDate: formattedDate,
       isDraft: Boolean(isDraft),
       items: manifestItems.map((item) => {
@@ -1540,7 +1578,7 @@ const StockTransferRequest = () => {
           requestedQuantity: reqQty,
           batchNumber: primaryBatch?.batchNumber || item.batchNumber || '',
           expiryDate: primaryBatch?.expiryDate || item.expiryDate || '',
-          remarks: item.remarks || '',
+          remarks: formatRemarks(item.remarks || ''),
           selectedBatches: formattedBatches,
         };
       }),
@@ -1636,7 +1674,7 @@ const StockTransferRequest = () => {
           dispatchedQuantity,
           batchNumber: primaryBatch?.batchNumber || manifestItem.batchNumber || '',
           expiryDate: primaryBatch?.expiryDate || manifestItem.expiryDate || '',
-          remarks: manifestItem.remarks || '',
+          remarks: formatRemarks(manifestItem.remarks || ''),
           selectedBatches: formattedBatches,
         };
       });
@@ -1645,7 +1683,7 @@ const StockTransferRequest = () => {
         driverContact: driverContact.trim(),
         driverName: driverName.trim(),
         vehicleNumber: vehicleNumber.trim(),
-        remarks: remarks.trim(),
+        remarks: formatRemarks(remarks.trim()),
         items: dispatchItems,
       };
 
@@ -1700,7 +1738,7 @@ const StockTransferRequest = () => {
     setSubmitting(true);
     try {
       const payload = {
-        remarks: remarks.trim(),
+        remarks: formatRemarks(remarks.trim()),
         items: manifestItems.map((item) => ({
           transferItemId: Number(
             item.transferItemId ||
@@ -1710,8 +1748,8 @@ const StockTransferRequest = () => {
           ),
           receivedQuantity: Number(item.acceptedQty || 0),
           damagedQuantity: Number(item.rejectedQty || 0),
-          remarks: (item.remarks || '').trim(),
-          discrepancyRemarks: (item.discrepancyRemarks || item.remarks || '').trim(),
+          remarks: formatRemarks((item.remarks || '').trim()),
+          discrepancyRemarks: formatRemarks((item.discrepancyRemarks || item.remarks || '').trim()),
         })),
       };
       await receiveTransfer(transferId, payload);
@@ -1749,7 +1787,7 @@ const StockTransferRequest = () => {
       const currentUserId = getUserIdFromToken() || localStorage.getItem('userId') || undefined;
       const payload = {
         id: Number(transferId),
-        reason: rejectionReason.trim(),
+        reason: formatRemarks(rejectionReason.trim()),
         userId: currentUserId ? Number(currentUserId) : undefined,
       };
       await rejectTransfer(transferId, payload);
@@ -1793,7 +1831,7 @@ const StockTransferRequest = () => {
       const currentUserId = Number(getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : 0) || 0);
       const payload = {
         areaManagerUserId: currentUserId,
-        remarks: remarks.trim(),
+        remarks: formatRemarks(remarks.trim()),
         items: manifestItems.map((item) => ({
           transferItemId: Number(
             item.transferItemId ||
@@ -1803,8 +1841,8 @@ const StockTransferRequest = () => {
           ),
           resolutionQuantity: Number(item.shortageQuantity || 0),
           discrepancyResolution: item.discrepancyResolution || 'SENDER_STOCK',
-          reasonCategory: (item.reasonCategory || item.reason || '').trim(),
-          remarks: (item.discrepancyRemarks || item.remarks || '').trim(),
+          reasonCategory: formatRemarks((item.reasonCategory || item.reason || '').trim()),
+          remarks: formatRemarks((item.discrepancyRemarks || item.remarks || '').trim()),
         })),
       };
 
@@ -1823,7 +1861,7 @@ const StockTransferRequest = () => {
     }
   };
 
-  const openBatchVisualizerForItem = (row) => {
+  const openBatchVisualizerForItem = useCallback((row) => {
     const actualFrom = fromOutlet || (isOutletUser ? String(effectiveOutletId) : '');
     if (!actualFrom || !toOutlet) {
       toast.info('Please select From Outlet and To Outlet to preview FIFO batch flow & select batches');
@@ -1851,7 +1889,7 @@ const StockTransferRequest = () => {
       toOutletName: toName,
     });
     setVisualizerModalOpen(true);
-  };
+  }, [fromOutlet, isOutletUser, effectiveOutletId, toOutlet, fromSubOutlet, toSubOutlet, units]);
 
   const handleSaveItemBatches = (selectedBatches, syncedQty) => {
     if (!selectedVisualizerItem) return;
@@ -1899,7 +1937,8 @@ const StockTransferRequest = () => {
           <DataGridColumnHeader title="ITEM NAME" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => {
-          const isRemarkOpen = Boolean(openRemarkRowIds[row.original.rowId]);
+          const rowIdentifier = row.original.rowId ?? row.original.id ?? row.original.itemId ?? row.id;
+          const isRemarkOpen = Boolean(openRemarkRowIds[String(rowIdentifier)]);
           const hasRemark = Boolean(row.original.remarks && row.original.remarks.trim());
 
           const batches = Array.isArray(row.original.selectedBatches) ? row.original.selectedBatches : [];
@@ -1929,13 +1968,13 @@ const StockTransferRequest = () => {
                     {row.original.itemName}
                   </span>
                 </button>
-                {!isDiscrepancyApprovalMode && (
+                {!isDiscrepancyApprovalMode && !isViewOnly && (
                   <button
                     type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleRemarkInput(rowIdentifier);
                     }}
-                    onClick={() => toggleRemarkInput(row.original.rowId)}
                     className={`p-1 rounded-md transition cursor-pointer flex-shrink-0 ${
                       isRemarkOpen
                         ? 'text-[#084E92] bg-blue-50 hover:bg-blue-100 ring-1 ring-blue-200'
@@ -1943,12 +1982,37 @@ const StockTransferRequest = () => {
                         ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
                         : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                     }`}
-                    title={isRemarkOpen ? 'Hide remarks' : hasRemark ? 'View / edit remarks' : 'Add remarks'}
+                    title={isRemarkOpen ? 'Hide remarks' : hasRemark ? 'Edit remarks' : 'Add remarks'}
                   >
-                    <Pencil size={13} />
+                    <Pencil size={12} className="pointer-events-none" />
                   </button>
                 )}
               </div>
+
+              {isRemarkOpen && (
+                <div className="mt-0.5">
+                  <BufferedTextInput
+                    value={row.original.remarks || ''}
+                    onChange={(val) => updateItemField(rowIdentifier, 'remarks', val)}
+                    formatOnBlur={formatRemarks}
+                    placeholder="Item remarks..."
+                    className="h-7 w-full max-w-[220px] border border-[#CBD5E1] rounded-md px-2 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-normal"
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {!isRemarkOpen && hasRemark && (
+                <p
+                  onClick={() => !isViewOnly && toggleRemarkInput(rowIdentifier)}
+                  title={!isViewOnly ? 'Click to edit remarks' : row.original.remarks}
+                  className={`text-[11px] text-gray-500 italic truncate max-w-[240px] mt-0.5 ${
+                    !isViewOnly ? 'cursor-pointer hover:text-gray-700' : ''
+                  }`}
+                >
+                  {row.original.remarks}
+                </p>
+              )}
 
               {/* Show selected batch information badge if batches are selected, or quick allocation button when batch selection is allowed */}
               {!isReceiveMode && !isDiscrepancyApprovalMode && (
@@ -2022,18 +2086,6 @@ const StockTransferRequest = () => {
                       </div>
                     );
                   })}
-                </div>
-              )}
-
-              {isRemarkOpen && (
-                <div className="mt-1">
-                  <BufferedTextInput
-                    value={row.original.remarks || ''}
-                    onChange={(val) => updateItemField(row.original.rowId, 'remarks', val)}
-                    placeholder="Item remarks..."
-                    className="h-7 w-full border border-[#E2E8F0] rounded-md px-2 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-normal"
-                    autoFocus
-                  />
                 </div>
               )}
             </div>
@@ -2272,6 +2324,7 @@ const StockTransferRequest = () => {
             <BufferedTextInput
               value={row.original.reasonCategory || ''}
               onChange={(val) => updateItemField(row.original.rowId, 'reasonCategory', val)}
+              formatOnBlur={formatRemarks}
               placeholder="Mandatory reason..."
               title={row.original.reasonCategory || 'Mandatory reason...'}
               className="h-8.5 w-full min-w-0 border border-[#E2E8F0] rounded-lg px-2 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-medium"
@@ -2289,6 +2342,7 @@ const StockTransferRequest = () => {
             <BufferedTextInput
               value={row.original.discrepancyRemarks || ''}
               onChange={(val) => updateItemField(row.original.rowId, 'discrepancyRemarks', val)}
+              formatOnBlur={formatRemarks}
               placeholder="Remarks..."
               title={row.original.discrepancyRemarks || 'Remarks...'}
               className="h-8.5 w-full min-w-0 border border-[#E2E8F0] rounded-lg px-2 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-normal"
@@ -2301,22 +2355,25 @@ const StockTransferRequest = () => {
     }
 
     // Normal Request mode action column (Delete item) in Create & Edit modes
-    if (!isReceiveMode && !isDispatchMode && !isDiscrepancyApprovalMode) {
+    if (!isReceiveMode && !isDispatchMode && !isDiscrepancyApprovalMode && !isViewOnly) {
       cols.push({
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader title="ACTION" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
-        cell: ({ row }) => (
-          <button
-            type="button"
-            onClick={() => handleRemoveItem(row.original.rowId)}
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition cursor-pointer"
-            title="Delete item"
-          >
-            <Trash2 size={16} />
-          </button>
-        ),
+        cell: ({ row }) => {
+          const rowIdentifier = row.original.rowId ?? row.original.id ?? row.original.itemId ?? row.id;
+          return (
+            <button
+              type="button"
+              onClick={() => handleRemoveItem(rowIdentifier)}
+              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition cursor-pointer"
+              title="Delete item"
+            >
+              <Trash2 size={16} />
+            </button>
+          );
+        },
         enableSorting: false,
         size: 45,
       });
@@ -2328,6 +2385,7 @@ const StockTransferRequest = () => {
     isDispatchMode,
     isDiscrepancyApprovalMode,
     isEditMode,
+    isViewOnly,
     openBatchVisualizerForItem,
     fromOutlet,
     toOutlet,
@@ -2639,6 +2697,7 @@ const StockTransferRequest = () => {
                     type="text"
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
+                    onBlur={() => setRemarks((prev) => formatRemarks(prev))}
                     placeholder={
                       isDiscrepancyApprovalMode
                         ? 'Area Manager overall remarks/notes...'
@@ -2646,7 +2705,8 @@ const StockTransferRequest = () => {
                         ? 'Mandatory reason/remarks for acceptance or rejection...'
                         : 'Notes or transport reference...'
                     }
-                    className="h-10 w-full mt-1.5 border border-[#E2E8F0] rounded-xl px-3.5 text-xs outline-none bg-white focus:border-[#2952E3]"
+                    disabled={isViewOnly}
+                    className="h-10 w-full mt-1.5 border border-[#E2E8F0] rounded-xl px-3.5 text-xs outline-none bg-white focus:border-[#2952E3] disabled:bg-gray-50"
                   />
                 </div>
               </div>
@@ -2836,6 +2896,7 @@ const StockTransferRequest = () => {
                   rows={3}
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
+                  onBlur={() => setRejectionReason((prev) => formatRemarks(prev))}
                   placeholder="Please enter the reason for rejecting this stock transfer..."
                   className="w-full text-xs p-3 border border-gray-200 rounded-xl outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition resize-none text-gray-800"
                   disabled={submitting}

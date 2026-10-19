@@ -1,5 +1,6 @@
 // Shared conversions between the /api/vendor/* payload shape and the
 // shapes the UI already works with (form state + table rows).
+import { formatRemarks } from '@/utils/textUtils';
 
 // Unwraps varying API response shapes into a plain array or object.
 export const extractList = (res) => {
@@ -280,7 +281,7 @@ export const buildVendorPayload = (form, { isEditMode, editingVendor, checks }) 
       username: bank.accountHolderName,
     })),
 
-    remarks: form.remarks,
+    remarks: formatRemarks(form.remarks || ''),
     termsAndConditions: form.termsAndConditions,
     password: form.password,
   };

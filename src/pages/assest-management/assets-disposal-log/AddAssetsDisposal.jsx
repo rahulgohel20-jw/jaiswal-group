@@ -21,6 +21,7 @@ import {
 } from "../../../services/apiServices";
 import { getUserIdFromToken } from "../../../utils/auth";
 import { OrgTypes } from "../../../constants/orgTypes";
+import { formatRemarks } from "@/utils/textUtils";
 
 const inputCls =
     "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 " +
@@ -428,7 +429,7 @@ const AddAssetsDisposal = () => {
             orgId: resolvedOrgId,
 
             qty: Number(form.qty) || 0,
-            remarks: form.remarks,
+            remarks: formatRemarks(form.remarks || ""),
             saleValue: Number(form.saleValue) || 0,
 
             subOutletId: form.subUnit ? Number(form.subUnit) : 0,
@@ -703,6 +704,7 @@ const AddAssetsDisposal = () => {
                                     placeholder="Detailed reason for disposing this asset (e.g., End of useful life, excessive maintenance costs, damaged beyond repair)..."
                                     value={form.remarks}
                                     onChange={handleInputChange}
+                                    onBlur={() => set("remarks", formatRemarks(form.remarks))}
                                 />
                             </div>
 

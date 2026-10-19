@@ -1,5 +1,5 @@
 import axiosInstance, { DELETE, GET, POST, PUT, UPLOAD } from './axiosInstance';
-import axios from './axiosInstance';
+import { formatRemarks } from '../utils/textUtils';
 
 // ---- Auth APIs ----
 
@@ -789,7 +789,7 @@ export const rejectVendorPricing = (outletPriceIds, remarks = '') => {
     (id) => id !== null && id !== undefined && id !== ''
   );
   const params = ids.map((id) => `outletPriceIds=${encodeURIComponent(id)}`);
-  const trimmedRemarks = String(remarks ?? '').trim();
+  const trimmedRemarks = formatRemarks(String(remarks ?? '').trim());
   if (trimmedRemarks) {
     params.push(`remarks=${encodeURIComponent(trimmedRemarks)}`);
   }

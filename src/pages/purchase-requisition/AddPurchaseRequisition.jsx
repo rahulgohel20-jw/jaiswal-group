@@ -28,6 +28,7 @@ import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import SearchableSelect from '@/utils/SearchableSelect';
 import OutletChangeConfirmModal from '@/utils/OutletChangeConfirmModal';
+import { formatRemarks } from '@/utils/textUtils';
 import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
 
 const inputCls =
@@ -550,7 +551,7 @@ const AddPurchaseRequisition = () => {
       : null,
     prDate: prDate,
     prRequiredDate: prRequiredDate,
-    remarks,
+    remarks: formatRemarks(remarks),
   });
 
   // "Save" — sends status: PENDING
@@ -783,6 +784,7 @@ const AddPurchaseRequisition = () => {
       value={remarks}
       disabled={!canPerformEdit}
       onChange={(e) => setRemarks(e.target.value)}
+      onBlur={() => setRemarks((prev) => formatRemarks(prev))}
       rows={3}
       placeholder="Internal notes for this requisition..."
       className={`${inputCls} resize-none disabled:bg-gray-50 disabled:text-gray-500`}

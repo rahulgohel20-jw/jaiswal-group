@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify, getApiErrorMessage } from '@/utils/toast';
+import { formatRemarks } from '@/utils/textUtils';
 import {
   ArrowLeft,
   Briefcase,
@@ -2499,6 +2500,7 @@ const VendorRegistration = () => {
               rows={4}
               value={form.remarks}
               onChange={(e) => setField('remarks', e.target.value)}
+              onBlur={() => setField('remarks', formatRemarks(form.remarks))}
               placeholder="Add any specific observations, compliance notes, or internal instructions regarding this vendor..."
               className={`${inputCls} resize-none`}
             />

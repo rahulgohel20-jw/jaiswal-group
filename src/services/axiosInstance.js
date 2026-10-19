@@ -1,5 +1,6 @@
 import axios from "axios";
 import { toast } from "sonner";
+import { formatRemarks, isRemarksKey, transformRemarksInPayload } from "../utils/textUtils";
 
 let activeRequests = 0;
 
@@ -60,6 +61,48 @@ axiosInstance.interceptors.request.use((config) => {
     config.headers["Content-Type"] = "application/json";
   } else {
     delete config.headers["Content-Type"];
+  }
+
+  // Automatically format remarks to Title Case in payload (data), query params, or URL
+  // e.g. "contact site manager for further details" -> "Contact Site Manager For Further Details"
+  if (config.data) {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      try {
+        for (const [key, val] of Array.from(config.data.entries())) {
+          if (isRemarksKey(key) && typeof val === 'string') {
+            config.data.set(key, formatRemarks(val));
+          }
+        }
+      } catch (e) {
+        console.error('[axiosInstance] Error formatting FormData remarks:', e);
+      }
+    } else if (typeof config.data === 'string') {
+      try {
+        const parsed = JSON.parse(config.data);
+        if (parsed && typeof parsed === 'object') {
+          config.data = JSON.stringify(transformRemarksInPayload(parsed));
+        }
+      } catch {
+        // Not a JSON string, leave unchanged
+      }
+    } else if (typeof config.data === 'object') {
+      config.data = transformRemarksInPayload(config.data);
+    }
+  }
+
+  if (config.params && typeof config.params === 'object') {
+    config.params = transformRemarksInPayload(config.params);
+  }
+
+  if (typeof config.url === 'string' && /remarks?=/i.test(config.url)) {
+    config.url = config.url.replace(/([?&][^&=]*remarks?[^&=]*=)([^&]*)/gi, (match, prefix, val) => {
+      try {
+        const decoded = decodeURIComponent(val);
+        return `${prefix}${encodeURIComponent(formatRemarks(decoded))}`;
+      } catch {
+        return match;
+      }
+    });
   }
 
   return config;

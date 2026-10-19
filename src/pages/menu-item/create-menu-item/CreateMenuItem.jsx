@@ -23,6 +23,7 @@ import SearchableSelect from "../../../utils/SearchableSelect";
 import CopyRecipeModal from "./CopyRecipeModal";
 import AddRawMaterialItemModal from "../../raw-material/raw-material-item-master/AddRawMaterialItemModal";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { formatRemarks } from "@/utils/textUtils";
 
 const inputCls =
     'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -1516,7 +1517,7 @@ const CreateMenuItem = () => {
             formData.append("slogan", form.slogan || "");
             formData.append("price", form.price || 0);
             formData.append("sequence", form.sequence || 0);
-            formData.append("remarks", form.remarks || "");
+            formData.append("remarks", formatRemarks(form.remarks || ""));
             formData.append("instructionEnglish", form.instructionEnglish);
             formData.append("instructionHindi", form.instructionHindi || "");
             formData.append("instructionGujarati", form.instructionGujarati || "");
@@ -1826,6 +1827,7 @@ const CreateMenuItem = () => {
                                     name="remarks"
                                     value={form.remarks}
                                     onChange={handleChange}
+                                    onBlur={() => setForm((prev) => ({ ...prev, remarks: formatRemarks(prev.remarks) }))}
                                     placeholder="Enter Remarks"
                                     className={inputCls}
                                 />
