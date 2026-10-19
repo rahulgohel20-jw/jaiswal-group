@@ -28,6 +28,7 @@ import {
 } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { getUserIdFromToken } from '@/utils/auth';
+import { formatRemarks } from '@/utils/textUtils';
 import { getTodayInputDate } from '@/utils/GetCurrentToday';
 import { notify } from '@/utils/toast';
 import { usePagePermissions } from '@/utils/permissions';
@@ -727,7 +728,7 @@ const GenerateGRNDetail = () => {
       grnDate: formattedGrnDate,
       orgId: orgId,
       purchaseOrderIds: effectivePoIds,
-      remarks: remarks || '',
+      remarks: formatRemarks(remarks || ''),
       subOutletId: subOutletId,
       subLocationId: subLocationId,
       userId: userId,
@@ -990,6 +991,7 @@ const GenerateGRNDetail = () => {
                 placeholder="e.g. Received in good condition"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
+                onBlur={() => setRemarks((prev) => formatRemarks(prev))}
                 className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 text-xs sm:text-sm text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]"
               />
             </div>
@@ -1168,6 +1170,7 @@ const GenerateGRNDetail = () => {
                                 autoFocus
                                 value={item.remarks || ''}
                                 onChange={(e) => handleItemRemarksChange(item.id, e.target.value)}
+                                onBlur={() => handleItemRemarksChange(item.id, formatRemarks(item.remarks || ''))}
                                 placeholder="Add remarks..."
                                 className="w-full max-w-[120px] h-5.5 border border-[#CBD5E1] rounded px-1 text-xs text-[#1E293B] outline-none focus:border-[#084E92] bg-white"
                               />

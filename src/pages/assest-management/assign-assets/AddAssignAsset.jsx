@@ -32,6 +32,7 @@ import { getAllActiveSubOutlets } from '../../../services/apiServices';
 import { Container } from "@/components/common/container";
 import { PageHeader } from "@/components/common/PageHeader";
 import { AssetMultiSelect } from '../assest-qr/ExportAssetsQR';
+import { formatRemarks } from '@/utils/textUtils';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -623,7 +624,7 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
       subOutletId: form.subOutletId ? Number(form.subOutletId) : 0,
       quantity: qtyNum,
       assignmentDate: toDDMMYYYY(form.assignmentDate),
-      remarks: form.remarks || '',
+      remarks: formatRemarks(form.remarks || ''),
     };
   };
 
@@ -1024,6 +1025,7 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
                 <textarea
                   value={form.remarks}
                   onChange={(e) => set('remarks', e.target.value)}
+                  onBlur={() => set('remarks', formatRemarks(form.remarks))}
                   placeholder="Enter specific note or location details"
                   rows={3}
                   className={`${inputCls} resize-none`}

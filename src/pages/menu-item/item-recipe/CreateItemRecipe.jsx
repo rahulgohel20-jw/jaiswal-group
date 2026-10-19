@@ -44,6 +44,7 @@ import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import KitchenCopyRecipeModal from "./KitchenCopyRecipeModal";
 import UnitConversionModal from "./UnitConversionModal"; // <-- Import the external modal
 import { PageHeader } from "@/components/common/PageHeader";
+import { formatRemarks } from "@/utils/textUtils";
 
 const inputCls =
     "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
@@ -1582,7 +1583,7 @@ const CreateItemRecipe = () => {
                         instructionHindi: form.instructionHindi?.trim() || "",
                         otherCosts: formattedOtherCosts,
                         paxQty: 100,
-                        remarks: form.remarks?.trim() || "",
+                        remarks: formatRemarks(form.remarks || ""),
                         unitId: Number(itemUnitId),
                         url: form.url?.trim() || "",
                         weight: Number(itemWeight),
@@ -1997,6 +1998,7 @@ const CreateItemRecipe = () => {
                                         name="remarks"
                                         value={form.remarks}
                                         onChange={handleChange}
+                                        onBlur={() => setForm((prev) => ({ ...prev, remarks: formatRemarks(prev.remarks) }))}
                                         placeholder="Enter Remarks"
                                         disabled={isViewMode}
                                         className={inputCls}

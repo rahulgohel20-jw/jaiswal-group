@@ -36,6 +36,7 @@ import {
   rejectTransfer,
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '@/utils/auth';
+import { formatRemarks } from '@/utils/textUtils';
 import {
   Dialog,
   DialogContent,
@@ -263,7 +264,7 @@ const StockTransferDetail = () => {
       const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
       const payload = {
         id: Number(transfer.id),
-        reason: rejectReason.trim(),
+        reason: formatRemarks(rejectReason.trim()),
         userId: currentUserId ? Number(currentUserId) : undefined,
       };
       await rejectTransfer(transfer.id, payload);
@@ -474,7 +475,7 @@ const StockTransferDetail = () => {
                 className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold bg-blue-50 text-[#084E92] border border-blue-200 hover:bg-blue-100 transition cursor-pointer shadow-2xs w-fit"
                 title="Click to view batch allocation & FIFO flow details"
               >
-                <Boxes size={12} className="text-[#084E92] shrink-0" />
+                {/* <Boxes size={12} className="text-[#084E92] shrink-0" /> */}
                 <span>
                   {itemBatches.length > 0
                     ? `${itemBatches.length} ${itemBatches.length === 1 ? 'Batch' : 'Batches'} Allocated`
@@ -933,7 +934,7 @@ const StockTransferDetail = () => {
             <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[#E2E8F0]">
                 <div className="flex items-center gap-2">
-                  <Boxes size={18} className="text-[#084E92]" />
+                  {/* <Boxes size={18} className="text-[#084E92]" /> */}
                   <span className="font-bold text-[#0F172A] text-sm">Transfer Manifest Items</span>
                 </div>
                 <span className="text-xs font-semibold text-gray-500">
@@ -1058,6 +1059,7 @@ const StockTransferDetail = () => {
                   setRejectReason(e.target.value);
                   if (rejectError) setRejectError('');
                 }}
+                onBlur={() => setRejectReason((prev) => formatRemarks(prev))}
                 placeholder="Enter detailed reason for rejection..."
                 className="w-full p-2.5 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 placeholder:text-gray-400"
               />

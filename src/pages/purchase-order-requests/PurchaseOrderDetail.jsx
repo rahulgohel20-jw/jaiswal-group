@@ -198,7 +198,55 @@ const PurchaseOrderDetail = () => {
 
   const billTo = po?.billTo || fetchedCompanyBillTo || null;
   const shipTo = po?.shipTo || fetchedCompanyShipTo || null;
-  const isInterState = useMemo(() => checkIsInterState(billTo, shipTo), [billTo, shipTo]);
+
+  const vendorAddressData = useMemo(() => {
+    if (po?.supplierAddress) {
+      return {
+        vendorId: po.vendorId,
+        vendorName: po.vendorName,
+        isGstApplicable: po.isGstApplicable ?? true,
+        addressLine1: po.supplierAddress.addressLine1 || '',
+        addressLine2: po.supplierAddress.addressLine2 || '',
+        cityName: po.supplierAddress.cityName || '',
+        stateId: po.supplierAddress.stateId,
+        stateName: po.supplierAddress.stateName || '',
+        countryName: po.supplierAddress.countryName || '',
+        pincode: po.supplierAddress.pincode || '',
+        phoneNumber: po.supplierAddress.phoneNumber || '',
+        gstNumber: po.gstNumber || po.supplierAddress.gstNumber || '',
+        panNumber: po.panNumber || po.supplierAddress.panNumber || '',
+      };
+    }
+    if (vendorDetails) {
+      return {
+        vendorId: vendorDetails.id,
+        vendorName: vendorDetails.companyName || vendorDetails.fullName || vendorDetails.name || po?.vendorName,
+        vendorCode: vendorDetails.vendorCode || vendorDetails.userCode || '',
+        isGstApplicable: vendorDetails.isGstApplicable ?? true,
+        addressLine1: vendorDetails.addressLine1 || vendorDetails.address || '',
+        addressLine2: vendorDetails.addressLine2 || '',
+        cityName: vendorDetails.cityName || vendorDetails.city || '',
+        stateId: vendorDetails.stateId,
+        stateName: vendorDetails.stateName || vendorDetails.state || '',
+        countryName: vendorDetails.countryName || vendorDetails.country || '',
+        pincode: vendorDetails.pincode || '',
+        phoneNumber: vendorDetails.mobileNumber || vendorDetails.phoneNumber || '',
+        gstNumber: vendorDetails.gstNumber || po?.gstNumber || '',
+        panNumber: vendorDetails.panNumber || po?.panNumber || '',
+      };
+    }
+    if (po?.vendorName) {
+      return {
+        vendorId: po.vendorId,
+        vendorName: po.vendorName,
+        gstNumber: po.gstNumber || '',
+        panNumber: po.panNumber || '',
+      };
+    }
+    return null;
+  }, [po, vendorDetails]);
+
+  const isInterState = useMemo(() => checkIsInterState(vendorAddressData || billTo, shipTo), [vendorAddressData, billTo, shipTo]);
 
   const isGstApplicable = useMemo(() => {
     if (po?.isGstApplicable !== undefined && po?.isGstApplicable !== null) {
@@ -467,201 +515,194 @@ const PurchaseOrderDetail = () => {
         </SectionCard>
 
 
-        {/* Vendor Details */}
-        <SectionCard className="mt-5 overflow-hidden">
-          <SectionHeader icon={Building2} title="Vendor Details" />
-          <div className="p-5 border-t border-gray-100">
-            <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative">
-              {vendorDetails || po?.vendorName ? (
-                <div className="space-y-1 text-xs text-gray-700">
-                  {/* Vendor Name */}
-                  <p className="font-bold text-sm text-gray-900">
-                    {vendorDetails?.companyName || vendorDetails?.fullName || po?.vendorName || 'Vendor'}
-                    {vendorDetails?.vendorCode || vendorDetails?.userCode
-                      ? ` (${vendorDetails?.vendorCode || vendorDetails?.userCode})`
-                      : ''}
-                  </p>
+        {/* 3-Section Address Configuration: Supplier Details, Bill To, and Ship To */}
+        {(vendorAddressData || billTo || shipTo) && (
+          <SectionCard className="mt-5 overflow-hidden">
+            <SectionHeader
+              icon={MapPin}
+              title="Address & Tax Configuration"
+              trailing={
+                isGstApplicable ? (
+                  <span
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isInterState
+                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                    {isInterState
+                      ? 'Inter-State Supply (IGST 18%)'
+                      : 'Intra-State Supply (CGST 9% + SGST 9%)'}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                    Non-GST Supply
+                  </span>
+                )
+              }
+            />
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 border-t border-gray-100">
+              {/* 1. Supplier Details (Vendor Address) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                      Supplier Details (Vendor)
+                    </span>
+                  </div>
 
-                  {/* Address Line 1 & Line 2 */}
-                  {(vendorDetails?.addressLine1 || vendorDetails?.address) && (
-                    <p>{vendorDetails?.addressLine1 || vendorDetails?.address}</p>
+                  {vendorAddressData ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {vendorAddressData.vendorName || po?.vendorName || 'Vendor'}
+                        {vendorAddressData.vendorCode ? ` (${vendorAddressData.vendorCode})` : ''}
+                      </p>
+                      {vendorAddressData.addressLine1 && <p>{vendorAddressData.addressLine1}</p>}
+                      {vendorAddressData.addressLine2 && <p>{vendorAddressData.addressLine2}</p>}
+                      <p className="font-medium text-gray-800">
+                        {[vendorAddressData.cityName, vendorAddressData.stateName, vendorAddressData.pincode, vendorAddressData.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">{po?.vendorName || 'Vendor'}</p>
+                      <p className="text-gray-400 italic">No detailed vendor record available.</p>
+                    </div>
                   )}
-                  <p className="font-medium text-gray-800">
-                    {[
-                      vendorDetails?.addressLine2,
-                      vendorDetails?.cityName,
-                      vendorDetails?.stateName,
-                      vendorDetails?.pincode,
-                      vendorDetails?.countryName,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')}
-                  </p>
+                </div>
 
-                  {/* Contact Details (Phone & Email) */}
-                  <div className="pt-2 mt-2 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-gray-600">
-                    {(vendorDetails?.mobileNumber || vendorDetails?.phoneNumber) && (
+                {vendorAddressData && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {vendorAddressData.phoneNumber && (
                       <span className="flex items-center gap-1">
                         <Phone className="w-3 h-3 text-gray-400" />
-                        {vendorDetails?.mobileNumber || vendorDetails?.phoneNumber}
+                        {vendorAddressData.phoneNumber}
                       </span>
                     )}
-                    {vendorDetails?.emailid && (
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3 h-3 text-gray-400" />
-                        {vendorDetails?.emailid}
-                      </span>
-                    )}
-                    {vendorDetails?.gstNumber && (
+                    {isGstApplicable && (vendorAddressData.gstNumber || po?.gstNumber) && (
                       <span>
-                        <strong className="text-gray-700">GSTIN:</strong> {vendorDetails.gstNumber}
+                        <strong className="text-gray-700">GSTIN:</strong> {vendorAddressData.gstNumber || po?.gstNumber}
+                      </span>
+                    )}
+                    {vendorAddressData.panNumber && (
+                      <span>
+                        <strong className="text-gray-700">PAN:</strong> {vendorAddressData.panNumber}
                       </span>
                     )}
                   </div>
-                </div>
-              ) : (
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p className="font-semibold text-gray-800">{po?.vendorName || 'Vendor'}</p>
-                  <p className="text-gray-400 italic">No detailed vendor record available.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </SectionCard>
-
-
-        {/* Bill To & Ship To Addresses */}
-        <SectionCard className="mt-5 overflow-hidden">
-          <SectionHeader
-            icon={MapPin}
-            title="Address & Tax Configuration"
-            trailing={
-              isGstApplicable ? (
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isInterState
-                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                  {isInterState
-                    ? 'Inter-State Supply (IGST 18%)'
-                    : 'Intra-State Supply (CGST 9% + SGST 9%)'}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                  Non-GST Supply
-                </span>
-              )
-            }
-          />
-          <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 border-t border-gray-100">
-            {/* Bill To (Company / Buyer Address) */}
-            <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative">
-              <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#084E92]" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
-                    Bill To (Buyer / Company Address)
-                  </span>
-                </div>
+                )}
               </div>
 
-              {billTo ? (
-                <div className="space-y-1 text-xs text-gray-700">
-                  <p className="font-bold text-sm text-gray-900">
-                    {billTo.companyNameEnglish || billTo.parentName || po?.outlet || 'Company'}
-                    {billTo.companyCode ? ` (${billTo.companyCode})` : ''}
-                  </p>
-                  {(billTo.addressEnglish || billTo.addressLine1) && (
-                    <p>{billTo.addressEnglish || billTo.addressLine1}</p>
+              {/* 2. Bill To (Company / Sub-Company Invoicing Details) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                      Bill To (Invoicing Entity)
+                    </span>
+                  </div>
+
+                  {billTo ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {billTo.companyNameEnglish || billTo.parentName || billTo.name || po?.outlet || 'Company'}
+                        {billTo.companyCode ? ` (${billTo.companyCode})` : ''}
+                      </p>
+                      {(billTo.addressEnglish || billTo.addressLine1) && (
+                        <p>{billTo.addressEnglish || billTo.addressLine1}</p>
+                      )}
+                      {(billTo.addressline2 || billTo.addressLine2) && (
+                        <p>{billTo.addressline2 || billTo.addressLine2}</p>
+                      )}
+                      <p className="font-medium text-gray-800">
+                        {[billTo.cityName, billTo.stateName, billTo.pincode, billTo.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">{po?.outlet || 'Billing Entity'}</p>
+                      <p className="text-gray-400 italic">No detailed billing address record available.</p>
+                    </div>
                   )}
-                  {(billTo.addressline2 || billTo.addressLine2) && (
-                    <p>{billTo.addressline2 || billTo.addressLine2}</p>
-                  )}
-                  <p className="font-medium text-gray-800">
-                    {[billTo.cityName, billTo.stateName, billTo.pincode, billTo.countryName].filter(Boolean).join(', ')}
-                  </p>
-                  <div className="pt-2 mt-2 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-gray-600">
-                    {(billTo.mobilenumber || billTo.phoneNumber) && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-gray-400" />
-                        {billTo.mobilenumber || billTo.phoneNumber}
-                      </span>
-                    )}
+                </div>
+
+                {billTo && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
                     {(billTo.emailid || billTo.email) && (
                       <span className="flex items-center gap-1">
                         <Mail className="w-3 h-3 text-gray-400" />
                         {billTo.emailid || billTo.email}
                       </span>
                     )}
+                    {(billTo.gstNumber || billTo.gstin || billTo.gst || po?.billTo?.gstNumber) && (
+                      <span>
+                        <strong className="text-gray-700">GSTIN:</strong> {billTo.gstNumber || billTo.gstin || billTo.gst || po?.billTo?.gstNumber}
+                      </span>
+                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p className="font-semibold text-gray-800">{po?.outlet || 'Company'}</p>
-                  <p className="text-gray-400 italic">No detailed billing address record available.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Ship To (Outlet Address) */}
-            <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative">
-              <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-[#084E92]" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
-                    Ship To (Unit Delivery Address)
-                  </span>
-                </div>
+                )}
               </div>
 
-              {shipTo ? (
-                <div className="space-y-1 text-xs text-gray-700">
-                  <p className="font-bold text-sm text-gray-900">
-                    {shipTo.companyNameEnglish || po?.outlet || 'Unit'}
-                    {shipTo.companyCode ? ` (${shipTo.companyCode})` : ''}
-                  </p>
-                  {shipTo.addressEnglish && <p>{shipTo.addressEnglish}</p>}
-                  {shipTo.addressline2 && <p>{shipTo.addressline2}</p>}
-                  <p className="font-medium text-gray-800">
-                    {[shipTo.cityName, shipTo.stateName, shipTo.pincode, shipTo.countryName].filter(Boolean).join(', ')}
-                  </p>
-                  <div className="pt-2 mt-2 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-gray-600">
-                    {(shipTo.mobilenumber || shipTo.alternatemobilenumber) && (
+              {/* 3. Ship To (Outlet Delivery Address) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                      Ship To (Outlet Delivery Address)
+                    </span>
+                  </div>
+
+                  {shipTo ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {shipTo.companyNameEnglish || po?.outlet || 'Outlet'}
+                        {shipTo.companyCode ? ` (${shipTo.companyCode})` : ''}
+                      </p>
+                      {shipTo.addressEnglish && <p>{shipTo.addressEnglish}</p>}
+                      {shipTo.addressline2 && <p>{shipTo.addressline2}</p>}
+                      <p className="font-medium text-gray-800">
+                        {[shipTo.cityName, shipTo.stateName, shipTo.pincode, shipTo.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">{po?.outlet || 'Assigned Outlet'}</p>
+                      <p className="text-gray-400 italic">No detailed shipping address record available.</p>
+                    </div>
+                  )}
+                </div>
+
+                {shipTo && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {(shipTo.mobilenumber || shipTo.alternatemobilenumber || shipTo.phoneNumber) && (
                       <span className="flex items-center gap-1">
                         <Phone className="w-3 h-3 text-gray-400" />
-                        {shipTo.mobilenumber || shipTo.alternatemobilenumber}
+                        {shipTo.mobilenumber || shipTo.alternatemobilenumber || shipTo.phoneNumber}
                       </span>
                     )}
-                    {shipTo.emailid && (
+                    {(shipTo.emailid || shipTo.email) && (
                       <span className="flex items-center gap-1">
                         <Mail className="w-3 h-3 text-gray-400" />
-                        {shipTo.emailid}
+                        {shipTo.emailid || shipTo.email}
                       </span>
                     )}
-                    {shipTo.gstNumber && (
+                    {(shipTo.gstNumber || shipTo.gstin || shipTo.gst) && (
                       <span>
-                        <strong className="text-gray-700">GSTIN:</strong> {shipTo.gstNumber}
+                        <strong className="text-gray-700">GSTIN:</strong> {shipTo.gstNumber || shipTo.gstin || shipTo.gst}
                       </span>
                     )}
-                    {shipTo.panNumber && (
+                    {(shipTo.panNumber || shipTo.pan) && (
                       <span>
-                        <strong className="text-gray-700">PAN:</strong> {shipTo.panNumber}
+                        <strong className="text-gray-700">PAN:</strong> {shipTo.panNumber || shipTo.pan}
                       </span>
                     )}
                   </div>
-                </div>
-              ) : (
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p className="font-semibold text-gray-800">{po?.outlet || 'Unit'}</p>
-                  <p className="text-gray-400 italic">No detailed shipping address record available.</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        </SectionCard>
+          </SectionCard>
+        )}
 
         {/* Approval / Rejection details */}
         {isDecided && (

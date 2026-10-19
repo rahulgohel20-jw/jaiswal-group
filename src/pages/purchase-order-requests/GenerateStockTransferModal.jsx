@@ -20,6 +20,7 @@ import { OrgTypes } from '@/constants/orgTypes';
 import { notify } from '@/utils/toast';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { getOrgIdFromToken } from '@/utils/auth';
+import { formatRemarks } from '@/utils/textUtils';
 
 export const GenerateStockTransferModal = ({
   isOpen,
@@ -491,7 +492,7 @@ export const GenerateStockTransferModal = ({
         vehicleNumber: '',
         driverName: '',
         driverContact: '',
-        remarks: remarks.trim() || 'Generated from Purchase Order',
+        remarks: formatRemarks(remarks.trim() || 'Generated from Purchase Order'),
         transferDate: formattedDate,
         isDraft: false,
         items: items.map((it) => {
@@ -515,7 +516,7 @@ export const GenerateStockTransferModal = ({
             requestedQuantity: Number(it.transferQuantity || it.orderedQty || 0),
             batchNumber: it.batchNumber || '',
             expiryDate: it.expiryDate || '',
-            remarks: it.remarks || '',
+            remarks: formatRemarks(it.remarks || ''),
           };
         }),
       };
@@ -815,6 +816,7 @@ export const GenerateStockTransferModal = ({
                   type="text"
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
+                  onBlur={() => setRemarks((prev) => formatRemarks(prev))}
                   placeholder="Notes, reason or transport reference..."
                   className="w-full h-10 border border-gray-200 rounded-xl px-3.5 text-xs text-gray-800 bg-white outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 placeholder:text-gray-400"
                 />
@@ -941,6 +943,7 @@ export const GenerateStockTransferModal = ({
                               type="text"
                               value={item.remarks || ''}
                               onChange={(e) => handleRemarkChange(item.id, e.target.value)}
+                              onBlur={() => handleRemarkChange(item.id, formatRemarks(item.remarks || ''))}
                               placeholder="Item remarks / specifications..."
                               className="h-7 w-full border border-[#E2E8F0] rounded-lg px-2.5 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-normal"
                               autoFocus

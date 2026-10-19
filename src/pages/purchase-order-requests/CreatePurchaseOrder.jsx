@@ -5,23 +5,15 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
   ArrowLeft,
-  ChevronDown,
-  ClipboardList,
   FileText,
-  Info,
   Package,
   Plus,
   PlusCircle,
-  Search,
   Trash2,
-  Building2,
   MapPin,
   Phone,
   Mail,
-  Receipt,
-  Truck,
   Pencil,
-  AlertTriangle,
   Loader2,
   ArrowLeftRight,
 } from 'lucide-react';
@@ -62,6 +54,7 @@ import { PO_STATUS } from './utils/poStatus';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
+import { formatRemarks } from '@/utils/textUtils';
 
 const htmlToPlainText = (html = '') => {
   if (!html) return '';
@@ -319,6 +312,7 @@ const CreatePurchaseOrder = () => {
 
   const [fetchedVendorAddress, setFetchedVendorAddress] = useState(null);
   const [fetchedShipTo, setFetchedShipTo] = useState(null);
+  const [fetchedBillTo, setFetchedBillTo] = useState(null);
 
   // Vendor / Supplier details (from poRecord.supplierAddress or fetched dynamically)
   const vendorAddressData = useMemo(() => {
@@ -344,7 +338,7 @@ const CreatePurchaseOrder = () => {
   }, [fetchedVendorAddress, poRecord]);
 
   // Billing entity (Sub-Company)
-  const billToOrg = poRecord?.billTo || state?.billTo || null;
+  const billToOrg = poRecord?.billTo || state?.billTo || fetchedBillTo || null;
 
   // Delivery outlet
   const shipTo = fetchedShipTo || poRecord?.shipTo || state?.shipTo || null;
@@ -446,6 +440,20 @@ const CreatePurchaseOrder = () => {
             gstNumber: c.gstNumber,
             panNumber: c.panNumber,
           });
+
+          if (!poRecord?.billTo && !state?.billTo) {
+            if (c.parentId) {
+              getCompanyById(c.parentId)
+                .then((bRes) => {
+                  if (isCancelled) return;
+                  const b = bRes?.data?.data ?? bRes?.data;
+                  if (b) setFetchedBillTo(b);
+                })
+                .catch(() => {});
+            } else if (c.orgType === 'SUB_COMPANY' || c.orgType === 'COMPANY') {
+              setFetchedBillTo(c);
+            }
+          }
         }
       })
       .catch(() => {
@@ -1677,7 +1685,7 @@ const CreatePurchaseOrder = () => {
           igst: igstRate,
           igstAmount: igstAmount,
           ...(validPrDetailId ? { prDetailId: validPrDetailId } : {}),
-          remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
+          remarks: formatRemarks(itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? ''),
           termsAndConditions: termsAndConditions || null,
         };
       })
@@ -1691,7 +1699,7 @@ const CreatePurchaseOrder = () => {
         subOutletName: activeSubOutletName,
         poDate: formattedPoDate,
         expectedDeliveryDate: formattedExpectedDate,
-        remarks,
+        remarks: formatRemarks(remarks),
         termsAndConditions: termsAndConditions || null,
         discountPercentage: Number(overallDiscountPercentage) || 0,
         discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
@@ -1715,7 +1723,7 @@ const CreatePurchaseOrder = () => {
       subOutletName: activeSubOutletName,
       poDate: formattedPoDate,
       expectedDeliveryDate: formattedExpectedDate,
-      remarks,
+      remarks: formatRemarks(remarks),
       termsAndConditions: termsAndConditions || null,
       discountPercentage: Number(overallDiscountPercentage) || 0,
       discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
@@ -2358,19 +2366,17 @@ const CreatePurchaseOrder = () => {
 
                 {billToOrg && (
                   <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
-                    {billToOrg.mobilenumber && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-gray-400" />
-                        {billToOrg.mobilenumber}
-                      </span>
-                    )}
                     {billToOrg.emailid && (
                       <span className="flex items-center gap-1">
                         <Mail className="w-3 h-3 text-gray-400" />
                         {billToOrg.emailid}
                       </span>
                     )}
-                  
+                    {(billToOrg.gstNumber || billToOrg.gstin || billToOrg.gst) && (
+                      <span>
+                        <strong className="text-gray-700">GSTIN:</strong> {billToOrg.gstNumber || billToOrg.gstin || billToOrg.gst}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -2425,7 +2431,16 @@ const CreatePurchaseOrder = () => {
                         {shipTo.emailid}
                       </span>
                     )}
-                   
+                    {(shipTo.gstNumber || shipTo.gstin || shipTo.gst) && (
+                      <span>
+                        <strong className="text-gray-700">GSTIN:</strong> {shipTo.gstNumber || shipTo.gstin || shipTo.gst}
+                      </span>
+                    )}
+                    {(shipTo.panNumber || shipTo.pan) && (
+                      <span>
+                        <strong className="text-gray-700">PAN:</strong> {shipTo.panNumber || shipTo.pan}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -2623,6 +2638,12 @@ const CreatePurchaseOrder = () => {
                                     setItemRemarksMap((prev) => ({
                                       ...prev,
                                       [item.rawMaterialId]: e.target.value,
+                                    }))
+                                  }
+                                  onBlur={() =>
+                                    setItemRemarksMap((prev) => ({
+                                      ...prev,
+                                      [item.rawMaterialId]: formatRemarks(prev[item.rawMaterialId] || ''),
                                     }))
                                   }
                                   disabled={isReadOnly}
@@ -3285,6 +3306,7 @@ const CreatePurchaseOrder = () => {
                 setRemarks(e.target.value);
                 if (remarksError) setRemarksError('');
               }}
+              onBlur={() => setRemarks((prev) => formatRemarks(prev))}
               placeholder={
                 isRejectMode
                   ? 'Please state the reason for rejecting this purchase order...'

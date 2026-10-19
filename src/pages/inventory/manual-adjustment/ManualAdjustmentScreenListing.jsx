@@ -39,6 +39,7 @@ import {
 import { OrgTypes } from '@/constants/orgTypes';
 import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
 import { usePagePermissions } from '@/utils/permissions';
+import { formatRemarks } from '@/utils/textUtils';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
@@ -599,7 +600,7 @@ const ManualAdjustmentScreenListing = () => {
       const currentUserId = getUserIdFromToken();
       await cancelAdjustment(cancellingItem.id, {
         userId: currentUserId,
-        reason: cancelReason.trim(),
+        reason: formatRemarks(cancelReason.trim()),
       });
       toast.success('Adjustment voucher cancelled successfully');
       setCancellingItem(null);
@@ -1116,6 +1117,7 @@ const ManualAdjustmentScreenListing = () => {
                   rows={3}
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
+                  onBlur={() => setCancelReason((prev) => formatRemarks(prev))}
                   placeholder="Enter the detailed reason for cancellation..."
                   className="w-full border border-[#E2E8F0] rounded-xl p-3 text-xs outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 resize-none text-gray-800"
                 />

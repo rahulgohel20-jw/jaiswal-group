@@ -46,6 +46,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { ExportReportModal } from './ExportReportModal';
 import { ClosePurchaseOrderModal } from './ClosePurchaseOrderModal';
+import { formatRemarks } from '@/utils/textUtils';
 import {
   Select,
   SelectContent,
@@ -406,7 +407,7 @@ const PurchaseOrderApproval = () => {
       const payload = {
         actionBy: String(actionBy),
         poids: [Number(selectedPoToClose.id)],
-        reason: closeReason.trim(),
+        reason: formatRemarks(closeReason.trim()),
         userId: Number(userId),
       };
 

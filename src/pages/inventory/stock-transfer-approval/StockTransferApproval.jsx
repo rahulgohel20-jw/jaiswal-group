@@ -42,6 +42,7 @@ import { CodeCell } from '@/components/common/CodeCell';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { SearchBar } from '@/components/common/SearchBar';
 import { useServerPagination } from '@/hooks/useServerPagination';
+import { formatRemarks } from '@/utils/textUtils';
 import {
   getTransferList,
   approveTransfer,
@@ -680,7 +681,7 @@ const StockTransferApproval = () => {
       const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
       const payload = {
         id: Number(targetRejectTransfer.id),
-        reason: rejectReason.trim(),
+        reason: formatRemarks(rejectReason.trim()),
         userId: currentUserId ? Number(currentUserId) : undefined,
       };
       await rejectTransfer(targetRejectTransfer.id, payload);
@@ -1198,6 +1199,7 @@ const StockTransferApproval = () => {
                   setRejectReason(e.target.value);
                   if (rejectError) setRejectError('');
                 }}
+                onBlur={() => setRejectReason((prev) => formatRemarks(prev))}
                 placeholder="Enter detailed reason for rejection..."
                 className="w-full p-2.5 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 placeholder:text-gray-400"
               />
