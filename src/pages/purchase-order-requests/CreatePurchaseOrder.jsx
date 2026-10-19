@@ -1906,9 +1906,25 @@ const CreatePurchaseOrder = () => {
   const approvalDateDisplay =
     poRecord?.rawStatus === PO_STATUS.APPROVED
       ? formatDisplayDate(poRecord?.updatedAt || poRecord?.approvalDate)
-      : pr?.approvalDate || pr?.approvedAt
-      ? formatDisplayDate(pr?.approvalDate || pr?.approvedAt)
+      : pr?.approvalDate || pr?.approvedAt || state?.approvalDate || state?.approvedAt || ((state?.status === 'APPROVED' || state?.rawStatus === 'APPROVED') ? (state?.updatedAt || state?.date) : null) || ((pr?.status === 'APPROVED' || pr?.rawStatus === 'APPROVED') ? (pr?.updatedAt || pr?.date) : null)
+      ? formatDisplayDate(pr?.approvalDate || pr?.approvedAt || state?.approvalDate || state?.approvedAt || ((state?.status === 'APPROVED' || state?.rawStatus === 'APPROVED') ? (state?.updatedAt || state?.date) : null) || ((pr?.status === 'APPROVED' || pr?.rawStatus === 'APPROVED') ? (pr?.updatedAt || pr?.date) : null))
       : '—';
+
+  const prRequiredDateDisplay = formatDisplayDate(
+    pr?.requiredDate ??
+    pr?.prRequiredDate ??
+    state?.requiredDate ??
+    state?.prRequiredDate
+  );
+
+  const prApprovedByDisplay =
+    pr?.updatedByName ||
+    pr?.actionBy ||
+    pr?.updatedBy ||
+    state?.updatedByName ||
+    state?.actionBy ||
+    state?.updatedBy ||
+    '—';
 
   const isSaving = poSaving || isSubmitting;
 
@@ -1987,7 +2003,12 @@ const CreatePurchaseOrder = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <Field label="PR Date" value={formatDisplayDate(pr?.date ?? state?.date)} />
+                  <Field label="PR Required Date" value={prRequiredDateDisplay} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <Field label="Approval Date" value={approvalDateDisplay} />
+                  <Field label="PR Approved By" value={prApprovedByDisplay} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
@@ -1996,17 +2017,13 @@ const CreatePurchaseOrder = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-                  <Field label="PR Approved By" value={pr?.updatedBy} />
                   <Field
                     label="PO Date"
                     value={formatDisplayDate(poDate || poRecord?.date || getTodayForDateInput())}
                     required
                   />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Expected Delivery Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -2015,11 +2032,14 @@ const CreatePurchaseOrder = () => {
                       min={poDate || getTodayForDateInput()}
                       onChange={(e) => setExpectedDeliveryDate(e.target.value)}
                       disabled={isRejectMode}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
+                      className="w-full h-9 rounded-lg border border-[#E2E8F0] px-2.5 text-xs sm:text-sm outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
                     />
                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Vendor Name <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
@@ -2036,11 +2056,6 @@ const CreatePurchaseOrder = () => {
                           disabled={vendorsLoading || isRejectMode}
                         />
                       </div>
-                      {/* {!isRejectMode && (
-                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
-                          <Plus size={18} className="text-[#0B5CAD]" />
-                        </button>
-                      )} */}
                     </div>
                   </div>
                 </div>
