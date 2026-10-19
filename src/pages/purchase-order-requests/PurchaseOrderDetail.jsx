@@ -427,7 +427,7 @@ const PurchaseOrderDetail = () => {
               ) : (
                 <>
                   <Download className="w-4 h-4" />
-                  <span>Export Report</span>
+                  <span>Export PO</span>
                 </>
               )}
             </button>
