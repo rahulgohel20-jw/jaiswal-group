@@ -278,9 +278,9 @@ export const mapEmployeeToForm = (emp = {}) => {
     designation: emp.designation ?? '',
     addressLine1: emp.addressLine1 ?? '',
     addressLine2: emp.addressLine2 ?? '',
-    countryId: idOf(emp.country) ? String(idOf(emp.country)) : (emp.countryId != null ? String(emp.countryId) : ''),
-    stateId: idOf(emp.state) ? String(idOf(emp.state)) : (emp.stateId != null ? String(emp.stateId) : ''),
-    cityId: idOf(emp.city) ? String(idOf(emp.city)) : (emp.cityId != null ? String(emp.cityId) : ''),
+    countryId: idOf(emp.country) && Number(idOf(emp.country)) > 0 ? String(idOf(emp.country)) : (emp.countryId != null && Number(emp.countryId) > 0 ? String(emp.countryId) : ''),
+    stateId: idOf(emp.state) && Number(idOf(emp.state)) > 0 ? String(idOf(emp.state)) : (emp.stateId != null && Number(emp.stateId) > 0 ? String(emp.stateId) : ''),
+    cityId: idOf(emp.city) && Number(idOf(emp.city)) > 0 ? String(idOf(emp.city)) : (emp.cityId != null && Number(emp.cityId) > 0 ? String(emp.cityId) : ''),
     pincode: emp.pincode ?? '',
     latitude: emp.latitude ?? '',
     longitude: emp.longitude ?? '',
@@ -392,8 +392,12 @@ export const buildEmployeePayload = (
     addressLine1: form.addressLine1 || '',
     addressLine2: form.addressLine2 || '',
     alternateMobile: form.altMobile || form.alternateMobile || '',
-    cityId: Number(form.cityId) || 0,
-    countryId: Number(form.countryId) || 0,
+
+
+    ...(Number(form.countryId) > 0 ? { countryId: Number(form.countryId) } : {}),
+    ...(Number(form.stateId) > 0 ? { stateId: Number(form.stateId) } : {}),
+    ...(Number(form.cityId) > 0 ? { cityId: Number(form.cityId) } : {}),
+
     deptId: Number(form.deptId || form.departmentId) || 0,
     designation: form.designation || '',
     emailid: form.email || form.emailid || '',
@@ -408,7 +412,7 @@ export const buildEmployeePayload = (
     ...((!isEditMode && form.password) || form.password ? { password: form.password } : {}),
     pincode: form.pincode ? String(form.pincode) : '',
     rightsList: activeRights,
-    stateId: Number(form.stateId) || 0,
+
     username: form.username || form.erpemployeecode || form.email || '',
   };
 
@@ -444,9 +448,9 @@ export const mapEmployeeToRow = (emp = {}) => {
     kycStatus: emp.kycStatus ?? 'Pending',
     addressLine1: emp.addressLine1 ?? '',
     addressLine2: emp.addressLine2 ?? '',
-    countryId: idOf(emp.country) || (emp.countryId ?? ''),
-    stateId: idOf(emp.state) || (emp.stateId ?? ''),
-    cityId: idOf(emp.city) || (emp.cityId ?? ''),
+    countryId: (idOf(emp.country) && Number(idOf(emp.country)) > 0 ? idOf(emp.country) : '') || (emp.countryId && Number(emp.countryId) > 0 ? emp.countryId : ''),
+    stateId: (idOf(emp.state) && Number(idOf(emp.state)) > 0 ? idOf(emp.state) : '') || (emp.stateId && Number(emp.stateId) > 0 ? emp.stateId : ''),
+    cityId: (idOf(emp.city) && Number(idOf(emp.city)) > 0 ? idOf(emp.city) : '') || (emp.cityId && Number(emp.cityId) > 0 ? emp.cityId : ''),
     pincode: emp.pincode ?? '',
     latitude: emp.latitude ?? '',
     longitude: emp.longitude ?? '',
