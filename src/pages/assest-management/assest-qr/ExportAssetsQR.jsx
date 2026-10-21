@@ -3,15 +3,15 @@ import { Container } from "@/components/common/container";
 import { PageHeader } from '@/components/common/PageHeader';
 import { CheckCircle2, QrCode, Trash2, X, ChevronDown } from 'lucide-react';
 import {
-    getAllAssets,
     getAssignedAssetsByOrgAndSubOutlet,
     getAssignmentsByAssetId,
     getOrganizationByType,
     getChildrenByParentId,
     getAssetUnitLocationsByOrganization,
+    createAssetQrBulk,
 } from '../../../services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
-import { getOrgIdFromToken } from '@/utils/auth';
+import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
@@ -20,11 +20,10 @@ import { createPortal } from 'react-dom';
 import SearchableSelect from '../../../utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toAbsoluteUrl } from '@/lib/helpers';
 
-const ASSET_QR_BASE_URL = 'https://app.justerp.in';
-
-const getAssetQRUrl = (asset) =>
-    `${ASSET_QR_BASE_URL}/assets/edit-asset/${encodeURIComponent(asset.id)}`;
+// Directly encodes the raw UUID for scanner app integration
+const getAssetQRValue = (asset) => asset.uuid || String(asset.id || '');
 
 const toTitleCase = (str) => {
     if (!str) return str;
@@ -56,19 +55,27 @@ const normalizeLocation = (item) => ({
 });
 
 const AssetLabel = ({ asset, qrSize = 68 }) => (
-    <div className="asset-label w-48 h-24 bg-white box-border flex items-center p-[0.04in] m-0 overflow-hidden break-inside-avoid">
+    <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center p-[0.04in] m-0 overflow-hidden break-inside-avoid">
+        {/* Top-Right Logo */}
+        <img
+            className="absolute top-1 right-1 size-5 rounded-full shrink-0 object-cover"
+            src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
+            alt="Jaiswal Group"
+        />
+
+        {/* QR Code */}
         <div className="w-[0.86in] h-[0.86in] shrink-0 flex items-center justify-center p-0.5">
-            <QRCode value={getAssetQRUrl(asset)} size={qrSize} level="M" />
+            <QRCode value={getAssetQRValue(asset)} size={qrSize} level="M" />
         </div>
 
-        <div className="flex-1 min-w-0 h-full pl-[0.06in] overflow-hidden flex flex-col justify-center gap-[0.05in]">
+        {/* Details Column */}
+        <div className="flex-1 min-w-0 h-full pl-[0.06in] pr-5 overflow-hidden flex flex-col justify-center gap-[0.05in]">
             <div className="text-[5pt] font-bold leading-[1.1]">Jaiswal Group</div>
-            {asset.organizationname && asset.organizationname !== 'Jaiswal Group'
-                ? <div className="text-[5pt] font-normal leading-[1.1] uppercase">{asset.organizationname}</div>
-                : asset.organizationname === 'Jaiswal Group'
-                    ? <div className="text-[5pt] font-normal leading-[1.1] uppercase">Head Office</div>
-                    : ''
-            }
+            {asset.organizationname && asset.organizationname !== 'Jaiswal Group' ? (
+                <div className="text-[5pt] font-normal leading-[1.1] uppercase">{asset.organizationname}</div>
+            ) : asset.organizationname === 'Jaiswal Group' ? (
+                <div className="text-[5pt] font-normal leading-[1.1] uppercase">Head Office</div>
+            ) : null}
             <div className="text-[5pt] font-normal leading-[1.1]">{asset.assetUnitLocationName || ""}</div>
             <div className="text-[5pt] font-semibold leading-[1.1]">{asset.categoryName || '-'}</div>
             <div className="text-[5pt] font-semibold leading-[1.1]">{toTitleCase(asset.name) || '-'}</div>
@@ -109,11 +116,7 @@ export const AssetMultiSelect = ({
     const isAllSelected = options.length > 0 && selected.length === options.length;
 
     const toggleSelectAll = () => {
-        if (isAllSelected) {
-            onChange([]);
-        } else {
-            onChange([...options]);
-        }
+        onChange(isAllSelected ? [] : [...options]);
     };
 
     return (
@@ -122,10 +125,11 @@ export const AssetMultiSelect = ({
                 <div
                     role="button"
                     tabIndex={disabled ? -1 : 0}
-                    className={`min-h-11 w-full border rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${disabled
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
-                        : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92]"
-                        } border-[#C3C6D1]`}
+                    className={`min-h-11 w-full border rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${
+                        disabled
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
+                            : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92]"
+                    } border-[#C3C6D1]`}
                 >
                     {selected.length > 2 ? (
                         <span className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-semibold px-2 py-0.5 rounded">
@@ -282,7 +286,6 @@ const ExportAssetsQR = () => {
 
     // Assets state
     const [assets, setAssets] = useState([]);
-    const [allAssets, setAllAssets] = useState([]);
     const [assetsLoading, setAssetsLoading] = useState(false);
 
     const [pickedAssets, setPickedAssets] = useState([]);
@@ -291,7 +294,11 @@ const ExportAssetsQR = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+
+    // Printing & QR states
     const [isPrinting, setIsPrinting] = useState(false);
+    const [generatingQrs, setGeneratingQrs] = useState(false);
+    const [generatedPrintItems, setGeneratedPrintItems] = useState([]);
 
     // All valid Organization IDs for current filter
     // If Outlet is selected -> only that Outlet
@@ -405,8 +412,13 @@ const ExportAssetsQR = () => {
         fetchLocationsData();
     }, [outlet]);
 
-  // Fetch Assigned Assets by Location
+    // ALWAYS Fetch Assigned Assets by Org and Location (Never getAllAssets)
     const fetchAssignedAssets = useCallback(async (orgId, locationId = 0) => {
+        if (!orgId) {
+            setAssets([]);
+            return [];
+        }
+
         try {
             setAssetsLoading(true);
             const assetRes = await getAssignedAssetsByOrgAndSubOutlet(
@@ -415,14 +427,14 @@ const ExportAssetsQR = () => {
             );
             const rawAssets = assetRes?.data?.data ?? assetRes?.data ?? assetRes ?? [];
 
-            const normalizedAssets = rawAssets.map((item) => {
-                const asset = item.assetDetails || {};
+            const normalizedAssets = (Array.isArray(rawAssets) ? rawAssets : Object.values(rawAssets)).map((item) => {
+                const asset = item.assetDetails || item;
                 const assignment = item.assignDetails || {};
 
                 return {
                     id: asset.id,
-                    name: asset.itemName,
-                    code: asset.assetCode,
+                    name: asset.itemName || asset.name,
+                    code: asset.assetCode || asset.code,
                     organizationId: assignment?.companiesId ?? asset.assignOrganizationId ?? orgId,
                     organizationname: assignment?.companiesName ?? asset.organizationname ?? '',
                     assetUnitLocationId: assignment?.assetUnitLocationId ?? asset.assetUnitLocationId ?? null,
@@ -430,8 +442,8 @@ const ExportAssetsQR = () => {
                     categoryId: asset.categoryId ?? asset.category?.id,
                     categoryName: asset.categoryName ?? asset.category?.categoryName ?? asset.category?.name ?? asset.assetCategoryName ?? '',
                     department: asset.department,
-                    location: asset.assetLocationName,
-                    quantity: assignment?.quantity ?? asset.totalQuantity ?? 0,
+                    location: asset.assetLocationName || asset.location,
+                    quantity: assignment?.quantity ?? asset.totalQuantity ?? 1,
                 };
             });
 
@@ -446,73 +458,14 @@ const ExportAssetsQR = () => {
         }
     }, []);
 
-    // Global assets when neither Company nor Outlet is selected
+    // Trigger getAssignedAssetsByOrgAndSubOutlet whenever Outlet, Company, or Location changes
     useEffect(() => {
-        if (outlet || company) return;
-
-        const fetchAssets = async () => {
-            try {
-                setAssetsLoading(true);
-                const assetRes = await getAllAssets();
-                const rawAssets = assetRes?.data?.data ?? assetRes?.data ?? assetRes ?? [];
-
-                const normalizedAssets = (Array.isArray(rawAssets) ? rawAssets : Object.values(rawAssets)).map((a) => ({
-                    id: a.id,
-                    name: a.itemName,
-                    code: a.assetCode ?? a.code,
-                    organizationname: a.organizationname ?? '',
-                    organizationId: a.assignOrganizationId ?? null,
-                    assetUnitLocationId: a.assetUnitLocationId ?? null,
-                    assetUnitLocationName: a.assetUnitLocationName ?? a.locationName ?? a.location ?? '',
-                    unitName: a.organizationname ?? '',
-                    categoryId: a.categoryId ?? a.category?.id,
-                    categoryName: a.categoryName ?? a.category?.name ?? '',
-                    department: a.department,
-                    location: a.location,
-                }));
-
-                setAllAssets(normalizedAssets);
-                setAssets(normalizedAssets);
-            } catch (err) {
-                console.error(err);
-            } finally {
-                setAssetsLoading(false);
-            }
-        };
-
-        fetchAssets();
-    }, [outlet, company]);
-
-    // Fetch assigned assets whenever Outlet, Company, or Location changes
-    useEffect(() => {
-        const activeOrgId = outlet || company;
+        // Fallback to token org if user hasn't explicitly selected one
+        const activeOrgId = outlet || company || getOrgIdFromToken();
         if (activeOrgId) {
-            fetchAssignedAssets(Number(activeOrgId), location ? Number(location) : null);
-        } else if (isGroupUser) {
-            setAssets(allAssets);
+            fetchAssignedAssets(Number(activeOrgId), location ? Number(location) : 0);
         }
-    }, [outlet, company, location, fetchAssignedAssets, isGroupUser, allAssets]);
-
-    // Print listeners
-    useEffect(() => {
-        const onBeforePrint = () => setIsPrinting(true);
-        const onAfterPrint = () => setIsPrinting(false);
-        window.addEventListener('beforeprint', onBeforePrint);
-        window.addEventListener('afterprint', onAfterPrint);
-        return () => {
-            window.removeEventListener('beforeprint', onBeforePrint);
-            window.removeEventListener('afterprint', onAfterPrint);
-        };
-    }, []);
-
-    const handlePrintLabels = () => {
-        setIsPrinting(true);
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                window.print();
-            });
-        });
-    };
+    }, [outlet, company, location, fetchAssignedAssets]);
 
     const normalizeLocationValue = (value) => String(value ?? '').trim().toLowerCase();
 
@@ -522,12 +475,7 @@ const ExportAssetsQR = () => {
         normalizeLocationValue(asset.assetUnitLocationName || asset.assetLocationName || asset.location),
     ].join('|');
 
-    // 1. In AssetMultiSelect, just update pickedAssets directly (no API call inside onChange)
-    const handleAssetsMultiSelectChange = (newPickedList) => {
-        setPickedAssets(newPickedList);
-    };
-
-    // 2. Fetch assignments automatically with a debounce + AbortController
+    // Debounced assignment processor
     useEffect(() => {
         if (pickedAssets.length === 0) {
             setSelectedAssets([]);
@@ -539,10 +487,7 @@ const ExportAssetsQR = () => {
         const timer = setTimeout(async () => {
             try {
                 setAssetsLoading(true);
-
                 const isAllSelected = assets.length > 0 && pickedAssets.length === assets.length;
-
-                // When All is selected -> no params; otherwise pass array of ids
                 const queryParams = isAllSelected ? undefined : pickedAssets.map((a) => a.id);
 
                 const assignmentRes = await getAssignmentsByAssetId(queryParams, {
@@ -552,7 +497,6 @@ const ExportAssetsQR = () => {
                 const rawAssignments = assignmentRes?.data?.data ?? assignmentRes?.data ?? assignmentRes ?? [];
                 const assignments = Array.isArray(rawAssignments) ? rawAssignments : Object.values(rawAssignments);
 
-                // Group assignments by assetId
                 const assignmentsByAsset = new Map();
                 assignments.forEach((assign) => {
                     const aId = String(assign.assetId);
@@ -570,28 +514,20 @@ const ExportAssetsQR = () => {
                     if (targetOrgIds && targetOrgIds.size > 0) {
                         assetAssignments = assetAssignments.filter((assign) => {
                             const assignOrgId = String(assign.companiesId ?? assign.organizationId);
-                            const matchesOrg = targetOrgIds.has(assignOrgId);
-                            if (!matchesOrg) return false;
+                            if (!targetOrgIds.has(assignOrgId)) return false;
                             if (location) {
-                                const assignLocationId = String(assign.assetUnitLocationId ?? assign.locationId ?? '');
-                                return assignLocationId === String(location);
+                                return String(assign.assetUnitLocationId ?? assign.locationId ?? '') === String(location);
                             }
                             return true;
                         });
                     }
 
                     if (assetAssignments.length === 0) {
-                        const fallbackOrgId = asset.organizationId || (outlet || company) || null;
-                        const fallbackOrgName =
-                            asset.organizationname ||
-                            (company ? companies.find((c) => String(c.id) === String(company))?.name : '') ||
-                            '';
-
                         updatedSelected.push({
                             ...asset,
                             isAssigned: false,
-                            organizationId: fallbackOrgId,
-                            organizationname: fallbackOrgName,
+                            organizationId: asset.organizationId || outlet || company || null,
+                            organizationname: asset.organizationname || '',
                             assignmentId: null,
                             availableQuantity: asset.availableQuantity ?? asset.totalQuantity ?? 1,
                             quantity: Math.max(1, Number(asset.quantity ?? 1)),
@@ -642,9 +578,9 @@ const ExportAssetsQR = () => {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [pickedAssets, targetOrgIds, location, outlet, company, assets.length, companies]);
+    }, [pickedAssets, targetOrgIds, location, outlet, company, assets.length]);
 
-    // Printable assets
+    // Flat list of units to be printed based on selected quantities
     const printableAssets = useMemo(() => {
         let list = selectedAssets;
 
@@ -668,6 +604,68 @@ const ExportAssetsQR = () => {
             }));
         });
     }, [selectedAssets, targetOrgIds, location]);
+
+    const handlePrintLabels = async () => {
+        if (printableAssets.length === 0) return;
+
+        setGeneratingQrs(true);
+        try {
+            // Group quantities per assetId
+            const itemsMap = new Map();
+            printableAssets.forEach((item) => {
+                const qty = itemsMap.get(item.id) || 0;
+                itemsMap.set(item.id, qty + 1);
+            });
+
+            const requestItems = Array.from(itemsMap.entries()).map(([assetId, qty]) => ({
+                assetId: Number(assetId),
+                qty: Number(qty),
+            }));
+
+            const payload = {
+                createdBy: Number(getUserIdFromToken?.() || 0),
+                organizationId: Number(outlet || company || getOrgIdFromToken() || 0),
+                assetSubLocationId: location ? Number(location) : null,
+                items: requestItems,
+            };
+
+            const res = await createAssetQrBulk(payload);
+            const records = res?.data?.data || [];
+
+            // Queue returned UUIDs per assetId
+            const uuidQueues = new Map();
+            records.forEach((row) => {
+                const key = String(row.assetId);
+                if (!uuidQueues.has(key)) {
+                    uuidQueues.set(key, []);
+                }
+                uuidQueues.get(key).push(row.uuid);
+            });
+
+            // Assign unique UUID to each printed item
+            const assetsWithUuids = printableAssets.map((asset) => {
+                const queue = uuidQueues.get(String(asset.id));
+                const assignedUuid = queue && queue.length > 0 ? queue.shift() : null;
+
+                return {
+                    ...asset,
+                    uuid: assignedUuid,
+                };
+            });
+
+            setGeneratedPrintItems(assetsWithUuids);
+            setIsPrinting(true);
+
+            setTimeout(() => {
+                window.print();
+                setIsPrinting(false);
+            }, 50);
+        } catch (err) {
+            console.error('Error generating asset QRs:', err);
+        } finally {
+            setGeneratingQrs(false);
+        }
+    };
 
     const openDeleteConfirm = (row) => {
         setDeleteTarget({
@@ -705,7 +703,7 @@ const ExportAssetsQR = () => {
                 .filter((c) => c.status === 'active')
                 .map((c) => ({
                     value: String(c.id),
-                    label:  c.name,
+                    label: c.name,
                 })),
         [companies]
     );
@@ -797,7 +795,7 @@ const ExportAssetsQR = () => {
                             {/* Controls Card */}
                             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col h-full min-h-0">
                                 <div className="space-y-4">
-                                    {/* 1. Company Filter (Main / Group User only) */}
+                                    {/* 1. Company Filter */}
                                     {isGroupUser && (
                                         <div>
                                             <label className="text-xs font-medium text-[#475569] mb-1.5 block">
@@ -806,7 +804,7 @@ const ExportAssetsQR = () => {
                                             <SearchableSelect
                                                 name="company"
                                                 value={company}
-                                                disabled={loadingCompanies}
+                                                disabled={loadingCompanies || generatingQrs}
                                                 onChange={(e) => handleCompanyChange(e.target.value)}
                                                 options={companyOptions}
                                                 placeholder={loadingCompanies ? "Loading companies..." : "Select Company"}
@@ -815,7 +813,7 @@ const ExportAssetsQR = () => {
                                         </div>
                                     )}
 
-                                    {/* 2. Outlet Filter (Optional for Main & Company Users) */}
+                                    {/* 2. Outlet Filter */}
                                     {!isOutletUser && (
                                         <div>
                                             <label className="text-xs font-medium text-[#475569] mb-1.5 block">
@@ -824,7 +822,7 @@ const ExportAssetsQR = () => {
                                             <SearchableSelect
                                                 name="outlet"
                                                 value={outlet}
-                                                disabled={(isGroupUser && !company) || loadingOutlets}
+                                                disabled={(isGroupUser && !company) || loadingOutlets || generatingQrs}
                                                 onChange={(e) => {
                                                     setOutlet(e.target.value);
                                                     setLocation('');
@@ -844,7 +842,7 @@ const ExportAssetsQR = () => {
                                         </div>
                                     )}
 
-                                    {/* 3. Sub-Outlet Filter (Optional, depends on Outlet)*/}
+                                    {/* 3. Sub-Outlet Location Filter */}
                                     <div>
                                         <label className="text-xs font-medium text-[#475569] mb-1.5 block">
                                             Location 
@@ -852,7 +850,7 @@ const ExportAssetsQR = () => {
                                         <SearchableSelect
                                             name="location"
                                             value={location}
-                                            disabled={!outlet || loadingLocations}
+                                            disabled={!outlet || loadingLocations || generatingQrs}
                                             onChange={(e) => {
                                                 setLocation(e.target.value);
                                                 setPickedAssets([]);
@@ -878,9 +876,9 @@ const ExportAssetsQR = () => {
                                         <AssetMultiSelect
                                             options={assets}
                                             selected={pickedAssets}
-                                            onChange={handleAssetsMultiSelectChange}
+                                            onChange={setPickedAssets}
                                             loading={assetsLoading}
-                                            disabled={assetsLoading}
+                                            disabled={assetsLoading || generatingQrs}
                                         />
                                     </div>
                                 </div>
@@ -888,12 +886,12 @@ const ExportAssetsQR = () => {
                                 <div className="border-t border-[#C3C6D1] mt-auto pt-4 flex gap-2">
                                     <button
                                         type="button"
-                                        disabled={printableAssets.length === 0}
+                                        disabled={printableAssets.length === 0 || generatingQrs}
                                         onClick={handlePrintLabels}
                                         className="w-max h-11 cursor-pointer bg-[#084E92] text-white rounded-lg px-4 flex items-center justify-center gap-2 text-sm font-medium hover:bg-[#073e77] transition disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
                                         <QrCode size={16} />
-                                        Print Labels ({printableAssets.length})
+                                        {generatingQrs ? 'Generating QRs...' : `Print Labels (${printableAssets.length})`}
                                     </button>
                                 </div>
                             </div>
@@ -927,7 +925,7 @@ const ExportAssetsQR = () => {
                                                     <div className="w-18 h-18 shrink-0 rounded-lg border border-[#E2E8F0] flex items-center justify-center overflow-hidden">
                                                         <div className="w-14 h-14 shrink-0 rounded-lg p-1 border border-[#E2E8F0] flex items-center justify-center overflow-hidden">
                                                             <QRCode
-                                                                value={getAssetQRUrl(a)}
+                                                                value={getAssetQRValue(a)}
                                                                 size={44}
                                                                 level="M"
                                                             />
@@ -974,7 +972,7 @@ const ExportAssetsQR = () => {
 
             {isPrinting && createPortal(
                 <div className="qr-print-area hidden print:block">
-                    {printableAssets.map((a, index) => (
+                    {generatedPrintItems.map((a, index) => (
                         <AssetLabel
                             key={`print-${a.rowKey}-${a.printIndex}-${index}`}
                             asset={a}

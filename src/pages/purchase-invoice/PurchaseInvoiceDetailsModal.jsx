@@ -121,7 +121,7 @@ const PurchaseInvoiceDetailsModal = () => {
         exportReport(
             {
                 id: Number(invoice.id),
-                type: 'Purchase invoice 1',
+                type: 'PURCHASE_INVOICE_1',
             },
             {
                 fileName: `Purchase_Invoice_Report_${invoice.invoiceCode || invoice.id}.pdf`,

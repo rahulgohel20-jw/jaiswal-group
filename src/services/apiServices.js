@@ -346,6 +346,10 @@ export const getAllAssets = () => {
   return GET('/assets/getall');
 };
 
+export const getAllActiveAssetsPaginated =  (page = 0, size = 20) => {
+  return GET(`/assets/getallactive/page?page=${page}&size=${size}`);
+};
+
 export const createAsset = (formData) => {
   return axiosInstance.post('/assets/create', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -1049,8 +1053,8 @@ export const getAllActiveAssignAssets = () => {
   return GET('/assign-assets/getallactive');
 };
 
-export const getAllActiveAssignAssetsPaginated = (params) => {
-  return GET('/assign-assets/getallactive/page', params);
+export const getAllActiveAssignAssetsPaginated = (payload) => {
+  return POST('/assign-assets/getallactive/page', payload);
 };
 
 export const updateAssignAsset = (payload) => {
@@ -1778,4 +1782,11 @@ export const deleteAssetUnitLocationById = (id) => {
 };
 export const getUnassignedAssets = () => {
   return GET("/assets/unassigned");
+};
+//Assets QR 
+export const createAssetQrBulk = (payload) => {
+  return POST('/asset-qr/addall', payload);
+};
+export const getAssetQrByUuid = (uuid) => {
+  return GET(`/asset-qr/uuid/${uuid}`);
 };
