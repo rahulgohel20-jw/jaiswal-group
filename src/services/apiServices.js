@@ -1790,3 +1790,36 @@ export const createAssetQrBulk = (payload) => {
 export const getAssetQrByUuid = (uuid) => {
   return GET(`/asset-qr/uuid/${uuid}`);
 };
+// Asset Audit Endpoints
+export const getAllAssetAuditEventsPaginated = (params) => {
+  const queryParams = new URLSearchParams(params).toString();
+  return GET(`/asset-audit/getall/page?${queryParams}`);
+};
+
+export const getAssetAuditEventById = (id) => {
+  return GET(`/asset-audit/get?id=${id}`);
+};
+
+export const updateAssetAuditStatus = (id, data) => {
+  return PUT(`/asset-audit/update-status?id=${id}`, data);
+};
+
+export const getAssetAuditReport = (params) => {
+  const queryParams = params ? `?${new URLSearchParams(params).toString()}` : '';
+  return GET(`/asset-audit/report${queryParams}`);
+};
+export const createAssetAuditEvent = (payload) => {
+  return POST('/asset-audit/create', payload);
+};
+export const updateAssetAuditEvent = (id, payload) => {
+  return PUT(`/asset-audit/update?id=${id}`, payload);
+};
+export const scanAssetAuditQr = (payload) => {
+  return POST('/asset-audit/scan', payload);
+};
+export const getScanReportById = (id) => {
+  return GET(`/asset-audit/report?id=${id}`);
+}
+export const getAllAssetAuditEvents = (params) => {
+  return GET('/asset-audit/getall', params );
+};

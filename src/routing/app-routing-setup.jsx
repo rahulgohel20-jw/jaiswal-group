@@ -217,6 +217,8 @@ import ViewItemRecipe from '../pages/menu-item/item-recipe/ViewItemRecipe';
 import ViewRawMaterialItem from '../pages/raw-material/raw-material-item-master/ViewRawMaterialItem';
 import AssetLocation from '../pages/assest-management/asset-location/AssetLocation';
 import UnAssignedAssets from '../pages/assest-management/unassign-asset/UnAssignedAssets';
+import ListAssetAuditEvent from '../pages/assest-management/asset-audit-event/ListAssetAuditEvent';
+import CreateAuditEvent from '../pages/assest-management/asset-audit-event/CreateAuditEvent';
 
 
 export function AppRoutingSetup() {
@@ -395,6 +397,9 @@ export function AppRoutingSetup() {
           <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
           <Route path="/assets/asset-location" element={<AssetLocation/>} />
           <Route path="/unassigned-assets" element={<UnAssignedAssets/>} />
+          <Route path="/assets/asset-audit-event" element={<ListAssetAuditEvent/>} />
+          <Route path="/assets/asset-audit-event/create" element={<CreateAuditEvent/>} />
+          <Route path="/assets/asset-audit-event/create/:id" element={<CreateAuditEvent/>} />
 
           <Route path="/location/state" element={<StateMaster />} />
           <Route path="/location/city" element={<CityMaster />} />
