@@ -207,14 +207,14 @@ const AssetsManagement = () => {
             iconColor: "text-[#00376C]",
             color: "text-[#1B1B1F]",
         },
-        {
-            title: "Warehouse",
-            value: stats.warehouseCount.toLocaleString(),
-            icon: <CircleCheck size={18} />,
-            iconBg: "bg-[#DCFCE7]",
-            iconColor: "text-[#15803D]",
-            color: "text-[#15803D]",
-        },
+        // {
+        //     title: "Warehouse",
+        //     value: stats.warehouseCount.toLocaleString(),
+        //     icon: <CircleCheck size={18} />,
+        //     iconBg: "bg-[#DCFCE7]",
+        //     iconColor: "text-[#15803D]",
+        //     color: "text-[#15803D]",
+        // },
         {
             title: "Assigned",
             value: stats.assignedCount.toLocaleString(),
@@ -471,7 +471,7 @@ const AssetsManagement = () => {
             />
 
             <div className='flex flex-col xl:flex-row gap-4 text-[#43474F]'>
-                <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5 flex-1'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5 flex-1'>
                     {
                         statsCards.map((item, index) => (
                             <div key={index} className='bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs'>

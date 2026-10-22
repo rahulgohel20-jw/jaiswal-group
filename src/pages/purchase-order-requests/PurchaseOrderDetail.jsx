@@ -129,7 +129,7 @@ const PurchaseOrderDetail = () => {
     exportReport(
       {
         id: Number(po.id),
-        type: 'purchase type 1',
+        type: 'PURCHASE_TYPE_1',
       },
       {
         fileName: `PO_Report_${po.poCode || po.id}.pdf`,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import {
   ArrowLeft,
   Building2,
@@ -10,8 +10,10 @@ import {
   Save,
   Search,
   Store,
+  Trash2,
   Users,
   X,
+  Loader2,
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useNavigate, useParams, useLocation } from 'react-router';
@@ -19,10 +21,11 @@ import {
   createAssignAsset,
   getActiveCompany,
   getAllActiveEmployees,
-  getAllAssets,
+  getAllActiveAssetsPaginated,
   getAssignAssetById,
   updateAssignAsset,
   getAssetUnitLocationsByOrganization,
+  getAssetById
 } from '@/services/apiServices.js';
 import { usePagePermissions } from '@/utils/permissions';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -31,7 +34,11 @@ import SearchableSelect from '../../../utils/SearchableSelect';
 import { getAllActiveSubOutlets } from '../../../services/apiServices';
 import { Container } from "@/components/common/container";
 import { PageHeader } from "@/components/common/PageHeader";
-import { AssetMultiSelect } from '../assest-qr/ExportAssetsQR';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { formatRemarks } from '@/utils/textUtils';
 
 const inputCls =
@@ -54,7 +61,7 @@ const extractArray = (res) => {
 const extractAssetFields = (asset) => ({
   id: asset.id,
   code: asset.assetCode ?? String(asset.id),
-  name: asset.itemName ?? 'Unnamed Asset',
+  name: asset.itemName ?? asset.assetName ?? 'Unnamed Asset',
   category: asset.categoryName ?? '—',
   brand: asset.brandName ?? '—',
   model: asset.modelNumber ?? '—',
@@ -83,8 +90,6 @@ const todayInputDate = () => {
   return `${d.getFullYear()}-${mm}-${dd}`;
 };
 
-// <input type="date"> gives "yyyy-mm-dd"; backend expects "dd/mm/yyyy".
-// Also used on save. Returns null for empty/invalid input.
 const toDDMMYYYY = (dateStr) => {
   if (!dateStr) return null;
   const [year, month, day] = dateStr.split('-');
@@ -92,9 +97,6 @@ const toDDMMYYYY = (dateStr) => {
   return `${day}/${month}/${year}`;
 };
 
-// Normalizes a date coming back from the API into "yyyy-mm-dd" for
-// <input type="date">. Accepts either "dd/mm/yyyy" (the backend's format)
-// or an already-correct "yyyy-mm-dd", so it's safe to call either way.
 const toInputDate = (dateStr) => {
   if (!dateStr) return '';
   if (dateStr.includes('-')) return dateStr;
@@ -109,7 +111,6 @@ const Label = ({ children, required }) => (
     {required && <span className="text-red-500">*</span>}
   </label>
 );
-
 
 const SectionCard = ({ children, className = '' }) => (
   <div
@@ -126,16 +127,216 @@ const SubHeading = ({ icon: Icon, title }) => (
   </div>
 );
 
-// ---- Asset Type: two options (unchanged) ----
 const ASSET_TYPE_OPTIONS = [
   { value: 'individual', label: 'Individual' },
   { value: 'company_outlet', label: 'Company / Outlet' },
 ];
+export const AssetMultiSelect = ({
+  options = [],
+  selected = [],
+  onChange,
+  disabled = false,
+  loading = false,
+  hasMore = false,
+  totalCount = 0,
+  onLoadMore,
+}) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const observerRef = useRef(null);
+  const totalItems = totalCount > 0 ? totalCount : options.length;
+  const sentinelCallback = useCallback(
+    (node) => {
+      if (loading) return;
+      if (observerRef.current) observerRef.current.disconnect();
+
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          onLoadMore?.();
+        }
+      }, { threshold: 0.1 });
+
+      if (node) observerRef.current.observe(node);
+    },
+    [loading, hasMore, onLoadMore]
+  );
+
+  const filteredOptions = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return options;
+    return options.filter((o) =>
+      (o.name ?? "").toLowerCase().includes(term) ||
+      (o.code ?? "").toLowerCase().includes(term)
+    );
+  }, [options, query]);
+
+  const isSelected = (id) => selected.some((s) => String(s.id) === String(id));
+
+  const toggleOption = (asset) => {
+    if (isSelected(asset.id)) {
+      onChange(selected.filter((s) => String(s.id) !== String(asset.id)));
+    } else {
+      onChange([...selected, asset]);
+    }
+  };
+
+  const isAllSelected = options.length > 0 && selected.length >= totalItems;
+
+  const toggleSelectAll = () => {
+    onChange(isAllSelected ? [] : [...options]);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div
+          role="button"
+          tabIndex={disabled ? -1 : 0}
+          className={`min-h-11 w-full border rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${disabled
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
+            : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92]"
+            } border-[#C3C6D1]`}
+        >
+          {selected.length > 2 ? (
+            <span className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-semibold px-2 py-0.5 rounded">
+              {isAllSelected
+                ? `All Assets (${totalItems})`
+                : `Selected Assets (${selected.length})`}
+              {!disabled && (
+                <X
+                  size={12}
+                  className="cursor-pointer hover:text-red-500 ml-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange([]);
+                  }}
+                />
+              )}
+            </span>
+          ) : (
+            selected.map((item) => (
+              <span
+                key={item.id}
+                className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-0.5 rounded"
+              >
+                <span className="truncate max-w-28">{item.name}</span>
+                {!disabled && (
+                  <X
+                    size={12}
+                    className="cursor-pointer hover:text-red-500 shrink-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChange(selected.filter((s) => String(s.id) !== String(item.id)));
+                    }}
+                  />
+                )}
+              </span>
+            ))
+          )}
+
+          <input
+            type="text"
+            value={query}
+            disabled={disabled}
+            placeholder={
+              selected.length === 0
+                ? loading && options.length === 0
+                  ? "Loading assets..."
+                  : "Search and select assets..."
+                : ""
+            }
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!open) setOpen(true);
+            }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              if (!open) setOpen(true);
+            }}
+            className="flex-1 min-w-24 bg-transparent text-sm text-gray-800 outline-none border-none p-0.5 placeholder:text-gray-400 cursor-text"
+          />
+
+          <div className="flex items-center gap-1 ml-auto shrink-0">
+            {selected.length > 0 && !disabled && (
+              <X
+                size={14}
+                className="text-gray-400 hover:text-red-500 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onChange([]);
+                  setQuery("");
+                }}
+              />
+            )}
+            <ChevronDown
+              size={16}
+              className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </div>
+        </div>
+      </PopoverTrigger>
+
+      <PopoverContent
+        align="start"
+        sideOffset={4}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className="p-1 w-(--radix-popover-trigger-width) min-w-64 max-h-60 overflow-y-auto bg-white border border-[#C3C6D1] rounded-xl shadow-xl z-50 text-xs"
+      >
+        {filteredOptions.length === 0 && !loading ? (
+          <p className="px-3 py-3 text-gray-400 text-center">No assets found.</p>
+        ) : (
+          <>
+            {options.length > 0 && !query.trim() && (
+              <label className="flex items-center gap-2 px-3 py-2 font-semibold text-[#00376C] hover:bg-blue-50/70 rounded cursor-pointer border-b border-gray-100 mb-1">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                  className="accent-[#00376C] rounded"
+                />
+                Select All Assets ({totalItems})
+              </label>
+            )}
+
+            {filteredOptions.map((opt) => (
+              <label
+                key={opt.id}
+                className="flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-blue-50/70 rounded cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected(opt.id)}
+                  onChange={() => toggleOption(opt)}
+                  className="accent-[#00376C] rounded"
+                />
+                <div className="flex flex-col min-w-0">
+                  <span className="truncate font-medium">{opt.name}</span>
+                  {opt.code && <span className="text-[10px] text-gray-400">{opt.code}</span>}
+                </div>
+              </label>
+            ))}
+
+            {hasMore && (
+              <div ref={sentinelCallback} className="h-6 w-full flex items-center justify-center">
+                {loading && (
+                  <div className="flex items-center justify-center gap-1.5 py-2 text-gray-500">
+                    <Loader2 size={13} className="animate-spin text-[#00376C]" />
+                    <span>Loading more assets...</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const AddAssignAsset = () => {
   const { id } = useParams();
   const location = useLocation();
-const preSelectedIds = location.state?.preSelectedAssetIds;
+  const preSelectedIds = location.state?.preSelectedAssetIds;
   const isEditMode = Boolean(id);
   const { canAdd, canEdit, canView } = usePagePermissions('Assigned Asset');
   const {
@@ -168,6 +369,14 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
 
   // ---- Dynamic data: assets, organizations, employees ----
   const [assets, setAssets] = useState([]);
+  const [assetPage, setAssetPage] = useState(0);
+  const [hasMoreAssets, setHasMoreAssets] = useState(true);
+  const [loadingAssetsMore, setLoadingAssetsMore] = useState(false);
+
+  const assetPageRef = useRef(0);
+  const hasMoreRef = useRef(true);
+  const loadingMoreRef = useRef(false);
+
   const [organizations, setOrganizations] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [locations, setLocations] = useState([]);
@@ -186,19 +395,84 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
   const [loadingRecord, setLoadingRecord] = useState(isEditMode);
   const [originalAssignmentQty, setOriginalAssignmentQty] = useState(0);
 
-  const navigate = useNavigate();
-   useEffect(() => {
-  const targetIds = form._pendingAssetIds || (!isEditMode ? preSelectedIds : null);
-  if (targetIds && targetIds.length > 0 && assets.length > 0) {
-    const matched = assets
-      .filter((a) => targetIds.map(String).includes(String(a.id)))
-      .map(extractAssetFields);
-    setSelectedAssets(matched);
-    if (form._pendingAssetIds) {
-      setForm((f) => ({ ...f, _pendingAssetIds: null }));
+  const [quantities, setQuantities] = useState({});
+
+  const PAGE_SIZE = 50;
+  const [totalAssetsCount, setTotalAssetsCount] = useState(0);
+  const fetchAssetsPage = async (pageToFetch = 0, isInitial = false) => {
+    if (loadingMoreRef.current) return;
+    try {
+      if (isInitial) {
+        setLoadingAssets(true);
+      } else {
+        loadingMoreRef.current = true;
+        setLoadingAssetsMore(true);
+      }
+
+      const res = await getAllActiveAssetsPaginated(pageToFetch, PAGE_SIZE);
+      const pageData = res?.data?.data ?? res?.data;
+      const content = pageData?.content || [];
+      const isLast = pageData?.last ?? (content.length < PAGE_SIZE);
+
+      // Capture totalElements from backend
+      if (pageData?.totalElements != null) {
+        setTotalAssetsCount(Number(pageData.totalElements));
+      }
+
+      setAssets((prev) => {
+        if (pageToFetch === 0) {
+          const currentLoaded = content;
+          const currentIds = new Set(currentLoaded.map((a) => String(a.id)));
+          const preserved = prev.filter((a) => !currentIds.has(String(a.id)));
+          return [...preserved, ...currentLoaded];
+        }
+        const existingIds = new Set(prev.map((a) => String(a.id)));
+        const newUnique = content.filter((a) => !existingIds.has(String(a.id)));
+        return [...prev, ...newUnique];
+      });
+
+      assetPageRef.current = pageToFetch;
+      setAssetPage(pageToFetch);
+
+      hasMoreRef.current = !isLast;
+      setHasMoreAssets(!isLast);
+    } catch (err) {
+      console.error('Failed to load paginated assets:', err);
+    } finally {
+      if (isInitial) setLoadingAssets(false);
+      loadingMoreRef.current = false;
+      setLoadingAssetsMore(false);
     }
-  }
-}, [assets, form._pendingAssetIds, preSelectedIds, isEditMode]);
+  };
+
+  const handleLoadMoreAssets = useCallback(() => {
+    if (hasMoreRef.current && !loadingMoreRef.current) {
+      fetchAssetsPage(assetPageRef.current + 1, false);
+    }
+  }, []);
+
+  const handleAssetQuantityChange = (assetId, val, maxAvailable) => {
+    if (val === '') {
+      setQuantities((q) => ({ ...q, [assetId]: '' }));
+      return;
+    }
+    if (!/^\d+$/.test(val)) return;
+
+    let num = Number(val);
+
+    // If maxAvailable is defined and > 0, cap it; otherwise allow typing
+    if (maxAvailable > 0 && num > maxAvailable) {
+      num = maxAvailable;
+    }
+
+    setQuantities((q) => ({ ...q, [assetId]: String(num) }));
+  };
+
+  const handleRemoveAsset = (assetId) => {
+    setSelectedAssets((prev) => prev.filter((a) => String(a.id) !== String(assetId)));
+  };
+
+  const navigate = useNavigate();
 
   // Auto-select company for company users and outlet for outlet users
   useEffect(() => {
@@ -225,7 +499,7 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
     }
   }, [isOutletUser, isCompanyUser, effectiveOutletId, units, userCompanyId, selfOrg, isEditMode]);
 
-  // Load existing assignment record in edit mode
+  // Load existing assignment record in edit mode and auto-select asset immediately
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
@@ -237,23 +511,64 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
         const record = res?.data?.data ?? res?.data ?? res;
 
         if (!cancelled && record) {
-          const existingQty = Number(record.quantity) || 0;
+          const existingQty = Number(record.quantity ?? record.qty) || 0;
           setOriginalAssignmentQty(existingQty);
+
+          const rawItems = Array.isArray(record.assetItems) && record.assetItems.length > 0
+            ? record.assetItems
+            : record.assetId != null
+              ? [{ assetId: record.assetId, qty: existingQty }]
+              : [];
+
+          // Fetch detailed asset info using getAssetById for all items
+          const fetchedResults = await Promise.all(
+            rawItems.map(async (item) => {
+              const aId = item.assetId ?? item.id;
+              try {
+                const assetRes = await getAssetById(aId);
+                const assetData = assetRes?.data?.data ?? assetRes?.data ?? assetRes;
+                return { itemQty: item.qty ?? item.quantity ?? existingQty, assetData, fallbackId: aId };
+              } catch (err) {
+                return { itemQty: item.qty ?? item.quantity ?? existingQty, assetData: item, fallbackId: aId };
+              }
+            })
+          );
+
+          if (cancelled) return;
+
+          const loadedQuantities = {};
+          const preloadedSelected = [];
+
+          fetchedResults.forEach(({ itemQty, assetData, fallbackId }) => {
+            const formatted = extractAssetFields(assetData || { id: fallbackId });
+            loadedQuantities[String(formatted.id)] = String(itemQty ?? 0);
+            preloadedSelected.push(formatted);
+          });
+
+          setQuantities(loadedQuantities);
+          setSelectedAssets(preloadedSelected);
+          if (preloadedSelected.length > 0) {
+            setActiveAssetId(String(preloadedSelected[0].id));
+          }
+
+          setAssets((prev) => {
+            const existingIds = new Set(prev.map((a) => String(a.id)));
+            const missing = preloadedSelected.filter((p) => !existingIds.has(String(p.id)));
+            return missing.length > 0 ? [...missing, ...prev] : prev;
+          });
+
           setForm((f) => ({
             ...f,
             assetId: record.assetId ? String(record.assetId) : '',
             assetType: record.assetType ?? (record.assignToId ? 'individual' : 'company_outlet'),
             assignedTo: record.assignToId ? String(record.assignToId) : '',
-            // Held until `organizations` has loaded; resolved into
-            // company/unit by the effect below (an OUTLET's companiesId
-            // becomes `unit` with its parent as `company`; a GROUP or
-            // SUB_COMPANY's companiesId becomes `company` directly).
+            company: record.companiesId ? String(record.companiesId) : '',
             _pendingCompaniesId: record.companiesId ?? null,
-            _pendingAssetIds: record.assetIds ?? (record.assetId ? [record.assetId] : []),
+            _pendingAssetIds: rawItems.map((item) => item.assetId ?? item.id),
             assetUnitLocationId: record.assetUnitLocationId != null ? String(record.assetUnitLocationId) : '',
             subOutletId: record.subOutletId != null ? String(record.subOutletId) : '',
             remarks: record.remarks || '',
-            quantity: record.quantity != null ? String(record.quantity) : '',
+            quantity: String(existingQty),
             assignmentDate: record.assignmentDate
               ? toInputDate(record.assignmentDate)
               : f.assignmentDate,
@@ -273,16 +588,18 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
     };
   }, [id]);
 
-  // Match loaded assets to selected asset multi-select
+  // Handle location.state preselected assets in create mode
   useEffect(() => {
-    if (form._pendingAssetIds && assets.length > 0) {
+    if (isEditMode) return;
+    if (preSelectedIds && preSelectedIds.length > 0 && assets.length > 0) {
       const matched = assets
-        .filter((a) => form._pendingAssetIds.map(String).includes(String(a.id)))
+        .filter((a) => preSelectedIds.map(String).includes(String(a.id)))
         .map(extractAssetFields);
-      setSelectedAssets(matched);
-      setForm((f) => ({ ...f, _pendingAssetIds: null }));
+      if (matched.length > 0) {
+        setSelectedAssets(matched);
+      }
     }
-  }, [assets, form._pendingAssetIds]);
+  }, [assets, preSelectedIds, isEditMode]);
 
   useEffect(() => {
     if (selectedAssets.length === 0) {
@@ -292,7 +609,6 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
     }
   }, [selectedAssets, activeAssetId]);
 
-  // Resolve pending companiesId into company & unit once organizations are fetched
   useEffect(() => {
     if (!form._pendingCompaniesId || organizations.length === 0) return;
     const org = organizations.find((o) => o.id === Number(form._pendingCompaniesId));
@@ -306,41 +622,57 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
     }));
   }, [organizations, form._pendingCompaniesId]);
 
-  const assetOptions = useMemo(
-    () => (assets ?? []).map((a) => extractAssetFields(a)),
-    [assets],
-  );
+  // Combine fetched assets and selected assets so loaded items never disappear from options
+  const assetOptions = useMemo(() => {
+    const list = [...(assets ?? [])];
+    const existingIds = new Set(list.map((a) => String(a.id)));
+    selectedAssets.forEach((sel) => {
+      if (!existingIds.has(String(sel.id))) {
+        list.push(sel);
+      }
+    });
+    return list.map((a) => extractAssetFields(a));
+  }, [assets, selectedAssets]);
 
-  // Load masters
   useEffect(() => {
     let cancelled = false;
 
     const loadMasters = async () => {
       try {
-        setLoadingAssets(true);
         setLoadingOrgs(true);
         setLoadingEmployees(true);
         setLoadingSubOutlets(true);
 
-        const [assetRes, orgRes, empRes, subRes] = await Promise.all([
-          getAllAssets(),
+        const [orgRes, empRes, subRes] = await Promise.allSettled([
           getActiveCompany(),
           getAllActiveEmployees(),
           getAllActiveSubOutlets(),
         ]);
 
         if (!cancelled) {
-          setAssets(extractArray(assetRes));
-          setOrganizations(extractArray(orgRes));
-          setEmployees(extractArray(empRes));
-          setSubOutlets(extractArray(subRes));
+          if (orgRes.status === 'fulfilled') {
+            setOrganizations(extractArray(orgRes.value));
+          } else {
+            console.error('Failed to load organizations:', orgRes.reason);
+          }
+
+          if (empRes.status === 'fulfilled') {
+            setEmployees(extractArray(empRes.value));
+          } else {
+            console.error('Failed to load employees:', empRes.reason);
+          }
+
+          if (subRes.status === 'fulfilled') {
+            setSubOutlets(extractArray(subRes.value));
+          } else {
+            console.error('Failed to load sub-outlets:', subRes.reason);
+          }
         }
       } catch (err) {
         console.error(err);
         if (!cancelled) setFetchError('Failed to load form reference data.');
       } finally {
         if (!cancelled) {
-          setLoadingAssets(false);
           setLoadingOrgs(false);
           setLoadingEmployees(false);
           setLoadingSubOutlets(false);
@@ -349,6 +681,8 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
     };
 
     loadMasters();
+    fetchAssetsPage(0, true);
+
     return () => {
       cancelled = true;
     };
@@ -578,8 +912,8 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
 
   const availableStock = selectedAsset?.availableQuantity ?? 0;
   const totalStock = selectedAsset?.totalQuantity ?? 0;
-  const maxAssignableQty = 
-  availableStock + (isEditMode ? originalAssignmentQty : 0);
+  const maxAssignableQty =
+    availableStock + (isEditMode ? originalAssignmentQty : 0);
 
   // Sanitizes quantity input as the user types:
   // - strips anything non-numeric
@@ -608,21 +942,23 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
 
   // Payload for createAssignAsset: { active, assetId, assignToId, companiesId, quantity, assignmentDate, remarks }
   const buildPayload = () => {
-    // Unit (Outlet) wins over Company if chosen; otherwise Company is used directly
     const companiesId =
       form.unit || form.company || (userCompanyId || selfOrg?.id ? Number(userCompanyId || selfOrg?.id) : 0);
-    const assetIdList = selectedAssets.map((a) => Number(a.id));
+    const assetItems = selectedAssets.map((a) => ({
+      assetId: Number(a.id),
+      qty: Number(quantities[String(a.id)]) || 0,
+    }));
+    const totalQty = assetItems.reduce((sum, item) => sum + item.qty, 0);
 
     return {
       active: true,
-      assetId: assetIdList[0] || (form.assetId ? Number(form.assetId) : 0),
-      assetIds: assetIdList,
+      assetItems,
       assetType: form.assetType,
       assetUnitLocationId: form.assetUnitLocationId ? Number(form.assetUnitLocationId) : 0,
       assignToId: form.assignedTo ? Number(form.assignedTo) : 0,
       companiesId: Number(companiesId) || 0,
       subOutletId: form.subOutletId ? Number(form.subOutletId) : 0,
-      quantity: qtyNum,
+      quantity: totalQty,
       assignmentDate: toDDMMYYYY(form.assignmentDate),
       remarks: formatRemarks(form.remarks || ''),
     };
@@ -647,8 +983,8 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
       setSaveError('Please select an employee to assign to.');
       return;
     }
-    if (qtyNum <= 0) {
-      setSaveError('Quantity must be at least 1.');
+    if (!form.assetType) {
+      setSaveError('Please select an Assign to Type.');
       return;
     }
     if (qtyNum > maxAssignableQty) {
@@ -719,7 +1055,7 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
 
         <SectionCard className="mt-6">
           <div className="px-6 py-6 space-y-6">
-            {/* Asset Multi-Selector */}
+            {/* Asset Multi-Selector with Infinite Scroll */}
             <div>
               <Label required>Search Asset</Label>
               <AssetMultiSelect
@@ -729,8 +1065,11 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
                   setSelectedAssets(newSelected);
                   set('quantity', '');
                 }}
-                disabled={loadingAssets}
-                loading={loadingAssets}
+                disabled={loadingAssets && assets.length === 0}
+                loading={loadingAssetsMore || (loadingAssets && assets.length === 0)}
+                hasMore={hasMoreAssets}
+                totalCount={totalAssetsCount}
+                onLoadMore={handleLoadMoreAssets}
               />
             </div>
 
@@ -950,58 +1289,106 @@ const preSelectedIds = location.state?.preSelectedAssetIds;
               </div>
             </div>
 
-            {/* Quantity Distribution */}
+            {/* Quantity Distribution Per Asset Table */}
             <div className="border-t border-gray-100 pt-6">
-              <div className="bg-blue-50/60 border border-blue-100 rounded-xl px-5 py-5 space-y-3">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <Label required className="text-sm font-bold text-gray-800">
-                    Quantity Distribution
-                  </Label>
-                  <div className="flex items-center gap-5 text-right">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                        Available
-                      </p>
-                      <p className="text-sm font-bold text-[#084E92]">
-                        {selectedAsset ? availableStock : '—'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                        Total Stock
-                      </p>
-                      <p className="text-sm font-bold text-gray-700">
-                        {selectedAsset ? totalStock : '—'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  min={0}
-                  max={availableStock}
-                  value={form.quantity}
-                  onChange={handleQuantityChange}
-                  disabled={!selectedAsset || availableStock === 0}
-                  placeholder={
-                    !selectedAsset
-                      ? 'Select an asset first'
-                      : availableStock === 0
-                        ? 'No stock available'
-                        : `1 – ${availableStock}`
-                  }
-                  className={`${inputCls} bg-white sm:w-56`}
-                />
-
-                <div className="flex justify-end">
-                  <span className="flex items-center gap-1 text-xs font-semibold text-green-700">
-                    <PackageCheck className="w-3.5 h-3.5" />
-                    Remaining: {selectedAsset ? remaining : '—'}
+              <div className="flex items-center justify-between mb-3">
+                <SubHeading icon={PackageCheck} title="Quantity Distribution Per Asset" />
+                {selectedAssets.length > 0 && (
+                  <span className="text-xs text-gray-500">
+                    Total Units:{' '}
+                    <strong className="text-[#084E92]">
+                      {Object.values(quantities).reduce((acc, curr) => acc + (Number(curr) || 0), 0)}
+                    </strong>
                   </span>
-                </div>
+                )}
               </div>
+
+              {selectedAssets.length === 0 ? (
+                <div className="text-center py-8 px-4 border border-dashed border-gray-200 rounded-xl bg-gray-50 text-gray-400 text-xs">
+                  No assets selected. Select assets from above to assign individual quantities.
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-gray-200 rounded-xl">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                        <th className="py-3 px-4">Asset Code & Name</th>
+                        <th className="py-3 px-4 text-center">Available Stock</th>
+                        <th className="py-3 px-4 w-44">Assign Quantity</th>
+                        <th className="py-3 px-4 text-center">Remaining</th>
+                        <th className="py-3 px-4 w-12 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-sm">
+                      {selectedAssets.map((asset) => {
+                        const assetIdKey = String(asset.id);
+                        const assignedVal = quantities[assetIdKey] ?? '';
+                        const assignedNum = Number(assignedVal) || 0;
+                        const baseAvail = Number(asset.availableQuantity) || 0;
+                        const editAllowance = isEditMode ? (originalAssignmentQty || Number(asset.quantity) || Number(assignedVal) || 0) : 0;
+                        const maxAvail = baseAvail + editAllowance;
+                        const remStock = Math.max(maxAvail - assignedNum, 0);
+
+                        return (
+                          <tr key={asset.id} className="hover:bg-blue-50/20 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-[#084E92] bg-blue-50 px-2 py-0.5 rounded border border-blue-100 shrink-0">
+                                  {asset.code}
+                                </span>
+                                <span className="font-medium text-gray-800 truncate max-w-xs" title={asset.name}>
+                                  {asset.name}
+                                </span>
+                              </div>
+                            </td>
+
+                            <td className="py-3 px-4 text-center font-semibold text-gray-700">
+                              {asset.availableQuantity}
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder={`1 - ${maxAvail}`}
+                                value={assignedVal}
+                                onChange={(e) =>
+                                  handleAssetQuantityChange(assetIdKey, e.target.value, maxAvail)
+                                }
+                                disabled={!isEditMode && maxAvail === 0}
+                                className={`${inputCls} px-3 text-center ${maxAvail === 0 ? 'bg-gray-100 cursor-not-allowed' : ''
+                                  }`}
+                              />
+                            </td>
+
+                            <td className="py-3 px-4 text-center font-medium">
+                              <span
+                                className={`text-xs px-2 py-1 rounded-md font-semibold ${remStock === 0
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-green-50 text-green-700 border border-green-200'
+                                  }`}
+                              >
+                                {remStock}
+                              </span>
+                            </td>
+
+                            <td className="py-3 px-4 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveAsset(asset.id)}
+                                className="text-gray-400 hover:text-red-500 p-1 rounded transition"
+                                title="Remove asset"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Remarks & Date */}

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
   getCoreRowModel,
@@ -28,7 +28,7 @@ import { Link, useNavigate } from 'react-router';
 import {
   deleteAssignAsset,
   getActiveCompany,
-  getAllAssignAssets,
+  getAllActiveAssignAssetsPaginated,
   updateAssignAsset,
   getAssetUnitLocationsByOrganization,
 } from '@/services/apiServices.js';
@@ -37,13 +37,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
@@ -85,22 +78,6 @@ const AssignTypeBadge = ({ assignType }) => {
   );
 };
 
-// const STATUS_TEXT_COLORS = {
-//   Assigned: 'text-emerald-600',
-//   Pending: 'text-amber-600',
-//   Returned: 'text-gray-500',
-//   Overdue: 'text-rose-600',
-// };
-
-// const StatusBadge = ({ status }) => {
-//   const color = STATUS_TEXT_COLORS[status] ?? 'text-gray-600';
-//   return (
-//     <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
-//       {status || '-'}
-//     </span>
-//   );
-// };
-
 const AssignLocationModal = ({
   isOpen,
   onClose,
@@ -141,12 +118,6 @@ const AssignLocationModal = ({
     return organizations.find((o) => String(o.id) === String(initialUnitId)) || null;
   }, [initialUnitId, organizations]);
 
-  // Check if asset is assigned directly to the Main Group (or has no specific sub-org)
-  const isAssignedToGroup = useMemo(() => {
-    return !selectedAssetOrg || selectedAssetOrg.orgType === 'GROUP';
-  }, [selectedAssetOrg]);
-
-  // Check if asset is assigned to a Sub-Company
   const isAssignedToCompany = useMemo(() => {
     return selectedAssetOrg?.orgType === 'SUB_COMPANY';
   }, [selectedAssetOrg]);
@@ -408,10 +379,10 @@ const AssignLocationModal = ({
                 !selectedUnitId
                   ? 'Select Unit first'
                   : loadingLocations
-                  ? 'Loading locations...'
-                  : locationOptions.length === 0
-                  ? 'No locations found for this unit'
-                  : 'Search location...'
+                    ? 'Loading locations...'
+                    : locationOptions.length === 0
+                      ? 'No locations found for this unit'
+                      : 'Search location...'
               }
               options={locationOptions}
               disabled={!selectedUnitId || loadingLocations || locationOptions.length === 0}
@@ -524,7 +495,9 @@ const AssignmentPreviewDrawer = ({
                   Status
                 </p>
                 <div className="mt-1">
-                  <StatusBadge status={assignment.status} />
+                  <span className="text-xs font-semibold whitespace-nowrap text-emerald-600">
+                    {assignment.status}
+                  </span>
                 </div>
               </div>
               <div>
@@ -593,7 +566,11 @@ const AssignAssets = () => {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
+  // Server-side pagination and count state
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
+
   const [sorting, setSorting] = useState([]);
   const [previewAssignment, setPreviewAssignment] = useState(null);
   const [actionSaving] = useState(false);
@@ -630,27 +607,80 @@ const AssignAssets = () => {
     }
   }, [isOutletUser, isCompanyUser, effectiveOutletId, units]);
 
-  const loadAll = async () => {
+  const [debouncedSearch, setDebouncedSearch] = useState(searchInput);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+    }, 600);
+
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  useEffect(() => {
+    setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+  }, [debouncedSearch, outletInput, locationInput, typeInput, statusInput]);
+
+  // Load organizations once on mount
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      try {
+        const orgRes = await getActiveCompany();
+        setOrganizations(extractArray(orgRes));
+      } catch (err) {
+        console.error('Failed to load companies:', err);
+      }
+    };
+    fetchOrgs();
+  }, []);
+
+// Server-side paginated & filtered fetch (POST body)
+  const fetchPaginatedAssignments = useCallback(async () => {
     try {
       setLoading(true);
       setLoadError('');
-      const [assignRes, orgRes] = await Promise.all([
-        getAllAssignAssets(),
-        getActiveCompany(),
-      ]);
-      setAssignments(extractArray(assignRes));
-      setOrganizations(extractArray(orgRes));
+
+      const payload = {
+        page: pagination.pageIndex,
+        size: pagination.pageSize,
+        ...(debouncedSearch.trim() && { searchTerm: debouncedSearch.trim() }),
+        ...(outletInput && outletInput !== 'All' && { companiesId: Number(outletInput) }),
+        ...(locationInput && locationInput !== 'All' && { assetUnitLocationId: Number(locationInput) }),
+        ...(typeInput && typeInput !== 'All' && { assetType: typeInput }),
+        ...(statusInput && statusInput !== 'All' && { active: statusInput === 'Assigned' }),
+      };
+
+      const res = await getAllActiveAssignAssetsPaginated(payload);
+
+      const responseData = res?.data?.data || res;
+      const content = responseData?.content || extractArray(res);
+      setAssignments(content);
+
+      const serverTotalPages = responseData?.totalPages ?? 0;
+      const serverTotalElements =
+        responseData?.totalElements ?? serverTotalPages * pagination.pageSize;
+
+      setTotalPages(serverTotalPages);
+      setTotalRecords(serverTotalElements);
     } catch (err) {
       console.error(err);
       setLoadError('Failed to load assignments.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    pagination.pageIndex,
+    pagination.pageSize,
+    debouncedSearch,
+    outletInput,
+    locationInput,
+    typeInput,
+    statusInput,
+  ]);
 
   useEffect(() => {
-    loadAll();
-  }, []);
+    fetchPaginatedAssignments();
+  }, [fetchPaginatedAssignments]);
 
   useEffect(() => {
     setLocationInput('All');
@@ -715,7 +745,7 @@ const AssignAssets = () => {
     });
   }, [assignments]);
 
-const outletOptions = useMemo(() => {
+  const outletOptions = useMemo(() => {
     if (!units || units.length === 0) return [];
     return units.map((u) => ({
       value: String(u.id),
@@ -761,44 +791,8 @@ const outletOptions = useMemo(() => {
     allowedOutletIds,
   ]);
 
-  
-  const filteredAssignments = useMemo(() => {
-    return scopedAssignments.filter((item) => {
-      const search = searchInput.toLowerCase().trim();
 
-      const searchMatch =
-        !search ||
-        item.assignmentId.toLowerCase().includes(search) ||
-        item.assetCode.toLowerCase().includes(search) ||
-        item.itemName.toLowerCase().includes(search) ||
-        item.assignedTo.toLowerCase().includes(search) ||
-        item.companiesName.toLowerCase().includes(search) ||
-        (item.assetUnitLocationName && item.assetUnitLocationName.toLowerCase().includes(search));
 
-      const outletMatch =
-        outletInput === 'All' ||
-        String(item.companiesId) === String(outletInput) ||
-        item.companiesName === outletInput ||
-        item.location === outletInput;
-
-      const locationMatch =
-        locationInput === 'All' ||
-        String(item.assetUnitLocationId) === String(locationInput) ||
-        item.assetUnitLocationName === locationInput;
-
-      const typeMatch = typeInput === 'All' || item.assignType === typeInput;
-      const statusMatch = statusInput === 'All' || item.status === statusInput;
-
-      return searchMatch && outletMatch && locationMatch && typeMatch && statusMatch;
-    });
-  }, [
-    scopedAssignments,
-    searchInput,
-    outletInput,
-    locationInput,
-    typeInput,
-    statusInput,
-  ]);
 
   useEffect(() => {
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
@@ -810,7 +804,6 @@ const outletOptions = useMemo(() => {
     }
   }, [selectedAssignmentIds]);
 
-  const totalAssignments = scopedAssignments.length;
   const activeAssignments = scopedAssignments.filter(
     (a) => a.status === 'Assigned',
   ).length;
@@ -820,37 +813,37 @@ const outletOptions = useMemo(() => {
 
   const STATS = [
     {
-      title: 'Total Assignments',
-      value: String(totalAssignments),
+      title: 'Total Assign Assets',
+      value: String(totalRecords || scopedAssignments.length),
       icon: <Package size={18} />,
       iconBg: 'bg-[#D5E3FF]',
       iconColor: 'text-[#00376C]',
       color: 'text-[#1B1B1F]',
     },
-    {
-      title: 'Active Assignments',
-      value: String(activeAssignments),
-      icon: <CircleCheck size={18} />,
-      iconBg: 'bg-[#DCFCE7]',
-      iconColor: 'text-[#15803D]',
-      color: 'text-[#15803D]',
-    },
-    {
-      title: 'Returned Assets',
-      value: String(returnedAssignments),
-      icon: <RotateCcw size={18} />,
-      iconBg: 'bg-[#D5E3FF]',
-      iconColor: 'text-[#265FA4]',
-      color: 'text-[#1B1B1F]',
-    },
-    {
-      title: 'Pending Returns',
-      value: '-',
-      icon: <Clock size={18} />,
-      iconBg: 'bg-[#FFEDD5]',
-      iconColor: 'text-[#C2410C]',
-      color: 'text-[#C2410C]',
-    },
+    // {
+    //   title: 'Active Assignments',
+    //   value: String(totalRecords || scopedAssignments.length),
+    //   icon: <CircleCheck size={18} />,
+    //   iconBg: 'bg-[#DCFCE7]',
+    //   iconColor: 'text-[#15803D]',
+    //   color: 'text-[#15803D]',
+    // },
+    // {
+    //   title: 'Returned Assets',
+    //   value: String(returnedAssignments),
+    //   icon: <RotateCcw size={18} />,
+    //   iconBg: 'bg-[#D5E3FF]',
+    //   iconColor: 'text-[#265FA4]',
+    //   color: 'text-[#1B1B1F]',
+    // },
+    // {
+    //   title: 'Pending Returns',
+    //   value: '-',
+    //   icon: <Clock size={18} />,
+    //   iconBg: 'bg-[#FFEDD5]',
+    //   iconColor: 'text-[#C2410C]',
+    //   color: 'text-[#C2410C]',
+    // },
     {
       title: 'Transfer Requests',
       value: '-',
@@ -888,15 +881,15 @@ const outletOptions = useMemo(() => {
   const handleSelectAllVisibleOfUnit = (e) => {
     if (e.target.checked) {
       if (selectedUnitScope) {
-        const matchingIds = filteredAssignments
+        const matchingIds = enrichedAssignments
           .filter((item) => String(item.companiesId) === String(selectedUnitScope))
           .map((item) => item.id);
         setSelectedAssignmentIds(matchingIds);
       } else {
-        const firstRow = filteredAssignments.find((item) => item.companiesId);
+        const firstRow = enrichedAssignments.find((item) => item.companiesId);
         if (firstRow) {
           setSelectedUnitScope(firstRow.companiesId);
-          const matchingIds = filteredAssignments
+          const matchingIds = enrichedAssignments
             .filter((item) => String(item.companiesId) === String(firstRow.companiesId))
             .map((item) => item.id);
           setSelectedAssignmentIds(matchingIds);
@@ -908,7 +901,9 @@ const outletOptions = useMemo(() => {
     }
   };
 
-  const handleBulkAssignLocation = async ({ unitId, locationId, locationName }) => {
+ 
+
+  const handleBulkAssignLocation = async ({ unitId, locationId }) => {
     try {
       setLocationAssignSaving(true);
       const updatePromises = selectedAssignmentIds.map((id) => {
@@ -923,23 +918,11 @@ const outletOptions = useMemo(() => {
 
       await Promise.all(updatePromises);
 
-      setAssignments((prev) =>
-        prev.map((rec) =>
-          selectedAssignmentIds.includes(rec.id)
-            ? {
-                ...rec,
-                companiesId: Number(unitId),
-                assetUnitLocationId: Number(locationId),
-                locationName,
-                assetUnitLocationName: locationName,
-              }
-            : rec
-        )
-      );
-
       setSelectedAssignmentIds([]);
       setSelectedUnitScope(null);
       setShowLocationModal(false);
+
+      await fetchPaginatedAssignments();
     } catch (err) {
       console.error(err);
       setLoadError('Failed to update asset unit locations.');
@@ -964,7 +947,7 @@ const outletOptions = useMemo(() => {
     setDeleteSaving(true);
     try {
       await deleteAssignAsset(deleteTarget.id);
-      setAssignments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      fetchPaginatedAssignments();
       setSelectedAssignmentIds((prev) => prev.filter((id) => id !== deleteTarget.id));
       closeDeleteConfirm();
     } catch (err) {
@@ -980,15 +963,15 @@ const outletOptions = useMemo(() => {
     setPreviewAssignment(null);
   };
 
-  const isAllSelectableChecked = useMemo(() => {
-    if (filteredAssignments.length === 0) return false;
-    const targetUnit = selectedUnitScope || filteredAssignments[0]?.companiesId;
-    const eligibleRows = filteredAssignments.filter(
+ const isAllSelectableChecked = useMemo(() => {
+    if (enrichedAssignments.length === 0) return false;
+    const targetUnit = selectedUnitScope || enrichedAssignments[0]?.companiesId;
+    const eligibleRows = enrichedAssignments.filter(
       (r) => String(r.companiesId) === String(targetUnit)
     );
     if (eligibleRows.length === 0) return false;
     return eligibleRows.every((r) => selectedAssignmentIds.includes(r.id));
-  }, [filteredAssignments, selectedUnitScope, selectedAssignmentIds]);
+  }, [enrichedAssignments, selectedUnitScope, selectedAssignmentIds]);
 
   const columns = useMemo(() => [
     {
@@ -1019,9 +1002,8 @@ const outletOptions = useMemo(() => {
               disabled={isDisabled}
               onChange={() => handleToggleSelectRow(item)}
               title={isDisabled ? 'You can only select assets from the same Unit' : ''}
-              className={`w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] accent-[#084E92] focus:ring-0 ${
-                isDisabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
-              }`}
+              className={`w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] accent-[#084E92] focus:ring-0 ${isDisabled ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
+                }`}
             />
           </div>
         );
@@ -1038,9 +1020,12 @@ const outletOptions = useMemo(() => {
           className="my-2 text-xs"
         />
       ),
-      cell: ({ row }) => (
-        <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
-      ),
+      cell: ({ row }) => {
+        const displayIndex = pagination.pageIndex * pagination.pageSize + row.index + 1;
+        return (
+          <span className="text-gray-500 py-2 text-xs">{String(displayIndex).padStart(2, '0')}</span>
+        );
+      },
       enableSorting: false,
       size: 36,
     },
@@ -1058,7 +1043,7 @@ const outletOptions = useMemo(() => {
         <button
           type="button"
           onClick={() => setPreviewAssignment(row.original)}
-          className="font-semibold text-xs text-[#084E92] leading-5 py-2 hover:underline cursor-pointer text-left truncate max-w-[100px]"
+          className="font-semibold text-xs text-[#084E92] leading-5 py-2 hover:underline cursor-pointer text-left truncate max-w-25"
         >
           {row.original.assignmentId}
         </button>
@@ -1077,7 +1062,7 @@ const outletOptions = useMemo(() => {
         />
       ),
       cell: ({ row }) => (
-        <span className="text-xs text-gray-800 font-medium py-1 truncate max-w-[75px] block">{row.original.assetCode}</span>
+        <span className="text-xs text-gray-800 font-medium py-1 truncate max-w-18.75 block">{row.original.assetCode}</span>
       ),
       enableSorting: true,
       size: 75,
@@ -1093,7 +1078,7 @@ const outletOptions = useMemo(() => {
         />
       ),
       cell: ({ row }) => (
-        <span title={row.original.itemName} className="font-medium text-xs text-gray-800 py-1 truncate max-w-[120px] block">
+        <span title={row.original.itemName} className="font-medium text-xs text-gray-800 py-1 truncate max-w-30 block">
           {row.original.itemName}
         </span>
       ),
@@ -1111,7 +1096,7 @@ const outletOptions = useMemo(() => {
         />
       ),
       cell: ({ row }) => (
-        <div className="py-1 truncate max-w-[100px]">
+        <div className="py-1 truncate max-w-25">
           <p title={row.original.assignedTo} className="font-medium text-xs text-gray-800 leading-tight truncate">
             {row.original.assignedTo}
           </p>
@@ -1131,7 +1116,7 @@ const outletOptions = useMemo(() => {
         />
       ),
       cell: ({ row }) => (
-        <span title={row.original.companiesName} className="text-xs text-gray-800 font-medium py-1 truncate max-w-[95px] block">{row.original.companiesName}</span>
+        <span title={row.original.companiesName} className="text-xs text-gray-800 font-medium py-1 truncate max-w-23.75 block">{row.original.companiesName}</span>
       ),
       enableSorting: false,
       size: 95,
@@ -1147,7 +1132,7 @@ const outletOptions = useMemo(() => {
         />
       ),
       cell: ({ row }) => (
-        <span title={row.original.assetUnitLocationName} className="text-xs text-gray-800 font-medium py-1 truncate max-w-[95px] block">{row.original.assetUnitLocationName}</span>
+        <span title={row.original.assetUnitLocationName} className="text-xs text-gray-800 font-medium py-1 truncate max-w-23.75 block">{row.original.assetUnitLocationName}</span>
       ),
       enableSorting: false,
       size: 95,
@@ -1228,16 +1213,17 @@ const outletOptions = useMemo(() => {
       enableSorting: false,
       size: 75,
     },
-  ], [canEdit, canDelete, selectedAssignmentIds, selectedUnitScope, isAllSelectableChecked, filteredAssignments]);
+  ], [canEdit, canDelete, selectedAssignmentIds, selectedUnitScope, isAllSelectableChecked, pagination.pageIndex, pagination.pageSize]);
 
-  const table = useReactTable({
-    data: filteredAssignments,
+const table = useReactTable({
+    data: enrichedAssignments,
     columns,
+    pageCount: totalPages,
     state: { pagination, sorting },
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
+    manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
   });
 
@@ -1282,10 +1268,9 @@ const outletOptions = useMemo(() => {
           }
         />
 
-        <PageErrorAlert error={loadError} onRetry={loadAll} className="my-3" />
+        <PageErrorAlert error={loadError} onRetry={fetchPaginatedAssignments} className="my-3" />
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3  gap-3.5 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}
@@ -1316,7 +1301,7 @@ const outletOptions = useMemo(() => {
               placeholder="Search by ID, Name, Kitchen, Person..."
             />
 
-            <div className={`grid grid-cols-1 ${isOutletUser ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-4`}>
+            <div className={`grid grid-cols-1 ${isOutletUser ? 'sm:grid-cols-1' : 'sm:grid-cols-2'} gap-4`}>
               {!isOutletUser && (
                 <div>
                   <SearchableSelect
@@ -1355,22 +1340,7 @@ const outletOptions = useMemo(() => {
                 />
               </div>
 
-              {/* Status */}
               {/* <div>
-                <Select value={statusInput} onValueChange={setStatusInput}>
-                  <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Status</SelectItem>
-                    <SelectItem value="Assigned">Assigned</SelectItem>
-                    <SelectItem value="Returned">Returned</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div> */}
-
-              {/* Assignment Type */}
-              <div>
                 <Select value={typeInput} onValueChange={setTypeInput}>
                   <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
                     <SelectValue placeholder="All Types" />
@@ -1381,16 +1351,15 @@ const outletOptions = useMemo(() => {
                     <SelectItem value="company_outlet">Company/Unit</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
 
-        {/* Table */}
         <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden bg-white">
           <DataGrid
             table={table}
-            recordCount={filteredAssignments.length}
+            recordCount={totalRecords}
             isLoading={loading}
             className="rounded-2xl"
             tableLayout={{

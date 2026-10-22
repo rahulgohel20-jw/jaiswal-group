@@ -695,7 +695,7 @@ const PurchaseOrderApproval = () => {
               {/* Button 1: Short Item Received */}
               <button
                 type="button"
-                onClick={() => handleOpenExportModal('Short Item Received')}
+                onClick={() => handleOpenExportModal('SHORT_ITEM_RECEIVED')}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition shadow-2xs cursor-pointer whitespace-nowrap"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -710,7 +710,7 @@ const PurchaseOrderApproval = () => {
               {/* Button 2: Pending GRN */}
               <button
                 type="button"
-                onClick={() => handleOpenExportModal("Pending GRN")}
+                onClick={() => handleOpenExportModal("PENDING_GRN")}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition shadow-2xs cursor-pointer whitespace-nowrap"
               >
                 <FileText className="w-3.5 h-3.5 text-[#084E92]" />

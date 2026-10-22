@@ -437,7 +437,7 @@ const GRNListing = () => {
 
     exportGrnReport(
       {
-        type: 'GRN Type 1',
+        type: 'GRN_TYPE_1',
         id: Number(grnId),
       },
       {
