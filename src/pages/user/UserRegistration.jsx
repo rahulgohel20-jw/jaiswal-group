@@ -387,6 +387,15 @@ const UserRegistration = () => {
   const [allSubLocations, setAllSubLocations] = useState([]);
   const [loadingSubLocations, setLoadingSubLocations] = useState(false);
 
+const [selectedModule, setSelectedModule] = useState('');
+
+// Automatically select the first module once pages load
+useEffect(() => {
+  const moduleKeys = Object.keys(pagesByModule);
+  if (moduleKeys.length > 0 && (!selectedModule || !pagesByModule[selectedModule])) {
+    setSelectedModule(moduleKeys[0]);
+  }
+}, [pagesByModule, selectedModule]);
   // Fetch GROUP-type orgs once on mount
   useEffect(() => {
     let cancelled = false;
@@ -1747,128 +1756,200 @@ const UserRegistration = () => {
               )}
             </SectionCard>
 
-                    {/* ── User Rights / Permissions Matrix ── */}
-            <SectionCard className="mt-4">
-              <SectionHeader
-                icon={ShieldCheck}
-                title="User Permissions"
-                subtitle="Configure or customize module and page-level access permissions for this user."
-                open={openSections.permissions}
-                onToggle={() => toggleSection('permissions')}
-              />
-              {openSections.permissions && (
-                <div className="px-6 py-6 space-y-4">
-                  <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-gray-500">
-                    <p>
-                      {form.roleId
-                        ? 'Permissions populated from selected role. You can edit or grant additional rights below.'
-                        : 'Select a role above to auto-populate rights, or check specific permissions manually.'}
-                    </p>
-                    {loadingRoleRights && (
-                      <div className="flex items-center gap-1.5 text-blue-600 font-medium">
-                        <Loader2 className="animate-spin h-3.5 w-3.5" />
-                        Loading role rights...
+              {/* ── User Rights / Permissions Matrix ── */}
+              <SectionCard className="mt-4">
+                <SectionHeader
+                  icon={ShieldCheck}
+                  title="User Permissions"
+                  subtitle="Configure or customize module and page-level access permissions for this user."
+                  open={openSections.permissions}
+                  onToggle={() => toggleSection('permissions')}
+                />
+                {openSections.permissions && (
+                  <div className="px-6 py-6 space-y-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-gray-500">
+                      <p>
+                        {form.roleId
+                          ? 'Permissions populated from selected role. You can edit or grant additional rights below.'
+                          : 'Select a role above to auto-populate rights, or check specific permissions manually.'}
+                      </p>
+                      {loadingRoleRights && (
+                        <div className="flex items-center gap-1.5 text-blue-600 font-medium">
+                          <Loader2 className="animate-spin h-3.5 w-3.5" />
+                          Loading role rights...
+                        </div>
+                      )}
+                    </div>
+
+                    {loadingPages ? (
+                      <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                        <Loader2 className="animate-spin" size={18} />
+                        Loading pages and modules...
+                      </div>
+                    ) : Object.keys(pagesByModule).length === 0 ? (
+                      <div className="text-center py-10 text-sm text-gray-400">
+                        No page modules available.
+                      </div>
+                    ) : (
+                      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs grid grid-cols-1 md:grid-cols-12 h-[500px]">
+                        {/* ── Left Sidebar: Scrollable Module List ── */}
+                        <div className="md:col-span-4 lg:col-span-3 border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50/70 p-3 flex flex-col h-full overflow-hidden">
+                          <div className="px-2 py-1 mb-2 shrink-0">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                              Modules ({Object.keys(pagesByModule).length})
+                            </span>
+                          </div>
+
+                          {/* Scrollable list of modules */}
+                          <div className="space-y-1 overflow-y-auto flex-1 pr-1">
+                            {Object.entries(pagesByModule).map(([moduleName, pages]) => {
+                              const isSelected = selectedModule === moduleName;
+                              const hasAnyChecked = pages.some((p) => {
+                                const r = checks[p.id];
+                                return r?.add || r?.edit || r?.view || r?.delete;
+                              });
+
+                              return (
+                                <button
+                                  key={moduleName}
+                                  type="button"
+                                  onClick={() => setSelectedModule(moduleName)}
+                                  className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition cursor-pointer border ${isSelected
+                                      ? 'bg-[#084E92] text-white border-[#084E92] shadow-xs'
+                                      : 'bg-white text-gray-700 hover:bg-gray-100/80 border-gray-200/80'
+                                    }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    {hasAnyChecked && (
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-amber-300' : 'bg-[#084E92]'
+                                          }`}
+                                      />
+                                    )}
+                                    <span className="truncate">{moduleName}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* ── Right Content: Scrollable Pages Table with Sticky Header ── */}
+                        <div className="md:col-span-8 lg:col-span-9 flex flex-col h-full overflow-hidden">
+                          <div className="overflow-y-auto overflow-x-auto flex-1">
+                            <table className="w-full text-sm border-collapse">
+                              <thead className="bg-gray-50/95 border-b border-gray-200 sticky top-0 backdrop-blur-xs">
+                                <tr>
+                                  <th className="text-left px-5 py-3 font-semibold text-gray-700 text-xs">
+                                    {selectedModule} Pages
+                                  </th>
+                                  <th className="text-center w-16 px-2 py-3 font-semibold text-gray-600">
+                                    <div className="flex flex-col items-center gap-1">
+                                      <span className="text-[11px]">All</span>
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          (pagesByModule[selectedModule] || []).length > 0 &&
+                                          (pagesByModule[selectedModule] || []).every((p) =>
+                                            isRowFullyChecked(p.id)
+                                          )
+                                        }
+                                        onChange={() => {
+                                          const currentPages = pagesByModule[selectedModule] || [];
+                                          const allChecked = currentPages.every((p) =>
+                                            isRowFullyChecked(p.id)
+                                          );
+                                          setChecks((prev) => {
+                                            const next = { ...prev };
+                                            currentPages.forEach((p) => {
+                                              next[p.id] = allChecked ? { ...emptyRow } : { ...fullRow };
+                                            });
+                                            return next;
+                                          });
+                                        }}
+                                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer accent-[#084E92]"
+                                        title="Toggle all in this module"
+                                      />
+                                    </div>
+                                  </th>
+                                  {ACTIONS.map((a) => {
+                                    const currentPages = pagesByModule[selectedModule] || [];
+                                    const isColChecked =
+                                      currentPages.length > 0 &&
+                                      currentPages.every((p) => Boolean(checks[p.id]?.[a.key]));
+
+                                    return (
+                                      <th
+                                        key={a.key}
+                                        className="text-center w-16 px-2 py-3 font-semibold text-gray-600"
+                                      >
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className="text-[11px]">{a.label}</span>
+                                          <input
+                                            type="checkbox"
+                                            checked={isColChecked}
+                                            onChange={() => {
+                                              const nextVal = !isColChecked;
+                                              setChecks((prev) => {
+                                                const next = { ...prev };
+                                                currentPages.forEach((p) => {
+                                                  next[p.id] = {
+                                                    ...(next[p.id] ?? emptyRow),
+                                                    [a.key]: nextVal,
+                                                  };
+                                                });
+                                                return next;
+                                              });
+                                            }}
+                                            className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer accent-[#084E92]"
+                                            title={`Toggle ${a.label} for all pages in ${selectedModule}`}
+                                          />
+                                        </div>
+                                      </th>
+                                    );
+                                  })}
+                                </tr>
+                              </thead>
+
+                              <tbody className="divide-y divide-gray-100 bg-white">
+                                {(pagesByModule[selectedModule] || []).map((page) => (
+                                  <tr
+                                    key={page.id}
+                                    className="hover:bg-blue-50/25 transition-colors"
+                                  >
+                                    <td className="px-5 py-2.5 text-xs text-gray-700 font-medium">
+                                      {page.name}
+                                    </td>
+                                    <td className="text-center w-16 px-2 py-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={isRowFullyChecked(page.id)}
+                                        onChange={() => toggleRow(page.id)}
+                                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer accent-[#084E92]"
+                                        title="Toggle Add/Edit/View/Delete for this row"
+                                      />
+                                    </td>
+                                    {ACTIONS.map((a) => (
+                                      <td key={a.key} className="text-center w-16 px-2 py-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={Boolean(checks[page.id]?.[a.key])}
+                                          onChange={() => toggle(page.id, a.key)}
+                                          className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer accent-[#084E92]"
+                                        />
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
-
-                  {loadingPages ? (
-                    <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
-                      <Loader2 className="animate-spin" size={18} />
-                      Loading pages and modules...
-                    </div>
-                  ) : Object.keys(pagesByModule).length === 0 ? (
-                    <div className="text-center py-10 text-sm text-gray-400">
-                      No page modules available.
-                    </div>
-                  ) : (
-                    <div className="border border-[#E5E7EB] rounded-xl overflow-hidden overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB]">
-                          <tr>
-                            <th className="text-left px-4 py-3 font-semibold text-[#43474F]">
-                              Page Name
-                            </th>
-                            <th className="text-center px-4 py-3 font-semibold">
-                              <div className="flex flex-col items-center gap-1">
-                                <span>All</span>
-                                <input
-                                  type="checkbox"
-                                  checked={isEverythingChecked}
-                                  onChange={toggleEverything}
-                                  className="rounded cursor-pointer"
-                                  title="Toggle Add/Edit/View/Delete for every page"
-                                />
-                              </div>
-                            </th>
-                            {ACTIONS.map((a) => (
-                              <th
-                                key={a.key}
-                                className="text-center px-4 py-3 font-semibold"
-                              >
-                                <div className="flex flex-col items-center gap-1">
-                                <span>{a.label}</span>
-                                <input
-                                  type="checkbox"
-                                  checked={isColumnFullyChecked(a.key)}
-                                  onChange={() => toggleColumn(a.key)}
-                                  className="rounded cursor-pointer"
-                                  title={`Toggle ${a.label} for all`}
-                                />
-                                </div>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(pagesByModule).map(([moduleName, pages]) => (
-                            <React.Fragment key={moduleName}>
-                              <tr className="bg-[#F7F8FA] border-t border-[#E5E7EB]">
-                                <td
-                                  colSpan={ACTIONS.length + 2}
-                                  className="px-4 py-2 font-semibold text-[#084E92] bg-blue-50/50"
-                                >
-                                  {moduleName}
-                                </td>
-                              </tr>
-                              {pages.map((page) => (
-                                <tr
-                                  key={page.id}
-                                  className="border-b border-[#F0F1F3] last:border-b-0 hover:bg-[#FAFBFC]"
-                                >
-                                  <td className="px-4 py-2.5 pl-8 text-gray-700">
-                                    {page.name}
-                                  </td>
-                                  <td className="text-center px-4 py-2.5">
-                                    <input
-                                      type="checkbox"
-                                      checked={isRowFullyChecked(page.id)}
-                                      onChange={() => toggleRow(page.id)}
-                                      className="rounded cursor-pointer"
-                                      title="Toggle Add/Edit/View/Delete for this row"
-                                    />
-                                  </td>
-                                  {ACTIONS.map((a) => (
-                                    <td key={a.key} className="text-center px-4 py-2.5">
-                                      <input
-                                        type="checkbox"
-                                        checked={Boolean(checks[page.id]?.[a.key])}
-                                        onChange={() => toggle(page.id, a.key)}
-                                        className="rounded cursor-pointer"
-                                      />
-                                    </td>
-                                  ))}
-                                </tr>
-                              ))}
-                            </React.Fragment>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-            </SectionCard>
+                )}
+              </SectionCard>
 
             {/* ── Residential Address ── */}
             <SectionCard className="mt-4">

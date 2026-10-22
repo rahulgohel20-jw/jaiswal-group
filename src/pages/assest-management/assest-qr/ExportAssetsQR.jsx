@@ -55,10 +55,10 @@ const normalizeLocation = (item) => ({
 });
 
 const AssetLabel = ({ asset, qrSize = 68 }) => (
-    <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center p-[0.04in] m-0 overflow-hidden break-inside-avoid">
+    <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center justify-between p-[0.04in] m-0 overflow-hidden break-inside-avoid">
         {/* Top-Right Logo */}
         <img
-            className="absolute top-1 right-1 size-5 rounded-full shrink-0 object-cover"
+            className="absolute top-1 right-1 size-4 rounded-full shrink-0 object-cover z-10"
             src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
             alt="Jaiswal Group"
         />
@@ -69,17 +69,17 @@ const AssetLabel = ({ asset, qrSize = 68 }) => (
         </div>
 
         {/* Details Column */}
-        <div className="flex-1 min-w-0 h-full pl-[0.06in] pr-5 overflow-hidden flex flex-col justify-center gap-[0.05in]">
-            <div className="text-[5pt] font-bold leading-[1.1]">Jaiswal Group</div>
+        <div className="flex-1 min-w-0 h-[0.86in] flex flex-col justify-between pl-[0.06in] pr-4 text-left">
+            <div className="text-[5pt] font-bold leading-[1.05] wrap-break-word">Jaiswal Group</div>
             {asset.organizationname && asset.organizationname !== 'Jaiswal Group' ? (
-                <div className="text-[5pt] font-normal leading-[1.1] uppercase">{asset.organizationname}</div>
+                <div className="text-[4.5pt] font-normal leading-[1.05] uppercase wrap-break-word">{asset.organizationname}</div>
             ) : asset.organizationname === 'Jaiswal Group' ? (
-                <div className="text-[5pt] font-normal leading-[1.1] uppercase">Head Office</div>
+                <div className="text-[4.5pt] font-normal leading-[1.05] uppercase wrap-break-word">Head Office</div>
             ) : null}
-            <div className="text-[5pt] font-normal leading-[1.1]">{asset.assetUnitLocationName || ""}</div>
-            <div className="text-[5pt] font-semibold leading-[1.1]">{asset.categoryName || '-'}</div>
-            <div className="text-[5pt] font-semibold leading-[1.1]">{toTitleCase(asset.name) || '-'}</div>
-            <div className="text-[5pt] font-normal leading-[1.1]">{asset.code || '-'}</div>
+            <div className="text-[4.5pt] font-normal leading-[1.05] wrap-break-word">{asset.assetUnitLocationName || ""}</div>
+            <div className="text-[4.5pt] font-semibold leading-[1.05] wrap-break-word">{asset.categoryName || '-'}</div>
+            <div className="text-[4.5pt] font-semibold leading-[1.05] wrap-break-word">{toTitleCase(asset.name) || '-'}</div>
+            <div className="text-[4.5pt] font-mono leading-[1.05] wrap-break-word">{asset.code || '-'}</div>
         </div>
     </div>
 );

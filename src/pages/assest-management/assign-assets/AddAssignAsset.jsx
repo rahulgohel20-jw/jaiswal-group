@@ -25,6 +25,7 @@ import {
   getAssignAssetById,
   updateAssignAsset,
   getAssetUnitLocationsByOrganization,
+  getAssetById
 } from '@/services/apiServices.js';
 import { usePagePermissions } from '@/utils/permissions';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -143,7 +144,7 @@ export const AssetMultiSelect = ({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const observerRef = useRef(null);
- const totalItems = totalCount > 0 ? totalCount : options.length; 
+  const totalItems = totalCount > 0 ? totalCount : options.length;
   const sentinelCallback = useCallback(
     (node) => {
       if (loading) return;
@@ -179,7 +180,7 @@ export const AssetMultiSelect = ({
     }
   };
 
- const isAllSelected = options.length > 0 && selected.length >= totalItems;
+  const isAllSelected = options.length > 0 && selected.length >= totalItems;
 
   const toggleSelectAll = () => {
     onChange(isAllSelected ? [] : [...options]);
@@ -192,8 +193,8 @@ export const AssetMultiSelect = ({
           role="button"
           tabIndex={disabled ? -1 : 0}
           className={`min-h-11 w-full border rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${disabled
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
-              : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92]"
+            ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
+            : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92]"
             } border-[#C3C6D1]`}
         >
           {selected.length > 2 ? (
@@ -397,52 +398,52 @@ const AddAssignAsset = () => {
   const [quantities, setQuantities] = useState({});
 
   const PAGE_SIZE = 50;
-  const [totalAssetsCount, setTotalAssetsCount] = useState(0);  
+  const [totalAssetsCount, setTotalAssetsCount] = useState(0);
   const fetchAssetsPage = async (pageToFetch = 0, isInitial = false) => {
-  if (loadingMoreRef.current) return;
-  try {
-    if (isInitial) {
-      setLoadingAssets(true);
-    } else {
-      loadingMoreRef.current = true;
-      setLoadingAssetsMore(true);
-    }
-
-    const res = await getAllActiveAssetsPaginated(pageToFetch, PAGE_SIZE);
-    const pageData = res?.data?.data ?? res?.data;
-    const content = pageData?.content || [];
-    const isLast = pageData?.last ?? (content.length < PAGE_SIZE);
-
-    // Capture totalElements from backend
-    if (pageData?.totalElements != null) {
-      setTotalAssetsCount(Number(pageData.totalElements));
-    }
-
-    setAssets((prev) => {
-      if (pageToFetch === 0) {
-        const currentLoaded = content;
-        const currentIds = new Set(currentLoaded.map((a) => String(a.id)));
-        const preserved = prev.filter((a) => !currentIds.has(String(a.id)));
-        return [...preserved, ...currentLoaded];
+    if (loadingMoreRef.current) return;
+    try {
+      if (isInitial) {
+        setLoadingAssets(true);
+      } else {
+        loadingMoreRef.current = true;
+        setLoadingAssetsMore(true);
       }
-      const existingIds = new Set(prev.map((a) => String(a.id)));
-      const newUnique = content.filter((a) => !existingIds.has(String(a.id)));
-      return [...prev, ...newUnique];
-    });
 
-    assetPageRef.current = pageToFetch;
-    setAssetPage(pageToFetch);
+      const res = await getAllActiveAssetsPaginated(pageToFetch, PAGE_SIZE);
+      const pageData = res?.data?.data ?? res?.data;
+      const content = pageData?.content || [];
+      const isLast = pageData?.last ?? (content.length < PAGE_SIZE);
 
-    hasMoreRef.current = !isLast;
-    setHasMoreAssets(!isLast);
-  } catch (err) {
-    console.error('Failed to load paginated assets:', err);
-  } finally {
-    if (isInitial) setLoadingAssets(false);
-    loadingMoreRef.current = false;
-    setLoadingAssetsMore(false);
-  }
-};
+      // Capture totalElements from backend
+      if (pageData?.totalElements != null) {
+        setTotalAssetsCount(Number(pageData.totalElements));
+      }
+
+      setAssets((prev) => {
+        if (pageToFetch === 0) {
+          const currentLoaded = content;
+          const currentIds = new Set(currentLoaded.map((a) => String(a.id)));
+          const preserved = prev.filter((a) => !currentIds.has(String(a.id)));
+          return [...preserved, ...currentLoaded];
+        }
+        const existingIds = new Set(prev.map((a) => String(a.id)));
+        const newUnique = content.filter((a) => !existingIds.has(String(a.id)));
+        return [...prev, ...newUnique];
+      });
+
+      assetPageRef.current = pageToFetch;
+      setAssetPage(pageToFetch);
+
+      hasMoreRef.current = !isLast;
+      setHasMoreAssets(!isLast);
+    } catch (err) {
+      console.error('Failed to load paginated assets:', err);
+    } finally {
+      if (isInitial) setLoadingAssets(false);
+      loadingMoreRef.current = false;
+      setLoadingAssetsMore(false);
+    }
+  };
 
   const handleLoadMoreAssets = useCallback(() => {
     if (hasMoreRef.current && !loadingMoreRef.current) {
@@ -513,32 +514,36 @@ const AddAssignAsset = () => {
           const existingQty = Number(record.quantity ?? record.qty) || 0;
           setOriginalAssignmentQty(existingQty);
 
+          const rawItems = Array.isArray(record.assetItems) && record.assetItems.length > 0
+            ? record.assetItems
+            : record.assetId != null
+              ? [{ assetId: record.assetId, qty: existingQty }]
+              : [];
+
+          // Fetch detailed asset info using getAssetById for all items
+          const fetchedResults = await Promise.all(
+            rawItems.map(async (item) => {
+              const aId = item.assetId ?? item.id;
+              try {
+                const assetRes = await getAssetById(aId);
+                const assetData = assetRes?.data?.data ?? assetRes?.data ?? assetRes;
+                return { itemQty: item.qty ?? item.quantity ?? existingQty, assetData, fallbackId: aId };
+              } catch (err) {
+                return { itemQty: item.qty ?? item.quantity ?? existingQty, assetData: item, fallbackId: aId };
+              }
+            })
+          );
+
+          if (cancelled) return;
+
           const loadedQuantities = {};
           const preloadedSelected = [];
 
-          if (Array.isArray(record.assetItems) && record.assetItems.length > 0) {
-            record.assetItems.forEach((item) => {
-              const aId = String(item.assetId);
-              loadedQuantities[aId] = String(item.qty ?? item.quantity ?? 0);
-              preloadedSelected.push({
-                id: item.assetId,
-                code: item.assetCode ?? String(item.assetId),
-                name: item.assetName ?? item.itemName ?? 'Unnamed Asset',
-                availableQuantity: Number(item.availableQuantity) || 0,
-                totalQuantity: Number(item.totalQuantity) || 0,
-              });
-            });
-          } else if (record.assetId != null) {
-            const aId = String(record.assetId);
-            loadedQuantities[aId] = String(existingQty);
-            preloadedSelected.push({
-              id: record.assetId,
-              code: record.assetCode ?? String(record.assetId),
-              name: record.assetName ?? record.itemName ?? 'Unnamed Asset',
-              availableQuantity: Number(record.availableQuantity) || 0,
-              totalQuantity: Number(record.totalQuantity) || 0,
-            });
-          }
+          fetchedResults.forEach(({ itemQty, assetData, fallbackId }) => {
+            const formatted = extractAssetFields(assetData || { id: fallbackId });
+            loadedQuantities[String(formatted.id)] = String(itemQty ?? 0);
+            preloadedSelected.push(formatted);
+          });
 
           setQuantities(loadedQuantities);
           setSelectedAssets(preloadedSelected);
@@ -546,7 +551,6 @@ const AddAssignAsset = () => {
             setActiveAssetId(String(preloadedSelected[0].id));
           }
 
-          // Ensure the asset is included in master assets list so preview and dropdown show it
           setAssets((prev) => {
             const existingIds = new Set(prev.map((a) => String(a.id)));
             const missing = preloadedSelected.filter((p) => !existingIds.has(String(p.id)));
@@ -560,10 +564,7 @@ const AddAssignAsset = () => {
             assignedTo: record.assignToId ? String(record.assignToId) : '',
             company: record.companiesId ? String(record.companiesId) : '',
             _pendingCompaniesId: record.companiesId ?? null,
-            _pendingAssetIds:
-              Array.isArray(record.assetItems) && record.assetItems.length > 0
-                ? record.assetItems.map((item) => item.assetId)
-                : record.assetIds ?? (record.assetId ? [record.assetId] : []),
+            _pendingAssetIds: rawItems.map((item) => item.assetId ?? item.id),
             assetUnitLocationId: record.assetUnitLocationId != null ? String(record.assetUnitLocationId) : '',
             subOutletId: record.subOutletId != null ? String(record.subOutletId) : '',
             remarks: record.remarks || '',
@@ -982,7 +983,10 @@ const AddAssignAsset = () => {
       setSaveError('Please select an employee to assign to.');
       return;
     }
-
+    if (!form.assetType) {
+      setSaveError('Please select an Assign to Type.');
+      return;
+    }
     if (qtyNum > maxAssignableQty) {
       setSaveError(
         `Quantity cannot exceed the available stock (${availableStock}).`,
@@ -1055,19 +1059,19 @@ const AddAssignAsset = () => {
             <div>
               <Label required>Search Asset</Label>
               <AssetMultiSelect
-                  options={assetOptions}
-                  selected={selectedAssets}
-                  onChange={(newSelected) => {
-                    setSelectedAssets(newSelected);
-                    set('quantity', '');
-                  }}
-                  disabled={loadingAssets && assets.length === 0}
-                  loading={loadingAssetsMore || (loadingAssets && assets.length === 0)}
-                  hasMore={hasMoreAssets}
-                  totalCount={totalAssetsCount}
-                  onLoadMore={handleLoadMoreAssets}
-                />
-              </div>
+                options={assetOptions}
+                selected={selectedAssets}
+                onChange={(newSelected) => {
+                  setSelectedAssets(newSelected);
+                  set('quantity', '');
+                }}
+                disabled={loadingAssets && assets.length === 0}
+                loading={loadingAssetsMore || (loadingAssets && assets.length === 0)}
+                hasMore={hasMoreAssets}
+                totalCount={totalAssetsCount}
+                onLoadMore={handleLoadMoreAssets}
+              />
+            </div>
 
             {/* Asset Details Preview Card */}
             {selectedAsset && (

@@ -813,37 +813,37 @@ const AssignAssets = () => {
 
   const STATS = [
     {
-      title: 'Total Assignments ',
+      title: 'Total Assign Assets',
       value: String(totalRecords || scopedAssignments.length),
       icon: <Package size={18} />,
       iconBg: 'bg-[#D5E3FF]',
       iconColor: 'text-[#00376C]',
       color: 'text-[#1B1B1F]',
     },
-    {
-      title: 'Active Assignments',
-      value: String(totalRecords || scopedAssignments.length),
-      icon: <CircleCheck size={18} />,
-      iconBg: 'bg-[#DCFCE7]',
-      iconColor: 'text-[#15803D]',
-      color: 'text-[#15803D]',
-    },
-    {
-      title: 'Returned Assets',
-      value: String(returnedAssignments),
-      icon: <RotateCcw size={18} />,
-      iconBg: 'bg-[#D5E3FF]',
-      iconColor: 'text-[#265FA4]',
-      color: 'text-[#1B1B1F]',
-    },
-    {
-      title: 'Pending Returns',
-      value: '-',
-      icon: <Clock size={18} />,
-      iconBg: 'bg-[#FFEDD5]',
-      iconColor: 'text-[#C2410C]',
-      color: 'text-[#C2410C]',
-    },
+    // {
+    //   title: 'Active Assignments',
+    //   value: String(totalRecords || scopedAssignments.length),
+    //   icon: <CircleCheck size={18} />,
+    //   iconBg: 'bg-[#DCFCE7]',
+    //   iconColor: 'text-[#15803D]',
+    //   color: 'text-[#15803D]',
+    // },
+    // {
+    //   title: 'Returned Assets',
+    //   value: String(returnedAssignments),
+    //   icon: <RotateCcw size={18} />,
+    //   iconBg: 'bg-[#D5E3FF]',
+    //   iconColor: 'text-[#265FA4]',
+    //   color: 'text-[#1B1B1F]',
+    // },
+    // {
+    //   title: 'Pending Returns',
+    //   value: '-',
+    //   icon: <Clock size={18} />,
+    //   iconBg: 'bg-[#FFEDD5]',
+    //   iconColor: 'text-[#C2410C]',
+    //   color: 'text-[#C2410C]',
+    // },
     {
       title: 'Transfer Requests',
       value: '-',
@@ -1270,7 +1270,7 @@ const table = useReactTable({
 
         <PageErrorAlert error={loadError} onRetry={fetchPaginatedAssignments} className="my-3" />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3  gap-3.5 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}

@@ -167,6 +167,7 @@ const UserViewDetails = () => {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedModule, setSelectedModule] = useState('');
 
   useEffect(() => {
     if (!userRef?.id) {
@@ -490,6 +491,26 @@ const UserViewDetails = () => {
   const totalModules = moduleRightsList.length;
   const totalPages = moduleRightsList.reduce((acc, m) => acc + (m.userRights?.length || 0), 0);
 
+   // Auto-select first module when module rights are loaded
+  useEffect(() => {
+    if (moduleRightsList.length > 0) {
+      const currentModuleExists = moduleRightsList.some(
+        (m) => (m.moduleId ?? m.moduleName) === selectedModule
+      );
+      if (!selectedModule || !currentModuleExists) {
+        setSelectedModule(moduleRightsList[0].moduleId ?? moduleRightsList[0].moduleName);
+      }
+    }
+  }, [moduleRightsList, selectedModule]);
+
+  // Find the currently active module object
+  const activeModule = useMemo(() => {
+    return (
+      moduleRightsList.find(
+        (m) => (m.moduleId ?? m.moduleName) === selectedModule
+      ) || moduleRightsList[0]
+    );
+  }, [moduleRightsList, selectedModule]);
   return (
     <Container>
       <div className="mx-auto pt-2 pb-12 space-y-3.5">
@@ -672,71 +693,116 @@ const UserViewDetails = () => {
                   No specific user rights configured.
                 </div>
               ) : (
-                <div className="border border-[#E5E7EB] rounded-xl overflow-hidden overflow-x-auto shadow-2xs">
-                  <table className="w-full text-sm">
-                    <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB]">
-                      <tr>
-                        <th className="text-left px-5 py-3 font-semibold text-[#43474F] min-w-[220px]">
-                          Module / Page Name
-                        </th>
-                        <th className="text-center px-4 py-3 font-semibold text-[#43474F] w-24">
-                          Add
-                        </th>
-                        <th className="text-center px-4 py-3 font-semibold text-[#43474F] w-24">
-                          Edit
-                        </th>
-                        <th className="text-center px-4 py-3 font-semibold text-[#43474F] w-24">
-                          View
-                        </th>
-                        <th className="text-center px-4 py-3 font-semibold text-[#43474F] w-24">
-                          Delete
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {moduleRightsList.map((mod) => (
-                        <React.Fragment key={mod.moduleId ?? mod.moduleName}>
-                          {/* Module Header Row */}
-                          <tr className="bg-[#F0F4FA] border-t border-[#E5E7EB]">
-                            <td
-                              colSpan={5}
-                              className="px-5 py-2.5 font-bold text-[#084E92] flex items-center gap-2"
-                            >
-                              <Layers className="w-4 h-4" />
-                              <span>{mod.moduleName}</span>
-                              <span className="text-xs font-normal text-gray-500 ml-1">
-                                ({mod.userRights?.length || 0} pages)
-                              </span>
-                            </td>
-                          </tr>
+                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs grid grid-cols-1 md:grid-cols-12 h-[460px]">
+                  {/* ── Left Sidebar: Scrollable Module Navigation ── */}
+                  <div className="md:col-span-4 lg:col-span-3 border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50/70 p-3 flex flex-col h-full overflow-hidden">
+                    <div className="px-2 py-1 mb-2 shrink-0">
+                      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                        Modules ({totalModules})
+                      </span>
+                    </div>
 
-                          {/* Pages in Module */}
-                          {(mod.userRights || []).map((p) => (
+                    <div className="space-y-1 overflow-y-auto flex-1 pr-1">
+                      {moduleRightsList.map((mod) => {
+                        const modKey = mod.moduleId ?? mod.moduleName;
+                        const isSelected = selectedModule === modKey;
+                        const pages = mod.userRights || [];
+
+                        // Check if this module has any granted permission
+                        const hasAnyGranted = pages.some(
+                          (p) => p.add || p.edit || p.view || p.delete || p.export
+                        );
+
+                        return (
+                          <button
+                            key={modKey}
+                            type="button"
+                            onClick={() => setSelectedModule(modKey)}
+                            className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition cursor-pointer border ${
+                              isSelected
+                                ? 'bg-[#084E92] text-white border-[#084E92] shadow-xs'
+                                : 'bg-white text-gray-700 hover:bg-gray-100/80 border-gray-200/80'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              {hasAnyGranted && (
+                                <span
+                                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                    isSelected ? 'bg-amber-300' : 'bg-[#084E92]'
+                                  }`}
+                                />
+                              )}
+                              <span className="truncate">{mod.moduleName}</span>
+                            </div>
+                            
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── Right Content: Scrollable Pages Table with Sticky Header ── */}
+                  <div className="md:col-span-8 lg:col-span-9 flex flex-col h-full overflow-hidden">
+                    <div className="overflow-y-auto overflow-x-auto flex-1">
+                      <table className="w-full text-sm border-collapse">
+                        <thead className="bg-gray-50/95 border-b border-gray-200 sticky top-0 backdrop-blur-xs">
+                          <tr>
+                            <th className="text-left px-5 py-3 font-semibold text-gray-700 text-xs">
+                              {activeModule?.moduleName || 'Module'} Pages
+                            </th>
+                            <th className="text-center w-20 px-2 py-3 font-semibold text-gray-600 text-xs">
+                              Add
+                            </th>
+                            <th className="text-center w-20 px-2 py-3 font-semibold text-gray-600 text-xs">
+                              Edit
+                            </th>
+                            <th className="text-center w-20 px-2 py-3 font-semibold text-gray-600 text-xs">
+                              View
+                            </th>
+                            <th className="text-center w-20 px-2 py-3 font-semibold text-gray-600 text-xs">
+                              Delete
+                            </th>
+                            {/* Included if the role supports export permission */}
+                            {activeModule?.userRights?.some((p) => p.export !== undefined) && (
+                              <th className="text-center w-20 px-2 py-3 font-semibold text-gray-600 text-xs">
+                                Export
+                              </th>
+                            )}
+                          </tr>
+                        </thead>
+
+                        <tbody className="divide-y divide-gray-100 bg-white">
+                          {(activeModule?.userRights || []).map((p) => (
                             <tr
                               key={p.id ?? p.pageid ?? p.pageName}
-                              className="border-b border-[#F0F1F3] last:border-b-0 hover:bg-[#FAFBFC] transition-colors"
+                              className="hover:bg-blue-50/25 transition-colors"
                             >
-                              <td className="px-5 py-2.5 pl-10 text-gray-700 font-medium text-[13px]">
+                              <td className="px-5 py-2.5 text-xs text-gray-700 font-medium">
                                 {p.pageName}
                               </td>
-                              <td className="text-center px-4 py-2.5">
+                              <td className="text-center w-20 px-2 py-2">
                                 <PermissionIndicator enabled={Boolean(p.add)} label="Add" />
                               </td>
-                              <td className="text-center px-4 py-2.5">
+                              <td className="text-center w-20 px-2 py-2">
                                 <PermissionIndicator enabled={Boolean(p.edit)} label="Edit" />
                               </td>
-                              <td className="text-center px-4 py-2.5">
+                              <td className="text-center w-20 px-2 py-2">
                                 <PermissionIndicator enabled={Boolean(p.view)} label="View" />
                               </td>
-                              <td className="text-center px-4 py-2.5">
+                              <td className="text-center w-20 px-2 py-2">
                                 <PermissionIndicator enabled={Boolean(p.delete)} label="Delete" />
                               </td>
+                              {activeModule?.userRights?.some((page) => page.export !== undefined) && (
+                                <td className="text-center w-20 px-2 py-2">
+                                  <PermissionIndicator enabled={Boolean(p.export)} label="Export" />
+                                </td>
+                              )}
                             </tr>
                           ))}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
             </SectionCard>
