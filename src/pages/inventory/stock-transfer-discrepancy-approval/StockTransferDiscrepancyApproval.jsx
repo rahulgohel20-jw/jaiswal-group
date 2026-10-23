@@ -410,13 +410,13 @@ const StockTransferDiscrepancyApproval = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.transferCode}
-            maxWidth="max-w-[120px]"
+            maxWidth="max-w-full"
             onClick={() => handleView(row.original)}
             className="text-xs font-semibold text-[#084E92] hover:underline cursor-pointer"
           />
         ),
         enableSorting: false,
-        size: 125,
+        size: 200,
       },
       {
         id: 'transferDate',

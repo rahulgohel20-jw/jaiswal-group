@@ -653,7 +653,8 @@ const ReturnReplacementList = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.grnCode}
-            maxWidth="max-w-[130px]"
+            maxWidth="max-w-full"
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
           />
         ),
         enableSorting: false,

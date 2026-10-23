@@ -402,7 +402,7 @@ const GenerateGRN = () => {
           <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 font-mono text-xs">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 font-mono text-xs"> {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
         size: 45,
@@ -416,12 +416,13 @@ const GenerateGRN = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.poCode}
-            maxWidth="max-w-[120px]"
+            maxWidth="max-w-full"
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
             onClick={() => navigate(`/purchase/purchase-order-detail/${row.original.id}`)}
           />
         ),
         enableSorting: true,
-        size: 130,
+        size: 190,
       },
       {
         id: 'prCode',
@@ -432,11 +433,12 @@ const GenerateGRN = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.prCode}
-            maxWidth="max-w-[120px]"
+            maxWidth="max-w-full"
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
           />
         ),
         enableSorting: true,
-        size: 130,
+        size: 200,
       },
       {
         id: 'date',
