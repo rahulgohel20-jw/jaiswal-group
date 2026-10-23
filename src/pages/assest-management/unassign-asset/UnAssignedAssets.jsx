@@ -469,11 +469,11 @@ const UnassignedAssets = () => {
             />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-10 w-full pl-9 pr-6 rounded-xl border border-[#C3C6D1] bg-white text-xs text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all" className="text-xs">
-                  All Statuses
+                  All Status
                 </SelectItem>
                 <SelectItem value="IN USE" className="text-xs">
                   IN USE

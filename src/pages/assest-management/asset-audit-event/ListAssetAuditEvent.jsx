@@ -781,10 +781,10 @@ const ListAssetAuditEvent = () => {
           <div>
             <Select value={statusInput} onValueChange={(val) => setStatusInput(val)}>
               <SelectTrigger className="w-full h-10 px-3 bg-white border border-[#C3C6D1] rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#084E92] focus:border-[#084E92]">
-                <SelectValue placeholder="All Statuses" />
+                <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent className="rounded-xl border border-gray-200 bg-white shadow-lg text-xs">
-                <SelectItem value="All" className="text-xs cursor-pointer">All Statuses</SelectItem>
+                <SelectItem value="All" className="text-xs cursor-pointer">All Status</SelectItem>
                 <SelectItem value="NOT_STARTED" className="text-xs cursor-pointer">Not Started</SelectItem>
                 <SelectItem value="STARTED" className="text-xs cursor-pointer">Started</SelectItem>
                 <SelectItem value="PAUSED" className="text-xs cursor-pointer">Paused</SelectItem>
