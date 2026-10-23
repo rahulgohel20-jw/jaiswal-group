@@ -67,8 +67,9 @@ const TruncatedCell = ({
   value,
   widthClass = 'max-w-full',
   className = 'text-xs text-gray-800 font-medium',
+  onClick,
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+  <span title={value} onClick={onClick} className={`block truncate ${widthClass} ${className}`}>
     {value}
   </span>
 );
@@ -521,6 +522,7 @@ const GRNListing = () => {
           <TruncatedCell
             value={row.original.grnCode}
             widthClass="max-w-full"
+            onClick={() => handleViewGrn(row.original)}
             className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
           />
         ),
@@ -634,7 +636,7 @@ const GRNListing = () => {
         size: 60,
       },
     ],
-    [pagination.pageIndex, pagination.pageSize]
+    [pagination.pageIndex, pagination.pageSize, handleViewGrn]
   );
 
   const displayRows = useMemo(() => {

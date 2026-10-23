@@ -332,7 +332,7 @@ const RowMaterialItemMaster = () => {
                 accessorKey: "category",
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="ROW MATERIAL CATEGORY"
+                        title="RAW MATERIAL CATEGORY"
                         column={column}
                         className="text-[#43474F] font-semibold"
                     />

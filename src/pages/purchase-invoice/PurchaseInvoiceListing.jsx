@@ -58,7 +58,7 @@ const formatDisplayDate = (date) => {
 
 const PurchaseInvoiceListing = () => {
     const navigate = useNavigate();
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Purchase Invoice List');
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Purchase Invoice Report');
 
     const [vendors, setVendors] = useState([]);
     const [vendorLoading, setVendorLoading] = useState(false);
@@ -132,7 +132,7 @@ const PurchaseInvoiceListing = () => {
     const vendorOptions = useMemo(
         () => vendors.map(v => ({
             value: String(v.id),
-            label: v.fullName || v.companyName || v.vendorName || `Vendor #${v.id}`,
+            label: v.companyName || v.fullName || v.vendorName || `Vendor #${v.id}`,
         })),
         [vendors]
     );
@@ -174,7 +174,7 @@ const PurchaseInvoiceListing = () => {
         ...inv,
         date: inv.invoiceDate,
         outletName: inv.organizationName || `Outlet #${inv.organizationId}`,
-        vendorName: inv.vendorName || `Vendor #${inv.vendorId}`,
+        vendorName: inv.vendorCompanyName || inv.companyName || inv.vendorName || `Vendor #${inv.vendorId}`,
         grnIds: inv.grnIds || [],
         purchaseOrderIds: inv.purchaseOrderIds || [],
         details: inv.details || [],
@@ -360,7 +360,7 @@ const PurchaseInvoiceListing = () => {
     });
 
     if (!canView) {
-        return <AccessDenied pageTitle="Purchase Invoice List" />;
+        return <AccessDenied pageTitle="Purchase Invoice Report" />;
     }
 
   return (
