@@ -429,7 +429,11 @@ const PurchaseOrderRequest = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <span className="whitespace-nowrap text-xs text-[#475467]">{row.original.date || '—'}</span>,
+        cell: ({ row }) => (
+          <span className="whitespace-nowrap text-xs text-[#475467]">
+            {row.original.stage === STAGE.PR_NO_PO ? '—' : (row.original.date || '—')}
+          </span>
+        ),
         enableSorting: false,
         size: 85,
       },
@@ -439,7 +443,11 @@ const PurchaseOrderRequest = () => {
           <DataGridColumnHeader title="DELV. DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="whitespace-nowrap text-xs text-[#475467]">{row.original.expectedDeliveryDate || '—'}</span>
+          <span className="whitespace-nowrap text-xs text-[#475467]">
+            {row.original.stage === STAGE.PR_NO_PO
+              ? '—'
+              : (row.original.expectedDeliveryDate || '—')}
+          </span>
         ),
         enableSorting: false,
         size: 85,

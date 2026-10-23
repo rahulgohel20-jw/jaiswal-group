@@ -16,6 +16,7 @@ import {
   Pencil,
   Loader2,
   ArrowLeftRight,
+  Calendar,
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -153,6 +154,42 @@ const Field = ({ label, value, required }) => (
     </div>
   </div>
 );
+
+
+const DateField = ({ label, value, onChange, min, disabled = false, required = false }) => {
+  const displayValue = value ? formatDisplayDate(value) : 'dd/mm/yyyy';
+
+  return (
+    <div>
+      <label className="text-xs font-medium text-[#475569] mb-1 block">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div
+        className={`relative w-full h-9 rounded-lg border px-2.5 flex items-center justify-between text-xs sm:text-sm transition-colors ${
+          disabled
+            ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#1E293B] cursor-not-allowed'
+            : 'border-[#CBD5E1] bg-white text-[#1E293B] hover:border-[#0B5CAD] focus-within:border-[#0B5CAD] focus-within:ring-1 focus-within:ring-[#0B5CAD]/20'
+        }`}
+      >
+        <span className={value ? '' : 'text-gray-400'}>{displayValue}</span>
+
+        {!disabled && (
+          <Calendar size={16} className="text-[#084E92] shrink-0 pointer-events-none" />
+        )}
+
+        {!disabled && (
+          <input
+            type="date"
+            value={value || ''}
+            min={min}
+            onChange={(e) => onChange?.(e.target.value)}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+        )}
+      </div>
+    </div>
+  );
+};
 
 const CreatePurchaseOrder = () => {
   const location = useLocation();
@@ -2025,24 +2062,20 @@ const CreatePurchaseOrder = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-                  <Field
+                  <DateField
                     label="PO Date"
-                    value={formatDisplayDate(poDate || poRecord?.date || getTodayForDateInput())}
+                    value={poDate || getTodayForDateInput()}
+                    disabled
                     required
                   />
-                  <div>
-                    <label className="text-xs font-medium text-[#475569] mb-1 block">
-                      Expected Delivery Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={expectedDeliveryDate}
-                      min={poDate || getTodayForDateInput()}
-                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                      disabled={isRejectMode}
-                      className="w-full h-9 rounded-lg border border-[#E2E8F0] px-2.5 text-xs sm:text-sm outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                    />
-                  </div>
+                  <DateField
+                    label="Expected Delivery Date"
+                    value={expectedDeliveryDate}
+                    min={poDate || getTodayForDateInput()}
+                    onChange={setExpectedDeliveryDate}
+                    disabled={isRejectMode}
+                    required
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
@@ -2084,31 +2117,20 @@ const CreatePurchaseOrder = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-3.5">
-                  <div>
-                    <label className="text-xs font-medium text-[#475569] mb-1 block">
-                      PO Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={poDate || getTodayForDateInput()}
-                      disabled
-                      readOnly
-                      className="w-full h-9 rounded-lg border border-[#E2E8F0] px-2.5 text-xs sm:text-sm outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-[#475569] mb-1 block">
-                      Expected Delivery Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={expectedDeliveryDate}
-                      min={poDate || getTodayForDateInput()}
-                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                      disabled={isReadOnly}
-                      className="w-full h-9 rounded-lg border border-[#E2E8F0] px-2.5 text-xs sm:text-sm outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                    />
-                  </div>
+                  <DateField
+                    label="PO Date"
+                    value={poDate || getTodayForDateInput()}
+                    disabled
+                    required
+                  />
+                  <DateField
+                    label="Expected Delivery Date"
+                    value={expectedDeliveryDate}
+                    min={poDate || getTodayForDateInput()}
+                    onChange={setExpectedDeliveryDate}
+                    disabled={isReadOnly}
+                    required
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-3.5">
@@ -2213,25 +2235,21 @@ const CreatePurchaseOrder = () => {
                     </div>
                   </div>
 
-                  <Field
+                  <DateField
                     label="PO Date"
-                    value={formatDisplayDate(poDate || poRecord?.date || getTodayForDateInput())}
+                    value={poDate || getTodayForDateInput()}
+                    disabled
                     required
                   />
 
-                  <div>
-                    <label className="text-xs font-medium text-[#475569] mb-1 block">
-                      Expected Delivery Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={expectedDeliveryDate}
-                      min={poDate || getTodayForDateInput()}
-                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                      disabled={isReadOnly}
-                      className="w-full h-9 rounded-lg border border-[#E2E8F0] px-2.5 text-xs sm:text-sm outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                    />
-                  </div>
+                  <DateField
+                    label="Expected Delivery Date"
+                    value={expectedDeliveryDate}
+                    min={poDate || getTodayForDateInput()}
+                    onChange={setExpectedDeliveryDate}
+                    disabled={isReadOnly}
+                    required
+                  />
                 </div>
               </>
             )}
