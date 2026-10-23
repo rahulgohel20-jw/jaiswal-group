@@ -570,6 +570,7 @@ export const MENU_SIDEBAR = [
       // { title: 'Asset Transfer', path: '/assets/asset-transfer-log' },
       { title: 'Asset Disposal', path: '/assets/asset-disposal' },
       { title: 'Export Assets QR', path: '/assets/export-assets-qr' },
+      { title: 'Asset Audit Event', path: '/assets/asset-audit-event' },
     ],
   },
   {
