@@ -319,6 +319,7 @@ const AddRawMaterialItemModal = () => {
       return [];
     }
   };
+
   useEffect(() => {
     fetchTypes();
     fetchUnits();
@@ -353,44 +354,7 @@ const AddRawMaterialItemModal = () => {
     loadItem();
   }, [id, navigate]);
 
-  useEffect(() => {
-    if (!form.rawMaterialCatTypeId) {
-      setCategories([]);
-      return;
-    }
-    fetchCategories(form.rawMaterialCatTypeId, normalizeCategory(editData));
-  }, [form.rawMaterialCatTypeId]);
-
-  useEffect(() => {
-    if (loadingCategories || !form.rawMaterialCatId) return;
-    const stillValid = categories.some((c) => String(c.id) === String(form.rawMaterialCatId));
-    if (!stillValid) set('rawMaterialCatId', '');
-  }, [categories, loadingCategories, form.rawMaterialCatId]);
-
-  useEffect(() => {
-    if (!form.rawMaterialCatId) {
-      setSubCategories([]);
-      setBrands([]);
-      return;
-    }
-    fetchSubCategoriesForCategory(form.rawMaterialCatId, normalizeSubCategory(editData));
-    fetchBrands(form.rawMaterialCatId, normalizeBrand(editData));
-  }, [form.rawMaterialCatId]);
-
-  useEffect(() => {
-    if (loadingSubCategories || !form.rawMaterialSubCatId) return;
-    const stillValid = subCategories.some((s) => String(s.id) === String(form.rawMaterialSubCatId));
-    if (!stillValid) set('rawMaterialSubCatId', '');
-  }, [subCategories, loadingSubCategories, form.rawMaterialSubCatId]);
-
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    set('file', file);
-  };
-
-  const imagePreview = form.file ? URL.createObjectURL(form.file) : form.imageUrl;
-
+  // Populate the form from the loaded item
   useEffect(() => {
     if (!editData) {
       setForm(emptyForm);
@@ -428,7 +392,47 @@ const AddRawMaterialItemModal = () => {
       file: null,
       imageUrl: latestImage,
     });
-  }, [editData])
+  }, [editData]);
+
+  // Seed the saved brand into the options so it displays without a network call
+  useEffect(() => {
+    if (!editData) return;
+    const brand = normalizeBrand(editData);
+    if (brand?.id != null && brand?.name) {
+      setBrands((prev) =>
+        prev.some((b) => String(b.id) === String(brand.id))
+          ? prev
+          : [...prev, { id: brand.id, name: brand.name }]
+      );
+    }
+  }, [editData]);
+
+  // Load category type's categories whenever the type changes
+  useEffect(() => {
+    if (!form.rawMaterialCatTypeId) {
+      setCategories([]);
+      return;
+    }
+    fetchCategories(form.rawMaterialCatTypeId, normalizeCategory(editData));
+  }, [form.rawMaterialCatTypeId]);
+
+  // Load sub-categories whenever the category changes.
+  // Brands are fetched only when the user picks a category (see onChange below).
+  useEffect(() => {
+    if (!form.rawMaterialCatId) {
+      setSubCategories([]);
+      return;
+    }
+    fetchSubCategoriesForCategory(form.rawMaterialCatId, normalizeSubCategory(editData));
+  }, [form.rawMaterialCatId]);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    set('file', file);
+  };
+
+  const imagePreview = form.file ? URL.createObjectURL(form.file) : form.imageUrl;
 
   const handleSave = async () => {
     if (!validate()) return;
