@@ -163,7 +163,8 @@ const GenerateGrnInvoice = () => {
           gst: Number(detail.igstRate) > 0
             ? Number(detail.igstRate)
             : (Number(detail.cgstRate) || 0) + (Number(detail.sgstRate) || 0),
-          cess: Number(detail.cessRate) || 0
+          cess: Number(detail.cessRate) || 0,
+          isCessApplicable: Boolean(detail.isCessApplicable),
         };
       })
     );
@@ -271,7 +272,8 @@ const GenerateGrnInvoice = () => {
               gst: Number(detail.igstRate) > 0
                 ? Number(detail.igstRate)
                 : (Number(detail.cgstRate) || 0) + (Number(detail.sgstRate) || 0),
-              cess: Number(detail.cessRate) || 0
+              cess: Number(detail.cessRate) || 0,
+              isCessApplicable: Boolean(detail.isCessApplicable ?? itemDetails?.isCessApplicable),
             };
           })
         );
@@ -403,7 +405,7 @@ const GenerateGrnInvoice = () => {
     const price = Number(r.rate) || 0;
     const discountPct = Number(r.discount) || 0;
     const gstPct = Number(r.gst) || 0;
-    const cessPct = Number(r.cess) || 0;
+    const cessPct = r.isCessApplicable ? (Number(r.cess) || 0) : 0;
 
     const baseAmount = qty * price;
     const discountAmt = (baseAmount * discountPct) / 100;
@@ -674,6 +676,18 @@ const GenerateGrnInvoice = () => {
     }
   };
 
+  const taxGridClass = isInterState
+    ? totals.cessAmt > 0
+      ? 'grid-cols-[1.1fr_1fr_1fr_24px_1.4fr]'
+      : 'grid-cols-[1.1fr_1fr_1fr]'
+    : totals.cessAmt > 0
+      ? 'grid-cols-[1.1fr_1fr_1fr_24px_1fr_24px_1.5fr]'
+      : 'grid-cols-[1.1fr_1fr_1fr_24px_1fr]';
+
+  const hasAnyCessApplicable = useMemo(() => {
+    return rows.some((row) => Boolean(row.isCessApplicable));
+  }, [rows]);
+  
   if (!canView) {
     return <AccessDenied pageTitle={isEditMode ? "Purchase Invoice List" : "Generate Purchase Invoice"} />;
   }
@@ -707,13 +721,6 @@ const GenerateGrnInvoice = () => {
     );
   }
 
-  const taxGridClass = isInterState
-    ? totals.cessAmt > 0
-      ? 'grid-cols-[1.1fr_1fr_1fr_24px_1.4fr]'
-      : 'grid-cols-[1.1fr_1fr_1fr]'
-    : totals.cessAmt > 0
-      ? 'grid-cols-[1.1fr_1fr_1fr_24px_1fr_24px_1.5fr]'
-      : 'grid-cols-[1.1fr_1fr_1fr_24px_1fr]';
 
   return (
     <Container>
@@ -789,7 +796,9 @@ const GenerateGrnInvoice = () => {
                   <th className="px-4 py-3 text-right font-semibold text-gray-700">Discount (%)</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">HSN/SAC</th>
                   <th className="px-4 py-3 text-right font-semibold text-gray-700">GST (%)</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">CESS (%)</th>
+                  {hasAnyCessApplicable && (
+                    <th className="px-4 py-3 text-right font-semibold text-gray-700">CESS (%)</th>
+                  )}
                   <th className="px-4 py-3 text-right font-semibold text-gray-700">Amount(₹)</th>
                   <th className="px-4 py-3 text-right font-semibold text-gray-700">Tax<br />Applied (₹)</th>
                   <th className="px-4 py-3 text-right font-semibold text-gray-700">Total<br />Amount (₹)</th>
@@ -890,18 +899,24 @@ const GenerateGrnInvoice = () => {
                         />
                       </td>
 
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={row.cess}
-                          onChange={e => updateRow(row.key, 'cess', e.target.value)}
-                          onWheel={e => e.currentTarget.blur()}
-                          className="w-16 h-9 px-2 rounded-lg border border-gray-200 text-sm text-right outline-none focus:border-[#084E92]"
-                        />
-                      </td>
+                      {hasAnyCessApplicable && (
+                        <td className="px-4 py-3 text-right">
+                          {row.isCessApplicable ? (
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={row.cess}
+                              onChange={e => updateRow(row.key, 'cess', e.target.value)}
+                              onWheel={e => e.currentTarget.blur()}
+                              className="w-16 h-9 px-2 rounded-lg border border-gray-200 text-sm text-right outline-none focus:border-[#084E92]"
+                            />
+                          ) : (
+                            <span className="text-gray-400 font-medium">-</span>
+                          )}
+                        </td>
+                      )}
 
                       <td className="px-4 py-3 text-right font-medium text-gray-900 whitespace-nowrap">
                         {formatCurrency(calc.taxableAmount)}
@@ -930,7 +945,7 @@ const GenerateGrnInvoice = () => {
 
                 {!rows.length && (
                   <tr>
-                    <td colSpan={12} className="px-4 py-10 text-center text-gray-500">No invoice items.</td>
+                    <td colSpan={hasAnyCessApplicable ? 12 : 11} className="px-4 py-10 text-center text-gray-500">No invoice items.</td>
                   </tr>
                 )}
               </tbody>

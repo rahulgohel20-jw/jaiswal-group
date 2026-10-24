@@ -554,7 +554,14 @@ const PurchaseInvoice = () => {
     });
 
     const outletOptions = units.map((o) => ({ value: String(o.id), label: o.name }));
-    const vendorOptions = vendors.map((v) => ({ value: String(v.id), label: v.fullName }));
+    const vendorOptions = useMemo(
+        () =>
+            vendors.map((v) => ({
+                value: String(v.id),
+                label: v.companyName || v.fullName || v.vendorName || `Vendor #${v.id}`,
+            })),
+        [vendors]
+    );
 
     if (!canView) {
         return <AccessDenied pageTitle="Generate Purchase Invoice" />;
@@ -675,7 +682,7 @@ const PurchaseInvoice = () => {
                             className="flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer border border-[#E7EAF0] bg-[#084E92] text-white text-sm font-semibold hover:bg-blue-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <FileText size={16} />
-                            Generate GRN Invoice
+                            Generate Purchase Invoice
                         </button>
                     </div>
                 </div>
