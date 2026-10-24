@@ -254,12 +254,13 @@ const OpbStockCreateRequestListing = () => {
                 cell: ({ row }) => (
                     <CodeCell
                         code={row.original.opbCode}
-                        maxWidth="max-w-[120px]"
+                        maxWidth="max-w-full"
                         onClick={() => handleViewRequest(row.original)}
+                        className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
                     />
                 ),
                 enableSorting: false,
-                size: 150,
+                size: 200,
             },
             {
                 id: 'opbDate',
@@ -312,7 +313,7 @@ const OpbStockCreateRequestListing = () => {
                     </div>
                 ),
                 enableSorting: false,
-                size: 200,
+                size: 150,
             },
             {
                 id: 'itemName',

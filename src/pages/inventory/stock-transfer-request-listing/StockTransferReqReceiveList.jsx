@@ -684,12 +684,13 @@ const StockTransferReqReceiveList = () => {
         cell: ({ row }) => (
           <CodeCell
             code={row.original.transferCode}
-            maxWidth="max-w-[120px]"
+            maxWidth="max-w-full"
             onClick={() => navigate(`/inventory/stock-transfer-detail/${row.original.id}`)}
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
           />
         ),
         enableSorting: false,
-        size: 125,
+        size: 200,
       },
       {
         id: 'dateAndTime',
