@@ -24,6 +24,8 @@ import { toast } from 'sonner';
 import { getAllActiveVendors, getEligibleGrnDetails, getEligibleGrns } from '../../services/apiServices';
 import { useNavigate } from 'react-router';
 import { useOrgScope } from '../../hooks/useOrgScope';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const STATUS_TEXT_COLORS = {
     OPEN: 'text-emerald-600',
@@ -40,6 +42,7 @@ const STATUS_TEXT_COLORS = {
 const StatusBadge = ({ status }) => {
     const display = status || 'Closed';
     const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
+
     return (
         <span className={`font-semibold text-xs whitespace-nowrap capitalize ${color}`}>
             {display.toLowerCase()}
@@ -88,6 +91,7 @@ const PAGE_SIZE = 10;
 
 const PurchaseInvoice = () => {
     const navigate = useNavigate();
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Generate Purchase Invoice');
 
     /* ---------------- Vendor dropdown ---------------- */
     const [vendors, setVendors] = useState([]);
@@ -433,7 +437,8 @@ const PurchaseInvoice = () => {
                 ),
                 cell: ({ row }) => {
                     const checked = selectedGrnIds.includes(row.original.id);
-                    return (
+                
+    return (
                         <button
                             type="button"
                             onClick={() => toggleRow(row.original.id)}
@@ -551,11 +556,16 @@ const PurchaseInvoice = () => {
     const outletOptions = units.map((o) => ({ value: String(o.id), label: o.name }));
     const vendorOptions = vendors.map((v) => ({ value: String(v.id), label: v.fullName }));
 
+    if (!canView) {
+        return <AccessDenied pageTitle="Generate Purchase Invoice" />;
+    }
+
+
     return (
         <Container>
             <div className="mx-auto pt-2 pb-6 space-y-4">
                 <PageHeader
-                    title="Purchase Invoice"
+                    title="Generate Purchase Invoice"
                 />
 
                 {scopeError && (

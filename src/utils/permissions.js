@@ -20,6 +20,45 @@ export const normalizePageName = (name) => {
 };
 
 /**
+ * Known page aliases mapping to handle name variations between backend userRights
+ * and frontend menu/page names.
+ */
+export const PAGE_ALIASES = {
+  // Stock Transfer
+  'stock transfer request received': ['str received', 'stock transfer request received', 'stock transfer receive', 'str receive', 'transfer receive requests'],
+  'str received': ['str received', 'stock transfer request received', 'stock transfer receive', 'str receive', 'transfer receive requests'],
+  'stock transfer request': ['stock transfer request', 'stock transfer', 'str request', 'str'],
+  'stock transfer': ['stock transfer request', 'stock transfer', 'str request', 'str'],
+
+  // Purchase Order Requests => Generate Purchase Order
+  'generate purchase order': ['generate purchase order', 'purchase order requests', 'purchase order request', 'purchase order', 'purchase orders', 'po requests'],
+  'purchase order requests': ['generate purchase order', 'purchase order requests', 'purchase order request', 'purchase order', 'purchase orders', 'po requests'],
+  'purchase order request': ['generate purchase order', 'purchase order requests', 'purchase order request', 'purchase order', 'purchase orders', 'po requests'],
+  'purchase order': ['generate purchase order', 'purchase order requests', 'purchase order request', 'purchase order', 'purchase orders', 'po requests'],
+
+  // Purchase Invoice => Purchase Invoice List
+  'purchase invoice list': ['purchase invoice list', 'purchase invoice listing', 'purchase invoice', 'purchase invoices', 'invoice listing', 'invoice list'],
+  'purchase invoice listing': ['purchase invoice list', 'purchase invoice listing', 'purchase invoice', 'purchase invoices', 'invoice listing', 'invoice list'],
+  'purchase invoice': ['purchase invoice list', 'purchase invoice listing', 'purchase invoice', 'purchase invoices', 'invoice listing', 'invoice list'],
+  'purchase invoices': ['purchase invoice list', 'purchase invoice listing', 'purchase invoice', 'purchase invoices', 'invoice listing', 'invoice list'],
+  'generate purchase invoice': ['generate purchase invoice', 'generate purchase invoices', 'purchase invoice', 'purchase invoice list'],
+
+  // GRN => GRN List
+  'generate grn': ['generate grn', 'generate goods received note', 'create grn'],
+  'grn list': ['grn list', 'grn listing', 'grn', 'goods received note', 'goods received notes'],
+  'grn listing': ['grn list', 'grn listing', 'grn', 'goods received note', 'goods received notes'],
+  'grn': ['grn list', 'grn listing', 'grn', 'goods received note', 'goods received notes'],
+
+  // Other Inventory & Material aliases
+  'return and replacement': ['return and replacement', 'return replacement', 'return & replacement'],
+  'opening balance stock': ['opening balance stock', 'opb stock', 'opb stock create request'],
+  'manual stock adjustment': ['manual stock adjustment', 'manual adjustment', 'manual adjustment screen'],
+  'manual adjustment': ['manual stock adjustment', 'manual adjustment', 'manual adjustment screen'],
+  'sub locations': ['sub locations', 'sub location', 'sub-locations', 'sub-location', 'sub location master', 'sublocation', 'sublocations'],
+  'sub location': ['sub locations', 'sub location', 'sub-locations', 'sub-location', 'sub location master', 'sublocation', 'sublocations'],
+};
+
+/**
  * Helper to safely retrieve user/auth payload containing userRights from any storage key.
  */
 export const getStoredAuthOrUser = () => {
@@ -139,28 +178,25 @@ export const getUserPermissions = (userOrAuth) => {
 
           rightsMap[rawKey] = rightObj;
           rightsMap[lowerKey] = rightObj;
+
+          // Also populate known aliases into rightsMap so lookups by alias succeed immediately
+          const aliases = PAGE_ALIASES[lowerKey];
+          if (Array.isArray(aliases)) {
+            aliases.forEach((alias) => {
+              const aliasLower = String(alias).trim().toLowerCase();
+              if (!rightsMap[aliasLower]) {
+                rightsMap[aliasLower] = rightObj;
+              }
+            });
+          }
         }
       });
     });
   }
 
-const PAGE_ALIASES = {
-  'stock transfer request received': ['str received', 'stock transfer request received', 'stock transfer receive', 'str receive', 'transfer receive requests'],
-  'str received': ['str received', 'stock transfer request received', 'stock transfer receive', 'str receive', 'transfer receive requests'],
-  'stock transfer request': ['stock transfer request', 'stock transfer', 'str request', 'str'],
-  'stock transfer': ['stock transfer request', 'stock transfer', 'str request', 'str'],
-  'generate grn': ['generate grn', 'generate goods received note'],
-  'grn': ['grn', 'grn listing', 'goods received note'],
-  'return and replacement': ['return and replacement', 'return replacement', 'return & replacement'],
-  'opening balance stock': ['opening balance stock', 'opb stock', 'opb stock create request'],
-  'manual stock adjustment': ['manual stock adjustment', 'manual adjustment', 'manual adjustment screen'],
-  'sub locations': ['sub locations', 'sub location', 'sub-locations', 'sub-location', 'sub location master', 'sublocation', 'sublocations'],
-  'sub location': ['sub locations', 'sub location', 'sub-locations', 'sub-location', 'sub location master', 'sublocation', 'sublocations'],
-};
-
   const getPageRights = (pageName) => {
     if (!pageName) {
-      return { view: false, add: false, edit: false, delete: false, export:false, hasAccess: false };
+      return { view: false, add: false, edit: false, delete: false, export: false, hasAccess: false };
     }
 
     const rawList = Array.isArray(pageName) ? pageName : [pageName];
@@ -210,17 +246,16 @@ const PAGE_ALIASES = {
     });
 
     if (isEventRelated) {
-      return { view: true, add: true, edit: true, delete: true, export:true, hasAccess: true };
+      return { view: true, add: true, edit: true, delete: true, export: true, hasAccess: true };
     }
 
     // If no explicit rights and user is Admin, grant full access
     if (isAdmin) {
-      return { view: true, add: true, edit: true, delete: true, export:true, hasAccess: true };
+      return { view: true, add: true, edit: true, delete: true, export: true, hasAccess: true };
     }
 
-    return { view: false, add: false, edit: false, delete: false, export:false, hasAccess: false };
+    return { view: false, add: false, edit: false, delete: false, export: false, hasAccess: false };
   };
-
 
   const hasPermission = (pageName, action = 'view') => {
     const rights = getPageRights(pageName);

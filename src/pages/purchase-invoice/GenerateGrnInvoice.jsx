@@ -16,6 +16,8 @@ import {
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '../../utils/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 
@@ -24,6 +26,10 @@ const GenerateGrnInvoice = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+  const { canAdd, canEdit, canView } = usePagePermissions([
+    'Purchase Invoice List',
+    'Generate Purchase Invoice',
+  ]);
 
   const selectedGrns = location.state?.selectedGrns || (() => {
     try {
@@ -667,6 +673,10 @@ const GenerateGrnInvoice = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (!canView) {
+    return <AccessDenied pageTitle={isEditMode ? "Purchase Invoice List" : "Generate Purchase Invoice"} />;
+  }
 
   if (invoiceLoading) {
     return (

@@ -1,16 +1,14 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import  { useCallback, useEffect, useMemo, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify } from '@/utils/toast';
 import { SearchBar } from '@/components/common/SearchBar';
 import {
-  Boxes,
   ChevronLeft,
   ChevronRight,
   Download,
   Eye,
-  History,
   SquarePen,
   Trash2,
 } from 'lucide-react';
@@ -19,8 +17,7 @@ import {
   deleteRoleMasterById,
   getAllRoleMasterByUserId,
   updateRoleMaster,
-} from '@/services/apiServices';
-import { Input } from '@/components/ui/input';
+} from '@/services/apiServices';;
 import { Container } from '@/components/common/container';
 import AddRoleModal from './AddRoleModal';
 import RoleDetailsModal from './RoleDetailsModal';

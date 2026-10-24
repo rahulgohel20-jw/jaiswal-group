@@ -480,12 +480,12 @@ export const MENU_SIDEBAR = [
         path: '/approve-purchase-requisition/list',
       },
       {
-        title: 'Purchase Order Requests',
+        title: 'Generate Purchase Order',
         path: '/purchase-order-request/purchase',
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
       { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
-      { title: 'Purchase Invoice', path: '/purchase/invoice-listing'},
+      { title: 'Purchase Invoice List', path: '/purchase/invoice-listing'},
     ],
   },
   {
@@ -493,7 +493,7 @@ export const MENU_SIDEBAR = [
     icon: Archive,
     children: [
       { title: 'Generate GRN', path: '/inventory/generate-grn' },
-      { title: 'GRN', path: '/inventory/grn-listing' },
+      { title: 'GRN List', path: '/inventory/grn-listing' },
       { title: 'Return and Replacement', path: '/inventory/return-replacement' },
       { title: 'Stock Transfer Request', path: '/inventory/stock-transfer' },
       { title: 'STR Approval', path: '/inventory/str-approval' },
@@ -617,12 +617,12 @@ export const MENU_SIDEBAR_ADMIN = [
         path: '/approve-purchase-requisition/list',
       },
       {
-        title: 'Purchase Order Requests',
+        title: 'Generate Purchase Order',
         path: '/purchase-order-request/purchase',
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
       { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
-      { title: 'Purchase Invoice', path: '/purchase/invoice-listing'},
+      { title: 'Purchase Invoice List', path: '/purchase/invoice-listing'},
     ],
   },
   {
@@ -630,7 +630,7 @@ export const MENU_SIDEBAR_ADMIN = [
     icon: Archive,
     children: [
       { title: 'Generate GRN', path: '/inventory/generate-grn' },
-      { title: 'GRN', path: '/inventory/grn-listing' },
+      { title: 'GRN List', path: '/inventory/grn-listing' },
       { title: 'Return and Replacement', path: '/inventory/return-replacement' },
       { title: 'Stock Transfer Request', path: '/inventory/stock-transfer' },
       { title: 'STR Approval', path: '/inventory/str-approval' },

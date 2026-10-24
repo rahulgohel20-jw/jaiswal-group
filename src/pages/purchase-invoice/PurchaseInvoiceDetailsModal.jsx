@@ -24,6 +24,8 @@ import { Container } from '@/components/common/container';
 import { useExportReport } from '@/hooks/useExportReport';
 import { numberToWords } from '../purchase-order-requests/utils/taxUtils';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 const formatDisplayDate = (iso) => {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -102,6 +104,11 @@ const PurchaseInvoiceDetailsModal = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { id } = useParams();
+    const { canView } = usePagePermissions([
+        'Purchase Invoice List',
+        'Generate Purchase Invoice',
+        'Purchase Invoice',
+    ]);
 
     const vendorName = location.state?.vendorName;
     const organizationName = location.state?.organizationName;
@@ -432,6 +439,10 @@ const PurchaseInvoiceDetailsModal = () => {
                 </div>
             </div>
         );
+    }
+
+    if (!canView) {
+        return <AccessDenied pageTitle="Purchase Invoice List" />;
     }
 
     if (!invoice) {

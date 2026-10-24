@@ -203,7 +203,7 @@ const sortByDateDesc = (a, b) => {
 
 const PurchaseOrderRequest = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Purchase Order Requests');
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Generate Purchase Order');
 
   const {
     loading: scopeLoading,
@@ -648,14 +648,14 @@ const PurchaseOrderRequest = () => {
   const error = prError || poError;
 
   if (!canView) {
-    return <AccessDenied pageTitle="Purchase Order Requests" />;
+    return <AccessDenied pageTitle="Generate Purchase Order" />;
   }
 
   return (
     <Container>
       <div className="mx-auto pt-2 pb-6 space-y-3.5">
         <PageHeader
-          title="Purchase Order Requests"
+          title="Generate Purchase Order"
           actions={
             canAdd && (
               <HeaderActionButton to="/purchase/create-purchase-order-requests">

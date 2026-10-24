@@ -144,7 +144,7 @@ const formatDateShort = (val) => {
 const PAGE_SIZE = 10;
 
 const GRNListing = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('GRN');
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('GRN List');
   const { canAdd: canGenerateGrn } = usePagePermissions('Generate GRN');
 
   const {
@@ -659,14 +659,14 @@ const GRNListing = () => {
   });
 
   if (!canView) {
-    return <AccessDenied pageTitle="GRN" />;
+    return <AccessDenied pageTitle="GRN List" />;
   }
 
   return (
     <Container>
       <div className="pt-2 pb-6 space-y-3.5">
         <PageHeader
-          title="GRN Listing"
+          title="GRN List"
           description="View and track all Goods Received Notes across outlets."
           actions={
             (canGenerateGrn || canAdd) && (

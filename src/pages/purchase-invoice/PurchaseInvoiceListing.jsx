@@ -16,6 +16,8 @@ import { OrgTypes } from '../../constants/orgTypes';
 import { getOrganizationByType, getAllActiveVendors, getPurchaseInvoices } from '@/services/apiServices';
 import { toast } from 'sonner';
 import { useOrgScope } from '../../hooks/useOrgScope';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const STATUS_OPTIONS = ['All Status', 'Approved', 'Draft'];
 const STATUS_VALUE_MAP = { Draft: 'DRAFT', Approved: 'APPROVED' };
@@ -27,7 +29,8 @@ const PAGE_SIZE = 10;
 
 const StatusBadge = ({ status }) => {
     const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
-    return (
+
+  return (
         <span className={`font-semibold text-xs whitespace-nowrap ${color}`}>
             {status || '—'}
         </span>
@@ -55,6 +58,7 @@ const formatDisplayDate = (date) => {
 
 const PurchaseInvoiceListing = () => {
     const navigate = useNavigate();
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Purchase Invoice List');
 
     const [vendors, setVendors] = useState([]);
     const [vendorLoading, setVendorLoading] = useState(false);
@@ -324,7 +328,8 @@ const PurchaseInvoiceListing = () => {
             cell: ({ row }) => {
                 const invoice = row.original;
 
-                return (
+            
+  return (
                     <div className="flex items-center gap-2">
                         <button type="button" onClick={() => handleView(invoice)} className="flex items-center gap-1.5 px-3 py-1.5 cursor-pointer rounded-lg border border-[#E7EAF0] bg-white text-xs font-semibold text-[#101828] hover:bg-gray-50 transition">
                             <Eye size={13} />
@@ -354,11 +359,15 @@ const PurchaseInvoiceListing = () => {
         pageCount: pageInfo.totalPages || 0,
     });
 
+    if (!canView) {
+        return <AccessDenied pageTitle="Purchase Invoice List" />;
+    }
+
   return (
     <Container>
       <div className="pt-2 pb-6 mx-auto space-y-4">
         <PageHeader
-          title="Purchase Invoice Listing"
+          title="Purchase Invoice List"
           actions={
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-[#084E92] text-sm font-semibold">

@@ -369,6 +369,7 @@ const GenerateGRNDetail = () => {
           returnQty: initialReturn,
           returnReplacementStatus: lineStatus,
           approvedQty: initialApproved,
+          totalReceivedQty: initialApproved + initialReturn,
           isPoDetailClosed: false,
           remarks: d.remarks || '',
           isReplacementItem: !isCompleted && (isDirectTarget || Boolean(prevDetail && prevStatus === 'RETURN_REPLACEMENT_REQUESTED')),
@@ -429,7 +430,6 @@ const GenerateGRNDetail = () => {
     return po?.vendorName || 'Vendor Address';
   }, [po]);
 
-
   const poCodesList = useMemo(() => {
     if (!po) return [];
     return (po.poCodes || po.poCode || `PO-${po.id}`)
@@ -468,6 +468,7 @@ const GenerateGRNDetail = () => {
           return {
             ...item,
             approvedQty: numericVal,
+            totalReceivedQty: Math.round(((numericVal === '' ? 0 : Number(numericVal)) + (item.returnQty === '' ? 0 : Number(item.returnQty))) * 10000) / 10000,
           };
         }
         return item;
@@ -488,6 +489,7 @@ const GenerateGRNDetail = () => {
           return {
             ...item,
             returnQty: numericVal,
+            totalReceivedQty: Math.round(((item.approvedQty === '' ? 0 : Number(item.approvedQty)) + (numericVal === '' ? 0 : Number(numericVal))) * 10000) / 10000,
             returnReplacementStatus: retVal > 0 ? (item.returnReplacementStatus || 'RETURN') : (item.returnReplacementStatus || 'RETURN'),
           };
         }
@@ -556,6 +558,7 @@ const GenerateGRNDetail = () => {
       recQty: 0,
       approvedQty: 0,
       returnQty: 0,
+      totalReceivedQty: 0,
       returnReplacementStatus: 'RETURN_REQUESTED',
       isPoDetailClosed: false,
       remarks: '',
@@ -1050,28 +1053,31 @@ const GenerateGRNDetail = () => {
           <div className="w-full min-w-0 max-w-full rounded-xl border border-gray-200 bg-white shadow-2xs overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="bg-[#F8FAFC] border-b border-gray-200 text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
-                  <th className="text-center px-1 py-1.5 w-6">#</th>
+                <tr className="bg-[#F8FAFC] border-b border-gray-200 text-[10px] font-bold uppercase tracking-wider text-[#64748B] whitespace-nowrap">
+                  <th className="text-center px-1 py-1.5 w-6 whitespace-nowrap">#</th>
                   {po?.poIds && po.poIds.length > 1 && (
                     <th className="text-left px-1.5 py-1.5 w-20 whitespace-nowrap">PO Code</th>
                   )}
-                  <th className="text-left px-2 py-1.5 min-w-[100px]">Item Description</th>
-                  <th className="text-center px-1 py-1.5 w-10">Unit</th>
-                  <th className="text-right px-1 py-1.5 w-10">Ordered</th>
-                  <th className="text-right px-1 py-1.5 w-10" title="Quantity already received in previous GRNs (read-only)">
+                  <th className="text-left px-2 py-1.5 w-full min-w-[140px] whitespace-nowrap">Item Description</th>
+                  <th className="text-center px-1 py-1.5 w-10 whitespace-nowrap">Unit</th>
+                  <th className="text-right px-1 py-1.5 w-14 whitespace-nowrap">Ordered</th>
+                  <th className="text-right px-1 py-1.5 w-14 whitespace-nowrap" title="Quantity already received in previous GRNs (read-only)">
                     Received
                   </th>
-                  <th className="text-right px-1 py-1.5 w-12">
-                    Approved <span className="text-red-500">*</span>
+                  <th className="text-center px-1.5 py-1.5 w-[105px] min-w-[105px] max-w-[105px] whitespace-nowrap" title="Total received quantity for this GRN line (Approved + Return)">
+                    Total Received
                   </th>
-                  <th className="text-left px-1.5 py-1.5 w-20" title="Leave blank to auto-generate batch number from backend">
+                  <th className="text-right px-1.5 py-1.5 w-16 min-w-[65px] whitespace-nowrap">
+                    Approved <span className="text-red-500 inline-block ml-0.5">*</span>
+                  </th>
+                  <th className="text-left px-1.5 py-1.5 w-20 whitespace-nowrap" title="Leave blank to auto-generate batch number from backend">
                     Batch No
                   </th>
-                  <th className="text-left px-1.5 py-1.5 w-24" title="Best before / Use by date (Mandatory)">
-                    Best Before <span className="text-red-500">*</span>
+                  <th className="text-left px-1.5 py-1.5 w-28 min-w-[115px] whitespace-nowrap" title="Best before / Use by date (Mandatory)">
+                    Best Before <span className="text-red-500 inline-block ml-0.5">*</span>
                   </th>
-                  <th className="text-right px-1 py-1.5 w-10">Return</th>
-                  <th className="text-left px-1 py-1.5 w-24">Return Status</th>
+                  <th className="text-right px-1 py-1.5 w-12 whitespace-nowrap">Return</th>
+                  <th className="text-left px-1 py-1.5 w-24 whitespace-nowrap">Return Status</th>
                   <th className="text-center px-1 py-1.5 w-14" title="Close PO if items are completed / short received">
                     <div className="flex items-center justify-center gap-1">
                       <span className="whitespace-nowrap">Close PO</span>
@@ -1099,7 +1105,7 @@ const GenerateGRNDetail = () => {
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={(po?.poIds && po.poIds.length > 1 ? 1 : 0) + 11} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={(po?.poIds && po.poIds.length > 1 ? 1 : 0) + 12} className="px-4 py-8 text-center text-gray-400">
                       No items found on this order.
                     </td>
                   </tr>
@@ -1116,10 +1122,10 @@ const GenerateGRNDetail = () => {
                           </span>
                         </td>
                       )}
-                      <td className="px-2 py-1">
+                      <td className="px-2 py-1 w-full min-w-[140px]">
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1 min-w-0">
-                            <span className="font-semibold text-[#084E92] text-xs truncate max-w-[120px]" title={item.itemName}>
+                            <span className="font-semibold text-[#084E92] text-xs truncate max-w-[200px] sm:max-w-[300px]" title={item.itemName}>
                               {item.itemName}
                             </span>
                             {item.isReplacementItem ? (
@@ -1186,25 +1192,35 @@ const GenerateGRNDetail = () => {
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-1 py-1 text-center">
+                      <td className="px-1 py-1 text-center w-10">
                         <span className="inline-block text-[10px] font-semibold text-gray-700 bg-gray-100 px-1 py-0.5 rounded whitespace-nowrap">
                           {item.uomName}
                         </span>
                       </td>
                       {/* Ordered Qty (Read-Only) */}
-                      <td className="px-1 py-1 text-right">
+                      <td className="px-1 py-1 text-right w-14 whitespace-nowrap">
                         <span className="inline-flex items-center justify-center min-w-[24px] h-5.5 px-1 rounded bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800">
                           {item.orderedQty}
                         </span>
                       </td>
                       {/* Received Qty (Read-Only: from past GRNs) */}
-                      <td className="px-1 py-1 text-right">
+                      <td className="px-1 py-1 text-right w-14 whitespace-nowrap">
                         <span className="inline-flex items-center justify-center min-w-[24px] h-5.5 px-1 rounded bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600">
                           {item.receivedQuantity}
                         </span>
                       </td>
+                      {/* Total Received Qty (Read-Only / Calculated: Approved + Return) */}
+                      <td className="px-1.5 py-1 text-center w-[105px] min-w-[105px] max-w-[105px] whitespace-nowrap">
+                        {item.isCompleted ? (
+                          <span className="text-gray-400 text-xs font-medium">—</span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center min-w-[24px] h-5.5 px-1.5 rounded bg-blue-50/60 border border-blue-200 text-xs font-bold text-[#084E92]">
+                            {item.totalReceivedQty ?? Math.round(((Number(item.approvedQty) || 0) + (Number(item.returnQty) || 0)) * 10000) / 10000}
+                          </span>
+                        )}
+                      </td>
                       {/* Approved Qty (Editable / Completed) */}
-                      <td className="px-1 py-1 text-right">
+                      <td className="px-1.5 py-1 text-right w-16 min-w-[65px] whitespace-nowrap">
                         {item.isCompleted ? (
                           <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded whitespace-nowrap">
                             <CheckCircle2 size={9} />
@@ -1221,7 +1237,7 @@ const GenerateGRNDetail = () => {
                         )}
                       </td>
                       {/* Batch No (Editable / Auto) */}
-                      <td className="px-1.5 py-1 text-left">
+                      <td className="px-1.5 py-1 text-left w-20 whitespace-nowrap">
                         {item.isCompleted ? (
                           <span className="text-gray-400 text-xs font-medium">—</span>
                         ) : (
@@ -1236,7 +1252,7 @@ const GenerateGRNDetail = () => {
                         )}
                       </td>
                       {/* Best Before Date (Editable) */}
-                      <td className="px-1.5 py-1 text-left">
+                      <td className="px-1.5 py-1 text-left w-28 min-w-[115px] whitespace-nowrap">
                         {item.isCompleted ? (
                           <span className="text-gray-400 text-xs font-medium">—</span>
                         ) : (
@@ -1251,7 +1267,7 @@ const GenerateGRNDetail = () => {
                         )}
                       </td>
                       {/* Return Qty (Editable / Completed) */}
-                      <td className="px-1 py-1 text-right">
+                      <td className="px-1 py-1 text-right w-12 whitespace-nowrap">
                         {item.isCompleted ? (
                           <span className="text-gray-400 text-xs font-medium">—</span>
                         ) : (
@@ -1285,7 +1301,7 @@ const GenerateGRNDetail = () => {
                         )}
                       </td>
                       {/* Close PO Checkbox */}
-                      <td className="px-1 py-1 text-center whitespace-nowrap">
+                      <td className="px-1 py-1 text-center w-14 whitespace-nowrap">
                         {item.isCompleted ? (
                           <span className="text-gray-400 text-xs font-medium">—</span>
                         ) : (
@@ -1348,4 +1364,3 @@ const GenerateGRNDetail = () => {
 };
 
 export default GenerateGRNDetail;
-

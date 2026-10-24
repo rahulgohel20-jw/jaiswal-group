@@ -101,10 +101,10 @@ const PurchaseOrderDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { canView } = usePagePermissions([
-    'Purchase Order Requests',
+    'Generate Purchase Order',
     'Approve Purchase Order',
     'Generate GRN',
-    'GRN',
+    'GRN List',
   ]);
   const { current: po, loading, error, fetchById } = usePurchaseOrders();
   const [logOpen, setLogOpen] = useState(false);
