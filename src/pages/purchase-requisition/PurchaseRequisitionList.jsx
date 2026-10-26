@@ -457,6 +457,8 @@ import {
           cell: ({ row }) => {
             const original = row.original;
             const isRejected = original.rawStatus === PR_STATUS.REJECTED || String(original.rawStatus).toUpperCase() === 'REJECTED';
+            const isApproved = original.rawStatus === PR_STATUS.APPROVED || String(original.rawStatus).toUpperCase() === 'APPROVED';
+            const canCopy = isRejected || isApproved;
             return (
               <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
@@ -487,7 +489,7 @@ import {
                     <Trash2 size={16} />
                   </button>
                 )}
-                {canAdd && isRejected && (
+                {canAdd && canCopy && (
                   <button
                     type="button"
                     onClick={() => handleCopyPr(original)}

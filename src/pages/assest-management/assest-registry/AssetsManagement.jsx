@@ -8,7 +8,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { Link, useNavigate } from 'react-router';
 import AssetPreviewDetail from './AssetPreviewDetail';
-import { getAllAssets, deleteAsset } from '@/services/apiServices';
+import { getAllActiveAssetsPaginated, deleteAsset, getAssetCategories, getStatuses } from '@/services/apiServices';
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
@@ -101,15 +101,19 @@ const ConditionBadge = ({ condition }) => {
 const AssetsManagement = () => {
     const navigate = useNavigate();
     const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Assets');
-
     const [assets, setAssets] = useState([]);
     const [assetsLoading, setAssetsLoading] = useState(true);
     const [assetsError, setAssetsError] = useState(null);
+
+    // Track total server count and total pages returned by the API
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [pageCount, setPageCount] = useState(0);
 
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
     const [showDetails, setShowDetails] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [searchInput, setSearchInput] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [categoryInput, setCategoryInput] = useState("All Category");
     const [statusInput, setStatusInput] = useState("All Status");
 
@@ -118,13 +122,54 @@ const AssetsManagement = () => {
     const [deleteSaving, setDeleteSaving] = useState(false);
     const [sorting, setSorting] = useState([]);
     const [showExportModal, setShowExportModal] = useState(false);
+
+    const [categoryOptions, setCategoryOptions] = useState([]);
+    const [statusOptions, setStatusOptions] = useState([]);
+
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                const [catRes, statRes] = await Promise.all([getAssetCategories(), getStatuses()]);
+                setCategoryOptions(unwrapList(catRes));
+                setStatusOptions(unwrapList(statRes));
+            } catch (err) {
+                console.error("Failed to fetch filter options:", err);
+            }
+        };
+        fetchOptions();
+    }, []);
+
+    // Debounce search to prevent triggering API calls on every keystroke
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchInput);
+            setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+        }, 400);
+        return () => clearTimeout(handler);
+    }, [searchInput]);
+
     const fetchAssets = async () => {
         setAssetsLoading(true);
         setAssetsError(null);
         try {
-            const res = await getAllAssets();
+            // Passes pageIndex, pageSize, search, category, and status to the paginated endpoint
+            const res = await getAllActiveAssetsPaginated(
+                pagination.pageIndex,
+                pagination.pageSize,
+                {
+                    search: debouncedSearch.trim(),
+                    category: categoryInput,
+                    status: statusInput,
+                }
+            );
 
-            setAssets(unwrapList(res).map(normalizeAsset));
+            // Response shape: { msg: "...", data: { pageNumber, totalPages, pageSize, content: [...] } }
+            const pageData = res?.data?.data ?? res?.data ?? {};
+            const list = Array.isArray(pageData?.content) ? pageData.content : [];
+
+            setAssets(list.map(normalizeAsset));
+            setPageCount(pageData.totalPages ?? 0);
+            setTotalRecords(pageData.totalElements ?? (pageData.totalPages ?? 0) * pagination.pageSize);
         } catch (err) {
             console.error("Failed to fetch assets:", err);
             setAssetsError("Could not load assets. Please try again.");
@@ -141,7 +186,7 @@ const AssetsManagement = () => {
         if (deleteSaving) return;
         setShowDeleteConfirm(false);
         setDeleteTarget(null);
-    };    
+    };
 
     const confirmDelete = async () => {
         if (!deleteTarget) return;
@@ -155,11 +200,11 @@ const AssetsManagement = () => {
         } finally {
             setDeleteSaving(false);
         }
-    }; 
+    };
 
     useEffect(() => {
         fetchAssets();
-    }, []);
+    }, [pagination.pageIndex, pagination.pageSize, debouncedSearch, categoryInput, statusInput]);
 
     const stats = useMemo(() => {
         const total = assets.length;
@@ -201,7 +246,7 @@ const AssetsManagement = () => {
     const statsCards = useMemo(() => [
         {
             title: "Total Assets",
-            value: stats.total.toLocaleString(),
+            value: totalRecords.toLocaleString(),
             icon: <Package size={18} />,
             iconBg: "bg-[#D5E3FF]",
             iconColor: "text-[#00376C]",
@@ -239,7 +284,7 @@ const AssetsManagement = () => {
             iconColor: "text-[#BA1A1A]",
             color: "text-[#BA1A1A]",
         },
-    ], [stats]);
+    ], [stats, totalRecords]);
 
     const formatTotalValue = (value) => {
         if (value >= 10000000) {
@@ -253,37 +298,6 @@ const AssetsManagement = () => {
         return `₹ ${value.toLocaleString('en-IN')}`;
     };
 
-    // Filter dropdown options derived from live data instead of a hardcoded list
-    const categoryOptions = useMemo(
-        () => ["All Category", ...new Set(assets.map((a) => a.category).filter(Boolean))],
-        [assets]
-    );
-    const statusOptions = useMemo(
-        () => ["All Status", ...new Set(assets.map((a) => a.status).filter(Boolean))],
-        [assets]
-    );
-
-    const filteredAssets = useMemo(() => {
-        const keyword = searchInput.toLowerCase();
-
-        return assets.filter((item) => {
-            const searchMatch =
-                item.assetId?.toLowerCase().includes(keyword) ||
-                item.itemName?.toLowerCase().includes(keyword) ||
-                item.category?.toLowerCase().includes(keyword);
-
-            const categoryMatch =
-                categoryInput === "All Category" ||
-                item.category === categoryInput;
-
-            const statusMatch =
-                statusInput === "All Status" ||
-                item.status === statusInput;
-
-            return searchMatch && categoryMatch && statusMatch;
-        });
-    }, [assets, searchInput, categoryInput, statusInput]);
-
     const columns = useMemo(() => [
         {
             id: "sno",
@@ -291,7 +305,7 @@ const AssetsManagement = () => {
                 <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2 text-xs">{String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
             size: 36,
@@ -428,11 +442,13 @@ const AssetsManagement = () => {
             enableSorting: false,
             size: 85,
         },
-    ], [canEdit, canDelete]);
+    ], [canEdit, canDelete, pagination.pageIndex, pagination.pageSize]);
 
     const table = useReactTable({
-        data: filteredAssets,
+        data: assets,
         columns,
+        pageCount,
+        manualPagination: true,
         state: { pagination, sorting },
         onPaginationChange: setPagination,
         getSortedRowModel: getSortedRowModel(),
@@ -440,9 +456,6 @@ const AssetsManagement = () => {
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
-    useEffect(() => {
-        table.setPageIndex(0);
-    }, [searchInput, categoryInput, statusInput, table]);
 
     if (!canView) {
         return <AccessDenied pageTitle="Assets" />;
@@ -515,21 +528,25 @@ const AssetsManagement = () => {
                             <div>
                                 <Select
                                     value={categoryInput}
-                                    onValueChange={(value) => setCategoryInput(value)}
+                                    onValueChange={(value) => {
+                                        setCategoryInput(value);
+                                        setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                    }}
                                 >
                                     <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                         <SelectValue placeholder="All Category" />
                                     </SelectTrigger>
 
                                     <SelectContent>
-                                        {categoryOptions.map((category) => (
-                                            <SelectItem
-                                                key={category}
-                                                value={category}
-                                            >
-                                                {category}
-                                            </SelectItem>
-                                        ))}
+                                        <SelectItem value="All Category">All Category</SelectItem>
+                                        {categoryOptions.map((cat) => {
+                                            const name = cat.categoryName ?? cat.name;
+                                            return (
+                                                <SelectItem key={cat.id ?? name} value={name}>
+                                                    {name}
+                                                </SelectItem>
+                                            );
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -538,21 +555,25 @@ const AssetsManagement = () => {
                             <div>
                                 <Select
                                     value={statusInput}
-                                    onValueChange={(value) => setStatusInput(value)}
+                                    onValueChange={(value) => {
+                                        setStatusInput(value);
+                                        setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                    }}
                                 >
                                     <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                         <SelectValue placeholder="All Status" />
                                     </SelectTrigger>
 
                                     <SelectContent>
-                                        {statusOptions.map((status) => (
-                                            <SelectItem
-                                                key={status}
-                                                value={status}
-                                            >
-                                                {status}
-                                            </SelectItem>
-                                        ))}
+                                        <SelectItem value="All Status">All Status</SelectItem>
+                                        {statusOptions.map((stat) => {
+                                            const name = stat.statusName ?? stat.name;
+                                            return (
+                                                <SelectItem key={stat.id ?? name} value={name}>
+                                                    {name}
+                                                </SelectItem>
+                                            );
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -579,7 +600,7 @@ const AssetsManagement = () => {
                 ) : (
                     <DataGrid
                         table={table}
-                        recordCount={filteredAssets.length}
+                        recordCount={totalRecords}
                         className="rounded-2xl"
                         tableLayout={{
                             dense: true,
