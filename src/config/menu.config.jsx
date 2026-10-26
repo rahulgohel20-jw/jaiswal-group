@@ -485,7 +485,7 @@ export const MENU_SIDEBAR = [
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
       { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
-      { title: 'Purchase Invoice List', path: '/purchase/invoice-listing'},
+      { title: 'Purchase Invoice Report', path: '/purchase/invoice-listing'},
     ],
   },
   {
@@ -622,7 +622,7 @@ export const MENU_SIDEBAR_ADMIN = [
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
       { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
-      { title: 'Purchase Invoice List', path: '/purchase/invoice-listing'},
+      { title: 'Purchase Invoice Report', path: '/purchase/invoice-listing'},
     ],
   },
   {

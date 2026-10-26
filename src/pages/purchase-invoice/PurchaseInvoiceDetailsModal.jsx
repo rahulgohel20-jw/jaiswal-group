@@ -384,6 +384,9 @@ const PurchaseInvoiceDetailsModal = () => {
             netAmount,
         };
     }, [invoice, isInterState]);
+    const hasCess = useMemo(() => {
+        return totals.cess > 0 || calculations.some((item) => Number(item.cessRate || 0) > 0);
+    }, [totals.cess, calculations]);
 
     const taxBreakdown = useMemo(() => {
         const grouped = {};
@@ -799,7 +802,9 @@ const PurchaseInvoiceDetailsModal = () => {
                                             <th className="w-20 px-2 py-3 text-center font-semibold">Qty</th>
                                             <th className="w-24 px-2 py-3 text-right font-semibold">Rate (₹)</th>
                                             <th className="w-20 px-2 py-3 text-center font-semibold">GST (%)</th>
-                                            <th className="w-20 px-2 py-3 text-center font-semibold">CESS (%)</th>
+                                            {hasCess && (
+                                                <th className="w-20 px-2 py-3 text-center font-semibold">CESS (%)</th>
+                                            )}
                                             <th className="w-28 px-2 py-3 text-right font-semibold">Amount</th>
                                             <th className="w-28 px-2 py-3 text-right font-semibold">Taxable</th>
                                             <th className="w-24 px-2 py-3 text-right font-semibold">Tax</th>
@@ -811,7 +816,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                     <tbody>
                                         {!items.length ? (
                                             <tr>
-                                                <td colSpan={11} className="px-5 py-14 text-center text-gray-400">
+                                                <td colSpan={hasCess ? 11 : 10} className="px-5 py-14 text-center text-gray-400">
                                                     <div className="flex flex-col items-center gap-2">
                                                         <Package className="h-6 w-6 text-gray-300" />
                                                         No items on this purchase invoice.
@@ -878,9 +883,11 @@ const PurchaseInvoiceDetailsModal = () => {
                                                             {Number(item.gstRate || 0).toFixed(2)}%
                                                         </td>
 
-                                                        <td className="w-20 px-2 py-3 text-center align-top font-mono text-xs text-gray-600">
-                                                            {Number(item.cessRate || 0).toFixed(2)}%
-                                                        </td>
+                                                        {hasCess && (
+                                                            <td className="w-20 px-2 py-3 text-center align-top font-mono text-xs text-gray-600">
+                                                                {Number(item.cessRate || 0).toFixed(2)}%
+                                                            </td>
+                                                        )}
 
                                                         <td className="w-28 px-2 py-3 text-right align-top font-mono text-xs font-medium text-gray-700">
                                                             ₹{formatAmount(item.base)}
