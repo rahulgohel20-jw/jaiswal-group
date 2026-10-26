@@ -1,48 +1,28 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
-  ChevronRight,
-  Search,
-  Eye,
   Filter,
-  Calendar,
   RotateCcw,
   ArrowUpRight,
-  ArrowDownRight,
-  CircleAlert,
   CircleCheck,
-  CheckCircle2,
   FileText,
   Loader2,
-  PackageCheck,
-  Clock,
-  ArrowRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   getAllGrnDetailsByStatus,
-  getAllGrns,
-  getGrnByOutletOrStatus,
   getPOByIdAndOpenItem,
 } from '@/services/apiServices';
 import SearchableSelect from '@/utils/SearchableSelect';
@@ -53,12 +33,7 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { CodeCell } from '@/components/common/CodeCell';
 import { SearchBar } from '@/components/common/SearchBar';
-import { getOrgIdFromToken } from '@/utils/auth';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { useServerPagination } from '@/hooks/useServerPagination';
 
 const formatDate = (val) => {
   if (!val) return '—';
@@ -164,11 +139,23 @@ const STATUS_MAP = {
     label: 'Return Requested',
     color: 'text-amber-600',
   },
+  RETURN: {
+    label: 'Return Requested',
+    color: 'text-amber-600',
+  },
   RETURN_REPLACEMENT_REQUESTED: {
     label: 'Replacement Req.',
     color: 'text-blue-600',
   },
+  REPLACEMENT: {
+    label: 'Replacement Req.',
+    color: 'text-blue-600',
+  },
   RETURN_REPLACEMENT_COMPLETED: {
+    label: 'Completed',
+    color: 'text-emerald-600',
+  },
+  COMPLETED: {
     label: 'Completed',
     color: 'text-emerald-600',
   },
@@ -180,6 +167,16 @@ const STATUS_MAP = {
     label: 'Replaced',
     color: 'text-blue-600',
   },
+};
+
+const COLUMN_SORT_MAP = {
+  id: 'id',
+  grnCode: 'id',
+  itemName: 'id',
+  grnDate: 'id',
+  returnQuantity: 'rejectedQuantity',
+  status: 'returnReplacementStatus',
+  outlet: 'outletId',
 };
 
 const StatusBadge = ({ status }) => {
@@ -196,21 +193,6 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const TruncatedCell = ({
-  value,
-  widthClass = 'max-w-[150px]',
-  className = 'text-xs text-gray-800 font-medium',
-  onClick,
-}) => (
-  <span
-    title={value}
-    onClick={onClick}
-    className={`block truncate ${widthClass} ${className}`}
-  >
-    {value}
-  </span>
-);
-
 const ReturnReplacementList = () => {
   const navigate = useNavigate();
   const { canAdd, canEdit, canView } = usePagePermissions('Return and Replacement');
@@ -221,11 +203,11 @@ const ReturnReplacementList = () => {
     error: scopeError,
     showUnitDropdown,
     units,
-    selectedUnitId,
-    setSelectedUnitId,
-    effectiveOutletId,
     retry: retryScope,
   } = useOrgScope();
+
+  // Local unit filter defaulting to "All Units" so all records load by default
+  const [selectedUnitId, setSelectedUnitId] = useState('');
 
   const hierarchyState = useOrgHierarchyStore();
   const parsedScope = hierarchyState.parsedScope;
@@ -266,38 +248,62 @@ const ReturnReplacementList = () => {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
-
+  const [sorting, setSorting] = useState([{ id: 'id', desc: true }]);
   const [statusFilter, setStatusFilter] = useState('ALL');
 
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    totalPages,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: 10 });
+
   const fetchReturnReplacements = useCallback(async () => {
-    if (scopeLoading || scopeError) return;
+    if (scopeLoading) return;
     setLoading(true);
     setError(null);
     try {
-      const outletOrCompanyId = selectedUnitId && selectedUnitId !== 'ALL'
-        ? Number(selectedUnitId)
-        : (Number(effectiveOutletId) || Number(getOrgIdFromToken()) || 0);
-      const statusParam = statusFilter === 'ALL' ? '' : statusFilter;
+      const targetOutletId = selectedUnitId && selectedUnitId !== 'ALL' ? Number(selectedUnitId) : undefined;
+      const statusParam = statusFilter === 'ALL' ? undefined : statusFilter;
+      const page = pagination.pageIndex;
+      const size = pagination.pageSize;
+      const sortCol = sorting[0];
+      const sortBy = sortCol ? (COLUMN_SORT_MAP[sortCol.id] || sortCol.id || 'id') : 'id';
+      const direction = sortCol ? (sortCol.desc ? 'DESC' : 'ASC') : 'DESC';
 
-      // Fetch details and GRN headers concurrently (Sub-outlets & Sub-locations are resolved from hierarchy store)
-      const [res, grnsRes] = await Promise.all([
-        getAllGrnDetailsByStatus(statusParam, outletOrCompanyId).catch(() => getAllGrnDetailsByStatus(statusParam, 0).catch(() => getAllGrnDetailsByStatus())),
-        getGrnByOutletOrStatus(outletOrCompanyId, '').catch(() => getAllGrns().catch(() => null)),
-      ]);
+      const queryParams = {
+        page,
+        size,
+        sortBy,
+        direction,
+        ...(targetOutletId ? { outletId: targetOutletId } : {}),
+        ...(statusParam ? { status: statusParam } : {}),
+      };
 
-      const raw = res?.data?.data ?? res?.data ?? res ?? [];
-      const rawList = Array.isArray(raw) ? raw : [];
+      // Fetch return & replacement details with server pagination & sorting
+      const res = await getAllGrnDetailsByStatus(queryParams);
 
-      const grnList = Array.isArray(grnsRes?.data?.data ?? grnsRes?.data) ? (grnsRes?.data?.data ?? grnsRes?.data) : [];
-      const grnMapByCode = new Map();
-      const grnMapById = new Map();
-      grnList.forEach((g) => {
-        if (g.grnCode) grnMapByCode.set(String(g.grnCode).trim().toLowerCase(), g);
-        if (g.code) grnMapByCode.set(String(g.code).trim().toLowerCase(), g);
-        if (g.id) grnMapById.set(Number(g.id), g);
-      });
+      let rawList = [];
+      if (Array.isArray(res?.data?.data)) {
+        rawList = res.data.data;
+      } else if (Array.isArray(res?.data?.content)) {
+        rawList = res.data.content;
+      } else if (Array.isArray(res?.data?.list)) {
+        rawList = res.data.list;
+      } else if (Array.isArray(res?.data)) {
+        rawList = res.data;
+      } else if (Array.isArray(res?.content)) {
+        rawList = res.content;
+      } else if (Array.isArray(res)) {
+        rawList = res;
+      }
+
+      // Update totalElements and pageCount in useServerPagination
+      updateFromResponse(res, rawList.length);
 
       const list = rawList.map((item, index) => {
         const rawStatus =
@@ -305,9 +311,7 @@ const ReturnReplacementList = () => {
           item.status ||
           (Number(item.rejectedQuantity || item.returnQuantity) > 0 ? 'RETURN_REQUESTED' : 'RETURN_REQUESTED');
 
-        const matchedGrn =
-          (item.grnCode ? grnMapByCode.get(String(item.grnCode).trim().toLowerCase()) : null) ||
-          (item.grnId ? grnMapById.get(Number(item.grnId)) : null);
+        const matchedGrn = item.grn || null;
 
         const rawOutletName =
           item.outletName ||
@@ -490,9 +494,10 @@ const ReturnReplacementList = () => {
     }
   }, [
     scopeLoading,
-    scopeError,
+    pagination.pageIndex,
+    pagination.pageSize,
+    sorting,
     selectedUnitId,
-    effectiveOutletId,
     statusFilter,
     units,
     outletMapById,
@@ -500,31 +505,36 @@ const ReturnReplacementList = () => {
     subOutletMapById,
     subOutletMapByName,
     subLocationMapById,
+    updateFromResponse,
   ]);
 
   useEffect(() => {
-    if (!scopeLoading && !scopeError) {
+    if (!scopeLoading) {
       fetchReturnReplacements();
     }
-  }, [fetchReturnReplacements, scopeLoading, scopeError]);
+  }, [fetchReturnReplacements, scopeLoading]);
 
   useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [search, statusFilter, selectedUnitId]);
+    resetPage();
+  }, [search, statusFilter, selectedUnitId, resetPage]);
 
   const scopedRecords = records;
 
   const summary = useMemo(() => {
-    const total = scopedRecords.length;
-    const returnReq = scopedRecords.filter(
-      (r) => String(r.status || '').toUpperCase() === 'RETURN_REQUESTED'
-    ).length;
-    const replacementReq = scopedRecords.filter(
-      (r) => String(r.status || '').toUpperCase() === 'RETURN_REPLACEMENT_REQUESTED'
-    ).length;
-    const completed = scopedRecords.filter(
-      (r) => String(r.status || '').toUpperCase() === 'RETURN_REPLACEMENT_COMPLETED'
-    ).length;
+    let rows = scopedRecords;
+    const total = totalElements > 0 ? totalElements : rows.length;
+    const returnReq = rows.filter((r) => {
+      const s = String(r.status || '').toUpperCase();
+      return s === 'RETURN_REQUESTED' || s === 'RETURN' || s === 'RETURNED';
+    }).length;
+    const replacementReq = rows.filter((r) => {
+      const s = String(r.status || '').toUpperCase();
+      return s === 'RETURN_REPLACEMENT_REQUESTED' || s === 'REPLACEMENT' || s === 'REPLACED';
+    }).length;
+    const completed = rows.filter((r) => {
+      const s = String(r.status || '').toUpperCase();
+      return s === 'RETURN_REPLACEMENT_COMPLETED' || s === 'COMPLETED';
+    }).length;
 
     return {
       totalReturns: total,
@@ -532,15 +542,10 @@ const ReturnReplacementList = () => {
       replacementReq,
       completed,
     };
-  }, [scopedRecords]);
+  }, [scopedRecords, totalElements]);
 
   const filteredRecords = useMemo(() => {
     let rows = scopedRecords;
-    if (statusFilter !== 'ALL') {
-      rows = rows.filter(
-        (r) => String(r.status || '').toUpperCase() === String(statusFilter).toUpperCase()
-      );
-    }
     const term = search.trim().toLowerCase();
     if (term) {
       rows = rows.filter(
@@ -556,7 +561,7 @@ const ReturnReplacementList = () => {
       );
     }
     return rows;
-  }, [scopedRecords, search, statusFilter]);
+  }, [scopedRecords, search]);
 
   const [checkingPoId, setCheckingPoId] = useState(null);
 
@@ -635,7 +640,9 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
+          <span className="text-gray-500 py-2 text-xs">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
         ),
         enableSorting: false,
         size: 40,
@@ -657,7 +664,7 @@ const ReturnReplacementList = () => {
             className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
           />
         ),
-        enableSorting: false,
+        enableSorting: true,
         size: 130,
       },
       {
@@ -685,7 +692,7 @@ const ReturnReplacementList = () => {
             )}
           </div>
         ),
-        enableSorting: false,
+        enableSorting: true,
         size: 155,
       },
       {
@@ -703,7 +710,7 @@ const ReturnReplacementList = () => {
             {row.original.grnDate || '—'}
           </span>
         ),
-        enableSorting: false,
+        enableSorting: true,
         size: 85,
       },
       {
@@ -752,7 +759,7 @@ const ReturnReplacementList = () => {
             <span className="text-[11px] text-gray-500 font-medium">{formatUnit(row.original.uomName)}</span>
           </div>
         ),
-        enableSorting: false,
+        enableSorting: true,
         size: 80,
       },
       {
@@ -770,7 +777,7 @@ const ReturnReplacementList = () => {
             <StatusBadge status={row.original.status} />
           </div>
         ),
-        enableSorting: false,
+        enableSorting: true,
         size: 115,
       },
       {
@@ -820,14 +827,18 @@ const ReturnReplacementList = () => {
         size: 55,
       },
     ],
-    [navigate, canAdd, canEdit, canGenerateGrn, checkingPoId]
+    [navigate, canAdd, canEdit, canGenerateGrn, checkingPoId, pagination.pageIndex, pagination.pageSize]
   );
 
   const table = useReactTable({
     data: filteredRecords,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination, sorting, rowSelection },
+    manualPagination: true,
+    manualSorting: true,
+    pageCount,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
     getRowId: (row) => String(row.id),
@@ -895,7 +906,7 @@ const ReturnReplacementList = () => {
           </div>
 
           <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
-            {showUnitDropdown && (
+            {(showUnitDropdown || units.length > 0) && (
               <UnitDropdown
                 units={units}
                 selectedUnitId={selectedUnitId}
@@ -931,7 +942,7 @@ const ReturnReplacementList = () => {
           {!loading && (
             <DataGrid
               table={table}
-              recordCount={filteredRecords.length}
+              recordCount={totalElements}
               className="rounded-2xl"
               tableLayout={{
                 dense: true,

@@ -346,7 +346,7 @@ export const getAllAssets = () => {
   return GET('/assets/getall');
 };
 
-export const getAllActiveAssetsPaginated =  (page = 0, size = 20) => {
+export const getAllActiveAssetsPaginated = (page = 0, size = 20) => {
   return GET(`/assets/getallactive/page?page=${page}&size=${size}`);
 };
 
@@ -800,14 +800,14 @@ export const rejectVendorPricing = (outletPriceIds, remarks = '') => {
   return PUT(`/raw-material-vendor-price/vendorpricing/reject?${params.join('&')}`);
 };
 
-export const saveBulkVendorPrice =  (payload) => {
-    return POST('/raw-material-vendor-price/vendorpricing/bulk', payload);
+export const saveBulkVendorPrice = (payload) => {
+  return POST('/raw-material-vendor-price/vendorpricing/bulk', payload);
 }
 export const getVendorPricesByRawMaterialId = (rawMaterialId) => {
-    return GET(`/raw-material-vendor-price/get-by-raw-material/${rawMaterialId}`);
+  return GET(`/raw-material-vendor-price/get-by-raw-material/${rawMaterialId}`);
 };
 export const getAllVendorPriceConfigurations = (params = {}) => {
-    return GET('/raw-material-vendor-price/getall', params);
+  return GET('/raw-material-vendor-price/getall', params);
 };
 
 // ---- User Rights: Pages APIs ----
@@ -897,8 +897,19 @@ export const deleteRawMaterialBrandById = (id) => {
 }
 
 //STATE API
+let statesCachePromise = null;
 export const getAllStates = () => {
-  return GET('/state/getall')
+  {
+    if (!statesCachePromise) {
+      statesCachePromise = GET('/state/getall').catch((err) => {
+        statesCachePromise = null;
+        throw err;
+      });
+    }
+    return statesCachePromise;
+  };
+
+
 }
 
 export const addState = (payload) => {
@@ -1068,7 +1079,7 @@ export const getAssignedAssetsByOrgAndSubOutlet = (orgId, assetUnitLocationId = 
   return GET(`/assets/assigned-by-location?organizationId=${orgId}&assetUnitLocationId=${assetUnitLocationId}`);
 }
 export const getAssignmentsByAssetId = (ids) => {
- 
+
   if (!ids || (Array.isArray(ids) && ids.length === 0)) {
     return GET('/assets/assignments');
   }
@@ -1286,18 +1297,39 @@ export const getGrnDetailById = (id) => {
 
 export const getGrnDetailsById = getGrnDetailById;
 
-export const getAllGrnDetailsByStatus = (status, outletId) => {
+export const getAllGrnDetailsByStatus = (statusOrParams, outletId, page, size, sortBy, direction) => {
   let params = {};
-  if (typeof status === 'object' && status !== null) {
-    params = status;
+  if (typeof statusOrParams === 'object' && statusOrParams !== null && !Array.isArray(statusOrParams)) {
+    params = { ...statusOrParams };
   } else {
-    if (status && status !== 'ALL' && status !== 'All Status') {
-      params.status = status;
+    if (statusOrParams && statusOrParams !== 'ALL' && statusOrParams !== 'All Status') {
+      params.status = statusOrParams;
     }
-    if (outletId !== undefined && outletId !== 'ALL' && outletId !== null && outletId !== 0) {
+    if (outletId !== undefined && outletId !== 'ALL' && outletId !== null && outletId !== 0 && outletId !== '') {
       params.outletId = outletId;
     }
+    if (page !== undefined && page !== null) {
+      params.page = page;
+    }
+    if (size !== undefined && size !== null) {
+      params.size = size;
+    }
+    if (sortBy) {
+      params.sortBy = sortBy;
+    }
+    if (direction) {
+      params.direction = direction;
+    }
   }
+
+  // Clean empty or invalid params
+  if (params.status === 'ALL' || params.status === 'All Status' || params.status === '' || !params.status) {
+    delete params.status;
+  }
+  if (params.outletId === 'ALL' || params.outletId === 0 || params.outletId === null || params.outletId === undefined || params.outletId === '') {
+    delete params.outletId;
+  }
+
   return GET('/grn-details/getallbystatus', params);
 };
 
@@ -1428,7 +1460,7 @@ export const resolveTransferDiscrepancy = (id, payload) => {
 export const getAdjustmentById = (id) => {
   return GET(`/stock-adjustment/${id}`);
 };
-  
+
 export const cancelAdjustment = (id, params = {}) => {
   const queryParams = typeof params === 'object' ? params : params ? { userId: params } : {};
   const data = typeof params === 'object' ? params : null;
@@ -1611,44 +1643,44 @@ export const syncAllKitchenCaptainReceipeRate = () => {
 
 //Recipe API
 export const createKitchenMenuItemRecipe = (payload) => {
-    return POST("/kitchenmenuitemrawmaterial/create", payload);
+  return POST("/kitchenmenuitemrawmaterial/create", payload);
 };
 
 export const getKitchenMenuItemRecipe = ({ menuItemId, orgId, subOutletId } = {}) => {
-    const params = {};
-    if (menuItemId !== null && menuItemId !== undefined && menuItemId !== '' && Number.isFinite(Number(menuItemId))) {
-        params.menuItemId = Number(menuItemId);
-    }
+  const params = {};
+  if (menuItemId !== null && menuItemId !== undefined && menuItemId !== '' && Number.isFinite(Number(menuItemId))) {
+    params.menuItemId = Number(menuItemId);
+  }
 
-    if (orgId !== null && orgId !== undefined && orgId !== '' && Number.isFinite(Number(orgId))) {
-        params.orgId = Number(orgId);
-    }
+  if (orgId !== null && orgId !== undefined && orgId !== '' && Number.isFinite(Number(orgId))) {
+    params.orgId = Number(orgId);
+  }
 
-    if (subOutletId !== null && subOutletId !== undefined && subOutletId !== '' && Number.isFinite(Number(subOutletId))) {
-        params.subOutletId = Number(subOutletId);
-    }
+  if (subOutletId !== null && subOutletId !== undefined && subOutletId !== '' && Number.isFinite(Number(subOutletId))) {
+    params.subOutletId = Number(subOutletId);
+  }
 
-    return GET("/kitchenmenuitemrawmaterial/get", params);
+  return GET("/kitchenmenuitemrawmaterial/get", params);
 };
 
 export const updateKitchenMenuItemRecipe = (payload) => {
-    return PUT("/kitchenmenuitemrawmaterial/update", payload); 
+  return PUT("/kitchenmenuitemrawmaterial/update", payload);
 };
 export const deleteKitchenMenuItemRecipe = ({ menuItemId, orgId, subOutletId } = {}) => {
-    const params = {
-        menuItemId: Number(menuItemId),
-        orgId: Number(orgId),
-    };
+  const params = {
+    menuItemId: Number(menuItemId),
+    orgId: Number(orgId),
+  };
 
-    if (subOutletId !== null && subOutletId !== undefined && subOutletId !== '') {
-        params.subOutletId = Number(subOutletId);
-    }
+  if (subOutletId !== null && subOutletId !== undefined && subOutletId !== '') {
+    params.subOutletId = Number(subOutletId);
+  }
 
-    return DELETE("/kitchenmenuitemrawmaterial/delete", params);
+  return DELETE("/kitchenmenuitemrawmaterial/delete", params);
 };
 
 export const getRawMaterialByType = (rawMaterialCatTypeId) => {
-    return GET(`/rawmaterial/getRawMaterialByType?rawMaterialCatTypeId=${rawMaterialCatTypeId}`);
+  return GET(`/rawmaterial/getRawMaterialByType?rawMaterialCatTypeId=${rawMaterialCatTypeId}`);
 };
 
 //Kitchen-captain Recipe API
@@ -1709,19 +1741,19 @@ export const updateKitchenMenuCategoryStatus = ({ id, isActive }) => {
 
 //Per Person MenuItem Consumption APIs
 export const getConsumptionConfigList = (params) => {
-    return GET('/kitchen-menu-item-per-person-consumption/get-config', params);
+  return GET('/kitchen-menu-item-per-person-consumption/get-config', params);
 };
 
 export const getConsumptionConfigById = (id) => {
-    return GET(`/kitchen-menu-item-per-person-consumption/${id}`);
+  return GET(`/kitchen-menu-item-per-person-consumption/${id}`);
 };
 
 export const saveOrUpdateConsumptionConfig = (payload) => {
-    return POST('/kitchen-menu-item-per-person-consumption/save-or-update', payload);
+  return POST('/kitchen-menu-item-per-person-consumption/save-or-update', payload);
 };
 
 export const deleteConsumptionConfigById = (id) => {
-    return DELETE(`/kitchen-menu-item-per-person-consumption/delete/${id}`);
+  return DELETE(`/kitchen-menu-item-per-person-consumption/delete/${id}`);
 };
 
 // === Brand Unit Mapping API Endpoints ===
@@ -1729,7 +1761,7 @@ export const createBrandMapping = (data) => {
   return POST('/brand-mapping/create', data);
 }
 export const getAllBrandMappings = () => {
-  return  GET('/brand-mapping/getall');
+  return GET('/brand-mapping/getall');
 }
 export const deleteBrandMappingById = (id) => {
   return DELETE('/brand-mapping/delete', { id });
@@ -1821,5 +1853,5 @@ export const getScanReportById = (id) => {
   return GET(`/asset-audit/report?id=${id}`);
 }
 export const getAllAssetAuditEvents = (params) => {
-  return GET('/asset-audit/getall', params );
+  return GET('/asset-audit/getall', params);
 };
