@@ -15,7 +15,13 @@ import {
     ChevronDown,
     ChevronRight,
     Barcode,
+    Camera,
+    CameraOff,
+    SwitchCamera,
+    Flashlight,
+    Keyboard,
 } from "lucide-react";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import { Container } from "@/components/common/container";
 import { PageHeader } from "@/components/common/PageHeader";
 import { PageErrorAlert } from "@/components/common/PageErrorAlert";
@@ -132,19 +138,37 @@ const CreateAuditEvent = () => {
     const [gunInput, setGunInput] = useState("");
     const [isScanning, setIsScanning] = useState(false);
 
+    // Live Camera State
+    const [isCameraActive, setIsCameraActive] = useState(false);
+    const [cameraDevices, setCameraDevices] = useState([]);
+    const [selectedCameraId, setSelectedCameraId] = useState("");
+    const [cameraInitializing, setCameraInitializing] = useState(false);
+    const [torchAvailable, setTorchAvailable] = useState(false);
+    const [isTorchOn, setIsTorchOn] = useState(false);
+
     // Hardware & Scanner Refs
     const isProcessingRef = useRef(false);
     const lastScannedCodeRef = useRef("");
+    const lastScanTimestampRef = useRef(0);
     const debounceTimerRef = useRef(null);
     const tableBottomRef = useRef(null);
     const gunInputRef = useRef(null);
     const endDateInputRef = useRef(null);
 
+    // Camera Lifecycle Refs
+    const html5QrCodeRef = useRef(null);
+    const isStartingCameraRef = useRef(false);
+    const isStoppingCameraRef = useRef(false);
+    const activeTrackRef = useRef(null);
+    const cameraSessionIdRef = useRef(0);
+
     const playBeep = () => {
         try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const AudioContextClass = window.AudioContext;
+            if (!AudioContextClass) return;
+            const audioCtx = new AudioContextClass();
             const osc = audioCtx.createOscillator();
-            const gain = audioCtx.gain || audioCtx.createGain();
+            const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.frequency.value = 950;
@@ -305,10 +329,10 @@ const CreateAuditEvent = () => {
 
     // Auto focus scanner input when audit is active
     useEffect(() => {
-        if (auditStatus === "STARTED" && !isAuditExpired) {
+        if (auditStatus === "STARTED" && !isAuditExpired && !isCameraActive) {
             gunInputRef.current?.focus();
         }
-    }, [auditStatus, isAuditExpired]);
+    }, [auditStatus, isAuditExpired, isCameraActive]);
 
     // Accordion toggle handler for subDetails
     const toggleAssetExpansion = (assetId) => {
@@ -323,7 +347,7 @@ const CreateAuditEvent = () => {
         });
     };
 
-    // QR Scanning handler (calls scan API -> then immediately syncs report API)
+    // Unified QR & Barcode Processing Handler (Invoked by Camera, Gun & Input)
     const handleProcessScan = useCallback(async (rawUuid) => {
         const trimmedUuid = (rawUuid || "").trim();
         if (!trimmedUuid || isProcessingRef.current || !auditEventId || auditStatus !== "STARTED") {
@@ -335,7 +359,13 @@ const CreateAuditEvent = () => {
             return;
         }
 
-        // Cancel any pending debounce timer
+        // Prevent rapid repeated scan spam on identical code (2.5s cooldown threshold)
+        const now = Date.now();
+        if (trimmedUuid === lastScannedCodeRef.current && now - lastScanTimestampRef.current < 2500) {
+            return;
+        }
+
+        // Cancel any pending text debounce timer
         if (debounceTimerRef.current) {
             clearTimeout(debounceTimerRef.current);
             debounceTimerRef.current = null;
@@ -343,6 +373,8 @@ const CreateAuditEvent = () => {
 
         isProcessingRef.current = true;
         setIsScanning(true);
+        lastScannedCodeRef.current = trimmedUuid;
+        lastScanTimestampRef.current = now;
         setScanMessage(`Scanning QR: ${trimmedUuid}...`);
 
         try {
@@ -358,7 +390,6 @@ const CreateAuditEvent = () => {
 
             await scanAssetAuditQr(payload);
             playBeep();
-            lastScannedCodeRef.current = trimmedUuid;
             setScanMessage(`Logged asset: ${trimmedUuid}`);
             setGunInput("");
 
@@ -371,11 +402,12 @@ const CreateAuditEvent = () => {
             setTimeout(() => {
                 isProcessingRef.current = false;
                 setIsScanning(false);
-                lastScannedCodeRef.current = "";
-                gunInputRef.current?.focus();
-            }, 400);
+                if (!isCameraActive) {
+                    gunInputRef.current?.focus();
+                }
+            }, 450);
         }
-    }, [auditEventId, auditStatus, outletId, subOutletId, unitLocationId, subLocationId, isAuditExpired, fetchLatestReport]);
+    }, [auditEventId, auditStatus, outletId, subOutletId, unitLocationId, subLocationId, isAuditExpired, isCameraActive, fetchLatestReport]);
 
     // Input change and auto-trigger on complete UUID
     const onInputChange = (e) => {
@@ -393,7 +425,189 @@ const CreateAuditEvent = () => {
         }
     };
 
-    // Auto-focus listener with paste protection
+    // Stop Camera Stream Utility (Explicitly releases tracks & resets torch)
+    const stopCamera = useCallback(async () => {
+        if (isStoppingCameraRef.current) return;
+        isStoppingCameraRef.current = true;
+
+        try {
+            // 1. Force hardware torch off before killing tracks
+            if (activeTrackRef.current) {
+                try {
+                    await activeTrackRef.current.applyConstraints({
+                        advanced: [{ torch: false }],
+                    });
+                } catch {
+                    // Ignored if track is already closing or unsupported
+                }
+            }
+
+            // 2. Stop html5QrCode scanner instance
+            if (html5QrCodeRef.current) {
+                if (html5QrCodeRef.current.isScanning) {
+                    await html5QrCodeRef.current.stop();
+                }
+                await html5QrCodeRef.current.clear();
+            }
+
+            // 3. Explicitly kill video track at browser MediaStreamTrack level
+            if (activeTrackRef.current) {
+                activeTrackRef.current.stop();
+                activeTrackRef.current = null;
+            }
+        } catch {
+            // Handled cleanup error
+        } finally {
+            html5QrCodeRef.current = null;
+            isStartingCameraRef.current = false;
+            isStoppingCameraRef.current = false;
+            setIsTorchOn(false);
+            setTorchAvailable(false);
+            setCameraInitializing(false);
+        }
+    }, []);
+
+   // Start Camera Stream Utility
+    const startCamera = useCallback(async (cameraId = null) => {
+        if (isStartingCameraRef.current || isTerminalState || auditStatus !== "STARTED" || isAuditExpired) {
+            return;
+        }
+
+        isStartingCameraRef.current = true;
+        setCameraInitializing(true);
+
+        try {
+            await stopCamera();
+
+            // Session ID set AFTER stopCamera finishes so it doesn't self-cancel
+            const currentSession = ++cameraSessionIdRef.current;
+
+            // Give React 1 tick to ensure DOM container #asset-audit-qr-reader is rendered
+            await new Promise((r) => setTimeout(r, 60));
+
+            const container = document.getElementById("asset-audit-qr-reader");
+            if (!container || currentSession !== cameraSessionIdRef.current) {
+                return;
+            }
+
+            const devices = await Html5Qrcode.getCameras();
+            if (Array.isArray(devices) && devices.length > 0) {
+                setCameraDevices(devices);
+            }
+
+            const qrCodeScanner = new Html5Qrcode("asset-audit-qr-reader", {
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.DATA_MATRIX,
+                ],
+                verbose: false,
+            });
+
+            html5QrCodeRef.current = qrCodeScanner;
+
+            const cameraConfig = cameraId
+                ? { deviceId: { exact: cameraId } }
+                : { facingMode: "environment" };
+
+            const config = {
+                fps: 10,
+                qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                    const qrboxEdge = Math.floor(minEdge * 0.72);
+                    return { width: qrboxEdge, height: qrboxEdge };
+                },
+                aspectRatio: 1.0,
+            };
+
+            await qrCodeScanner.start(
+                cameraConfig,
+                config,
+                (decodedText) => {
+                    handleProcessScan(decodedText);
+                },
+                () => {}
+            );
+
+            // Abort if camera mode was closed during start()
+            if (currentSession !== cameraSessionIdRef.current) {
+                await stopCamera();
+                return;
+            }
+
+            // Cache active video track for explicit torch & shutdown control
+            try {
+                const capabilities = qrCodeScanner.getRunningTrackCapabilities();
+                if (capabilities && capabilities.torch) {
+                    setTorchAvailable(true);
+                }
+                const videoEl = document.querySelector("#asset-audit-qr-reader video");
+                if (videoEl && videoEl.srcObject) {
+                    const tracks = videoEl.srcObject.getVideoTracks();
+                    if (tracks && tracks.length > 0) {
+                        activeTrackRef.current = tracks[0];
+                    }
+                }
+            } catch {
+                setTorchAvailable(false);
+            }
+        } catch (err) {
+            notify.error("Unable to access camera. Check browser permissions or use scanner gun.");
+            setIsCameraActive(false);
+            await stopCamera();
+        } finally {
+            isStartingCameraRef.current = false;
+            setCameraInitializing(false);
+        }
+    }, [isTerminalState, auditStatus, isAuditExpired, stopCamera, handleProcessScan]);
+
+    // Handle toggling the torch / flashlight
+    const handleToggleTorch = async () => {
+        if (!html5QrCodeRef.current || !torchAvailable) return;
+        try {
+            const nextState = !isTorchOn;
+            await html5QrCodeRef.current.applyVideoConstraints({
+                advanced: [{ torch: nextState }],
+            });
+            setIsTorchOn(nextState);
+        } catch {
+            notify.error("Flashlight control is not supported on this device.");
+        }
+    };
+
+    // Cycle camera lens (switch front/back or next device)
+    const handleSwitchCamera = async () => {
+        if (cameraDevices.length <= 1) return;
+        const currentIndex = cameraDevices.findIndex((d) => d.id === selectedCameraId);
+        const nextIndex = (currentIndex + 1) % cameraDevices.length;
+        const nextCameraId = cameraDevices[nextIndex].id;
+        setSelectedCameraId(nextCameraId);
+        await startCamera(nextCameraId);
+    };
+
+    // Handle camera active state transitions
+    useEffect(() => {
+        if (isCameraActive && auditStatus === "STARTED" && !isAuditExpired) {
+            startCamera(selectedCameraId || null);
+        } else {
+            stopCamera();
+        }
+
+        return () => {
+            stopCamera();
+        };
+    }, [isCameraActive, auditStatus, isAuditExpired, selectedCameraId, startCamera, stopCamera]);
+
+    // Safety cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+            stopCamera();
+        };
+    }, [stopCamera]);
+
+    // Global KeyDown listener for hardware barcode guns and auto-focus
     useEffect(() => {
         if (auditStatus !== "STARTED" || isAuditExpired) return;
 
@@ -420,7 +634,7 @@ const CreateAuditEvent = () => {
                 return;
             }
 
-            if (document.activeElement !== gunInputRef.current) {
+            if (!isCameraActive && document.activeElement !== gunInputRef.current) {
                 gunInputRef.current?.focus();
                 if (e.key.length === 1) {
                     setGunInput((prev) => prev + e.key);
@@ -439,7 +653,6 @@ const CreateAuditEvent = () => {
             const pastedData = (e.clipboardData || window.clipboardData).getData("text");
             if (pastedData) {
                 e.preventDefault();
-                gunInputRef.current?.focus();
                 const sanitized = pastedData.trim();
                 setGunInput(sanitized);
                 handleProcessScan(sanitized);
@@ -453,7 +666,7 @@ const CreateAuditEvent = () => {
             window.removeEventListener("keydown", handleGlobalKeyDown);
             window.removeEventListener("paste", handleGlobalPaste);
         };
-    }, [auditStatus, isAuditExpired, handleProcessScan]);
+    }, [auditStatus, isAuditExpired, isCameraActive, handleProcessScan]);
 
     // Phase 1: Handle Event Creation
     const handleCreateEvent = async () => {
@@ -560,7 +773,11 @@ const CreateAuditEvent = () => {
             if (nextStatus === "STARTED") {
                 fetchLatestReport(auditEventId);
             } else if (nextStatus === "PAUSED") {
+                setIsCameraActive(false);
+                await stopCamera();
             } else if (nextStatus === "COMPLETED" || nextStatus === "CANCELLED") {
+                setIsCameraActive(false);
+                await stopCamera();
                 navigate("/assets/asset-audit-event");
             }
         } catch (err) {
@@ -625,7 +842,7 @@ const CreateAuditEvent = () => {
                 <div className="bg-white rounded-2xl border border-[#E7EAF0] p-4 sm:p-5 shadow-2xs">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5">
                         {/* Unit */}
-                        <div className="lg:col-span-4">
+                        <div className="lg:col-span-6">
                             <label className="text-xs font-semibold text-gray-700 block mb-1.5">
                                 Unit <span className="text-red-500">*</span>
                             </label>
@@ -645,7 +862,7 @@ const CreateAuditEvent = () => {
                         </div>
 
                         {/* Sub Unit */}
-                        <div className="lg:col-span-4">
+                        {/* <div className="lg:col-span-4">
                             <label className="text-xs font-semibold text-gray-700 block mb-1.5">Sub Unit</label>
                             <SearchableSelect
                                 name="subOutletId"
@@ -661,10 +878,10 @@ const CreateAuditEvent = () => {
                                 }))}
                                 placeholder="All Sub Units"
                             />
-                        </div>
+                        </div> */}
 
                         {/* Location */}
-                        <div className="lg:col-span-4">
+                        <div className="lg:col-span-6">
                             <label className="text-xs font-semibold text-gray-700 block mb-1.5">Location</label>
                             <SearchableSelect
                                 name="unitLocationId"
@@ -686,7 +903,6 @@ const CreateAuditEvent = () => {
                             </label>
                             <input
                                 type="date"
-                                disabled={isFormLocked}
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
                                 className="w-full h-10 px-3 bg-white border border-[#C3C6D1] rounded-xl text-xs text-gray-800 outline-none focus:border-[#084E92] disabled:bg-gray-100 disabled:text-gray-400"
@@ -871,39 +1087,161 @@ const CreateAuditEvent = () => {
                     </div>
                 </div>
 
-                {/* 2. Automated Scanner Input Field */}
+                {/* 2. Automated Scanner Section: Hardware Barcode Gun + Live Web/Mobile Camera */}
                 {auditStatus === "STARTED" && !isAuditExpired && (
-                    <div className="bg-white rounded-2xl border border-[#E7EAF0] p-4 shadow-2xs">
-                        <div className="max-w-xl mx-auto space-y-2">
-                            <div className="relative">
-                                <ScanLine size={16} className="absolute left-3.5 top-3 text-gray-400" />
-                                <input
-                                    ref={gunInputRef}
-                                    type="text"
-                                    autoFocus
-                                    value={gunInput}
-                                    disabled={isScanning}
-                                    onChange={onInputChange}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter") {
-                                            e.preventDefault();
-                                            handleProcessScan(e.currentTarget.value);
-                                        }
-                                    }}
-                                    placeholder="Awaiting QR UUID from scanner app or barcode gun..."
-                                    className="w-full h-11 pl-10 pr-10 text-xs bg-gray-50/70 border border-[#C3C6D1] rounded-xl focus:bg-white focus:border-[#084E92] outline-none font-mono transition shadow-2xs"
-                                />
-                                {isScanning && (
-                                    <Loader2 size={16} className="absolute right-3.5 top-3 text-[#084E92] animate-spin" />
-                                )}
+                    <div className="bg-white rounded-2xl border border-[#E7EAF0] p-4 sm:p-5 shadow-2xs space-y-4">
+                        {/* Mode Selector & Controls */}
+                        <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-gray-100">
+                            <div className="flex sm:items-center gap-2 sm:flex-row flex-col">
+                                <span className="text-xs font-bold text-gray-800">Scan Input:</span>
+                                <div className="inline-flex p-0.5 bg-gray-100 rounded-xl border border-gray-200">
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            cameraSessionIdRef.current += 1;
+                                            setIsCameraActive(false);
+                                            await stopCamera();
+                                        }}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition ${!isCameraActive
+                                            ? "bg-white text-[#084E92] shadow-2xs"
+                                            : "text-gray-600 hover:text-gray-900"
+                                            }`}
+                                    >
+                                        <Keyboard size={13} className="shrink-0"/>
+                                        <span>Barcode Gun / Input</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsCameraActive(true)}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5 transition ${isCameraActive
+                                            ? "bg-[#084E92] text-white shadow-2xs"
+                                            : "text-gray-600 hover:text-gray-900"
+                                            }`}
+                                    >
+                                        <Camera size={13} />
+                                        <span>Webcam / Mobile Camera</span>
+                                    </button>
+                                </div>
                             </div>
 
-                            {scanMessage && (
-                                <p className="text-[11px] font-medium text-center text-gray-500 animate-pulse">
-                                    {scanMessage}
-                                </p>
+                            {/* Camera Actions (Only visible in camera mode) */}
+                            {isCameraActive && (
+                                <div className="flex items-center gap-2">
+                                    {torchAvailable && (
+                                        <button
+                                            type="button"
+                                            onClick={handleToggleTorch}
+                                            className={`h-8 px-2.5 rounded-lg text-xs font-medium border flex items-center gap-1 transition ${isTorchOn
+                                                ? "bg-amber-100 text-amber-900 border-amber-300"
+                                                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                                                }`}
+                                        >
+                                            <Flashlight size={13} className={isTorchOn ? "text-amber-600" : "text-gray-500"} />
+                                            <span>{isTorchOn ? "Flash On" : "Flash"}</span>
+                                        </button>
+                                    )}
+
+                                    {cameraDevices.length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={handleSwitchCamera}
+                                            className="h-8 px-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg text-xs font-medium flex items-center gap-1 transition cursor-pointer"
+                                            title="Switch Camera (Front / Rear)"
+                                        >
+                                            <SwitchCamera size={13} className="text-[#084E92]" />
+                                            <span>Flip Lens</span>
+                                        </button>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            cameraSessionIdRef.current += 1;
+                                            setIsCameraActive(false);
+                                            await stopCamera();
+                                        }}
+                                        className="h-8 px-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-medium flex items-center gap-1 transition cursor-pointer"
+                                    >
+                                        <CameraOff size={13} />
+                                        <span>Close Feed</span>
+                                    </button>
+                                </div>
                             )}
                         </div>
+
+                        {/* Scanner Gun View */}
+                        {!isCameraActive && (
+                            <div className="max-w-xl mx-auto space-y-2">
+                                <div className="relative">
+                                    <ScanLine size={16} className="absolute left-3.5 top-3 text-gray-400" />
+                                    <input
+                                        ref={gunInputRef}
+                                        type="text"
+                                        autoFocus
+                                        value={gunInput}
+                                        disabled={isScanning}
+                                        onChange={onInputChange}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                handleProcessScan(e.currentTarget.value);
+                                            }
+                                        }}
+                                        placeholder="Awaiting QR UUID from scanner gun or manual entry..."
+                                        className="w-full h-11 pl-10 pr-10 text-xs bg-gray-50/70 border border-[#C3C6D1] rounded-xl focus:bg-white focus:border-[#084E92] outline-none font-mono transition shadow-2xs"
+                                    />
+                                    {isScanning && (
+                                        <Loader2 size={16} className="absolute right-3.5 top-3 text-[#084E92] animate-spin" />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Live Camera Viewport */}
+                        {isCameraActive && (
+                            <div className="max-w-md mx-auto space-y-2.5">
+                                <div className="relative w-full aspect-square max-h-80 mx-auto bg-black rounded-2xl overflow-hidden border-2 border-[#084E92] shadow-md flex items-center justify-center">
+                                    {/* HTML5 QR Container */}
+                                    <div id="asset-audit-qr-reader" className="w-full h-full object-cover" />
+
+                                    {/* Loading State Overlay */}
+                                    {cameraInitializing && (
+                                        <div className="absolute inset-0 bg-black/75 flex flex-col items-center justify-center gap-2 text-white z-20">
+                                            <Loader2 size={24} className="animate-spin text-blue-400" />
+                                            <span className="text-xs font-medium tracking-wide">Starting Camera Stream...</span>
+                                        </div>
+                                    )}
+
+                                    {/* Scanning Feedback Flash */}
+                                    {isScanning && (
+                                        <div className="absolute inset-0 bg-emerald-500/20 border-4 border-emerald-400 z-10 animate-pulse pointer-events-none" />
+                                    )}
+
+                                    {/* Viewfinder Target Graphic */}
+                                    <div className="absolute inset-10 border-2 border-dashed border-white/60 rounded-xl pointer-events-none z-10 flex flex-col justify-between p-2">
+                                        <div className="flex justify-between">
+                                            <span className="w-4 h-4 border-t-2 border-l-2 border-white" />
+                                            <span className="w-4 h-4 border-t-2 border-r-2 border-white" />
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="w-4 h-4 border-b-2 border-l-2 border-white" />
+                                            <span className="w-4 h-4 border-b-2 border-r-2 border-white" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <p className="text-[11px] text-gray-500 text-center font-medium">
+                                    Align the QR code within the central square. Point phone rear camera or desktop webcam.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Status Message */}
+                        {scanMessage && (
+                            <p className="text-[11px] font-semibold text-center text-[#084E92] animate-pulse">
+                                {scanMessage}
+                            </p>
+                        )}
                     </div>
                 )}
 
@@ -916,8 +1254,8 @@ const CreateAuditEvent = () => {
                                     Verified Assets ({assetDetails.length})
                                 </span>
                             </div>
-                            <span className="text-[11px] text-gray-500">
-                               Total Items: {totalItemsScanned}
+                            <span className="text-[11px] text-gray-500 font-medium">
+                                Total Items: {totalItemsScanned}
                             </span>
                         </div>
 
@@ -936,7 +1274,7 @@ const CreateAuditEvent = () => {
                                     {assetDetails.length === 0 ? (
                                         <tr>
                                             <td colSpan={5} className="py-12 text-center text-gray-400">
-                                                No assets scanned yet. Scan an asset QR with your external app or scanner gun.
+                                                No assets scanned yet. Scan an asset QR with camera or Scanner gun.
                                             </td>
                                         </tr>
                                     ) : (
@@ -963,7 +1301,7 @@ const CreateAuditEvent = () => {
                                                                 )}
                                                                 <span>{asset.itemName}</span>
                                                                 {asset.assetCode && (
-                                                                    <span className="text-[10px] text-gray-400 font-mono font-normal">
+                                                                    <span className="text-[10px] text-gray-400 font-mono font-normal sm:flex hidden">
                                                                         ({asset.assetCode})
                                                                     </span>
                                                                 )}
@@ -1008,14 +1346,20 @@ const CreateAuditEvent = () => {
                                                                                     key={sub.id || sub.uuid || sIdx}
                                                                                     className="py-1.5 flex items-center justify-between text-xs hover:bg-gray-50 px-1 rounded transition"
                                                                                 >
-                                                                                    <div className="flex items-center gap-2 font-mono text-gray-700">
+                                                                                    <div className="hidden sm:flex items-center gap-2 font-mono text-gray-700">
                                                                                         <span className="text-gray-400 text-[10px]">{sIdx + 1}.</span>
-                                                                                        <span className="truncate max-w-[280px]" title={sub.uuid}>
+                                                                                        <span className="truncate max-w-70" title={sub.uuid}>
                                                                                             {sub.uuid}
                                                                                         </span>
                                                                                     </div>
+                                                                                    <div className="flex items-center gap-1.5 text-gray-600 sm:hidden">
+                                                                                        <span className="text-gray-400 font-mono text-[10px]">{sIdx + 1}.</span>
+                                                                                        <span className="text-[11px] font-medium text-gray-600">
+                                                                                            {sub.scanDateTime || "-"}
+                                                                                        </span>
+                                                                                    </div>
                                                                                     <div className="flex items-center gap-3">
-                                                                                        <span className="text-gray-500 text-[11px]">
+                                                                                        <span className="hidden sm:inline text-gray-500 text-[11px]">
                                                                                             {sub.scanDateTime || "-"}
                                                                                         </span>
                                                                                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">

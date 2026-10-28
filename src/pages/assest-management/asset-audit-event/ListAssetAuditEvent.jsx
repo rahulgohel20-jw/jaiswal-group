@@ -99,27 +99,27 @@ export const isAuditWindowExpired = (endDateTimeStr) => {
 const STATUS_CONFIG = {
   NOT_STARTED: {
     label: 'Not Started',
-    className: 'bg-amber-50 text-amber-700 border-amber-200',
+    className: 'text-amber-700 border-amber-200',
     icon: Clock,
   },
   STARTED: {
     label: 'Started',
-    className: 'bg-blue-50 text-blue-700 border-blue-200',
+    className: 'text-blue-700 border-blue-200',
     icon: PlayCircle,
   },
   PAUSED: {
     label: 'Paused',
-    className: 'bg-orange-50 text-orange-700 border-orange-200',
+    className: 'text-orange-700 border-orange-200',
     icon: PauseCircle,
   },
   COMPLETED: {
     label: 'Completed',
-    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    className: 'text-emerald-700 border-emerald-200',
     icon: CheckCircle2,
   },
   CANCELLED: {
     label: 'Cancelled',
-    className: 'bg-red-50 text-red-700 border-red-200',
+    className: 'text-red-700 border-red-200',
     icon: X,
   },
 };
@@ -127,16 +127,12 @@ const STATUS_CONFIG = {
 const AuditStatusBadge = ({ status }) => {
   const config = STATUS_CONFIG[status] || {
     label: status || 'Unknown',
-    className: 'bg-gray-100 text-gray-700 border-gray-200',
-    icon: Clock,
-  };
-  const Icon = config.icon;
-
+    className: 'text-gray-700 border-gray-200',
+  }
   return (
     <span
-      className={`px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1.5 w-fit ${config.className}`}
+      className={`text-xs font-medium ${config.className}`}
     >
-      <Icon className="w-3.5 h-3.5" />
       {config.label}
     </span>
   );
@@ -419,8 +415,17 @@ const ListAssetAuditEvent = () => {
     };
   }, [outletInput]);
 
+  const scopeReady = useMemo(() => {
+    if (isOutletUser) return outletInput !== 'All';
+    if (isCompanyUser) {
+      if (!units || units.length === 0) return false;
+      if (units.length === 1) return outletInput !== 'All';
+    }
+    return true;
+  }, [isOutletUser, isCompanyUser, units, outletInput]);
   // Server-side fetching for paginated records and server-side filters
   const fetchAuditEvents = useCallback(async () => {
+    if (!scopeReady) return;
     try {
       setLoading(true);
       setLoadError('');
@@ -455,6 +460,7 @@ const ListAssetAuditEvent = () => {
       setLoading(false);
     }
   }, [
+    scopeReady,
     pagination.pageIndex,
     pagination.pageSize,
     outletInput,
@@ -574,7 +580,7 @@ const ListAssetAuditEvent = () => {
       accessorFn: (row) => row.assetUnitLocationName || row.assetUnitLocationId,
       header: ({ column }) => <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />,
       cell: ({ row }) => (
-        <span className="text-xs text-gray-800 font-medium truncate block max-w-35">
+        <span className="text-xs text-gray-800 font-medium truncate block max-w-35" title={`${row.original.assetUnitLocationName}`}>
           {row.original.assetUnitLocationName || '-'}
         </span>
       ),
@@ -606,7 +612,7 @@ const ListAssetAuditEvent = () => {
       cell: ({ row }) => {
         const isExpired = isAuditWindowExpired(row.original.auditEndDateTime);
         return (
-          <span className={`text-xs font-medium py-1 whitespace-nowrap ${isExpired ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
+          <span className={`text-xs font-medium py-1 whitespace-nowrap text-gray-600`}>
             {formatDateOnly(row.original.auditEndDateTime)}
             {isExpired && ' (Expired)'}
           </span>

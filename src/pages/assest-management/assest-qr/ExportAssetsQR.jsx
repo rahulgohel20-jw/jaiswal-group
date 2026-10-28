@@ -54,32 +54,32 @@ const normalizeLocation = (item) => ({
     status: item.active !== false && item.isActive !== false ? 'active' : 'inactive',
 });
 
-const AssetLabel = ({ asset, qrSize = 68 }) => (
-    <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center justify-between p-[0.04in] m-0 overflow-hidden break-inside-avoid">
+const AssetLabel = ({ asset, qrSize = 64 }) => (
+    <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center justify-between px-[0.05in] py-0 m-0 overflow-hidden break-inside-avoid border border-gray-200 rounded-md">
         {/* Top-Right Logo */}
         <img
-            className="absolute top-1 right-1 size-4 rounded-full shrink-0 object-cover z-10"
+            className="absolute top-1.5 right-1.5 size-7 rounded-full shrink-0 object-cover z-10"
             src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
             alt="Jaiswal Group"
         />
 
         {/* QR Code */}
-        <div className="w-[0.86in] h-[0.86in] shrink-0 flex items-center justify-center p-0.5">
+        <div className="w-[0.85in] h-[0.85in] shrink-0 flex items-center justify-center">
             <QRCode value={getAssetQRValue(asset)} size={qrSize} level="M" />
         </div>
 
         {/* Details Column */}
-        <div className="flex-1 min-w-0 h-[0.86in] flex flex-col justify-between pl-[0.06in] pr-4 text-left">
-            <div className="text-[5pt] font-bold leading-[1.05] wrap-break-word">Jaiswal Group</div>
+        <div className="flex-1 min-w-0 h-[0.85in] flex flex-col justify-between pl-[0.06in] pr-3 text-left">
+            <div className="text-[6pt] font-bold leading-none wrap-break-word text-[#1B1B1F]">Jaiswal Group</div>
             {asset.organizationname && asset.organizationname !== 'Jaiswal Group' ? (
-                <div className="text-[4.5pt] font-normal leading-[1.05] uppercase wrap-break-word">{asset.organizationname}</div>
+                <div className="text-[6pt] font-bold leading-[1.05] uppercase wrap-break-word">{asset.organizationname}</div>
             ) : asset.organizationname === 'Jaiswal Group' ? (
-                <div className="text-[4.5pt] font-normal leading-[1.05] uppercase wrap-break-word">Head Office</div>
+                <div className="text-[6pt] font-bold leading-[1.05] uppercase wrap-break-word">Head Office</div>
             ) : null}
-            <div className="text-[4.5pt] font-normal leading-[1.05] wrap-break-word">{asset.assetUnitLocationName || ""}</div>
-            <div className="text-[4.5pt] font-semibold leading-[1.05] wrap-break-word">{asset.categoryName || '-'}</div>
-            <div className="text-[4.5pt] font-semibold leading-[1.05] wrap-break-word">{toTitleCase(asset.name) || '-'}</div>
-            <div className="text-[4.5pt] font-mono leading-[1.05] wrap-break-word">{asset.code || '-'}</div>
+            <div className="text-[5.5pt] font-bold leading-[1.05] wrap-break-word">{asset.assetUnitLocationName || ""}</div>
+            <div className="text-[5.5pt] font-bold leading-[1.05] wrap-break-word">{asset.categoryName || '-'}</div>
+            <div className="text-[6pt] font-bold leading-[1.05] wrap-break-word">{toTitleCase(asset.name) || '-'}</div>
+            <div className="text-[5.5pt] font-bold leading-none wrap-break-word">{asset.code || '-'}</div>
         </div>
     </div>
 );
@@ -426,32 +426,43 @@ const ExportAssetsQR = () => {
                 Number(locationId || 0)
             );
             const rawAssets = assetRes?.data?.data ?? assetRes?.data ?? assetRes ?? [];
+            const rawList = Array.isArray(rawAssets) ? rawAssets : Object.values(rawAssets);
 
-            const normalizedAssets = (Array.isArray(rawAssets) ? rawAssets : Object.values(rawAssets)).map((item) => {
+            const uniqueMap = new Map();
+
+            rawList.forEach((item) => {
                 const asset = item.assetDetails || item;
                 const assignment = item.assignDetails || {};
+                const assetId = asset.id;
+                if (!assetId) return;
 
-                return {
-                    id: asset.id,
-                    name: asset.itemName || asset.name,
-                    code: asset.assetCode || asset.code,
-                    organizationId: assignment?.companiesId ?? asset.assignOrganizationId ?? orgId,
-                    organizationname: assignment?.companiesName ?? asset.organizationname ?? '',
-                    assetUnitLocationId: assignment?.assetUnitLocationId ?? asset.assetUnitLocationId ?? null,
-                    assetUnitLocationName: assignment?.assetUnitLocationName ?? assignment?.locationName ?? asset.assetUnitLocationName ?? asset.assetLocationName ?? asset.location ?? '',
-                    categoryId: asset.categoryId ?? asset.category?.id,
-                    categoryName: asset.categoryName ?? asset.category?.categoryName ?? asset.category?.name ?? asset.assetCategoryName ?? '',
-                    department: asset.department,
-                    location: asset.assetLocationName || asset.location,
-                    quantity: assignment?.quantity ?? asset.totalQuantity ?? 1,
-                };
+                const rowQty = Number(assignment?.quantity ?? asset.quantity ?? asset.totalQuantity ?? 1);
+                const locId = assignment?.assetUnitLocationId ?? null;
+                const locName = locId ? (assignment?.assetUnitLocationName ?? assignment?.locationName ?? '') : '';
+
+                if (!uniqueMap.has(String(assetId))) {
+                    uniqueMap.set(String(assetId), {
+                        id: asset.id,
+                        name: asset.itemName || asset.name,
+                        code: asset.assetCode || asset.code,
+                        organizationId: assignment?.companiesId ?? asset.assignOrganizationId ?? orgId,
+                        organizationname: assignment?.companiesName ?? asset.organizationname ?? '',
+                        assetUnitLocationId: locId,
+                        assetUnitLocationName: locName,
+                        categoryId: asset.categoryId ?? asset.category?.id,
+                        categoryName: asset.categoryName ?? asset.category?.categoryName ?? asset.category?.name ?? asset.assetCategoryName ?? '',
+                        department: asset.department,
+                        quantity: rowQty,
+                    });
+                } else {
+                    const existing = uniqueMap.get(String(assetId));
+                    existing.quantity += rowQty;
+                }
             });
 
-            setAssets(normalizedAssets);
-            return normalizedAssets;
+            return Array.from(uniqueMap.values());
         } catch (error) {
             console.error('Error fetching assigned assets:', error);
-            setAssets([]);
             return [];
         } finally {
             setAssetsLoading(false);
@@ -460,12 +471,25 @@ const ExportAssetsQR = () => {
 
     // Trigger getAssignedAssetsByOrgAndSubOutlet whenever Outlet, Company, or Location changes
     useEffect(() => {
-        // Fallback to token org if user hasn't explicitly selected one
-        const activeOrgId = outlet || company || getOrgIdFromToken();
-        if (activeOrgId) {
-            fetchAssignedAssets(Number(activeOrgId), location ? Number(location) : 0);
+        // Only use token org if the user is an outlet user; otherwise wait for outlet selection
+        const activeOrgId = outlet || (isOutletUser ? getOrgIdFromToken() : (isCompanyUser ? company : ''));
+        if (!activeOrgId) {
+            setAssets([]);
+            return;
         }
-    }, [outlet, company, location, fetchAssignedAssets]);
+
+        let isCurrent = true;
+
+        fetchAssignedAssets(Number(activeOrgId), location ? Number(location) : 0).then((data) => {
+            if (isCurrent) {
+                setAssets(data);
+            }
+        });
+
+        return () => {
+            isCurrent = false; // Discards previous slow responses when PDEU is selected
+        };
+    }, [outlet, company, location, isOutletUser, isCompanyUser, fetchAssignedAssets]);
 
     const normalizeLocationValue = (value) => String(value ?? '').trim().toLowerCase();
 
@@ -541,7 +565,7 @@ const ExportAssetsQR = () => {
                             organizationId: assignment.companiesId ?? assignment.organizationId ?? asset.organizationId ?? null,
                             organizationname: assignment.companiesName ?? assignment.organizationName ?? asset.organizationname ?? '',
                             assetUnitLocationId: assignment.assetUnitLocationId ?? assignment.locationId ?? null,
-                            assetUnitLocationName: assignment.assetUnitLocationName ?? assignment.locationName ?? asset.assetUnitLocationName ?? asset.assetLocationName ?? '',
+                            assetUnitLocationName: assignment.assetUnitLocationName ?? assignment.locationName ??  '',
                             quantity: assignment.quantity ?? assignment.assignedQuantity ?? 1,
                             remarks: assignment.remarks ?? "",
                             availableQuantity: assignment.availableQuantity ?? 0,
@@ -736,55 +760,72 @@ const ExportAssetsQR = () => {
 
     return (
         <>
-            <style>{`
-                @media print {
-                    @page {
-                        size: 2in 1in;
-                        margin: 0;
-                    }
-                    html, body {
-                        width: 2in !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                        background: white !important;
-                    }
-                    #root {
-                        display: none !important;
-                    }
-                    .qr-print-area {
-                        display: block !important;
-                        width: 2in !important;
-                        margin: 0 !important;
-                        padding: 0 !important;
-                    }
-                    .asset-label {
-                        display: flex !important;
-                        width: 2in !important;
-                        height: 1in !important;
-                        min-width: 2in !important;
-                        min-height: 1in !important;
-                        max-width: 2in !important;
-                        max-height: 1in !important;
-                        margin: 0 !important;
-                        padding: 0.04in !important;
-                        box-sizing: border-box !important;
-                        overflow: hidden !important;
-                        page-break-after: always !important;
-                        break-after: page !important;
-                        page-break-inside: avoid !important;
-                        break-inside: avoid !important;
-                    }
-                    .asset-label:last-child {
-                        page-break-after: auto !important;
-                        break-after: auto !important;
-                    }
-                    .asset-label svg {
-                        width: 0.86in !important;
-                        height: 0.86in !important;
-                        flex-shrink: 0 !important;
-                    }
-                }
-            `}</style>
+      <style>{`
+    @media print {
+        @page {
+            /* Exact 4in width (2 labels x 2in) by 1in height - 0 gap, 0 margin */
+            size: 4in 1in;
+            margin: 0;
+        }
+        html, body {
+            width: 4in !important;
+            height: 1in !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        #root {
+            display: none !important;
+        }
+        .qr-print-area {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            width: 4in !important;
+            height: 1in !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important; /* Zero gap between labels */
+            box-sizing: border-box !important;
+        }
+        .asset-label {
+            display: flex !important;
+            align-items: center !important;
+            width: 2in !important;
+            height: 1in !important;
+            min-width: 2in !important;
+            min-height: 1in !important;
+            max-width: 2in !important;
+            max-height: 1in !important;
+            margin: 0 !important;
+            padding: 0 0.05in !important;
+            box-sizing: border-box !important;
+            border: 1px solid #cbd5e1 !important; /* Sharp pure black border for clear separation */
+            border-radius: 6px !important;
+            background-color: #ffffff !important;
+            overflow: hidden !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+        }
+
+        /* Prevent double border in the middle where the two labels meet */
+        .asset-label:nth-child(2n) {
+            border-left: none !important;
+            page-break-after: always !important;
+            break-after: page !important;
+        }
+        .asset-label:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
+        }
+        .asset-label svg {
+            width: 0.85in !important;
+            height: 0.85in !important;
+            flex-shrink: 0 !important;
+        }
+    }
+`}</style>
 
             <div className="print:hidden">
                 <Container>
@@ -971,7 +1012,7 @@ const ExportAssetsQR = () => {
             </div>
 
             {isPrinting && createPortal(
-                <div className="qr-print-area hidden print:block">
+                <div className="qr-print-area hidden print:flex print:flex-wrap">
                     {generatedPrintItems.map((a, index) => (
                         <AssetLabel
                             key={`print-${a.rowKey}-${a.printIndex}-${index}`}

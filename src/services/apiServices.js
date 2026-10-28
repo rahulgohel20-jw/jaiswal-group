@@ -349,7 +349,17 @@ export const getAllAssets = () => {
 export const getAllActiveAssetsPaginated =  (page = 0, size = 20) => {
   return GET(`/assets/getallactive/page?page=${page}&size=${size}`);
 };
-
+export const getAllActiveWithSearchPaginated = (params = {}) => {
+  return GET('/assets/getallactive-with-search/page', {
+    page: params.page ?? 0,
+    size: params.size ?? 10,
+    ...(params.search ? { search: params.search } : {}),
+    ...(params.categoryId ? { categoryId: params.categoryId } : {}),
+    ...(params.statusId ? { statusId: params.statusId } : {}),
+    ...(params.sortBy ? { sortBy: params.sortBy } : {}),
+    ...(params.direction ? { direction: params.direction } : {}),
+  });
+};
 export const createAsset = (formData) => {
   return axiosInstance.post('/assets/create', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -1477,8 +1487,17 @@ export const getOpbList = (params) => {
 export const getOpbById = (id) => {
   return GET(`/stock-opb/${id}`);
 };//Purchase Invoice API
-export const getEligibleGrns = ({ outletId, vendorId }) => {
-  return GET(`/purchase-invoice/eligible-grns?outletId=${outletId}&vendorId=${vendorId}`);
+export const getEligibleGrns = ({ outletId, vendorId } = {}) => {
+  const params = {};
+
+  if (outletId !== undefined && outletId !== null && outletId !== '') {
+    params.outletId = outletId;
+  }
+  if (vendorId !== undefined && vendorId !== null && vendorId !== '') {
+    params.vendorId = vendorId;
+  }
+
+  return GET('/purchase-invoice/eligible-grns', params);
 }
 export const getEligibleGrnDetails = (grnIds) => {
   const idsParam = Array.isArray(grnIds) ? grnIds.join(',') : grnIds;
