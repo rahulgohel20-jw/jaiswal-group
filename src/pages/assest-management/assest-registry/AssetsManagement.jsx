@@ -1,5 +1,5 @@
 import {CircleCheck, Download, Eye, Loader2, Package, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -8,7 +8,7 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { Link, useNavigate } from 'react-router';
 import AssetPreviewDetail from './AssetPreviewDetail';
-import { getAllActiveAssetsPaginated, deleteAsset, getAssetCategories, getStatuses } from '@/services/apiServices';
+import { getAllActiveWithSearchPaginated, deleteAsset, getAssetCategories, getStatuses } from '@/services/apiServices';
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
@@ -113,9 +113,9 @@ const AssetsManagement = () => {
     const [showDetails, setShowDetails] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [searchInput, setSearchInput] = useState("");
+    const [selectedCategoryId, setSelectedCategoryId] = useState("ALL");
+    const [selectedStatusId, setSelectedStatusId] = useState("ALL");
     const [debouncedSearch, setDebouncedSearch] = useState("");
-    const [categoryInput, setCategoryInput] = useState("All Category");
-    const [statusInput, setStatusInput] = useState("All Status");
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -148,22 +148,24 @@ const AssetsManagement = () => {
         return () => clearTimeout(handler);
     }, [searchInput]);
 
-    const fetchAssets = async () => {
+    const fetchAssets = useCallback(async () => {
         setAssetsLoading(true);
         setAssetsError(null);
-        try {
-            // Passes pageIndex, pageSize, search, category, and status to the paginated endpoint
-            const res = await getAllActiveAssetsPaginated(
-                pagination.pageIndex,
-                pagination.pageSize,
-                {
-                    search: debouncedSearch.trim(),
-                    category: categoryInput,
-                    status: statusInput,
-                }
-            );
 
-            // Response shape: { msg: "...", data: { pageNumber, totalPages, pageSize, content: [...] } }
+        try {
+            const sortField = sorting[0]?.id;
+            const sortDir = sorting[0]?.desc ? 'desc' : 'asc';
+
+            const res = await getAllActiveWithSearchPaginated({
+                page: pagination.pageIndex,
+                size: pagination.pageSize,
+                search: debouncedSearch.trim() || undefined,
+                categoryId: selectedCategoryId !== 'ALL' ? Number(selectedCategoryId) : undefined,
+                statusId: selectedStatusId !== 'ALL' ? Number(selectedStatusId) : undefined,
+                sortBy: sortField,
+                direction: sortField ? sortDir : undefined,
+            });
+
             const pageData = res?.data?.data ?? res?.data ?? {};
             const list = Array.isArray(pageData?.content) ? pageData.content : [];
 
@@ -171,12 +173,19 @@ const AssetsManagement = () => {
             setPageCount(pageData.totalPages ?? 0);
             setTotalRecords(pageData.totalElements ?? (pageData.totalPages ?? 0) * pagination.pageSize);
         } catch (err) {
-            console.error("Failed to fetch assets:", err);
-            setAssetsError("Could not load assets. Please try again.");
+            console.error('Failed to fetch assets:', err);
+            setAssetsError('Could not load assets. Please try again.');
         } finally {
             setAssetsLoading(false);
         }
-    };
+    }, [
+        pagination.pageIndex,
+        pagination.pageSize,
+        debouncedSearch,
+        selectedCategoryId,
+        selectedStatusId,
+        sorting,
+    ]);
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, itemLabel: row.name });
         setShowDeleteConfirm(true);
@@ -203,8 +212,8 @@ const AssetsManagement = () => {
     };
 
     useEffect(() => {
-        fetchAssets();
-    }, [pagination.pageIndex, pagination.pageSize, debouncedSearch, categoryInput, statusInput]);
+    fetchAssets();
+}, [fetchAssets]);
 
     const stats = useMemo(() => {
         const total = assets.length;
@@ -311,7 +320,7 @@ const AssetsManagement = () => {
             size: 36,
         },
         {
-            id: "assetId",
+            id: "assetCode",
             accessorFn: (row) => row.assetId,
             header: ({ column }) => (
                 <DataGridColumnHeader title="ASSET ID" column={column} className="my-2 text-xs" />
@@ -377,7 +386,7 @@ const AssetsManagement = () => {
             size: 75,
         },
         {
-            id: "value",
+            id: "purchaseCost",
             accessorFn: (row) => row.value,
             header: ({ column }) => (
                 <DataGridColumnHeader title="VALUE" column={column} className="my-2 text-xs" />
@@ -449,12 +458,11 @@ const AssetsManagement = () => {
         columns,
         pageCount,
         manualPagination: true,
+        manualSorting: true,
         state: { pagination, sorting },
         onPaginationChange: setPagination,
-        getSortedRowModel: getSortedRowModel(),
         onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
     });
 
     if (!canView) {
@@ -527,22 +535,22 @@ const AssetsManagement = () => {
                             {/* Category */}
                             <div>
                                 <Select
-                                    value={categoryInput}
+                                    value={selectedCategoryId}
                                     onValueChange={(value) => {
-                                        setCategoryInput(value);
+                                        setSelectedCategoryId(value);
                                         setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                                     }}
                                 >
                                     <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                         <SelectValue placeholder="All Category" />
                                     </SelectTrigger>
-
                                     <SelectContent>
-                                        <SelectItem value="All Category">All Category</SelectItem>
+                                        <SelectItem value="ALL">All Category</SelectItem>
                                         {categoryOptions.map((cat) => {
+                                            const idStr = String(cat.id ?? cat.categoryId);
                                             const name = cat.categoryName ?? cat.name;
                                             return (
-                                                <SelectItem key={cat.id ?? name} value={name}>
+                                                <SelectItem key={idStr} value={idStr}>
                                                     {name}
                                                 </SelectItem>
                                             );
@@ -554,22 +562,22 @@ const AssetsManagement = () => {
                             {/* Status */}
                             <div>
                                 <Select
-                                    value={statusInput}
+                                    value={selectedStatusId}
                                     onValueChange={(value) => {
-                                        setStatusInput(value);
+                                        setSelectedStatusId(value);
                                         setPagination((prev) => ({ ...prev, pageIndex: 0 }));
                                     }}
                                 >
                                     <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                         <SelectValue placeholder="All Status" />
                                     </SelectTrigger>
-
                                     <SelectContent>
-                                        <SelectItem value="All Status">All Status</SelectItem>
+                                        <SelectItem value="ALL">All Status</SelectItem>
                                         {statusOptions.map((stat) => {
+                                            const idStr = String(stat.id ?? stat.statusId);
                                             const name = stat.statusName ?? stat.name;
                                             return (
-                                                <SelectItem key={stat.id ?? name} value={name}>
+                                                <SelectItem key={idStr} value={idStr}>
                                                     {name}
                                                 </SelectItem>
                                             );
@@ -579,10 +587,10 @@ const AssetsManagement = () => {
                             </div>
 
                         </div>
+                    </div>
                 </div>
-            </div>
-            <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
-                {assetsLoading ? (
+                <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
+                    {assetsLoading ? (
                     <div className="flex items-center justify-center gap-2 py-16 text-gray-400 bg-white">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span className="text-sm">Loading assets...</span>

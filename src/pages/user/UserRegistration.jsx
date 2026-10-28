@@ -258,10 +258,11 @@ const ACTIONS = [
   { key: 'edit', label: 'Edit' },
   { key: 'view', label: 'View' },
   { key: 'delete', label: 'Delete' },
+  { key: 'export', label: 'Export' },
 ];
 
-const emptyRow = { add: false, edit: false, view: false, delete: false };
-const fullRow = { add: true, edit: true, view: true, delete: true };
+const emptyRow = { add: false, edit: false, view: false, delete: false, export: false };
+const fullRow = { add: true, edit: true, view: true, delete: true, export: true };
 
 const normalizePages = (res) => {
   const modules = res?.data?.data?.ModuleWiseUserRights ?? [];
@@ -296,6 +297,7 @@ const normalizeExistingRights = (res) => {
             edit: Boolean(r.edit),
             view: Boolean(r.view),
             delete: Boolean(r.delete),
+            export: Boolean(r.export),
           };
         }
       });
@@ -1236,9 +1238,10 @@ useEffect(() => {
           edit: Boolean(row.edit),
           view: Boolean(row.view),
           delete: Boolean(row.delete),
+          export: Boolean(row.export),
         };
       })
-      .filter((r) => r.add || r.edit || r.view || r.delete);
+      .filter((r) => r.add || r.edit || r.view || r.delete || r.export);
   };
 
   const validate = () => {
@@ -1806,7 +1809,7 @@ useEffect(() => {
                               const isSelected = selectedModule === moduleName;
                               const hasAnyChecked = pages.some((p) => {
                                 const r = checks[p.id];
-                                return r?.add || r?.edit || r?.view || r?.delete;
+                                return r?.add || r?.edit || r?.view || r?.delete || r?.export;
                               });
 
                               return (

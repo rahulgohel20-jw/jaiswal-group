@@ -710,7 +710,7 @@ const UserViewDetails = () => {
 
                         // Check if this module has any granted permission
                         const hasAnyGranted = pages.some(
-                          (p) => p.add || p.edit || p.view || p.delete || p.export
+                          (p) => p.add || p.edit || p.view || p.delete || p.export 
                         );
 
                         return (
