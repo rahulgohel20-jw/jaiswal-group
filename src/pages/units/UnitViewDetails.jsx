@@ -89,10 +89,9 @@ const UnitViewDetails = () => {
   const statusLabel = isActive ? "Active" : "Inactive";
 
   const logoUrl =
-    raw.companyLogo ||
-    (raw.images?.length > 0
+    raw.images?.length > 0
       ? raw.images[raw.images.length - 1]?.path
-      : null);
+      : null;
 
   return (
      <Container>

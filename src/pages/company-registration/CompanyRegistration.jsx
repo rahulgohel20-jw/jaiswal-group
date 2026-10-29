@@ -100,21 +100,48 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle, hasError }
 
 const ImageUploadBox = ({ label, hint, value, onChange }) => {
   const fileRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
-
-    if (file) {
+  const handleFile = (file) => {
+    if (file && file.type.startsWith('image/')) {
       onChange(file);
     }
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    handleFile(file);
+  };
   return (
     <div>
       <Label>{label}</Label>
       <div
         onClick={() => fileRef.current?.click()}
-        className="relative w-full border border-dashed border-gray-300 rounded-lg px-3.5 py-2.5 flex items-center gap-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition bg-white"
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`relative w-full border border-dashed rounded-lg px-3.5 py-2.5 flex items-center gap-3 cursor-pointer transition bg-white ${
+          isDragging
+            ? 'border-blue-500 bg-blue-50/60 ring-2 ring-blue-200'
+            : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/30'
+        }`}
       >
         {value ? (
           <img
@@ -123,13 +150,20 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
             className="w-8 h-8 rounded-md object-cover border border-gray-200 shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
-            <ImageUp className="w-4 h-4 text-gray-400" />
+          <div className={`w-8 h-8 rounded-md border flex items-center justify-center shrink-0 ${
+              isDragging ? 'bg-blue-100 border-blue-300 text-blue-500' : 'bg-gray-50 border-gray-200 text-gray-400'
+            }`}
+          >
+            <ImageUp className="w-4 h-4" />
           </div>
         )}
         <div className="min-w-0">
           <p className="text-sm text-gray-600 truncate">
-            {value ? 'Replace image' : 'Click to upload'}
+            {isDragging
+              ? 'Drop image here'
+              : value
+              ? 'Replace image'
+              : 'Click or drop image'}
           </p>
           <p className="text-xs text-gray-400">{hint}</p>
         </div>
@@ -149,7 +183,7 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
           ref={fileRef}
           type="file"
           accept="image/*"
-          onChange={handleFile}
+          onChange={(e) => handleFile(e.target.files?.[0])}
           className="hidden"
         />
       </div>

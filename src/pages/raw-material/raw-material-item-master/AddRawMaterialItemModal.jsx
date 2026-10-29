@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Plus,
   UploadCloud,
+  X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -426,10 +427,44 @@ const AddRawMaterialItemModal = () => {
     fetchSubCategoriesForCategory(form.rawMaterialCatId, normalizeSubCategory(editData));
   }, [form.rawMaterialCatId]);
 
+  const [isDragging, setIsDragging] = useState(false);
+
+  const processImageFile = (file) => {
+    if (!file || isViewOnly) return;
+    if (!file.type.startsWith('image/')) return;
+    set('file', file);
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    set('file', file);
+    processImageFile(file);
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isViewOnly) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    processImageFile(file);
+  };
+
+  const handleRemoveImage = (e) => {
+    e.stopPropagation();
+    setForm((prev) => ({ ...prev, file: null, imageUrl: '' }));
+    if (imageRef.current) imageRef.current.value = '';
   };
 
   const imagePreview = form.file ? URL.createObjectURL(form.file) : form.imageUrl;
@@ -851,34 +886,53 @@ const AddRawMaterialItemModal = () => {
                 onClick={() => {
                   if (!isViewOnly) imageRef.current?.click();
                 }}
-                className={`border-2 border-dashed border-[#C3C6D1] bg-gray-50/60 rounded-xl h-44 flex flex-col items-center justify-center transition ${
-                  isViewOnly ? 'cursor-default' : 'cursor-pointer hover:bg-gray-100/70'
-                  }`}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-xl h-44 flex flex-col items-center justify-center transition ${
+                  isViewOnly
+                    ? 'cursor-default border-[#C3C6D1] bg-gray-50/60'
+                    : isDragging
+                    ? 'border-[#00376C] bg-blue-50/60 ring-2 ring-blue-200 cursor-pointer'
+                    : 'border-[#C3C6D1] bg-gray-50/60 hover:bg-gray-100/70 cursor-pointer'
+                }`}
               >
-                {form.file ? (
+                {form.file || form.imageUrl ? (
                   <div className="flex flex-col items-center gap-2">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-24 h-24 rounded-lg object-cover shadow-xs border"
-                    />
-                    <span className="text-xs text-gray-600 font-medium">{form.file.name}</span>
-                  </div>
-                ) : form.imageUrl ? (
-                  <div className="flex flex-col items-center gap-2">
-                    <img
-                      src={imagePreview}
-                      alt="Existing"
-                      className="w-24 h-24 rounded-lg object-cover shadow-xs border"
-                    />
-                    <span className="text-xs text-gray-600 font-medium">Existing Image</span>
+                    {/* Relative wrapper around the image thumbnail */}
+                    <div className="relative inline-block">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-24 h-24 rounded-lg object-cover shadow-xs border border-gray-200"
+                      />
+
+                      {/* Cross icon positioned directly on top-right of the image */}
+                      {!isViewOnly && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          title="Remove Image"
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-500 hover:text-red-500 hover:border-red-200 transition cursor-pointer z-10"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <span className="text-xs text-gray-600 font-medium">
+                      {form.file ? form.file.name : 'Existing Image'}
+                    </span>
                   </div>
                 ) : (
                   <>
                     <div className="w-12 h-12 rounded-full bg-[#DEE9FC] flex items-center justify-center mb-2">
                       <UploadCloud className="h-6 w-6 text-[#00376C]" />
                     </div>
-                    <p className="text-xs font-semibold text-gray-700">Click or drag and drop to upload</p>
+                    <p className="text-xs font-semibold text-gray-700">
+                      {isDragging ? 'Drop image here' : 'Click or drag and drop to upload'}
+                    </p>
                     <p className="text-[11px] text-gray-400 mt-0.5">PNG, JPG or WEBP (Max. 5MB)</p>
                   </>
                 )}
