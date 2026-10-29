@@ -37,15 +37,35 @@ import { useServerPagination } from '@/hooks/useServerPagination';
 
 const formatDate = (val) => {
   if (!val) return '—';
-  const slashMatch = String(val).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (slashMatch) {
-    const [, d, m, y] = slashMatch;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const str = String(val).trim();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Match YYYY-MM-DD (e.g. "2026-10-29" or "2026-10-29T...")
+  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
     const monthName = months[parseInt(m, 10) - 1] || m;
     return `${d.padStart(2, '0')} ${monthName} ${y}`;
   }
+
+  // Match DD/MM/YYYY
+  const slashMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    const [, d, m, y] = slashMatch;
+    const monthName = months[parseInt(m, 10) - 1] || m;
+    return `${d.padStart(2, '0')} ${monthName} ${y}`;
+  }
+
+  // Match DD-MM-YYYY
+  const dashMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+  if (dashMatch) {
+    const [, d, m, y] = dashMatch;
+    const monthName = months[parseInt(m, 10) - 1] || m;
+    return `${d.padStart(2, '0')} ${monthName} ${y}`;
+  }
+
   const parsed = new Date(val);
-  if (isNaN(parsed.getTime())) return String(val).split(' ')[0] || val;
+  if (isNaN(parsed.getTime())) return str.split(' ')[0] || val;
   return parsed.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
