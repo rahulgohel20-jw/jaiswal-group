@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { X } from "lucide-react";
 import {
   addKitchenMenuCategory,
@@ -33,7 +33,50 @@ const KitchenCreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
     return Boolean(String(val).trim());
   };
 
+  const fileInputRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
+  const processFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      notify.error("Please select a valid image file.");
+      return;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      image: file,
+    }));
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    processFile(file);
+  };
+
+  const handleRemoveImage = (e) => {
+    e.stopPropagation();
+    setFormData((prev) => ({ ...prev, image: null }));
+    setImagePreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
   // Handle editData or reset when modal opens/closes
   useEffect(() => {
     if (editData) {
@@ -143,35 +186,65 @@ const KitchenCreateMenuCategory = ({ open, onClose, onSuccess, editData }) => {
           {/* Image */}
           <div className="col-span-2">
             <label className="block mb-1 text-gray-700 font-medium">Image</label>
-            <label className="border-2 border-dashed rounded min-h-20 flex items-center justify-center cursor-pointer p-3 hover:border-blue-400 transition">
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragEnter={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-lg min-h-20 flex items-center justify-center cursor-pointer p-3 transition ${
+                isDragging
+                  ? "border-blue-500 bg-blue-50/60 ring-2 ring-blue-200"
+                  : "border-gray-300 hover:border-blue-400 bg-white"
+              }`}
+            >
               {imagePreview ? (
                 <div className="flex items-center gap-3 w-full">
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-16 h-16 rounded object-cover border"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">
+                  {/* Thumbnail wrapper with positioned cross icon */}
+                  <div className="relative inline-block shrink-0">
+                    <img
+                      src={imagePreview}
+                      alt="Preview"
+                      className="w-16 h-16 rounded object-cover border"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      title="Remove Image"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-500 hover:text-red-500 hover:border-red-200 transition cursor-pointer z-10"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">
                       {formData.image ? formData.image.name : "Current Image"}
                     </p>
                     <p className="text-xs text-gray-500">
-                      Click to change image
+                      Click or drop to replace image
                     </p>
                   </div>
                 </div>
               ) : (
                 <span className="text-gray-400 text-xs text-center">
-                  Drag & drop an image here, or click to select
+                  {isDragging
+                    ? "Drop image here"
+                    : "Drag & drop an image here, or click to select"}
                 </span>
               )}
+
               <input
+                ref={fileInputRef}
                 type="file"
                 hidden
                 accept="image/*"
-                onChange={handleImage}
+                onChange={(e) => {
+                  processFile(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
               />
-            </label>
+            </div>
           </div>
 
           {/* Description */}

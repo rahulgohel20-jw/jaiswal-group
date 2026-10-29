@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Image, Layers, Menu, Plus, UploadCloud, Save, ArrowLeft } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Image, Layers, Menu, Plus, UploadCloud, Save, ArrowLeft, X } from "lucide-react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import {
     addKitchenMenuItem,
@@ -66,7 +66,7 @@ const CreateKitchenMenuItem = () => {
         () => location.state?.returnUrl || "/menu-item/menu-items",
         [location.state]
     );
-
+    
     // Safe navigation back that signals useModuleState to keep filters
     const handleNavigateBack = useCallback(() => {
         navigate(returnUrl, { state: { fromChild: true } });
@@ -108,11 +108,50 @@ const CreateKitchenMenuItem = () => {
         setForm((prev) => ({ ...prev, [name]: value }));
     };
 
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
+    const imageInputRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
+
+    const processImageFile = (file) => {
         if (!file) return;
+        if (!file.type.startsWith("image/")) {
+            notify.error("Please upload a valid image file");
+            return;
+        }
         setImageFile(file);
         setImagePreview(URL.createObjectURL(file));
+    };
+
+    const handleImageChange = (e) => {
+        const file = e.target.files?.[0];
+        processImageFile(file);
+        e.target.value = "";
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        processImageFile(file);
+    };
+
+    const handleRemoveImage = (e) => {
+        e.stopPropagation();
+        setImageFile(null);
+        setImagePreview(null);
+        if (imageInputRef.current) imageInputRef.current.value = "";
     };
 
     // Fetch Active Categories
@@ -377,33 +416,63 @@ const CreateKitchenMenuItem = () => {
                         <div className="px-6 py-6">
                             <Label>Upload Image</Label>
                             <input
+                                ref={imageInputRef}
                                 type="file"
                                 id="menuImage"
                                 accept="image/*"
                                 onChange={handleImageChange}
                                 className="hidden"
                             />
-                            <label
-                                htmlFor="menuImage"
-                                className="border-2 border-dashed border-gray-300 rounded-xl min-h-40 flex items-center justify-center cursor-pointer hover:border-[#084E92] transition"
+                            <div
+                                onClick={() => imageInputRef.current?.click()}
+                                onDragOver={handleDragOver}
+                                onDragEnter={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                className={`border-2 border-dashed rounded-xl min-h-40 flex items-center justify-center cursor-pointer transition ${
+                                    isDragging
+                                        ? "border-[#084E92] bg-blue-50/60 ring-2 ring-blue-200"
+                                        : "border-gray-300 hover:border-[#084E92] bg-white"
+                                }`}
                             >
                                 {imagePreview ? (
                                     <div className="flex gap-4 items-center p-4">
-                                        <img src={imagePreview} className="w-24 h-24 rounded-lg object-cover" alt="Preview" />
+                                        <div className="relative inline-block shrink-0">
+                                            <img
+                                                src={imagePreview}
+                                                className="w-24 h-24 rounded-lg object-cover border border-gray-200"
+                                                alt="Preview"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleRemoveImage}
+                                                title="Remove Image"
+                                                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-500 hover:text-red-500 hover:border-red-200 transition cursor-pointer z-10"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                         <div>
                                             <p className="font-medium">{imageFile?.name || "Current Menu Image"}</p>
-                                            <p className="text-sm text-gray-400">Click to change image</p>
+                                            <p className="text-sm text-gray-400">Click or drop image to replace</p>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="text-center text-gray-500">
+                                    <div className="text-center text-gray-500 p-4">
                                         <UploadCloud size={40} className="mx-auto text-[#084E92]" />
                                         <p className="mt-1">
-                                            Drag your files or <span className="text-[#084E92] font-semibold">Browse</span>
+                                            {isDragging ? (
+                                                <span className="text-[#084E92] font-semibold">Drop image here</span>
+                                            ) : (
+                                                <>
+                                                    Drag your files or <span className="text-[#084E92] font-semibold">Browse</span>
+                                                </>
+                                            )}
                                         </p>
+                                        <p className="text-xs text-gray-400 mt-0.5">PNG, JPG, or WEBP up to 5MB</p>
                                     </div>
                                 )}
-                            </label>
+                            </div>
                         </div>
                     )}
                 </SectionCard>

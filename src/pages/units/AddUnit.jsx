@@ -90,13 +90,46 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
 
 const ImageUploadBox = ({ label, hint, value, onChange }) => {
   const fileRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
+  const MAX_SIZE_MB = 2;
+  const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
-    if (file) {
-      onChange(file);
+  const validateAndProcessFile = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      notify.error('Please upload a valid image file (PNG, JPG, etc.)');
+      return;
     }
+
+    if (file.size > MAX_SIZE_BYTES) {
+      notify.error(`File size exceeds ${MAX_SIZE_MB}MB limit`);
+      return;
+    }
+
+    onChange(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    validateAndProcessFile(file);
   };
 
   return (
@@ -104,7 +137,14 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
       <Label>{label}</Label>
       <div
         onClick={() => fileRef.current?.click()}
-        className="relative w-full border border-dashed border-gray-300 rounded-lg px-3.5 py-2.5 flex items-center gap-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition bg-white"
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`relative w-full border border-dashed rounded-lg px-3.5 py-2.5 flex items-center gap-3 cursor-pointer transition bg-white ${isDragging
+            ? 'border-blue-500 bg-blue-50/60 ring-2 ring-blue-200'
+            : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/30'
+          }`}
       >
         {value ? (
           <img
@@ -113,33 +153,49 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
             className="w-8 h-8 rounded-md object-cover border border-gray-200 shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
-            <ImageUp className="w-4 h-4 text-gray-400" />
+          <div
+            className={`w-8 h-8 rounded-md border flex items-center justify-center shrink-0 ${isDragging
+                ? 'bg-blue-100 border-blue-300 text-blue-500'
+                : 'bg-gray-50 border-gray-200 text-gray-400'
+              }`}
+          >
+            <ImageUp className="w-4 h-4" />
           </div>
         )}
+
         <div className="min-w-0">
           <p className="text-sm text-gray-600 truncate">
-            {value ? 'Replace image' : 'Click to upload'}
+            {isDragging
+              ? 'Drop image here'
+              : value
+                ? 'Replace image'
+                : 'Click or drop image'}
           </p>
           <p className="text-xs text-gray-400">{hint}</p>
         </div>
+
         {value && (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onChange(null);
+              if (fileRef.current) fileRef.current.value = '';
             }}
             className="ml-auto w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-200 transition cursor-pointer bg-white shrink-0"
           >
             <X className="w-3 h-3" />
           </button>
         )}
+
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
-          onChange={handleFile}
+          onChange={(e) => {
+            validateAndProcessFile(e.target.files?.[0]);
+            e.target.value = '';
+          }}
           className="hidden"
         />
       </div>
