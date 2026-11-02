@@ -59,7 +59,7 @@ const AssetLabel = ({ asset, qrSize = 64 }) => (
         {/* Top-Right Logo */}
         <img
             className="absolute top-1.5 right-1.5 size-7 rounded-full shrink-0 object-cover z-10"
-            src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
+            src={toAbsoluteUrl('/media/app/jaiswal-group-logo.png')}
             alt="Jaiswal Group"
         />
 

@@ -150,7 +150,7 @@ export function Header() {
                 trigger={
                   <img
                     className="size-9 rounded-full border-2 border-green-500 shrink-0 cursor-pointer"
-                    src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
+                    src={toAbsoluteUrl('/media/app/jaiswal-group-logo.png')}
                     alt="User Avatar"
                   />
                 }

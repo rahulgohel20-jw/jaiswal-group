@@ -33,7 +33,7 @@ export function UserDropdownMenu({ trigger }) {
 
   const displayEmail = user?.email || '';
   // const displayAvatar = user?.pic || toAbsoluteUrl('/media/avatars/300-2.png');
-  const displayAvatar = toAbsoluteUrl('/media/app/jaiswalgroup-logo.png');
+  const displayAvatar = toAbsoluteUrl('/media/app/jaiswal-group-logo.png');
 
   const handleLanguage = (lang) => {
     changeLanguage(lang);
