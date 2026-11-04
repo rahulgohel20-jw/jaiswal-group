@@ -83,7 +83,7 @@ const CONDITION_TEXT_COLORS = {
     bad: "text-rose-600",
 };
 
-const ConditionBadge = ({ condition }) => {
+const ConditionBadge = ({ condition, className = "" }) => {
     if (!condition) return <span className="text-gray-400">—</span>;
 
     const normalized = String(condition).toLowerCase();
@@ -91,7 +91,10 @@ const ConditionBadge = ({ condition }) => {
     const label = condition.charAt(0).toUpperCase() + condition.slice(1);
 
     return (
-        <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+        <span
+            title={label}
+            className={`text-xs font-semibold whitespace-nowrap truncate block max-w-full ${color} ${className}`}
+        >
             {label}
         </span>
     );
@@ -340,12 +343,12 @@ const AssetsManagement = () => {
                 <DataGridColumnHeader title="ITEM NAME" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <div title={row.original.itemName} className="font-medium text-xs text-gray-800 py-1 truncate max-w-[140px]">
+                <div title={row.original.itemName} className="font-medium text-xs text-gray-800 py-1 truncate max-w-[105px]">
                     {row.original.itemName}
                 </div>
             ),
             enableSorting: true,
-            size: 140,
+            size: 105,
         },
         {
             id: "category",
@@ -383,7 +386,7 @@ const AssetsManagement = () => {
                 <ConditionBadge condition={row.original.condition} className="py-1" />
             ),
             enableSorting: false,
-            size: 75,
+            size: 135,
         },
         {
             id: "purchaseCost",
@@ -392,12 +395,12 @@ const AssetsManagement = () => {
                 <DataGridColumnHeader title="VALUE" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="font-medium text-xs text-gray-800 py-1">
+                <span className="font-medium text-xs text-gray-800 py-1 whitespace-nowrap block">
                     ₹{Number(row.original.value ?? 0).toLocaleString()}
                 </span>
             ),
             enableSorting: true,
-            size: 85,
+            size: 90,
         },
         {
             id: "warranty",
