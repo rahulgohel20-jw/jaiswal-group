@@ -10,6 +10,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ScrollText,
+  Package,
+  X,
+  Eye,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -147,6 +150,27 @@ const AddPurchaseRequisition = () => {
   const [isOutletConfirmOpen, setIsOutletConfirmOpen] = useState(false);
   const [outletChangeLoading, setOutletChangeLoading] = useState(false);
 
+  // ---- Image preview modal state ----
+  const [previewModalImage, setPreviewModalImage] = useState(null);
+
+  // Helper to resolve raw material image from item or loaded raw materials
+  const getItemImage = useCallback((d) => {
+    if (d?.image) return d.image;
+    if (Array.isArray(d?.images) && d.images.length > 0) {
+      const sorted = [...d.images].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+      if (sorted[0]?.path) return sorted[0].path;
+    }
+    const matched = rawMaterials.find((r) => Number(r.id) === Number(d?.rawMaterialId));
+    if (matched) {
+      if (matched.image) return matched.image;
+      if (Array.isArray(matched.images) && matched.images.length > 0) {
+        const sorted = [...matched.images].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+        if (sorted[0]?.path) return sorted[0].path;
+      }
+    }
+    return '';
+  }, [rawMaterials]);
+
   const isOutletUser = orgType === OrgTypes.OUTLET || orgType === 'OUTLET' || (!hasOutletDropdownAccess && !outletsLoading);
   const effectiveOutletId =
     outletId ||
@@ -267,6 +291,17 @@ const AddPurchaseRequisition = () => {
                 ? [matchedRaw.unit]
                 : [];
 
+            const itemImages = Array.isArray(d.images) && d.images.length > 0
+              ? d.images
+              : Array.isArray(matchedRaw?.images)
+              ? matchedRaw.images
+              : [];
+            const latestImg =
+              d.image ||
+              [...itemImages].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0))[0]?.path ||
+              matchedRaw?.image ||
+              '';
+
             return {
               id: isEditMode ? (d.id ?? 0) : 0,
               rawMaterialId: d.rawMaterialId,
@@ -282,6 +317,8 @@ const AddPurchaseRequisition = () => {
               stockUnit,
               minStock: matchedRaw?.minStock ?? null,
               quantity: d.quantity,
+              images: itemImages,
+              image: latestImg,
             };
           }),
         );
@@ -441,6 +478,12 @@ const AddPurchaseRequisition = () => {
         ? item.currentStock.unitName || item.currentStock.unitSymbol
         : '') || '';
 
+    const itemImages = Array.isArray(item.images) ? item.images : [];
+    const latestImg =
+      [...itemImages].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0))[0]?.path ||
+      item.image ||
+      '';
+
     setDetails((prev) => [
       ...prev,
       {
@@ -455,6 +498,8 @@ const AddPurchaseRequisition = () => {
         stockUnit,
         minStock: item.minStock,
         quantity: 1,
+        images: itemImages,
+        image: latestImg,
       },
     ]);
     setDetailsPage(Math.floor(details.length / DETAILS_PAGE_SIZE));
@@ -862,15 +907,54 @@ const AddPurchaseRequisition = () => {
 
                           {/* Item Details */}
                           <td className="px-4 py-3.5 align-middle">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-slate-900 text-xs">
-                                {d.rawMaterialName}
-                              </span>
-                              {d.category && (
-                                <span className="inline-flex items-center w-fit px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200/60 mt-1">
-                                  {d.category}
+                            <div className="flex items-center gap-3">
+                              {/* Item Image */}
+                              {(() => {
+                                const imgUrl = getItemImage(d);
+                                return imgUrl ? (
+                                  <div
+                                    onClick={() => setPreviewModalImage({ url: imgUrl, name: d.rawMaterialName })}
+                                    className="w-11 h-11 rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center shrink-0 shadow-2xs hover:border-[#084E92] transition-colors cursor-pointer group/img relative"
+                                    title="Click to view full image"
+                                  >
+                                    <img
+                                      src={imgUrl}
+                                      alt={d.rawMaterialName}
+                                      className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-200"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        if (e.currentTarget.nextElementSibling) {
+                                          e.currentTarget.nextElementSibling.style.display = 'flex';
+                                        }
+                                      }}
+                                    />
+                                    <div className="hidden w-full h-full items-center justify-center bg-slate-50 text-slate-400">
+                                      <Package className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                    <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                      <Eye className="w-3.5 h-3.5 drop-shadow" />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-11 h-11 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center shrink-0 text-slate-400"
+                                    title="No image available"
+                                  >
+                                    <Package className="w-5 h-5 text-slate-400" />
+                                  </div>
+                                );
+                              })()}
+
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-semibold text-slate-900 text-xs truncate" title={d.rawMaterialName}>
+                                  {d.rawMaterialName}
                                 </span>
-                              )}
+                                {d.category && (
+                                  <span className="inline-flex items-center w-fit px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200/60 mt-1">
+                                    {d.category}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </td>
 
@@ -1060,6 +1144,39 @@ const AddPurchaseRequisition = () => {
       itemCount={details.length}
       loading={outletChangeLoading}
     />
+
+    {/* Image Preview Modal */}
+    {previewModalImage && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn"
+        onClick={() => setPreviewModalImage(null)}
+      >
+        <div
+          className="relative bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-4 flex flex-col items-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between w-full pb-3 border-b border-gray-100">
+            <span className="text-xs font-bold text-gray-800 truncate pr-2">
+              {previewModalImage.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPreviewModalImage(null)}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="mt-3 w-full max-h-[60vh] flex items-center justify-center rounded-xl overflow-hidden bg-slate-50 border border-gray-100">
+            <img
+              src={previewModalImage.url}
+              alt={previewModalImage.name}
+              className="max-w-full max-h-[55vh] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      </div>
+    )}
     </Container>
   );
 };
