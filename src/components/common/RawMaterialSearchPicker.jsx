@@ -1,5 +1,18 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, X, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { Search, X, Loader2, Package } from 'lucide-react';
+
+/**
+ * Normalizes item image from varied item payloads.
+ */
+export const extractItemImage = (item) => {
+  if (!item) return '';
+  if (item.image) return item.image;
+  if (Array.isArray(item.images) && item.images.length > 0) {
+    const valid = [...item.images].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+    return valid[0]?.path || '';
+  }
+  return '';
+};
 
 /**
  * Normalizes available stock number from varied item payloads.
@@ -183,6 +196,7 @@ const RawMaterialSearchPicker = ({
               const stock = extractItemStock(item);
               const unit = extractItemUnit(item);
               const price = extractItemPrice(item);
+              const imgUrl = extractItemImage(item);
               const name = item.nameEnglish || item.itemName || item.name || `Item #${item.id}`;
               const code = item.itemCode || item.code || item.sku;
 
@@ -200,19 +214,35 @@ const RawMaterialSearchPicker = ({
                   onClick={() => handleSelect(item)}
                   className="w-full flex items-center justify-between gap-2.5 px-3 py-1.5 text-left hover:bg-blue-50/80 transition-colors cursor-pointer group"
                 >
-                  {/* Left: Name + Code */}
-                  <div className="min-w-0 flex-1 flex items-center gap-1.5">
-                    <span
-                      className="text-xs font-medium text-gray-800 group-hover:text-[#084E92] truncate"
-                      title={name}
-                    >
-                      {name}
-                    </span>
-                    {showCode && code && (
-                      <span className="text-[10px] text-gray-400 font-mono shrink-0">
-                        ({code})
-                      </span>
+                  {/* Left: Image + Name + Code */}
+                  <div className="min-w-0 flex-1 flex items-center gap-2.5">
+                    {imgUrl ? (
+                      <img
+                        src={imgUrl}
+                        alt=""
+                        className="w-7 h-7 rounded-md object-cover border border-gray-200 bg-gray-50 shrink-0"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-md bg-gray-100 border border-gray-200/60 flex items-center justify-center shrink-0 text-gray-400">
+                        <Package size={13} />
+                      </div>
                     )}
+                    <div className="min-w-0 flex flex-col">
+                      <span
+                        className="text-xs font-medium text-gray-800 group-hover:text-[#084E92] truncate"
+                        title={name}
+                      >
+                        {name}
+                      </span>
+                      {showCode && code && (
+                        <span className="text-[10px] text-gray-400 font-mono">
+                          {code}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Right: Stock + Price */}

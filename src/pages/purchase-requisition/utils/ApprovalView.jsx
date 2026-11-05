@@ -7,6 +7,7 @@ import {
   XCircle,
   ArrowLeft,
   Loader2,
+  Package,
 } from "lucide-react";
 import { getAllRawMaterialItems } from "@/services/apiServices";
 import SearchableSelect from "@/utils/SearchableSelect";
@@ -489,7 +490,39 @@ export default function ApprovalView({
                     {String(idx + 1).padStart(2, "0")}
                   </td>
                   <td className="px-5 py-4">
-                    <div className="text-[#101828] font-semibold">{it.name}</div>
+                    {(() => {
+                      const rm = rawMaterials.find((r) => Number(r.id) === Number(it.rawMaterialId));
+                      const itemImages = Array.isArray(it.images) && it.images.length > 0
+                        ? it.images
+                        : Array.isArray(rm?.images)
+                        ? rm.images
+                        : [];
+                      const imgUrl =
+                        it.image ||
+                        [...itemImages].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0))[0]?.path ||
+                        rm?.image ||
+                        '';
+
+                      return (
+                        <div className="flex items-center gap-3">
+                          {imgUrl ? (
+                            <img
+                              src={imgUrl}
+                              alt=""
+                              className="w-10 h-10 rounded-lg object-cover border border-[#E7EAF0] bg-slate-50 shrink-0"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center shrink-0 text-slate-400">
+                              <Package size={18} />
+                            </div>
+                          )}
+                          <div className="text-[#101828] font-semibold">{it.name}</div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-5 py-4 min-w-[150px]">
                     {isReject || !canEdit ? (
