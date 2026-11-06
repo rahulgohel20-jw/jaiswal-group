@@ -43,6 +43,7 @@ import SearchableSelect from "../../../utils/SearchableSelect";
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import KitchenCopyRecipeModal from "./KitchenCopyRecipeModal";
 import UnitConversionModal from "./UnitConversionModal"; // <-- Import the external modal
+import QuickAddRawMaterialModal from "./QuickAddRawMaterialModal";
 import { PageHeader } from "@/components/common/PageHeader";
 import { formatRemarks } from "@/utils/textUtils";
 
@@ -290,6 +291,7 @@ const CreateItemRecipe = () => {
     });
     const [rawMaterialRowSelection, setRawMaterialRowSelection] = useState({});
     const [editingRawMaterialRowId, setEditingRawMaterialRowId] = useState(null);
+    const [isAddRawMaterialModalOpen, setIsAddRawMaterialModalOpen] = useState(false);
 
     // Dedicated Fuel & Electricity items state for the Other section
     const [fuelElectricityMaterials, setFuelElectricityMaterials] = useState([]);
@@ -728,9 +730,11 @@ const CreateItemRecipe = () => {
                 : [];
 
             setRawMaterialCatalog(mappedData);
+            return mappedData;
         } catch (err) {
             console.error("Failed to load raw materials:", err);
             setRawMaterialCatalog([]);
+            return [];
         } finally {
             setRawMaterialLoading(false);
         }
@@ -951,6 +955,50 @@ const CreateItemRecipe = () => {
         setRawMaterialRows((prev) =>
             prev.map((row) => (row.rowId === rowId ? { ...row, visible: !row.visible } : row))
         );
+    };
+
+    const handleRawMaterialAdded = async (newItemData) => {
+        try {
+            setRawMaterialLoading(true);
+            await fetchUnits();
+            const updatedList = await fetchRawMaterialCatalog();
+
+            let matched = null;
+            if (newItemData?.id) {
+                matched = updatedList.find(
+                    (item) => String(item.id) === String(newItemData.id)
+                );
+            }
+            if (!matched && newItemData?.nameEnglish) {
+                matched = updatedList.find(
+                    (item) =>
+                        item.name?.trim().toLowerCase() ===
+                        newItemData.nameEnglish.trim().toLowerCase()
+                );
+            }
+            if (!matched && newItemData?.name) {
+                matched = updatedList.find(
+                    (item) =>
+                        item.name?.trim().toLowerCase() ===
+                        newItemData.name.trim().toLowerCase()
+                );
+            }
+
+            if (matched) {
+                setSelectedRawMaterial(String(matched.id));
+                const uId = matched.unitId || newItemData?.unitId;
+                setSelectedRawMaterialUnit(uId ? String(uId) : "");
+            } else if (newItemData?.id) {
+                setSelectedRawMaterial(String(newItemData.id));
+                if (newItemData.unitId) {
+                    setSelectedRawMaterialUnit(String(newItemData.unitId));
+                }
+            }
+        } catch (err) {
+            console.error("Failed to update catalog after raw material creation:", err);
+        } finally {
+            setRawMaterialLoading(false);
+        }
     };
 
     const filteredRawMaterialRows = useMemo(() => {
@@ -2052,14 +2100,14 @@ const CreateItemRecipe = () => {
                                                             disabled={rawMaterialLoading}
                                                         />
                                                     </div>
-                                                    <Link to={"/material/items/add"}>
-                                                        <button
-                                                            type="button"
-                                                            className="w-10 h-10 bg-[#084E92] rounded-lg cursor-pointer text-white flex items-center justify-center shrink-0"
-                                                        >
-                                                            <Plus size={18} />
-                                                        </button>
-                                                    </Link>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setIsAddRawMaterialModalOpen(true)}
+                                                        className="w-10 h-10 bg-[#084E92] hover:bg-[#063b6f] rounded-lg cursor-pointer text-white flex items-center justify-center shrink-0 transition"
+                                                        title="Add New Raw Material"
+                                                    >
+                                                        <Plus size={18} />
+                                                    </button>
                                                 </div>
                                             </div>
 
@@ -2349,6 +2397,12 @@ const CreateItemRecipe = () => {
                     onConfirm={confirmDeleteRow}
                     itemLabel={deleteTarget?.row?.name}
                     saving={deleteSaving}
+                />
+
+                <QuickAddRawMaterialModal
+                    isOpen={isAddRawMaterialModalOpen}
+                    onClose={() => setIsAddRawMaterialModalOpen(false)}
+                    onSuccess={handleRawMaterialAdded}
                 />
             </div>
         </Container>
