@@ -219,6 +219,14 @@ import AssetLocation from '../pages/assest-management/asset-location/AssetLocati
 import UnAssignedAssets from '../pages/assest-management/unassign-asset/UnAssignedAssets';
 import ListAssetAuditEvent from '../pages/assest-management/asset-audit-event/ListAssetAuditEvent';
 import CreateAuditEvent from '../pages/assest-management/asset-audit-event/CreateAuditEvent';
+import DebitCreditEligibleInvoices from '../pages/purchase-credit-debite-note/DebitCreditEligibleInvoices';
+import DebitCreditNoteListing from '../pages/purchase-credit-debite-note/DebitCreditNoteListing';
+import DebitCreditNoteCreate from '../pages/purchase-credit-debite-note/DebitCreditNoteCreate';
+import DebitCreditNoteDetails from '../pages/purchase-credit-debite-note/DebitCreditNoteDetails';
+import MenuPlanningListing from '../pages/production/menu-planning/MenuPlanningListing';
+import CreateMenuPlanning from '../pages/production/menu-planning/CreateMenuPlanning';
+import MenuRecipeCosting from '../pages/production/menu-planning/MenuRecipeCosting';
+import MealPlanDetails from '../pages/production/menu-planning/MealPlanDetails';
 
 
 export function AppRoutingSetup() {
@@ -416,7 +424,7 @@ export function AppRoutingSetup() {
           <Route path="/material/items" element={<RowMaterialItemMaster />} />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
 
-       
+
           <Route path="/menu-item/categories" element={<KitchenMenuCategory />} />
           {/* <Route path="/menu-item/categories" element={<MenuCategory />} /> */}
           <Route path="/menu-item/sub-category" element={<MenuSubCategory />} />
@@ -451,6 +459,10 @@ export function AppRoutingSetup() {
 
           <Route path="/menu-item/captain-recipe" element={<KitchenCaptainRecipeList />} />
           {/* <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList />} /> */}
+          <Route path="/production/menu-planning" element={<MenuPlanningListing />} />
+          <Route path="/production/menu-planning/create" element={<CreateMenuPlanning />} />
+          <Route path="/production/menu-planning/costing" element={<MenuRecipeCosting />} />
+          <Route path="/production/menu-planning/details/:id" element={<MealPlanDetails />} />
           <Route
             path="/purchase-requisition/list"
             element={<PurchaseRequisitionList />}
@@ -504,7 +516,7 @@ export function AppRoutingSetup() {
             path="/purchase/approved-order"
             element={<PurchaseOrderApproved />}
           />
-{/* 
+          {/* 
           <Route
             path="/purchase/purchase-return"
             element={<PurchaseReturnList />}
@@ -519,6 +531,12 @@ export function AppRoutingSetup() {
           <Route path='/purchase/invoice-listing' element={<PurchaseInvoiceListing />} />
           {/* <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/> */}
           <Route path='/purchase/purchase-invoice-details/:id' element={<PurchaseInvoiceDetailsModal />} />
+
+          <Route path="/purchase/debit-credit-notes" element={<DebitCreditNoteListing />} />
+          <Route path="/purchase/create-selection" element={<DebitCreditEligibleInvoices />} />
+          <Route path="/purchase/debit-credit-notes/create" element={<DebitCreditNoteCreate />} />
+          <Route path="/purchase/debit-credit-notes/details/:id" element={<DebitCreditNoteDetails />} />
+          <Route path="/purchase/debit-credit-notes/edit/:id" element={<DebitCreditNoteCreate />} />
 
           <Route path="/inventory/generate-grn" element={<GenerateGRN />} />
           <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />

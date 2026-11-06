@@ -1872,5 +1872,140 @@ export const getScanReportById = (id) => {
   return GET(`/asset-audit/report?id=${id}`);
 }
 export const getAllAssetAuditEvents = (params) => {
-  return GET('/asset-audit/getall', params);
+  return GET('/asset-audit/getall', params );
 };
+// Meal Type API
+export const getAllMealTypes = () => {
+  return GET(`/meal-type/get-all`);
+};
+
+export const getMealTypeById = (id) => {
+  return GET(`/meal-type/get/${id}`);
+};
+
+export const saveOrUpdateMealType = (payload) => {
+  return POST('/meal-type/save', payload);
+};
+
+export const deleteMealType = (id) => {
+  return DELETE(`/meal-type/delete/${id}`);
+};
+
+// Meal Slot API
+export const getAllMealSlots = (params = {}) => {
+  if (typeof params === 'number' || typeof params === 'string') {
+    return GET(`/meal-slot/get-all?organizationId=${params}`);
+  }
+
+  if (typeof params === 'object' && Object.keys(params).length > 0) {
+    return GET('/meal-slot/get-all', params);
+  }
+
+  return GET(`/meal-slot/get-all`);
+};
+
+export const getMealSlotById = (id) => {
+  return GET(`/meal-slot/get/${id}`);
+};
+
+export const saveOrUpdateMealSlot = (payload) => {
+  return POST('/meal-slot/save', payload);
+};
+
+export const deleteMealSlot = (id) => {
+  return DELETE(`/meal-slot/delete/${id}`);
+};
+
+// Meal Structure API
+export const getAllMealStructures = (params = {}) => {
+  return GET('/meal-structure/get-all', params);
+};
+
+export const getMealStructureById = (id) => {
+  return GET(`/meal-structure/get/${id}`);
+};
+
+export const saveOrUpdateMealStructure = (payload) => {
+  return POST('/meal-structure/save', payload);
+};
+
+export const deleteMealStructure = (id) => {
+  return DELETE(`/meal-structure/delete/${id}`);
+};
+
+export const getEffectiveMealStructure = (params = {}) => {
+  return GET('/meal-structure/get-effective', params);
+};
+//Purchase Credit Debit Note API
+export const getEligibleInvoices = (params) => {
+  return GET('/debit-credit-notes/eligible-invoices', params);
+};
+export const getEligibleGrnReturns = (params) => {
+  return GET('/debit-credit-notes/eligible-grn-returns', params);
+};
+export const getAllDebitCreditNotesPaginated = (params) => {
+  return GET('/debit-credit-notes/getall/page', params);
+};
+export const getDebitCreditNoteById = (id) => {
+  return GET('/debit-credit-notes/getbyid', { id });
+};
+export const createDebitCreditNote = (payload) => {
+  return POST('/debit-credit-notes/create', payload);
+};
+export const updateDebitCreditNote = (id, payload) => {
+  return PUT(`/debit-credit-notes/update/${id}`, payload);
+};
+export const approveDebitCreditNote = (id, userId) => {
+  return axiosInstance.patch(`/debit-credit-notes/approve/${id}`, null, {
+    params: { userId },
+  });
+};
+export const cancelDebitCreditNote = (id, userId, reason) => {
+  return axiosInstance.patch(`/debit-credit-notes/cancel/${id}`, null, {
+    params: { userId, reason },
+  });
+};
+export const getNotesByPurchaseInvoiceId = (id) => {
+  return GET(`/debit-credit-notes/by-invoice/${id}`);
+}
+
+//Menu Planning
+export const getDashboardSummary = (organizationId, subOutletId = null) => {
+  const params = typeof organizationId === 'object' ? organizationId : { organizationId, ...(subOutletId && { subOutletId }) };
+  return GET('/menu-plan/dashboard-summary', params);
+};
+
+export const getNextProductionBatch = (organizationId) => {
+  return GET('/menu-plan/next-production', { organizationId });
+};
+
+export const getAllMenuPlans = ({ page = 0, size = 10, ...payload } = {}) => {
+  return POST(
+    '/menu-plan/get-all',
+    payload, 
+    {
+      params: { page, size }, 
+    }
+  );
+};
+export const saveOrUpdateMenuPlan = (payload) => {
+  return POST('/menu-plan/save', payload);
+};
+export const getMenuPlanById = (id) => {
+  return GET(`/menu-plan/get/${id}`);
+};
+export const saveSlotRecipes = (payload) => {
+  return POST('/menu-plan/day/slot/save-recipes', payload);
+};
+export const saveShiftRecipes = (payload) => {
+  return POST('/menu-plan/day/shift/save', payload);
+};
+export const getMenuPlanDayById = (dayId) => {
+  return GET(`/menu-plan/day/get/${dayId}`);
+};
+export const getRecipeCosting = (menuItemId, params) => {
+  return GET(`/recipe-costing/${menuItemId}`,  params);
+};
+export const deleteMenuPlanById  = (id) => {
+  return DELETE(`/menu-plan/delete/${id}`);
+}

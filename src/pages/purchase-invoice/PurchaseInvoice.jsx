@@ -3,12 +3,15 @@ import {
     getCoreRowModel,
     getPaginationRowModel,
     useReactTable,
+    getSortedRowModel,
 } from '@tanstack/react-table';
 import {
     ChevronRight,
     FileText,
     Loader2,
     Minus,
+    Plus,
+    RotateCcw,
     Search,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
@@ -63,7 +66,7 @@ const TruncatedCell = ({
 const PoCodeCell = ({ value }) => (
     <span
         title={value}
-        className="inline-block max-w-40 truncate rounded-lg border border-[#E7EAF0] bg-[#F9FAFC] px-3 py-1.5 text-xs font-semibold text-gray-700"
+        className="inline-block max-w-full truncate text-xs font-semibold text-gray-700"
     >
         {value || '—'}
     </span>
@@ -96,13 +99,12 @@ const PurchaseInvoice = () => {
     /* ---------------- Vendor dropdown ---------------- */
     const [vendors, setVendors] = useState([]);
     const [vendorsLoading, setVendorsLoading] = useState(false);
-    const [selectedVendorId, setSelectedVendorId] = useState(null);
+    const [selectedVendorId, setSelectedVendorId] = useState('');
 
     /* ---------------- GRN listing ---------------- */
     const [list, setList] = useState([]);
     const [loading, setLoading] = useState(false);
     const [grnError, setGrnError] = useState(null);
-    const [searched, setSearched] = useState(false);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
@@ -110,6 +112,7 @@ const PurchaseInvoice = () => {
     const [selectedGrnIds, setSelectedGrnIds] = useState([]);
     const [grnDetails, setGrnDetails] = useState({});
     const [otherCosts, setOtherCosts] = useState([]);
+    const [sorting, setSorting] = useState([]);
 
     const {
         loading: scopeLoading,
@@ -121,6 +124,24 @@ const PurchaseInvoice = () => {
         effectiveOutletId,
         retry: retryScope,
     } = useOrgScope();
+
+    // Helper: extracts a valid positive integer ID or returns null
+    const cleanId = (val) => {
+        if (val === null || val === undefined || val === '' || val === '0' || Number(val) <= 0) {
+            return null;
+        }
+        return Number(val);
+    };
+
+    const resolvedOrgId = useMemo(() => {
+        const fromDropdown = cleanId(selectedUnitId);
+        if (fromDropdown !== null) return fromDropdown;
+
+        const fromOutlet = cleanId(effectiveOutletId);
+        if (fromOutlet !== null) return fromOutlet;
+
+        return null;
+    }, [selectedUnitId, effectiveOutletId]);
 
     /* ---------------- Fetch vendors ---------------- */
     useEffect(() => {
@@ -140,27 +161,22 @@ const PurchaseInvoice = () => {
         fetchVendors();
     }, []);
 
-    /* ---------------- Search GRN ---------------- */
-    const handleSearchGrn = useCallback(async () => {
-        const targetOutletId = selectedUnitId || effectiveOutletId;
-
-        if (!targetOutletId || !selectedVendorId) {
-            toast.error('Please select unit and vendor.');
-            return;
-        }
-
+    /* ---------------- Fetch GRN listing (Default & Filtered) ---------------- */
+    const fetchGrns = useCallback(async () => {
         setLoading(true);
         setGrnError(null);
         setSelectedGrnIds([]);
-        setGrnDetails({});
-        setOtherCosts([]);
 
         try {
-            const res = await getEligibleGrns({
-                outletId: Number(targetOutletId),
-                vendorId: Number(selectedVendorId),
-            });
+            const params = {};
+            if (resolvedOrgId) {
+                params.outletId = resolvedOrgId;
+            }
+            if (selectedVendorId) {
+                params.vendorId = Number(selectedVendorId);
+            }
 
+            const res = await getEligibleGrns(params);
             const raw = res?.data?.data ?? res?.data ?? [];
             const rawList = Array.isArray(raw) ? raw : [];
 
@@ -197,7 +213,6 @@ const PurchaseInvoice = () => {
 
             setList(normalized);
             setGrnDetails(detailsMap);
-            setSearched(true);
             setPagination((p) => ({ ...p, pageIndex: 0 }));
         } catch (err) {
             console.error('Failed to load GRN listing:', err);
@@ -209,11 +224,14 @@ const PurchaseInvoice = () => {
             );
             setList([]);
             setGrnDetails({});
-            setSearched(true);
         } finally {
             setLoading(false);
         }
-    }, [selectedUnitId, effectiveOutletId, selectedVendorId]);
+    }, [resolvedOrgId, selectedVendorId]);
+
+    useEffect(() => {
+        fetchGrns();
+    }, [fetchGrns]);
 
     /* ---------------- Single multi-GRN fetch helper ---------------- */
     const fetchMultipleGrnDetails = useCallback(async (ids) => {
@@ -248,13 +266,16 @@ const PurchaseInvoice = () => {
         return { detailsByGrnId, otherCostList };
     }, []);
 
-    /* ---------------- search filter ---------------- */
+    /* ---------------- Search filter ---------------- */
     const filteredRows = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
         if (!q) return list;
 
         return list.filter((item) =>
-            (item.grnCode || '').toLowerCase().includes(q)
+            (item.grnCode || '').toLowerCase().includes(q) ||
+            (item.poCode || '').toLowerCase().includes(q) ||
+            (item.vendorName || '').toLowerCase().includes(q) ||
+            (item.organizationName || '').toLowerCase().includes(q)
         );
     }, [list, searchQuery]);
 
@@ -262,16 +283,57 @@ const PurchaseInvoice = () => {
         setPagination((p) => ({ ...p, pageIndex: 0 }));
     }, [searchQuery]);
 
-    /* ---------------- Selection helpers ---------------- */
-    const allVisibleSelected =
-        filteredRows.length > 0 && filteredRows.every((row) => selectedGrnIds.includes(row.id));
-    const someVisibleSelected = filteredRows.some((row) => selectedGrnIds.includes(row.id));
+    /* ---------------- Selection helpers (Vendor constraint enforced) ---------------- */
+    const selectedGrnItems = useMemo(
+        () => list.filter((item) => selectedGrnIds.includes(item.id)),
+        [list, selectedGrnIds]
+    );
 
-    const toggleRow = async (id) => {
+    const activeVendorId = selectedGrnItems.length > 0 ? selectedGrnItems[0].vendorId : null;
+    const activeOrgId = selectedGrnItems.length > 0 ? selectedGrnItems[0].organizationId : null;
+
+    // Check if the current filtered view has homogeneous vendor and unit
+    const hasMultipleVendorsOrOrgsInView = useMemo(() => {
+        if (filteredRows.length <= 1) return false;
+        const firstVendor = filteredRows[0].vendorId;
+        const firstOrg = filteredRows[0].organizationId;
+        return filteredRows.some(
+            (r) => r.vendorId !== firstVendor || r.organizationId !== firstOrg
+        );
+    }, [filteredRows]);
+
+    const selectableVisibleRows = useMemo(() => {
+        if (activeVendorId !== null && activeOrgId !== null) {
+            return filteredRows.filter(
+                (r) => r.vendorId === activeVendorId && r.organizationId === activeOrgId
+            );
+        }
+        // If nothing is selected and rows have different vendors/units, bulk select cannot pick all
+        if (hasMultipleVendorsOrOrgsInView) return [];
+        return filteredRows;
+    }, [filteredRows, activeVendorId, activeOrgId, hasMultipleVendorsOrOrgsInView]);
+
+    const allVisibleSelected =
+        selectableVisibleRows.length > 0 &&
+        selectableVisibleRows.every((row) => selectedGrnIds.includes(row.id));
+    const someVisibleSelected =
+        selectedGrnIds.length > 0;
+
+    const toggleRow = async (rowItem) => {
+        const id = rowItem.id;
         const isCurrentlySelected = selectedGrnIds.includes(id);
 
         if (isCurrentlySelected) {
             setSelectedGrnIds((prev) => prev.filter((x) => x !== id));
+            return;
+        }
+
+        // Restrict selection to the same vendor
+        if (
+            (activeVendorId !== null && rowItem.vendorId !== activeVendorId) ||
+            (activeOrgId !== null && rowItem.organizationId !== activeOrgId)
+        ) {
+            toast.warning('You can only select GRNs belonging to the same vendor and unit.');
             return;
         }
 
@@ -320,17 +382,23 @@ const PurchaseInvoice = () => {
     };
 
     const toggleAllVisible = async () => {
-        const visibleIds = filteredRows.map((r) => r.id);
+        if (selectedGrnIds.length === 0 && hasMultipleVendorsOrOrgsInView) {
+            toast.warning('Cannot select all: list contains different vendors or units. Please filter or select individual rows.');
+            return;
+        }
+        const targetRows = selectableVisibleRows;
+        const targetIds = targetRows.map((r) => r.id);
+
+        if (targetIds.length === 0) return;
 
         if (allVisibleSelected) {
-            setSelectedGrnIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+            setSelectedGrnIds((prev) => prev.filter((id) => !targetIds.includes(id)));
             return;
         }
 
-        setSelectedGrnIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+        setSelectedGrnIds((prev) => Array.from(new Set([...prev, ...targetIds])));
 
-        // Find IDs that do not have their details loaded yet
-        const idsToFetch = visibleIds.filter(
+        const idsToFetch = targetIds.filter(
             (id) => !grnDetails[id] || grnDetails[id].length === 0
         );
 
@@ -414,39 +482,98 @@ const PurchaseInvoice = () => {
         }
     };
 
+    /* ---------------- Generate GRN Invoice (Single Row Action) ---------------- */
+    const handleSingleRowGenerate = async (grnItem) => {
+        try {
+            setLoading(true);
+
+            const { detailsByGrnId, otherCostList } = await fetchMultipleGrnDetails([grnItem.id]);
+            const rowDetails = detailsByGrnId[grnItem.id] || [];
+
+            navigate('/purchase/purchase-invoice/generate-grn-invoice', {
+                state: {
+                    selectedGrns: [
+                        {
+                            ...grnItem,
+                            details: rowDetails,
+                        },
+                    ],
+                    otherCosts: otherCostList || [],
+                },
+            });
+        } catch (err) {
+            console.error('Failed to prepare GRN details for invoice:', err);
+            toast.error(
+                err?.response?.data?.msg ||
+                err?.response?.data?.message ||
+                'Failed to load GRN details.'
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const resetFilters = () => {
+        setSearchQuery('');
+        setSelectedUnitId('');
+        setSelectedVendorId('');
+    };
+
     /* ---------------- Columns ---------------- */
     const columns = useMemo(
         () => [
-            {
+            canAdd && {
                 id: 'select',
-                header: () => (
-                    <button
-                        type="button"
-                        onClick={toggleAllVisible}
-                        className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${
-                            allVisibleSelected || someVisibleSelected
-                                ? 'bg-[#084E92] border-[#084E92]'
-                                : 'bg-white border-gray-300'
-                        }`}
-                        title={allVisibleSelected ? 'Deselect all' : 'Select all'}
-                    >
-                        {(allVisibleSelected || someVisibleSelected) && (
-                            <Minus size={12} className="text-white" strokeWidth={3} />
-                        )}
-                    </button>
-                ),
-                cell: ({ row }) => {
-                    const checked = selectedGrnIds.includes(row.original.id);
-                
-    return (
+                header: () => {
+                    const isSelectAllDisabled = selectedGrnIds.length === 0 && hasMultipleVendorsOrOrgsInView;
+
+                    return (
                         <button
                             type="button"
-                            onClick={() => toggleRow(row.original.id)}
+                            onClick={toggleAllVisible}
+                            disabled={isSelectAllDisabled}
                             className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${
-                                checked ? 'bg-[#084E92] border-[#084E92]' : 'bg-white border-gray-300'
+                                allVisibleSelected || someVisibleSelected
+                                    ? 'bg-[#084E92] border-[#084E92]'
+                                    : isSelectAllDisabled
+                                    ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50'
+                                    : 'bg-white border-gray-300'
+                            }`}
+                            title={
+                                isSelectAllDisabled
+                                    ? 'Cannot select all: GRNs belong to different vendors or units'
+                                    : allVisibleSelected
+                                    ? 'Deselect all'
+                                    : 'Select all'
+                            }
+                        >
+                            {(allVisibleSelected || someVisibleSelected) && (
+                                <Minus size={12} className="text-white" strokeWidth={3} />
+                            )}
+                        </button>
+                    );
+                },
+                cell: ({ row }) => {
+                    const isChecked = selectedGrnIds.includes(row.original.id);
+                    const isMismatched =
+                        (activeVendorId !== null && row.original.vendorId !== activeVendorId) ||
+                        (activeOrgId !== null && row.original.organizationId !== activeOrgId);
+
+                    return (
+                        <button
+                            type="button"
+                            onClick={() => toggleRow(row.original)}
+                            disabled={isMismatched && !isChecked}
+                            title={isMismatched ? 'Cannot select GRN from a different vendor or unit' : ''}
+                            className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${
+                                isChecked
+                                    ? 'bg-[#084E92] border-[#084E92]'
+                                    : isMismatched
+                                    ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-40'
+                                    : 'bg-white border-gray-300'
                             }`}
                         >
-                            {checked && (
+                            {isChecked && (
                                 <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-none stroke-white" strokeWidth={2.5}>
                                     <path d="M3 8.5 6.2 11.5 13 4.5" />
                                 </svg>
@@ -455,7 +582,7 @@ const PurchaseInvoice = () => {
                     );
                 },
                 enableSorting: false,
-                size: 50,
+                size: 40,
             },
             {
                 id: 'sno',
@@ -463,11 +590,10 @@ const PurchaseInvoice = () => {
                     <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+                    <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
                 ),
                 enableSorting: false,
-                size: 70,
-                minSize: 60,
+                size: 50,
             },
             {
                 id: 'grnCode',
@@ -479,10 +605,10 @@ const PurchaseInvoice = () => {
                     <TruncatedCell
                         value={row.original.grnCode}
                         widthClass="max-w-[260px]"
-                        className="font-semibold text-[#084E92]"
+                        className="font-semibold text-[#084E92] text-xs"
                     />
                 ),
-                size: 180,
+                size: 150,
             },
             {
                 id: 'poCode',
@@ -499,8 +625,8 @@ const PurchaseInvoice = () => {
                 header: ({ column }) => (
                     <DataGridColumnHeader title="GRN DATE" column={column} className="my-2 text-xs" />
                 ),
-                cell: ({ row }) => <TruncatedCell value={row.original.grnDate} widthClass="max-w-[120px]" />,
-                size: 130,
+                cell: ({ row }) => <TruncatedCell value={row.original.grnDate} widthClass="max-w-[120px]" className="text-xs text-gray-600" />,
+                size: 110,
             },
             {
                 id: 'organizationName',
@@ -508,8 +634,19 @@ const PurchaseInvoice = () => {
                 header: ({ column }) => (
                     <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
                 ),
-                cell: ({ row }) => <TruncatedCell value={row.original.organizationName} widthClass="max-w-[180px]" />,
-                size: 160,
+                cell: ({ row }) => <TruncatedCell value={row.original.organizationName} widthClass="max-w-[180px]" className="text-xs text-gray-800" />,
+                size: 110,
+                enableSorting: false
+            },
+            {
+                id: 'vendorName',
+                accessorFn: (row) => row.vendorName,
+                header: ({ column }) => (
+                    <DataGridColumnHeader title="VENDOR NAME" column={column} className="my-2 text-xs" />
+                ),
+                cell: ({ row }) => <TruncatedCell value={row.original.vendorName} widthClass="max-w-[180px]" className="text-xs text-gray-800 font-medium" />,
+                size: 120,
+                enableSorting: false
             },
             {
                 id: 'createdBy',
@@ -517,8 +654,8 @@ const PurchaseInvoice = () => {
                 header: ({ column }) => (
                     <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
                 ),
-                cell: ({ row }) => <TruncatedCell value={row.original.createdBy} widthClass="max-w-[140px]" />,
-                size: 150,
+                cell: ({ row }) => <TruncatedCell value={row.original.createdBy} widthClass="max-w-[140px]" className="text-xs text-gray-600" />,
+                size: 120,
             },
             {
                 id: 'itemsReceived',
@@ -527,7 +664,7 @@ const PurchaseInvoice = () => {
                     <DataGridColumnHeader title="ITEMS RECEIVED" column={column} className="my-2 text-xs" />
                 ),
                 cell: ({ row }) => (
-                    <span className="font-medium text-gray-700">{row.original.itemsReceived} Items</span>
+                    <span className="font-medium text-gray-700 text-xs">{row.original.itemsReceived} Items</span>
                 ),
                 size: 140,
             },
@@ -538,22 +675,61 @@ const PurchaseInvoice = () => {
                     <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
                 ),
                 cell: ({ row }) => <StatusBadge status={row.original.status} />,
-                size: 130,
+                size: 90,
             },
-        ],
-        [selectedGrnIds, allVisibleSelected, someVisibleSelected, filteredRows]
+            canAdd && {
+                id: 'action',
+                header: () => <span className="text-xs font-semibold text-gray-500 uppercase">Action</span>,
+                cell: ({ row }) => {
+                    if (!canAdd) return null;
+
+                    return (
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                title="Generate purchase invoice"
+                                onClick={() => handleSingleRowGenerate(row.original)}
+                                className="flex items-center justify-center w-8 h-8 text-[#084E92] hover:text-blue-900 transition cursor-pointer"
+                            >
+                                <Plus size={15} strokeWidth={2.5} />
+                            </button>
+                        </div>
+                    );
+                },
+                enableSorting: false,
+                size: 70,
+            },
+        ].filter(Boolean),
+        [
+            selectedGrnIds,
+            allVisibleSelected,
+            someVisibleSelected,
+            selectableVisibleRows,
+            activeVendorId,
+            activeOrgId,
+            hasMultipleVendorsOrOrgsInView,
+            handleSingleRowGenerate,
+            canAdd,
+        ]
     );
 
     const table = useReactTable({
         data: filteredRows,
         columns,
-        state: { pagination },
+        state: { pagination, sorting, },
         onPaginationChange: setPagination,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        onSortingChange: setSorting,
+        getSortedRowModel: getSortedRowModel(),
     });
 
-    const outletOptions = units.map((o) => ({ value: String(o.id), label: o.name }));
+    const outletOptions = useMemo(
+        () => units.map((o) => ({ value: String(o.id), label: o.name })),
+        [units]
+    );
+
+    // Displays vendor company name instead of vendor individual name
     const vendorOptions = useMemo(
         () =>
             vendors.map((v) => ({
@@ -584,106 +760,64 @@ const PurchaseInvoice = () => {
                     </div>
                 )}
 
-                {/* Search GRN card */}
-                <div className="bg-white rounded-2xl border border-[#E7EAF0] p-6 mb-6">
-                    <div className="flex items-center gap-2 mb-5">
-                        <span className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                            <Search size={16} className="text-[#084E92]" />
-                        </span>
-                        <h2 className="text-base font-bold text-[#101828]">Search GRN</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-5 mb-5">
-                        <div className="col-span-2">
-                            <label className="text-sm font-semibold text-[#101828] mb-1.5 block">
-                                Unit <span className="text-red-500">*</span>
-                            </label>
-                            {showUnitDropdown ? (
-                                <SearchableSelect
-                                    name="outlet"
-                                    value={selectedUnitId ? String(selectedUnitId) : ''}
-                                    onChange={(e) =>
-                                        setSelectedUnitId(e.target.value ? Number(e.target.value) : null)
-                                    }
-                                    options={outletOptions}
-                                    placeholder={scopeLoading ? 'Loading units...' : 'Select unit'}
-                                    disabled={scopeLoading || outletOptions.length === 0}
-                                />
-                            ) : (
-                                <div className="h-10.5 flex items-center px-3.5 rounded-xl border border-[#E7EAF0] bg-gray-50 text-sm text-[#101828] font-medium">
-                                    {units[0]?.name || (scopeLoading ? 'Loading…' : '—')}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="col-span-2">
-                            <label className="text-sm font-semibold text-[#101828] mb-1.5 block">
-                                Vendor <span className="text-red-500">*</span>
-                            </label>
-                            <SearchableSelect
-                                name="vendor"
-                                value={selectedVendorId ? String(selectedVendorId) : ''}
-                                onChange={(e) =>
-                                    setSelectedVendorId(e.target.value ? Number(e.target.value) : null)
-                                }
-                                options={vendorOptions}
-                                placeholder={
-                                    vendorsLoading
-                                        ? 'Loading vendors...'
-                                        : vendorOptions.length
-                                            ? 'Select vendor'
-                                            : 'No vendors'
-                                }
-                            />
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={handleSearchGrn}
-                            disabled={loading}
-                            className="flex items-center h-max lg:w-full shrink-0 w-max self-end gap-2 px-4 py-3 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition disabled:opacity-60"
-                        >
-                            {loading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                            Search GRN
-                        </button>
-                    </div>
-                </div>
-
-                {/* GRN Listing card */}
-                <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                    <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                            <FileText size={16} className="text-[#084E92]" />
-                        </span>
-                        <h2 className="text-base font-bold text-[#101828]">GRN Listing</h2>
-                    </div>
-
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <div className="relative min-w-60">
-                            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
+                {/* Filter Toolbar: Search Input -> Unit Filter -> Vendor Filter -> Generate Invoice Button */}
+                <div className="my-6">
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 ${showUnitDropdown ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 items-center`}>
+                        {/* 1. Search GRN */}
+                        <div className={`relative  ${!canAdd ? "lg:col-span-3 sm:col-span-3" : "lg:col-span-2 sm:col-span-2"}`}>
+                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
                             <input
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search GRN code..."
-                                className="w-full h-10.5 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+                                placeholder="Search GRN Code, PO Code, Vendor, Unit..."
+                                className="w-full h-10 pl-10 pr-4 rounded-lg border border-[#C3C6D1] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
                             />
                         </div>
 
-                        {selectedGrnIds.length > 0 && (
-                            <span className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-50 text-[#084E92] text-sm font-semibold">
-                                {selectedGrnIds.length} GRN{selectedGrnIds.length > 1 ? 's' : ''} Selected
-                            </span>
+                        {/* 2. Unit / Outlet Dropdown */}
+                        {showUnitDropdown && (
+                            <div className="lg:col-span-1">
+                                <SearchableSelect
+                                    name="outlet"
+                                    value={selectedUnitId ? String(selectedUnitId) : ''}
+                                    onChange={(val) => {
+                                        const raw = val?.target ? val.target.value : (val?.value !== undefined ? val.value : val);
+                                        setSelectedUnitId(raw ? String(raw) : '');
+                                    }}
+                                    options={outletOptions}
+                                    placeholder={scopeLoading ? 'Loading units...' : 'All Units'}
+                                    disabled={scopeLoading || outletOptions.length === 0}
+                                />
+                            </div>
                         )}
 
-                        <button
-                            type="button"
-                            onClick={handleGenerateGrnInvoice}
-                            disabled={loading || selectedGrnIds.length === 0}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg cursor-pointer border border-[#E7EAF0] bg-[#084E92] text-white text-sm font-semibold hover:bg-blue-900 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <FileText size={16} />
-                            Generate Purchase Invoice
-                        </button>
+                        {/* 3. Vendor Dropdown */}
+                        <div className="lg:col-span-1">
+                            <SearchableSelect
+                                name="vendor"
+                                value={selectedVendorId}
+                                onChange={(val) => {
+                                    const raw = val?.target ? val.target.value : (val?.value !== undefined ? val.value : val);
+                                    setSelectedVendorId(raw ? String(raw) : '');
+                                }}
+                                options={vendorOptions}
+                                placeholder={vendorsLoading ? 'Loading vendors...' : 'All Vendors'}
+                                disabled={vendorsLoading}
+                            />
+                        </div>
+
+                        {/* 4. Action Controls & Generate Purchase Invoice */}
+                        {canAdd && <div className="flex items-center gap-2 lg:col-span-1">
+                            <button
+                                type="button"
+                                onClick={handleGenerateGrnInvoice}
+                                disabled={loading || selectedGrnIds.length === 0}
+                                className="flex-1 flex items-center justify-center gap-2 h-10 px-4 rounded-lg cursor-pointer bg-[#084E92] text-white text-sm font-semibold hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                            >
+                                <FileText size={16} />
+                                Generate Purchase Invoice
+                            </button>
+                        </div>}
                     </div>
                 </div>
 
@@ -692,7 +826,7 @@ const PurchaseInvoice = () => {
                         <span>{grnError}</span>
                         <button
                             type="button"
-                            onClick={handleSearchGrn}
+                            onClick={fetchGrns}
                             className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
                         >
                             Retry
@@ -707,20 +841,22 @@ const PurchaseInvoice = () => {
                             <Loader2 size={16} className="animate-spin" />
                             Loading goods received notes…
                         </div>
-                    ) : !searched ? (
-                        <div className="flex flex-col items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
-                            <Search size={22} />
-                            Select a unit and vendor, then click Search GRN.
-                        </div>
                     ) : filteredRows.length === 0 ? (
                         <div className="flex items-center justify-center py-16 text-[#98A2B3] text-sm">
-                            No GRNs found for this unit and vendor.
+                            No GRNs match these filters.
                         </div>
                     ) : (
                         <DataGrid
                             table={table}
                             recordCount={filteredRows.length}
                             className="rounded-2xl"
+                            tableLayout={{
+                                dense: true,
+                                width: 'fixed',
+                                cellBorder: true,
+                                headerBorder: true,
+                                rowBorder: true,
+                            }}
                         >
                             <Card className="rounded-t-none border-t-0 rounded-2xl">
                                 <CardTable>

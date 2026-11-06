@@ -13,12 +13,18 @@ import {
     Download,
     Loader2,
     PlusCircle,
+    FileCheck,
+    FileText,
+    Eye,
+    FileMinus,
+    X,
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
     getInvoiceById,
     getRawMaterialById,
+    getNotesByPurchaseInvoiceId,
 } from '../../services/apiServices';
 import { Container } from '@/components/common/container';
 import { useExportReport } from '@/hooks/useExportReport';
@@ -26,6 +32,8 @@ import { numberToWords } from '../purchase-order-requests/utils/taxUtils';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import ViewDebitNoteModal from '../purchase-credit-debite-note/ViewDebitNoteModal';
+
 const formatDisplayDate = (iso) => {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -42,6 +50,28 @@ const formatAmount = (value) =>
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
     });
+
+const getFileNameFromUrl = (url) => {
+    if (!url) return 'invoice_document';
+    try {
+        const parts = url.split('/');
+        return parts[parts.length - 1] || 'invoice_document';
+    } catch {
+        return 'invoice_document';
+    }
+};
+
+const handleDownloadFile = (url, fileName) => {
+    if (!url) return;
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.download = fileName || getFileNameFromUrl(url);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
 
 const SectionCard = ({ children, className = '' }) => (
     <div className={`min-w-0 max-w-full rounded-2xl border border-gray-100 bg-white shadow-sm ${className}`}>
@@ -116,6 +146,8 @@ const PurchaseInvoiceDetailsModal = () => {
     const [invoice, setInvoice] = useState(null);
     const [loading, setLoading] = useState(true);
     const [rawMaterialDetails, setRawMaterialDetails] = useState({});
+    const [debitNotes, setDebitNotes] = useState([]);
+    const [selectedDebitNote, setSelectedDebitNote] = useState(null);
 
     const { exporting, exportReport } = useExportReport();
 
@@ -156,7 +188,27 @@ const PurchaseInvoiceDetailsModal = () => {
         if (id) loadInvoice();
     }, [id]);
 
+    useEffect(() => {
+        const loadDebitCreditNotes = async () => {
+            try {
+                const invoiceId = invoice?.id || id;
+                if (!invoiceId) return;
+                const res = await getNotesByPurchaseInvoiceId(invoiceId);
+                const notesList = res?.data?.data || res?.data || [];
+                setDebitNotes(Array.isArray(notesList) ? notesList : []);
+            } catch (error) {
+                console.error('Failed to load debit/credit notes:', error);
+                setDebitNotes([]);
+            }
+        };
+
+        if (id || invoice?.id) {
+            loadDebitCreditNotes();
+        }
+    }, [id, invoice?.id]);
+
     const items = invoice?.details || [];
+    const images = Array.isArray(invoice?.images) ? invoice.images : [];
 
     const billTo = invoice?.billTo || invoice?.billingAddress || null;
     const shipTo = invoice?.shipTo || invoice?.shippingAddress || null;
@@ -266,6 +318,29 @@ const PurchaseInvoiceDetailsModal = () => {
             ...new Set(items.map((item) => item.poCode).filter(Boolean)),
         ];
     }, [invoice, items]);
+
+    const debitNoteItemMap = useMemo(() => {
+        const map = {};
+        debitNotes.forEach((dn) => {
+            (dn.details || []).forEach((d) => {
+                const key = `${d.rawMaterialId}_${d.grnDetailId || ''}`;
+                if (!map[key]) {
+                    map[key] = [];
+                }
+                map[key].push({
+                    fullNote: dn,
+                    noteCode: dn.noteCode,
+                    noteType: dn.noteType,
+                    status: dn.status,
+                    adjustmentNature: dn.adjustmentNature,
+                    rateDifference: d.rateDifference,
+                    adjustedQuantity: d.adjustedQuantity,
+                    lineTotal: d.lineTotal,
+                });
+            });
+        });
+        return map;
+    }, [debitNotes]);
 
     const calculations = useMemo(() => {
         return items.map((item) => {
@@ -487,8 +562,8 @@ const PurchaseInvoiceDetailsModal = () => {
 
                         <div className="min-w-0">
                             <h1 className="truncate text-xl font-bold tracking-tight text-white md:text-2xl">
-                                {invoice.vendorInvoiceNumber ||
-                                    invoice.invoiceCode ||
+                                {invoice.invoiceCode ||
+                                    invoice.vendorInvoiceNumber ||
                                     'Purchase Invoice'}
                             </h1>
                             <p className="mt-0.5 truncate text-xs text-blue-100/80">
@@ -573,6 +648,77 @@ const PurchaseInvoiceDetailsModal = () => {
                         </div>
                     </div>
                 </SectionCard>
+                {/* Attached Invoices & Documents */}
+                {images.length > 0 && (
+                    <SectionCard className="mt-5 overflow-hidden">
+                        <SectionHeader
+                            icon={FileCheck}
+                            title="Attached Invoices & Documents"
+                            trailing={
+                                <span className="whitespace-nowrap rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-[#084E92]">
+                                    {images.length} {images.length === 1 ? 'file' : 'files'}
+                                </span>
+                            }
+                        />
+
+                        <div className="border-t border-gray-100 p-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                {images.map((img, idx) => {
+                                    const filePath = img.path || img.filePath;
+                                    const fileName = getFileNameFromUrl(filePath);
+
+                                    return (
+                                        <div
+                                            key={img.id || idx}
+                                            className="flex items-center justify-between gap-3 p-3 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-gray-50 transition"
+                                        >
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#084E92] flex items-center justify-center shrink-0">
+                                                    <FileText size={16} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p
+                                                        className="text-xs font-semibold text-gray-800 truncate"
+                                                        title={fileName}
+                                                    >
+                                                        {fileName}
+                                                    </p>
+                                                    <p className="text-[10px] text-gray-400 truncate mt-0.5">
+                                                        {img.fileType || img.moduleName || 'Invoice Document'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                {filePath && (
+                                                    <a
+                                                        href={filePath}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="w-7 h-7 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:text-[#084E92] hover:border-[#084E92] transition shadow-2xs"
+                                                        title="View document"
+                                                    >
+                                                        <Eye size={13} />
+                                                    </a>
+                                                )}
+                                                {filePath && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDownloadFile(filePath, fileName)}
+                                                        className="w-7 h-7 rounded-lg bg-[#084E92] text-white flex items-center justify-center hover:bg-[#073e77] transition cursor-pointer shadow-2xs"
+                                                        title="Download document"
+                                                    >
+                                                        <Download size={13} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </SectionCard>
+                )}
 
                 <SectionCard className="mt-5 overflow-hidden">
                     <SectionHeader
@@ -582,14 +728,14 @@ const PurchaseInvoiceDetailsModal = () => {
                             isGstApplicable ? (
                                 <span
                                     className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold ${isInterState
-                                            ? 'border-amber-200 bg-amber-50 text-amber-700'
-                                            : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                         }`}
                                 >
                                     <span
                                         className={`h-1.5 w-1.5 shrink-0 rounded-full ${isInterState
-                                                ? 'bg-amber-500'
-                                                : 'bg-emerald-500'
+                                            ? 'bg-amber-500'
+                                            : 'bg-emerald-500'
                                             }`}
                                     />
                                     {isInterState
@@ -617,7 +763,7 @@ const PurchaseInvoiceDetailsModal = () => {
                             </div>
 
                             {billTo ? (
-                                <div className="min-w-0 space-y-1 break-words text-xs text-gray-700">
+                                <div className="min-w-0 space-y-1 wrap-break-word text-xs text-gray-700">
                                     <p className="truncate text-sm font-bold text-gray-900">
                                         {vendorName ||
                                             invoice.vendorName ||
@@ -696,7 +842,7 @@ const PurchaseInvoiceDetailsModal = () => {
                             </div>
 
                             {shipTo ? (
-                                <div className="min-w-0 space-y-1 break-words text-xs text-gray-700">
+                                <div className="min-w-0 space-y-1 wrap-break-word text-xs text-gray-700">
                                     <p className="truncate text-sm font-bold text-gray-900">
                                         {shipTo.companyNameEnglish ||
                                             invoice.organizationName ||
@@ -836,6 +982,10 @@ const PurchaseInvoiceDetailsModal = () => {
 
                                                 const unitName = getUnitName(item);
 
+                                                const itemNotes = debitNoteItemMap[`${item.rawMaterialId}_${item.grnDetailId || ''}`] ||
+                                                    debitNoteItemMap[`${item.rawMaterialId}_`] ||
+                                                    [];
+
                                                 return (
                                                     <tr
                                                         key={
@@ -857,6 +1007,26 @@ const PurchaseInvoiceDetailsModal = () => {
                                                                 <p className="mt-1 text-[10px] text-gray-400">
                                                                     GRN: {item.grnCode}
                                                                 </p>
+                                                            )}
+
+                                                            {itemNotes.length > 0 && (
+                                                                <div className="mt-1.5 flex flex-wrap gap-1">
+                                                                    {itemNotes.map((dn, dIdx) => (
+                                                                        <button
+                                                                            key={dIdx}
+                                                                            type="button"
+                                                                            onClick={() => setSelectedDebitNote(dn.fullNote)}
+                                                                            title="Click to view Debit Note details"
+                                                                            className="inline-flex cursor-pointer items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 border border-amber-200 transition hover:bg-amber-100/80 hover:border-amber-300 shadow-2xs"
+                                                                        >
+                                                                            <FileMinus className="h-2.5 w-2.5 shrink-0 text-amber-600" />
+                                                                            <span>{dn.noteCode}</span>
+                                                                            <span className="text-[9px] text-amber-600 font-normal">
+                                                                                ({dn.status})
+                                                                            </span>
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
                                                             )}
                                                         </td>
 
@@ -1192,7 +1362,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                     <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
                                         Amount in Words
                                     </p>
-                                    <p className="break-words text-xs font-semibold italic text-[#084E92]">
+                                    <p className="wrap-break-word text-xs font-semibold italic text-[#084E92]">
                                         {invoice.amountInWords ||
                                             numberToWords(totals.netAmount)}
                                     </p>
@@ -1213,6 +1383,13 @@ const PurchaseInvoiceDetailsModal = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Debit Note Details View Modal */}
+            <ViewDebitNoteModal
+                isOpen={Boolean(selectedDebitNote)}
+                onClose={() => setSelectedDebitNote(null)}
+                debitNote={selectedDebitNote}
+            />
         </Container>
     );
 };

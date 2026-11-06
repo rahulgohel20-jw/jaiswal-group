@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { Calendar, ChevronDown, Eye, Loader2, RotateCcw, Search, ChevronRight, Pen } from 'lucide-react';
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel} from '@tanstack/react-table';
+import { Calendar, ChevronDown, Eye, Loader2, RotateCcw, Search, ChevronRight, Pen, SquarePen } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
@@ -37,8 +37,8 @@ const StatusBadge = ({ status }) => {
     );
 };
 
-const TruncatedCell = ({ value, widthClass = 'max-w-full', className = 'text-xs text-gray-800 font-medium' }) => (
-    <span title={value || ''} className={`block truncate ${widthClass} ${className}`}>
+const TruncatedCell = ({ value, widthClass = 'max-w-full', className = 'text-xs text-gray-800 font-medium', onClick }) => (
+    <span title={value || ''} className={`block truncate ${widthClass} ${className}`} onClick={onClick} >
         {value || '—'}
     </span>
 );
@@ -75,6 +75,7 @@ const PurchaseInvoiceListing = () => {
     const [invoicesError, setInvoicesError] = useState(null);
     const [pageInfo, setPageInfo] = useState({ totalPages: 0, totalElements: 0 });
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+    const [sorting, setSorting] = useState([]);
 
     const scope = useOrgScope();
     const {
@@ -156,14 +157,6 @@ const PurchaseInvoiceListing = () => {
     const dateRangeLabel = dateRange.from && dateRange.to
         ? `${formatDisplayDate(dateRange.from)} - ${formatDisplayDate(dateRange.to)}`
         : 'All dates';
-
-    const resetFilters = () => {
-        setSearchQuery('');
-        setStatusFilter('All Status');
-        setSelectedUnitId('');
-        setSelectedVendorId('');
-        clearDateRange();
-    };
 
     // Reset page to 0 when any filter changes
     useEffect(() => {
@@ -284,19 +277,20 @@ const PurchaseInvoiceListing = () => {
             id: 'invoiceCode',
             accessorFn: row => row.invoiceCode,
             header: ({ column }) => <DataGridColumnHeader title="INVOICE CODE" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <TruncatedCell value={row.original.invoiceCode} className="font-semibold text-[#084E92] text-xs" />,
+            cell: ({ row }) => <TruncatedCell value={row.original.invoiceCode} className="font-semibold text-[#084E92] text-xs hover:underline cursor-pointer" onClick={() => handleView(row.original)}/>,
             size: 160,
         },
         {
             id: 'vendorInvoiceNumber',
             accessorFn: row => row.vendorInvoiceNumber,
-            header: ({ column }) => <DataGridColumnHeader title="VENDOR INVOICE NUMBER" column={column} className="my-2 text-xs" />,
+            header: ({ column }) => <DataGridColumnHeader title="VENDOR INVOICE NO" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <ChipCell value={row.original.vendorInvoiceNumber} />,
             size: 180,
         },
         {
             id: 'date',
             accessorFn: row => row.date,
+            sortingFn: 'datetime',
             header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{formatDisplayDate(row.original.date)}</span>,
             size: 110,
@@ -307,6 +301,7 @@ const PurchaseInvoiceListing = () => {
             header: ({ column }) => <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <ChipCell value={row.original.outletName} />,
             size: 180,
+            enableSorting: false,
         },
         {
             id: 'vendorName',
@@ -314,6 +309,7 @@ const PurchaseInvoiceListing = () => {
             header: ({ column }) => <DataGridColumnHeader title="VENDOR NAME" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <TruncatedCell value={row.original.vendorName} className="font-medium text-gray-800 text-xs" />,
             size: 220,
+            enableSorting: false,
         },
         {
             id: 'status',
@@ -321,6 +317,7 @@ const PurchaseInvoiceListing = () => {
             header: ({ column }) => <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
             size: 150,
+            enableSorting: false,
         },
         {
             id: 'action',
@@ -331,13 +328,13 @@ const PurchaseInvoiceListing = () => {
             
   return (
                     <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => handleView(invoice)} className="flex items-center gap-1.5 px-3 py-1.5 cursor-pointer rounded-lg border border-[#E7EAF0] bg-white text-xs font-semibold text-[#101828] hover:bg-gray-50 transition">
-                            <Eye size={13} />
+                        <button type="button" onClick={() => handleView(invoice)} className="flex items-center gap-1.5 cursor-pointer  font-semibold text-gray-600 hover:text-green-600 transition">
+                            <Eye size={16} />
                         </button>
 
                         {invoice.status !== 'APPROVED' && invoice.status !== 'Approved' && (
-                            <button type="button" onClick={() => handleEdit(invoice)} className="flex items-center cursor-pointer gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold">
-                                <Pen size={13} />
+                            <button type="button" onClick={() => handleEdit(invoice)} className="flex items-center cursor-pointer gap-1.5 font-semibold text-gray-600 hover:text-blue-600">
+                                <SquarePen size={16} />
                             </button>
                         )}
                     </div>
@@ -351,10 +348,12 @@ const PurchaseInvoiceListing = () => {
     const table = useReactTable({
         data: filteredInvoices,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        onSortingChange: setSorting,
         manualPagination: true,
         pageCount: pageInfo.totalPages || 0,
     });
@@ -441,10 +440,6 @@ const PurchaseInvoiceListing = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
-
-                            <button type="button" onClick={resetFilters} title="Reset filters" className="flex items-center justify-center cursor-pointer h-10 w-10 rounded-lg border border-[#C3C6D1] bg-white text-gray-500 hover:bg-gray-50 transition">
-                                <RotateCcw size={16} />
-                            </button>
                         </div>
                     </div>
                 </div>
