@@ -47,6 +47,7 @@ import {
   Monitor,
   Network,
   NetworkIcon,
+  PackageSearch,
   Users as PeopleIcon,
   Plug,
   RotateCcw,
@@ -486,6 +487,7 @@ export const MENU_SIDEBAR = [
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
       { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
       { title: 'Purchase Invoice Report', path: '/purchase/invoice-listing'},
+      { title: 'Debit Note Report', path: '/purchase/debit-credit-notes'},
     ],
   },
   {
@@ -536,7 +538,7 @@ export const MENU_SIDEBAR = [
       { title: 'Item Recipe', path: '/menu-item/recipe' },
       { title: 'Captain Recipe', path: '/menu-item/captain-recipe' },
     ],
-},
+  },
   // {
   //   title: 'Manage Stock',
   //   icon: FolderClosed,
@@ -623,6 +625,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
       { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
       { title: 'Purchase Invoice Report', path: '/purchase/invoice-listing'},
+      { title: 'Debit Note Report', path: '/purchase/debit-credit-notes'},
     ],
   },
   {
