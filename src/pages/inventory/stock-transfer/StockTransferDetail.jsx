@@ -566,7 +566,7 @@ const StockTransferDetail = () => {
       {
         id: 'discrepancyReason',
         header: ({ column }) => (
-          <DataGridColumnHeader title="REASON FOR DISCREPANCY" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
+          <DataGridColumnHeader title="DISCREPANCY REASON" column={column} className="text-[#43474F] font-bold uppercase text-xs" />
         ),
         cell: ({ row }) => {
           const reason = row.original.reasonCategory || row.original.discrepancyRemarks || row.original.remarks;
@@ -576,7 +576,7 @@ const StockTransferDetail = () => {
             </span>
           );
         },
-        size: 140,
+        size: 180,
         enableSorting: false,
       },
     ];
@@ -628,7 +628,7 @@ const StockTransferDetail = () => {
           </div>
         );
       },
-      size: 110,
+      size: 130,
       enableSorting: false,
     });
 
@@ -646,7 +646,7 @@ const StockTransferDetail = () => {
   }
 
   return (
-    <Container>
+    <Container width="fluid">
       <div className="py-1 md:py-2 pb-6 space-y-4">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -948,14 +948,14 @@ const StockTransferDetail = () => {
                 className="rounded-none border-0"
                 tableLayout={{
                   dense: true,
-                  width: 'fixed',
+                  width: 'auto',
                   cellBorder: true,
                   headerBorder: true,
                   rowBorder: true,
                 }}
               >
                 <Card className="rounded-none border-0 shadow-none">
-                  <CardTable className="w-full overflow-x-hidden">
+                  <CardTable className="w-full overflow-x-auto">
                     <DataGridTable />
                   </CardTable>
                 </Card>
