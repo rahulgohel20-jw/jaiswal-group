@@ -1326,8 +1326,8 @@ const VendorPriceAssociation = () => {
     }
 
     return (
-        <Container>
-            <div className="pt-2 pb-6 mx-auto space-y-4">
+        <Container width="fluid">
+            <div className="pt-2 pb-6 mx-auto space-y-4 w-full max-w-full">
                 <PageHeader
                     title={
                         isApprovalMode
@@ -1351,10 +1351,10 @@ const VendorPriceAssociation = () => {
                         <button
                             type="button"
                             onClick={() => navigate('/material/vendor-price-approval')}
-                            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+                            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
                         >
-                            <ArrowLeft className="w-4 h-4" />
-                            {'Back to Vendor Price Approval'}
+                            <ArrowLeft className="w-4 h-4 shrink-0" />
+                            <span>Back to Vendor Price Approval</span>
                         </button>
                     }
                 />
@@ -1516,14 +1516,14 @@ const VendorPriceAssociation = () => {
                                 <table className="w-full text-sm">
                                     <thead className="bg-[#EEF4FF] text-[#00376C]">
                                         <tr>
-                                            <th className="text-left px-4 py-2.5 font-medium">Raw Material</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Vendor Name</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Outlets</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">From</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">To</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Price</th>
-                                            <th className="text-left px-4 py-2.5 font-medium">Status</th>
-                                            {!isViewOnly && !isApprovalMode && <th className="px-4 py-2.5" />}
+                                            <th className="text-left px-4 py-2.5 font-medium min-w-[130px]">Raw Material</th>
+                                            <th className="text-left px-4 py-2.5 font-medium min-w-[120px]">Vendor Name</th>
+                                            <th className="text-left px-4 py-2.5 font-medium min-w-[180px]">Outlets</th>
+                                            <th className="text-left px-4 py-2.5 font-medium min-w-[130px] w-[130px]">From</th>
+                                            <th className="text-left px-4 py-2.5 font-medium min-w-[130px] w-[130px]">To</th>
+                                            <th className="text-left px-4 py-2.5 font-medium min-w-[120px] w-[120px]">Price</th>
+                                            <th className="text-left px-4 py-2.5 font-medium min-w-[110px]">Status</th>
+                                            {!isViewOnly && !isApprovalMode && <th className="px-4 py-2.5 w-12" />}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1584,39 +1584,44 @@ const VendorPriceAssociation = () => {
                                                                 </p>
                                                             )}
                                                         </td>
-                                                        <td className="px-4 py-2.5">
+                                                        <td className="px-4 py-2.5 min-w-[130px] w-[130px]">
                                                             <input
                                                                 type="date"
                                                                 disabled={isViewOnly || isApprovalMode}
                                                                 value={row.from}
                                                                 onChange={(e) => updateSupplierRow(row.rowId, 'from', e.target.value)}
-                                                                className="w-full border rounded-md px-2 py-1.5 outline-none text-xs disabled:bg-gray-100"
+                                                                className="w-full border rounded-md px-2 py-1.5 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-800"
                                                             />
                                                         </td>
-                                                        <td className="px-4 py-2.5">
+                                                        <td className="px-4 py-2.5 min-w-[130px] w-[130px]">
                                                             <input
                                                                 type="date"
                                                                 disabled={isViewOnly || isApprovalMode}
                                                                 value={row.to}
                                                                 onChange={(e) => updateSupplierRow(row.rowId, 'to', e.target.value)}
-                                                                className="w-full border rounded-md px-2 py-1.5 outline-none text-xs disabled:bg-gray-100"
+                                                                className="w-full border rounded-md px-2 py-1.5 outline-none text-xs disabled:bg-gray-100 disabled:text-gray-800"
                                                             />
                                                         </td>
-                                                        <td className="px-4 py-2.5">
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                step="any"
-                                                                disabled={isViewOnly || isApprovalMode}
-                                                                value={row.price}
-                                                                onWheel={blurOnWheel}
-                                                                onChange={(e) => updateSupplierRow(row.rowId, 'price', e.target.value)}
-                                                                placeholder="₹ 0.00"
-                                                                className={`w-full border rounded-md px-2 py-1.5 outline-none text-xs disabled:bg-gray-100 ${supplierErrors[`${row.rowId}_price`]
-                                                                    ? 'border-red-500! bg-red-50/20 ring-1 ring-red-400'
-                                                                    : 'border-[#C3C6D1]'
-                                                                    }`}
-                                                            />
+                                                        <td className="px-4 py-2.5 min-w-[120px] w-[120px]">
+                                                            <div className="relative w-full">
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    step="any"
+                                                                    disabled={isViewOnly || isApprovalMode}
+                                                                    value={row.price}
+                                                                    onWheel={blurOnWheel}
+                                                                    onChange={(e) => updateSupplierRow(row.rowId, 'price', e.target.value)}
+                                                                    placeholder="0.00"
+                                                                    className={`w-full border rounded-md pl-6 pr-2 py-1.5 outline-none text-xs font-semibold disabled:bg-gray-100 disabled:text-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${supplierErrors[`${row.rowId}_price`]
+                                                                        ? 'border-red-500! bg-red-50/20 ring-1 ring-red-400'
+                                                                        : 'border-[#C3C6D1]'
+                                                                        }`}
+                                                                />
+                                                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none font-medium">
+                                                                    ₹
+                                                                </span>
+                                                            </div>
                                                             {supplierErrors[`${row.rowId}_price`] && (
                                                                 <p className="text-[10px] text-red-500 font-medium mt-0.5">
                                                                     {supplierErrors[`${row.rowId}_price`]}
@@ -1624,7 +1629,7 @@ const VendorPriceAssociation = () => {
                                                             )}
                                                         </td>
 
-                                                        <td className="px-4 py-2.5 min-w-44">
+                                                        <td className={`px-4 py-2.5 ${isApprovalMode && isPending && isRejectedSelected ? 'min-w-64' : 'min-w-[110px]'}`}>
                                                             <div className={`flex flex-col ${isApprovalMode && isPending && isRejectedSelected && 'flex-row'} gap-1.5 items-start`}>
                                                                 {isApprovalMode && isPending ? (
                                                                     <StatusSelect

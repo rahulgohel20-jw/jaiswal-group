@@ -28,7 +28,7 @@ export const PageHeader = ({
     <div className={`pt-0 pb-0 ${className}`.trim()}>
       {/* Main Header Row */}
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* Optional Back Button */}
           {backTo && (
             <Link
