@@ -148,6 +148,7 @@ export function useOrgScope() {
     allowedOutletIds,
     selectedUnitId,
     companyId,
+    userCompanyId: companyId,
     setSelectedUnitId: orgHierarchyStore.setSelectedUnitId,
     selectedSubOutletId,
     setSelectedSubOutletId: orgHierarchyStore.setSelectedSubOutletId,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
   ArrowLeft,
@@ -35,8 +35,15 @@ import {
   updateAssignAsset,
   getAssetById,
   getAllAssignAssets,
+  getHrmsUsersPaginated,
+  getAllDepartmentMaster,
 } from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
+
+const CUSTODIAN_TYPE_OPTIONS = [
+  { value: 'USER', label: 'Individual' },
+  { value: 'DEPT', label: 'Department' },
+];
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { getOrgIdFromToken } from '@/utils/auth';
 import AddAssetTypeModal from '../assets-type/AddAssetTypeModal';
@@ -293,7 +300,7 @@ const AddAsset = () => {
   const [existingAssignmentId, setExistingAssignmentId] = useState(null);
 
   // ---- Validation ----
-  const [ errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({});
 
   // ---- Dynamic dropdown data ----
   const [categories, setCategories] = useState([]);
@@ -320,7 +327,7 @@ const AddAsset = () => {
   const [statusesLoading, setStatusesLoading] = useState(true);
 
   // ---- Unit & Location assignment scope and options ----
-  const { isGroupUser, isCompanyUser, isOutletUser, selfOrg, units: scopedUnits, effectiveOutletId } = useOrgScope();
+  const { isGroupUser, isCompanyUser, isOutletUser, selfOrg, units: scopedUnits, effectiveOutletId, userCompanyId } = useOrgScope();
   const [units, setUnits] = useState([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [locations, setLocations] = useState([]);
@@ -370,6 +377,8 @@ const AddAsset = () => {
     unitId: '',
     assetUnitLocationId: '',
     assignQty: '',
+    custodianType: 'USER',
+    custodianValue: '',
   };
 
   const [form, setForm] = useState(initialFormState);
@@ -402,6 +411,8 @@ const AddAsset = () => {
         let assignUnitId = '';
         let assignLocationId = '';
         let assignQtyVal = '';
+        let assignCustodianType = 'USER';
+        let assignCustodianVal = '';
 
         // Fetch existing assignment to autofill unit, location, and quantity
         try {
@@ -416,6 +427,12 @@ const AddAsset = () => {
             assignUnitId = currentAssign.companiesId ? String(currentAssign.companiesId) : '';
             assignLocationId = currentAssign.assetUnitLocationId ? String(currentAssign.assetUnitLocationId) : '';
             assignQtyVal = currentAssign.quantity ? String(currentAssign.quantity) : '';
+            assignCustodianType = currentAssign.custodianType || (currentAssign.assignToId ? 'USER' : 'USER');
+            assignCustodianVal = currentAssign.custodianValue
+              ? String(currentAssign.custodianValue)
+              : currentAssign.assignToId
+                ? String(currentAssign.assignToId)
+                : '';
           }
         } catch (assignFetchErr) {
           console.error('Failed to load assignments for autofill:', assignFetchErr);
@@ -471,6 +488,8 @@ const AddAsset = () => {
           unitId: assignUnitId,
           assetUnitLocationId: assignLocationId,
           assignQty: assignQtyVal,
+          custodianType: assignCustodianType,
+          custodianValue: assignCustodianVal,
         };
 
         setForm(loadedForm);
@@ -512,9 +531,9 @@ const AddAsset = () => {
       const res = await getAssetCategories();
       const allCategories = unwrapList(res);
 
-    const activeCategories = allCategories.filter(
-      (category) => category.active === true
-    );
+      const activeCategories = allCategories.filter(
+        (category) => category.active === true
+      );
 
       setCategories(activeCategories);
     } catch (err) {
@@ -529,7 +548,7 @@ const AddAsset = () => {
     try {
       const res = await getActiveAssetTypes();
       const activeAssetTypes = unwrapList(res).filter(
-      (assetType) => assetType.active === true
+        (assetType) => assetType.active === true
       );
 
       setAssetTypes(activeAssetTypes);
@@ -569,7 +588,7 @@ const AddAsset = () => {
     try {
       const res = await getActiveAssetBrands();
       const activeBrands = unwrapList(res).filter(
-      (brand) => brand.active === true
+        (brand) => brand.active === true
       );
 
       setAssetBrand(activeBrands);
@@ -586,7 +605,7 @@ const AddAsset = () => {
     try {
       const res = await getActiveConditions();
       const activeConditions = unwrapList(res).filter(
-      (condition) => condition.active === true
+        (condition) => condition.active === true
       );
 
       setConditions(activeConditions);
@@ -602,8 +621,8 @@ const AddAsset = () => {
     try {
       const res = await getActiveStatuses();
       const activeStatuses = unwrapList(res).filter(
-      (status) => status.active === true
-    );
+        (status) => status.active === true
+      );
 
       setStatuses(activeStatuses);
     } catch (err) {
@@ -693,6 +712,150 @@ const AddAsset = () => {
 
     fetchLocations();
   }, [form.unitId]);
+
+  // ---- HRMS Users & Departments for Custodian ----
+  const [hrmsUsers, setHrmsUsers] = useState([]);
+  const [userPage, setUserPage] = useState(0);
+  const [hasMoreUsers, setHasMoreUsers] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingUsersMore, setLoadingUsersMore] = useState(false);
+  const userPageRef = useRef(0);
+  const hasMoreUsersRef = useRef(true);
+  const loadingUsersMoreRef = useRef(false);
+
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const res = await getAllDepartmentMaster();
+      const raw = res?.data?.data ?? res?.data;
+      const list = Array.isArray(raw?.['Department Details'])
+        ? raw['Department Details']
+        : Array.isArray(raw?.departmentDetails)
+          ? raw.departmentDetails
+          : Array.isArray(raw)
+            ? raw
+            : Array.isArray(raw?.content)
+              ? raw.content
+              : Array.isArray(res?.data)
+                ? res.data
+                : [];
+      setDepartments(list);
+    } catch (err) {
+      console.error('Failed to load departments:', err);
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (form.custodianType === 'DEPT') {
+      fetchDepartments();
+    }
+  }, [form.custodianType]);
+
+  const fetchUsersPage = async (pageToFetch = 0, isInitial = false) => {
+    if (loadingUsersMoreRef.current) return;
+    try {
+      if (isInitial) {
+        setLoadingUsers(true);
+      } else {
+        loadingUsersMoreRef.current = true;
+        setLoadingUsersMore(true);
+      }
+
+      const params = {
+        page: pageToFetch,
+        pageSize: 20,
+        size: 20,
+      };
+      if (userCompanyId || selfOrg?.id) {
+        params.companyId = Number(userCompanyId || selfOrg?.id);
+      }
+      if (form.unitId) {
+        params.outletId = Number(form.unitId);
+      }
+
+      const res = await getHrmsUsersPaginated(params);
+      const raw = res?.data?.data ?? res?.data;
+      const content = Array.isArray(raw?.content)
+        ? raw.content
+        : Array.isArray(raw)
+          ? raw
+          : Array.isArray(res?.data?.content)
+            ? res.data.content
+            : [];
+      const isLast = raw?.last ?? (content.length < 20);
+
+      setHrmsUsers((prev) => {
+        if (pageToFetch === 0) {
+          return content;
+        }
+        const existingIds = new Set(prev.map((u) => String(u.id)));
+        const newItems = content.filter((u) => !existingIds.has(String(u.id)));
+        return [...prev, ...newItems];
+      });
+
+      userPageRef.current = pageToFetch;
+      setUserPage(pageToFetch);
+      hasMoreUsersRef.current = !isLast;
+      setHasMoreUsers(!isLast);
+    } catch (err) {
+      console.error('Failed to load HRMS users:', err);
+    } finally {
+      if (isInitial) setLoadingUsers(false);
+      loadingUsersMoreRef.current = false;
+      setLoadingUsersMore(false);
+    }
+  };
+
+  useEffect(() => {
+    if (form.custodianType === 'USER') {
+      userPageRef.current = 0;
+      hasMoreUsersRef.current = true;
+      fetchUsersPage(0, true);
+    }
+  }, [form.custodianType, form.unitId, userCompanyId, selfOrg]);
+
+  const handleLoadMoreUsers = useCallback(() => {
+    if (hasMoreUsersRef.current && !loadingUsersMoreRef.current) {
+      fetchUsersPage(userPageRef.current + 1, false);
+    }
+  }, [form.unitId, userCompanyId, selfOrg]);
+
+  const userOptions = useMemo(() => {
+    return (hrmsUsers || []).map((u) => {
+      const name =
+        u.empname ||
+        u.empName ||
+        u.fullName ||
+        [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+        u.name ||
+        u.userName ||
+        u.email ||
+        `User #${u.id}`;
+      const code = u.empcode || u.empCode || u.employeeCode || u.code || '';
+      const designation = u.designationName || u.designation || u.departmentName || '';
+      const nameWithCode = code ? `${name} - ${code}` : name;
+      return {
+        value: String(u.id),
+        label: designation ? `${nameWithCode} (${designation})` : nameWithCode,
+      };
+    });
+  }, [hrmsUsers]);
+
+  const departmentOptions = useMemo(() => {
+    return (departments || []).map((d) => {
+      const name = d.name || d.departmentName || d.deptName || `Department #${d.id}`;
+      const code = d.departmentCode || d.shortCode || '';
+      return {
+        value: String(d.id),
+        label: code ? `${name} (${code})` : name,
+      };
+    });
+  }, [departments]);
 
   const qrAssetCode = form.assetId;
   const qrUrl = qrAssetCode
@@ -908,18 +1071,24 @@ const AddAsset = () => {
       if (res?.status === 200 || res?.status === 201) {
         const createdAssetId = res?.data?.data?.id || res?.data?.id || assetIdParam;
 
-        // 3. Handle Assignment if Unit is selected
-        if (form.unitId && createdAssetId) {
+        // 3. Handle Assignment if Unit or Custodian is selected
+        if ((form.unitId || form.custodianValue) && createdAssetId) {
           try {
+            const assignQtyVal = form.assignQty ? Number(form.assignQty) : Number(form.availableQty || 1);
             const assignPayload = {
               active: true,
               assetId: Number(createdAssetId),
-              assetIds: [Number(createdAssetId)],
-              assetType: 'company_outlet', // DEFAULT company_outlet passed directly
-              companiesId: Number(form.unitId),
+              assetItems: [
+                {
+                  assetId: Number(createdAssetId),
+                  qty: assignQtyVal,
+                },
+              ],
+              assetType: form.custodianType === 'DEPT' ? 'company_outlet' : 'individual',
+              companiesId: Number(form.unitId || userCompanyId || selfOrg?.id || 0),
               assetUnitLocationId: form.assetUnitLocationId ? Number(form.assetUnitLocationId) : 0,
-              assignToId: 0,
-              quantity: form.assignQty ? Number(form.assignQty) : Number(form.availableQty || 1),
+              custodianType: form.custodianType,
+              custodianValue: form.custodianValue ? Number(form.custodianValue) : 0,
               remarks: 'Assigned during asset registration',
               subOutletId: 0,
             };
@@ -1089,7 +1258,7 @@ const AddAsset = () => {
           )}
         </SectionCard>
 
-      {/* Product Information — item, purchase, warranty/AMC, maintenance */}
+        {/* Product Information — item, purchase, warranty/AMC, maintenance */}
         <SectionCard className="mt-4">
           <SectionHeader
             icon={Boxes}
@@ -1171,7 +1340,7 @@ const AddAsset = () => {
                     <input
                       type="date"
                       value={form.purchaseDate}
-                    onChange={(e) => handleAssetValueChange("purchaseDate", e.target.value) }
+                      onChange={(e) => handleAssetValueChange("purchaseDate", e.target.value)}
                       className={inputCls}
                     />
                   </div>
@@ -1193,7 +1362,7 @@ const AddAsset = () => {
                       type='number'
                       name="purchaseCost"
                       value={form.purchaseCost}
-                    onChange={(e) => handleAssetValueChange("purchaseCost", e.target.value) }
+                      onChange={(e) => handleAssetValueChange("purchaseCost", e.target.value)}
                       placeholder="55000"
                       onWheel={(e) => e.currentTarget.blur()}
                       className={inputCls}
@@ -1217,7 +1386,7 @@ const AddAsset = () => {
                       name="depreciation"
                       value={form.depreciation ?? ""}
                       onWheel={(e) => e.currentTarget.blur()}
-                    onChange={(e) => handleAssetValueChange("depreciation", e.target.value) }
+                      onChange={(e) => handleAssetValueChange("depreciation", e.target.value)}
                       placeholder="10"
                       className={inputCls}
                     />
@@ -1240,7 +1409,7 @@ const AddAsset = () => {
                 <SubHeading icon={ShieldCheck} title="Warranty & AMC" />
 
                 <div className="border border-gray-200 rounded-xl px-6 py-5 grid sm:grid-cols-2 gap-x-10 gap-y-5">
-                {/* Manufacturer warranty */}
+                  {/* Manufacturer warranty */}
                   <div className="space-y-3">
                     <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
                       Manufacturer Warranty
@@ -1267,7 +1436,7 @@ const AddAsset = () => {
                     </div>
                   </div>
 
-                {/* AMC coverage */}
+                  {/* AMC coverage */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">AMC Coverage</h4>
@@ -1420,7 +1589,7 @@ const AddAsset = () => {
                     min="0"
                     step="1"
                     value={form.availableQty}
-                  onChange={(e) => handleQuantityChange("availableQty", e.target.value) }
+                    onChange={(e) => handleQuantityChange("availableQty", e.target.value)}
                     onWheel={(e) => e.currentTarget.blur()}
                     onKeyDown={handleQuantityKeyDown}
                     className={`${errors.availableQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
@@ -1454,7 +1623,7 @@ const AddAsset = () => {
           />
           {openSections.assignment && (
             <div className="px-6 py-6">
-              <div className={`grid ${isOutletUser ? 'lg:grid-cols-2 md:grid-cols-2' : 'lg:grid-cols-3 md:grid-cols-2'} gap-4`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
                 {/* Unit / Outlet Dropdown - Shown ONLY for Group and Company Users */}
                 {!isOutletUser && (
@@ -1466,6 +1635,9 @@ const AddAsset = () => {
                       onChange={(e) => {
                         set('unitId', e.target.value);
                         set('assetUnitLocationId', '');
+                        if (form.custodianType === 'USER') {
+                          set('custodianValue', '');
+                        }
                       }}
                       placeholder={loadingUnits ? 'Loading units...' : 'Select unit (Optional)'}
                       options={units}
@@ -1503,16 +1675,67 @@ const AddAsset = () => {
                     name="assignQty"
                     min="1"
                     step="1"
-                    disabled={!form.unitId}
-                    placeholder={form.unitId ? `Default (${form.availableQty || 1})` : 'Select unit first'}
+                    disabled={!form.unitId && !form.custodianValue}
+                    placeholder={form.unitId || form.custodianValue ? `Default (${form.availableQty || 1})` : 'Select unit or custodian first'}
                     value={form.assignQty}
                     onChange={(e) => set('assignQty', e.target.value)}
                     onKeyDown={handleQuantityKeyDown}
                     onWheel={(e) => e.currentTarget.blur()}
-                    className={`${errors.assignQty ? errorInputCls : inputCls} ${!form.unitId ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
+                    className={`${errors.assignQty ? errorInputCls : inputCls} ${!form.unitId && !form.custodianValue ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
                       }`}
                   />
                   <ErrorText message={errors.assignQty} />
+                </div>
+
+                {/* Custodian Type */}
+                <div>
+                  <Label>Custodian Type</Label>
+                  <SearchableSelect
+                    name="custodianType"
+                    value={form.custodianType}
+                    onChange={(e) => {
+                      set('custodianType', e.target.value);
+                      set('custodianValue', '');
+                    }}
+                    placeholder="Select Custodian Type"
+                    options={CUSTODIAN_TYPE_OPTIONS}
+                    isClearable={false}
+                  />
+                </div>
+
+                {/* Custodian Dropdown */}
+                <div>
+                  <Label>
+                    {form.custodianType === 'DEPT' ? 'Custodian (Department)' : 'Custodian (User)'}
+                  </Label>
+                  {form.custodianType === 'DEPT' ? (
+                    <SearchableSelect
+                      name="custodianValue"
+                      value={form.custodianValue}
+                      onChange={(e) => set('custodianValue', e.target.value)}
+                      placeholder={loadingDepartments ? 'Loading departments...' : 'Select department (Optional)'}
+                      options={departmentOptions}
+                      disabled={loadingDepartments}
+                      isClearable={true}
+                    />
+                  ) : (
+                    <SearchableSelect
+                      name="custodianValue"
+                      value={form.custodianValue}
+                      onChange={(e) => set('custodianValue', e.target.value)}
+                      placeholder={
+                        loadingUsers && userOptions.length === 0
+                          ? 'Loading users...'
+                          : 'Select user (Optional)'
+                      }
+                      options={userOptions}
+                      hasMore={hasMoreUsers}
+                      loadingMore={loadingUsersMore}
+                      onLoadMore={handleLoadMoreUsers}
+                      disabled={loadingUsers && userOptions.length === 0}
+                      isClearable={true}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1560,7 +1783,7 @@ const AddAsset = () => {
 
         <AddAssetTypeModal
           isOpen={showAddAssetTypeCategoryModal}
-        onClose={() => setShowAssetTypeCategoryModal(false)}
+          onClose={() => setShowAssetTypeCategoryModal(false)}
           onSaved={fetchAssetTypes}
           initialData={null}
         />

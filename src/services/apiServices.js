@@ -1088,6 +1088,11 @@ export const deleteAssignAsset = (id) => {
 export const getAssignedAssetsByOrgAndSubOutlet = (orgId, assetUnitLocationId = 0) => {
   return GET(`/assets/assigned-by-location?organizationId=${orgId}&assetUnitLocationId=${assetUnitLocationId}`);
 }
+
+// ---- HRMS User APIs ----
+export const getHrmsUsersPaginated = (params = {}) => {
+  return GET('/hrms-users/getall/page', params);
+};
 export const getAssignmentsByAssetId = (ids) => {
 
   if (!ids || (Array.isArray(ids) && ids.length === 0)) {
@@ -1872,7 +1877,7 @@ export const getScanReportById = (id) => {
   return GET(`/asset-audit/report?id=${id}`);
 }
 export const getAllAssetAuditEvents = (params) => {
-  return GET('/asset-audit/getall', params );
+  return GET('/asset-audit/getall', params);
 };
 // Meal Type API
 export const getAllMealTypes = () => {
@@ -1982,9 +1987,9 @@ export const getNextProductionBatch = (organizationId) => {
 export const getAllMenuPlans = ({ page = 0, size = 10, ...payload } = {}) => {
   return POST(
     '/menu-plan/get-all',
-    payload, 
+    payload,
     {
-      params: { page, size }, 
+      params: { page, size },
     }
   );
 };
@@ -2004,8 +2009,8 @@ export const getMenuPlanDayById = (dayId) => {
   return GET(`/menu-plan/day/get/${dayId}`);
 };
 export const getRecipeCosting = (menuItemId, params) => {
-  return GET(`/recipe-costing/${menuItemId}`,  params);
+  return GET(`/recipe-costing/${menuItemId}`, params);
 };
-export const deleteMenuPlanById  = (id) => {
+export const deleteMenuPlanById = (id) => {
   return DELETE(`/menu-plan/delete/${id}`);
 }
