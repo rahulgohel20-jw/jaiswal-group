@@ -454,10 +454,7 @@ export function AppRoutingSetup() {
 
           <Route path="/menu-item/captain-recipe" element={<KitchenCaptainRecipeList />} />
           {/* <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList />} /> */}
-          <Route path="/production/menu-planning" element={<MenuPlanningListing />} />
-          <Route path="/production/menu-planning/create" element={<CreateMenuPlanning />} />
-          <Route path="/production/menu-planning/costing" element={<MenuRecipeCosting />} />
-          <Route path="/production/menu-planning/details/:id" element={<MealPlanDetails />} />
+        
           <Route
             path="/purchase-requisition/list"
             element={<PurchaseRequisitionList />}
