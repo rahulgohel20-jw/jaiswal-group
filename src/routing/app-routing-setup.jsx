@@ -223,11 +223,6 @@ import DebitCreditEligibleInvoices from '../pages/purchase-credit-debite-note/De
 import DebitCreditNoteListing from '../pages/purchase-credit-debite-note/DebitCreditNoteListing';
 import DebitCreditNoteCreate from '../pages/purchase-credit-debite-note/DebitCreditNoteCreate';
 import DebitCreditNoteDetails from '../pages/purchase-credit-debite-note/DebitCreditNoteDetails';
-import MenuPlanningListing from '../pages/production/menu-planning/MenuPlanningListing';
-import CreateMenuPlanning from '../pages/production/menu-planning/CreateMenuPlanning';
-import MenuRecipeCosting from '../pages/production/menu-planning/MenuRecipeCosting';
-import MealPlanDetails from '../pages/production/menu-planning/MealPlanDetails';
-
 
 export function AppRoutingSetup() {
   return (
