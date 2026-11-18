@@ -131,7 +131,7 @@ const AuditStatusBadge = ({ status }) => {
   }
   return (
     <span
-      className={`text-xs font-medium ${config.className}`}
+      className={`text-xs font-medium whitespace-nowrap ${config.className}`}
     >
       {config.label}
     </span>
@@ -554,12 +554,12 @@ const ListAssetAuditEvent = () => {
         <button
           type="button"
           onClick={() => setPreviewEventId(row.original.id)}
-          className="font-semibold text-xs text-[#084E92] hover:underline cursor-pointer"
+          className="font-semibold text-xs text-[#084E92] hover:underline cursor-pointer whitespace-nowrap inline-block"
         >
           {row.original.eventCode || `EVT-${String(row.original.id).padStart(4, '0')}`}
         </button>
       ),
-      size: 110,
+      size: 130,
       enableSorting: true,
       sortingFn: 'basic',
     },
@@ -612,13 +612,19 @@ const ListAssetAuditEvent = () => {
       cell: ({ row }) => {
         const isExpired = isAuditWindowExpired(row.original.auditEndDateTime);
         return (
-          <span className={`text-xs font-medium py-1 whitespace-nowrap text-gray-600`}>
-            {formatDateOnly(row.original.auditEndDateTime)}
-            {isExpired && ' (Expired)'}
-          </span>
+          <div className="flex flex-col py-1 leading-tight">
+            <span className="text-xs font-medium text-gray-600 whitespace-nowrap">
+              {formatDateOnly(row.original.auditEndDateTime)}
+            </span>
+            {isExpired && (
+              <span className="text-[10px] font-semibold text-red-500 whitespace-nowrap mt-0.5">
+                (Expired)
+              </span>
+            )}
+          </div>
         );
       },
-      size: 120,
+      size: 110,
       enableSorting: true,
       // Date comparator for chronological sorting
       sortingFn: (rowA, rowB, columnId) => {
@@ -718,8 +724,8 @@ const ListAssetAuditEvent = () => {
   if (!canView) return <AccessDenied pageTitle="Asset Audit Event" />;
 
   return (
-    <Container>
-      <div className="pt-2 pb-6 mx-auto space-y-4">
+    <Container width="fluid">
+      <div className="pt-2 pb-6 mx-auto space-y-4 w-full max-w-full">
         <PageHeader
           title="Asset Audit Events"
           actions={
@@ -805,7 +811,7 @@ const ListAssetAuditEvent = () => {
         <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden bg-white">
           <DataGrid table={table} recordCount={totalRecords} isLoading={loading}>
             <Card className="rounded-t-none border-t-0 rounded-2xl">
-              <CardTable className="w-full overflow-x-hidden">
+              <CardTable className="w-full overflow-x-auto">
                 {loading ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-3">
                     <Loader2 className="w-8 h-8 text-[#084E92] animate-spin" />
