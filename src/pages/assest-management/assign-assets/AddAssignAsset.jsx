@@ -25,7 +25,9 @@ import {
   getAssignAssetById,
   updateAssignAsset,
   getAssetUnitLocationsByOrganization,
-  getAssetById
+  getAssetById,
+  getHrmsUsersPaginated,
+  getAllDepartmentMaster,
 } from '@/services/apiServices.js';
 import { usePagePermissions } from '@/utils/permissions';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -130,6 +132,11 @@ const SubHeading = ({ icon: Icon, title }) => (
 const ASSET_TYPE_OPTIONS = [
   { value: 'individual', label: 'Individual' },
   { value: 'company_outlet', label: 'Company / Outlet' },
+];
+
+const CUSTODIAN_TYPE_OPTIONS = [
+  { value: 'USER', label: 'Individual' },
+  { value: 'DEPT', label: 'Department' },
 ];
 export const AssetMultiSelect = ({
   options = [],
@@ -353,6 +360,8 @@ const AddAssignAsset = () => {
     assetId: '',
     assetType: 'individual',
     assignedTo: '',
+    custodianType: 'USER',
+    custodianValue: '',
     company: '',
     unit: '',
     subOutletId: '',
@@ -367,7 +376,7 @@ const AddAssignAsset = () => {
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
-  // ---- Dynamic data: assets, organizations, employees ----
+  // ---- Dynamic data: assets, organizations, employees, users, departments ----
   const [assets, setAssets] = useState([]);
   const [assetPage, setAssetPage] = useState(0);
   const [hasMoreAssets, setHasMoreAssets] = useState(true);
@@ -376,6 +385,18 @@ const AddAssignAsset = () => {
   const assetPageRef = useRef(0);
   const hasMoreRef = useRef(true);
   const loadingMoreRef = useRef(false);
+
+  const [hrmsUsers, setHrmsUsers] = useState([]);
+  const [userPage, setUserPage] = useState(0);
+  const [hasMoreUsers, setHasMoreUsers] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingUsersMore, setLoadingUsersMore] = useState(false);
+  const userPageRef = useRef(0);
+  const hasMoreUsersRef = useRef(true);
+  const loadingUsersMoreRef = useRef(false);
+
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
 
   const [organizations, setOrganizations] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -557,11 +578,20 @@ const AddAssignAsset = () => {
             return missing.length > 0 ? [...missing, ...prev] : prev;
           });
 
+          const recCustodianType = record.custodianType || (record.assignToId ? 'USER' : 'USER');
+          const recCustodianVal = record.custodianValue
+            ? String(record.custodianValue)
+            : record.assignToId
+              ? String(record.assignToId)
+              : '';
+
           setForm((f) => ({
             ...f,
             assetId: record.assetId ? String(record.assetId) : '',
             assetType: record.assetType ?? (record.assignToId ? 'individual' : 'company_outlet'),
             assignedTo: record.assignToId ? String(record.assignToId) : '',
+            custodianType: recCustodianType,
+            custodianValue: recCustodianVal,
             company: record.companiesId ? String(record.companiesId) : '',
             _pendingCompaniesId: record.companiesId ?? null,
             _pendingAssetIds: rawItems.map((item) => item.assetId ?? item.id),
@@ -687,6 +717,36 @@ const AddAssignAsset = () => {
       cancelled = true;
     };
   }, []);
+
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const res = await getAllDepartmentMaster();
+      const raw = res?.data?.data ?? res?.data;
+      const list = Array.isArray(raw?.['Department Details'])
+        ? raw['Department Details']
+        : Array.isArray(raw?.departmentDetails)
+        ? raw.departmentDetails
+        : Array.isArray(raw)
+        ? raw
+        : Array.isArray(raw?.content)
+        ? raw.content
+        : Array.isArray(res?.data)
+        ? res.data
+        : [];
+      setDepartments(list);
+    } catch (err) {
+      console.error('Failed to load departments:', err);
+    } finally {
+      setLoadingDepartments(false);
+    }
+  };
+
+  useEffect(() => {
+    if (form.custodianType === 'DEPT') {
+      fetchDepartments();
+    }
+  }, [form.custodianType]);
 
   // Fetch Locations when unit changes
   useEffect(() => {
@@ -883,6 +943,126 @@ const AddAssignAsset = () => {
       }));
   }, [employees, isIndividual, form.unit, form.company, orgTreeIds, isCompanyUser, userCompanyId, selfOrg]);
 
+  const effectiveCompanyId = useMemo(() => {
+    return form.company || (isCompanyUser && (userCompanyId || selfOrg?.id) ? String(userCompanyId || selfOrg?.id) : '');
+  }, [form.company, isCompanyUser, userCompanyId, selfOrg]);
+
+  const effectiveOutletIdVal = useMemo(() => {
+    return form.unit || (isOutletUser && effectiveOutletId ? String(effectiveOutletId) : '');
+  }, [form.unit, isOutletUser, effectiveOutletId]);
+
+  const fetchUsersPage = async (pageToFetch = 0, isInitial = false) => {
+    if (loadingUsersMoreRef.current) return;
+    try {
+      if (isInitial) {
+        setLoadingUsers(true);
+      } else {
+        loadingUsersMoreRef.current = true;
+        setLoadingUsersMore(true);
+      }
+
+      const params = {
+        page: pageToFetch,
+        pageSize: 20,
+        size: 20,
+      };
+      if (effectiveCompanyId) {
+        params.companyId = Number(effectiveCompanyId);
+      }
+      if (effectiveOutletIdVal) {
+        params.outletId = Number(effectiveOutletIdVal);
+      }
+
+      const res = await getHrmsUsersPaginated(params);
+      const raw = res?.data?.data ?? res?.data;
+      const content = Array.isArray(raw?.content)
+        ? raw.content
+        : Array.isArray(raw)
+          ? raw
+          : Array.isArray(res?.data?.content)
+            ? res.data.content
+            : [];
+      const isLast = raw?.last ?? (content.length < 20);
+
+      setHrmsUsers((prev) => {
+        if (pageToFetch === 0) {
+          return content;
+        }
+        const existingIds = new Set(prev.map((u) => String(u.id)));
+        const newItems = content.filter((u) => !existingIds.has(String(u.id)));
+        return [...prev, ...newItems];
+      });
+
+      userPageRef.current = pageToFetch;
+      setUserPage(pageToFetch);
+      hasMoreUsersRef.current = !isLast;
+      setHasMoreUsers(!isLast);
+    } catch (err) {
+      console.error('Failed to load HRMS users:', err);
+    } finally {
+      if (isInitial) setLoadingUsers(false);
+      loadingUsersMoreRef.current = false;
+      setLoadingUsersMore(false);
+    }
+  };
+
+  useEffect(() => {
+    if (form.custodianType === 'USER') {
+      userPageRef.current = 0;
+      hasMoreUsersRef.current = true;
+      fetchUsersPage(0, true);
+    }
+  }, [form.custodianType, effectiveCompanyId, effectiveOutletIdVal]);
+
+  const handleLoadMoreUsers = useCallback(() => {
+    if (hasMoreUsersRef.current && !loadingUsersMoreRef.current) {
+      fetchUsersPage(userPageRef.current + 1, false);
+    }
+  }, [effectiveCompanyId, effectiveOutletIdVal]);
+
+  const userOptions = useMemo(() => {
+    return (hrmsUsers || []).map((u) => {
+      const name =
+        u.empname ||
+        u.empName ||
+        u.fullName ||
+        [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+        u.name ||
+        u.userName ||
+        u.email ||
+        `User #${u.id}`;
+      const code = u.empcode || u.empCode || u.employeeCode || u.code || '';
+      const designation = u.designationName || u.designation || u.departmentName || '';
+      const nameWithCode = code ? `${name} - ${code}` : name;
+      return {
+        value: String(u.id),
+        label: designation ? `${nameWithCode} (${designation})` : nameWithCode,
+      };
+    });
+  }, [hrmsUsers]);
+
+  const departmentOptions = useMemo(() => {
+    return (departments || []).map((d) => {
+      const name = d.name || d.departmentName || d.deptName || `Department #${d.id}`;
+      const code = d.departmentCode || d.shortCode || '';
+      return {
+        value: String(d.id),
+        label: code ? `${name} (${code})` : name,
+      };
+    });
+  }, [departments]);
+
+  const handleCustodianTypeChange = (e) => {
+    const newType = e.target.value;
+    setForm((f) => ({
+      ...f,
+      custodianType: newType,
+      custodianValue: '',
+      assetType: newType === 'DEPT' ? 'company_outlet' : 'individual',
+      assignedTo: '',
+    }));
+  };
+
   const handleAssetTypeChange = (e) => {
     setForm((f) => ({ ...f, assetType: e.target.value, assignedTo: '' }));
   };
@@ -895,6 +1075,7 @@ const AddAssignAsset = () => {
       unit: '',
       subOutletId: '',
       assetUnitLocationId: '',
+      custodianValue: f.custodianType === 'USER' ? '' : f.custodianValue,
       assignedTo: '',
     }));
   };
@@ -906,6 +1087,7 @@ const AddAssignAsset = () => {
       unit: newUnitId,
       subOutletId: '',
       assetUnitLocationId: '',
+      custodianValue: f.custodianType === 'USER' ? '' : f.custodianValue,
       assignedTo: '',
     }));
   };
@@ -940,7 +1122,7 @@ const AddAssignAsset = () => {
   const qtyNum = Number(form.quantity) || 0;
   const remaining = Math.max(availableStock - qtyNum, 0);
 
-  // Payload for createAssignAsset: { active, assetId, assignToId, companiesId, quantity, assignmentDate, remarks }
+  // Payload for createAssignAsset: { active, assetId, assetItems: [{ assetId, qty }], companiesId, assignmentDate, remarks, custodianType, custodianValue }
   const buildPayload = () => {
     const companiesId =
       form.unit || form.company || (userCompanyId || selfOrg?.id ? Number(userCompanyId || selfOrg?.id) : 0);
@@ -948,17 +1130,18 @@ const AddAssignAsset = () => {
       assetId: Number(a.id),
       qty: Number(quantities[String(a.id)]) || 0,
     }));
-    const totalQty = assetItems.reduce((sum, item) => sum + item.qty, 0);
+    const firstAssetId = selectedAssets[0]?.id ? Number(selectedAssets[0].id) : (form.assetId ? Number(form.assetId) : 0);
 
     return {
       active: true,
+      assetId: firstAssetId,
       assetItems,
-      assetType: form.assetType,
+      assetType: form.custodianType === 'DEPT' ? 'company_outlet' : 'individual',
       assetUnitLocationId: form.assetUnitLocationId ? Number(form.assetUnitLocationId) : 0,
-      assignToId: form.assignedTo ? Number(form.assignedTo) : 0,
+      custodianType: form.custodianType,
+      custodianValue: form.custodianValue ? Number(form.custodianValue) : 0,
       companiesId: Number(companiesId) || 0,
       subOutletId: form.subOutletId ? Number(form.subOutletId) : 0,
-      quantity: totalQty,
       assignmentDate: toDDMMYYYY(form.assignmentDate),
       remarks: formatRemarks(form.remarks || ''),
     };
@@ -973,18 +1156,16 @@ const AddAssignAsset = () => {
       return;
     }
     // Company is required for organization assignment; Unit is optional
-    if (!isIndividual && !(form.company || form.unit || userCompanyId || selfOrg?.id)) {
+    if (!isOutletUser && !(form.company || userCompanyId || selfOrg?.id)) {
       setSaveError('Please select a Company to assign to.');
       return;
     }
-    // Assigned To is mandatory only for Individual assignments — optional
-    // (org-level) for Group / Company / Outlet.
-    if (isIndividual && !form.assignedTo) {
-      setSaveError('Please select an employee to assign to.');
+    if (!form.custodianType) {
+      setSaveError('Please select a Custodian Type.');
       return;
     }
-    if (!form.assetType) {
-      setSaveError('Please select an Assign to Type.');
+    if (!form.custodianValue) {
+      setSaveError(`Please select a ${form.custodianType === 'DEPT' ? 'department' : 'user'} as custodian.`);
       return;
     }
     if (qtyNum > maxAssignableQty) {
@@ -1188,23 +1369,12 @@ const AddAssignAsset = () => {
             <div className="border-t border-gray-100 pt-6 space-y-4">
               <SubHeading icon={MapPin} title="Deployment Destination" />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="w-full">
-                  <Label required>Assign To Type</Label>
-                  <SearchableSelect
-                    name="assetType"
-                    value={form.assetType}
-                    onChange={handleAssetTypeChange}
-                    placeholder="Select asset type"
-                    options={ASSET_TYPE_OPTIONS}
-                  />
-                </div>
-
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
                 {/* Company Field: Always shown unless user is an Outlet user */}
                 {!isOutletUser && (
                   <div className="w-full">
                     <div className="flex items-center justify-between">
-                      <Label required={!isIndividual}>Company</Label>
+                      <Label required>Company</Label>
                       {selectedCompanyOrg && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-blue-50 text-[#084E92] border border-blue-100">
                           {orgTypeLabel(selectedCompanyOrg.orgType)}
@@ -1227,9 +1397,7 @@ const AddAssignAsset = () => {
                     />
                   </div>
                 )}
-              </div>
 
-              <div className={`grid grid-cols-1 ${isOutletUser ? 'sm:grid-cols-2' : 'sm:grid-cols-2 md:grid-cols-3'} gap-4 w-full`}>
                 {/* Unit dropdown: Completely OPTIONAL (Non-Mandatory) */}
                 {!isOutletUser && (
                   <div className="w-full">
@@ -1271,20 +1439,50 @@ const AddAssignAsset = () => {
                   />
                 </div>
 
+                {/* Custodian Type: Individual (USER) vs Department (DEPT) */}
                 <div className="w-full">
-                  <Label required={isIndividual}>Assigned To</Label>
+                  <Label required>Custodian Type</Label>
                   <SearchableSelect
-                    name="assignedTo"
-                    value={form.assignedTo}
-                    onChange={(e) => set('assignedTo', e.target.value)}
-                    placeholder={
-                      form.company || form.unit || (isCompanyUser && (userCompanyId || selfOrg?.id))
-                        ? 'Search employee'
-                        : 'Select company first'
-                    }
-                    options={employeeOptions}
-                    disabled={!form.company && !form.unit && !(isCompanyUser && (userCompanyId || selfOrg?.id))}
+                    name="custodianType"
+                    value={form.custodianType}
+                    onChange={handleCustodianTypeChange}
+                    placeholder="Select Custodian Type"
+                    options={CUSTODIAN_TYPE_OPTIONS}
+                    isClearable={false}
                   />
+                </div>
+
+                {/* Custodian Dropdown: User vs Department */}
+                <div className="w-full">
+                  <Label required>
+                    {form.custodianType === 'DEPT' ? 'Department' : 'User'}
+                  </Label>
+                  {form.custodianType === 'DEPT' ? (
+                    <SearchableSelect
+                      name="custodianValue"
+                      value={form.custodianValue}
+                      onChange={(e) => set('custodianValue', e.target.value)}
+                      placeholder={loadingDepartments ? 'Loading departments...' : 'Select department'}
+                      options={departmentOptions}
+                      disabled={loadingDepartments}
+                    />
+                  ) : (
+                    <SearchableSelect
+                      name="custodianValue"
+                      value={form.custodianValue}
+                      onChange={(e) => set('custodianValue', e.target.value)}
+                      placeholder={
+                        loadingUsers && userOptions.length === 0
+                          ? 'Loading users...'
+                          : 'Select user'
+                      }
+                      options={userOptions}
+                      hasMore={hasMoreUsers}
+                      loadingMore={loadingUsersMore}
+                      onLoadMore={handleLoadMoreUsers}
+                      disabled={loadingUsers && userOptions.length === 0}
+                    />
+                  )}
                 </div>
               </div>
             </div>

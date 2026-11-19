@@ -3,8 +3,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Check, ChevronDown, Search, X } from "lucide-react";
-import { useState } from "react";
+import { Check, ChevronDown, Search, X, Loader2 } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 
 const inputCls =
@@ -24,9 +24,45 @@ const SearchableSelect = ({
   hasError = false,
   name,
   isClearable = true,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+
+  const observerRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const sentinelCallback = useCallback(
+    (node) => {
+      if (loadingMore) return;
+      if (observerRef.current) observerRef.current.disconnect();
+
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0]?.isIntersecting && hasMore && !loadingMore) {
+            onLoadMore?.();
+          }
+        },
+        {
+          root: scrollContainerRef.current,
+          threshold: 0.1,
+        }
+      );
+
+      if (node) observerRef.current.observe(node);
+    },
+    [loadingMore, hasMore, onLoadMore]
+  );
+
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 80) {
+      if (hasMore && !loadingMore && onLoadMore) {
+        onLoadMore();
+      }
+    }
+  };
 
   const selectedOption = options.find(
     (option) => String(option.value) === String(value)
@@ -148,13 +184,12 @@ const SearchableSelect = ({
 
           <ChevronDown
             size={16}
-            className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-200 ${
-              disabled
-                ? "text-gray-300"
-                : open
+            className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-200 ${disabled
+              ? "text-gray-300"
+              : open
                 ? "text-[#084E92] rotate-180"
                 : "text-gray-400 group-hover:text-gray-600"
-            }`}
+              }`}
           />
         </div>
       </PopoverTrigger>
@@ -166,7 +201,11 @@ const SearchableSelect = ({
         onOpenAutoFocus={(e) => e.preventDefault()}
         className="p-1.5 w-(--radix-popover-trigger-width) min-w-[200px] overflow-hidden z-100 bg-white rounded-xl shadow-xl shadow-slate-900/10 border border-slate-200/90 ring-1 ring-black/[0.03]"
       >
-        <div className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5">
+        <div
+          ref={scrollContainerRef}
+          className="max-h-72 overflow-y-auto space-y-0.5 pr-0.5"
+          onScroll={handleScroll}
+        >
           {hasValue && isClearable && (
             <button
               type="button"
@@ -189,11 +228,10 @@ const SearchableSelect = ({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => handleSelect(option)}
-                  className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-between gap-2 ${
-                    isSelected
-                      ? "bg-blue-50/90 text-[#084E92] font-semibold shadow-xs"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium"
-                  }`}
+                  className={`w-full text-left px-3 py-2 text-xs rounded-lg transition-all duration-150 cursor-pointer flex items-center justify-between gap-2 ${isSelected
+                    ? "bg-blue-50/90 text-[#084E92] font-semibold shadow-xs"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 font-medium"
+                    }`}
                 >
                   <span className="truncate">{option.label}</span>
                   {isSelected ? (
@@ -209,6 +247,22 @@ const SearchableSelect = ({
             <div className="px-3 py-4 text-xs text-gray-400 text-center flex flex-col items-center justify-center gap-1">
               <Search className="w-4 h-4 text-gray-300" />
               <span>No options found</span>
+            </div>
+          )}
+
+          {hasMore && (
+            <div
+              ref={sentinelCallback}
+              className="py-2.5 px-3 text-center text-xs text-gray-500 flex items-center justify-center gap-1.5"
+            >
+              {loadingMore ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#084E92]" />
+                  <span>Loading more...</span>
+                </>
+              ) : (
+                <span className="text-[11px] text-gray-400">Scroll for more</span>
+              )}
             </div>
           )}
         </div>
