@@ -54,32 +54,36 @@ const normalizeLocation = (item) => ({
     status: item.active !== false && item.isActive !== false ? 'active' : 'inactive',
 });
 
-const AssetLabel = ({ asset, qrSize = 64 }) => (
-    <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center justify-between px-[0.05in] py-0 m-0 overflow-hidden break-inside-avoid border border-gray-200 rounded-md">
+const AssetLabel = ({ asset, qrSize = 60 }) => (
+    <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center justify-between px-[0.04in] py-[0.08in] m-0 overflow-hidden break-inside-avoid border border-gray-200 rounded-md">
         {/* Top-Right Logo */}
         <img
-            className="absolute top-1.5 right-1.5 size-7 rounded-full shrink-0 object-cover z-10"
+            className="absolute top-2 right-1.5 w-[18px] h-[18px] rounded-full shrink-0 object-cover z-10"
             src={toAbsoluteUrl('/media/app/jaiswal-group-logo.png')}
             alt="Jaiswal Group"
         />
 
         {/* QR Code */}
-        <div className="w-[0.85in] h-[0.85in] shrink-0 flex items-center justify-center">
+        <div className="w-[0.75in] h-[0.75in] shrink-0 flex items-center justify-center">
             <QRCode value={getAssetQRValue(asset)} size={qrSize} level="M" />
         </div>
 
         {/* Details Column */}
-        <div className="flex-1 min-w-0 h-[0.85in] flex flex-col justify-between pl-[0.06in] pr-3 text-left">
-            <div className="text-[6pt] font-bold leading-none wrap-break-word text-[#1B1B1F]">Jaiswal Group</div>
+        <div className="flex-1 min-w-0 h-full flex flex-col justify-between pl-1.5 pr-0.5 text-left text-black">
+            <div className="text-[6.5pt] font-black leading-[1.08] break-words text-black pr-5">Jaiswal Group</div>
             {asset.organizationname && asset.organizationname !== 'Jaiswal Group' ? (
-                <div className="text-[6pt] font-bold leading-[1.05] uppercase wrap-break-word">{asset.organizationname}</div>
+                <div className="text-[6.5pt] font-bold leading-[1.08] uppercase break-words text-black">{asset.organizationname}</div>
             ) : asset.organizationname === 'Jaiswal Group' ? (
-                <div className="text-[6pt] font-bold leading-[1.05] uppercase wrap-break-word">Head Office</div>
+                <div className="text-[6.5pt] font-bold leading-[1.08] uppercase break-words text-black">Head Office</div>
             ) : null}
-            <div className="text-[5.5pt] font-bold leading-[1.05] wrap-break-word">{asset.assetUnitLocationName || ""}</div>
-            <div className="text-[5.5pt] font-bold leading-[1.05] wrap-break-word">{asset.categoryName || '-'}</div>
-            <div className="text-[6pt] font-bold leading-[1.05] wrap-break-word">{toTitleCase(asset.name) || '-'}</div>
-            <div className="text-[5.5pt] font-bold leading-none wrap-break-word">{asset.code || '-'}</div>
+            {asset.assetUnitLocationName ? (
+                <div className="text-[6pt] font-bold leading-[1.08] break-words text-black">{asset.assetUnitLocationName}</div>
+            ) : null}
+            {asset.categoryName ? (
+                <div className="text-[6pt] font-bold leading-[1.08] break-words text-black">{asset.categoryName}</div>
+            ) : null}
+            <div className="text-[7pt] font-black leading-[1.08] break-words text-black">{toTitleCase(asset.name) || '-'}</div>
+            <div className="text-[7pt] font-black font-mono leading-none break-words tracking-wide text-black">{asset.code || '-'}</div>
         </div>
     </div>
 );
@@ -799,14 +803,18 @@ const ExportAssetsQR = () => {
             max-width: 2in !important;
             max-height: 1in !important;
             margin: 0 !important;
-            padding: 0 0.05in !important;
+            padding: 0.08in 0.04in !important;
             box-sizing: border-box !important;
             border: 1px solid #cbd5e1 !important; /* Sharp pure black border for clear separation */
             border-radius: 6px !important;
             background-color: #ffffff !important;
+            color: #000000 !important;
             overflow: hidden !important;
             break-inside: avoid !important;
             page-break-inside: avoid !important;
+        }
+        .asset-label * {
+            color: #000000 !important;
         }
 
         /* Prevent double border in the middle where the two labels meet */
@@ -820,8 +828,8 @@ const ExportAssetsQR = () => {
             break-after: auto !important;
         }
         .asset-label svg {
-            width: 0.85in !important;
-            height: 0.85in !important;
+            width: 0.75in !important;
+            height: 0.75in !important;
             flex-shrink: 0 !important;
         }
     }
@@ -980,7 +988,9 @@ const ExportAssetsQR = () => {
                                                                 <span className='uppercase'>{a.organizationname}</span>
                                                             ) : a.organizationname === 'Jaiswal Group' ? 'HEAD OFFICE' : ''}
                                                         </p>
-                                                        <p className="text-sm text-gray-600 capitalize mb-1">{a.assetUnitLocationName || ""}</p>
+                                                        {a.assetUnitLocationName ? (
+                                                            <p className="text-sm text-gray-600 capitalize mb-1">{a.assetUnitLocationName}</p>
+                                                        ) : null}
                                                         <p className="text-sm text-gray-600 capitalize mb-1">{a.categoryName}</p>
                                                         <p className="text-sm font-medium text-[#1B1B1F] capitalize truncate mb-1">{toTitleCase(a.name) || '-'}</p>
                                                         <span className="bg-[#F1F5F9] text-[#64748B] font-bold tracking-wide px-1.5 py-0.5 rounded text-xs">
@@ -1017,7 +1027,7 @@ const ExportAssetsQR = () => {
                         <AssetLabel
                             key={`print-${a.rowKey}-${a.printIndex}-${index}`}
                             asset={a}
-                            qrSize={68}
+                            qrSize={60}
                         />
                     ))}
                 </div>,
