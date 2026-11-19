@@ -426,7 +426,13 @@ const AddAsset = () => {
             setExistingAssignmentId(currentAssign.id);
             assignUnitId = currentAssign.companiesId ? String(currentAssign.companiesId) : '';
             assignLocationId = currentAssign.assetUnitLocationId ? String(currentAssign.assetUnitLocationId) : '';
-            assignQtyVal = currentAssign.quantity ? String(currentAssign.quantity) : '';
+            assignQtyVal = currentAssign.quantity != null
+              ? String(currentAssign.quantity)
+              : currentAssign.qty != null
+                ? String(currentAssign.qty)
+                : currentAssign.assetItems?.[0]?.qty != null
+                  ? String(currentAssign.assetItems[0].qty)
+                  : '';
             assignCustodianType = currentAssign.custodianType || (currentAssign.assignToId ? 'USER' : 'USER');
             assignCustodianVal = currentAssign.custodianValue
               ? String(currentAssign.custodianValue)
@@ -1018,7 +1024,7 @@ const AddAsset = () => {
     if (amcActive && !form.amcExpiry) e.amcExpiry = 'AMC expiry date is required when AMC is active';
 
     // Quantity validation: assignQty must not exceed availableQty
-    if (form.unitId) {
+    if (form.unitId || form.custodianValue) {
       const assign = Number(form.assignQty || form.availableQty || 1);
       const avail = Number(form.availableQty || 0);
 
@@ -1075,6 +1081,7 @@ const AddAsset = () => {
         if ((form.unitId || form.custodianValue) && createdAssetId) {
           try {
             const assignQtyVal = form.assignQty ? Number(form.assignQty) : Number(form.availableQty || 1);
+            const selectedType = assetTypes.find((t) => String(t.id) === String(form.assetType));
             const assignPayload = {
               active: true,
               assetId: Number(createdAssetId),
@@ -1084,10 +1091,10 @@ const AddAsset = () => {
                   qty: assignQtyVal,
                 },
               ],
-              assetType: form.custodianType === 'DEPT' ? 'company_outlet' : 'individual',
+              assetType: selectedType?.name || (form.custodianType === 'DEPT' ? 'company_outlet' : 'individual'),
               companiesId: Number(form.unitId || userCompanyId || selfOrg?.id || 0),
               assetUnitLocationId: form.assetUnitLocationId ? Number(form.assetUnitLocationId) : 0,
-              custodianType: form.custodianType,
+              custodianType: form.custodianValue ? form.custodianType : null,
               custodianValue: form.custodianValue ? Number(form.custodianValue) : 0,
               remarks: 'Assigned during asset registration',
               subOutletId: 0,

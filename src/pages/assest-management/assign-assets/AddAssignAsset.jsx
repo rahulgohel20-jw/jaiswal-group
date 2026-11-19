@@ -578,7 +578,7 @@ const AddAssignAsset = () => {
             return missing.length > 0 ? [...missing, ...prev] : prev;
           });
 
-          const recCustodianType = record.custodianType || (record.assignToId ? 'USER' : 'USER');
+          const recCustodianType = record.custodianType || (record.assignToId ? 'USER' : '');
           const recCustodianVal = record.custodianValue
             ? String(record.custodianValue)
             : record.assignToId
@@ -642,7 +642,10 @@ const AddAssignAsset = () => {
   useEffect(() => {
     if (!form._pendingCompaniesId || organizations.length === 0) return;
     const org = organizations.find((o) => o.id === Number(form._pendingCompaniesId));
-    if (!org) return;
+    if (!org) {
+      setForm((f) => ({ ...f, _pendingCompaniesId: null }));
+      return;
+    }
 
     setForm((f) => ({
       ...f,
@@ -1138,7 +1141,7 @@ const AddAssignAsset = () => {
       assetItems,
       assetType: form.custodianType === 'DEPT' ? 'company_outlet' : 'individual',
       assetUnitLocationId: form.assetUnitLocationId ? Number(form.assetUnitLocationId) : 0,
-      custodianType: form.custodianType,
+      custodianType: form.custodianValue ? form.custodianType : null,
       custodianValue: form.custodianValue ? Number(form.custodianValue) : 0,
       companiesId: Number(companiesId) || 0,
       subOutletId: form.subOutletId ? Number(form.subOutletId) : 0,
@@ -1160,13 +1163,15 @@ const AddAssignAsset = () => {
       setSaveError('Please select a Company to assign to.');
       return;
     }
-    if (!form.custodianType) {
-      setSaveError('Please select a Custodian Type.');
-      return;
-    }
-    if (!form.custodianValue) {
-      setSaveError(`Please select a ${form.custodianType === 'DEPT' ? 'department' : 'user'} as custodian.`);
-      return;
+    if (!isEditMode) {
+      if (!form.custodianType) {
+        setSaveError('Please select a Custodian Type.');
+        return;
+      }
+      if (!form.custodianValue) {
+        setSaveError(`Please select a ${form.custodianType === 'DEPT' ? 'department' : 'user'} as custodian.`);
+        return;
+      }
     }
     if (qtyNum > maxAssignableQty) {
       setSaveError(
@@ -1201,8 +1206,47 @@ const AddAssignAsset = () => {
     }
   };
 
+  const isInitialLoading = isEditMode
+    ? !fetchError && (
+        loadingRecord ||
+        loadingOrgs ||
+        loadingAssets ||
+        Boolean(form._pendingCompaniesId) ||
+        loadingLocations ||
+        (form.custodianType === 'USER' && loadingUsers && userOptions.length === 0) ||
+        (form.custodianType === 'DEPT' && loadingDepartments && departmentOptions.length === 0)
+      )
+    : false;
+
   if (!canView || (isEditMode ? !canEdit : !canAdd)) {
     return <AccessDenied pageTitle={isEditMode ? 'Edit Assignment' : 'Assign Asset'} />;
+  }
+
+  if (isEditMode && isInitialLoading) {
+    return (
+      <Container>
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
+          <PageHeader
+            title="Edit Assignment"
+            description="Configure deployment parameters for enterprise inventory."
+            actions={
+              <button
+                type="button"
+                onClick={() => navigate('/assigned-assets')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Assigned Assets
+              </button>
+            }
+          />
+          <div className="bg-white border border-gray-100 rounded-xl shadow-xs min-h-[420px] flex flex-col items-center justify-center p-8">
+            <Loader2 className="w-9 h-9 text-[#084E92] animate-spin mb-3.5" />
+            <p className="text-sm font-semibold text-gray-800">Loading assignment details...</p>
+          </div>
+        </div>
+      </Container>
+    );
   }
 
   return (
@@ -1441,32 +1485,39 @@ const AddAssignAsset = () => {
 
                 {/* Custodian Type: Individual (USER) vs Department (DEPT) */}
                 <div className="w-full">
-                  <Label required>Custodian Type</Label>
+                  <Label required={!isEditMode}>Custodian Type</Label>
                   <SearchableSelect
                     name="custodianType"
                     value={form.custodianType}
                     onChange={handleCustodianTypeChange}
-                    placeholder="Select Custodian Type"
+                    placeholder={isEditMode ? "Select Custodian Type (Optional)" : "Select Custodian Type"}
                     options={CUSTODIAN_TYPE_OPTIONS}
-                    isClearable={false}
+                    isClearable={isEditMode}
                   />
                 </div>
 
                 {/* Custodian Dropdown: User vs Department */}
                 <div className="w-full">
-                  <Label required>
-                    {form.custodianType === 'DEPT' ? 'Department' : 'User'}
+                  <Label required={!isEditMode}>
+                    {form.custodianType === 'DEPT' ? 'Department' : form.custodianType === 'USER' ? 'User' : 'Custodian'}
                   </Label>
                   {form.custodianType === 'DEPT' ? (
                     <SearchableSelect
                       name="custodianValue"
                       value={form.custodianValue}
                       onChange={(e) => set('custodianValue', e.target.value)}
-                      placeholder={loadingDepartments ? 'Loading departments...' : 'Select department'}
+                      placeholder={
+                        loadingDepartments
+                          ? 'Loading departments...'
+                          : isEditMode
+                            ? 'Select department (Optional)'
+                            : 'Select department'
+                      }
                       options={departmentOptions}
                       disabled={loadingDepartments}
+                      isClearable={true}
                     />
-                  ) : (
+                  ) : form.custodianType === 'USER' ? (
                     <SearchableSelect
                       name="custodianValue"
                       value={form.custodianValue}
@@ -1474,13 +1525,26 @@ const AddAssignAsset = () => {
                       placeholder={
                         loadingUsers && userOptions.length === 0
                           ? 'Loading users...'
-                          : 'Select user'
+                          : isEditMode
+                            ? 'Select user (Optional)'
+                            : 'Select user'
                       }
                       options={userOptions}
                       hasMore={hasMoreUsers}
                       loadingMore={loadingUsersMore}
                       onLoadMore={handleLoadMoreUsers}
                       disabled={loadingUsers && userOptions.length === 0}
+                      isClearable={true}
+                    />
+                  ) : (
+                    <SearchableSelect
+                      name="custodianValue"
+                      value=""
+                      onChange={() => {}}
+                      placeholder="Select Custodian Type first (Optional)"
+                      options={[]}
+                      disabled={true}
+                      isClearable={false}
                     />
                   )}
                 </div>
