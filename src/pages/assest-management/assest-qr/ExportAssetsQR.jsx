@@ -54,6 +54,19 @@ const normalizeLocation = (item) => ({
     status: item.active !== false && item.isActive !== false ? 'active' : 'inactive',
 });
 
+export const getAssetLocationOrCustodian = (asset) => {
+    const loc = asset?.assetUnitLocationName || asset?.locationName;
+    if (loc) {
+        return loc;
+    }
+    const isUser = !asset?.custodianType || asset?.custodianType === 'USER';
+    const userName = asset?.custodianName || asset?.assignedToName;
+    if (isUser && userName) {
+        return userName;
+    }
+    return '';
+};
+
 const AssetLabel = ({ asset, qrSize = 60 }) => (
     <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center justify-between px-[0.04in] py-[0.08in] m-0 overflow-hidden break-inside-avoid border border-gray-200 rounded-md">
         {/* Top-Right Logo */}
@@ -76,8 +89,8 @@ const AssetLabel = ({ asset, qrSize = 60 }) => (
             ) : asset.organizationname === 'Jaiswal Group' ? (
                 <div className="text-[6.5pt] font-bold leading-[1.08] uppercase break-words text-black">Head Office</div>
             ) : null}
-            {asset.assetUnitLocationName ? (
-                <div className="text-[6pt] font-bold leading-[1.08] break-words text-black">{asset.assetUnitLocationName}</div>
+            {getAssetLocationOrCustodian(asset) ? (
+                <div className="text-[6pt] font-bold leading-[1.08] break-words text-black">{getAssetLocationOrCustodian(asset)}</div>
             ) : null}
             {asset.categoryName ? (
                 <div className="text-[6pt] font-bold leading-[1.08] break-words text-black">{asset.categoryName}</div>
@@ -443,6 +456,9 @@ const ExportAssetsQR = () => {
                 const rowQty = Number(assignment?.quantity ?? asset.quantity ?? asset.totalQuantity ?? 1);
                 const locId = assignment?.assetUnitLocationId ?? null;
                 const locName = locId ? (assignment?.assetUnitLocationName ?? assignment?.locationName ?? '') : '';
+                const custodianType = assignment?.custodianType ?? asset?.custodianType ?? null;
+                const custodianValue = assignment?.custodianValue ?? asset?.custodianValue ?? null;
+                const custodianName = assignment?.custodianName ?? assignment?.assignedToName ?? asset?.custodianName ?? asset?.assignedToName ?? '';
 
                 if (!uniqueMap.has(String(assetId))) {
                     uniqueMap.set(String(assetId), {
@@ -453,6 +469,9 @@ const ExportAssetsQR = () => {
                         organizationname: assignment?.companiesName ?? asset.organizationname ?? '',
                         assetUnitLocationId: locId,
                         assetUnitLocationName: locName,
+                        custodianType,
+                        custodianValue,
+                        custodianName,
                         categoryId: asset.categoryId ?? asset.category?.id,
                         categoryName: asset.categoryName ?? asset.category?.categoryName ?? asset.category?.name ?? asset.assetCategoryName ?? '',
                         department: asset.department,
@@ -501,6 +520,7 @@ const ExportAssetsQR = () => {
         normalizeLocationValue(asset.name),
         normalizeLocationValue(asset.organizationname),
         normalizeLocationValue(asset.assetUnitLocationName || asset.assetLocationName || asset.location),
+        normalizeLocationValue(asset.custodianName),
     ].join('|');
 
     // Debounced assignment processor
@@ -557,25 +577,37 @@ const ExportAssetsQR = () => {
                             organizationId: asset.organizationId || outlet || company || null,
                             organizationname: asset.organizationname || '',
                             assignmentId: null,
+                            custodianType: asset.custodianType ?? null,
+                            custodianValue: asset.custodianValue ?? null,
+                            custodianName: asset.custodianName ?? asset.assignedToName ?? '',
                             availableQuantity: asset.availableQuantity ?? asset.totalQuantity ?? 1,
                             quantity: Math.max(1, Number(asset.quantity ?? 1)),
                             rowKey: `${asset.id}-unassigned-${Date.now()}-${Math.random()}`,
                         });
                     } else {
-                        const assignmentRows = assetAssignments.map((assignment, index) => ({
-                            ...asset,
-                            isAssigned: true,
-                            assignmentId: assignment.id ?? assignment.assignmentId ?? null,
-                            organizationId: assignment.companiesId ?? assignment.organizationId ?? asset.organizationId ?? null,
-                            organizationname: assignment.companiesName ?? assignment.organizationName ?? asset.organizationname ?? '',
-                            assetUnitLocationId: assignment.assetUnitLocationId ?? assignment.locationId ?? null,
-                            assetUnitLocationName: assignment.assetUnitLocationName ?? assignment.locationName ??  '',
-                            quantity: assignment.quantity ?? assignment.assignedQuantity ?? 1,
-                            remarks: assignment.remarks ?? "",
-                            availableQuantity: assignment.availableQuantity ?? 0,
-                            assignmentIndex: index,
-                            rowKey: `${asset.id}-${assignment.id ?? index}-${Date.now()}-${Math.random()}`,
-                        }));
+                        const assignmentRows = assetAssignments.map((assignment, index) => {
+                            const custodianType = assignment.custodianType ?? asset.custodianType ?? null;
+                            const custodianValue = assignment.custodianValue ?? asset.custodianValue ?? null;
+                            const custodianName = assignment.custodianName ?? assignment.assignedToName ?? asset.custodianName ?? asset.assignedToName ?? '';
+
+                            return {
+                                ...asset,
+                                isAssigned: true,
+                                assignmentId: assignment.id ?? assignment.assignmentId ?? null,
+                                organizationId: assignment.companiesId ?? assignment.organizationId ?? asset.organizationId ?? null,
+                                organizationname: assignment.companiesName ?? assignment.organizationName ?? asset.organizationname ?? '',
+                                assetUnitLocationId: assignment.assetUnitLocationId ?? assignment.locationId ?? null,
+                                assetUnitLocationName: assignment.assetUnitLocationName ?? assignment.locationName ??  '',
+                                custodianType,
+                                custodianValue,
+                                custodianName,
+                                quantity: assignment.quantity ?? assignment.assignedQuantity ?? 1,
+                                remarks: assignment.remarks ?? "",
+                                availableQuantity: assignment.availableQuantity ?? 0,
+                                assignmentIndex: index,
+                                rowKey: `${asset.id}-${assignment.id ?? index}-${Date.now()}-${Math.random()}`,
+                            };
+                        });
 
                         const groupedAssignments = new Map();
                         assignmentRows.forEach((row) => {
@@ -988,8 +1020,8 @@ const ExportAssetsQR = () => {
                                                                 <span className='uppercase'>{a.organizationname}</span>
                                                             ) : a.organizationname === 'Jaiswal Group' ? 'HEAD OFFICE' : ''}
                                                         </p>
-                                                        {a.assetUnitLocationName ? (
-                                                            <p className="text-sm text-gray-600 capitalize mb-1">{a.assetUnitLocationName}</p>
+                                                        {getAssetLocationOrCustodian(a) ? (
+                                                            <p className="text-sm text-gray-600 capitalize mb-1">{getAssetLocationOrCustodian(a)}</p>
                                                         ) : null}
                                                         <p className="text-sm text-gray-600 capitalize mb-1">{a.categoryName}</p>
                                                         <p className="text-sm font-medium text-[#1B1B1F] capitalize truncate mb-1">{toTitleCase(a.name) || '-'}</p>

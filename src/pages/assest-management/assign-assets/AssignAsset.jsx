@@ -65,15 +65,26 @@ const ASSIGN_TYPE_META = {
 
 
 const AssignTypeBadge = ({ assignType }) => {
-  const meta = ASSIGN_TYPE_META[assignType] ?? {
-    label: '-',
-    className: 'bg-gray-100 text-gray-600',
-  };
+  if (!assignType || assignType === '-') {
+    return <span className="text-xs font-semibold text-gray-400">-</span>;
+  }
+  const meta = ASSIGN_TYPE_META[assignType];
+  if (meta) {
+    return (
+      <span
+        className={`px-2 py-1 rounded-full text-xs font-medium ${meta.className} inline-flex items-center justify-center w-fit`}
+      >
+        {meta.label}
+      </span>
+    );
+  }
+  const isMovable = String(assignType).toLowerCase().includes('movable');
   return (
     <span
-      className={`px-2 py-1 rounded-full text-xs font-medium ${meta.className} inline-flex items-center justify-center w-fit`}
+      className={`px-2 py-1 rounded-full text-xs font-medium inline-flex items-center justify-center w-fit ${isMovable ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'
+        }`}
     >
-      {meta.label}
+      {assignType}
     </span>
   );
 };
@@ -421,6 +432,30 @@ const AssignmentPreviewDrawer = ({
 }) => {
   if (!assignment) return null;
 
+  const rawRec = assignment.rawRecord || {};
+  const custodianType = assignment.custodianType ?? rawRec.custodianType ?? (rawRec.assignToId ? 'USER' : null);
+  const custodianName = assignment.custodianName ?? rawRec.custodianName ?? rawRec.assignedToName ?? null;
+  const hasCustodian = Boolean(custodianName);
+  const custodianTypeLabel =
+    custodianType === 'USER'
+      ? 'User'
+      : custodianType === 'DEPT'
+        ? 'Department'
+        : (custodianType || 'Custodian');
+
+  const rawLoc =
+    (assignment.assetUnitLocationName && assignment.assetUnitLocationName !== '-')
+      ? assignment.assetUnitLocationName
+      : (rawRec.assetUnitLocationName && rawRec.assetUnitLocationName !== '-')
+        ? rawRec.assetUnitLocationName
+        : (rawRec.locationName && rawRec.locationName !== '-')
+          ? rawRec.locationName
+          : null;
+  const hasLocation = Boolean(rawLoc);
+  const locationName = rawLoc;
+
+  const unitName = assignment.companiesName || assignment.location || rawRec.companiesName || '-';
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div
@@ -467,9 +502,6 @@ const AssignmentPreviewDrawer = ({
               <p className="text-sm font-bold text-gray-900 truncate">
                 {assignment.itemName}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Type: {assignment.assignType}
-              </p>
             </div>
           </div>
 
@@ -486,9 +518,9 @@ const AssignmentPreviewDrawer = ({
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                   Type
                 </p>
-                <div className="mt-1">
-                  <AssignTypeBadge assignType={assignment.assignType} />
-                </div>
+                <p className="text-xs font-semibold text-gray-800 mt-1">
+                  {assignment.assetType || assignment.assignType || '-'}
+                </p>
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
@@ -502,10 +534,10 @@ const AssignmentPreviewDrawer = ({
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                  Assigned To
+                  Company / Unit
                 </p>
                 <p className="text-xs font-semibold text-gray-800 mt-1">
-                  {assignment.assignedTo}
+                  {unitName}
                 </p>
               </div>
               <div>
@@ -516,17 +548,36 @@ const AssignmentPreviewDrawer = ({
                   {assignment.qty}
                 </p>
               </div>
-              <div className="col-span-2">
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
-                  Location / Unit
-                </p>
-                <p className="text-xs font-semibold text-gray-800 mt-1">
-                  {assignment.location}
-                  {assignment.assetUnitLocationName && assignment.assetUnitLocationName !== '-'
-                    ? ` - ${assignment.assetUnitLocationName}`
-                    : ''}
-                </p>
-              </div>
+              {hasLocation && (
+                <div className="col-span-2">
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                    Location
+                  </p>
+                  <p className="text-xs font-semibold text-gray-800 mt-1">
+                    {locationName}
+                  </p>
+                </div>
+              )}
+              {hasCustodian && (
+                <>
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                      Custodian Type
+                    </p>
+                    <p className="text-xs font-semibold text-gray-800 mt-1">
+                      {custodianTypeLabel}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                      Custodian
+                    </p>
+                    <p className="text-xs font-semibold text-gray-800 mt-1 truncate" title={custodianName}>
+                      {custodianName}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -634,7 +685,7 @@ const AssignAssets = () => {
     fetchOrgs();
   }, []);
 
-// Server-side paginated & filtered fetch (POST body)
+  // Server-side paginated & filtered fetch (POST body)
   const fetchPaginatedAssignments = useCallback(async () => {
     try {
       setLoading(true);
@@ -728,6 +779,10 @@ const AssignAssets = () => {
         assetCode: record.assetCode || `AST-${String(record.assetId).padStart(4, '0')}`,
         itemName: record.assetName ?? '-',
         assignType: record.assetType ?? 'individual',
+        assetType: record.assetType ?? '-',
+        custodianType: record.custodianType ?? null,
+        custodianValue: record.custodianValue ?? null,
+        custodianName: record.custodianName ?? record.assignedToName ?? null,
         assignedTo: assignedToLabel,
         companiesId: record.companiesId ?? null,
         companiesName: record.companiesName ?? '-',
@@ -901,7 +956,7 @@ const AssignAssets = () => {
     }
   };
 
- 
+
 
   const handleBulkAssignLocation = async ({ unitId, locationId }) => {
     try {
@@ -963,7 +1018,7 @@ const AssignAssets = () => {
     setPreviewAssignment(null);
   };
 
- const isAllSelectableChecked = useMemo(() => {
+  const isAllSelectableChecked = useMemo(() => {
     if (enrichedAssignments.length === 0) return false;
     const targetUnit = selectedUnitScope || enrichedAssignments[0]?.companiesId;
     const eligibleRows = enrichedAssignments.filter(
@@ -1215,7 +1270,7 @@ const AssignAssets = () => {
     },
   ], [canEdit, canDelete, selectedAssignmentIds, selectedUnitScope, isAllSelectableChecked, pagination.pageIndex, pagination.pageSize]);
 
-const table = useReactTable({
+  const table = useReactTable({
     data: enrichedAssignments,
     columns,
     pageCount: totalPages,
