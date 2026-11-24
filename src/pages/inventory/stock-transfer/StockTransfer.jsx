@@ -300,10 +300,8 @@ const StockTransfer = () => {
   }, [units]);
 
   const toOutletOptions = useMemo(() => {
-    return displayOutletOptions.filter(
-      (opt) => !isOutletUser || (effectiveOutletId && String(opt.value) !== String(effectiveOutletId))
-    );
-  }, [displayOutletOptions, isOutletUser, effectiveOutletId]);
+    return displayOutletOptions;
+  }, [displayOutletOptions]);
 
   // From Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedFromOutletId or selectedUnitId
   const fromSubOutletOptions = useMemo(() => {

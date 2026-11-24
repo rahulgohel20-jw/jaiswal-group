@@ -9,7 +9,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { OrgTypes } from '../../constants/orgTypes';
@@ -39,12 +38,6 @@ const StatusBadge = ({ status }) => {
 
 const TruncatedCell = ({ value, widthClass = 'max-w-full', className = 'text-xs text-gray-800 font-medium', onClick }) => (
     <span title={value || ''} className={`block truncate ${widthClass} ${className}`} onClick={onClick} >
-        {value || '—'}
-    </span>
-);
-
-const ChipCell = ({ value }) => (
-    <span title={value || ''} className="inline-block max-w-full truncate rounded-lg border border-[#E7EAF0] bg-[#F9FAFC] px-3 py-1.5 text-[10px] font-semibold text-gray-700">
         {value || '—'}
     </span>
 );
@@ -284,8 +277,11 @@ const PurchaseInvoiceListing = () => {
             id: 'vendorInvoiceNumber',
             accessorFn: row => row.vendorInvoiceNumber,
             header: ({ column }) => <DataGridColumnHeader title="VENDOR INVOICE NO" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <ChipCell value={row.original.vendorInvoiceNumber} />,
-            size: 180,
+            cell: ({ row }) => (
+                <span title={row.original.vendorInvoiceNumber || ''} className="block truncate text-xs font-medium text-gray-800">
+                    {row.original.vendorInvoiceNumber || '—'}
+                </span>
+            ),
         },
         {
             id: 'date',
@@ -298,9 +294,12 @@ const PurchaseInvoiceListing = () => {
         {
             id: 'outletName',
             accessorFn: row => row.outletName,
-            header: ({ column }) => <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <ChipCell value={row.original.outletName} />,
-            size: 180,
+            header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="my-2 text-xs" />,
+            cell: ({ row }) => (
+                <span title={row.original.outletName || ''} className="block truncate text-xs font-medium text-gray-800">
+                    {row.original.outletName || '—'}
+                </span>
+            ),
             enableSorting: false,
         },
         {
@@ -363,18 +362,10 @@ const PurchaseInvoiceListing = () => {
     }
 
   return (
-    <Container>
-      <div className="pt-2 pb-6 mx-auto space-y-4">
+    <Container width="fluid">
+      <div className="pt-2 pb-6 w-full space-y-4">
         <PageHeader
           title="Purchase Invoice List"
-          actions={
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-[#084E92] text-sm font-semibold">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#084E92]" />
-                Showing {pageInfo.totalElements} Record{pageInfo.totalElements !== 1 ? 's' : ''}
-              </span>
-            </div>
-          }
         />
 
                 {scopeError && (
@@ -387,8 +378,8 @@ const PurchaseInvoiceListing = () => {
                 )}
 
                 <div className="my-6">
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 ${showUnitDropdown ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3`}>
-                        <div className="relative sm:col-span-2 lg:col-span-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        <div className="relative flex-1 min-w-[200px]">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
                             <input
                                 value={searchQuery}
@@ -399,7 +390,7 @@ const PurchaseInvoiceListing = () => {
                         </div>
 
                         {showUnitDropdown && (
-                            <div className="lg:col-span-1">
+                            <div className="w-full sm:w-48 lg:w-56 shrink-0">
                                 <SearchableSelect
                                     name="outlet"
                                     value={selectedUnitId ? String(selectedUnitId) : ''}
@@ -415,7 +406,7 @@ const PurchaseInvoiceListing = () => {
                             </div>
                         )}
 
-                        <div className="lg:col-span-1">
+                        <div className="w-full sm:w-48 lg:w-56 shrink-0">
                             <SearchableSelect
                                 name="vendor"
                                 value={selectedVendorId}
@@ -429,7 +420,7 @@ const PurchaseInvoiceListing = () => {
                             />
                         </div>
 
-                        <div className="flex gap-3 lg:col-span-1">
+                        <div className="w-full sm:w-44 shrink-0">
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
                                 <SelectTrigger className="h-10 w-full border-[#C3C6D1] rounded-lg">
                                     <SelectValue placeholder="All Status" />
@@ -465,21 +456,18 @@ const PurchaseInvoiceListing = () => {
                         <DataGrid
                             table={table}
                             recordCount={pageInfo.totalElements}
-                            className="rounded-2xl"
+                            className="rounded-2xl w-full"
                             tableLayout={{
                                 dense: true,
-                                width: 'fixed',
+                                width: 'auto',
                                 cellBorder: true,
                                 headerBorder: true,
                                 rowBorder: true,
                             }}
                         >
-                            <Card className="rounded-t-none border-t-0 rounded-2xl">
-                                <CardTable>
-                                    <ScrollArea>
-                                        <DataGridTable />
-                                        <ScrollBar orientation="horizontal" />
-                                    </ScrollArea>
+                            <Card className="rounded-t-none border-t-0 rounded-2xl w-full">
+                                <CardTable className="w-full overflow-hidden">
+                                    <DataGridTable />
                                 </CardTable>
                                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                                     <DataGridPagination />

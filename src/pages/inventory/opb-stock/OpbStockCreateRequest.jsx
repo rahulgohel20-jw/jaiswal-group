@@ -61,6 +61,7 @@ const OpbStockCreateRequest = () => {
     const [outlet, setOutlet] = useState('');
     const [subOutlet, setSubOutlet] = useState('');
     const [subLocation, setSubLocation] = useState('');
+    const [unitError, setUnitError] = useState('');
     const [subUnits, setSubUnits] = useState([]);
     const [subLocations, setSubLocations] = useState([]);
     const [subUnitsLoading, setSubUnitsLoading] = useState(false);
@@ -90,6 +91,8 @@ const OpbStockCreateRequest = () => {
     const isOutletValid = useMemo(() => {
         return outletOptions.some((opt) => opt.value === String(outlet));
     }, [outletOptions, outlet]);
+
+    const hasSelectedUnit = Boolean(isOutletUser ? effectiveOutletId : outlet);
 
     useEffect(() => {
         if (orgScopeLoading) return;
@@ -170,7 +173,7 @@ const OpbStockCreateRequest = () => {
             setCategoriesLoading(false);
         }
     }, []);
-        
+
     useEffect(() => {
         fetchCategories();
     }, [fetchCategories]);
@@ -251,6 +254,11 @@ const OpbStockCreateRequest = () => {
     );
 
     const handleAddItem = (item) => {
+        if (!hasSelectedUnit) {
+            notify.error('Please select unit first for adding raw material');
+            return;
+        }
+
         setSelectedItems((prev) => {
             const alreadyExists = prev.some(
                 (row) => row.itemId === item.id && row.itemType === item.itemType
@@ -288,20 +296,20 @@ const OpbStockCreateRequest = () => {
     };
 
     const updateItemField = (rowId, field, value) => {
-    let sanitizedValue = value;
+        let sanitizedValue = value;
 
-    if (['opb', 'price', 'minQty'].includes(field)) {
-        sanitizedValue = sanitizeNonNegative(value);
-    }
+        if (['opb', 'price', 'minQty'].includes(field)) {
+            sanitizedValue = sanitizeNonNegative(value);
+        }
 
-    setSelectedItems((prev) =>
-        prev.map((row) =>
-            row.rowId === rowId
-                ? { ...row, [field]: sanitizedValue }
-                : row
-        )
-    );
-};
+        setSelectedItems((prev) =>
+            prev.map((row) =>
+                row.rowId === rowId
+                    ? { ...row, [field]: sanitizedValue }
+                    : row
+            )
+        );
+    };
 
     const handleDeleteItem = (rowId) => {
         setSelectedItems((prev) => prev.filter((row) => row.rowId !== rowId));
@@ -315,7 +323,8 @@ const OpbStockCreateRequest = () => {
         const selectedOutletId = Number(outlet || effectiveOutletId);
 
         if (!selectedOutletId) {
-            notify.error('Please select Unit');
+            notify.error('Please select unit first for adding raw material');
+            setUnitError('Please select unit');
             return;
         }
 
@@ -409,7 +418,7 @@ const OpbStockCreateRequest = () => {
                             {
                                 !isOutletUser && <div>
                                     <label className="text-xs font-medium text-gray-600">
-                                        Unit
+                                        Unit <span className="text-red-500">*</span>
                                     </label>
 
                                     <SearchableSelect
@@ -421,9 +430,18 @@ const OpbStockCreateRequest = () => {
                                             setOutlet(val);
                                             setSubOutlet('');
                                             setSubLocation('');
+                                            if (val) {
+                                                setUnitError('');
+                                            }
                                         }}
-                                        placeholder={ 'Select Unit' }
+                                        placeholder={'Select Unit *'}
                                     />
+
+                                    {unitError && (
+                                        <p className="text-xs text-red-500 mt-1">
+                                            {unitError}
+                                        </p>
+                                    )}
 
                                     {orgScopeError && (
                                         <p className="text-xs text-red-500 mt-1">
@@ -511,23 +529,37 @@ const OpbStockCreateRequest = () => {
                                 <label className="text-xs font-medium text-gray-600">
                                     Select Raw Material
                                 </label>
-                                <RawMaterialSearchPicker
-                                    items={items}
-                                    alreadyAddedIds={selectedItems.map((r) => r.itemId)}
-                                    onSelect={handleAddItem}
-                                    disabled={!category || itemsLoading}
-                                    loading={itemsLoading}
-                                    placeholder={
-                                        !category
-                                            ? 'Select category first'
-                                            : itemsLoading
-                                                ? 'Loading items...'
-                                                : 'Search Raw Material by name or code...'
-                                    }
-                                    label=""
-                                    className="w-full"
-                                    isSticky={false}
-                                />
+                                <div className="relative">
+                                    <RawMaterialSearchPicker
+                                        items={hasSelectedUnit ? items : []}
+                                        alreadyAddedIds={selectedItems.map((r) => r.itemId)}
+                                        onSelect={handleAddItem}
+                                        disabled={!hasSelectedUnit || !category || itemsLoading}
+                                        loading={itemsLoading}
+                                        placeholder={
+                                            !hasSelectedUnit
+                                                ? 'Please select unit first for adding raw material'
+                                                : !category
+                                                    ? 'Select category first'
+                                                    : itemsLoading
+                                                        ? 'Loading items...'
+                                                        : 'Search Raw Material by name or code...'
+                                        }
+                                        label=""
+                                        className="w-full"
+                                        isSticky={false}
+                                    />
+                                    {!hasSelectedUnit && (
+                                        <div
+                                            className="absolute inset-0 z-10 cursor-pointer"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                notify.error('Please select unit first for adding raw material');
+                                            }}
+                                        />
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

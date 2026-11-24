@@ -547,8 +547,8 @@ const PurchaseInvoiceDetailsModal = () => {
     }
 
     return (
-        <Container>
-            <div className="mx-auto p-4 pt-4">
+        <Container width="fluid">
+            <div className="w-full py-4 space-y-5">
 
                 <div className="flex w-full flex-col flex-wrap justify-between gap-4 rounded-2xl bg-linear-to-r from-[#084E92] to-[#0B65BD] px-6 py-5 shadow-sm sm:flex-row sm:items-center">
                     <div className="flex min-w-0 items-center gap-3">
@@ -596,11 +596,11 @@ const PurchaseInvoiceDetailsModal = () => {
                     </div>
                 </div>
 
-                <SectionCard className="mt-5">
+                <SectionCard>
                     <SectionHeader icon={Calendar} title="Invoice Details" />
 
                     <div className="min-w-0 px-5 pb-5">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
                             <InfoTile
                                 label="Invoice Code"
                                 value={invoice.invoiceCode || '—'}
@@ -634,7 +634,6 @@ const PurchaseInvoiceDetailsModal = () => {
                                         ? grnCodes.join(', ')
                                         : '—'
                                 }
-                                className="sm:col-span-2"
                             />
                             <InfoTile
                                 label="PO Code"
@@ -643,14 +642,13 @@ const PurchaseInvoiceDetailsModal = () => {
                                         ? poCodes.join(', ')
                                         : '—'
                                 }
-                                className="sm:col-span-2"
                             />
                         </div>
                     </div>
                 </SectionCard>
                 {/* Attached Invoices & Documents */}
                 {images.length > 0 && (
-                    <SectionCard className="mt-5 overflow-hidden">
+                    <SectionCard className="overflow-hidden">
                         <SectionHeader
                             icon={FileCheck}
                             title="Attached Invoices & Documents"
@@ -662,7 +660,7 @@ const PurchaseInvoiceDetailsModal = () => {
                         />
 
                         <div className="border-t border-gray-100 p-5">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                                 {images.map((img, idx) => {
                                     const filePath = img.path || img.filePath;
                                     const fileName = getFileNameFromUrl(filePath);
@@ -720,7 +718,7 @@ const PurchaseInvoiceDetailsModal = () => {
                     </SectionCard>
                 )}
 
-                <SectionCard className="mt-5 overflow-hidden">
+                <SectionCard className="overflow-hidden">
                     <SectionHeader
                         icon={MapPin}
                         title="Address & Tax Configuration"
@@ -925,7 +923,7 @@ const PurchaseInvoiceDetailsModal = () => {
                     </div>
                 </SectionCard>
 
-                <SectionCard className="mt-5 overflow-hidden">
+                <SectionCard className="overflow-hidden">
                     <SectionHeader
                         icon={ClipboardList}
                         title="Purchase Items"
@@ -939,23 +937,23 @@ const PurchaseInvoiceDetailsModal = () => {
 
                     <div className="w-full min-w-0 border-t border-gray-100">
                         <ScrollArea className="w-full">
-                            <div className="min-w-max">
+                            <div className="w-full min-w-full">
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                                            <th className="w-48 px-2 py-3 text-left font-semibold">Item Description</th>
-                                            <th className="w-20 px-2 py-3 text-center font-semibold">Unit</th>
-                                            <th className="w-20 px-2 py-3 text-center font-semibold">Qty</th>
-                                            <th className="w-24 px-2 py-3 text-right font-semibold">Rate (₹)</th>
-                                            <th className="w-20 px-2 py-3 text-center font-semibold">GST (%)</th>
+                                            <th className="min-w-[200px] px-3 py-3 text-left font-semibold">Item Description</th>
+                                            <th className="min-w-[80px] px-2 py-3 text-center font-semibold">Unit</th>
+                                            <th className="min-w-[80px] px-2 py-3 text-center font-semibold">Qty</th>
+                                            <th className="min-w-[90px] px-2 py-3 text-right font-semibold">Rate (₹)</th>
+                                            <th className="min-w-[80px] px-2 py-3 text-center font-semibold">GST (%)</th>
                                             {hasCess && (
-                                                <th className="w-20 px-2 py-3 text-center font-semibold">CESS (%)</th>
+                                                <th className="min-w-[80px] px-2 py-3 text-center font-semibold">CESS (%)</th>
                                             )}
-                                            <th className="w-28 px-2 py-3 text-right font-semibold">Amount</th>
-                                            <th className="w-28 px-2 py-3 text-right font-semibold">Taxable</th>
-                                            <th className="w-24 px-2 py-3 text-right font-semibold">Tax</th>
-                                            <th className="w-24 px-2 py-3 text-right font-semibold">Discount</th>
-                                            <th className="w-28 px-3 py-3 text-right font-semibold">Total</th>
+                                            <th className="min-w-[100px] px-2 py-3 text-right font-semibold">Amount</th>
+                                            <th className="min-w-[100px] px-2 py-3 text-right font-semibold">Taxable</th>
+                                            <th className="min-w-[90px] px-2 py-3 text-right font-semibold">Tax</th>
+                                            <th className="min-w-[90px] px-2 py-3 text-right font-semibold">Discount</th>
+                                            <th className="min-w-[100px] px-3 py-3 text-right font-semibold">Total</th>
                                         </tr>
                                     </thead>
 
@@ -995,7 +993,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                                         }
                                                         className="border-t border-gray-100 transition-colors hover:bg-gray-50/50"
                                                     >
-                                                        <td className="w-48 px-2 py-3 align-top text-xs text-gray-800">
+                                                        <td className="px-3 py-3 align-top text-xs text-gray-800">
                                                             <p
                                                                 className="truncate font-semibold text-gray-900"
                                                                 title={itemName}
@@ -1030,7 +1028,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                                             )}
                                                         </td>
 
-                                                        <td className="w-20 px-2 py-3 text-center align-top">
+                                                        <td className="px-2 py-3 text-center align-top">
                                                             <span
                                                                 className="inline-block rounded bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-600"
                                                                 title={`Unit ID: ${item.unitId}`}
@@ -1039,43 +1037,43 @@ const PurchaseInvoiceDetailsModal = () => {
                                                             </span>
                                                         </td>
 
-                                                        <td className="w-20 px-2 py-3 text-center align-top font-mono text-xs font-medium text-gray-700">
+                                                        <td className="px-2 py-3 text-center align-top font-mono text-xs font-medium text-gray-700">
                                                             {Number(
                                                                 item.invoiceQuantity || 0
                                                             ).toFixed(2)}
                                                         </td>
 
-                                                        <td className="w-24 px-2 py-3 text-right align-top font-mono text-xs text-gray-600">
+                                                        <td className="px-2 py-3 text-right align-top font-mono text-xs text-gray-600">
                                                             ₹{formatAmount(item.unitPrice)}
                                                         </td>
 
-                                                        <td className="w-20 px-2 py-3 text-center align-top font-mono text-xs text-gray-600">
+                                                        <td className="px-2 py-3 text-center align-top font-mono text-xs text-gray-600">
                                                             {Number(item.gstRate || 0).toFixed(2)}%
                                                         </td>
 
                                                         {hasCess && (
-                                                            <td className="w-20 px-2 py-3 text-center align-top font-mono text-xs text-gray-600">
+                                                            <td className="px-2 py-3 text-center align-top font-mono text-xs text-gray-600">
                                                                 {Number(item.cessRate || 0).toFixed(2)}%
                                                             </td>
                                                         )}
 
-                                                        <td className="w-28 px-2 py-3 text-right align-top font-mono text-xs font-medium text-gray-700">
+                                                        <td className="px-2 py-3 text-right align-top font-mono text-xs font-medium text-gray-700">
                                                             ₹{formatAmount(item.base)}
                                                         </td>
 
-                                                        <td className="w-28 px-2 py-3 text-right align-top font-mono text-xs font-medium text-gray-700">
+                                                        <td className="px-2 py-3 text-right align-top font-mono text-xs font-medium text-gray-700">
                                                             ₹{formatAmount(item.taxableAmount)}
                                                         </td>
 
-                                                        <td className="w-24 px-2 py-3 text-right align-top font-mono text-xs font-medium text-amber-700">
+                                                        <td className="px-2 py-3 text-right align-top font-mono text-xs font-medium text-amber-700">
                                                             ₹{formatAmount(item.totalTax)}
                                                         </td>
 
-                                                        <td className="w-24 px-2 py-3 text-right align-top font-mono text-xs font-medium text-red-600">
+                                                        <td className="px-2 py-3 text-right align-top font-mono text-xs font-medium text-red-600">
                                                             -₹{formatAmount(item.discountAmount)}
                                                         </td>
 
-                                                        <td className="w-28 px-3 py-3 text-right align-top font-mono text-xs font-bold text-gray-900">
+                                                        <td className="px-3 py-3 text-right align-top font-mono text-xs font-bold text-gray-900">
                                                             ₹{formatAmount(item.total)}
                                                         </td>
                                                     </tr>
@@ -1136,8 +1134,8 @@ const PurchaseInvoiceDetailsModal = () => {
                                 </div>
                             )}
 
-                        <div className="grid min-w-0 grid-cols-1 items-start gap-5 xl:grid-cols-12">
-                            <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 xl:col-span-7">
+                        <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-12">
+                            <div className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:col-span-7">
                                 <div className="mb-4 flex min-w-0 items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
                                     <h3 className="flex min-w-0 items-center gap-1.5 truncate text-xs font-bold uppercase tracking-wider text-[#084E92]">
                                         <Receipt className="h-4 w-4 shrink-0" />
@@ -1275,7 +1273,7 @@ const PurchaseInvoiceDetailsModal = () => {
                                 </div>
                             </div>
 
-                            <div className="flex min-w-0 flex-col justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 xl:col-span-5">
+                            <div className="flex min-w-0 flex-col justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:col-span-5">
                                 <div className="min-w-0 space-y-1.5 text-xs">
                                     <div className="flex min-w-0 justify-between gap-3 border-b border-gray-100 py-1">
                                         <span className="text-gray-500">

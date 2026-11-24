@@ -425,7 +425,7 @@ const GenerateGRN = () => {
           <span className="text-gray-500 font-mono text-xs"> {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 45,
+        size: 38,
       },
       {
         id: 'poCode',
@@ -442,7 +442,7 @@ const GenerateGRN = () => {
           />
         ),
         enableSorting: true,
-        size: 190,
+        size: 115,
       },
       {
         id: 'prCode',
@@ -458,7 +458,7 @@ const GenerateGRN = () => {
           />
         ),
         enableSorting: true,
-        size: 200,
+        size: 110,
       },
       {
         id: 'date',
@@ -472,7 +472,7 @@ const GenerateGRN = () => {
           </span>
         ),
         enableSorting: true,
-        size: 85,
+        size: 78,
       },
       {
         id: 'deliveryDate',
@@ -486,7 +486,7 @@ const GenerateGRN = () => {
           </span>
         ),
         enableSorting: false,
-        size: 85,
+        size: 78,
       },
       {
         id: 'outlet',
@@ -495,12 +495,12 @@ const GenerateGRN = () => {
           <DataGridColumnHeader title="UNIT" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-800 font-medium block truncate max-w-[120px]" title={row.original.outlet}>
+          <span className="text-xs text-gray-800 font-medium block truncate max-w-full" title={row.original.outlet}>
             {row.original.outlet || '—'}
           </span>
         ),
         enableSorting: false,
-        size: 130,
+        size: 105,
       },
       {
         id: 'vendorName',
@@ -509,12 +509,12 @@ const GenerateGRN = () => {
           <DataGridColumnHeader title="VENDOR" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-800 font-medium block truncate max-w-[120px]" title={row.original.vendorName}>
+          <span className="text-xs text-gray-800 font-medium block truncate max-w-full" title={row.original.vendorName}>
             {row.original.vendorName || '—'}
           </span>
         ),
         enableSorting: false,
-        size: 130,
+        size: 110,
       },
       {
         id: 'raisedBy',
@@ -523,12 +523,12 @@ const GenerateGRN = () => {
           <DataGridColumnHeader title="RAISED BY" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-700 font-medium block truncate max-w-[100px]" title={row.original.raisedBy}>
+          <span className="text-xs text-gray-700 font-medium block truncate max-w-full" title={row.original.raisedBy}>
             {row.original.raisedBy || '—'}
           </span>
         ),
         enableSorting: false,
-        size: 110,
+        size: 90,
       },
       {
         id: 'status',
@@ -538,7 +538,7 @@ const GenerateGRN = () => {
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
         enableSorting: false,
-        size: 75,
+        size: 70,
       },
       {
         id: 'action',
@@ -588,7 +588,7 @@ const GenerateGRN = () => {
           );
         },
         enableSorting: false,
-        size: 75,
+        size: 60,
       }
     );
 
@@ -613,8 +613,8 @@ const GenerateGRN = () => {
   }
 
   return (
-    <Container>
-      <div className="pt-2 pb-6 mx-auto space-y-3.5">
+    <Container className="overflow-x-hidden">
+      <div className="pt-2 pb-6 mx-auto space-y-3.5 max-w-full min-w-0">
         {/* Page header */}
         <PageHeader
           title="Generate GRN"
@@ -685,7 +685,7 @@ const GenerateGRN = () => {
         </div>
 
         {/* Table card (Maximized height for comfortable viewing) */}
-        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
+        <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs min-w-0">
           {loading || scopeLoading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
               <Loader2 size={16} className="animate-spin" />
@@ -704,8 +704,8 @@ const GenerateGRN = () => {
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-2xl border-0 shadow-none">
-                <CardTable className="w-full overflow-x-hidden">
+              <Card className="rounded-2xl border-0 shadow-none min-w-0">
+                <CardTable className="w-full overflow-x-hidden min-w-0">
                   <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">

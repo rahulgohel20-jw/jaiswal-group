@@ -6,12 +6,10 @@ import {
     getSortedRowModel,
 } from '@tanstack/react-table';
 import {
-    ChevronRight,
     FileText,
     Loader2,
     Minus,
     Plus,
-    RotateCcw,
     Search,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
@@ -532,19 +530,18 @@ const PurchaseInvoice = () => {
                             type="button"
                             onClick={toggleAllVisible}
                             disabled={isSelectAllDisabled}
-                            className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${
-                                allVisibleSelected || someVisibleSelected
-                                    ? 'bg-[#084E92] border-[#084E92]'
-                                    : isSelectAllDisabled
+                            className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${allVisibleSelected || someVisibleSelected
+                                ? 'bg-[#084E92] border-[#084E92]'
+                                : isSelectAllDisabled
                                     ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-50'
                                     : 'bg-white border-gray-300'
-                            }`}
+                                }`}
                             title={
                                 isSelectAllDisabled
                                     ? 'Cannot select all: GRNs belong to different vendors or units'
                                     : allVisibleSelected
-                                    ? 'Deselect all'
-                                    : 'Select all'
+                                        ? 'Deselect all'
+                                        : 'Select all'
                             }
                         >
                             {(allVisibleSelected || someVisibleSelected) && (
@@ -565,13 +562,12 @@ const PurchaseInvoice = () => {
                             onClick={() => toggleRow(row.original)}
                             disabled={isMismatched && !isChecked}
                             title={isMismatched ? 'Cannot select GRN from a different vendor or unit' : ''}
-                            className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${
-                                isChecked
-                                    ? 'bg-[#084E92] border-[#084E92]'
-                                    : isMismatched
+                            className={`w-4.5 h-4.5 rounded flex items-center justify-center border transition ${isChecked
+                                ? 'bg-[#084E92] border-[#084E92]'
+                                : isMismatched
                                     ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-40'
                                     : 'bg-white border-gray-300'
-                            }`}
+                                }`}
                         >
                             {isChecked && (
                                 <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 fill-none stroke-white" strokeWidth={2.5}>
@@ -632,7 +628,7 @@ const PurchaseInvoice = () => {
                 id: 'organizationName',
                 accessorFn: (row) => row.organizationName,
                 header: ({ column }) => (
-                    <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
+                    <DataGridColumnHeader title="UNIT" column={column} className="my-2 text-xs" />
                 ),
                 cell: ({ row }) => <TruncatedCell value={row.original.organizationName} widthClass="max-w-[180px]" className="text-xs text-gray-800" />,
                 size: 110,
@@ -745,8 +741,8 @@ const PurchaseInvoice = () => {
 
 
     return (
-        <Container>
-            <div className="mx-auto pt-2 pb-6 space-y-4">
+        <Container width="fluid">
+            <div className="w-full pt-2 pb-6 space-y-4">
                 <PageHeader
                     title="Generate Purchase Invoice"
                 />
@@ -762,9 +758,9 @@ const PurchaseInvoice = () => {
 
                 {/* Filter Toolbar: Search Input -> Unit Filter -> Vendor Filter -> Generate Invoice Button */}
                 <div className="my-6">
-                    <div className={`grid grid-cols-1 sm:grid-cols-2 ${showUnitDropdown ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3 items-center`}>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                         {/* 1. Search GRN */}
-                        <div className={`relative  ${!canAdd ? "lg:col-span-3 sm:col-span-3" : "lg:col-span-2 sm:col-span-2"}`}>
+                        <div className="relative flex-1 min-w-[200px]">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
                             <input
                                 value={searchQuery}
@@ -776,7 +772,7 @@ const PurchaseInvoice = () => {
 
                         {/* 2. Unit / Outlet Dropdown */}
                         {showUnitDropdown && (
-                            <div className="lg:col-span-1">
+                            <div className="w-full sm:w-48 lg:w-56 shrink-0">
                                 <SearchableSelect
                                     name="outlet"
                                     value={selectedUnitId ? String(selectedUnitId) : ''}
@@ -792,7 +788,7 @@ const PurchaseInvoice = () => {
                         )}
 
                         {/* 3. Vendor Dropdown */}
-                        <div className="lg:col-span-1">
+                        <div className="w-full sm:w-48 lg:w-56 shrink-0">
                             <SearchableSelect
                                 name="vendor"
                                 value={selectedVendorId}
@@ -807,17 +803,19 @@ const PurchaseInvoice = () => {
                         </div>
 
                         {/* 4. Action Controls & Generate Purchase Invoice */}
-                        {canAdd && <div className="flex items-center gap-2 lg:col-span-1">
-                            <button
-                                type="button"
-                                onClick={handleGenerateGrnInvoice}
-                                disabled={loading || selectedGrnIds.length === 0}
-                                className="flex-1 flex items-center justify-center gap-2 h-10 px-4 rounded-lg cursor-pointer bg-[#084E92] text-white text-sm font-semibold hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                            >
-                                <FileText size={16} />
-                                Generate Purchase Invoice
-                            </button>
-                        </div>}
+                        {canAdd && (
+                            <div className="shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateGrnInvoice}
+                                    disabled={loading || selectedGrnIds.length === 0}
+                                    className="w-full sm:w-auto flex items-center justify-center gap-2 h-10 px-4 rounded-lg cursor-pointer bg-[#084E92] text-white text-sm font-semibold hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                                >
+                                    <FileText size={16} />
+                                    Generate Purchase Invoice
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -849,7 +847,7 @@ const PurchaseInvoice = () => {
                         <DataGrid
                             table={table}
                             recordCount={filteredRows.length}
-                            className="rounded-2xl"
+                            className="rounded-2xl w-full"
                             tableLayout={{
                                 dense: true,
                                 width: 'fixed',
@@ -858,7 +856,7 @@ const PurchaseInvoice = () => {
                                 rowBorder: true,
                             }}
                         >
-                            <Card className="rounded-t-none border-t-0 rounded-2xl">
+                            <Card className="rounded-t-none border-t-0 rounded-2xl w-full">
                                 <CardTable>
                                     <ScrollArea>
                                         <DataGridTable />
