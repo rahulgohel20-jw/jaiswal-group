@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { filterMenuByPermissions } from '@/utils/permissions';
 import { useAuth } from '@/auth/context/auth-context';
 import { buildEventSsoUrl } from '@/utils/eventSso';
+import { buildPosSsoUrl } from '@/utils/posSso';
 
 export function SidebarMenu() {
   const { pathname } = useLocation();
@@ -98,7 +99,8 @@ export function SidebarMenu() {
         </AccordionMenuSub>
       );
     } else {
-      const isSsoEvent = item.path === '/events' || item.isSso;
+      const isSsoEvent = item.path === '/events' || (item.isSso && !item.isPosSso && !item.path?.startsWith('/pos'));
+      const isSsoPos = item.path === '/pos' || item.isPosSso || item.path?.startsWith('/pos');
 
       const handleClick = (e) => {
         if (item.onClick) {
@@ -108,6 +110,10 @@ export function SidebarMenu() {
         if (isSsoEvent && item.target === '_blank') {
           e.preventDefault();
           const ssoUrl = buildEventSsoUrl(item.ssoPath || '/events/calendar');
+          window.open(ssoUrl, '_blank', 'noopener,noreferrer');
+        } else if (isSsoPos && item.target === '_blank') {
+          e.preventDefault();
+          const ssoUrl = buildPosSsoUrl(item.ssoPath || item.path || '/');
           window.open(ssoUrl, '_blank', 'noopener,noreferrer');
         }
       };
@@ -214,13 +220,39 @@ export function SidebarMenu() {
         </AccordionMenuSub>
       );
     } else {
+      const isSsoPos = item.path === '/pos' || item.isPosSso || item.path?.startsWith('/pos');
+      const isSsoEvent = item.path === '/events' || (item.isSso && !item.isPosSso && !item.path?.startsWith('/pos'));
+
+      const handleChildClick = (e) => {
+        if (item.onClick) {
+          item.onClick(e);
+          return;
+        }
+        if (isSsoPos && item.target === '_blank') {
+          e.preventDefault();
+          const ssoUrl = buildPosSsoUrl(item.ssoPath || item.path || '/');
+          window.open(ssoUrl, '_blank', 'noopener,noreferrer');
+        } else if (isSsoEvent && item.target === '_blank') {
+          e.preventDefault();
+          const ssoUrl = buildEventSsoUrl(item.ssoPath || item.path || '/events/calendar');
+          window.open(ssoUrl, '_blank', 'noopener,noreferrer');
+        }
+      };
+
       return (
         <AccordionMenuItem
           key={index}
           value={item.path || ''}
           className="text-[13px]"
         >
-          <Link to={item.path || '#'}>{item.title}</Link>
+          <Link
+            to={item.path || '#'}
+            target={item.target}
+            rel={item.target === '_blank' ? 'noopener noreferrer' : undefined}
+            onClick={handleChildClick}
+          >
+            {item.title}
+          </Link>
         </AccordionMenuItem>
       );
     }

@@ -343,8 +343,15 @@ export const updateAsset = (id, formData) => {
   });
 };
 
-export const getAllMenuCategory = () => {
-  return GET('/menucategory/getall');
+export const getAllMenuCategory = async (params) => {
+  try {
+    return await GET('/menucategory/getall', params);
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await GET('/menucategory/getallbyuserid', params);
+    }
+    throw err;
+  }
 };
 
 export const getMenuCategoryById = (id) => {
@@ -372,8 +379,15 @@ export const updateMenuCategoryStatus = ({ id, isActive }) => {
 };
 
 // Subcategory API
-export const getAllMenuSubCategoryById = () => {
-  return GET(`/menusubcategory/getall`);
+export const getAllMenuSubCategoryById = async (params) => {
+  try {
+    return await GET('/menusubcategory/getall', params);
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await GET('/menusubcategory/getallbyuserid', params);
+    }
+    throw err;
+  }
 };
 export const updateMenuSubCategory = (id, data) => {
   return PUT(`/menusubcategory/update?id=${id}`, data);
@@ -394,10 +408,19 @@ export const addMenuSubCategory = (formData) => {
 export const addMenuItem = (data) => {
   return axiosInstance.post('/menuitems/add', data);
 };
-export const getAllMenuItem = (params) => {
-  return axiosInstance.get('/menuitems/getall', {
-    params,
-  });
+export const getAllMenuItem = async (params) => {
+  try {
+    return await axiosInstance.get('/menuitems/getall', {
+      params,
+    });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await axiosInstance.get('/menuitems/getallbyuserid', {
+        params,
+      });
+    }
+    throw err;
+  }
 };
 export const getMenuItemById = (id) => {
   return GET(`/menuitems/getbyid?id=${id}`);

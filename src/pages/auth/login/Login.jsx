@@ -8,7 +8,9 @@ import {
   User,
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 import { loginUser } from '@/services/apiServices';
+import { redirectToPosApp } from '@/utils/posSso';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -41,8 +43,29 @@ export default function LoginPage() {
     const user = payload?.user || payload?.data || payload;
     setUser(user);
 
+    let userType = payload?.userType;
+    try {
+      const decoded = jwtDecode(payload.token);
+      if (decoded?.userType) userType = decoded.userType;
+    } catch (_) {}
+
     const next = searchParams.get('next');
-    navigate(next || '/dashboard', { replace: true });
+    if (next) {
+      if (next.startsWith('http://') || next.startsWith('https://')) {
+        window.location.href = next;
+      } else {
+        navigate(next, { replace: true });
+      }
+      return;
+    }
+
+    // Seamless POS Navigation: If a POS user logs in from ERP, automatically launch Cafeteria POS terminal
+    if (userType === 'POS') {
+      redirectToPosApp('/pos');
+      return;
+    }
+
+    navigate('/dashboard', { replace: true });
   };
 
   const handleSubmit = async (e) => {
@@ -62,6 +85,11 @@ export default function LoginPage() {
         email: null,
         organizationId: null,
       });
+
+      try {
+        localStorage.setItem('userCode', userCode.trim());
+        localStorage.setItem('userPassword', password);
+      } catch (_) {}
 
       finishLogin(res);
     } catch (err) {

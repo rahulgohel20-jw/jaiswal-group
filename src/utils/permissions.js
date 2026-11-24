@@ -208,6 +208,26 @@ const PAGE_ALIASES = {
       return { view: true, add: true, edit: true, delete: true, hasAccess: true };
     }
 
+    // Default permissions for POS Module (standalone app integration)
+    const isPosRelated = checkList.some((item) => {
+      const lk = String(item).trim().toLowerCase();
+      return (
+        lk.includes('pos') ||
+        lk === 'pos' ||
+        lk === 'pos (restaurant)' ||
+        lk === 'point of sale' ||
+        lk === 'billing terminal' ||
+        lk === 'production entry' ||
+        lk === 'online menu' ||
+        lk === 'statistics & reports' ||
+        lk === 'purchase management'
+      );
+    });
+
+    if (isPosRelated) {
+      return { view: true, add: true, edit: true, delete: true, hasAccess: true };
+    }
+
     // If no explicit rights and user is Admin, grant full access
     if (isAdmin) {
       return { view: true, add: true, edit: true, delete: true, hasAccess: true };
@@ -242,6 +262,18 @@ export const filterMenuByPermissions = (menuItems, userOrAuth) => {
   }
 
   const filterItem = (item) => {
+    // POS and Event standalone child module items should always remain visible
+    const isPosItem =
+      item.path === '/pos' ||
+      item.path?.startsWith('/pos') ||
+      item.isPosSso ||
+      item.title === 'POS' ||
+      item.title === 'POS (Restaurant)';
+
+    if (isPosItem) {
+      return item;
+    }
+
     // If item has children, filter recursively
     if (Array.isArray(item.children) && item.children.length > 0) {
       const visibleChildren = item.children

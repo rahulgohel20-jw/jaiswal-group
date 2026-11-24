@@ -200,6 +200,7 @@ import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateM
 import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
 // import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
 import EventSsoRedirect from '../pages/event/EventSsoRedirect';
+import PosSsoRedirect from '../pages/pos/PosSsoRedirect';
 
 
 export function AppRoutingSetup() {
@@ -230,6 +231,14 @@ export function AppRoutingSetup() {
           <Route path="/events/types" element={<EventSsoRedirect defaultPath="/events/types" />} />
           <Route path="/events/inquiries" element={<EventSsoRedirect defaultPath="/events/inquiries" />} />
           <Route path="/events/*" element={<EventSsoRedirect />} />
+
+          {/* POS Module SSO Routes */}
+          <Route path="/pos" element={<PosSsoRedirect defaultPath="/" />} />
+          <Route path="/pos/production" element={<PosSsoRedirect defaultPath="/production" />} />
+          <Route path="/pos/statistics" element={<PosSsoRedirect defaultPath="/statistics" />} />
+          <Route path="/pos/menu" element={<PosSsoRedirect defaultPath="/menu" />} />
+          <Route path="/pos/purchase" element={<PosSsoRedirect defaultPath="/purchase" />} />
+          <Route path="/pos/*" element={<PosSsoRedirect />} />
 
           <Route path="/companies" element={<CompaniesListing />} />
 
