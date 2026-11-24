@@ -97,7 +97,6 @@ const CreateKitchenMenuItem = () => {
     const initialForm = {
         nameEnglish: "",
         slogan: "",
-        price: "",
         sequence: "",
     };
 
@@ -209,7 +208,6 @@ const CreateKitchenMenuItem = () => {
             setForm({
                 nameEnglish: item.nameEnglish ?? "",
                 slogan: item.slogan ?? "",
-                price: item.price != null ? String(item.price) : "",
                 sequence: item.sequence != null ? String(item.sequence) : "",
             });
 
@@ -248,17 +246,12 @@ const CreateKitchenMenuItem = () => {
             notify.error("Please select a Category");
             return false;
         }
-        if (form.price && Number(form.price) < 0) {
-            notify.error("Price must be positive");
-            return false;
-        }
 
         setSaving(true);
         try {
             const formData = new FormData();
             formData.append("nameEnglish", form.nameEnglish.trim());
             formData.append("slogan", form.slogan || "");
-            formData.append("price", form.price || 0);
             formData.append("sequence", form.sequence || 0);
             formData.append("menuCategoryId", selectedCategory);
             formData.append("menuSubCategoryId", selectedSubCategory || "");
@@ -294,7 +287,7 @@ const CreateKitchenMenuItem = () => {
                     title={isEdit ? "Update Menu Item" : "Create Menu Item"}
                     description={
                         isEdit
-                            ? "Update menu item basic details, pricing, and category."
+                            ? "Update menu item basic details and category."
                             : "Create a new menu item and configure its category and details."
                     }
                     actions={
@@ -337,18 +330,6 @@ const CreateKitchenMenuItem = () => {
                                         value={form.slogan}
                                         onChange={handleChange}
                                         placeholder="Enter Description"
-                                        className={inputCls}
-                                    />
-                                </div>
-                                <div className="col-span-2">
-                                    <Label>Price</Label>
-                                    <input
-                                        name="price"
-                                        value={form.price}
-                                        onChange={handleChange}
-                                        type="number"
-                                        onWheel={(e) => e.currentTarget.blur()}
-                                        placeholder="Enter Price"
                                         className={inputCls}
                                     />
                                 </div>

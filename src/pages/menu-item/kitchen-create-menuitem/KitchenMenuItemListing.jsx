@@ -23,7 +23,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
@@ -31,7 +30,7 @@ import { SearchBar } from '@/components/common/SearchBar';
 import {
     deleteKitchenMenuItemById,
     getAllKitchenMenuCategory,
-    getAllKitchenMenuItem,
+    getAllRecipesByFilter,
     updateKitchenMenuItemStatus,
 } from '../../../services/apiServices';
 import {
@@ -44,6 +43,7 @@ import {
 import SearchableSelect from '../../../utils/SearchableSelect';
 import { useModuleState } from '../../../hooks/useModuleState';
 import { usePagePermissions } from '@/utils/permissions';
+import { useOrgScope } from '@/hooks/useOrgScope';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import MasterExportModal from '../../../utils/MasterExportModal';
@@ -76,6 +76,7 @@ const CHILD_ROUTES = [
 
 const KitchenMenuItemListing = () => {
     const navigate = useNavigate();
+    const { isOutletUser, effectiveOutletId } = useOrgScope();
 
     const [filters, setFilters, resetFilters] = useModuleState(
         'KITCHEN_MENU_ITEMS',
@@ -161,12 +162,10 @@ const KitchenMenuItemListing = () => {
         [setFilters]
     );
 
-    // Load Categories for dropdown
     useEffect(() => {
         const fetchCategories = async () => {
             try {
                 const res = await getAllKitchenMenuCategory();
-
                 const data =
                     res?.data?.data?.['Menu Category Details'] ||
                     res?.data?.data ||
@@ -220,46 +219,92 @@ const KitchenMenuItemListing = () => {
                 params.menuCatId = Number(categoryFilter);
             }
 
-            const res = await getAllKitchenMenuItem(params);
+            if (isOutletUser && effectiveOutletId) {
+                params.orgId = Number(effectiveOutletId);
+            }
+
+            const res = await getAllRecipesByFilter(params);
             const payload = res?.data?.data ?? res?.data ?? {};
-            const rawList = Array.isArray(payload.items) ? payload.items : [];
+            const rawList = Array.isArray(payload.headers)
+                ? payload.headers
+                : Array.isArray(payload.items)
+                    ? payload.items
+                    : Array.isArray(payload.content)
+                        ? payload.content
+                        : Array.isArray(payload.data)
+                            ? payload.data
+                            : Array.isArray(payload)
+                                ? payload
+                                : [];
 
-            const list = rawList.map((item) => ({
-                id: item.id,
-                image:
-                    item.files
-                        ?.filter(
-                            (file) =>
-                                (file?.moduleName === 'KITCHENMENUITEM' ||
-                                    file?.moduleName === 'MENUITEM') &&
-                                file?.path,
-                        )
-                        ?.at(-1)?.path || '',
-                name: item.nameEnglish || item.name || '-',
-                orgId: item.orgId ?? '-',
-                category:
-                    item.menuCategory?.nameEnglish ||
+            const list = rawList.map((item) => {
+                const categoryName =
+                    item.categoryName ||
+                    item.category ||
                     item.menuCategoryName ||
-                    '-',
-                categoryId: item.menuCategory?.id ?? null,
-                subCategory:
-                    item.menuSubCategory?.nameEnglish ||
-                    item.menuSubCategoryName ||
-                    '-',
-                price: item.price ?? item.dishCosting ?? 0,
-                sequence: item.sequence ?? '-',
-                status: item.isActive ? 'Active' : 'Inactive',
-                raw: item,
-            }));
+                    item.menuCategory?.nameEnglish ||
+                    item.menuCategory?.name ||
+                    item.menuItemCategoryName ||
+                    item.rawMaterialCat?.nameEnglish ||
+                    '-';
 
-            const total = payload.total ?? 0;
-            const active = payload.activeCount ?? 0;
-            const inactive = payload.inactiveCount ?? Math.max(0, total - active);
+                const itemName =
+                    item.menuItemName ||
+                    item.itemName ||
+                    item.nameEnglish ||
+                    item.name ||
+                    `Item #${item.menuItemId || item.id}`;
+
+                const imgUrl =
+                    item.menuItemImage ||
+                    item.image ||
+                    (Array.isArray(item.files) && item.files.length > 0
+                        ? (item.files.find(
+                              (f) =>
+                                  (f?.moduleName === 'KITCHENMENUITEM' ||
+                                      f?.moduleName === 'MENUITEM') &&
+                                  f?.isActive !== false
+                          )?.fileUrl ||
+                          item.files.find((f) => f?.fileUrl || f?.url)?.fileUrl ||
+                          item.files[0]?.fileUrl ||
+                          item.files[0]?.url)
+                        : null);
+
+                const isActive = item.isActive !== false;
+
+                return {
+                    id: item.menuItemId || item.id,
+                    recipeHeaderId: item.id,
+                    image: imgUrl,
+                    name: itemName,
+                    category: categoryName,
+                    categoryId: item.categoryId || item.menuCatId || item.menuCategoryId || item.menuCategory?.id,
+                    status: isActive ? 'Active' : 'Inactive',
+                    isActive,
+                    raw: item,
+                };
+            });
+
+            const total =
+                payload.total != null
+                    ? Number(payload.total)
+                    : payload.totalElements != null
+                        ? Number(payload.totalElements)
+                        : payload.totalCount != null
+                            ? Number(payload.totalCount)
+                            : payload.totalRecords != null
+                                ? Number(payload.totalRecords)
+                                : rawList.length;
+
+            const active =
+                payload.activeCount != null
+                    ? Number(payload.activeCount)
+                    : list.filter((i) => i.isActive).length;
 
             setMenuItems(list);
             setTotalCount(total);
             setActiveCount(active);
-            setInactiveCount(inactive);
+            setInactiveCount(Math.max(0, total - active));
         } catch (err) {
             console.error('Failed to load kitchen menu items:', err);
             setMenuItems([]);
@@ -267,15 +312,15 @@ const KitchenMenuItemListing = () => {
         } finally {
             setLoading(false);
         }
-    }, [pageIndex, pageSize, search, categoryFilter]);
+    }, [pageIndex, pageSize, search, categoryFilter, isOutletUser, effectiveOutletId]);
 
     useEffect(() => {
         fetchMenuItems();
     }, [fetchMenuItems]);
 
-    // Client-side status slice
+    // Client-side status filter slice
     const displayedItems = useMemo(() => {
-        if (statusFilter === 'All Status') return menuItems;
+        if (!statusFilter || statusFilter === 'All Status') return menuItems;
         return menuItems.filter((item) => item.status === statusFilter);
     }, [menuItems, statusFilter]);
 
@@ -341,7 +386,7 @@ const KitchenMenuItemListing = () => {
         }
     };
 
-    // Table definition
+    // Table definition: S.NO, Image, Item Name, Category, Status, Actions
     const columns = useMemo(
         () => [
             {
@@ -350,7 +395,7 @@ const KitchenMenuItemListing = () => {
                     <DataGridColumnHeader
                         title="S.NO"
                         column={column}
-                        className="py-6 text-xs uppercase text-[#43474F] font-semibold "
+                        className="py-6 text-xs uppercase text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -359,7 +404,7 @@ const KitchenMenuItemListing = () => {
                     </span>
                 ),
                 enableSorting: false,
-                size: 35,
+                size: 50,
             },
             {
                 id: 'image',
@@ -367,7 +412,7 @@ const KitchenMenuItemListing = () => {
                     <DataGridColumnHeader
                         title="Image"
                         column={column}
-                        className="py-4 text-xs uppercase text-[#43474F] font-semibold "
+                        className="py-4 text-xs uppercase text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -384,7 +429,7 @@ const KitchenMenuItemListing = () => {
                     </div>
                 ),
                 enableSorting: false,
-                size: 55,
+                size: 70,
             },
             {
                 id: 'name',
@@ -401,7 +446,7 @@ const KitchenMenuItemListing = () => {
                         {row.original.name}
                     </div>
                 ),
-                size: 220,
+                size: 260,
             },
             {
                 id: 'category',
@@ -418,26 +463,7 @@ const KitchenMenuItemListing = () => {
                         {row.original.category}
                     </span>
                 ),
-                size: 130,
-            },
-            {
-                id: 'price',
-                accessorFn: (row) => row.price,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="Price"
-                        column={column}
-                        className="text-[#43474F] font-semibold uppercase text-xs"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <span className="block px-2 text-xs text-gray-800 font-medium">
-                        ₹{Number(row.original.price ?? 0).toFixed(2)}
-                    </span>
-                ),
-                sortingFn: (rowA, rowB) =>
-                    Number(rowA.original.price ?? 0) - Number(rowB.original.price ?? 0),
-                size: 100,
+                size: 180,
             },
             {
                 id: 'status',
@@ -446,11 +472,11 @@ const KitchenMenuItemListing = () => {
                     <DataGridColumnHeader
                         title="Status"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="px-2">
+                    <div className="flex items-center px-2">
                         <label className="relative inline-flex cursor-pointer">
                             <input
                                 type="checkbox"
@@ -464,7 +490,7 @@ const KitchenMenuItemListing = () => {
                     </div>
                 ),
                 enableSorting: false,
-                size: 110,
+                size: 100,
             },
             {
                 id: 'actions',
@@ -472,7 +498,7 @@ const KitchenMenuItemListing = () => {
                     <DataGridColumnHeader
                         title="Actions"
                         column={column}
-                        className="py-4 uppercase text-[#43474F] font-semibold "
+                        className="py-4 uppercase text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -480,6 +506,7 @@ const KitchenMenuItemListing = () => {
                         {canEdit && (
                             <Link
                                 to={`/menu-item/edit-menu-item/${row.original.id}`}
+                                title="Edit Item"
                             >
                                 <SquarePen
                                     size={18}
@@ -492,6 +519,7 @@ const KitchenMenuItemListing = () => {
                             <button
                                 type="button"
                                 onClick={() => openDeleteConfirm(row.original)}
+                                title="Delete Item"
                             >
                                 <Trash2
                                     size={18}
@@ -502,7 +530,7 @@ const KitchenMenuItemListing = () => {
                     </div>
                 ),
                 enableSorting: false,
-                size: 120,
+                size: 100,
             },
         ],
         [pageIndex, pageSize, canEdit, canDelete]
@@ -518,7 +546,7 @@ const KitchenMenuItemListing = () => {
         enableRowSelection: true,
         manualPagination: true,
         rowCount: totalCount,
-        pageCount: Math.ceil(totalCount / pageSize),
+        pageCount: Math.ceil(totalCount / pageSize) || 1,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
     });
@@ -538,7 +566,7 @@ const KitchenMenuItemListing = () => {
                             {canExport && <HeaderActionButton
                                 variant="outline"
                                 onClick={() => setShowExportModal(true)}
-                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                icon={<Download className="w-3.5 h-3.5" />}
                                 label="Export"
                             />}
                             {canAdd && (
@@ -559,7 +587,7 @@ const KitchenMenuItemListing = () => {
                 />
 
                 {/* Global Recipe Stat Cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                     <StatCard
                         label="Total Recipes"
                         value={totalCount.toLocaleString()}
@@ -655,7 +683,7 @@ const KitchenMenuItemListing = () => {
                             className="rounded-2xl"
                             tableLayout={{
                                 dense: true,
-                                width: 'fixed',
+                                width: 'auto',
                                 cellBorder: true,
                                 headerBorder: true,
                                 rowBorder: true,
@@ -663,10 +691,7 @@ const KitchenMenuItemListing = () => {
                         >
                             <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none border-0">
                                 <CardTable>
-                                    <ScrollArea>
-                                        <DataGridTable />
-                                        <ScrollBar orientation="horizontal" />
-                                    </ScrollArea>
+                                    <DataGridTable />
                                 </CardTable>
                                 <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                                     <DataGridPagination />

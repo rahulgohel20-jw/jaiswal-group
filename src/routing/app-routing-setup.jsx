@@ -185,7 +185,6 @@ import UserProfile from '../pages/my-profile/UserProfile';
 import PurchaseInvoice from '../pages/purchase-invoice/PurchaseInvoice';
 import GenerateGrnInvoice from '../pages/purchase-invoice/GenerateGrnInvoice';
 import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceListing';
-import ApproveInvoice from '../pages/purchase-invoice/ApproveInvoice';
 import PurchaseInvoiceDetailsModal from '../pages/purchase-invoice/PurchaseInvoiceDetailsModal';
 import StockTransferRequest from '../pages/inventory/stock-transfer/StockTransferRequest';
 import StockTransferApproval from '../pages/inventory/stock-transfer-approval/StockTransferApproval';
@@ -223,6 +222,16 @@ import DebitCreditEligibleInvoices from '../pages/purchase-credit-debite-note/De
 import DebitCreditNoteListing from '../pages/purchase-credit-debite-note/DebitCreditNoteListing';
 import DebitCreditNoteCreate from '../pages/purchase-credit-debite-note/DebitCreditNoteCreate';
 import DebitCreditNoteDetails from '../pages/purchase-credit-debite-note/DebitCreditNoteDetails';
+import ProposalListing from '../pages/proposal/ProposalListing';
+import ProposalApproval from '../pages/proposal/ProposalApproval';
+import CreateProposal from '../pages/proposal/create-proposal/CreateProposal';
+import MealTypeListing from '../pages/proposal/meal-type-master/MealTypeListing';
+import MealSlotListing from '../pages/proposal/meal-slot-master/MealSlotListing';
+import MealStructureListing from '../pages/proposal/meal-structure-master/MealStructureListing';
+import AddMealStructure from '../pages/proposal/meal-structure-master/AddMealStructure';
+import ManPowerListing from '../pages/proposal/manpower-master/ManPowerListing';
+import CostTypeListing from '../pages/proposal/costtype-master/CostTypeListing';
+import ProposalTypeListing from '../pages/proposal/proposal-type-master/ProposalTypeListing';
 
 export function AppRoutingSetup() {
   return (
@@ -398,11 +407,11 @@ export function AppRoutingSetup() {
           <Route path="/assets/edit-disposal/:id" element={<AddAssetsDisposal />} />
 
           <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
-          <Route path="/assets/asset-location" element={<AssetLocation/>} />
-          <Route path="/unassigned-assets" element={<UnAssignedAssets/>} />
-          <Route path="/assets/asset-audit-event" element={<ListAssetAuditEvent/>} />
-          <Route path="/assets/asset-audit-event/create" element={<CreateAuditEvent/>} />
-          <Route path="/assets/asset-audit-event/create/:id" element={<CreateAuditEvent/>} />
+          <Route path="/assets/asset-location" element={<AssetLocation />} />
+          <Route path="/unassigned-assets" element={<UnAssignedAssets />} />
+          <Route path="/assets/asset-audit-event" element={<ListAssetAuditEvent />} />
+          <Route path="/assets/asset-audit-event/create" element={<CreateAuditEvent />} />
+          <Route path="/assets/asset-audit-event/create/:id" element={<CreateAuditEvent />} />
 
           <Route path="/location/state" element={<StateMaster />} />
           <Route path="/location/city" element={<CityMaster />} />
@@ -441,20 +450,19 @@ export function AppRoutingSetup() {
             path="/menu-item/edit-menu-item/:id"
             element={<CreateKitchenMenuItem />}
           />
-          <Route path="/menu-item/consumption" element={<MenuItemConsumption/>}/>
-          <Route path="/menu-item/consumption/create" element={<CreateMenuItemConsumption/>}/>
-          <Route path="/menu-item/consumption/edit/:id" element={<CreateMenuItemConsumption/>}/>
+          <Route path="/menu-item/consumption" element={<MenuItemConsumption />} />
+          <Route path="/menu-item/consumption/create" element={<CreateMenuItemConsumption />} />
+          <Route path="/menu-item/consumption/edit/:id" element={<CreateMenuItemConsumption />} />
           <Route
             path="/menu-item/recipe"
             element={<ItemRecipeList />}
           />
-          <Route path="/menu-item/create-recipe" element={<CreateItemRecipe/>} />
-          <Route path="/menu-item/view-recipe/:id" element={<ViewItemRecipe/>} />
-          <Route path="/menu-item/update-recipe/:id" element={<CreateItemRecipe/>} />
+          <Route path="/menu-item/create-recipe" element={<CreateItemRecipe />} />
+          <Route path="/menu-item/view-recipe/:id" element={<ViewItemRecipe />} />
+          <Route path="/menu-item/update-recipe/:id" element={<CreateItemRecipe />} />
 
           <Route path="/menu-item/captain-recipe" element={<KitchenCaptainRecipeList />} />
           {/* <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList />} /> */}
-        
           <Route
             path="/purchase-requisition/list"
             element={<PurchaseRequisitionList />}
@@ -517,6 +525,26 @@ export function AppRoutingSetup() {
             path="/purchase/add-purchase-return"
             element={<AddPurchaseReturn />}
           />
+          <Route path="/proposal" element={<ProposalListing />} />
+          <Route path="/proposals" element={<ProposalListing />} />
+          <Route path="/proposals-approval" element={<ProposalApproval />} />
+          <Route path="/proposal/approval" element={<ProposalApproval />} />
+          <Route path="/proposals/approval" element={<ProposalApproval />} />
+          <Route path="/proposal/proposal" element={<Navigate to="/proposal" replace />} />
+          <Route path="/proposal/create" element={<CreateProposal />} />
+          <Route path="/proposals/create" element={<CreateProposal />} />
+          <Route path="/proposal/edit/:id" element={<CreateProposal />} />
+          <Route path="/proposals/:id/edit" element={<CreateProposal />} />
+          <Route path="/proposal/meal-type-master" element={<MealTypeListing />} />
+          <Route path="/proposal/meal-slot-master" element={<MealSlotListing />} />
+          <Route path="/proposal/meal-structure-master" element={<MealStructureListing />} />
+          <Route path="/proposal/meal-structure/add-meal-structure" element={<AddMealStructure />} />
+          <Route path="/proposal/meal-structure/edit-meal-structure/:id" element={<AddMealStructure />} />
+          <Route path="/proposal/man-power-master" element={<ManPowerListing />} />
+          <Route path="/proposal/cost-type-master" element={<CostTypeListing />} />
+          <Route path="/proposal/proposal-type-master" element={<ProposalTypeListing />} />
+          <Route path="/proposal/proposal-type" element={<ProposalTypeListing />} />
+
           <Route path='/purchase/purchase-invoice' element={<PurchaseInvoice />} />
           <Route path='/purchase/purchase-invoice/generate-grn-invoice' element={<GenerateGrnInvoice />} />
           <Route path='/purchase/purchase-invoice/generate-grn/:id' element={<GenerateGrnInvoice />} />
@@ -524,11 +552,11 @@ export function AppRoutingSetup() {
           {/* <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/> */}
           <Route path='/purchase/purchase-invoice-details/:id' element={<PurchaseInvoiceDetailsModal />} />
 
-          <Route path="/purchase/debit-credit-notes" element={<DebitCreditNoteListing />} />
+          {/* <Route path="/purchase/debit-credit-notes" element={<DebitCreditNoteListing />} />
           <Route path="/purchase/create-selection" element={<DebitCreditEligibleInvoices />} />
           <Route path="/purchase/debit-credit-notes/create" element={<DebitCreditNoteCreate />} />
           <Route path="/purchase/debit-credit-notes/details/:id" element={<DebitCreditNoteDetails />} />
-          <Route path="/purchase/debit-credit-notes/edit/:id" element={<DebitCreditNoteCreate />} />
+          <Route path="/purchase/debit-credit-notes/edit/:id" element={<DebitCreditNoteCreate />} /> */}
 
           <Route path="/inventory/generate-grn" element={<GenerateGRN />} />
           <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />
@@ -540,7 +568,9 @@ export function AppRoutingSetup() {
           <Route path='/inventory/stock-transfer-detail/:id' element={<StockTransferDetail />} />
           <Route path='/inventory/stock-transfer-request' element={<StockTransferRequest />} />
           <Route path='/inventory/str-approval' element={<StockTransferApproval />} />
+          <Route path='/inventory/str-approval/dispatch' element={<StockTransferRequest />} />
           <Route path='/inventory/stock-transfer-approval' element={<StockTransferApproval />} />
+          <Route path='/inventory/stock-transfer-approval/dispatch' element={<StockTransferRequest />} />
           <Route path='/inventory/str-discrepancy-approval' element={<StockTransferDiscrepancyApproval />} />
           <Route path='/inventory/stock-transfer-discrepancy-approval' element={<StockTransferDiscrepancyApproval />} />
           <Route path='/inventory/transfer-receive-requests' element={<StockTransferReqReceiveList />} />
@@ -553,7 +583,7 @@ export function AppRoutingSetup() {
           <Route path='/inventory/manual-adjustment/create' element={<CreateManualAdjustment />} />
           <Route path='/inventory/manual-adjustment/view/:id' element={<ViewManualAdjustment />} />
           <Route path='/inventory/manual-adjustment-detail/:id' element={<ViewManualAdjustment />} />
-          <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger/>}/>
+          <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger />} />
           <Route path='/inventory/general-stock-ledger/view/:id' element={<GeneralStockLedgerViewDetails />} />
           <Route path='/inventory/general-stock-ledger/view' element={<GeneralStockLedgerViewDetails />} />
 

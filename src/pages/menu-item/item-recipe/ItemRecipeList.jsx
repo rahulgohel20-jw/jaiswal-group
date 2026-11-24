@@ -26,9 +26,9 @@ import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { SearchBar } from '@/components/common/SearchBar';
 import SearchableSelect from '../../../utils/SearchableSelect';
 import {
-    getKitchenMenuItemRecipe,
+    getAllRecipesByFilter,
     deleteKitchenMenuItemRecipe,
-    getAllKitchenMenuItem
+    getAllKitchenMenuCategory,
 } from '../../../services/apiServices';
 import { useModuleState } from '../../../hooks/useModuleState';
 import { usePagePermissions } from '@/utils/permissions';
@@ -39,7 +39,7 @@ import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 const FILTER_DEFAULTS = {
     search: '',
-    menuItemId: '',
+    categoryId: '',
     outletId: '',
     page: 0,
     pageSize: 10,
@@ -59,11 +59,15 @@ const ItemRecipeList = () => {
         error: scopeError,
         isCompanyUser,
         isOutletUser,
+        isGroupUser,
+        showUnitDropdown,
         units,
         effectiveOutletId,
         selfOrg,
         retry: retryScope,
     } = useOrgScope();
+
+    const canShowUnitFilter = Boolean(!isOutletUser && (isCompanyUser || isGroupUser || showUnitDropdown || units?.length > 0));
 
     const [filters, setFilters, resetFilters] = useModuleState(
         'ITEM_RECIPE_LIST',
@@ -73,7 +77,7 @@ const ItemRecipeList = () => {
 
     const {
         search,
-        menuItemId: menuItemFilter,
+        categoryId: categoryFilter,
         outletId: outletFilter,
         page: pageIndex,
         pageSize,
@@ -89,56 +93,53 @@ const ItemRecipeList = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [error, setError] = useState(null);
 
-    // Menu Item options state
-const [menuItems, setMenuItems] = useState([]);
-    const [menuItemsLoading, setMenuItemsLoading] = useState(false);
+    // Category options state
+    const [categories, setCategories] = useState([]);
+    const [categoriesLoading, setCategoriesLoading] = useState(false);
 
     useEffect(() => {
         let isCancelled = false;
 
-        const loadMenuItems = async () => {
-            setMenuItemsLoading(true);
+        const loadCategories = async () => {
+            setCategoriesLoading(true);
             try {
-                const res = await getAllKitchenMenuItem({
-                    page: 1,
-                    size: 2000,
-                    isAsc: true,
-                });
+                const res = await getAllKitchenMenuCategory();
                 const payload = res?.data?.data ?? res?.data ?? {};
-                const list = Array.isArray(payload.items)
-                    ? payload.items
+                const list = Array.isArray(payload['Menu Category Details'])
+                    ? payload['Menu Category Details']
                     : Array.isArray(payload)
                         ? payload
-                        : [];
+                        : Array.isArray(payload.items)
+                            ? payload.items
+                            : [];
 
-                const activeItems = list.filter((item) => item.isActive !== false);
+                const active = list.filter((item) => item?.isActive !== false);
 
                 if (!isCancelled) {
-                    setMenuItems(activeItems);
+                    setCategories(active);
                 }
             } catch (err) {
-                console.error('Failed to load menu items for dropdown:', err);
+                console.error('Failed to load categories for dropdown:', err);
                 if (!isCancelled) {
-                    setMenuItems([]);
-                    notify.error('Failed to load menu items');
+                    setCategories([]);
                 }
             } finally {
-                if (!isCancelled) setMenuItemsLoading(false);
+                if (!isCancelled) setCategoriesLoading(false);
             }
         };
 
-        loadMenuItems();
+        loadCategories();
         return () => {
             isCancelled = true;
         };
     }, []);
 
-    const menuItemOptions = useMemo(() => {
-        return menuItems.map((item) => ({
-            value: String(item.id),
-            label: item.nameEnglish || item.itemName || `Item #${item.id}`,
+    const categoryOptions = useMemo(() => {
+        return categories.map((cat) => ({
+            value: String(cat.id),
+            label: cat.nameEnglish || cat.name || `Category #${cat.id}`,
         }));
-    }, [menuItems]);
+    }, [categories]);
     // Debounced search state
     const [searchInput, setSearchInput] = useState(search);
 
@@ -224,73 +225,107 @@ const [menuItems, setMenuItems] = useState([]);
         setError(null);
 
         try {
-            const apiParams = {};
+            const apiParams = {
+                page: pageIndex + 1,
+                size: pageSize || 10,
+            };
 
+            // If company user has selected a unit in the dropdown, pass it in orgId (UnitId)
             if (outletFilter && Number.isFinite(Number(outletFilter))) {
                 apiParams.orgId = Number(outletFilter);
             } else if (isOutletUser && effectiveOutletId) {
+                // If it is unit user, pass the unit user's effectiveOutletId
                 apiParams.orgId = Number(effectiveOutletId);
-            } else {
-                const fallbackOrgId =
-                    selfOrg?.id ??
-                    effectiveOutletId ??
-                    getOrgIdFromToken();
-
-                if (fallbackOrgId) {
-                    apiParams.orgId = Number(fallbackOrgId);
-                }
             }
 
-            const res = await getKitchenMenuItemRecipe(apiParams);
-            const payload = res?.data?.data ?? res?.data ?? {};
-            const headers = Array.isArray(payload.headers) ? payload.headers : [];
+            if (categoryFilter && String(categoryFilter).trim()) {
+                apiParams.menuCatId = Number(categoryFilter);
+            }
 
-            // Filter by outlet ONLY if an outlet is explicitly chosen in the dropdown
-            let filteredHeaders = headers.filter((h) => {
-                if (outletFilter && Number.isFinite(Number(outletFilter))) {
-                    return Number(h.orgId) === Number(outletFilter);
-                }
-                if (menuItemFilter && Number.isFinite(Number(menuItemFilter))) {
-                    if (Number(h.menuItemId) !== Number(menuItemFilter)) return false;
-                }
-                return true;
-            });
+            if (search && search.trim()) {
+                apiParams.itemName = search.trim();
+            }
+
+            const res = await getAllRecipesByFilter(apiParams);
+            const payload = res?.data?.data ?? res?.data ?? {};
+
+            // Extract the list of recipe headers
+            const rawList = Array.isArray(payload.headers)
+                ? payload.headers
+                : Array.isArray(payload.items)
+                    ? payload.items
+                    : Array.isArray(payload.content)
+                        ? payload.content
+                        : Array.isArray(payload.data)
+                            ? payload.data
+                            : Array.isArray(payload)
+                                ? payload
+                                : [];
+
+            // Extract total count for pagination
+            const total =
+                payload.total != null
+                    ? Number(payload.total)
+                    : payload.totalElements != null
+                        ? Number(payload.totalElements)
+                        : payload.totalCount != null
+                            ? Number(payload.totalCount)
+                            : payload.totalRecords != null
+                                ? Number(payload.totalRecords)
+                                : rawList.length;
 
             // Map recipe header rows
-            let mapped = filteredHeaders.map((header) => {
+            let mapped = rawList.map((header) => {
                 const resolvedOutlet =
                     header.orgName ||
+                    header.outletName ||
                     (header.orgId ? outletNameMap.get(Number(header.orgId)) : null) ||
+                    '-';
+
+                const totalRecipeCost = Number(
+                    header.recipeRate != null && Number(header.recipeRate) > 0
+                        ? header.recipeRate
+                        : header.rate != null && Number(header.rate) > 0
+                        ? header.rate
+                        : header.totalCost ?? header.amount ?? 0
+                );
+
+                const categoryName =
+                    header.categoryName ||
+                    header.category ||
+                    header.menuCategoryName ||
+                    header.menuCategory?.nameEnglish ||
+                    header.menuCategory?.name ||
+                    header.menuItemCategoryName ||
+                    header.rawMaterialCat?.nameEnglish ||
                     '-';
 
                 return {
                     id: header.id,
                     recipeHeaderId: header.id,
                     menuItemId: header.menuItemId,
-                    menuItem: header.menuItemName || `Item #${header.menuItemId}`,
+                    menuItem: header.menuItemName || header.itemName || header.nameEnglish || `Item #${header.menuItemId}`,
+                    category: categoryName,
                     outlet: resolvedOutlet,
                     weight: header.weight ?? 0,
-                    unit: header.unitName || '-',
+                    unit: header.unitName || header.unit || '-',
+                    price: totalRecipeCost,
                     orgId: header.orgId,
                     subOutletId: header.subOutletId ?? null,
                     raw: header,
                 };
             });
 
-            // Search filter
-            if (search.trim()) {
-                const query = search.trim().toLowerCase();
-                mapped = mapped.filter((item) =>
-                    item.menuItem.toLowerCase().includes(query) ||
-                    item.outlet.toLowerCase().includes(query)
-                );
+            setTotalCount(total);
+
+            // Handle unpaginated backend fallback
+            if (rawList.length > pageSize) {
+                const start = pageIndex * pageSize;
+                const end = start + pageSize;
+                setRecipes(mapped.slice(start, end));
+            } else {
+                setRecipes(mapped);
             }
-
-            setTotalCount(mapped.length);
-
-            const start = pageIndex * pageSize;
-            const end = start + pageSize;
-            setRecipes(mapped.slice(start, end));
         } catch (err) {
             console.error('Failed to load item recipes:', err);
             setRecipes([]);
@@ -302,7 +337,7 @@ const [menuItems, setMenuItems] = useState([]);
         pageIndex,
         pageSize,
         search,
-        menuItemFilter,
+        categoryFilter,
         isOutletUser,
         effectiveOutletId,
         outletFilter,
@@ -397,11 +432,28 @@ const [menuItems, setMenuItems] = useState([]);
                 size: 240,
             },
             {
+                id: 'category',
+                accessorFn: (row) => row.category,
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="Category"
+                        column={column}
+                        className="text-[#43474F] font-semibold uppercase text-xs"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <span className="block px-2 text-xs text-gray-800 font-medium capitalize truncate">
+                        {row.original.category || '-'}
+                    </span>
+                ),
+                size: 150,
+            },
+            {
                 id: 'outlet',
                 accessorFn: (row) => row.outlet,
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="Outlet"
+                        title="Unit"
                         column={column}
                         className="text-[#43474F] font-semibold uppercase text-xs"
                     />
@@ -449,6 +501,27 @@ const [menuItems, setMenuItems] = useState([]);
                     </span>
                 ),
                 enableSorting: false,
+                size: 120,
+            },
+            {
+                id: 'price',
+                accessorFn: (row) => row.price,
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="Price"
+                        column={column}
+                        className="text-[#43474F] font-semibold uppercase text-xs"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <span className="block px-2 text-xs text-gray-800 font-medium truncate">
+                        {row.original.price != null
+                            ? `₹${Number(row.original.price).toFixed(2)}`
+                            : '-'}
+                    </span>
+                ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.price ?? 0) - Number(rowB.original.price ?? 0),
                 size: 120,
             },
             {
@@ -575,8 +648,8 @@ const [menuItems, setMenuItems] = useState([]);
 
                 {/* Filter and Search Bar */}
                 <div className="bg-white mt-4">
-                    <div className="grid sm:grid-cols-2 grid-cols-1 gap-4">
-                        <div className="w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                        <div className={canShowUnitFilter ? "md:col-span-5 w-full" : "md:col-span-8 w-full"}>
                             <SearchBar
                                 value={searchInput}
                                 onChange={(e) => setSearchInput(e.target.value)}
@@ -592,30 +665,32 @@ const [menuItems, setMenuItems] = useState([]);
                                 wrapperClassName="w-full"
                             />
                         </div>
-                        {/* Menu Item Filter */}
-                        <div className={`grid ${!isOutletUser && 'sm:grid-cols-2'}  grid-cols-1 gap-4`}>
+
+                        {/* Category Filter */}
+                        <div className={canShowUnitFilter ? "md:col-span-3 w-full" : "md:col-span-4 w-full"}>
                             <SearchableSelect
-                                name="menuItemFilter"
-                                value={menuItemFilter}
+                                name="categoryFilter"
+                                value={categoryFilter}
                                 onChange={(e) => {
                                     const val = e?.target?.value ?? e?.value ?? '';
                                     setFilters((prev) => ({
                                         ...prev,
-                                        menuItemId: val,
+                                        categoryId: val,
                                         page: 0,
                                     }));
                                 }}
-                                options={menuItemOptions}
+                                options={categoryOptions}
                                 placeholder={
-                                    menuItemsLoading ? 'Loading Menu Items...' : 'Filter by Menu Item'
+                                    categoriesLoading ? 'Loading Categories...' : 'All Categories'
                                 }
-                                isLoading={menuItemsLoading}
+                                isLoading={categoriesLoading}
                                 isClearable={true}
                             />
-                        
+                        </div>
 
-                        {!isOutletUser && (
-                            <div className="w-full ">
+                        {/* Unit Filter (Company User Only) */}
+                        {canShowUnitFilter && (
+                            <div className="md:col-span-4 w-full">
                                 <SearchableSelect
                                     name="outletFilter"
                                     value={outletFilter}
@@ -637,7 +712,6 @@ const [menuItems, setMenuItems] = useState([]);
                                 />
                             </div>
                         )}
-                        </div>
                     </div>
                 </div>
 
@@ -655,7 +729,7 @@ const [menuItems, setMenuItems] = useState([]);
                             className="rounded-2xl"
                             tableLayout={{
                                 dense: true,
-                                width: 'fixed',
+                                width: 'auto',
                                 cellBorder: true,
                                 headerBorder: true,
                                 rowBorder: true,
@@ -663,10 +737,7 @@ const [menuItems, setMenuItems] = useState([]);
                         >
                             <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none border-0">
                                 <CardTable>
-                                    <ScrollArea>
-                                        <DataGridTable />
-                                        <ScrollBar orientation="horizontal" />
-                                    </ScrollArea>
+                                    <DataGridTable />
                                 </CardTable>
                                 <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                                     <DataGridPagination />

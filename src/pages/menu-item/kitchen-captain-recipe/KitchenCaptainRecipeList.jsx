@@ -66,7 +66,7 @@ const KitchenCaptainRecipeList = () => {
     } = useOrgScope();
 
     const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Captain Recipe');
-     const [showExportModal, setShowExportModal] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
     const navigate = useNavigate();
 
     // Map to lookup outlet names from orgId (only name without code)
@@ -315,7 +315,7 @@ const KitchenCaptainRecipeList = () => {
                 ),
                 cell: ({ row }) => (
                     <span className="text-xs text-gray-500">
-                        {String(row.index + 1 + pagination.pageIndex * pagination.pageSize).padStart(2, '0')}
+                        {String(row.index + 1).padStart(2, '0')}
                     </span>
                 ),
                 enableSorting: false,
@@ -357,6 +357,23 @@ const KitchenCaptainRecipeList = () => {
                 size: 180,
             },
             {
+                id: 'weight',
+                accessorFn: (row) => row.weight,
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="WEIGHT"
+                        column={column}
+                        className="text-[#43474F] font-semibold text-xs"
+                    />
+                ),
+                cell: ({ row }) => (
+                    <span className="text-xs text-gray-800 font-medium">{row.original.weight ?? '-'}</span>
+                ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.weight ?? 0) - Number(rowB.original.weight ?? 0),
+                size: 100,
+            },
+            {
                 id: 'unitName',
                 accessorFn: (row) => row.unitName,
                 header: ({ column }) => (
@@ -389,23 +406,6 @@ const KitchenCaptainRecipeList = () => {
                 ),
                 sortingFn: (rowA, rowB) =>
                     Number(rowA.original.rate ?? 0) - Number(rowB.original.rate ?? 0),
-                size: 100,
-            },
-            {
-                id: 'weight',
-                accessorFn: (row) => row.weight,
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="WEIGHT"
-                        column={column}
-                        className="text-[#43474F] font-semibold text-xs"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <span className="text-xs text-gray-800 font-medium">{row.original.weight ?? '-'}</span>
-                ),
-                sortingFn: (rowA, rowB) =>
-                    Number(rowA.original.weight ?? 0) - Number(rowB.original.weight ?? 0),
                 size: 100,
             },
             {
@@ -505,7 +505,7 @@ const KitchenCaptainRecipeList = () => {
                 size: 110,
             },
         ],
-        [pagination.pageIndex, pagination.pageSize, canEdit, canDelete]
+        [canEdit, canDelete]
     );
 
     const table = useReactTable({
@@ -692,12 +692,12 @@ const KitchenCaptainRecipeList = () => {
                     itemLabel={deleteTarget?.itemLabel}
                     saving={deleteSaving}
                 />
-                  <MasterExportModal
-                                isOpen={showExportModal}
-                                onClose={() => setShowExportModal(false)}
-                                tableName="k_captain_receipe_master"
-                                title="Export Captain Recipe Report"
-                     />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="k_captain_receipe_master"
+                    title="Export Captain Recipe Report"
+                />
             </div>
         </Container>
     );
