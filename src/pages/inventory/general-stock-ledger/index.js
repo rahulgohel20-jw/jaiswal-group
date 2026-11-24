@@ -1,1 +1,2 @@
-export * from './GeneralStockLedger'
+export * from './GeneralStockLedger';
+export * from './GeneralStockLedgerViewDetails';

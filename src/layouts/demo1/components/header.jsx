@@ -6,20 +6,16 @@ import { ChatSheet } from '@/partials/topbar/chat-sheet';
 import { NotificationsSheet } from '@/partials/topbar/notifications-sheet';
 import { UserDropdownMenu } from '@/partials/topbar/user-dropdown-menu';
 import {
-  Bell,
-  LayoutGrid,
   Menu,
-  MessageCircleMore,
-  Search,
-  SquareChevronRight,
 } from 'lucide-react';
-import { useLocation } from 'react-router';
+import { useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useScrollPosition } from '@/hooks/use-scroll-position';
 import { Button } from '@/components/ui/button';
+import { SwitchScopeModal } from '@/components/common/SwitchScopeModal';
 import {
   Sheet,
   SheetBody,
@@ -28,8 +24,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Container } from '@/components/common/container';
-import { Breadcrumb } from './breadcrumb';
-import { MegaMenu } from './mega-menu';
 import { MegaMenuMobile } from './mega-menu-mobile';
 import { SidebarMenu } from './sidebar-menu';
 
@@ -52,29 +46,31 @@ export function Header() {
     return () => clearInterval(timer);
   }, []);
 
-  // Close sheet when route changes
+  const [isSwitchModalOpen, setIsSwitchModalOpen] = useState(false);
+
   useEffect(() => {
-    setIsSidebarSheetOpen(false);
-    setIsMegaMenuSheetOpen(false);
-  }, [pathname]);
+    const handleOpen = () => setIsSwitchModalOpen(true);
+    window.addEventListener('open-switch-scope-modal', handleOpen);
+    return () => window.removeEventListener('open-switch-scope-modal', handleOpen);
+  }, []);
 
   return (
     <header
       className={cn(
-        'header fixed top-0 z-10 start-0 flex items-stretch shrink-0 border-b border-transparent bg-background end-0 pe-[var(--removed-body-scroll-bar-size,0px)]',
-        headerSticky && 'border-b border-border',
+        'header fixed top-0 z-10 start-0 flex items-stretch shrink-0 border-b border-[#E7EAF0] bg-background end-0 pe-[var(--removed-body-scroll-bar-size,0px)]',
+        headerSticky && 'shadow-2xs',
       )}
     >
       <Container className="flex justify-end items-center lg:gap-4">
         {/* HeaderLogo */}
         <div className="flex gap-1 lg:hidden items-center gap-2.5">
-          <Link to="/" className="shrink-0">
+          {/* <Link to="/" className="shrink-0">
             <img
               src={toAbsoluteUrl('/media/app/mini-logo.svg')}
               className="h-[25px] w-full"
               alt="mini-logo"
             />
-          </Link>
+          </Link> */}
           <div className="flex items-center">
             {mobileMode && (
               <Sheet
@@ -103,11 +99,11 @@ export function Header() {
                 open={isMegaMenuSheetOpen}
                 onOpenChange={setIsMegaMenuSheetOpen}
               >
-                <SheetTrigger asChild>
+                {/* <SheetTrigger asChild>
                   <Button variant="ghost" mode="icon">
                     <SquareChevronRight className="text-muted-foreground/70" />
                   </Button>
-                </SheetTrigger>
+                </SheetTrigger> */}
                 <SheetContent
                   className="p-0 gap-0 w-[275px]"
                   side="left"
@@ -154,10 +150,15 @@ export function Header() {
                 trigger={
                   <img
                     className="size-9 rounded-full border-2 border-green-500 shrink-0 cursor-pointer"
-                    src={toAbsoluteUrl('/media/app/jaiswalgroup-logo.png')}
+                    src={toAbsoluteUrl('/media/app/jaiswal-group-logo.png')}
                     alt="User Avatar"
                   />
                 }
+              />
+
+              <SwitchScopeModal
+                open={isSwitchModalOpen}
+                onOpenChange={setIsSwitchModalOpen}
               />
             </>
           )}

@@ -1,22 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { notify } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
-  ChevronRight,
   CircleCheck,
   CircleX,
+  Download,
   Eye,
-  Plus,
   Ruler,
-  Search,
   SquarePen,
   Trash2,
-  Upload,
 } from 'lucide-react';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -32,8 +32,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
-import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import {
   deleteUnitMasterById,
   getAllRawMaterialUnits,
@@ -42,16 +43,18 @@ import {
 } from '../../../services/apiServices';
 import StatusConfirmModal from '../../../utils/StatusConfirmModal';
 import AddRawMaterialUnit from './AddRawMaterialUnit';
+import { useNavigate } from 'react-router';
+import { usePagePermissions } from '@/utils/permissions';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const RowMaterialUnit = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Unit Master');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Raw Material Unit Master');
 
   const [units, setUnit] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
-  const [rowSelection, setRowSelection] = useState({});
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
@@ -63,6 +66,10 @@ const RowMaterialUnit = () => {
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
   const [statusTarget, setStatusTarget] = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+
+  const navigate = useNavigate();
   const confirmStatusChange = async () => {
     if (!statusTarget) return;
 
@@ -197,35 +204,26 @@ const RowMaterialUnit = () => {
     {
       title: 'Total Units',
       value: `${units.length}`,
-      badge: 'OVERVIEW',
-      icon: (
-        <Ruler size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />
-      ),
+      icon: <Ruler size={18} />,
+      iconBg: 'bg-[#D5E3FF]',
+      iconColor: 'text-[#00376C]',
       color: 'text-[#1B1B1F]',
     },
     {
       title: 'Active Units',
       value: `${units.filter((u) => u.status === 'Active').length}`,
-      badge: 'ACTIVE',
-      icon: (
-        <CircleCheck
-          size={22}
-          className="text-[#15803D] p-1 bg-[#DCFCE7] rounded"
-        />
-      ),
+      icon: <CircleCheck size={18} />,
+      iconBg: 'bg-[#DCFCE7]',
+      iconColor: 'text-[#15803D]',
       color: 'text-[#15803D]',
     },
     {
       title: 'Inactive Units',
       value: `${units.filter((u) => u.status === 'Inactive').length}`,
-      badge: 'INACTIVE',
-      icon: (
-        <CircleX
-          size={22}
-          className="text-[#B45309] p-1 bg-[#FEF3C7] rounded"
-        />
-      ),
-      color: 'text-[#B45309]',
+      icon: <CircleX size={18} />,
+      iconBg: 'bg-[#FEE2E2]',
+      iconColor: 'text-[#DC2626]',
+      color: 'text-[#DC2626]',
     },
   ];
 
@@ -255,36 +253,19 @@ const RowMaterialUnit = () => {
   const columns = useMemo(
     () => [
       {
-        id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllPageRowsSelected()}
-            onChange={table.getToggleAllPageRowsSelectedHandler()}
-            className="w-4 h-4 cursor-pointer accent-[#005BAC]"
-          />
-        ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            className="w-4 h-4 cursor-pointer accent-[#005BAC]"
-          />
-        ),
-        enableSorting: false,
-        size: 50,
-      },
-      {
         id: 'sno',
         header: ({ column }) => (
           <DataGridColumnHeader
             title="S.No"
             column={column}
-            className="text-[#43474F] font-semibold py-4 uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
-        cell: ({ row }) => row.index + 1,
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2 text-xs">
+            {row.index + 1}
+          </span>
+        ),
         enableSorting: false,
         size: 80,
       },
@@ -292,31 +273,39 @@ const RowMaterialUnit = () => {
         accessorKey: 'name',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Name"
+            title="NAME"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
-          <p className="font-semibold text-gray-800 py-2 capitalize">
+          <span
+            className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full block"
+            title={row.original.name}
+          >
             {row.original.name}
-          </p>
+          </span>
         ),
+        enableSorting: true,
       },
       {
-        accessorKey: 'symbol',
+        accessorKey: 'Symbol',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Symbol"
+            title="SYMBOL"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
-          <p className="font-semibold text-gray-600 py-2 capitalize">
+          <span
+            className="font-medium text-xs text-gray-800 py-2 uppercase truncate max-w-full block"
+            title={row.original.symbol}
+          >
             {row.original.symbol}
-          </p>
+          </span>
         ),
+        enableSorting: false,
       },
       {
         id: 'status',
@@ -325,9 +314,9 @@ const RowMaterialUnit = () => {
 
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Status"
+            title="STATUS"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
 
@@ -373,14 +362,15 @@ const RowMaterialUnit = () => {
         ),
 
         size: 120,
+        enableSorting: false,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Actions"
+            title="ACTIONS"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -421,11 +411,11 @@ const RowMaterialUnit = () => {
   const table = useReactTable({
     data: filteredUnits,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
-    enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     getPaginationRowModel: getPaginationRowModel(),
   });
 
@@ -435,83 +425,62 @@ const RowMaterialUnit = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Master Data</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Raw Material Unit Master
-          </span>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Unit of Measurement Master"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={handleAddClick}>
+                  Add Unit
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
-              Measure of unit Master
-            </h1>
-            <p className="text-sm text-gray-400 mt-1 max-w-xl">
-              Manage all measurement units used throughout the Asset Management
-              module.
-            </p>
-          </div>
-
-          <div className="flex gap-3 self-end">
-            <button
-              type="button"
-              className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              <Upload size={16} />
-              Export
-            </button>
-            {canAdd && (
-              <button
-                type="button"
-                onClick={handleAddClick}
-                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-              >
-                <Plus size={16} />
-                Add Unit
-              </button>
-            )}
-          </div>
-        </div>
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchUnits}
+          className="my-3"
+        />
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 py-4 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}
-              className="border border-[#C3C6D1] rounded-2xl p-4"
+              className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
             >
-              <div className="flex justify-between items-center pb-2">
-                <p>{item.icon}</p>
+              <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                {item.icon}
               </div>
-              <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-              <h2 className={`text-xl font-bold ${item.color}`}>
-                {item.value}
-              </h2>
+              <div className="flex flex-col items-end text-right">
+                <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
+                  {item.value}
+                </span>
+              </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search unit by name or symbol..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-[#C3C6D1] rounded-lg text-sm focus:outline-none"
-              />
-            </div>
+            <SearchBar
+              placeholder="Search unit by name or symbol..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
 
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -534,6 +503,13 @@ const RowMaterialUnit = () => {
               table={table}
               recordCount={filteredUnits.length}
               className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
                 <CardTable>
@@ -572,6 +548,12 @@ const RowMaterialUnit = () => {
         onConfirm={confirmDelete}
         itemLabel={deleteTarget?.name}
         saving={deleteLoading}
+      />
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="units"
+        title="Export Raw Material Units Report"
       />
     </Container>
   );

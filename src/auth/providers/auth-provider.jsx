@@ -1,7 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { AuthContext } from '@/auth/context/auth-context';
 import * as authHelper from '@/auth/lib/helpers';
+import { useIdleTimer } from '@/auth/hooks/use-idle-timer';
+
+function AuthSessionWatcher() {
+  useIdleTimer();
+  return null;
+}
 
 export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
@@ -19,9 +25,11 @@ export function AuthProvider({ children }) {
       const decoded = jwtDecode(nextAuth.token);
       return {
         ...nextAuth,
-        organizationId: decoded.organizationId,
-        departmentId: decoded.departmentId,
+        organizationId: decoded.organizationId != null ? Number(decoded.organizationId) : undefined,
+        departmentId: decoded.departmentId != null ? Number(decoded.departmentId) : undefined,
         userType: decoded.userType,
+        subOutletId: decoded.subOutletId != null ? Number(decoded.subOutletId) : undefined,
+        subLocationId: decoded.subLocationId != null ? Number(decoded.subLocationId) : undefined,
       };
     } catch {
       return nextAuth;
@@ -33,18 +41,43 @@ export function AuthProvider({ children }) {
     setAuth(enriched);
     if (enriched) {
       authHelper.setAuth(enriched);
+      try {
+        import('@/store/orgHierarchyStore').then(({ orgHierarchyStore }) => {
+          orgHierarchyStore?.fetchHierarchy?.(true);
+        }).catch(() => {});
+      } catch {}
     } else {
       authHelper.removeAuth();
     }
   };
 
+  const logout = useCallback(() => {
+    saveAuth(undefined);
+    setCurrentUser(undefined);
+    authHelper.removeAuth();
+  }, []);
+
   const verify = async () => {
     const storedAuth = authHelper.getAuth();
+    if (storedAuth?.token && authHelper.isTokenExpired(storedAuth.token)) {
+      logout();
+      return null;
+    }
+
+    if (storedAuth?.token && storedAuth.token === auth?.token) {
+      return currentUser || storedAuth?.user || storedAuth?.data || storedAuth;
+    }
+
     setAuth(storedAuth);
 
     if (storedAuth) {
       const user = storedAuth?.user || storedAuth?.data || storedAuth;
       setCurrentUser(user || undefined);
+      try {
+        import('@/store/orgHierarchyStore').then(({ orgHierarchyStore }) => {
+          orgHierarchyStore?.fetchHierarchy?.();
+        }).catch(() => {});
+      } catch {}
       return user;
     }
 
@@ -60,6 +93,10 @@ export function AuthProvider({ children }) {
 
   const getUser = async () => {
     const storedAuth = authHelper.getAuth();
+    if (storedAuth?.token && authHelper.isTokenExpired(storedAuth.token)) {
+      logout();
+      return null;
+    }
     const user = storedAuth?.user || storedAuth?.data || storedAuth;
     setCurrentUser(user || undefined);
     return user || null;
@@ -78,12 +115,6 @@ export function AuthProvider({ children }) {
     saveAuth(updatedAuth);
     setCurrentUser(updatedAuth.user || undefined);
     return updatedAuth.user;
-  };
-
-  const logout = () => {
-    saveAuth(undefined);
-    setCurrentUser(undefined);
-    authHelper.removeAuth();
   };
 
   return (
@@ -107,7 +138,8 @@ export function AuthProvider({ children }) {
         isAdmin,
       }}
     >
+      <AuthSessionWatcher />
       {children}
     </AuthContext.Provider>
   );
-}
+}

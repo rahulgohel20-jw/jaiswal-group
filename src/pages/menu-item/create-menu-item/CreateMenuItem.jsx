@@ -23,6 +23,7 @@ import SearchableSelect from "../../../utils/SearchableSelect";
 import CopyRecipeModal from "./CopyRecipeModal";
 import AddRawMaterialItemModal from "../../raw-material/raw-material-item-master/AddRawMaterialItemModal";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { formatRemarks } from "@/utils/textUtils";
 
 const inputCls =
     'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -1507,10 +1508,6 @@ const CreateMenuItem = () => {
                 notify.error("Price Must be Positive");
                 return;
             }
-            if (Number(form.sequence) <= 0) {
-                notify.error("Sequence Must be Positive");
-                return;
-            }
 
             const formData = new FormData();
 
@@ -1520,7 +1517,7 @@ const CreateMenuItem = () => {
             formData.append("slogan", form.slogan || "");
             formData.append("price", form.price || 0);
             formData.append("sequence", form.sequence || 0);
-            formData.append("remarks", form.remarks || "");
+            formData.append("remarks", formatRemarks(form.remarks || ""));
             formData.append("instructionEnglish", form.instructionEnglish);
             formData.append("instructionHindi", form.instructionHindi || "");
             formData.append("instructionGujarati", form.instructionGujarati || "");
@@ -1585,14 +1582,23 @@ const CreateMenuItem = () => {
 
     return (
         <Container>
-            <div className="mx-4 min-h-screen p-2">
-
+            <div className="mx-auto p-4">
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
+                          <ChevronRight size={12} />
+                          <span>Menu Item</span>
+                          <ChevronRight size={12} />
+                          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate(-1)}>Menu Items</span>
+                          <ChevronRight size={12} />
+                          <span className="text-[#084E92] font-medium">{isEdit ? "Update Menu Item" : "Create Menu Item"}</span>
+                        </div>
+                
                 {/* Page Header */}
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-semibold">
                         {isEdit ? "Update Menu Item & Recipe" : "Create Menu Item & Recipe"}
                     </h1>
-                    <p className="text-[#43474F]">
+                    <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
                         {isEdit ? "Update menu item details." : "Create a new menu item for your organization."}
                     </p>
                 </div>
@@ -1619,16 +1625,16 @@ const CreateMenuItem = () => {
                                     />
                                 </div>
                                 <div className="col-span-2">
-                                    <Label>Slogan</Label>
+                                    <Label>Description</Label>
                                     <input
                                         name="slogan"
                                         value={form.slogan}
                                         onChange={handleChange}
-                                        placeholder="Enter Slogan"
+                                        placeholder="Enter Description"
                                         className={inputCls}
                                     />
                                 </div>
-                                <div>
+                                <div className="col-span-2">
                                     <Label required>Price</Label>
                                     <input
                                         name="price"
@@ -1637,18 +1643,6 @@ const CreateMenuItem = () => {
                                         type="number"
                                         onWheel={(e) => e.currentTarget.blur()}
                                         placeholder="Enter Price"
-                                        className={inputCls}
-                                    />
-                                </div>
-                                <div>
-                                    <Label required>Sequence</Label>
-                                    <input
-                                        name="sequence"
-                                        value={form.sequence}
-                                        onChange={handleChange}
-                                        type="number"
-                                        onWheel={(e) => e.currentTarget.blur()}
-                                        placeholder="Enter Sequence"
                                         className={inputCls}
                                     />
                                 </div>
@@ -1833,6 +1827,7 @@ const CreateMenuItem = () => {
                                     name="remarks"
                                     value={form.remarks}
                                     onChange={handleChange}
+                                    onBlur={() => setForm((prev) => ({ ...prev, remarks: formatRemarks(prev.remarks) }))}
                                     placeholder="Enter Remarks"
                                     className={inputCls}
                                 />
@@ -1882,13 +1877,14 @@ const CreateMenuItem = () => {
                                                 disabled={rawMaterialLoading}
                                             />
                                         </div>
+                                        <Link to={'/material/items/add'}>
                                         <button
                                             type="button"
-                                            onClick={() => setOpenRawMaterialItem(true)}
                                             className="w-10 h-10 bg-[#084E92] rounded-lg cursor-pointer text-white flex items-center justify-center shrink-0"
                                         >
                                             <Plus size={18} />
                                         </button>
+                                        </Link>
                                     </div>
                                 </div>
 
@@ -2204,11 +2200,6 @@ const CreateMenuItem = () => {
                     isCaptainRecipe={isCaptainRecipe}
                     onCopy={handleCopyIngredients}
 
-                />
-                <AddRawMaterialItemModal
-                    isOpen={openRawMaterialItem}
-                    fetchRawMaterialList={fetchRawMaterialCatalog}
-                    onClose={() => setOpenRawMaterialItem(false)}
                 />
 
                 <DeleteConfirmModal

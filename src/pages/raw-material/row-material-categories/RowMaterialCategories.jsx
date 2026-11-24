@@ -1,18 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import StatusConfirmModal from '@/utils/StatusConfirmModal';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   Blocks,
   ChevronRight,
   CircleCheck,
   CircleX,
+  Download,
   Eye,
   Plus,
-  Search,
   SquarePen,
   Trash2,
   Upload,
@@ -36,6 +39,8 @@ import RawMaterialCategoryDetailsModal from './RawMaterialCategoryDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import {
     Select,
     SelectContent,
@@ -43,6 +48,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Maps raw API row into the shape the table/UI expects.
 // Handles the nested `rawMaterialCatType` object the backend returns.
@@ -76,7 +83,8 @@ const unwrapListPayload = (payload) => {
 };
 
 const RowMaterialCategories = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Categories');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Categories');
+  const navigate = useNavigate();
 
   // NOTE: RawMaterialCategoryDetailsModal.jsx also needs its
   // `category.rawMaterialCategoryTypeName || category.typeName` field
@@ -107,6 +115,8 @@ const RowMaterialCategories = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -275,7 +285,7 @@ const RowMaterialCategories = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">
+          <span className="text-gray-500 py-2 text-xs">
             {String(row.index + 1).padStart(2, '0')}
           </span>
         ),
@@ -292,11 +302,15 @@ const RowMaterialCategories = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800 py-2 capitalize">
+          <div
+            className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full"
+            title={row.original.nameEnglish}
+          >
             {row.original.nameEnglish}
           </div>
         ),
         size: 220,
+        enableSorting: true,
       },
       {
         id: 'typeName',
@@ -309,11 +323,15 @@ const RowMaterialCategories = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800 py-2 capitalize">
-            {row.original.typeName}
+          <div
+            className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full"
+            title={row.original.typeName}
+          >
+            {row.original.typeName || '—'}
           </div>
         ),
         size: 220,
+        enableSorting: false,
       },
       {
         id: 'status',
@@ -350,6 +368,7 @@ const RowMaterialCategories = () => {
           </label>
         ),
         size: 180,
+        enableSorting: false,
       },
       {
         id: 'actions',
@@ -396,8 +415,10 @@ const RowMaterialCategories = () => {
   const table = useReactTable({
     data: filteredCategories,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
@@ -406,28 +427,25 @@ const RowMaterialCategories = () => {
     {
       title: 'Total Categories',
       value: String(stats.total).padStart(2, '0'),
-      icon: (
-        <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />
-      ),
+      icon: <Blocks size={18} />,
+      iconBg: 'bg-[#D5E3FF]',
+      iconColor: 'text-[#00376C]',
       color: 'text-[#1B1B1F]',
     },
     {
       title: 'Active Categories',
       value: String(stats.active).padStart(2, '0'),
-      icon: (
-        <CircleCheck
-          size={22}
-          className="text-[#15803D] p-1 bg-[#DCFCE7] rounded"
-        />
-      ),
+      icon: <CircleCheck size={18} />,
+      iconBg: 'bg-[#DCFCE7]',
+      iconColor: 'text-[#15803D]',
       color: 'text-[#15803D]',
     },
     {
       title: 'Inactive Categories',
       value: String(stats.inactive).padStart(2, '0'),
-      icon: (
-        <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />
-      ),
+      icon: <CircleX size={18} />,
+      iconBg: 'bg-[#FEE2E2]',
+      iconColor: 'text-[#DC2626]',
       color: 'text-[#1B1B1F]',
     },
   ];
@@ -438,85 +456,65 @@ const RowMaterialCategories = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Master Data</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Raw Material Categories
-          </span>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
+        <PageHeader
+          title="Raw Material Category Master"
+          actions={
+            <div className="flex items-center gap-3">
+             {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={openCreateModal}>
+                  Add Category
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">
-              Raw Material Category Master
-            </h1>
-          </div>
-
-          <div className="flex gap-3 self-end">
-            <button
-              type="button"
-              className="px-4 py-2 border border-[#C3C6D1] text-[#43474F] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-gray-50 transition"
-            >
-              <Upload size={16} />
-              Export
-            </button>
-            {canAdd && (
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-              >
-                <Plus size={16} />
-                Add Category
-              </button>
-            )}
-          </div>
-        </div>
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchCategories}
+        />
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}
-              className="border border-[#C3C6D1] rounded-2xl p-4"
+              className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
             >
-              <div className="flex justify-between items-center pb-2">
-                <p>{item.icon}</p>
+              <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                {item.icon}
               </div>
-              <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-              <h2 className={`text-xl font-bold ${item.color}`}>
-                {item.value}
-              </h2>
+              <div className="flex flex-col items-end text-right">
+                <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
+                  {item.value}
+                </span>
+              </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 xl:grid-cols-4 sm:grid-col-2 gap-4">
-            <div className="relative md:col-span-2">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by category name..."
-                className="w-full pl-10 py-2 border rounded-lg outline-none"
-              />
-            </div>
+            <SearchBar
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by category name..."
+              wrapperClassName="md:col-span-2"
+            />
 
             <Select
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value)}
             >
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
 
@@ -539,7 +537,7 @@ const RowMaterialCategories = () => {
               value={typeFilterId}
               onValueChange={(value) => setTypeFilterId(value)}
             >
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                 <SelectValue placeholder="Category Type" />
               </SelectTrigger>
 
@@ -559,17 +557,24 @@ const RowMaterialCategories = () => {
         </div>
 
         {/* Table */}
-        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+        <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
           {loading && (
             <p className="p-4 text-sm text-gray-500">
               Loading raw material categories...
             </p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
+          
           <DataGrid
             table={table}
             recordCount={filteredCategories.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>
@@ -613,6 +618,12 @@ const RowMaterialCategories = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.name}
           saving={deleteLoading}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="raw_material_category"
+          title="Export Raw Material Category Report"
         />
       </div>
     </Container>

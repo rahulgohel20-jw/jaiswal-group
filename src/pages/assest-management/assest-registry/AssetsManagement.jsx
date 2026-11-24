@@ -1,18 +1,15 @@
-import { AlertTriangle, ChevronRight, CircleCheck, Download, Eye, Loader2, Package, Plus, Search, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
-import React, { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import {CircleCheck, Download, Eye, Loader2, Package, ShieldAlert, ShieldCheck, SquarePen, Trash2, Upload, UserPen, Wallet, Wrench } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { CheckboxButton, CheckboxField } from 'react-aria-components';
 import { Link, useNavigate } from 'react-router';
 import AssetPreviewDetail from './AssetPreviewDetail';
-import { getAllAssets, deleteAsset } from '@/services/apiServices';
+import { getAllActiveWithSearchPaginated, deleteAsset, getAssetCategories, getStatuses } from '@/services/apiServices';
 import { Container } from "@/components/common/container";
-import { notify } from "@/utils/toast";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
     Select,
@@ -23,6 +20,10 @@ import {
 } from "@/components/ui/select";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageHeader } from '@/components/common/PageHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { SearchBar } from '@/components/common/SearchBar';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Normalizes list-endpoint responses that may come back as {data:[...]}, {content:[...]}, or [...]
 const unwrapList = (res) => {
@@ -60,41 +61,41 @@ const normalizeAsset = (a) => ({
     raw: a, // keep the original record around for the detail slider
 });
 
+const STATUS_TEXT_COLORS = {
+    "In Use": "text-emerald-600",
+    Disposed: "text-blue-600",
+    Lost: "text-orange-600",
+    Available: "text-emerald-600",
+};
+
 const StatusBadge = ({ status }) => {
-    const styles = {
-        "In Use": "bg-green-100 text-green-700",
-        Disposed: "bg-blue-100 text-blue-700",
-        Lost: "bg-orange-100 text-orange-700",
-    };
-    const dotStyle = {
-         "In Use": "bg-[#16A34A]",
-        Disposed: "bg-[#265FA4]",
-        Lost: "bg-[#C2410C]",
-    }
+    const color = STATUS_TEXT_COLORS[status] ?? "text-gray-600";
     return (
-        <span
-            className={`p-1 rounded-full text-xs font-medium ${styles[status] ?? "bg-gray-100 text-gray-700"} flex gap-1 items-center justify-center`}
-        >
-            <p className={`w-2 h-2 rounded-full ${dotStyle[status] ?? "bg-gray-400"}`}></p>
-            <p>{status}</p>
+        <span className={`text-xs font-semibold whitespace-nowrap ${color}`}>
+            {status || '—'}
         </span>
     );
 };
-const ConditionBadge = ({ condition }) => {
-    const styles = {
-        excellent: "bg-green-50 text-green-600",
-        good: "bg-gray-100 text-gray-600",
-        fair: "bg-yellow-50 text-yellow-600",
-        bad: "bg-red-50 text-red-600"
-    };
+const CONDITION_TEXT_COLORS = {
+    excellent: "text-emerald-600",
+    good: "text-blue-600",
+    fair: "text-amber-600",
+    bad: "text-rose-600",
+};
 
-    if (!condition) return null;
+const ConditionBadge = ({ condition, className = "" }) => {
+    if (!condition) return <span className="text-gray-400">—</span>;
+
+    const normalized = String(condition).toLowerCase();
+    const color = CONDITION_TEXT_COLORS[normalized] ?? "text-gray-600";
+    const label = condition.charAt(0).toUpperCase() + condition.slice(1);
 
     return (
         <span
-            className={`px-3 py-1 rounded-md text-sm font-medium ${styles[condition] ?? "bg-gray-100 text-gray-600"}`}
+            title={label}
+            className={`text-xs font-semibold whitespace-nowrap truncate block max-w-full ${color} ${className}`}
         >
-            {condition.charAt(0).toUpperCase() + condition.slice(1)}
+            {label}
         </span>
     );
 };
@@ -102,38 +103,92 @@ const ConditionBadge = ({ condition }) => {
 
 const AssetsManagement = () => {
     const navigate = useNavigate();
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assets');
-
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Assets');
     const [assets, setAssets] = useState([]);
     const [assetsLoading, setAssetsLoading] = useState(true);
     const [assetsError, setAssetsError] = useState(null);
 
+    // Track total server count and total pages returned by the API
+    const [totalRecords, setTotalRecords] = useState(0);
+    const [pageCount, setPageCount] = useState(0);
+
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
     const [showDetails, setShowDetails] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState(null);
     const [searchInput, setSearchInput] = useState("");
-    const [categoryInput, setCategoryInput] = useState("All Category");
-    const [statusInput, setStatusInput] = useState("All Status");
+    const [selectedCategoryId, setSelectedCategoryId] = useState("ALL");
+    const [selectedStatusId, setSelectedStatusId] = useState("ALL");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const [sorting, setSorting] = useState([]);
+    const [showExportModal, setShowExportModal] = useState(false);
 
-    const fetchAssets = async () => {
+    const [categoryOptions, setCategoryOptions] = useState([]);
+    const [statusOptions, setStatusOptions] = useState([]);
+
+    useEffect(() => {
+        const fetchOptions = async () => {
+            try {
+                const [catRes, statRes] = await Promise.all([getAssetCategories(), getStatuses()]);
+                setCategoryOptions(unwrapList(catRes));
+                setStatusOptions(unwrapList(statRes));
+            } catch (err) {
+                console.error("Failed to fetch filter options:", err);
+            }
+        };
+        fetchOptions();
+    }, []);
+
+    // Debounce search to prevent triggering API calls on every keystroke
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearch(searchInput);
+            setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+        }, 400);
+        return () => clearTimeout(handler);
+    }, [searchInput]);
+
+    const fetchAssets = useCallback(async () => {
         setAssetsLoading(true);
         setAssetsError(null);
-        try {
-            const res = await getAllAssets();
 
-            setAssets(unwrapList(res).map(normalizeAsset));
+        try {
+            const sortField = sorting[0]?.id;
+            const sortDir = sorting[0]?.desc ? 'desc' : 'asc';
+
+            const res = await getAllActiveWithSearchPaginated({
+                page: pagination.pageIndex,
+                size: pagination.pageSize,
+                search: debouncedSearch.trim() || undefined,
+                categoryId: selectedCategoryId !== 'ALL' ? Number(selectedCategoryId) : undefined,
+                statusId: selectedStatusId !== 'ALL' ? Number(selectedStatusId) : undefined,
+                sortBy: sortField,
+                direction: sortField ? sortDir : undefined,
+            });
+
+            const pageData = res?.data?.data ?? res?.data ?? {};
+            const list = Array.isArray(pageData?.content) ? pageData.content : [];
+
+            setAssets(list.map(normalizeAsset));
+            setPageCount(pageData.totalPages ?? 0);
+            setTotalRecords(pageData.totalElements ?? (pageData.totalPages ?? 0) * pagination.pageSize);
         } catch (err) {
-            console.error("Failed to fetch assets:", err);
-            setAssetsError("Could not load assets. Please try again.");
+            console.error('Failed to fetch assets:', err);
+            setAssetsError('Could not load assets. Please try again.');
         } finally {
             setAssetsLoading(false);
         }
-    };
+    }, [
+        pagination.pageIndex,
+        pagination.pageSize,
+        debouncedSearch,
+        selectedCategoryId,
+        selectedStatusId,
+        sorting,
+    ]);
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, itemLabel: row.name });
         setShowDeleteConfirm(true);
@@ -143,7 +198,7 @@ const AssetsManagement = () => {
         if (deleteSaving) return;
         setShowDeleteConfirm(false);
         setDeleteTarget(null);
-    };    
+    };
 
     const confirmDelete = async () => {
         if (!deleteTarget) return;
@@ -157,11 +212,11 @@ const AssetsManagement = () => {
         } finally {
             setDeleteSaving(false);
         }
-    }; 
+    };
 
     useEffect(() => {
-        fetchAssets();
-    }, []);
+    fetchAssets();
+}, [fetchAssets]);
 
     const stats = useMemo(() => {
         const total = assets.length;
@@ -203,45 +258,45 @@ const AssetsManagement = () => {
     const statsCards = useMemo(() => [
         {
             title: "Total Assets",
-            value: stats.total.toLocaleString(),
-            badge: "Live",
-            icon: <Package size={25} className='text-[#00376C] p-1 bg-[#D5E3FF] rounded' />,
-            color: "text-[#43474F]",
-            bgColor: "bg-white"
+            value: totalRecords.toLocaleString(),
+            icon: <Package size={18} />,
+            iconBg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#1B1B1F]",
         },
-        {
-            title: "Warehouse",
-            value: stats.warehouseCount.toLocaleString(),
-            badge: `${stats.warehousePercent}%`,
-            icon: <CircleCheck size={25} className='text-[#15803D] p-1 bg-[#DCFCE7] rounded' />,
-            color: "text-[#15803D]",
-            bgColor: "bg-[#DCFCE7]"
-        },
+        // {
+        //     title: "Warehouse",
+        //     value: stats.warehouseCount.toLocaleString(),
+        //     icon: <CircleCheck size={18} />,
+        //     iconBg: "bg-[#DCFCE7]",
+        //     iconColor: "text-[#15803D]",
+        //     color: "text-[#15803D]",
+        // },
         {
             title: "Assigned",
             value: stats.assignedCount.toLocaleString(),
-            badge: `${stats.assignedPercent}%`,
-            icon: <UserPen size={25} className='text-[#265FA4] p-1 bg-[#D5E3FF] rounded' />,
-            color: "text-[#265FA4]",
-            bgColor: "bg-[#D5E3FF]"
+            icon: <UserPen size={18} />,
+            iconBg: "bg-[#D5E3FF]",
+            iconColor: "text-[#265FA4]",
+            color: "text-[#1B1B1F]",
         },
         {
             title: "Under Maintenance",
             value: stats.maintenanceCount.toLocaleString(),
-            badge: "ACTION",
-            icon: <Wrench size={25} className='text-[#C2410C] p-1 bg-[#FFEDD5] rounded' />,
+            icon: <Wrench size={18} />,
+            iconBg: "bg-[#FFEDD5]",
+            iconColor: "text-[#C2410C]",
             color: "text-[#C2410C]",
-            bgColor: "bg-[#FFEDD5]"
         },
         {
             title: "Warranty Expiring",
             value: stats.expiringCount.toLocaleString(),
-            badge: "URGENT",
-            icon: <ShieldAlert size={25} className='text-[#BA1A1A] p-1 bg-[#FEE2E2] rounded' />,
+            icon: <ShieldAlert size={18} />,
+            iconBg: "bg-[#FEE2E2]",
+            iconColor: "text-[#BA1A1A]",
             color: "text-[#BA1A1A]",
-            bgColor: "bg-[#FEE2E2]"
         },
-    ], [stats]);
+    ], [stats, totalRecords]);
 
     const formatTotalValue = (value) => {
         if (value >= 10000000) {
@@ -255,167 +310,121 @@ const AssetsManagement = () => {
         return `₹ ${value.toLocaleString('en-IN')}`;
     };
 
-    // Filter dropdown options derived from live data instead of a hardcoded list
-    const categoryOptions = useMemo(
-        () => ["All Category", ...new Set(assets.map((a) => a.category).filter(Boolean))],
-        [assets]
-    );
-    const statusOptions = useMemo(
-        () => ["All Status", ...new Set(assets.map((a) => a.status).filter(Boolean))],
-        [assets]
-    );
-
-    const filteredAssets = useMemo(() => {
-        const keyword = searchInput.toLowerCase();
-
-        return assets.filter((item) => {
-            const searchMatch =
-                item.assetId?.toLowerCase().includes(keyword) ||
-                item.itemName?.toLowerCase().includes(keyword) ||
-                item.category?.toLowerCase().includes(keyword);
-
-            const categoryMatch =
-                categoryInput === "All Category" ||
-                item.category === categoryInput;
-
-            const statusMatch =
-                statusInput === "All Status" ||
-                item.status === statusInput;
-
-            return searchMatch && categoryMatch && statusMatch;
-        });
-    }, [assets, searchInput, categoryInput, statusInput]);
-
     const columns = useMemo(() => [
         {
-            id: "select",
-
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className="w-4 h-4 cursor-pointer"
-                />
+            id: "sno",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
             ),
-
             cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-                />
+                <span className="text-gray-500 py-2 text-xs">{String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}</span>
             ),
-
             enableSorting: false,
-            size: 40,
+            size: 36,
         },
         {
-            id: "assetId",
+            id: "assetCode",
             accessorFn: (row) => row.assetId,
             header: ({ column }) => (
-                <DataGridColumnHeader title="ASSET ID" column={column} className="text-[#43474F] font-semibold my-4" />
+                <DataGridColumnHeader title="ASSET ID" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-[#123B6D] leading-5 py-2">
+                <div className="font-semibold text-xs text-[#084E92] leading-5 py-2 truncate max-w-[120px]" title={row.original.assetId}>
                     {row.original.assetId}
                 </div>
             ),
-            size: 110,
+            enableSorting: true,
+            size: 100,
         },
-
         {
             id: "itemName",
             accessorFn: (row) => row.itemName,
             header: ({ column }) => (
-                <DataGridColumnHeader title="ITEM NAME" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="ITEM NAME" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <div className="font-medium text-gray-800 py-1">
+                <div title={row.original.itemName} className="font-medium text-xs text-gray-800 py-1 truncate max-w-[105px]">
                     {row.original.itemName}
                 </div>
             ),
-            size: 150,
+            enableSorting: true,
+            size: 105,
         },
-
         {
             id: "category",
             accessorFn: (row) => row.category,
             header: ({ column }) => (
-                <DataGridColumnHeader title="CATEGORY" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="CATEGORY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-600 py-1">
+                <span title={row.original.category} className="text-xs text-gray-800 font-medium py-1 truncate block max-w-[110px]">
                     {row.original.category}
                 </span>
             ),
-            size: 150,
+            enableSorting: false,
+            size: 110,
         },
-
         {
             id: "status",
             accessorFn: (row) => row.status,
             header: ({ column }) => (
-                <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <StatusBadge status={row.original.status} />
             ),
-            size: 140,
+            enableSorting: false,
+            size: 80,
         },
-
         {
             id: "condition",
             accessorFn: (row) => row.condition,
             header: ({ column }) => (
-                <DataGridColumnHeader title="CONDITION" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="CONDITION" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <ConditionBadge condition={row.original.condition} className="py-1" />
             ),
-            size: 150,
+            enableSorting: false,
+            size: 135,
         },
-
         {
-            id: "value",
+            id: "purchaseCost",
             accessorFn: (row) => row.value,
             header: ({ column }) => (
-                <DataGridColumnHeader title="VALUE" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="VALUE" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="font-semibold py-1">
+                <span className="font-medium text-xs text-gray-800 py-1 whitespace-nowrap block">
                     ₹{Number(row.original.value ?? 0).toLocaleString()}
                 </span>
             ),
-            size: 120,
+            enableSorting: true,
+            size: 90,
         },
-
         {
             id: "warranty",
             accessorFn: (row) => row.warranty,
             header: ({ column }) => (
-                <DataGridColumnHeader title="WARRANTY" column={column} className="text-[#43474F] font-semibold" />
+                <DataGridColumnHeader title="WARRANTY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) =>
                 row.original.warranty === "valid" ? (
-                    <div className="flex items-center gap-1 text-green-600 font-medium py-1">
-                        <ShieldCheck size={16} />
+                    <div className="flex items-center gap-1 text-emerald-600 font-medium py-1 whitespace-nowrap">
                         Valid
                     </div>
                 ) : (
-                    <div className="flex items-center gap-1 text-red-600 font-medium py-1">
-                        <AlertTriangle size={16} />
+                    <div className="flex items-center gap-1 text-rose-600 font-medium py-1 whitespace-nowrap">
                         Expiring Soon
                     </div>
                 ),
-            size: 160,
+            enableSorting: false,
+            size: 90,
         },
-
         {
             id: "actions",
             header: ({ column }) => (
-                <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold py-1" />
+                <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <div className="flex items-center gap-3 py-1">
@@ -443,23 +452,21 @@ const AssetsManagement = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 130,
+            size: 85,
         },
-    ], [canEdit, canDelete]);
+    ], [canEdit, canDelete, pagination.pageIndex, pagination.pageSize]);
 
     const table = useReactTable({
-        data: filteredAssets,
+        data: assets,
         columns,
-        state: { pagination, rowSelection, },
+        pageCount,
+        manualPagination: true,
+        manualSorting: true,
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
     });
-    useEffect(() => {
-        table.setPageIndex(0);
-    }, [searchInput, categoryInput, statusInput, table]);
 
     if (!canView) {
         return <AccessDenied pageTitle="Assets" />;
@@ -467,86 +474,63 @@ const AssetsManagement = () => {
 
     return (
        <Container>
-         <div className="p-4 md:p-6">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Assets</span>
-            </div>
+         <div className="pt-2 pb-6 mx-auto space-y-3.5">
+            <PageHeader
+                title="Assets"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton to="/assets/add-asset">
+                                    Add Asset
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
+            />
 
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">
-                        Assets
-                    </h1>
-
-                    <p className="text-[#737781] mt-1 text-sm">
-                        Manage, monitor, assign, and maintain all organizational assets
-                        from a centralized dashboard.
-                    </p>
-                </div>
-
-                <div className="flex gap-3 self-end">
-                    <button className="px-4 py-2 border rounded-lg flex gap-2 items-center">
-                        <Download size={16} />
-                        Export
-                    </button>
-                    {canAdd && (
-                        <Link to="/assets/add-asset">
-                            <button className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer">
-                                <Plus size={16} />
-                                Add Asset
-                            </button>
-                        </Link>
-                    )}
-                </div>
-            </div>
-
-            <div className='flex flex-col xl:flex-row gap-6 py-8 text-[#43474F]'>
-                <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 flex-1'>
+            <div className='flex flex-col xl:flex-row gap-4 text-[#43474F]'>
+                <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3.5 flex-1'>
                     {
                         statsCards.map((item, index) => (
-                            <div key={index} className='border border-[#C3C6D1] rounded-2xl p-4'>
-                                <div className='flex justify-between items-center pb-2'>
-                                    <p>{item.icon}</p>
-
+                            <div key={index} className='bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs'>
+                                <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                    {item.icon}
                                 </div>
-                                <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                                <h2 className="text-xl font-semibold text-gray-900 mt-0.5">{item.value}</h2>
-                                <p className={`text-xs mt-1 ${item.color}`}>{item.badge}</p>
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                    <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
+                                </div>
                             </div>
                         ))
                     }
                 </div>
-                <div className='bg-[#002246]  text-white p-6 rounded-2xl flex flex-col gap-2 shrink-0'>
-                    <Wallet size={20} />
-                    <p>Total Asset Value</p>
-                    <p>{formatTotalValue(stats.totalValue)}</p>
+                <div className='bg-[#002246] text-white p-3.5 rounded-2xl flex items-center justify-between gap-4 shrink-0'>
+                    <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                        <Wallet size={18} />
+                    </div>
+                    <div className="flex flex-col items-end text-right">
+                        <span className="text-xs font-semibold text-blue-200">Total Asset Value</span>
+                        <span className="text-sm sm:text-base font-bold mt-0.5 text-white">{formatTotalValue(stats.totalValue)}</span>
+                    </div>
                 </div>
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
 
                     {/* Search  */}
-                    <div className="relative w-full border border-[#C3C6D1] rounded-lg">
-                        <Search
-
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
-
-                        <input
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            placeholder="Search by type, description..."
-                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
-                        />
-                    </div>
+                    <SearchBar
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        placeholder="Search by type, description..."
+                    />
 
                     {/* Right side  */}
                         <div className="grid grid-cols-2 gap-3">
@@ -554,22 +538,26 @@ const AssetsManagement = () => {
                             {/* Category */}
                             <div>
                                 <Select
-                                    value={categoryInput}
-                                    onValueChange={(value) => setCategoryInput(value)}
+                                    value={selectedCategoryId}
+                                    onValueChange={(value) => {
+                                        setSelectedCategoryId(value);
+                                        setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                    }}
                                 >
-                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                         <SelectValue placeholder="All Category" />
                                     </SelectTrigger>
-
                                     <SelectContent>
-                                        {categoryOptions.map((category) => (
-                                            <SelectItem
-                                                key={category}
-                                                value={category}
-                                            >
-                                                {category}
-                                            </SelectItem>
-                                        ))}
+                                        <SelectItem value="ALL">All Category</SelectItem>
+                                        {categoryOptions.map((cat) => {
+                                            const idStr = String(cat.id ?? cat.categoryId);
+                                            const name = cat.categoryName ?? cat.name;
+                                            return (
+                                                <SelectItem key={idStr} value={idStr}>
+                                                    {name}
+                                                </SelectItem>
+                                            );
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -577,31 +565,35 @@ const AssetsManagement = () => {
                             {/* Status */}
                             <div>
                                 <Select
-                                    value={statusInput}
-                                    onValueChange={(value) => setStatusInput(value)}
+                                    value={selectedStatusId}
+                                    onValueChange={(value) => {
+                                        setSelectedStatusId(value);
+                                        setPagination((prev) => ({ ...prev, pageIndex: 0 }));
+                                    }}
                                 >
-                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                    <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                         <SelectValue placeholder="All Status" />
                                     </SelectTrigger>
-
                                     <SelectContent>
-                                        {statusOptions.map((status) => (
-                                            <SelectItem
-                                                key={status}
-                                                value={status}
-                                            >
-                                                {status}
-                                            </SelectItem>
-                                        ))}
+                                        <SelectItem value="ALL">All Status</SelectItem>
+                                        {statusOptions.map((stat) => {
+                                            const idStr = String(stat.id ?? stat.statusId);
+                                            const name = stat.statusName ?? stat.name;
+                                            return (
+                                                <SelectItem key={idStr} value={idStr}>
+                                                    {name}
+                                                </SelectItem>
+                                            );
+                                        })}
                                     </SelectContent>
                                 </Select>
                             </div>
 
                         </div>
+                    </div>
                 </div>
-            </div>
-            <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
-                {assetsLoading ? (
+                <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
+                    {assetsLoading ? (
                     <div className="flex items-center justify-center gap-2 py-16 text-gray-400 bg-white">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span className="text-sm">Loading assets...</span>
@@ -617,17 +609,23 @@ const AssetsManagement = () => {
                         </button>
                     </div>
                 ) : (
-                    <DataGrid table={table} recordCount={filteredAssets.length} className="rounded-2xl">
-
-                        {/* Table Card */}
+                    <DataGrid
+                        table={table}
+                        recordCount={totalRecords}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
+                            <CardTable className="w-full overflow-x-hidden">
+                                <DataGridTable />
                             </CardTable>
-                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1]  rounded-b-2xl">
+                            <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                                 <DataGridPagination />
                             </CardFooter>
                         </Card>
@@ -657,6 +655,12 @@ const AssetsManagement = () => {
                 itemLabel={deleteTarget?.itemLabel}
                 saving={deleteSaving}
             />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets"
+                    title="Export Assets Report"
+                />
         </div>
        </Container>
     )

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import {
-  ChevronRight,
   Building2,
   Calendar,
   Download,
@@ -31,31 +30,22 @@ const SectionHeader = ({ icon: Icon, title, trailing }) => (
   </div>
 );
 
-const STATUS_STYLES = {
-  Pending: 'bg-red-50 text-red-600',
-  'Sent for Approval': 'bg-amber-50 text-amber-600',
-  'In Progress': 'bg-blue-50 text-blue-600',
-  Approved: 'bg-emerald-50 text-emerald-600',
-  Rejected: 'bg-rose-50 text-rose-600',
-  Cancelled: 'bg-gray-100 text-gray-500',
-};
-const STATUS_DOT = {
-  Pending: 'bg-red-500',
-  'Sent for Approval': 'bg-amber-500',
-  'In Progress': 'bg-blue-500',
-  Approved: 'bg-emerald-500',
-  Rejected: 'bg-rose-500',
-  Cancelled: 'bg-gray-400',
+const STATUS_TEXT_COLORS = {
+  Pending: 'text-amber-600',
+  'Sent for Approval': 'text-blue-600',
+  'In Progress': 'text-blue-600',
+  Approved: 'text-emerald-600',
+  Rejected: 'text-rose-600',
+  Cancelled: 'text-gray-500',
 };
 
-const StatusBadge = ({ status, size = 'md' }) => (
+const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${
-      size === 'lg' ? 'text-sm px-3.5 py-2' : 'text-sm px-3 py-1.5'
-    } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
+    className={`text-sm font-semibold whitespace-nowrap ${
+      STATUS_TEXT_COLORS[status] || 'text-gray-500'
+    }`}
   >
-    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
-    {status}
+    {status || '—'}
   </span>
 );
 
@@ -111,21 +101,7 @@ const PurchaseRequisitionView = () => {
 
   return (
     <Container>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-12">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3 mt-4">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <Link
-            to="/purchase-requisition/list"
-            className="cursor-pointer hover:text-[#084E92] transition"
-          >
-            Purchase Requisition List
-          </Link>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">{row.prCode}</span>
-        </div>
-
+      <div className="mx-auto max-w-5xl min-h-screen pb-12 pt-2 space-y-3.5">
         {/* Header card */}
         <div className="rounded-2xl bg-gradient-to-r from-[#084E92] to-[#0B65BD] px-6 py-5 flex items-center justify-between gap-4 flex-wrap shadow-sm">
           <div className="flex items-center gap-3">
@@ -169,7 +145,7 @@ const PurchaseRequisitionView = () => {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <InfoTile label="Created Date" value={row.date} />
               <InfoTile label="Required Date" value={row.requiredDate} />
-              <InfoTile label="Outlet / Branch" value={row.outlet} icon={Building2} className="col-span-2" />
+              <InfoTile label="Unit / Branch" value={row.outlet} icon={Building2} className="col-span-2" />
             </div>
 
             {row.remarks && (

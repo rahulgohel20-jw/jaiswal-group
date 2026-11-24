@@ -3,24 +3,25 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   Boxes,
   ChevronLeft,
   ChevronRight,
-  Download,
   Eye,
   History,
   Pencil,
   Plus,
-  Search,
   SquarePen,
   Trash2,
+  Download,
 } from 'lucide-react';
 import {
-  addRoleMaster,
-  deleteRoleMasterById,
-  getAllRoleMasterByUserId,
-  updateRoleMaster,
+  addDepartmentMaster,
+  deleteDepartmentMasterById,
+  getAllDepartmentMaster,
+  updateDepartmentMaster,
 } from '@/services/apiServices';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,12 +31,14 @@ import DepartmentDetailsModal from './DepartmentDetailsModal';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../utils/MasterExportModal';
 
 const PAGE_SIZE = 5;
 
 // Backend sends createdAt as "DD/MM/YYYY" (e.g. "06/08/2026" = 06 Aug 2026).
-// new Date("06/08/2026") would misparse this as MM/DD/YYYY (8 June), so
-// we split it manually instead of trusting the Date constructor.
 const formatCreatedAt = (value) => {
   if (!value) return '—';
   const parts = String(value).split('/');
@@ -51,10 +54,6 @@ const formatCreatedAt = (value) => {
   });
 };
 
-// Map Role Master backend shape -> the shape this UI already expects.
-// Confirmed response shape from GET /rolemaster/getall:
-//   { msg, success, data: { "Role Details": [ { id, name, description, createdAt }, ... ] } }
-// `description` can come back as null. `createdAt` is a DD/MM/YYYY string.
 const mapDepartment = (d) => ({
   id: d.id,
   name: d.name,
@@ -65,7 +64,8 @@ const mapDepartment = (d) => ({
 });
 
 const Departmentlist = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Departments');
+  const navigate = useNavigate();
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Departments');
 
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,25 +84,22 @@ const Departmentlist = () => {
   const [deletingDepartment, setDeletingDepartment] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  const [showExportModal, setShowExportModal] = useState(false);
   const fetchDepartments = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const userId = getUserIdFromToken();
-      const res = await getAllRoleMasterByUserId(userId);
-      // Confirmed shape: res.data.data["Role Details"] is the array.
-      // Falling back to a couple of looser shapes just in case the
-      // backend changes the wrapper key later.
+      const res = await getAllDepartmentMaster();
       const list =
-        res?.data?.data?.['Role Details'] ?? res?.data?.data ?? res?.data ?? [];
-      setDepartments(list.map(mapDepartment));
+        res?.data?.data?.['Department Details'] ?? res?.data?.data ?? res?.data ?? [];
+      setDepartments(Array.isArray(list) ? list.map(mapDepartment) : []);
     } catch (err) {
       console.error(err);
       const serverMsg =
         err?.response?.data?.errorMessage ||
         err?.response?.data?.message ||
         (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
-        'Failed to load roles.';
+        'Failed to load departments.';
       setError(serverMsg);
       notify.error(serverMsg);
     } finally {
@@ -121,7 +118,7 @@ const Departmentlist = () => {
 
   const filteredDepartments = useMemo(() => {
     return departments.filter((department) =>
-      department.name.toLowerCase().includes(searchTerm.trim().toLowerCase()),
+      department.name?.toLowerCase().includes(searchTerm.trim().toLowerCase()),
     );
   }, [departments, searchTerm]);
 
@@ -142,29 +139,21 @@ const Departmentlist = () => {
   const handleSaveDepartment = async (form, { addAnother } = {}) => {
     const name = (form.name ?? form.departmentName ?? '').trim();
     const description = (form.description ?? '').trim();
-    // ASSUMPTION: the DB constraint error on add likely means role_master
-    // rows are tied to a userId (getall is already scoped by it), even
-    // though the Swagger example payload only showed name/description.
-    // If this isn't it, check the backend stack trace for the actual
-    // column name and swap it in here.
-    const userId = getUserIdFromToken();
 
     try {
       if (editingDepartment) {
-        await updateRoleMaster({
+        await updateDepartmentMaster({
           id: editingDepartment.id,
           name,
-          description,
-          userId,
+          description: description || undefined,
         });
-        notify.success('Role updated successfully');
+        notify.success('Department updated successfully');
       } else {
-        await addRoleMaster({
+        await addDepartmentMaster({
           name,
-          description: description,
-          userId,
+          description: description || undefined,
         });
-        notify.success('Role added successfully');
+        notify.success('Department added successfully');
       }
       await fetchDepartments();
       if (!addAnother) {
@@ -177,7 +166,7 @@ const Departmentlist = () => {
         err?.response?.data?.errorMessage ||
         err?.response?.data?.message ||
         (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
-        'Failed to save role.';
+        'Failed to save department.';
       setError(serverMsg);
       notify.error(serverMsg);
     }
@@ -205,8 +194,8 @@ const Departmentlist = () => {
     setDepartments((cur) => cur.filter((d) => d.id !== id)); // optimistic
 
     try {
-      await deleteRoleMasterById(id);
-      notify.success('Role deleted successfully');
+      await deleteDepartmentMasterById(id);
+      notify.success('Department deleted successfully');
       setIsDeleteOpen(false);
       setDeletingDepartment(null);
     } catch (err) {
@@ -216,7 +205,7 @@ const Departmentlist = () => {
         err?.response?.data?.errorMessage ||
         err?.response?.data?.message ||
         (err?.response?.data?.msg && err.response.data.msg !== 'FAILED' ? err.response.data.msg : null) ||
-        'Failed to delete role.';
+        'Failed to delete department.';
       setError(serverMsg);
       notify.error(serverMsg);
     } finally {
@@ -251,95 +240,56 @@ const Departmentlist = () => {
 
   return (
     <Container>
-      <div className="min-h-screen px-6 py-6">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Department Master</span>
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="Department Master"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton
+                  onClick={() => {
+                    setEditingDepartment(null);
+                    setIsAddOpen(true);
+                  }}
+                >
+                  Create Department
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        <div className="flex items-start justify-between flex-wrap gap-3 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">Department Master</h1>
-            <p className="text-sm text-[#737781] mt-1">
-              Manage all organizational departments for efficient asset
-              allocation.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Download className="h-4 w-4" />
-              Export Data
-            </Button>
-            {canAdd && (
-              <Button
-                onClick={() => {
-                  setEditingDepartment(null);
-                  setIsAddOpen(true);
-                }}
-                className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Create Department
-              </Button>
-            )}
-          </div>
-        </div>
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchDepartments}
+        />
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
-          <StatCard
-            icon={<Boxes size={15} />}
-            iconBg="bg-[#D5E3FF]"
-            iconColor="text-[#00376C]"
-            label="TOTAL"
-            title="Total Departments"
-            value={stats.total}
+        <div className="w-full">
+          <SearchBar
+            placeholder="Search Department..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            isStandalone={true}
           />
-          <StatCard
-            icon={<History size={15} />}
-            iconBg="bg-[#D5E3FF]"
-            iconColor="text-[#00376C]"
-            label="STATUS"
-            title="Last Updated"
-            value="Today"
-          />
-        </div>
-
-        <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 mb-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder="Enter department name..."
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
         </div>
 
         <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB]">
               <tr>
-                <th className="w-10 px-4 py-3">
-                  <input type="checkbox" className="rounded border-gray-300" />
-                </th>
-                <th className="text-left px-2 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide border-r border-[#E5E7EB] w-16">
                   S.NO
                 </th>
-                <th className="text-left px-2 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide border-r border-[#E5E7EB]">
                   Department Name
                 </th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide">
+                <th className="text-right px-4 py-3 text-xs font-semibold text-[#737781] uppercase tracking-wide w-28">
                   Actions
                 </th>
               </tr>
@@ -348,7 +298,7 @@ const Departmentlist = () => {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     className="text-center py-10 text-sm text-[#737781]"
                   >
                     Loading departments...
@@ -357,7 +307,7 @@ const Departmentlist = () => {
               ) : pageDepartments.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     className="text-center py-10 text-sm text-[#737781]"
                   >
                     No departments match your search or filter.
@@ -369,22 +319,18 @@ const Departmentlist = () => {
                     key={dept.id}
                     className="border-b border-[#F0F1F3] last:border-b-0 hover:bg-[#FAFBFC]"
                   >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        className="rounded border-gray-300"
-                      />
-                    </td>
-                    <td className="px-2 py-3 text-[#737781]">
+                    <td className="px-4 py-3 text-xs text-gray-500 border-r border-[#F0F1F3]">
                       {String(pageStart + idx + 1).padStart(2, '0')}
                     </td>
-                    <td className="px-2 py-3">
-                      <p className="font-semibold text-[#1B1B1F]">
+                    <td className="px-4 py-3 border-r border-[#F0F1F3]">
+                      <p className="font-medium text-xs text-gray-800 truncate max-w-full">
                         {dept.name}
                       </p>
-                      <p className="text-xs text-[#9CA3AF]">
-                        {dept.description}
-                      </p>
+                      {dept.description && (
+                        <p className="text-xs text-gray-500 truncate max-w-full">
+                          {dept.description}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-3">
@@ -487,25 +433,30 @@ const Departmentlist = () => {
           saving={deleting}
           title="Delete Department"
         />
+
+        {/* Master Report Export Modal */}
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="departments"
+          title="Export Department Report"
+        />
       </div>
     </Container>
   );
 };
 
-const StatCard = ({ icon, iconBg, iconColor, label, title, value }) => (
-  <div className="bg-white border border-[#E5E7EB] rounded-xl p-4 flex items-start justify-between">
-    <div>
-      <div
-        className={`w-6 h-6 rounded ${iconBg} ${iconColor} flex items-center justify-center mb-3`}
-      >
-        {icon}
-      </div>
-      <p className="text-xs text-[#737781]">{title}</p>
-      <p className="text-xl font-bold text-[#1B1B1F] mt-0.5">{value}</p>
+const StatCard = ({ icon, iconBg, iconColor, title, value }) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div
+      className={`w-9 h-9 rounded-xl ${iconBg || 'bg-[#D5E3FF]'} ${iconColor || 'text-[#00376C]'} flex items-center justify-center shrink-0`}
+    >
+      {icon}
     </div>
-    <span className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wide">
-      {label}
-    </span>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{title}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
+    </div>
   </div>
 );
 

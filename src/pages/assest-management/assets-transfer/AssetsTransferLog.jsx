@@ -1,4 +1,5 @@
-import { ArrowLeftRight, CalendarDays, ChevronRight, Download, Eye, RotateCcw, Search, SquarePen, Trash2, CalendarSync } from 'lucide-react';
+import { ArrowLeftRight, CalendarDays, ChevronRight, Download, Eye, RotateCcw, SquarePen, Trash2, CalendarSync } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -6,20 +7,11 @@ import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { useNavigate } from 'react-router';
 import { Container } from "@/components/common/container";
-
-import { Calendar } from "@/components/ui/calendar";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import { Link } from 'react-router';
-import { fi } from '@faker-js/faker';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 
 
 
@@ -28,22 +20,22 @@ const STATS = [
         title: "Total Transfers",
         value: "148",
         icon: ArrowLeftRight,
-        iconBg: "bg-blue-50",
-        iconColor: "text-[#0B5CAB]",
+        iconBg: "bg-[#D5E3FF]",
+        iconColor: "text-[#00376C]",
     },
     {
         title: "Transfers This Month",
         value: "24",
         icon: CalendarDays,
-        iconBg: "bg-blue-50",
-        iconColor: "text-[#0B5CAB]",
+        iconBg: "bg-[#D5E3FF]",
+        iconColor: "text-[#00376C]",
     },
     {
         title: "Transfers Today",
         value: "05",
         icon: CalendarDays,
-        iconBg: "bg-blue-50",
-        iconColor: "text-[#0B5CAB]",
+        iconBg: "bg-[#D5E3FF]",
+        iconColor: "text-[#00376C]",
     },
 ];
 const TRANSFER_DATA = [
@@ -112,10 +104,11 @@ const AssetsTransferLog = () => {
     const [search, setSearch] = useState("");
     const [transferData, setTransferData] = useState(TRANSFER_DATA);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
      const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+
+    const navigate = useNavigate();
 
     const filteredTransferData = useMemo(() => {
         return TRANSFER_DATA.filter((item) => {
@@ -131,18 +124,10 @@ const AssetsTransferLog = () => {
                 item.fromLocation.toLowerCase().includes(keyword) ||
                 item.toLocation.toLowerCase().includes(keyword);
 
-            const matchesDate =
-                !dateRange.from ||
-                !dateRange.to ||
-                (
-                    new Date(item.transferDate) >= dateRange.from &&
-                    new Date(item.transferDate) <= dateRange.to
-                );
-
-            return matchesSearch && matchesDate;
+            return matchesSearch ;
         });
 
-    }, [search, dateRange]);
+    }, [search]);
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, itemLabel: row.name });
         setShowDeleteConfirm(true);
@@ -170,110 +155,114 @@ const AssetsTransferLog = () => {
 
     const columns = [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className='my-5'
-                />
+            id: "sno",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                />
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 30,
+            size: 36,
         },
-
         {
             accessorKey: "transferId",
             header: ({ column }) => (
-                <DataGridColumnHeader title="TRANSFER ID" column={column} />
+                <DataGridColumnHeader title="TRANSFER ID" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="font-semibold text-[#0B5CAB]">
+                <span className="font-semibold text-xs text-[#084E92]">
                     {row.original.transferId}
                 </span>
             ),
-            size: 140,
+            enableSorting: false,
+            size: 110,
         },
-
         {
             accessorKey: "fromLocation",
             header: ({ column }) => (
-                <DataGridColumnHeader title="FROM LOCATION" column={column} />
+                <DataGridColumnHeader title="FROM LOCATION" column={column} className="my-2 text-xs" />
             ),
-            size: 140,
+            cell: ({ row }) => (
+                <span title={row.original.fromLocation} className="text-xs text-gray-800 font-medium truncate max-w-[120px] block">
+                    {row.original.fromLocation}
+                </span>
+            ),
+            enableSorting: false,
+            size: 120,
         },
-
         {
             accessorKey: "toLocation",
             header: ({ column }) => (
-                <DataGridColumnHeader title="TO LOCATION" column={column} />
+                <DataGridColumnHeader title="TO LOCATION" column={column} className="my-2 text-xs" />
             ),
-            size: 140,
+            cell: ({ row }) => (
+                <span title={row.original.toLocation} className="text-xs text-gray-800 font-medium truncate max-w-[120px] block">
+                    {row.original.toLocation}
+                </span>
+            ),
+            enableSorting: false,
+            size: 120,
         },
-
         {
             accessorKey: "transferDate",
             header: ({ column }) => (
-                <DataGridColumnHeader title="TRANSFER DATE" column={column} />
+                <DataGridColumnHeader title="TRANSFER DATE" column={column} className="my-2 text-xs" />
             ),
-            size: 140,
+            cell: ({ row }) => (
+                <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{row.original.transferDate}</span>
+            ),
+            enableSorting: false,
+            size: 85,
         },
-
         {
             accessorKey: "approvedBy",
             header: ({ column }) => (
-                <DataGridColumnHeader title="APPROVED BY" column={column} />
+                <DataGridColumnHeader title="APPROVED BY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => {
                 const name = row.original.approvedBy;
-
                 return (
-                    <div className="flex items-center gap-2 my-3">
-                        <span className='text-[#121C2A] font-semibold'>{name}</span>
-                    </div>
+                    <span title={name} className="text-xs text-gray-800 font-medium truncate max-w-[110px] block">
+                        {name}
+                    </span>
                 );
             },
-            size: 120,
+            enableSorting: false,
+            size: 110,
         },
-
         {
             accessorKey: "receivedBy",
             header: ({ column }) => (
-                <DataGridColumnHeader title="RECEIVED BY" column={column} />
+                <DataGridColumnHeader title="RECEIVED BY" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
-                <span className="text-[#121C2A] font-semibold">{row.original.receivedBy}</span>
+                <span title={row.original.receivedBy} className="text-xs text-gray-800 font-medium truncate max-w-[110px] block">
+                    {row.original.receivedBy}
+                </span>
             ),
-            size: 120,
+            enableSorting: false,
+            size: 110,
         },
-
         {
             accessorKey: "reason",
             header: ({ column }) => (
-                <DataGridColumnHeader title="REASON" column={column} />
+                <DataGridColumnHeader title="REASON" column={column} className="my-2 text-xs" />
             ),
             cell: ({ row }) => (
                 <ReasonBadge type={row.original.reason} />
             ),
-            size: 120,
+            enableSorting: false,
+            size: 90,
         },
-
         {
             id: "actions",
             header: ({ column }) => (
-                <DataGridColumnHeader title="ACTIONS" column={column} />
+                <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
             ),
             cell: ({row}) => (
-                <div className="flex gap-2">
-                    <button  className="text-gray-500 hover:text-green-600 cursor-pointer" >
+                <div className="flex gap-2 whitespace-nowrap">
+                    <button className="text-gray-500 hover:text-green-600 cursor-pointer" >
                         <Eye size={18}/>
                     </button>
 
@@ -287,147 +276,82 @@ const AssetsTransferLog = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 120,
+            size: 85,
         },
     ];
 
     const table = useReactTable({
         data: filteredTransferData,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
     return (
        <Container>
-         <div className='p-4 md:p-6'>
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Asset Transfer Log</span>
-            </div>
-
-            <div className='flex justify-between flex-col gap-5 sm:flex-row'>
-                <div>
-                    <h1 className="text-2xl font-bold">
-                        Asset Transfer Log
-                    </h1>
-
-                    <p className="text-[#6B7280] mt-1 w-[80%] md:w-full text-sm">
-                        View and manage all asset transfer records across kitchens and operational
-                        locations with high-fidelity tracking.
-                    </p>
-                </div>
-                <div className='flex gap-5'>
-                    <button className="flex items-center cursor-pointer gap-2 h-11 px-5 border rounded-xl text-[#0B5CAB] hover:bg-gray-50 transition-colors duration-200">
-                        <Download size={16} />
-                        Export
-                    </button>
-                    <Link
-                        to="/assets/asset-transfer"
-                        className="flex items-center cursor-pointer gap-2 h-11 px-5 rounded-xl bg-[#0B5CAB] text-white font-medium hover:bg-[#094b8f] transition"
-                    >
-                        <CalendarSync size={16} />
+         <div className='pt-2 pb-6 mx-auto space-y-3.5'>
+            <PageHeader
+                title="Asset Transfer Log"
+                actions={
+                    <HeaderActionButton to="/assets/asset-transfer" icon={CalendarSync}>
                         Transfer New Asset
-                    </Link>
-                </div>
-            </div>
+                    </HeaderActionButton>
+                }
+            />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 my-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
                     return (
                         <div
                             key={index}
-                            className="bg-white rounded-2xl border p-4 shadow-sm"
+                            className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
                         >
-                            <div className="w-6 h-6 rounded bg-[#EAF3FF] flex items-center justify-center mb-2">
-                                <Icon size={15} className="text-[#0B5CAB]" />
+                            <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                <Icon size={18} />
                             </div>
-                            <div>
-                                <p className="text-sm text-[#43474F] pt-2">
+                            <div className="flex flex-col items-end text-right">
+                                <span className="text-xs font-semibold text-[#00376C]">
                                     {item.title}
-                                </p>
+                                </span>
 
-                                <h2 className="text-xl font-bold">
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                                     {item.value}
-                                </h2>
+                                </span>
                             </div>
-
-
                         </div>
                     );
                 })}
             </div>
 
-            <div className="bg-white border border-[#E6EAF2] rounded-2xl p-6 mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-
-                    {/* Search */}
-
-                        <div className="relative md:col-span-3">
-                            <Search
-                                size={18}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-
-                            <input
-                                type="text"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Transfer ID, Asset ID, or Personnel..."
-                                className="w-full h-11 rounded-xl border border-[#D9E2EC] pl-10 pr-4 text-sm outline-none"
-                            />
-                        </div>
-
-                    {/* Date Range 50% */}
-                    <div className='md:col-span-1'>
-
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <button className="w-full h-11 border border-[#D9E2EC] rounded-xl px-4 flex items-center gap-3">
-                                    <CalendarIcon className="w-4 h-4 text-gray-500" />
-
-                                    <span className="text-sm">
-                                        {dateRange.from
-                                            ? `${format(dateRange.from, "MMM dd, yyyy")} ${dateRange.to
-                                                ? `- ${format(dateRange.to, "MMM dd, yyyy")}`
-                                                : ""
-                                            }`
-                                            : "Select Date Range"}
-                                    </span>
-                                </button>
-                            </PopoverTrigger>
-
-                            <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="range"
-                                    selected={dateRange}
-                                    onSelect={setDateRange}
-                                    numberOfMonths={2}
-                                />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-
-                </div>
+            <div className="w-full">
+                <SearchBar
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Transfer ID, Asset ID, or Personnel..."
+                    isStandalone={true}
+                />
             </div>
 
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                <DataGrid table={table} recordCount={filteredTransferData.length} className="rounded-2xl">
+                <DataGrid
+                    table={table}
+                    recordCount={filteredTransferData.length}
+                    className="rounded-2xl"
+                    tableLayout={{
+                        dense: true,
+                        width: 'fixed',
+                        cellBorder: true,
+                        headerBorder: true,
+                        rowBorder: true,
+                    }}
+                >
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
+                        <CardTable className="w-full overflow-x-hidden">
+                            <DataGridTable />
                         </CardTable>
                         <CardFooter className="bg-[#EFF4FF4D] border-t border-[#C3C6D1] rounded-b-2xl">
                             <DataGridPagination />

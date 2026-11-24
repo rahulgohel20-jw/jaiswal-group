@@ -204,13 +204,12 @@ const AssetPreviewDetail = ({ asset, onClose }) => {
               )}
             </div>
 
-            {/* Current status pill */}
+            {/* Current status */}
             <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                <span className="w-2 h-2 rounded-full bg-green-500" />
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                 Current Status
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
+              <span className="text-xs font-semibold whitespace-nowrap text-emerald-600">
                 {data.status ?? data.statusName ?? '—'}
               </span>
             </div>
@@ -266,7 +265,7 @@ const AssetPreviewDetail = ({ asset, onClose }) => {
                 <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Depreciation</p>
                 <p className="text-sm font-semibold mt-1 flex items-center gap-1 text-red-600">
                   <TrendingDown className="w-3.5 h-3.5" />
-                  {data.depreciationPercent != null ? `${data.depreciationPercent}%/annum` : '—'}
+                  {data.depreciationPercentage != null ? `${data.depreciationPercentage}% (p.a)` : '-'}
                 </p>
               </div>
             </div>

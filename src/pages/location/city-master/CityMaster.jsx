@@ -1,10 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Container } from "@/components/common/container";
+import { SearchBar } from "@/components/common/SearchBar";
 import {
-  ChevronRight,
+  Download,
   Eye,
-  Plus,
-  Search,
   SquarePen,
   Trash2,
 } from "lucide-react";
@@ -13,6 +12,7 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from "@tanstack/react-table";
 
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
@@ -32,18 +32,23 @@ import {
 
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { PageHeader } from '@/components/common/PageHeader';
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import AddCityModel from "./AddCityModel";
+import { useNavigate } from "react-router";
+import MasterExportModal from "../../../utils/MasterExportModal";
 
 
 const CityMaster = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('City');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('City');
 
   const [search, setSearch] = useState("");
   const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
+  const navigate = useNavigate();
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: 10,
@@ -60,6 +65,8 @@ const CityMaster = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // ---------------- FETCH CITIES ----------------
   const fetchCities = useCallback(async () => {
@@ -169,6 +176,17 @@ const CityMaster = () => {
     );
   }, [cities, search]);
 
+// Truncates long text, reveals full value on hover
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-full',
+  className = 'text-gray-800 font-medium',
+}) => (
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
+    {value || '—'}
+  </span>
+);
+
   // ---------------- COLUMNS ----------------
   const columns = useMemo(
     () => [
@@ -179,11 +197,11 @@ const CityMaster = () => {
           <DataGridColumnHeader
             title="S.NO"
             column={column}
-            className="text-[#43474F] font-semibold py-4 uppercase text-sm"
+            className="text-[#43474F] font-semibold py-4 uppercase text-xs"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">
+          <span className="text-gray-500 py-2 text-xs">
             {String(row.index + 1).padStart(2, "0")}
           </span>
         ),
@@ -199,14 +217,17 @@ const CityMaster = () => {
           <DataGridColumnHeader
             title="Name"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold uppercase text-xs"
           />
         ),
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800 capitalize">
-            {row.original.name}
-          </div>
+          <TruncatedCell
+            value={row.original.name}
+            className="text-gray-800 font-medium text-xs capitalize"
+          />
         ),
+        size: 200,
+        enableSorting: true,
       },
 
       // STATE NAME
@@ -217,14 +238,17 @@ const CityMaster = () => {
           <DataGridColumnHeader
             title="State Name"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold uppercase text-xs"
           />
         ),
         cell: ({ row }) => (
-          <div className="text-gray-700 capitalize">
-            {row.original.state || "-"}
-          </div>
+          <TruncatedCell
+            value={row.original.state}
+            className="text-gray-800 font-medium text-xs capitalize"
+          />
         ),
+        size: 200,
+        enableSorting: true,
       },
 
       // ACTIONS
@@ -287,9 +311,12 @@ const CityMaster = () => {
     state: {
       pagination,
       rowSelection,
+      sorting
     },
     onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -301,79 +328,46 @@ const CityMaster = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
+        <PageHeader
+          title="City Master"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={openAddModal}>
+                  Add City
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        {/* BREADCRUMB */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-
-          <ChevronRight size={12} />
-
-          <span>Location Master</span>
-
-          <ChevronRight size={12} />
-
-          <span className="text-[#084E92] font-medium">
-            City
-          </span>
-        </div>
-
-        {/* HEADER */}
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
-              City Master
-            </h1>
-          </div>
-
-          <div className="flex gap-3 self-end">
-            {canAdd && (
-              <button
-                onClick={openAddModal}
-                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-              >
-                <Plus size={16} />
-                Add City
-              </button>
-            )}
-          </div>
-        </div>
+        <PageErrorAlert error={error} onRetry={fetchCities} />
 
         {/* SEARCH */}
-        <div className="bg-white py-5">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-
-            <div className="relative w-full md:w-96">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-
-              <input
-                type="text"
-                placeholder="Search City..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-
-                  setPagination((prev) => ({
-                    ...prev,
-                    pageIndex: 0,
-                  }));
-                }}
-                className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
-              />
-            </div>
-
-            <p className="text-sm text-gray-500">
-              Showing {filteredCities.length} of {cities.length} cities
-            </p>
-
-          </div>
+        <div className="w-full">
+          <SearchBar
+            placeholder="Search City..."
+            value={search}
+            isStandalone={true}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPagination((prev) => ({
+                ...prev,
+                pageIndex: 0,
+              }));
+            }}
+          />
         </div>
 
         {/* TABLE */}
-        <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
+        <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
 
           {loading && (
             <p className="p-4 text-sm text-gray-500">
@@ -381,16 +375,17 @@ const CityMaster = () => {
             </p>
           )}
 
-          {error && (
-            <p className="p-4 text-sm text-red-600">
-              {error}
-            </p>
-          )}
-
           <DataGrid
             table={table}
             recordCount={filteredCities.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
 
@@ -427,6 +422,12 @@ const CityMaster = () => {
           saving={deleteSaving}
         />
 
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="cities"
+          title="Export City Report"
+        />
       </div>
     </Container>
   );

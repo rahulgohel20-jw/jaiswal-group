@@ -1,6 +1,12 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const DeleteConfirmModal = ({
   isOpen,
@@ -11,16 +17,17 @@ const DeleteConfirmModal = ({
   title = 'Delete Item',
   description,
 }) => {
-  if (!isOpen) return null;
-
   const handleClose = () => {
     if (saving) return;
     onClose?.();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-sm p-0 overflow-hidden rounded-xl border border-gray-100 shadow-xl bg-white"
+      >
         {/* Header */}
         <div className="flex items-start justify-between gap-3 p-4 border-b flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -28,10 +35,13 @@ const DeleteConfirmModal = ({
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold leading-none">{title}</h3>
+              <DialogTitle className="text-lg font-semibold leading-none text-gray-900">
+                {title}
+              </DialogTitle>
             </div>
           </div>
           <button
+            type="button"
             onClick={handleClose}
             className="p-1 hover:bg-gray-100 rounded transition-colors flex-shrink-0"
           >
@@ -41,7 +51,7 @@ const DeleteConfirmModal = ({
 
         {/* Content */}
         <div className="p-4">
-          <p className="text-sm text-gray-600">
+          <DialogDescription className="text-sm text-gray-600">
             {description || (
               <>
                 Are you sure you want to delete{' '}
@@ -55,7 +65,7 @@ const DeleteConfirmModal = ({
                 ? This action cannot be undone.
               </>
             )}
-          </p>
+          </DialogDescription>
         </div>
 
         {/* Footer */}
@@ -72,8 +82,8 @@ const DeleteConfirmModal = ({
             {saving ? 'Deleting...' : 'Delete'}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

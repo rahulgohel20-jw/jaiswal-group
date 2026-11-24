@@ -27,7 +27,10 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import CreateMenuCategory from './CreateMenuCategory';
+import { useNavigate } from 'react-router';
 
 const MenuCategory = () => {
   const [search, setSearch] = useState('');
@@ -35,7 +38,6 @@ const MenuCategory = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [rowSelection, setRowSelection] = useState({});
   const [openCategory, setOpenCategory] = useState(false);
   const [editData, setEditData] = useState(null);
 
@@ -46,7 +48,7 @@ const MenuCategory = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
-
+  const navigate = useNavigate();
   const openDeleteConfirm = (row) => {
     setDeleteTarget({ id: row.id, itemLabel: row.name });
     setShowDeleteConfirm(true);
@@ -183,27 +185,21 @@ const MenuCategory = () => {
   const columns = useMemo(
     () => [
       {
-        id: 'select',
-        header: ({ table }) => (
-          <input
-            type="checkbox"
-            checked={table.getIsAllPageRowsSelected()}
-            onChange={table.getToggleAllPageRowsSelectedHandler()}
-            className="w-4 h-4 cursor-pointer my-4"
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.NO"
+            column={column}
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            className="w-4 h-4 rounded border-gray-300 cursor-pointer"
-          />
+          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
         ),
         enableSorting: false,
-        size: 50,
+        size: 70,
+        minSize: 60,
       },
-
       {
         id: 'image',
         accessorFn: (row) => row.image,
@@ -337,51 +333,46 @@ const MenuCategory = () => {
   const table = useReactTable({
     data: filteredCategories,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination },
     onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
-    enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
+      <div className="p-4 mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
           <span>Menu Item</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Category</span>
         </div>
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+            <h1 className="font-bold text-[#101828] text-xl sm:text-2xl text-start">
               Menu Category Master
             </h1>
           </div>
 
-          <div className="flex gap-3 self-end">
-            <button
-              type="button"
-              onClick={() => {
-                setEditData(null);
-                setOpenCategory(true);
-              }}
-              className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-[#ffffff] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-            >
-              <Plus size={16} />
-              Create New
-            </button>
-          </div>
+          <HeaderActionButton
+            onClick={() => {
+              setEditData(null);
+              setOpenCategory(true);
+            }}
+          >
+            Create New
+          </HeaderActionButton>
         </div>
 
-        <div className="bg-white py-5">
+        <PageErrorAlert error={error} onRetry={fetchCategories} className="my-3" />
+
+        <div className="bg-white mt-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="relative w-full md:w-96">
+            <div className="relative w-full md:w-100">
               <Search
                 size={18}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -391,7 +382,7 @@ const MenuCategory = () => {
                 placeholder="Search Category..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
+                className="w-full border rounded-lg pl-10 pr-4 py-2 outline-none focus:ring-2 focus:ring-[#084E92]"
               />
             </div>
 
@@ -406,7 +397,6 @@ const MenuCategory = () => {
           {loading && (
             <p className="p-4 text-sm text-gray-500">Loading categories...</p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
           <DataGrid
             table={table}
             recordCount={filteredCategories.length}

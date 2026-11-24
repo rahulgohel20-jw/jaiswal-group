@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { toast } from 'sonner';
 import { AppRouting } from '@/routing/app-routing';
 import { HelmetProvider } from 'react-helmet-async';
 import { QueryClient, QueryClientProvider } from 'react-query';
@@ -17,6 +19,18 @@ const { BASE_URL } = "/justerp/";
 
 export function App() {
   const queryClient = new QueryClient();
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const pendingToast = sessionStorage.getItem('pendingSwitchToast');
+      if (pendingToast) {
+        sessionStorage.removeItem('pendingSwitchToast');
+        setTimeout(() => {
+          toast.success(pendingToast, { duration: 4000 });
+        }, 400);
+      }
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -28,6 +28,9 @@ import {
   validatePincode,
 } from '@/utils/validations';
 import SearchableSelect from "../../utils/SearchableSelect";
+import { PageHeader } from '@/components/common/PageHeader';
+import { Container } from '@/components/common/container';
+import { invalidateOrgHierarchy } from "@/utils/hierarchyUtils";
 
 const inputCls =
   "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
@@ -230,10 +233,11 @@ function unwrapList(res, hints = []) {
 // Outlet objects carry the name under companyNameEnglish, not `name`
 const getOrgLabel = (o) => (o ? o.companyNameEnglish || o.companyCode || String(o.id ?? "") : "");
 
-const nextSubUnitCode = (outletCode) => (outletCode ? `${outletCode}-SU01` : "Select an outlet first");
+const nextSubUnitCode = (outletCode) => (outletCode ? `${outletCode}-SU01` : "Select a unit first");
 
 const emptyForm = {
   outletId: "",
+  subOutletType: "LOCATION",
   subOutletName: "",
   contactPerson: "",
   contactNumber: "",
@@ -256,10 +260,11 @@ const mapSubUnitToForm = (subUnit) => {
     outletId: raw.organizationId
       ? String(raw.organizationId)
       : raw.parentId
-      ? String(raw.parentId)
-      : raw.outletId
-      ? String(raw.outletId)
-      : "",
+        ? String(raw.parentId)
+        : raw.outletId
+          ? String(raw.outletId)
+          : "",
+    subOutletType: raw.subOutletType || raw.type || raw.locationType || "LOCATION",
     subOutletName: raw.subOutletName || raw.name || "",
     contactPerson: raw.contactPerson || "",
     contactNumber: raw.contactNumber || raw.mobile || raw.mobilenumber || "",
@@ -460,7 +465,7 @@ const AddSubUnit = () => {
       latitude: f.latitude || selectedOutlet.latitude || "",
       longitude: f.longitude || selectedOutlet.longitude || "",
     }));
-    
+
     if (!form.addressLine1 && selectedOutlet.addressEnglish) {
       setErrorFor("addressLine1", "");
     }
@@ -468,7 +473,7 @@ const AddSubUnit = () => {
       setErrorFor("pincode", validatePincode(selectedOutlet.pincode));
     }
 
-   if (selectedOutlet.countryId) {
+    if (selectedOutlet.countryId) {
       setSelectedCountry(String(selectedOutlet.countryId));
       setErrorFor("country", "");
     }
@@ -501,18 +506,18 @@ const AddSubUnit = () => {
   const handleOutletChange = (e) => {
     setLocationTouched(false);
     set("outletId", e.target.value);
-    setErrorFor("outletId", validateRequired(e.target.value, "Outlet"));
+    setErrorFor("outletId", validateRequired(e.target.value, "Unit"));
   };
 
-  const requiredFields = ["outletId", "subOutletName", "email", "addressLine1", "pincode"];
+  const requiredFields = ["subOutletName", "email", "addressLine1", "pincode"];
 
- function validate() {
+  function validate() {
     const next = {};
 
-    const outletErr = validateRequired(form.outletId, "Outlet");
+    const outletErr = validateRequired(form.outletId, "Unit");
     if (outletErr) next.outletId = outletErr;
 
-    const nameErr = validateRequired(form.subOutletName, "Sub Outlet Name");
+    const nameErr = validateRequired(form.subOutletName, "Sub Unit Name");
     if (nameErr) next.subOutletName = nameErr;
 
     const addressErr = validateRequired(form.addressLine1, "Address Line 1");
@@ -545,18 +550,21 @@ const AddSubUnit = () => {
       username: user?.email || "",
       address: form.addressLine1,
       addressline2: form.addressLine2,
-      cityId: Number(selectedCity),
+      cityId: selectedCity ? Number(selectedCity) : 0,
       contactNumber: form.contactNumber,
       contactPerson: form.contactPerson,
-      countryId: Number(selectedCountry),
+      countryId: selectedCountry ? Number(selectedCountry) : 0,
       email: form.email,
       isActive: form.isActive,
       latitude: form.latitude,
       longitude: form.longitude,
-      organizationId: Number(form.outletId),
+      organizationId: form.outletId ? Number(form.outletId) : 0,
       pincode: form.pincode,
-      stateId: Number(selectedState),
+      stateId: selectedState ? Number(selectedState) : 0,
       subOutletName: form.subOutletName,
+      subOutletType: form.subOutletType || "LOCATION",
+      type: "LOCATION",
+      locationType: "LOCATION",
     };
 
     try {
@@ -567,6 +575,7 @@ const AddSubUnit = () => {
         await saveSubOutlet(payload);
         notify.success("Sub Unit Added Successfully");
       }
+      invalidateOrgHierarchy();
       navigate("/sub-units");
     } catch (err) {
       console.error("Sub unit save error:", err.response?.data || err.message);
@@ -577,44 +586,49 @@ const AddSubUnit = () => {
   }
 
   return (
-    <div className="mx-4 min-h-screen p-4 md:p-6">
-      <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => navigate('/sub-units')}
-          className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] mb-2 cursor-pointer bg-transparent border-0 p-0 self-start"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Sub Units
-        </button>
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          {isEditMode ? "Update Sub Unit" : "Register Sub Unit"}
-        </h1>
-        <p className="text-[#43474F] mt-2">
-          {isEditMode
+     <Container>
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
+      <PageHeader
+        title={isEditMode ? "Update Sub Unit" : "Register Sub Unit"}
+        description={
+          isEditMode
             ? `Edit the details for ${editingSubUnit.subOutletName || ""} and save your changes.`
-            : "Complete the form below to register a new sub unit under an existing outlet."}
-        </p>
-      </div>
+            : "Complete the form below to register a new sub unit under an existing outlet."
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => navigate('/sub-units')}
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Sub Units
+          </button>
+        }
+      />
 
       <SectionCard className="mt-4">
         <SectionHeader
           icon={Store}
-          title="Parent Outlet"
-          subtitle="The sub unit will be registered under this outlet"
+          title="Parent Unit"
+          subtitle="The sub unit will be registered under this unit"
           open={openSections.outlet}
           onToggle={() => toggleSection("outlet")}
         />
         {openSections.outlet && (
           <div className="px-6 py-6">
             <div>
-              <Label required>Outlet</Label>
+              <Label required>Unit</Label>
               <SearchableSelect
                 name="outletId"
                 value={form.outletId}
                 onChange={(e) => handleOutletChange({ target: { value: e.target.value } })}
                 options={outletOptions}
-                placeholder={loadingOutlets ? "Loading outlets..." : "Select Outlet"}
+                placeholder={
+                  loadingOutlets
+                    ? "Loading units..."
+                    : "Select Unit"
+                }
                 disabled={loadingOutlets}
                 hasError={!!errors.outletId}
               />
@@ -639,7 +653,7 @@ const AddSubUnit = () => {
         {openSections.info && (
           <div className="px-6 py-6 space-y-5">
             <div>
-              <Label required>Sub Outlet Name</Label>
+              <Label required>Sub Unit Name</Label>
               <input
                 value={form.subOutletName}
                 onChange={(e) => {
@@ -650,10 +664,10 @@ const AddSubUnit = () => {
                 placeholder="e.g. Maninagar - Billing Counter"
                 className={`${inputCls} ${errors.subOutletName ? "border-red-400" : ""}`}
               />
-               <ErrorText error={errors.subOutletName} />
+              <ErrorText error={errors.subOutletName} />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label>Contact Person</Label>
                 <input
@@ -688,7 +702,7 @@ const AddSubUnit = () => {
                     setErrorFor("email", validateEmail(val));
                   }}
                   placeholder="subunit@example.com"
-                   className={`${inputCls} ${errors.email ? "border-red-400" : ""}`}
+                  className={`${inputCls} ${errors.email ? "border-red-400" : ""}`}
                 />
                 <ErrorText error={errors.email} />
               </div>
@@ -713,7 +727,7 @@ const AddSubUnit = () => {
               </p>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label required>Address Line 1</Label>
                 <input
@@ -724,9 +738,9 @@ const AddSubUnit = () => {
                     setErrorFor("addressLine1", validateRequired(val, "Address Line 1"));
                   }}
                   placeholder="Plot No, Street, Landmark"
-                   className={`${inputCls} ${errors.addressLine1 ? "border-red-400" : ""}`}
+                  className={`${inputCls} ${errors.addressLine1 ? "border-red-400" : ""}`}
                 />
-               <ErrorText error={errors.addressLine1} />
+                <ErrorText error={errors.addressLine1} />
               </div>
               <div>
                 <Label>Address Line 2</Label>
@@ -739,67 +753,71 @@ const AddSubUnit = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <Label required>Country</Label>
-                <SearchableSelect
-                  name="country"
-                  value={selectedCountry}
-                  onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
-                  options={countryOptions}
-                  placeholder="Select Country"
-                  hasError={!!errors.country}
-                />
-                <ErrorText error={errors.country} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <Label required>Country</Label>
+                  <SearchableSelect
+                    name="country"
+                    value={selectedCountry}
+                    onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                    options={countryOptions}
+                    placeholder="Select Country"
+                    hasError={!!errors.country}
+                  />
+                  <ErrorText error={errors.country} />
+                </div>
+                <div>
+                  <Label required>State</Label>
+                  <SearchableSelect
+                    name="state"
+                    value={selectedState}
+                    onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
+                    options={stateOptions}
+                    placeholder={selectedCountry ? "Select State" : "Select country first"}
+                    disabled={!selectedCountry}
+                    hasError={!!errors.state}
+                  />
+                  <ErrorText error={errors.state} />
+                </div>
               </div>
-              <div>
-                <Label required>State</Label>
-                <SearchableSelect
-                  name="state"
-                  value={selectedState}
-                  onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
-                  options={stateOptions}
-                  placeholder={selectedCountry ? "Select State" : "Select country first"}
-                  disabled={!selectedCountry}
-                  hasError={!!errors.state}
-                />
-                <ErrorText error={errors.state} />
-              </div>
-              <div>
-                <Label required>City</Label>
-                <SearchableSelect
-                  name="city"
-                  value={selectedCity}
-                  onChange={(e) => {
-                    setLocationTouched(true);
-                    setSelectedCity(e.target.value);
-                    setErrorFor("city", validateRequired(e.target.value, "City"));
-                  }}
-                  options={cityOptions}
-                  placeholder={selectedState ? "Select City" : "Select state first"}
-                  disabled={!selectedState}
-                  hasError={!!errors.city}
-                />
-                <ErrorText error={errors.city} />
-              </div>
-              <div>
-                <Label required>Pincode</Label>
-                <input
-                  value={form.pincode}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    set("pincode", val);
-                    setErrorFor("pincode", validatePincode(val));
-                  }}
-                  placeholder="380009"
-                  maxLength={6}
-                   className={`${inputCls} ${errors.pincode ? "border-red-400" : ""}`}
-                />
-                 <ErrorText error={errors.pincode} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <Label required>City</Label>
+                  <SearchableSelect
+                    name="city"
+                    value={selectedCity}
+                    onChange={(e) => {
+                      setLocationTouched(true);
+                      setSelectedCity(e.target.value);
+                      setErrorFor("city", validateRequired(e.target.value, "City"));
+                    }}
+                    options={cityOptions}
+                    placeholder={selectedState ? "Select City" : "Select state first"}
+                    disabled={!selectedState}
+                    hasError={!!errors.city}
+                  />
+                  <ErrorText error={errors.city} />
+                </div>
+                <div>
+                  <Label required>Pincode</Label>
+                  <input
+                    value={form.pincode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      set("pincode", val);
+                      setErrorFor("pincode", validatePincode(val));
+                    }}
+                    placeholder="380009"
+                    maxLength={6}
+                    className={`${inputCls} ${errors.pincode ? "border-red-400" : ""}`}
+                  />
+                  <ErrorText error={errors.pincode} />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
                 <Label>Latitude</Label>
                 <input
@@ -863,6 +881,7 @@ const AddSubUnit = () => {
         />
       )}
     </div>
+    </Container>
   );
 };
 

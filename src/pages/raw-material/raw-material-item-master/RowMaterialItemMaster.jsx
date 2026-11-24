@@ -1,17 +1,17 @@
-import { AlertTriangle, ChevronRight, CircleCheck, CircleX, ClipboardList, Eye, ListFilter, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
+import { CircleCheck, CircleX, ClipboardList, Download, Eye, SquarePen, Trash2 } from 'lucide-react'
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import AddRawMaterialItemModal from './AddRawMaterialItemModal';
 import { Container } from "@/components/common/container";
 import StatusConfirmModal from "@/utils/StatusConfirmModal";
 import { updateRawMaterialItemStatusById } from "@/services/apiServices";
-import { deleteRawMaterialItemById, getAllRawMaterialCategory, getAllRawMaterialItems, getRawMaterialById } from '../../../services/apiServices';
+import { deleteRawMaterialItemById, getAllRawMaterialCategory, getAllRawMaterialItems } from '../../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
     Select,
@@ -22,25 +22,30 @@ import {
 } from "@/components/ui/select";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+
+import { useNavigate } from 'react-router';
+import HeaderActionButton from '../../../components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const RowMaterialItemMaster = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Items');
-
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Raw Material Items');
+    const navigate = useNavigate();
     const [itemData, setItemData] = useState([]);
-    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
+    const [pagination, setPagination] = useState({
+        pageIndex: 0,
+        pageSize: 5,
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("All Status");
     const [categoryList, setCategoryList] = useState([]);
     const [typeFilter, setTypeFilter] = useState("");
-    const [showAddItem, setShowAddItem] = useState(false);
     const [showStatusConfirm, setShowStatusConfirm] = useState(false);
     const [statusTarget, setStatusTarget] = useState(null);
     const [statusSaving, setStatusSaving] = useState(false);
-    const [selectedItem, setSelectedItem] = useState(null);
-    const [totalItems, setTotalItems] = useState(0);
-    const [totalPages, setTotalPages] = useState(0);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -49,8 +54,9 @@ const RowMaterialItemMaster = () => {
         active: 0,
         inactive: 0,
     });
-    const [isViewOnly, setIsViewOnly] = useState(false);
-
+    const [totalItems, setTotalItems] = useState(0);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [sorting, setSorting] = useState([]);
     const fetchStats = useCallback(async () => {
         try {
             const res = await getAllRawMaterialItems(
@@ -78,17 +84,6 @@ const RowMaterialItemMaster = () => {
         fetchStats();
     }, [fetchStats]);
 
-    const openCreateModal = () => {
-        setIsViewOnly(false);
-        setSelectedItem(null);
-        setShowAddItem(true);
-    };
-
-    const closeModal = () => {
-        setShowAddItem(false);
-        setSelectedItem(null);
-        setIsViewOnly(false);
-    };
 
     const fetchCategories = useCallback(async () => {
         try {
@@ -110,6 +105,7 @@ const RowMaterialItemMaster = () => {
     const fetchRawMaterialList = useCallback(async () => {
         try {
             setLoading(true);
+            setError(null);
 
             let isActive = "";
 
@@ -118,100 +114,87 @@ const RowMaterialItemMaster = () => {
             } else if (statusFilter === "Inactive") {
                 isActive = false;
             }
+
             const res = await getAllRawMaterialItems(
-                typeFilter || 0,   //raw category id
+                typeFilter || 0,
                 0,
                 isActive,
-                searchTerm.trim()
+                searchTerm.trim(),
+                pagination.pageIndex + 1,
+                pagination.pageSize
             );
-
             const responseData = res?.data?.data || {};
 
             const list = responseData["Raw Material Details"] || [];
-
-            const totalItems = responseData.totalItems || 0;
-            const totalPages = responseData.totalPages || 0;
 
             const mapped = list.map((item) => {
                 const latestImage = [...(item.images || [])]
                     .filter(img => img.path)
                     .sort((a, b) => b.id - a.id)[0];
-                return {
-                id: item.id,
-                image: latestImage?.path || "",
-                name: item.nameEnglish,
-                nameEnglish: item.nameEnglish,
-                category:
-                    item.rawMaterialCat?.nameEnglish ||
-                    item.rawMaterialCategoryName ||
-                    "",
-                unit:
-                    item.unit?.nameEnglish ||
-                    item.unitName ||
-                    "",
-                rate: item.supplierRate,
-                status: item.isActive ? "Active" : "Inactive",
 
-                rawMaterialCatId: item.rawMaterialCatId ?? item.rawMaterialCategory?.id,
-                unitId: item.unitId ?? item.unit?.id,
-                supplierRate: item.supplierRate,
-                dailyConsumption: item.dailyConsumption,
-                expiryDate: item.expiryDate,
-                opbStock: item.opbStock,
-                minStock: item.minStock,
-                minOrder: item.minOrder,
-                sequence: item.sequence,
-                weightPer100Pax: item.weightPer100Pax,
-                hsnCode: item.hsnCode,
-                tax: item.tax,
-                cess: item.cess,
-                isGeneralFix: item.isGeneralFix ?? false,
-                isApplyCal: item.isApplyCal ?? false,
-            }});
+                return {
+                    id: item.id,
+                    image: latestImage?.path || "",
+                    name: item.nameEnglish,
+                    nameEnglish: item.nameEnglish,
+                    category:
+                        item.rawMaterialCat?.nameEnglish ||
+                        item.rawMaterialCategoryName ||
+                        "",
+                    unit:
+                        item.unit?.nameEnglish ||
+                        item.unitName ||
+                        "",
+                    rate: item.supplierRate,
+                    status: item.isActive ? "Active" : "Inactive",
+
+                    rawMaterialCatId:
+                        item.rawMaterialCatId ??
+                        item.rawMaterialCategory?.id,
+
+                    unitId:
+                        item.unitId ??
+                        item.unit?.id,
+
+                    supplierRate: item.supplierRate,
+                    dailyConsumption: item.dailyConsumption,
+                    expiryDate: item.expiryDate,
+                    opbStock: item.opbStock,
+                    minStock: item.minStock,
+                    minOrder: item.minOrder,
+                    sequence: item.sequence,
+                    weightPer100Pax: item.weightPer100Pax,
+                    hsnCode: item.hsnCode,
+                    tax: item.tax,
+                    cess: item.cess,
+                    isGeneralFix: item.isGeneralFix ?? false,
+                    isApplyCal: item.isApplyCal ?? false,
+                };
+            });
 
             setItemData(mapped);
             setTotalItems(responseData.totalItems || 0);
-            setTotalPages(responseData.totalPages || 0);
+
         } catch (err) {
-            console.error(err);
+            console.error("Failed to load raw materials:", err);
             setError("Failed to load raw materials");
         } finally {
             setLoading(false);
         }
-    }, [searchTerm, statusFilter, typeFilter]);
+    }, [
+        searchTerm,
+        statusFilter,
+        typeFilter,
+        pagination.pageIndex,
+        pagination.pageSize
+    ]);
 
     const handleEdit = async (id) => {
-        try {
-            setIsViewOnly(false);
-            const res = await getRawMaterialById(id);
-
-            const item =
-                res?.data?.data?.["Raw Material Details"]?.[0];
-
-            if (!item) return;
-
-            setSelectedItem(item);
-            setShowAddItem(true);
-        } catch (err) {
-            console.error(err);
-        }
+        navigate(`/material/items/edit/${id}`);
     };
 
     const handleView = async (id) => {
-        try {
-            setIsViewOnly(true);
-            const res = await getRawMaterialById(id);
-
-            const item =
-                res?.data?.data?.["Raw Material Details"]?.[0];
-
-            if (!item) return;
-
-            setSelectedItem(item);
-            setShowAddItem(true);
-        } catch (err) {
-            console.error(err);
-        }
+        navigate(`/material/items/view/${id}`);
     };
 
     useEffect(() => {
@@ -284,12 +267,14 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="S.NO"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-2">
-                        {String(row.index + 1).padStart(2, "0")}
+                    <span className="text-gray-500 py-2 text-xs">
+                        {String(
+                            pagination.pageIndex * pagination.pageSize + row.index + 1
+                        ).padStart(2, "0")}
                     </span>
                 ),
                 enableSorting: false,
@@ -302,7 +287,7 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="IMAGE"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -317,6 +302,7 @@ const RowMaterialItemMaster = () => {
                     )
                 ),
                 size: 100,
+                enableSorting: false,
             },
 
             {
@@ -329,23 +315,35 @@ const RowMaterialItemMaster = () => {
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 py-2 capitalize">
+                    <button
+                        type="button"
+                        onClick={() => (canEdit ? handleEdit(row.original.id) : handleView(row.original.id))}
+                        className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full w-full text-left hover:underline block"
+                        title={row.original.name}
+                    >
                         {row.original.name}
-                    </div>
+                    </button>
                 ),
-                size:180
+                size: 240,
+                enableSorting: true,
             },
 
             {
                 accessorKey: "category",
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="ROW MATERIAL CATEGORY"
+                        title="RAW MATERIAL CATEGORY"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
+                cell: ({ row }) => (
+                    <span className="font-medium text-xs text-gray-800 py-2 capitalize truncate max-w-full block" title={row.original.category}>
+                        {row.original.category || '—'}
+                    </span>
+                ),
                 size: 220,
+                enableSorting: false,
             },
 
             {
@@ -354,31 +352,24 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="UNIT"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
+                ),
+                cell: ({ row }) => (
+                    <span className="font-medium text-xs text-gray-800 py-2 uppercase truncate max-w-full block" title={row.original.unit}>
+                        {row.original.unit || '—'}
+                    </span>
                 ),
                 size: 110,
+                enableSorting: false,
             },
-
-            {
-                accessorKey: "rate",
-                header: ({ column }) => (
-                    <DataGridColumnHeader
-                        title="RATE"
-                        column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
-                    />
-                ),
-                size: 90,
-            },
-
             {
                 accessorKey: "status",
                 header: ({ column }) => (
                     <DataGridColumnHeader
                         title="STATUS"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
@@ -413,7 +404,8 @@ const RowMaterialItemMaster = () => {
 
                     </label>
                 ),
-                size:100
+                size: 100,
+                enableSorting: false,
             },
 
             {
@@ -422,7 +414,7 @@ const RowMaterialItemMaster = () => {
                     <DataGridColumnHeader
                         title="ACTIONS"
                         column={column}
-                        className="text-[#43474F] font-semibold py-4 text-sm"
+                        className="text-[#43474F] font-semibold"
                     />
                 ),
 
@@ -456,41 +448,32 @@ const RowMaterialItemMaster = () => {
                 ),
             },
         ],
-        [canEdit, canDelete],
+        [canEdit, canDelete, pagination],
     );
 
     const STATS = [
         {
-            title: "Total Item",
+            title: "Total item",
             value: `${stats.total}`,
-            icon: (
-                <ClipboardList
-                    size={22}
-                    className="text-[#084E92] p-1 bg-[#E8F1FF] rounded"
-                />
-            ),
-            color: 'text-[#084E92]'
+            icon: <ClipboardList size={18} />,
+            iconBg: 'bg-[#D5E3FF]',
+            iconColor: 'text-[#00376C]',
+            color: 'text-[#1B1B1F]'
         },
         {
-            title: "Active Item",
+            title: "Active item",
             value: `${stats.active}`,
-            icon: (
-                <CircleCheck
-                    size={22}
-                    className="text-[#16A34A] p-1 bg-[#DCFCE7] rounded"
-                />
-            ),
+            icon: <CircleCheck size={18} />,
+            iconBg: 'bg-[#DCFCE7]',
+            iconColor: 'text-[#16A34A]',
             color: 'text-[#16A34A]'
         },
         {
-            title: "Inactive Item",
+            title: "Inactive item",
             value: `${stats.inactive}`,
-            icon: (
-                <CircleX
-                    size={22}
-                    className="text-[#DC2626] p-1 bg-[#FEE2E2] rounded"
-                />
-            ),
+            icon: <CircleX size={18} />,
+            iconBg: 'bg-[#FEE2E2]',
+            iconColor: 'text-[#DC2626]',
             color: 'text-[#DC2626]'
         },
     ];
@@ -498,10 +481,15 @@ const RowMaterialItemMaster = () => {
     const table = useReactTable({
         data: itemData,
         columns,
-        state: { pagination },
+        state: {
+            pagination, sorting
+        },
         onPaginationChange: setPagination,
+        getSortedRowModel: getSortedRowModel(),
+        onSortingChange: setSorting,
+        manualPagination: true,
+        pageCount: Math.ceil(totalItems / pagination.pageSize),
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
     });
 
     if (!canView) {
@@ -510,74 +498,60 @@ const RowMaterialItemMaster = () => {
 
     return (
         <Container>
-            <div className='p-4 md:p-6'>
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Master Data</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Raw Material Items</span>
-                </div>
+            <div className='pt-2 pb-6 mx-auto space-y-4'>
+                <PageHeader
+                    title="Raw Material Items Master"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton
+                                    onClick={() => navigate('/material/items/add')}
+                                >
+                                    Add New Item
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
+                />
 
-                <div className="flex justify-between items-start flex-col lg:flex-row gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-[#0F172A] text-start">
-                            Raw Material Items Master
-                        </h1>
+                <PageErrorAlert error={error} onRetry={fetchRawMaterialList} className="my-3" />
 
-                        <p className="text-sm text-gray-400 mt-1 max-w-xl">
-                            Centralized inventory registry for global raw material tracking,
-                            specification management, and real-time stock valuation monitoring.
-                        </p>
-                    </div>
-
-                    {canAdd && (
-                        <button
-                            onClick={openCreateModal}
-                            className="bg-[#084E92] hover:bg-[#074486] cursor-pointer transition-colors duration-200 text-white rounded-xl px-6 py-3 flex items-center gap-2 shadow-lg"
-                        >
-                            <Plus size={18} />
-                            Add New Item
-                        </button>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 mt-4">
                     {STATS.map((item) => (
-                        <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
-                            <div className="flex justify-between items-center pb-2">
-                                <p>{item.icon}</p>
+                        <div key={item.title} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                            <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                {item.icon}
                             </div>
-                            <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                            <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
+                            <div className="flex flex-col items-end text-right">
+                                <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
+                            </div>
                         </div>
                     ))}
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
+                <div className="flex flex-col gap-4 mt-6">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         {/* Search */}
-                        <div className="relative md:col-span-2">
-                            <Search
-                                size={18}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-                            <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder="Search by type name..."
-                                className="w-full pl-10 py-2 border rounded-lg outline-none "
-                            />
-                        </div>
+                        <SearchBar
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by item name..."
+                            wrapperClassName="md:col-span-2"
+                        />
 
                         {/* Status */}
                         <Select
                             value={statusFilter}
                             onValueChange={(value) => setStatusFilter(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Status" />
                             </SelectTrigger>
 
@@ -604,7 +578,7 @@ const RowMaterialItemMaster = () => {
                                 setTypeFilter(value === "all" ? "" : value);
                             }}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Categories" />
                             </SelectTrigger>
 
@@ -629,8 +603,18 @@ const RowMaterialItemMaster = () => {
                 {/* Table */}
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                    <DataGrid table={table} recordCount={itemData.length} className="rounded-2xl">
+                    <DataGrid
+                        table={table}
+                        recordCount={totalItems}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>
@@ -644,15 +628,6 @@ const RowMaterialItemMaster = () => {
                         </Card>
                     </DataGrid>
                 </div>
-
-                <AddRawMaterialItemModal
-                    isOpen={showAddItem}
-                    onClose={closeModal}
-                    editData={selectedItem}
-                    isViewOnly={isViewOnly}
-                    fetchRawMaterialList={fetchRawMaterialList}
-                    fetchStats={fetchStats}
-                />
             </div>
             <StatusConfirmModal
                 isOpen={showStatusConfirm}
@@ -669,6 +644,12 @@ const RowMaterialItemMaster = () => {
                 onConfirm={confirmDelete}
                 itemLabel={deleteTarget?.name}
                 saving={deleteLoading}
+            />
+            <MasterExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                tableName="rawmaterial"
+                title="Export Raw Material Report"
             />
         </Container>
     )

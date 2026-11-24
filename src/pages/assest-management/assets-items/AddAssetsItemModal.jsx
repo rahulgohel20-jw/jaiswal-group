@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronRight, Info, Layers, Save, X } from 'lucide-react';
+import { Info, Layers, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -98,17 +98,6 @@ const AddAssetItemModal = ({ isOpen, onClose, onSave, defaultCategory, editingIt
           >
             <X className="h-5 w-5 cursor-pointer" />
           </button>
-        </div>
-
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 px-4 pt-3 pb-1 flex-shrink-0 flex-wrap">
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span>{form.category}</span>
-          <ChevronRight size={12} />
-          <span className="text-primary font-semibold">
-            {readOnly ? 'View Asset Item' : editingItem ? 'Edit Asset Item' : 'New Asset Item'}
-          </span>
         </div>
 
         {/* Content - Scrollable */}

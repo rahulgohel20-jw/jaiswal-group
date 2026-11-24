@@ -45,9 +45,14 @@ const normalizePo = (po) => {
     poCode: po.poCode ?? 'TO BE GENERATED',
     outlet: po.outletName ?? '',
     outletId: po.outletId,
+    subOutletId: po.subOutletId ?? po.subOutlet?.id ?? null,
+    subOutletName: po.subOutletName ?? po.subOutlet?.name ?? po.locationName ?? '',
     date: po.poDate ?? '',
     expectedDeliveryDate: po.expectedDeliveryDate ?? '',
     remarks: po.remarks ?? '',
+    discountPercentage: po.discountPercentage != null ? Number(po.discountPercentage) : 0,
+    discountAmount: po.discountAmount != null ? Number(po.discountAmount) : 0,
+    termsAndConditions: po.termsAndConditions ?? '',
     roundOff: po.roundOff != null ? Number(po.roundOff) : 0,
     raisedBy: po.createdByName ?? po.updatedByName ?? po.updatedBy ?? po.createdBy ?? '',
     status: getPoStatusLabel(po.status),
@@ -55,6 +60,12 @@ const normalizePo = (po) => {
     vendorId: po.vendorId,
     vendorName: po.vendorName ?? '',
     billTo: po.billTo ?? null,
+    shipTo: po.shipTo ?? null,
+    supplierAddress: po.supplierAddress ?? null,
+    gstNumber: po.gstNumber ?? '',
+    panNumber: po.panNumber ?? '',
+    gstRegisteredName: po.gstRegisteredName ?? '',
+    gstVerified: po.gstVerified ?? false,
     isGstApplicable:
       po.isGstApplicable !== undefined && po.isGstApplicable !== null
         ? Boolean(po.isGstApplicable)
@@ -81,6 +92,8 @@ const normalizePo = (po) => {
       orderedQuantity: d.orderedQuantity ?? d.quantity,
       receivedQuantity: d.receivedQuantity ?? 0,
       unitPrice: d.unitPrice ?? 0,
+      discountPercentage: d.discountPercentage != null ? Number(d.discountPercentage) : 0,
+      discountAmount: d.discountAmount != null ? Number(d.discountAmount) : 0,
       tax: d.tax ?? 0,
       taxAmount: d.taxAmount ?? 0,
       totalPrice: d.totalPrice ?? 0,
@@ -111,6 +124,8 @@ const normalizePurchaseRequest = (pr) => ({
   company: pr.companyName ?? '',
   outlet: pr.outletName ?? '',
   outletId: pr.outletId,
+  subOutletId: pr.subOutletId ?? null,
+  subOutletName: pr.subOutletName ?? pr.locationName ?? '',
   raisedBy: pr.createdByName ?? pr.updatedByName ?? pr.updatedBy ?? pr.createdBy ?? '',
   status: getPoStatusLabel(PO_STATUS.PENDING),
   rawStatus: PO_STATUS.PENDING,
@@ -130,36 +145,46 @@ export const usePurchaseOrders = () => {
   const [current, setCurrent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
-  // Fetch POs for an outlet filtered to one or more rawStatus values.
-  // Accepts either a single status string or an array of statuses — the
-  // outlet endpoint only takes one status per call, so for a group that
-  // maps to several rawStatuses (e.g. "Approved" = IN_PROGRESS + APPROVED)
-  // this fires one call per status and merges the results.
-  const fetchByOutletandStatus = useCallback(async (outletId, status) => {
+  // Fetch POs for an outlet with optional status and pagination parameters.
+  const fetchByOutletandStatus = useCallback(async (outletId, status, page, size, search) => {
     const finalOutletId = outletId === 'ALL' || !outletId ? 0 : outletId;
-    const statuses = Array.isArray(status) ? status : [status].filter(Boolean);
 
     setLoading(true);
     setError(null);
     try {
-      let raw = [];
-      if (statuses.length <= 1) {
-        const res = await getPurchaseOrdersByOutlet(finalOutletId, statuses[0]);
-        const responseData = res?.data?.data !== undefined && res?.data?.data !== null ? res?.data?.data : res?.data;
-        raw = Array.isArray(responseData) ? responseData : [];
-      } else {
-        const results = await Promise.all(
-          statuses.map((s) => getPurchaseOrdersByOutlet(finalOutletId, s)),
-        );
-        raw = results.flatMap((res) => {
-          const responseData = res?.data?.data !== undefined && res?.data?.data !== null ? res?.data?.data : res?.data;
-          return Array.isArray(responseData) ? responseData : [];
-        });
+      const statusParam =
+        typeof status === 'string' && status !== 'ALL' && status !== ''
+          ? status
+          : undefined;
+
+      const queryParams = {};
+      if (finalOutletId && finalOutletId !== 'ALL') {
+        queryParams.outletId = Number(finalOutletId);
       }
+      if (statusParam) queryParams.status = statusParam;
+      if (page !== undefined && page !== null) queryParams.page = page;
+      if (size !== undefined && size !== null) queryParams.size = size;
+      if (search && typeof search === 'string' && search.trim()) queryParams.search = search.trim();
+
+      const res = await getPurchaseOrdersByOutlet(queryParams);
+      const body = res?.data || {};
+      const raw = Array.isArray(body.data)
+        ? body.data
+        : Array.isArray(body)
+        ? body
+        : [];
+      const total = Number(body.totalElements ?? raw.length);
+      const pages = Number(body.totalPages ?? Math.max(1, Math.ceil(total / (size || 10))));
+
+      setTotalElements(total);
+      setTotalPages(pages);
+
       const data = raw.filter((po) => po && po.id).map(normalizePo);
       setList(data);
-      return data;
+      return { data, total, pages };
     } catch (err) {
       setError(err?.message || 'Failed to load purchase orders.');
       throw err;
@@ -167,6 +192,10 @@ export const usePurchaseOrders = () => {
       setLoading(false);
     }
   }, []);
+
+  const fetchByOutlet = useCallback(async (outletId, page, size, search) => {
+    return fetchByOutletandStatus(outletId, undefined, page, size, search);
+  }, [fetchByOutletandStatus]);
 
   const fetchApprovedRequestsByOutlet = useCallback(async (outletId) => {
     const finalOutletId = outletId === 'ALL' || !outletId ? 0 : outletId;
@@ -355,10 +384,13 @@ export const usePurchaseOrders = () => {
     current,
     loading,
     error,
+    totalElements,
+    totalPages,
     logs,
     logsLoading,
     logsError,
     fetchAuditLogs,
+    fetchByOutlet,
     fetchByOutletandStatus,
     fetchApprovedRequestsByOutlet,
     fetchByStatuses,

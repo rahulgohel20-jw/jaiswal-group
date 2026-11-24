@@ -101,12 +101,12 @@ const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
             </div>
           </div>
 
-          <div className="bg-[#EFF4FF] border border-[#DDE7FF] rounded-xl p-4 grid grid-cols-2 gap-4">
+          <div className="bg-[#EFF4FF] border border-[#DDE7FF] rounded-lg p-3 grid grid-cols-2 gap-3">
             <div>
               <p className="text-[11px] font-semibold text-[#737781] uppercase tracking-wide">
                 Total Employees
               </p>
-              <p className="text-lg font-bold text-[#1B1B1F] mt-1">
+              <p className="text-sm font-semibold text-[#1B1B1F] mt-0.5">
                 {totalEmployees}
               </p>
             </div>
@@ -114,8 +114,7 @@ const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
               <p className="text-[11px] font-semibold text-[#737781] uppercase tracking-wide">
                 Created Date
               </p>
-              <p className="text-lg font-bold text-[#1B1B1F] mt-1">
-                {' '}
+              <p className="text-sm font-semibold text-[#1B1B1F] mt-0.5">
                 {displayCreatedAt}
               </p>
             </div>
@@ -125,27 +124,27 @@ const DepartmentDetailsModal = ({ isOpen, onClose, onEdit, department }) => {
             <p className="text-[11px] font-semibold text-[#737781] uppercase tracking-wide">
               Description
             </p>
-            <p className="text-sm text-[#43474F] mt-1 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#43474F] mt-1 leading-relaxed">
               {description}
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="border-t border-[#E5E7EB] px-5 py-4 flex gap-3">
-          <button
-            type="button"
-            onClick={handleEditClick}
-            className="flex-1 px-4 py-2 bg-[#084E92] text-white rounded-lg font-medium hover:bg-[#073e77] transition cursor-pointer"
-          >
-            Edit Department
-          </button>
+        <div className="border-t border-[#E5E7EB] px-5 py-3 flex items-center justify-end gap-2.5 bg-[#F9FAFB]">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-[#C3C6D1] text-[#43474F] rounded-lg font-medium hover:bg-gray-50 transition cursor-pointer"
+            className="px-4 py-2 text-xs sm:text-sm font-medium border border-[#D0D5DD] text-[#344054] rounded-lg hover:bg-white hover:border-gray-300 transition cursor-pointer"
           >
             Close
+          </button>
+          <button
+            type="button"
+            onClick={handleEditClick}
+            className="px-4 py-2 text-xs sm:text-sm font-medium bg-[#084E92] text-white rounded-lg hover:bg-[#073e77] transition cursor-pointer shadow-xs"
+          >
+            Edit Department
           </button>
         </div>
       </div>

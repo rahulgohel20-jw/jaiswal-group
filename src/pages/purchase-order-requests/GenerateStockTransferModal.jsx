@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   GitFork,
   Info,
+  Pencil,
   Trash2,
   X,
   ChevronDown,
@@ -10,15 +11,16 @@ import {
   Package,
 } from 'lucide-react';
 import {
-  getOrganizationByType,
-  getAllSubOutletsByOrganization,
   saveTransfer,
   getCurrentStockListGet,
+  getAllRawMaterialItems,
+  getAllRawMaterialUnits,
 } from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { notify } from '@/utils/toast';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { getOrgIdFromToken } from '@/utils/auth';
+import { formatRemarks } from '@/utils/textUtils';
 
 export const GenerateStockTransferModal = ({
   isOpen,
@@ -32,29 +34,59 @@ export const GenerateStockTransferModal = ({
     isCompanyUser,
     isGroupUser,
     units: scopedUnits,
+    outlets: scopedOutlets,
     effectiveOutletId,
     loading: scopeLoading,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
   const [items, setItems] = useState([]);
   const [outlets, setOutlets] = useState([]);
   const [loadingOutlets, setLoadingOutlets] = useState(false);
 
+  // Raw materials map (parent / master unit of measurement from master definition)
+  const [rawMaterialsMap, setRawMaterialsMap] = useState({});
+  const [loadingRawMaterials, setLoadingRawMaterials] = useState(false);
+
   // Routing configuration state
   const [fromOutletId, setFromOutletId] = useState('');
   const [toOutletId, setToOutletId] = useState('');
   const [fromSubOutletId, setFromSubOutletId] = useState('');
   const [toSubOutletId, setToSubOutletId] = useState('');
+  const [fromSubLocationId, setFromSubLocationId] = useState('');
+  const [toSubLocationId, setToSubLocationId] = useState('');
   const [fromSubOutlets, setFromSubOutlets] = useState([]);
   const [toSubOutlets, setToSubOutlets] = useState([]);
+  const [fromSubLocations, setFromSubLocations] = useState([]);
+  const [toSubLocations, setToSubLocations] = useState([]);
   const [loadingFromSubs, setLoadingFromSubs] = useState(false);
   const [loadingToSubs, setLoadingToSubs] = useState(false);
+  const [loadingFromSubLocations, setLoadingFromSubLocations] = useState(false);
+  const [loadingToSubLocations, setLoadingToSubLocations] = useState(false);
 
   // Stock map & status states
   const [stockMap, setStockMap] = useState({});
   const [loadingStock, setLoadingStock] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Remarks states (global and item-wise)
+  const [remarks, setRemarks] = useState('');
+  const [openRemarkRowIds, setOpenRemarkRowIds] = useState({});
+
+  const toggleRemarkInput = (itemId) => {
+    setOpenRemarkRowIds((prev) => ({
+      ...prev,
+      [itemId]: !prev[itemId],
+    }));
+  };
+
+  const handleRemarkChange = (itemId, val) => {
+    setItems((prev) =>
+      prev.map((it) => (it.id === itemId ? { ...it, remarks: val } : it))
+    );
+  };
 
   // Available "From Outlets":
   // - Company user: only outlets belonging to this parent company (scopedUnits)
@@ -70,49 +102,165 @@ export const GenerateStockTransferModal = ({
     return outlets;
   }, [isCompanyUser, scopedUnits, outlets]);
 
-  // Sync initial items and toOutletId when modal opens
+  // Sync initial items and routing state when modal opens
   useEffect(() => {
     if (isOpen) {
       setItems(
-        initialItems.map((item) => ({
-          ...item,
-          transferQuantity: item.transferQuantity || item.orderedQty || 1,
-        }))
+        initialItems.map((item) => {
+          const resolvedUnit =
+            item.masterUnitName ||
+            item.unitName ||
+            item.uomName ||
+            (typeof item.unit === 'string'
+              ? item.unit
+              : item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unit?.name) ||
+            item.unitSymbol ||
+            '';
+          const resolvedUnitId =
+            item.masterUnitId ||
+            item.uomId ||
+            item.unitId ||
+            (typeof item.unit === 'object' ? item.unit?.id : null) ||
+            null;
+          return {
+            ...item,
+            masterUnitName: resolvedUnit,
+            masterUnitId: resolvedUnitId,
+            unitName: resolvedUnit,
+            uomName: resolvedUnit,
+            unit: resolvedUnit,
+            unitId: resolvedUnitId,
+            uomId: resolvedUnitId,
+            transferQuantity: item.transferQuantity || item.orderedQty || 1,
+            remarks: item.remarks || item.itemRemarks || '',
+          };
+        })
       );
+      setOpenRemarkRowIds({});
+      setRemarks('');
       setErrors({});
+
+      // From Outlet is initialized to the outlet for which PO is generated
       if (currentOutletId) {
-        setToOutletId(String(currentOutletId));
+        setFromOutletId(String(currentOutletId));
       }
+      // To Outlet, From Sub-Outlet, To Sub-Outlet, From Sub-Location, To Sub-Location are unselected by default
+      setToOutletId('');
+      setFromSubOutletId('');
+      setToSubOutletId('');
+      setFromSubLocationId('');
+      setToSubLocationId('');
     }
   }, [isOpen, initialItems, currentOutletId]);
 
-  // Load all outlets (for Group user or destination outlet selection)
+  // Load raw material items and units to resolve their master/parent UOM definition
   useEffect(() => {
     if (!isOpen) return;
     let isCancelled = false;
-    setLoadingOutlets(true);
-    getOrganizationByType(OrgTypes.OUTLET)
-      .then((res) => {
+    setLoadingRawMaterials(true);
+
+    Promise.all([
+      getAllRawMaterialItems(0, 0, true, '', '', ''),
+      getAllRawMaterialUnits().catch((e) => {
+        console.warn('Failed to load raw material units:', e);
+        return null;
+      }),
+    ])
+      .then(([rmRes, unitRes]) => {
         if (isCancelled) return;
+
+        // Map units for resolving parent UOM
+        const unitsRaw =
+          unitRes?.data?.data?.['Unit Details'] ||
+          unitRes?.data?.['Unit Details'] ||
+          unitRes?.data?.data ||
+          unitRes?.data ||
+          [];
+        const unitsList = Array.isArray(unitsRaw) ? unitsRaw : [];
+        const unitsMap = {};
+        unitsList.forEach((u) => {
+          if (u?.id != null) {
+            unitsMap[u.id] = u;
+            unitsMap[String(u.id)] = u;
+          }
+        });
+
+        const getParentUnitOf = (unitObjOrId) => {
+          if (!unitObjOrId) return null;
+          const u = typeof unitObjOrId === 'object' ? unitObjOrId : unitsMap[unitObjOrId];
+          if (!u) return null;
+
+          // If unit has parentUnit object embedded
+          if (u.parentUnit && typeof u.parentUnit === 'object' && u.parentUnit.id) {
+            const parentFromMap = unitsMap[u.parentUnit.id];
+            return parentFromMap || u.parentUnit;
+          }
+          // If unit has parentUnitId reference
+          if (u.parentUnitId && unitsMap[u.parentUnitId]) {
+            return unitsMap[u.parentUnitId];
+          }
+          // If unit itself is parent unit or has no parent
+          return u;
+        };
+
         const raw =
-          res?.data?.data ??
-          res?.data?.organizations ??
-          res?.data?.outlets ??
-          res?.data ??
-          res ??
+          rmRes?.data?.data?.['Raw Material Details'] ||
+          rmRes?.data?.['Raw Material Details'] ||
+          rmRes?.data?.data ||
+          rmRes?.data ||
           [];
         const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((o) => ({
-          id: String(o.id),
-          name: o.companyNameEnglish || o.name || o.companyName || `Outlet #${o.id}`,
-        }));
-        setOutlets(mapped);
+        const map = {};
+        list.forEach((rm) => {
+          const directUnit = rm?.unit || (rm?.unitId ? unitsMap[rm.unitId] : null);
+          const resolvedParentUnit = getParentUnitOf(directUnit) || directUnit;
+
+          const parentUName =
+            resolvedParentUnit?.nameEnglish ||
+            resolvedParentUnit?.symbolEnglish ||
+            resolvedParentUnit?.name ||
+            (typeof resolvedParentUnit === 'string' ? resolvedParentUnit : '') ||
+            rm?.unit?.nameEnglish ||
+            rm?.unit?.symbolEnglish ||
+            (typeof rm?.unit === 'string' ? rm.unit : '') ||
+            rm?.unitName ||
+            '';
+
+          const parentUId =
+            resolvedParentUnit?.id ??
+            resolvedParentUnit?.parentUnitId ??
+            rm?.unitId ??
+            rm?.unit?.id ??
+            null;
+
+          const baseUName =
+            rm?.unit?.nameEnglish ||
+            rm?.unit?.symbolEnglish ||
+            (typeof rm?.unit === 'string' ? rm.unit : '') ||
+            rm?.unitName ||
+            parentUName;
+
+          const baseUId = rm?.unitId ?? rm?.unit?.id ?? parentUId;
+
+          const entry = {
+            name: rm?.nameEnglish || rm?.itemName || rm?.name || '',
+            parentUnitName: parentUName || baseUName,
+            parentUnitId: parentUId || baseUId,
+            unitName: parentUName || baseUName,
+            unitId: parentUId || baseUId,
+            baseUnitName: baseUName,
+            baseUnitId: baseUId,
+          };
+          map[rm.id] = entry;
+          map[String(rm.id)] = entry;
+        });
+        setRawMaterialsMap(map);
       })
       .catch((err) => {
-        console.error('Failed to load outlets for stock transfer:', err);
+        console.warn('Failed to load raw materials in GenerateStockTransferModal:', err);
       })
       .finally(() => {
-        if (!isCancelled) setLoadingOutlets(false);
+        if (!isCancelled) setLoadingRawMaterials(false);
       });
 
     return () => {
@@ -120,131 +268,96 @@ export const GenerateStockTransferModal = ({
     };
   }, [isOpen]);
 
-  // Default fromOutletId based on user role and available outlets
+  // Map all outlets for selection
   useEffect(() => {
     if (!isOpen) return;
+    const list = (scopedOutlets && scopedOutlets.length > 0) ? scopedOutlets : (scopedUnits || []);
+    const mapped = list.map((o) => ({
+      id: String(o.id),
+      name: o.companyNameEnglish || o.name || o.companyName || `Outlet #${o.id}`,
+    }));
+    setOutlets(mapped);
+  }, [isOpen, scopedOutlets, scopedUnits]);
 
-    if (isOutletUser) {
-      const myOutletId = String(
-        effectiveOutletId || currentOutletId || getOrgIdFromToken() || scopedUnits[0]?.id || ''
-      );
-      if (myOutletId) {
-        setFromOutletId(myOutletId);
-      }
-      return;
-    }
-
-    if (isCompanyUser && availableFromOutlets.length > 0) {
-      if (!fromOutletId || !availableFromOutlets.some((o) => String(o.id) === String(fromOutletId))) {
-        const differentOutlet = availableFromOutlets.find(
-          (o) => String(o.id) !== String(toOutletId || currentOutletId)
-        );
-        setFromOutletId(differentOutlet ? String(differentOutlet.id) : String(availableFromOutlets[0].id));
-      }
-      return;
-    }
-
-    if (isGroupUser && outlets.length > 0) {
-      if (!fromOutletId || !outlets.some((o) => String(o.id) === String(fromOutletId))) {
-        const differentOutlet = outlets.find(
-          (o) => String(o.id) !== String(toOutletId || currentOutletId)
-        );
-        setFromOutletId(differentOutlet ? String(differentOutlet.id) : String(outlets[0].id));
-      }
-    }
-  }, [
-    isOpen,
-    isOutletUser,
-    isCompanyUser,
-    isGroupUser,
-    effectiveOutletId,
-    currentOutletId,
-    scopedUnits,
-    availableFromOutlets,
-    outlets,
-    toOutletId,
-    fromOutletId,
-  ]);
-
-  // Load sub-outlets for "From Outlet"
+  // Load sub-outlets for "From Outlet" (without auto-selecting first item)
   useEffect(() => {
     if (!isOpen || !fromOutletId) {
       setFromSubOutlets([]);
       setFromSubOutletId('');
+      setFromSubLocations([]);
+      setFromSubLocationId('');
       return;
     }
-    let isCancelled = false;
-    setLoadingFromSubs(true);
-    getAllSubOutletsByOrganization(fromOutletId)
-      .then((res) => {
-        if (isCancelled) return;
-        const raw = res?.data?.data ?? res?.data ?? res ?? [];
-        const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((s) => ({
-          id: String(s.id),
-          name: s.subOutletName || s.name || s.subOutlet || `Sub-Outlet #${s.id}`,
-        }));
-        setFromSubOutlets(mapped);
-        if (mapped.length > 0 && !fromSubOutletId) {
-          setFromSubOutletId(mapped[0].id);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load sub-outlets for fromOutlet:', err);
-        if (!isCancelled) setFromSubOutlets([]);
-      })
-      .finally(() => {
-        if (!isCancelled) setLoadingFromSubs(false);
-      });
+    const list = getSubOutlets(fromOutletId) || [];
+    const mapped = list.map((s) => ({
+      id: String(s.id),
+      name: s.subOutletName || s.name || s.subOutlet || `Sub-Outlet #${s.id}`,
+    }));
+    setFromSubOutlets(mapped);
+  }, [isOpen, fromOutletId, getSubOutlets]);
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen, fromOutletId]);
+  // Load sub-locations for "From Sub-Outlet"
+  useEffect(() => {
+    if (!isOpen || !fromSubOutletId) {
+      setFromSubLocations([]);
+      setFromSubLocationId('');
+      return;
+    }
+    const list = getSubLocations(fromSubOutletId) || [];
+    const mapped = list.map((s) => ({
+      id: String(s.id),
+      name: s.locationName || s.name || `Sub-Location #${s.id}`,
+    }));
+    setFromSubLocations(mapped);
+  }, [isOpen, fromSubOutletId, getSubLocations]);
 
-  // Load sub-outlets for "To Outlet"
+  // Load sub-outlets for "To Outlet" (without auto-selecting first item)
   useEffect(() => {
     if (!isOpen || !toOutletId) {
       setToSubOutlets([]);
       setToSubOutletId('');
+      setToSubLocations([]);
+      setToSubLocationId('');
       return;
     }
-    let isCancelled = false;
-    setLoadingToSubs(true);
-    getAllSubOutletsByOrganization(toOutletId)
-      .then((res) => {
-        if (isCancelled) return;
-        const raw = res?.data?.data ?? res?.data ?? res ?? [];
-        const list = Array.isArray(raw) ? raw : [];
-        const mapped = list.map((s) => ({
-          id: String(s.id),
-          name: s.subOutletName || s.name || s.subOutlet || `Sub-Outlet #${s.id}`,
-        }));
-        setToSubOutlets(mapped);
-        if (mapped.length > 0 && !toSubOutletId) {
-          setToSubOutletId(mapped[0].id);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load sub-outlets for toOutlet:', err);
-        if (!isCancelled) setToSubOutlets([]);
-      })
-      .finally(() => {
-        if (!isCancelled) setLoadingToSubs(false);
-      });
+    const list = getSubOutlets(toOutletId) || [];
+    const mapped = list.map((s) => ({
+      id: String(s.id),
+      name: s.subOutletName || s.name || s.subOutlet || `Sub-Outlet #${s.id}`,
+    }));
+    setToSubOutlets(mapped);
+  }, [isOpen, toOutletId, getSubOutlets]);
 
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen, toOutletId]);
+  // Load sub-locations for "To Sub-Outlet"
+  useEffect(() => {
+    if (!isOpen || !toSubOutletId) {
+      setToSubLocations([]);
+      setToSubLocationId('');
+      return;
+    }
+    const list = getSubLocations(toSubOutletId) || [];
+    const mapped = list.map((s) => ({
+      id: String(s.id),
+      name: s.locationName || s.name || `Sub-Location #${s.id}`,
+    }));
+    setToSubLocations(mapped);
+  }, [isOpen, toSubOutletId, getSubLocations]);
+
+  // Stable key for item IDs
+  const itemIdsKey = useMemo(() => {
+    return items
+      .map((it) => it.rawMaterialId || it.itemId || it.id)
+      .filter(Boolean)
+      .join(',');
+  }, [items]);
 
   // Fetch available stock for items at the source ("From Outlet")
   useEffect(() => {
-    if (!isOpen || !fromOutletId || items.length === 0) {
+    if (!isOpen || !fromOutletId || !itemIdsKey) {
       setStockMap({});
       return;
     }
-    const itemIds = items.map((it) => it.rawMaterialId || it.itemId || it.id).filter(Boolean);
+    const itemIds = itemIdsKey.split(',').map(Number).filter(Boolean);
     if (itemIds.length === 0) return;
 
     let isCancelled = false;
@@ -256,6 +369,9 @@ export const GenerateStockTransferModal = ({
     };
     if (fromSubOutletId) {
       params.subOutletId = Number(fromSubOutletId);
+    }
+    if (fromSubLocationId) {
+      params.subLocationId = Number(fromSubLocationId);
     }
 
     getCurrentStockListGet(params)
@@ -272,9 +388,27 @@ export const GenerateStockTransferModal = ({
 
         const map = {};
         list.forEach((s) => {
-          const id = s.itemId || s.id;
+          const id = s.itemId ?? s.rawMaterialId ?? s.id;
           if (id != null) {
-            map[id] = s.currentStock ?? 0;
+            const stockVal = Number(
+              s.currentStock ??
+                s.availableStock ??
+                s.stock ??
+                s.actualStock ??
+                0
+            );
+            const uName =
+              s.unitName ||
+              s.unitSymbol ||
+              s.uomName ||
+              s.unit?.nameEnglish ||
+              s.unit?.symbolEnglish ||
+              (typeof s.unit === 'string' ? s.unit : '') ||
+              '';
+            const uId = s.unitId ?? s.uomId ?? s.unit?.id ?? null;
+            const entry = { currentStock: stockVal, unitName: uName, unitId: uId };
+            map[id] = entry;
+            map[String(id)] = entry;
           }
         });
         setStockMap(map);
@@ -289,7 +423,7 @@ export const GenerateStockTransferModal = ({
     return () => {
       isCancelled = true;
     };
-  }, [isOpen, fromOutletId, fromSubOutletId, items]);
+  }, [isOpen, fromOutletId, fromSubOutletId, fromSubLocationId, itemIdsKey]);
 
   const handleQtyChange = (itemId, val) => {
     setItems((prev) =>
@@ -313,7 +447,13 @@ export const GenerateStockTransferModal = ({
 
     if (!fromOutletId) errs.fromOutletId = 'From Outlet is required';
     if (!toOutletId) errs.toOutletId = 'To Outlet is required';
-    if (fromOutletId && toOutletId && fromOutletId === toOutletId && fromSubOutletId === toSubOutletId) {
+    if (
+      fromOutletId &&
+      toOutletId &&
+      fromOutletId === toOutletId &&
+      fromSubOutletId === toSubOutletId &&
+      fromSubLocationId === toSubLocationId
+    ) {
       errs.toOutletId = 'Source and Destination cannot be identical';
     }
 
@@ -345,25 +485,38 @@ export const GenerateStockTransferModal = ({
       const payload = {
         fromOrganizationId: Number(fromOutletId),
         fromSubOutletId: fromSubOutletId ? Number(fromSubOutletId) : null,
+        fromSubLocationId: fromSubLocationId ? Number(fromSubLocationId) : null,
         toOrganizationId: Number(toOutletId),
         toSubOutletId: toSubOutletId ? Number(toSubOutletId) : null,
+        toSubLocationId: toSubLocationId ? Number(toSubLocationId) : null,
         vehicleNumber: '',
         driverName: '',
         driverContact: '',
-        remarks: 'Generated from Purchase Order',
+        remarks: formatRemarks(remarks.trim() || 'Generated from Purchase Order'),
         transferDate: formattedDate,
         isDraft: false,
         items: items.map((it) => {
           const rawItemId = Number(it.rawMaterialId || it.itemId || it.id || 0);
+          const rmEntry = rawMaterialsMap[rawItemId] || rawMaterialsMap[String(rawItemId)];
+          const stockEntry = stockMap[rawItemId] || stockMap[String(rawItemId)];
+          const resolvedUnitId = Number(
+            rmEntry?.parentUnitId ||
+              rmEntry?.unitId ||
+              it.masterUnitId ||
+              it.unitId ||
+              it.uomId ||
+              (typeof stockEntry === 'object' && stockEntry?.unitId ? stockEntry.unitId : 0) ||
+              0
+          );
           return {
             id: rawItemId,
             itemId: rawItemId,
             itemType: 'RAW_MATERIAL',
-            unitId: Number(it.uomId || it.unitId || 0),
+            unitId: resolvedUnitId,
             requestedQuantity: Number(it.transferQuantity || it.orderedQty || 0),
             batchNumber: it.batchNumber || '',
             expiryDate: it.expiryDate || '',
-            remarks: it.remarks || '',
+            remarks: formatRemarks(it.remarks || ''),
           };
         }),
       };
@@ -441,37 +594,42 @@ export const GenerateStockTransferModal = ({
             <div className="px-5 py-3.5 bg-blue-50/40 border-b border-blue-50 flex items-center justify-between">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#084E92]">
                 <GitFork className="w-4 h-4 text-[#084E92]" />
-                OUTLET & SUBOUTLET CONFIGURATION
+                UNIT & SUB-UNIT CONFIGURATION
               </div>
             </div>
 
-            <div
-              className={`p-5 grid grid-cols-1 ${
-                isOutletUser ? 'md:grid-cols-3' : 'md:grid-cols-2'
-              } gap-4`}
-            >
-              {/* From Outlet - Hidden for Outlet User */}
-              {!isOutletUser && (
+            <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Origin / Source Box */}
+              <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-100 space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 uppercase tracking-wide">
+                  <span className="w-2 h-2 rounded-full bg-[#084E92]"></span>
+                  Origin (Source)
+                </div>
+
+                {/* From Unit */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    From Outlet <span className="text-red-500">*</span>
+                    From Unit <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <select
                       value={fromOutletId}
                       onChange={(e) => {
-                        setFromOutletId(e.target.value);
+                        const val = e.target.value;
+                        setFromOutletId(val);
+                        setFromSubOutletId('');
+                        setFromSubLocationId('');
                         if (errors.fromOutletId) {
                           setErrors((prev) => ({ ...prev, fromOutletId: undefined }));
                         }
                       }}
-                      disabled={loadingOutlets || scopeLoading}
-                      className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 ${
+                      disabled={loadingOutlets}
+                      className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 cursor-pointer ${
                         errors.fromOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
                       }`}
                     >
-                      <option value="">Select From Outlet</option>
-                      {availableFromOutlets.map((o) => (
+                      <option value="">Select From Unit</option>
+                      {(outlets.length > 0 ? outlets : availableFromOutlets).map((o) => (
                         <option key={o.id} value={o.id}>
                           {o.name}
                         </option>
@@ -483,97 +641,185 @@ export const GenerateStockTransferModal = ({
                     <p className="text-[11px] text-red-500 mt-1">{errors.fromOutletId}</p>
                   )}
                 </div>
-              )}
 
-              {/* To Outlet */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  To Outlet <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={toOutletId}
-                    onChange={(e) => {
-                      setToOutletId(e.target.value);
-                      if (errors.toOutletId) {
-                        setErrors((prev) => ({ ...prev, toOutletId: undefined }));
-                      }
-                    }}
-                    disabled={loadingOutlets || scopeLoading}
-                    className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 ${
-                      errors.toOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
-                    }`}
-                  >
-                    <option value="">Select To Outlet</option>
-                    {outlets.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {o.name}
+                {/* From Sub-Unit / Location */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    From Sub-Unit <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={fromSubOutletId}
+                      onChange={(e) => setFromSubOutletId(e.target.value)}
+                      disabled={!fromOutletId || loadingFromSubs}
+                      className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {loadingFromSubs
+                          ? 'Loading sub-units...'
+                          : fromSubOutlets.length === 0
+                          ? 'No sub-units (Main Store)'
+                          : 'Select From Sub-Unit'}
                       </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      {fromSubOutlets.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
-                {errors.toOutletId && (
-                  <p className="text-[11px] text-red-500 mt-1">{errors.toOutletId}</p>
-                )}
-              </div>
 
-              {/* From Sub-Outlet */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  From Sub-Outlet <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={fromSubOutletId}
-                    onChange={(e) => setFromSubOutletId(e.target.value)}
-                    disabled={!fromOutletId || loadingFromSubs}
-                    className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {loadingFromSubs
-                        ? 'Loading sub-outlets...'
-                        : fromSubOutlets.length === 0
-                        ? 'No sub-outlets (Main Outlet Stock)'
-                        : 'Select From Sub-Outlet'}
-                    </option>
-                    {fromSubOutlets.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
+                {/* From Sub-Location */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    From Sub-Location <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={fromSubLocationId}
+                      onChange={(e) => setFromSubLocationId(e.target.value)}
+                      disabled={!fromSubOutletId || loadingFromSubLocations}
+                      className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {!fromSubOutletId
+                          ? 'Select sub-unit first'
+                          : loadingFromSubLocations
+                          ? 'Loading sub-locations...'
+                          : fromSubLocations.length === 0
+                          ? 'No sub-locations found'
+                          : 'Select From Sub-Location'}
                       </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      {fromSubLocations.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
-              {/* To Sub-Outlet */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  To Sub-Outlet <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={toSubOutletId}
-                    onChange={(e) => setToSubOutletId(e.target.value)}
-                    disabled={!toOutletId || loadingToSubs}
-                    className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {loadingToSubs
-                        ? 'Loading sub-outlets...'
-                        : toSubOutlets.length === 0
-                        ? 'No sub-outlets (Main Outlet Stock)'
-                        : 'Select To Sub-Outlet'}
-                    </option>
-                    {toSubOutlets.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              {/* Destination Box */}
+              <div className="p-4 rounded-2xl bg-gray-50/70 border border-gray-100 space-y-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 uppercase tracking-wide">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                  Destination (To)
                 </div>
+
+                {/* To Unit */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    To Unit <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={toOutletId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setToOutletId(val);
+                        setToSubOutletId('');
+                        setToSubLocationId('');
+                        if (errors.toOutletId) {
+                          setErrors((prev) => ({ ...prev, toOutletId: undefined }));
+                        }
+                      }}
+                      disabled={loadingOutlets}
+                      className={`w-full h-10 border rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 cursor-pointer ${
+                        errors.toOutletId ? 'border-red-400 bg-red-50/30' : 'border-gray-200'
+                      }`}
+                    >
+                      <option value="">Select To Unit</option>
+                      {outlets.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  {errors.toOutletId && (
+                    <p className="text-[11px] text-red-500 mt-1">{errors.toOutletId}</p>
+                  )}
+                </div>
+
+                {/* To Sub-Unit / Location */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    To Sub-Unit<span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={toSubOutletId}
+                      onChange={(e) => setToSubOutletId(e.target.value)}
+                      disabled={!toOutletId || loadingToSubs}
+                      className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {loadingToSubs
+                          ? 'Loading sub-units...'
+                          : toSubOutlets.length === 0
+                          ? 'No sub-units (Main Store)'
+                          : 'Select To Sub-Unit'}
+                      </option>
+                      {toSubOutlets.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* To Sub-Location */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    To Sub-Location <span className="text-gray-400 font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={toSubLocationId}
+                      onChange={(e) => setToSubLocationId(e.target.value)}
+                      disabled={!toSubOutletId || loadingToSubLocations}
+                      className="w-full h-10 border border-gray-200 rounded-xl px-3 pr-8 text-xs text-gray-800 bg-white appearance-none outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
+                    >
+                      <option value="">
+                        {!toSubOutletId
+                          ? 'Select sub-unit first'
+                          : loadingToSubLocations
+                          ? 'Loading sub-locations...'
+                          : toSubLocations.length === 0
+                          ? 'No sub-locations found'
+                          : 'Select To Sub-Location'}
+                      </option>
+                      {toSubLocations.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Remarks (Global) */}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Remarks / Notes (Global)
+                </label>
+                <input
+                  type="text"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  onBlur={() => setRemarks((prev) => formatRemarks(prev))}
+                  placeholder="Notes, reason or transport reference..."
+                  className="w-full h-10 border border-gray-200 rounded-xl px-3.5 text-xs text-gray-800 bg-white outline-none transition focus:border-[#084E92] focus:ring-1 focus:ring-blue-100 placeholder:text-gray-400"
+                />
               </div>
             </div>
           </div>
@@ -606,6 +852,35 @@ export const GenerateStockTransferModal = ({
               <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
                 {items.map((item) => {
                   const hasQtyErr = Boolean(errors[`qty_${item.id}`]);
+                  const rawId = item.rawMaterialId || item.itemId || item.id;
+                  const rmInfo = rawMaterialsMap[rawId] || rawMaterialsMap[String(rawId)];
+                  const stockInfo = stockMap[rawId] || stockMap[String(rawId)];
+                  const parentUnitDisplay =
+                    rmInfo?.parentUnitName ||
+                    rmInfo?.unitName ||
+                    item.masterUnitName ||
+                    item.unitName ||
+                    item.uomName ||
+                    (typeof item.unit === 'string'
+                      ? item.unit
+                      : item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unit?.name) ||
+                    item.unitSymbol ||
+                    'Units';
+
+                  const unitDisplay = parentUnitDisplay;
+                  const stockUnitDisplay = parentUnitDisplay;
+
+                  const currentStockNum =
+                    stockInfo !== undefined && stockInfo !== null
+                      ? (typeof stockInfo === 'object' ? stockInfo.currentStock : Number(stockInfo))
+                      : item.availableStock != null
+                      ? Number(item.availableStock)
+                      : item.currentstock != null
+                      ? Number(item.currentstock)
+                      : item.currentStock != null
+                      ? Number(item.currentStock)
+                      : null;
+
                   return (
                     <div
                       key={item.id}
@@ -622,45 +897,64 @@ export const GenerateStockTransferModal = ({
                               ADDED
                             </span>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => toggleRemarkInput(item.id)}
+                            className={`p-1 rounded-md transition cursor-pointer flex-shrink-0 ${
+                              openRemarkRowIds[item.id] || (item.remarks && item.remarks.trim())
+                                ? 'text-[#084E92] bg-blue-50 hover:bg-blue-100'
+                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                            }`}
+                            title={openRemarkRowIds[item.id] ? 'Hide remarks' : 'Add / edit item remarks'}
+                          >
+                            <Pencil size={13} />
+                          </button>
                         </div>
 
                         <div className="flex items-center gap-2 flex-wrap text-xs text-gray-600 mb-1.5">
                           <span className="inline-flex items-center bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md text-[11px] font-medium text-gray-600">
                             Unit:{' '}
                             <strong className="text-gray-800 ml-1">
-                              {item.unitName || '—'}
+                              {unitDisplay}
                             </strong>
                           </span>
                           <span className="inline-flex items-center bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-md text-[11px] font-medium text-gray-600">
                             Avail Stock:{' '}
                             <strong
                               className={`ml-1 ${
-                                Number(
-                                  stockMap[item.rawMaterialId || item.itemId || item.id] ??
-                                  item.currentstock ??
-                                  0
-                                ) > 0
+                                (currentStockNum ?? 0) > 0
                                   ? 'text-emerald-700'
                                   : 'text-amber-700'
                               }`}
                             >
                               {loadingStock
                                 ? '...'
-                                : stockMap[item.rawMaterialId || item.itemId || item.id] !== undefined
-                                ? Number(stockMap[item.rawMaterialId || item.itemId || item.id]).toFixed(2)
-                                : item.availableStock != null
-                                ? Number(item.availableStock).toFixed(2)
+                                : currentStockNum !== null && !isNaN(currentStockNum)
+                                ? Number(currentStockNum).toFixed(2)
                                 : '0.00'}{' '}
-                              {item.uomName || item.unit || ''}
+                              {stockUnitDisplay}
                             </strong>
                           </span>
                         </div>
 
-                        {item.remarks && (
-                          <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                        {openRemarkRowIds[item.id] && (
+                          <div className="mt-1.5 max-w-md">
+                            <input
+                              type="text"
+                              value={item.remarks || ''}
+                              onChange={(e) => handleRemarkChange(item.id, e.target.value)}
+                              onBlur={() => handleRemarkChange(item.id, formatRemarks(item.remarks || ''))}
+                              placeholder="Item remarks / specifications..."
+                              className="h-7 w-full border border-[#E2E8F0] rounded-lg px-2.5 text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 font-normal"
+                              autoFocus
+                            />
+                          </div>
+                        )}
+                        {!openRemarkRowIds[item.id] && item.remarks && item.remarks.trim() && (
+                          <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-1">
                             <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                            <span className="truncate italic max-w-md">
-                              Remarks: {item.remarks}
+                            <span className="truncate italic max-w-md" title={item.remarks}>
+                              Note: {item.remarks}
                             </span>
                           </div>
                         )}
@@ -690,7 +984,7 @@ export const GenerateStockTransferModal = ({
                               className="w-full h-full px-2.5 text-right font-mono font-bold text-xs text-gray-900 outline-none"
                             />
                             <span className="bg-gray-50 border-l border-gray-200 px-2.5 text-[11px] font-semibold text-gray-500 flex items-center justify-center shrink-0 h-full">
-                              {item.uomName || 'Unit'}
+                              {unitDisplay}
                             </span>
                           </div>
                         </div>

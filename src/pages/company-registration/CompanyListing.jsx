@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { OrgTypes } from '@/constants/orgTypes';
 import { notify } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import {
+  Download,
   Eye,
   Filter,
   Loader2,
-  Plus,
-  Search,
   SquarePen,
   Trash2,
 } from 'lucide-react';
@@ -21,32 +22,35 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
   deleteCompany,
   getCompanyById,
   getOrganizationByType,
 } from '../../services/apiServices';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import MasterExportModal from '../../utils/MasterExportModal';
 
 /* -----------------------------------------------------------------------
  * Status badge
  * -------------------------------------------------------------------- */
-const STATUS_STYLES = {
-  active:     'bg-emerald-50 text-emerald-700',
-  pending:    'bg-amber-50 text-amber-600',
-  onboarding: 'bg-blue-50 text-blue-700',
-  inactive:   'bg-gray-100 text-gray-500',
-};
-
-const STATUS_DOT = {
-  active:     'bg-emerald-500',
-  pending:    'bg-amber-500',
-  onboarding: 'bg-blue-500',
-  inactive:   'bg-gray-400',
+const STATUS_TEXT_COLORS = {
+  active:     'text-emerald-600',
+  pending:    'text-amber-600',
+  onboarding: 'text-blue-600',
+  inactive:   'text-gray-500',
 };
 
 const STATUS_LABELS = {
@@ -58,22 +62,21 @@ const STATUS_LABELS = {
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${
-      STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'
+    className={`font-semibold text-xs whitespace-nowrap ${
+      STATUS_TEXT_COLORS[status] || 'text-gray-600'
     }`}
   >
-    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
-    {STATUS_LABELS[status] || status}
+    {STATUS_LABELS[status] || status || '—'}
   </span>
 );
 
 // Truncates long text, reveals full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-gray-800 font-medium',
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
     {value || '—'}
   </span>
 );
@@ -90,17 +93,19 @@ function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative min-w-[190px]">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-      >
-        {STATUS_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-10 w-full pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]">
+          <SelectValue placeholder="All Status" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {STATUS_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -110,7 +115,7 @@ function StatusDropdown({ value, onChange }) {
  * -------------------------------------------------------------------- */
 const CompanyListing = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Companies');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Companies');
 
   const [companies,    setCompanies]    = useState([]);
   const [search,       setSearch]       = useState('');
@@ -122,6 +127,8 @@ const CompanyListing = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget,      setDeleteTarget]      = useState(null);
   const [deleteLoading,     setDeleteLoading]     = useState(false);
+  const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const normalizeCompany = (item) => ({
     id:        item.id,
@@ -218,52 +225,69 @@ const CompanyListing = () => {
   const columns = useMemo(
     () => [
       {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 36,
+      },
+      {
         id: 'name',
         accessorFn: (row) => row.name,
         header: ({ column }) => (
-          <DataGridColumnHeader title="COMPANY" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="COMPANY NAME" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[200px]"
-            className="font-semibold text-[#084E92]"
+            className="font-medium text-gray-800 text-xs"
           />
         ),
-        size: 210,
+        size: 200,
+        enableSorting: true,
       },
       {
         id: 'code',
         accessorFn: (row) => row.code,
         header: ({ column }) => (
-          <DataGridColumnHeader title="COMPANY CODE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.code} widthClass="max-w-[130px]" />
+          <TruncatedCell
+            value={row.original.code}
+            className="font-semibold text-[#084E92] text-xs"
+          />
         ),
-        size: 140,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'location',
         accessorFn: (row) => row.location,
         header: ({ column }) => (
-          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="CITY" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.location} widthClass="max-w-[130px]" />
+          <TruncatedCell value={row.original.location} />
         ),
-        size: 140,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: 'mobile',
         accessorFn: (row) => row.mobile,
         header: ({ column }) => (
-          <DataGridColumnHeader title="MOBILE NUMBER" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="MOBILE NO." column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.mobile} widthClass="max-w-[140px]" />
+          <TruncatedCell value={row.original.mobile} />
         ),
-        size: 150,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: 'gstNumber',
@@ -272,9 +296,10 @@ const CompanyListing = () => {
           <DataGridColumnHeader title="GST NUMBER" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.gstNumber} widthClass="max-w-[160px]" />
+          <TruncatedCell value={row.original.gstNumber} />
         ),
-        size: 170,
+        enableSorting: false,
+        size: 150,
       },
       {
         id: 'status',
@@ -283,7 +308,8 @@ const CompanyListing = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 120,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'actions',
@@ -323,7 +349,7 @@ const CompanyListing = () => {
           </div>
         ),
         enableSorting: false,
-        size: 110,
+        size: 85,
       },
     ],
     [canEdit, canDelete],
@@ -332,54 +358,51 @@ const CompanyListing = () => {
   const table = useReactTable({
     data: filteredCompanies,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) return <AccessDenied pageTitle="Companies" />;
 
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="Registered Companies"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
+                icon={<Download className={`w-3.5 h-3.5`} />}
+                label="Export"
+              />}
+              {canAdd && (
+                <HeaderActionButton to="/companies/registration">
+                  Add New Company
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        {/* Page header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-          <div className="flex flex-col gap-1">
-            <h1
-              className="text-[28px] font-bold text-[#101828]"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            >
-              Registered Companies
-            </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-              Manage and monitor all corporate entities registered within the Jaiswal Group ecosystem.
-            </p>
-          </div>
-          {canAdd && (
-            <Link
-              to="/companies/registration"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              Add New Company
-            </Link>
-          )}
-        </div>
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchCompanies}
+        />
 
         {/* Search + status filter */}
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
-            />
-            <input
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onClear={() => setSearch('')}
               placeholder="Search companies..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 
@@ -393,25 +416,22 @@ const CompanyListing = () => {
               <Loader2 size={16} className="animate-spin" />
               Loading companies…
             </div>
-          ) : error ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-sm text-red-500">
-              <span>{error}</span>
-              <button
-                type="button"
-                onClick={fetchCompanies}
-                className="font-semibold underline cursor-pointer bg-transparent border-0"
-              >
-                Retry
-              </button>
-            </div>
           ) : (
-            <DataGrid table={table} recordCount={filteredCompanies.length} className="rounded-2xl">
+            <DataGrid
+              table={table}
+              recordCount={filteredCompanies.length}
+              className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
+            >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                   <DataGridPagination />
@@ -422,6 +442,13 @@ const CompanyListing = () => {
         </div>
 
       </div>
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="organizations"
+        title="Export Company Report"
+        organizationType="SUB_COMPANY"
+      />
 
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}

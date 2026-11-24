@@ -91,8 +91,7 @@ import {
   StoreClientPage,
   WishlistPage,
 } from '@/pages/store-client';
-import { Tasks } from '@/pages/Tasks/Tasks';
-import { Navigate, Route, Routes } from 'react-router';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import AddAssetsMaintenanceLog from '../pages/assest-management/assest-maintenance/AddAssetsMaintenanceLog';
 import AssetsMaintenance from '../pages/assest-management/assest-maintenance/AssetsMaintenance';
 import ExportAssetsQR from '../pages/assest-management/assest-qr/ExportAssetsQR';
@@ -131,10 +130,6 @@ import StateMaster from '../pages/location/state-master/StateMaster';
 import AddStock from '../pages/manage-stocks/AddStock';
 import AvailableStocks from '../pages/manage-stocks/AvailableStocks';
 import ClosingStock from '../pages/manage-stocks/ClosingStock';
-import CreateMenuItem from '../pages/menu-item/create-menu-item/CreateMenuItem';
-import MenuItemsListing from '../pages/menu-item/create-menu-item/MenuItemListing';
-import CreateCategory from '../pages/menu-item/menu-category/CreateMenuCategory';
-import MenuCategory from '../pages/menu-item/menu-category/MenuCategory';
 import MenuSubCategory from '../pages/menu-item/menu-subcategory/MenuSubCategory';
 import TaskViewDashboard from '../pages/Projectscreen/TaskViewDashboard/TaskViewDashboard';
 import PurchaseOrderApproved from '../pages/purchase-approved-order/PurchaseOrderApproved';
@@ -145,7 +140,6 @@ import AddPurchaseRequisition from '../pages/purchase-requisition/AddPurchaseReq
 import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
 import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
 import AddPurchaseReturn from '../pages/purchase-return-list/AddPurchaseReturn';
-import PurchaseReturnList from '../pages/purchase-return-list/PurchaseReturnListing';
 import RowCategoryBrandMapping from '../pages/raw-material/category-brand-mapping/RowCategoryBrandMapping';
 import RowMaterialBrandMaster from '../pages/raw-material/raw-material-brand-master/RowMaterialBrandMaster';
 import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
@@ -153,17 +147,19 @@ import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawM
 import RowMaterialUnit from '../pages/raw-material/raw-material-unit-master/RowMaterialUnit';
 import RowMaterialCategories from '../pages/raw-material/row-material-categories/RowMaterialCategories';
 import Setting from '../pages/settings/Settings';
-import AddPurchase from '../pages/stock-purchase/AddPurchase';
 import PurchaseListing from '../pages/stock-purchase/PurchaseListing';
 import AddSubUnit from '../pages/sub-unit/AddSubunit';
 import SubUnitDetails from '../pages/sub-unit/Subunitdetails';
-import SubUnitList from '../pages/sub-unit/SubUnitListing';
 import SubUnitListing from '../pages/sub-unit/SubUnitListing';
+import AddSubLocation from '../pages/sub-location/AddSubLocation';
+import SubLocationDetails from '../pages/sub-location/SubLocationDetails';
+import SubLocationListing from '../pages/sub-location/SubLocationListing';
 import AddUnit from '../pages/units/AddUnit';
 import UnitListing from '../pages/units/UnitListing';
 import UnitViewDetails from '../pages/units/UnitViewDetails';
 import ModuleMaster from '../pages/user-rights/module/ModuleMaster';
 import PageMaster from '../pages/user-rights/pages/PageMaster';
+import RoleMaster from '../pages/user-rights/roles/RoleMaster';
 import UserManagementList from '../pages/user/UserManagementList';
 import UserRegistration from '../pages/user/UserRegistration';
 import UserViewDetails from '../pages/user/UserViewDetails';
@@ -192,13 +188,18 @@ import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceLis
 import ApproveInvoice from '../pages/purchase-invoice/ApproveInvoice';
 import PurchaseInvoiceDetailsModal from '../pages/purchase-invoice/PurchaseInvoiceDetailsModal';
 import StockTransferRequest from '../pages/inventory/stock-transfer/StockTransferRequest';
+import StockTransferApproval from '../pages/inventory/stock-transfer-approval/StockTransferApproval';
+import StockTransferDiscrepancyApproval from '../pages/inventory/stock-transfer-discrepancy-approval/StockTransferDiscrepancyApproval';
 import StockTransferReqReceiveList from '../pages/inventory/stock-transfer-request-listing/StockTransferReqReceiveList';
 import OpbStockCreateRequestListing from '../pages/inventory/opb-stock/OpbStockCreateRequestListing';
 import OpbStockCreateRequest from '../pages/inventory/opb-stock/OpbStockCreateRequest';
 import ManualAdjustmentScreenListing from '../pages/inventory/manual-adjustment/ManualAdjustmentScreenListing';
 import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateManualAdjustment';
 import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
-// import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
+import AddRawMaterialItemModal from '../pages/raw-material/raw-material-item-master/AddRawMaterialItemModal';
+import VendorPriceApproval from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceApproval';
+import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
+import GeneralStockLedgerViewDetails from '../pages/inventory/general-stock-ledger/GeneralStockLedgerViewDetails';
 import EventSsoRedirect from '../pages/event/EventSsoRedirect';
 import PosSsoRedirect from '../pages/pos/PosSsoRedirect';
 
@@ -215,12 +216,11 @@ export function AppRoutingSetup() {
 
       <Route path="error/*" element={<ErrorRouting />} />
       {/* <Route path="auth/*" element={<AuthRouting />} />  — remove or keep only for /auth/callback etc, no longer needed for signin */}
-      <Route path="*" element={<Navigate to="/error/404" />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<Demo1Layout />}>
           <Route path="/change-password" element={<ChangePasswordPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          {/* <Route path="/dashboard" element={<Dashboard />} /> */}
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
           <Route path='/my-profile' element={<UserProfile />} />
 
@@ -268,6 +268,19 @@ export function AppRoutingSetup() {
             element={<SubUnitDetails />}
           />
 
+          <Route path="/sub-locations" element={<SubLocationListing />} />
+          <Route path="/sub-locations/add" element={<AddSubLocation />} />
+          <Route path="/sub-locations/update-sub-location" element={<AddSubLocation />} />
+          <Route path="/sub-locations/edit/:id" element={<AddSubLocation />} />
+          <Route
+            path="/sub-locations/sub-location-details"
+            element={<SubLocationDetails />}
+          />
+          <Route
+            path="/sub-locations/view/:id"
+            element={<SubLocationDetails />}
+          />
+
           <Route path="/assets/assets-items" element={<AssetItemsList />} />
 
           <Route path="/assets/asset-unit" element={<AssetUnitList />} />
@@ -290,6 +303,7 @@ export function AppRoutingSetup() {
           <Route path="/vendor-unit-mapping" element={<VendorUnitMapping />} />
 
           <Route path="/department" element={<Departmentlist />} />
+          <Route path="/departments" element={<Navigate to="/department" replace />} />
           <Route path="/user-rights" element={<UserRights />} />
 
           <Route path="/assets/all-assets" element={<AssetsManagement />} />
@@ -334,6 +348,14 @@ export function AppRoutingSetup() {
           />
           <Route path='/material/sub-categories' element={<RawMaterialSubCategory />} />
           <Route path="/material/items" element={<RowMaterialItemMaster />} />
+          <Route path="/material/vendor-price-approval" element={<VendorPriceApproval />} />
+          <Route path="/material/vendor-price-association" element={<VendorPriceAssociation />} />
+          <Route path="/material/vendor-price-association/approve/:id" element={<VendorPriceAssociation />} />
+          <Route path="/material/vendor-price-association/view/:id" element={<VendorPriceAssociation />} />
+          <Route path="/material/items/add" element={<AddRawMaterialItemModal />} />
+          <Route path="/material/items/approve/:id" element={<AddRawMaterialItemModal />} />
+          <Route path="/material/items/edit/:id" element={<AddRawMaterialItemModal />} />
+          <Route path="/material/items/view/:id" element={<ViewRawMaterialItem />} />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
           <Route
             path="/material/brand-master"
@@ -343,7 +365,10 @@ export function AppRoutingSetup() {
             path="/material/category-brand-mapping"
             element={<RowCategoryBrandMapping />}
           />
-
+          <Route
+            path="/material/brand-unit-mapping"
+            element={<BrandUnitMapping />}
+          />
           <Route
             path="/assets/asset-transfer-log"
             element={<AssetsTransferLog />}
@@ -361,10 +386,16 @@ export function AppRoutingSetup() {
           <Route path="/assets/edit-disposal/:id" element={<AddAssetsDisposal />} />
 
           <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
+          <Route path="/assets/asset-location" element={<AssetLocation />} />
+          <Route path="/unassigned-assets" element={<UnAssignedAssets />} />
+          <Route path="/assets/asset-audit-event" element={<ListAssetAuditEvent />} />
+          <Route path="/assets/asset-audit-event/create" element={<CreateAuditEvent />} />
+          <Route path="/assets/asset-audit-event/create/:id" element={<CreateAuditEvent />} />
 
           <Route path="/location/state" element={<StateMaster />} />
           <Route path="/location/city" element={<CityMaster />} />
 
+          <Route path="/roles" element={<RoleMaster />} />
           <Route path="/pages" element={<PageMaster />} />
           <Route path="/module-rights" element={<ModuleMaster />} />
 
@@ -376,10 +407,11 @@ export function AppRoutingSetup() {
           <Route path="/material/items" element={<RowMaterialItemMaster />} />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
 
-          <Route path="/menu-item/categories" element={<MenuCategory />} />
-          <Route path="/menu-item/sub-category" element={<MenuSubCategory />} />
 
-          <Route path="/menu-item/menu-items" element={<MenuItemsListing />} />
+          <Route path="/menu-item/categories" element={<KitchenMenuCategory />} />
+          {/* <Route path="/menu-item/categories" element={<MenuCategory />} /> */}
+          <Route path="/menu-item/sub-category" element={<MenuSubCategory />} />
+          {/* <Route path="/menu-item/menu-items" element={<MenuItemsListing />} />
           <Route
             path="/menu-item/add-menu-items"
             element={<CreateMenuItem />}
@@ -387,8 +419,30 @@ export function AppRoutingSetup() {
           <Route
             path="/menu-item/edit-menu-item/:id"
             element={<CreateMenuItem />}
+          /> */}
+          <Route path="/menu-item/menu-items" element={<KitchenMenuItemListing />} />
+          <Route
+            path="/menu-item/add-menu-items"
+            element={<CreateKitchenMenuItem />}
           />
-          <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList />} />
+          <Route
+            path="/menu-item/edit-menu-item/:id"
+            element={<CreateKitchenMenuItem />}
+          />
+          <Route path="/menu-item/consumption" element={<MenuItemConsumption />} />
+          <Route path="/menu-item/consumption/create" element={<CreateMenuItemConsumption />} />
+          <Route path="/menu-item/consumption/edit/:id" element={<CreateMenuItemConsumption />} />
+          <Route
+            path="/menu-item/recipe"
+            element={<ItemRecipeList />}
+          />
+          <Route path="/menu-item/create-recipe" element={<CreateItemRecipe />} />
+          <Route path="/menu-item/view-recipe/:id" element={<ViewItemRecipe />} />
+          <Route path="/menu-item/update-recipe/:id" element={<CreateItemRecipe />} />
+
+          <Route path="/menu-item/captain-recipe" element={<KitchenCaptainRecipeList />} />
+          {/* <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList />} /> */}
+
           <Route
             path="/purchase-requisition/list"
             element={<PurchaseRequisitionList />}
@@ -442,11 +496,11 @@ export function AppRoutingSetup() {
             path="/purchase/approved-order"
             element={<PurchaseOrderApproved />}
           />
-
+          {/* 
           <Route
             path="/purchase/purchase-return"
             element={<PurchaseReturnList />}
-          />
+          /> */}
           <Route
             path="/purchase/add-purchase-return"
             element={<AddPurchaseReturn />}
@@ -458,6 +512,12 @@ export function AppRoutingSetup() {
           {/* <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/> */}
           <Route path='/purchase/purchase-invoice-details/:id' element={<PurchaseInvoiceDetailsModal />} />
 
+          <Route path="/purchase/debit-credit-notes" element={<DebitCreditNoteListing />} />
+          <Route path="/purchase/create-selection" element={<DebitCreditEligibleInvoices />} />
+          <Route path="/purchase/debit-credit-notes/create" element={<DebitCreditNoteCreate />} />
+          <Route path="/purchase/debit-credit-notes/details/:id" element={<DebitCreditNoteDetails />} />
+          <Route path="/purchase/debit-credit-notes/edit/:id" element={<DebitCreditNoteCreate />} />
+
           <Route path="/inventory/generate-grn" element={<GenerateGRN />} />
           <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />
           <Route path="/inventory/generate-grn/generate/:id" element={<GenerateGRNDetail />} />
@@ -467,6 +527,10 @@ export function AppRoutingSetup() {
           <Route path='/inventory/stock-transfer' element={<StockTransfer />} />
           <Route path='/inventory/stock-transfer-detail/:id' element={<StockTransferDetail />} />
           <Route path='/inventory/stock-transfer-request' element={<StockTransferRequest />} />
+          <Route path='/inventory/str-approval' element={<StockTransferApproval />} />
+          <Route path='/inventory/stock-transfer-approval' element={<StockTransferApproval />} />
+          <Route path='/inventory/str-discrepancy-approval' element={<StockTransferDiscrepancyApproval />} />
+          <Route path='/inventory/stock-transfer-discrepancy-approval' element={<StockTransferDiscrepancyApproval />} />
           <Route path='/inventory/transfer-receive-requests' element={<StockTransferReqReceiveList />} />
           <Route path='/inventory/stock-transfer-request-receive' element={<StockTransferReqReceiveList />} />
 
@@ -477,7 +541,12 @@ export function AppRoutingSetup() {
           <Route path='/inventory/manual-adjustment/create' element={<CreateManualAdjustment />} />
           <Route path='/inventory/manual-adjustment/view/:id' element={<ViewManualAdjustment />} />
           <Route path='/inventory/manual-adjustment-detail/:id' element={<ViewManualAdjustment />} />
-          {/* <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger/>}/> */}
+          <Route path='/inventory/general-stock-ledger' element={<GeneralStockLedger />} />
+          <Route path='/inventory/general-stock-ledger/view/:id' element={<GeneralStockLedgerViewDetails />} />
+          <Route path='/inventory/general-stock-ledger/view' element={<GeneralStockLedgerViewDetails />} />
+
+          <Route path='/inventory/raw-material-barcode' element={<RawMaterialBarcode />} />
+          <Route path='/inventory/raw-material-batch-details' element={<RawMaterialBatchDetails />} />
 
           <Route
             path="/stocks/available-stocks"
@@ -846,6 +915,7 @@ export function AppRoutingSetup() {
           <Route path="/auth/get-started" element={<AccountGetStartedPage />} />
         </Route>
       </Route>
+      <Route path="*" element={<Navigate to="/error/404" replace />} />
     </Routes>
   );
 }

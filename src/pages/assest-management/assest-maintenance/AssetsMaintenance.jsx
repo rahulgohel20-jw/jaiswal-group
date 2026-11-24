@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { Link } from 'react-router';
+import { getCoreRowModel, useReactTable,   getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Link } from 'react-router';
 import { Container } from "@/components/common/container";
-import { ChevronRight, CircleCheck, CircleEllipsis, ClipboardList, Download, Eye, FileText, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
+import { PageHeader } from '@/components/common/PageHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { SearchBar } from '@/components/common/SearchBar';
+import { CircleCheck, CircleEllipsis, ClipboardList, Download, Eye, FileText, Plus, SquarePen, Trash2 } from 'lucide-react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import {
     Select,
@@ -19,17 +22,15 @@ import {
 } from "@/components/ui/select";
 import { deleteAssetMaintenanceById, getAllAssetsMaintenance, getAllAssetsMaintenancePaginated, getAssetMaintenanceById, getAssetsMaintenanceByStatus, getByMaintenanceDateRangeAndStatus } from '../../../services/apiServices';
 import ViewMaintenanceModal from './ViewMaintenanceModal';
+import MasterExportModal from '../../../utils/MasterExportModal';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 
 const StatusBadge = ({ status }) => {
-    const styles = {
-        "COMPLETED": "bg-green-100 text-green-700",
-        "IN_PROGRESS": "bg-blue-100 text-blue-700",
-        "PENDING": "bg-amber-100 text-amber-700",
-    };
-
     return (
-        <span className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status] ?? "bg-gray-100 text-gray-600"}`}>
-            {status}
+        <span className="text-xs font-semibold whitespace-nowrap text-gray-900 uppercase">
+            {status || '—'}
         </span>
     );
 };
@@ -44,12 +45,27 @@ const formatDateForComparison = (date) => {
 
     return date;
 };
+// Converts DD/MM/YYYY or YYYY-MM-DD date strings into numeric timestamps for sorting
+const parseDateToTimestamp = (dateStr) => {
+    if (!dateStr || dateStr === "-" || dateStr === "—") return 0;
+    
+    // DD/MM/YYYY
+    if (dateStr.includes("/")) {
+        const [day, month, year] = dateStr.split("/").map(Number);
+        if (!day || !month || !year) return 0;
+        return new Date(year, month - 1, day).getTime();
+    }
+    
+    // YYYY-MM-DD or standard parseable format
+    const parsed = new Date(dateStr).getTime();
+    return isNaN(parsed) ? 0 : parsed;
+};
 const AssetsMaintenance = () => {
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Asset Maintenance');
     const [maintenanceData, setMaintenanceData] = useState([]);
     const [statsData, setStatsData] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
     const [searchText, setSearchText] = useState("");
     const [statusFilter, setStatusFilter] = useState("All Records");
 
@@ -66,6 +82,8 @@ const AssetsMaintenance = () => {
     const [showViewMaintenance, setShowViewMaintenance] = useState(false);
     const [viewLoading, setViewLoading] = useState(false);
     const [viewMaintenanceData, setViewMaintenanceData] = useState(null);
+     const [sorting, setSorting] = useState([]);
+     const [showExportModal, setShowExportModal] = useState(false);
 
     const fetchStatsData = async () => {
         try {
@@ -81,6 +99,41 @@ const AssetsMaintenance = () => {
     useEffect(() => {
         fetchStatsData();
     }, []);
+
+    const STATS = useMemo(() => [
+        {
+            title: "Total Records",
+            value: String(statsData.length || totalCount || 0),
+            icon: ClipboardList,
+            bg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#1B1B1F]",
+        },
+        {
+            title: "Completed",
+            value: String(statsData.filter((i) => String(i.status).toUpperCase() === "COMPLETED").length),
+            icon: CircleCheck,
+            bg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
+            color: "text-[#15803D]",
+        },
+        {
+            title: "In Progress",
+            value: String(statsData.filter((i) => String(i.status).toUpperCase() === "IN_PROGRESS").length),
+            icon: CircleEllipsis,
+            bg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#00376C]",
+        },
+        {
+            title: "Pending",
+            value: String(statsData.filter((i) => String(i.status).toUpperCase() === "PENDING").length),
+            icon: FileText,
+            bg: "bg-[#FEF3C7]",
+            iconColor: "text-[#B45309]",
+            color: "text-[#B45309]",
+        },
+    ], [statsData, totalCount]);
 
     const fetchMaintenanceData = async (pageIndex = pagination.pageIndex, pageSize = pagination.pageSize) => {
         setLoading(true);
@@ -187,134 +240,117 @@ const AssetsMaintenance = () => {
             setViewLoading(false);
         }
     };
-    const STATS = [
-        {
-            title: "Total Maintenace Logs",
-            value: `${statsData.length}`,
-            icon: FileText,
-            bg: "bg-slate-50",
-            iconColor: "text-slate-600",
-        },
-        {
-            title: "Completed Services ",
-            value: `${statsData.filter(item => item.status === "COMPLETED").length}`,
-            icon: CircleCheck,
-            bg: "bg-green-50",
-            iconColor: "text-green-600",
-        },
-        {
-            title: "Pending Services",
-            badge: "Critical",
-            value: `${statsData.filter(item => item.status === "PENDING").length}`,
-            icon: CircleEllipsis,
-            bg: "bg-orange-50",
-            iconColor: "text-[#D97706]",
-        },
-        {
-            title: "Today's Maintenace",
-            badge: "Scheduled",
-            value: `${statsData.filter(item => formatDateForComparison(item.nextServiceDate) === new Date().toISOString().split('T')[0]).length}`,
-            icon: ClipboardList,
-            bg: "bg-slate-50",
-            iconColor: "text-slate-600",
-        },
-    ];
 
     const columns = [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className='my-5'
-                />
-            ),
+            id: "sno",
+            header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <input type="checkbox" checked={row.getIsSelected()} onChange={row.getToggleSelectedHandler()} />
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
-            size: 30,
+            enableSorting: false,
+            size: 36,
         },
         {
             accessorKey: "assetId",
-            header: ({ column }) => <DataGridColumnHeader title="ASSET IDENTITY" column={column} className="text-[#43474F] font-semibold" />,
+            header: ({ column }) => <DataGridColumnHeader title="ASSET IDENTITY" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
                 <div>
-                   <p className="text-[#0B5CAB] font-semibold text-sm"> {row.original.assetCode}</p>
-                   <span className="text-gray-600 text-sm">{row.original.itemName || '-'}</span>
+                   <p className="text-[#084E92] font-semibold text-xs truncate max-w-[120px]" title={row.original.assetCode}> {row.original.assetCode}</p>
+                   <span className="text-gray-500 text-[11px] truncate block max-w-[120px]">{row.original.itemName || '-'}</span>
                 </div>
             ),
-            size: 140,
+            enableSorting: true,
+            size: 115,
         },
         {
             accessorKey: "orgName",
-            header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="text-[#43474F] font-semibold" />,
-            cell: ({ row }) => row.original.orgName ?? '-',
-            size: 130,
+            header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => <span className="truncate block text-gray-800 font-medium text-xs max-w-[100px]" title={row.original.orgName}>{row.original.orgName ?? '-'}</span>,
+            enableSorting: true,
+            size: 95,
         },
         {
             accessorKey: "maintenanceDate",
-            header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-semibold" />,
-            size: 120,
-        },
-        {
-            accessorKey: "complaint",
-            header: ({ column }) => <DataGridColumnHeader title="REPORTED ISSUE" column={column} className="text-[#43474F] font-semibold" />,
-            cell: ({ row }) => (
-                <span>{row.original.complaint || '-'}</span>
-            ),
-            size: 160,
-        },
-        {
-            accessorKey: "engineerName",
-            header: ({ column }) => <DataGridColumnHeader title="ENGINEER" column={column} className="text-[#43474F] font-semibold" />,
-            cell: ({ row }) => (
-                <span>{row.original.engineerName || '-'}</span>
-            ),
-            size: 120,
-        },
-        {
-            accessorKey: "cost",
-            header: ({ column }) => <DataGridColumnHeader title="SERVICE COST" column={column} className="text-[#43474F] font-semibold" />,
-            cell: ({ row }) => (
-                <span className="font-semibold text-[#084E92]">₹{row.original.cost}</span>
-            ),
-            size: 120,
-        },
-        {
-            accessorKey: "status",
-            header: ({ column }) => <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />,
-            cell: ({ row }) => <StatusBadge status={row.original.status} />,
-            size: 120,
+            header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.maintenanceDate ?? '-'}</span>,
+            enableSorting: true,
+            sortingFn: (rowA, rowB, columnId) => {
+                const timeA = parseDateToTimestamp(rowA.getValue(columnId));
+                const timeB = parseDateToTimestamp(rowB.getValue(columnId));
+                return timeA - timeB;
+            },
+            size: 80,
         },
         {
             accessorKey: "nextServiceDate",
-            header: ({ column }) => <DataGridColumnHeader title="NEXT DUE" column={column} className="text-[#43474F] font-semibold" />,
-            cell: ({ row }) => row.original.nextServiceDate ?? '-',
+            header: ({ column }) => <DataGridColumnHeader title="NEXT DUE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.nextServiceDate ?? '-'}</span>,
+            enableSorting: true,
+            sortingFn: (rowA, rowB, columnId) => {
+                const timeA = parseDateToTimestamp(rowA.getValue(columnId));
+                const timeB = parseDateToTimestamp(rowB.getValue(columnId));
+                return timeA - timeB;
+            },
+            size: 80,
+        },
+        {
+            accessorKey: "complaint",
+            header: ({ column }) => <DataGridColumnHeader title="REPORTED ISSUE" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => (
+                <span className="truncate block text-gray-800 font-medium text-xs max-w-[120px]" title={row.original.complaint}>{row.original.complaint || '-'}</span>
+            ),
+            enableSorting: false,
             size: 120,
         },
         {
-            id: "actions",
-            header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />,
+            accessorKey: "engineerName",
+            header: ({ column }) => <DataGridColumnHeader title="ENGINEER" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
             cell: ({ row }) => (
-                <div className="flex gap-2 my-1 items-center">
+                <span className="truncate block text-gray-800 font-medium text-xs max-w-[100px]" title={row.original.engineerName}>{row.original.engineerName || '-'}</span>
+            ),
+            enableSorting: false,
+            size: 95,
+        },
+        {
+            accessorKey: "cost",
+            header: ({ column }) => <DataGridColumnHeader title="COST" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => (
+                <span className="font-medium text-gray-800 text-xs whitespace-nowrap">₹{row.original.cost}</span>
+            ),
+            enableSorting: true,
+            size: 80,
+        },
+        {
+            accessorKey: "status",
+            header: ({ column }) => <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => <StatusBadge status={row.original.status} />,
+            enableSorting: false,
+            size: 80,
+        },
+        
+        {
+            id: "actions",
+            header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold whitespace-nowrap" />,
+            cell: ({ row }) => (
+                <div className="flex gap-2 my-1 items-center whitespace-nowrap">
                     <button onClick={() => handleViewMaintenance(row.original.id)} className="text-gray-500 hover:text-green-600 cursor-pointer">
                         <Eye size={18} />
                     </button>
 
-                    <Link to={`/assets/edit-maintenance-log/${row.original.id}`}>
+                    {canEdit && <Link to={`/assets/edit-maintenance-log/${row.original.id}`}>
                         <button className="text-gray-500 hover:text-blue-600 cursor-pointer py-2">
                             <SquarePen size={18} />
                         </button>
-                    </Link>
+                    </Link>}
 
-                    <button onClick={() => openDeleteConfirm(row.original)} className="text-red-300 hover:text-red-600 cursor-pointer">
+                    {canDelete && <button onClick={() => openDeleteConfirm(row.original)} className="text-red-300 hover:text-red-600 cursor-pointer">
                         <Trash2 size={18} />
-                    </button>
+                    </button>}
                 </div>
             ),
-            size: 100
+            enableSorting: false,
+            size: 75
         },
     ];
 
@@ -340,86 +376,73 @@ const AssetsMaintenance = () => {
     const table = useReactTable({
         data: filteredMaintenanceData,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
+         getSortedRowModel: getSortedRowModel(),
+         onSortingChange: setSorting,
         manualPagination: true,
         pageCount,
         getCoreRowModel: getCoreRowModel(),
     });
+    if (!canView) {
+        return <AccessDenied pageTitle="Asset Maintenance" />;
+    }
 
     return (
         <Container>
-            <div className='p-4 md:p-6'>
-                <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Asset Management</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Maintenance Log</span>
-                </div>
-
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold">Maintenance Log</h1>
-                        <p className="text-sm text-[#6B7280] mt-1">
-                            View and manage all maintenance records for organizational assets.
-                        </p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                        <button className="flex items-center cursor-pointer gap-2 px-4 py-2 border border-[#D8E2F0] bg-white rounded-xl text-[#0B5CAB] font-medium hover:bg-[#F8FAFC] transition">
-                            <Download size={16} />
-                            Export
-                        </button>
-                        <Link to="/assets/add-maintenance-log">
-                            <button className="flex items-center w-max cursor-pointer gap-2 px-5 py-2 bg-[#084E92] text-white rounded-xl font-medium hover:bg-[#084E92] transition">
-                                <Plus size={16} />
-                                Add Maintenance Log
-                            </button>
-                        </Link>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 my-6">
+            <div className='pt-2 pb-6 mx-auto space-y-3.5'>
+                <PageHeader
+                    title="Maintenance Log"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton to="/assets/add-maintenance-log">
+                                    Add Maintenance Log
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
+                />
+                <PageErrorAlert error={error} onRetry={fetchMaintenanceData} className="my-3" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
                     {STATS.map((item, index) => {
                         const Icon = item.icon;
                         return (
-                            <div key={index} className="bg-white rounded-2xl border p-4 shadow-sm">
-                                <div className={`w-6 h-6 rounded flex items-center justify-center ${item.bg}`}>
-                                    <Icon className={item.iconColor} size={15} />
+                            <div key={index} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${item.bg} ${item.iconColor}`}>
+                                    <Icon size={18} />
                                 </div>
-                                <p className="text-sm text-[#43474F] pt-2">{item.title}</p>
-                                <h2 className="text-xl font-bold">{item.value}</h2>
-                                {item.badge && (
-                                    <span className={`text-[11px] font-medium ${item.iconColor}`}>{item.badge}</span>
-                                )}
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                    <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
+                                </div>
                             </div>
                         );
                     })}
                 </div>
 
-                <div className="bg-white border rounded-2xl p-5">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div className="col-span-1">
-                            <div className="relative mt-1">
-                                <label className="text-xs text-gray-500">Search</label>
-                                <Search size={16} className="absolute left-3 top-11 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    placeholder="Asset ID, Name, Kitchen..."
-                                    className="w-full border rounded-lg pl-10 pr-3 py-2 outline-none"
-                                    value={searchText}
-                                    onChange={(e) => setSearchText(e.target.value)}
-                                />
-                            </div>
+                <div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+                        <div className="col-span-2">
+                            <label className="text-xs text-gray-500 block mb-1">Search</label>
+                            <SearchBar
+                                placeholder="Asset ID, Name, Kitchen..."
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                            />
                         </div>
 
-                        <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="">
                             <div className="col-span-1">
-                                <label className="text-xs text-gray-500">Status</label>
+                                <label className="text-xs text-gray-500 block mb-1">Status</label>
                             <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)}>
-                                <SelectTrigger className="w-full h-10 mt-1 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                     <SelectValue placeholder="All Records" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -431,7 +454,7 @@ const AssetsMaintenance = () => {
                             </Select>
                         </div>
 
-                        <div className="col-span-1">
+                        {/* <div className="col-span-1">
                             <label className="text-xs text-gray-500">From Date</label>
                             <input
                                 type="date"
@@ -448,9 +471,9 @@ const AssetsMaintenance = () => {
                                 }}
                                 max={toDate || undefined}
                             />
-                        </div>
+                        </div> */}
 
-                        <div className="col-span-1">
+                        {/* <div className="col-span-1">
                             <label className="text-xs text-gray-500">To Date</label>
                             <input
                                 type="date"
@@ -467,27 +490,33 @@ const AssetsMaintenance = () => {
                                 }}
                                 min={fromDate || undefined}
                             />
-                        </div>
+                        </div> */}
                         </div>
                     </div>
                 </div>
 
-                <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-                    <DataGrid table={table} recordCount={totalCount} className="rounded-2xl">
+                <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
+                    <DataGrid
+                        table={table}
+                        recordCount={totalCount}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
+                            <CardTable className="w-full overflow-x-hidden">
+                                <DataGridTable />
                             </CardTable>
                             <CardFooter className="bg-[#EFF4FF4D] border-t border-[#C3C6D1] rounded-b-2xl">
                                 <DataGridPagination />
                             </CardFooter>
                         </Card>
                     </DataGrid>
-
-
                 </div>
 
                 {showViewMaintenance && (
@@ -518,7 +547,12 @@ const AssetsMaintenance = () => {
                     saving={deleteSaving}
                 />
 
-
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="asset_maintenance_log"
+                    title="Export Asset Maintenance Report"
+                />
             </div>
         </Container>
     )

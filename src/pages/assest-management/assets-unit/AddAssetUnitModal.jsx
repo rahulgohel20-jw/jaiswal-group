@@ -14,7 +14,7 @@ import {
 import { createAssetUnit, updateAssetUnit } from '@/services/apiServices';
 import { notify, getApiErrorMessage } from "@/utils/toast";
 
-const emptyForm = { name: '', description: '', status: 'Active' };
+const emptyForm = { name: '', symbol: '', description: '', status: 'Active' };
 
 const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [form, setForm] = useState(emptyForm);
@@ -22,6 +22,7 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
   const [error, setError] = useState(null);
 
   const isEditMode = Boolean(initialData?.id);
+  const isValid = Boolean(form.name.trim());
 
   // Autofill fields when opening in edit mode, reset when opening in create mode
   useEffect(() => {
@@ -29,6 +30,7 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
     if (initialData) {
       setForm({
         name: initialData.name || initialData.assetUnitName || '',
+        symbol: initialData.symbol || initialData.unitSymbol || '',
         description: initialData.description || '',
         status: initialData.status || (initialData.active === false ? 'Inactive' : 'Active'),
       });
@@ -59,8 +61,9 @@ const AddAssetUnitModal = ({ isOpen, onClose, onSaved, initialData }) => {
 
     try {
       const payload = {
-        name: form.name,
-        description: form.description,
+        name: form.name.trim(),
+        symbol: form.symbol ? form.symbol.trim() : '',
+        description: form.description || '',
         active: form.status === 'Active',
       };
 

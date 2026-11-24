@@ -1,17 +1,18 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
-  Plus,
   Eye,
   SquarePen,
   Trash2,
-  Search,
   Filter,
   Loader2,
+  MapPin,
+  Download,
 } from "lucide-react";
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from "@tanstack/react-table";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -20,132 +21,203 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import {
-  getAllSubOutlets,
   getSubOutletById,
   deleteSubOutletById,
+  getAllActiveSubOutlets,
 } from "../../services/apiServices";
 import { notify } from "@/utils/toast";
+import { PageErrorAlert } from "@/components/common/PageErrorAlert";
+import { SearchBar } from "@/components/common/SearchBar";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { useOrgScope } from "@/hooks/useOrgScope";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { OrgTypes } from "../../constants/orgTypes";
+import SearchableSelect from "../../utils/SearchableSelect";
+import MasterExportModal from "../../utils/MasterExportModal";
+
+const extractArray = (res) => {
+  if (!res) return [];
+  const raw =
+    res?.data?.data?.['Sub Outlet Details'] ??
+    res?.data?.['Sub Outlet Details'] ??
+    res?.data?.data ??
+    res?.data ??
+    res ??
+    [];
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.content)) return raw.content;
+  if (Array.isArray(res?.data?.content)) return res.data.content;
+  return [];
+};
 
 /* -----------------------------------------------------------------------
  * Status badge — rounded-full pill style matching PurchaseRequisitionList
  * -------------------------------------------------------------------- */
-const STATUS_STYLES = {
-  active:   "bg-emerald-50 text-emerald-700",
-  inactive: "bg-gray-100 text-gray-500",
-};
-
-const STATUS_DOT = {
-  active:   "bg-emerald-500",
-  inactive: "bg-gray-400",
+const STATUS_TEXT_COLORS = {
+  active: "text-emerald-600",
+  inactive: "text-gray-500",
 };
 
 const STATUS_LABELS = {
-  active:   "Active",
+  active: "Active",
   inactive: "Inactive",
 };
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center gap-1.5 font-semibold rounded-full text-xs px-2.5 py-1 ${
-      STATUS_STYLES[status] || "bg-gray-100 text-gray-500"
+    className={`font-semibold text-xs whitespace-nowrap ${
+      STATUS_TEXT_COLORS[status] || "text-gray-600"
     }`}
   >
-    <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || "bg-gray-400"}`} />
-    {STATUS_LABELS[status] || status}
+    {STATUS_LABELS[status] || status || "—"}
   </span>
 );
 
 // Truncates long text, reveals full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = "max-w-[180px]",
-  className = "text-gray-600",
+  widthClass = "max-w-full",
+  className = "text-gray-800 font-medium",
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
     {value || "—"}
   </span>
 );
 
 const STATUS_OPTIONS = [
-  { value: "all",      label: "All Status" },
-  { value: "active",   label: "Active" },
+  { value: "all", label: "All Status" },
+  { value: "active", label: "Active" },
   { value: "inactive", label: "Inactive" },
 ];
 
+const TYPE_OPTIONS = [
+  { value: "all", label: "All Types" },
+  { value: "LOCATION", label: "LOCATION" },
+  { value: "KITCHEN", label: "KITCHEN" },
+  { value: "STORE", label: "STORE" },
+];
+
+function TypeDropdown({ value, onChange }) {
+  return (
+    <div className="relative min-w-[150px]">
+      <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-10 w-full pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]">
+          <SelectValue placeholder="All Types" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {TYPE_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function StatusDropdown({ value, onChange }) {
   return (
-    <div className="relative min-w-[190px]">
+    <div className="relative min-w-[160px]">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-      >
-        {STATUS_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="h-10 w-full pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]">
+          <SelectValue placeholder="All Status" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {STATUS_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
 
 const SubUnitListing = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Sub Units');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Sub Units');
+  const {
+    units: scopeUnits,
+    outlets: scopeOutlets,
+    subOutlets: scopeSubOutlets,
+    loading: scopeLoading,
+    error: scopeError,
+    retry: retryScope,
+    refetchHierarchy,
+  } = useOrgScope();
+
   const [subUnits, setSubUnits] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [unitFilter, setUnitFilter] = useState("");
+  const [units, setUnits] = useState([]);
+  const [sorting, setSorting] = useState([]);
+
   const normalizeSubUnit = (item) => ({
     id: item.id,
-    name: item.subOutletName || "",
-    code: item.subOutletCode || "",
-    location: item.cityName || "",
-    email: item.email || "",
-    mobile: item.contactNumber || "",
+    name: item.subOutletName || item.name || "",
+    code: item.subOutletCode || item.code || item.shortCode || "",
+    type: item.subOutletType || item.type || item.locationType || "LOCATION",
+    location: item.cityName || item.locationName || "",
+    email: item.email || item.emailid || item.contactEmail || "",
+    mobile: item.contactNumber || item.mobilenumber || item.mobile || "",
+    organizationId: String(item.organizationId ?? item.orgId ?? item.outletId ?? item.parentId ?? ""),
     contactPerson: item.contactPerson || "",
-    status: item.isActive ? "active" : "inactive",
+    status: item.isActive !== false ? "active" : "inactive",
     originalData: item,
   });
 
-  const fetchSubUnits = async () => {
+  useEffect(() => {
+    const list = (scopeOutlets && scopeOutlets.length > 0) ? scopeOutlets : (scopeUnits || []);
+    setUnits(list);
+  }, [scopeOutlets, scopeUnits]);
+
+  const fetchSubUnits = useCallback(async () => {
     setLoading(true);
     setError(null);
-
     try {
-      const res = await getAllSubOutlets();
-      const list =
-        res?.data?.data ||
-        res?.data?.content ||
-        res?.data ||
-        [];
-      const subUnitList = Array.isArray(list) ? list : [];
-      setSubUnits(subUnitList.map(normalizeSubUnit));
+      const res = await getAllActiveSubOutlets();
+      const rawList = extractArray(res);
+      setSubUnits(rawList.map(normalizeSubUnit));
     } catch (err) {
-      console.error(err);
-      setError("Failed to load sub units.");
+      console.error('Failed to fetch sub units:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load sub units');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSubUnits();
-  }, []);
+  }, [fetchSubUnits]);
 
   const handleViewClick = async (subUnit) => {
     try {
@@ -194,10 +266,13 @@ const SubUnitListing = () => {
     setDeleteLoading(true);
     try {
       await deleteSubOutletById(deleteTarget.id);
+      notify.success("Sub unit deleted successfully");
       closeDeleteConfirm();
       fetchSubUnits();
+      refetchHierarchy?.();
     } catch (err) {
       console.error("Failed to delete sub unit:", err);
+      notify.error(err?.response?.data?.message || "Failed to delete sub unit");
     } finally {
       setDeleteLoading(false);
     }
@@ -206,28 +281,48 @@ const SubUnitListing = () => {
   const filteredSubUnits = useMemo(
     () =>
       subUnits.filter((item) => {
+        const searchText = search.toLowerCase();
+
         const matchSearch =
-          (item.name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.code || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.location || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.mobile || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.contactPerson || "").toLowerCase().includes(search.toLowerCase()) ||
-          (item.email || "").toLowerCase().includes(search.toLowerCase());
+          (item.name || "").toLowerCase().includes(searchText) ||
+          (item.code || "").toLowerCase().includes(searchText) ||
+          (item.type || "").toLowerCase().includes(searchText) ||
+          (item.location || "").toLowerCase().includes(searchText) ||
+          (item.mobile || "").toLowerCase().includes(searchText) ||
+          (item.contactPerson || "").toLowerCase().includes(searchText) ||
+          (item.email || "").toLowerCase().includes(searchText);
 
         const matchStatus =
-          statusFilter === "all" ? true : item.status === statusFilter;
+          statusFilter === "all" || item.status === statusFilter;
 
-        return matchSearch && matchStatus;
+        const matchType =
+          typeFilter === "all" || item.type === typeFilter;
+
+        const matchUnit =
+          !unitFilter ||
+          String(item.organizationId) === String(unitFilter);
+
+        return matchSearch && matchStatus && matchType && matchUnit;
       }),
-    [subUnits, search, statusFilter],
+    [subUnits, search, statusFilter, typeFilter, unitFilter],
   );
-
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [search, statusFilter]);
+  }, [search, statusFilter, typeFilter, unitFilter]);
 
   const columns = useMemo(
     () => [
+      {
+        id: "sno",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 40,
+      },
       {
         id: "name",
         accessorFn: (row) => row.name,
@@ -237,22 +332,23 @@ const SubUnitListing = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.name}
-            widthClass="max-w-[200px]"
-            className="font-semibold text-[#084E92]"
+            className="font-medium text-gray-800 text-xs"
           />
         ),
-        size: 210,
+        enableSorting: true,
+        size: 220,
       },
       {
         id: "location",
         accessorFn: (row) => row.location,
         header: ({ column }) => (
-          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="CITY" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.location} widthClass="max-w-[140px]" />
+          <TruncatedCell value={row.original.location} />
         ),
-        size: 150,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: "contactPerson",
@@ -261,19 +357,9 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="CONTACT PERSON" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.contactPerson} widthClass="max-w-[150px]" />
+          <TruncatedCell value={row.original.contactPerson} />
         ),
-        size: 160,
-      },
-      {
-        id: "mobile",
-        accessorFn: (row) => row.mobile,
-        header: ({ column }) => (
-          <DataGridColumnHeader title="CONTACT NUMBER" column={column} className="my-2 text-xs" />
-        ),
-        cell: ({ row }) => (
-          <TruncatedCell value={row.original.mobile} widthClass="max-w-[140px]" />
-        ),
+        enableSorting: false,
         size: 150,
       },
       {
@@ -283,9 +369,10 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="EMAIL" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.email} widthClass="max-w-[180px]" />
+          <TruncatedCell value={row.original.email} />
         ),
-        size: 190,
+        enableSorting: false,
+        size: 240,
       },
       {
         id: "status",
@@ -293,8 +380,13 @@ const SubUnitListing = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 120,
+        cell: ({ row }) => (
+          <div className="whitespace-nowrap pr-1">
+            <StatusBadge status={row.original.status} />
+          </div>
+        ),
+        enableSorting: false,
+        size: 75,
       },
       {
         id: "actions",
@@ -302,39 +394,55 @@ const SubUnitListing = () => {
           <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-2 whitespace-nowrap">
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <button
+              type="button"
+              onClick={() =>
+                navigate('/sub-locations', {
+                  state: {
+                    subOutletId: row.original.id,
+                    subOutletName: row.original.name,
+                    organizationId: row.original.organizationId,
+                  },
+                })
+              }
+              className="p-1 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+              title="View Sub Locations"
+            >
+              <MapPin size={15} />
+            </button>
             <button
               type="button"
               onClick={() => handleViewClick(row.original)}
-              className="text-gray-500 hover:text-green-600 cursor-pointer"
+              className="p-1 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition cursor-pointer"
               title="View sub unit"
             >
-              <Eye size={18} />
+              <Eye size={15} />
             </button>
             {canEdit && (
               <button
                 type="button"
                 onClick={() => handleEdit(row.original)}
-                className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                className="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
                 title="Update sub unit"
               >
-                <SquarePen size={18} />
+                <SquarePen size={15} />
               </button>
             )}
             {canDelete && (
               <button
                 type="button"
                 onClick={() => openDeleteConfirm(row.original)}
-                className="text-red-300 hover:text-red-600 cursor-pointer"
+                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer"
                 title="Delete sub unit"
               >
-                <Trash2 size={18} />
+                <Trash2 size={15} />
               </button>
             )}
           </div>
         ),
         enableSorting: false,
-        size: 110,
+        size: 100,
       },
     ],
     [canEdit, canDelete],
@@ -343,9 +451,11 @@ const SubUnitListing = () => {
   const table = useReactTable({
     data: filteredSubUnits,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
+    onSortingChange: setSorting,
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
 
@@ -355,49 +465,75 @@ const SubUnitListing = () => {
 
   return (
     <Container>
-      <div className="mx-auto py-10 p-6">
-        {/* Page header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
-          <div className="flex flex-col gap-1">
-            <h1
-              className="text-[28px] font-bold text-[#101828]"
-              style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-            >
-              Registered Sub Units
-            </h1>
-            <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-              Manage and monitor all sub units registered within the Jaiswal Group ecosystem.
-            </p>
-          </div>
-          {canAdd && (
-            <Link
-              to="/sub-units/add"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shrink-0"
-            >
-              <Plus className="w-4 h-4" />
-              Add New Sub Unit
-            </Link>
-          )}
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="Registered Sub Units"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton to="/sub-units/add">
+                  Add New Sub Unit
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        {/* Search + status filter */}
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search
-              size={16}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
-            />
-            <input
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchSubUnits}
+        />
+
+        {/* Search + Unit + Type + Status filter */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Search */}
+          <div className="flex-1 min-w-55">
+            <SearchBar
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onClear={() => setSearch('')}
               placeholder="Search sub units..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
             />
           </div>
 
-          <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
-        </div>
+          {/* Unit Filter */}
+            <div className="w-55 shrink-0">
+              <SearchableSelect
+                name="unit"
+                value={unitFilter}
+              onChange={(e) => {
+                setUnitFilter(e.target.value);
+              }}
+                options={units.map((unit) => ({
+                value: String(unit.id),
+                label: unit.name || unit.companyNameEnglish || unit.companyName || `Unit #${unit.id}`,
+                }))}
+                placeholder="Select Unit"
+              />
+            </div>
 
+          {/* Type Filter */}
+          <div className="w-40 shrink-0">
+            <TypeDropdown
+              value={typeFilter}
+              onChange={setTypeFilter}
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="w-40 shrink-0">
+            <StatusDropdown
+              value={statusFilter}
+              onChange={setStatusFilter}
+            />
+          </div>
+        </div>
         {/* Table Card */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
           {loading ? (
@@ -405,29 +541,22 @@ const SubUnitListing = () => {
               <Loader2 size={16} className="animate-spin" />
               Loading sub units…
             </div>
-          ) : error ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-sm text-red-500">
-              <span>{error}</span>
-              <button
-                type="button"
-                onClick={fetchSubUnits}
-                className="font-semibold underline cursor-pointer bg-transparent border-0"
-              >
-                Retry
-              </button>
-            </div>
           ) : (
             <DataGrid
               table={table}
               recordCount={filteredSubUnits.length}
               className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                   <DataGridPagination />
@@ -444,6 +573,12 @@ const SubUnitListing = () => {
         onConfirm={confirmDelete}
         itemLabel={deleteTarget?.itemLabel}
         saving={deleteLoading}
+      />
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="sub_outlet_master"
+        title="Export Sub Unit Report"
       />
     </Container>
   );

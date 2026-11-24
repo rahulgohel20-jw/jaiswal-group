@@ -69,7 +69,7 @@ export function Demo1Layout() {
           <Outlet />
         </main>
 
-        <Footer />
+        {/* <Footer /> */}
       </div>
     </>
   );

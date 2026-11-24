@@ -4,30 +4,24 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
-  ChevronDown,
-  ChevronRight,
-  ClipboardList,
+  ArrowLeft,
   FileText,
-  Info,
   Package,
   Plus,
   PlusCircle,
-  Search,
   Trash2,
-  Building2,
   MapPin,
   Phone,
   Mail,
-  Receipt,
-  Truck,
   Pencil,
-  AlertTriangle,
   Loader2,
   ArrowLeftRight,
+  Calendar,
 } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import VendorPriceComparisonModal from './VendorPriceComparisonModal';
@@ -60,6 +54,27 @@ import { getApiErrorMessage } from '@/utils/toast';
 import { PO_STATUS } from './utils/poStatus';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
+import { formatRemarks } from '@/utils/textUtils';
+
+const htmlToPlainText = (html = '') => {
+  if (!html) return '';
+
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+
+  return (temp.textContent || temp.innerText || '')
+    .replace(/\u00a0/g, ' ')
+    .trim();
+};
+
+const apiDateToInputDate = (str) => {
+  if (!str) return '';
+  const [d, m, y] = str.split('/');
+  if (!d || !m || !y) return '';
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+};
+
 
 const getTodayForDateInput = () => {
   const d = new Date();
@@ -84,104 +99,97 @@ const inputDateToApiDate = (str) => {
   return `${d}/${m}/${y}`;
 };
 
-const apiDateToInputDate = (str) => {
-  if (!str) return '';
-  const [d, m, y] = str.split('/');
-  if (!d || !m || !y) return '';
-  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-};
-
-const RawMaterialItemPicker = ({ rawMaterials, alreadyAddedIds, onAdd, loading }) => {
-  const [term, setTerm] = useState('');
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
+const formatDisplayDate = (val) => {
+  if (!val) return '—';
+  if (typeof val === 'string') {
+    const s = val.trim();
+    if (!s) return '—';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const [y, m, d] = s.split('-');
+      return `${d}/${m}/${y}`;
+    }
+    if (s.includes('T')) {
+      const datePart = s.split('T')[0];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+        const [y, m, d] = datePart.split('-');
+        return `${d}/${m}/${y}`;
       }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const matches = useMemo(() => {
-    const q = term.trim().toLowerCase();
-    return rawMaterials
-      .filter((rm) => !alreadyAddedIds.has(String(rm.id)))
-      .filter((rm) => {
-        if (!q) return true;
-        return (
-          String(rm.nameEnglish || '').toLowerCase().includes(q) ||
-          String(rm.itemCode || rm.code || '').toLowerCase().includes(q)
-        );
-      })
-      .slice(0, 8);
-  }, [rawMaterials, term, alreadyAddedIds]);
-
-  const handleSelect = (item) => {
-    onAdd(item);
-    setTerm('');
-    setOpen(false);
-  };
-
-  return (
-    <div ref={wrapperRef} className="relative w-full">
-      <div className="relative">
-        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          value={term}
-          onChange={(e) => {
-            setTerm(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder={loading ? 'Loading items...' : 'Search raw material by name or code...'}
-          disabled={loading}
-          className="w-full h-10 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] pl-9 pr-3 text-sm outline-none focus:border-[#084E92] focus:bg-white transition"
-        />
-      </div>
-
-      {open && (
-        <div className="absolute z-20 mt-1.5 w-full max-h-72 overflow-y-auto bg-white border border-[#E2E8F0] rounded-xl shadow-lg">
-          {matches.length === 0 ? (
-            <div className="px-4 py-4 text-sm text-gray-400 text-center">
-              No matching items found.
-            </div>
-          ) : (
-            matches.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => handleSelect(item)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-gray-50 last:border-b-0 cursor-pointer"
-              >
-                <span className="text-sm font-semibold text-[#084E92] truncate">
-                  {item.nameEnglish}
-                </span>
-                <span className="text-xs font-semibold text-gray-600 shrink-0">
-                  {item.supplierRate != null ? `₹${item.supplierRate}` : '—'}
-                </span>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
+    }
+  }
+  if (val instanceof Date && !isNaN(val)) {
+    const d = String(val.getDate()).padStart(2, '0');
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const y = val.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  return String(val);
 };
+
+const getAvailableStock = (item) => {
+  if (typeof item?.currentStock === 'object' && item?.currentStock !== null) {
+    return Number(item.currentStock.currentStock ?? item.currentStock.stock ?? item.currentStock.availableStock ?? 0);
+  }
+  if (typeof item?.currentStock === 'number') {
+    return Number(item.currentStock);
+  }
+  if (item?.availableStock != null) {
+    return Number(item.availableStock);
+  }
+  if (item?.stock != null) {
+    return Number(item.stock);
+  }
+  return 0;
+};
+
+
 
 const Field = ({ label, value, required }) => (
   <div>
-    <label className="text-sm text-[#475569] mb-1 block">
+    <label className="text-xs font-medium text-[#475569] mb-1 block">
       {label} {required && <span className="text-red-500">*</span>}
     </label>
-    <div className="w-full h-11 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-3 flex items-center text-sm text-[#1E293B]">
+    <div className="w-full h-9 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 flex items-center text-xs sm:text-sm text-[#1E293B]">
       {value || '—'}
     </div>
   </div>
 );
+
+
+const DateField = ({ label, value, onChange, min, disabled = false, required = false }) => {
+  const displayValue = value ? formatDisplayDate(value) : 'dd/mm/yyyy';
+
+  return (
+    <div>
+      <label className="text-xs font-medium text-[#475569] mb-1 block">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div
+        className={`relative w-full h-9 rounded-lg border px-2.5 flex items-center justify-between text-xs sm:text-sm transition-colors ${
+          disabled
+            ? 'border-[#E2E8F0] bg-[#F8FAFC] text-[#1E293B] cursor-not-allowed'
+            : 'border-[#CBD5E1] bg-white text-[#1E293B] hover:border-[#0B5CAD] focus-within:border-[#0B5CAD] focus-within:ring-1 focus-within:ring-[#0B5CAD]/20'
+        }`}
+      >
+        <span className={value ? '' : 'text-gray-400'}>{displayValue}</span>
+
+        {!disabled && (
+          <Calendar size={16} className="text-[#084E92] shrink-0 pointer-events-none" />
+        )}
+
+        {!disabled && (
+          <input
+            type="date"
+            value={value || ''}
+            min={min}
+            onChange={(e) => onChange?.(e.target.value)}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+        )}
+      </div>
+    </div>
+  );
+};
 
 const CreatePurchaseOrder = () => {
   const location = useLocation();
@@ -220,6 +228,8 @@ const CreatePurchaseOrder = () => {
   const [poQtyMap, setPoQtyMap] = useState({});
   const [uomMap, setUomMap] = useState({});
   const [priceMap, setPriceMap] = useState({});
+  const [discountMap, setDiscountMap] = useState({});
+  const [overallDiscountPercentage, setOverallDiscountPercentage] = useState(0);
   const [hsnMap, setHsnMap] = useState({});
   const [gstMap, setGstMap] = useState({});
   const [cessMap, setCessMap] = useState({});
@@ -240,6 +250,8 @@ const CreatePurchaseOrder = () => {
   const [itemToDelete, setItemToDelete] = useState(null);
   const [rowSelection, setRowSelection] = useState({});
   const [showStockTransferModal, setShowStockTransferModal] = useState(false);
+
+  const [termsAndConditions, setTermsAndConditions] = useState('');
 
   const [otherCosts, setOtherCosts] = useState(() => {
     const initial = poRecord?.otherCosts || state?.otherCosts;
@@ -282,26 +294,48 @@ const CreatePurchaseOrder = () => {
   const {
     loading: outletsLoading,
     orgType,
-    units: outlets, // [{ id, name, code }]
+    units: outlets,
     selectedUnitId: orgScopeOutletId,
+    getSubOutlets,
   } = useOrgScope();
 
   const hasOutletDropdownAccess = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
+  const isOutletUser = orgType === OrgTypes.OUTLET || orgType === 'OUTLET' || (!hasOutletDropdownAccess && !outletsLoading);
   const [selectedOutletId, setSelectedOutletId] = useState(
     state?.outletId != null ? String(state.outletId) : '',
   );
+  const [selectedSubOutletId, setSelectedSubOutletId] = useState(
+    state?.subOutletId != null ? String(state.subOutletId) : '',
+  );
+  const [subOutlets, setSubOutlets] = useState([]);
+  const [subOutletsLoading, setSubOutletsLoading] = useState(false);
 
-  // NOTE: activeOutletId must be declared here, before any effect that
-  // references it (directly or in a dependency array) — dependency arrays
-  // are evaluated during render, at the useEffect() call site itself, so
-  // referencing activeOutletId before this declaration throws
-  // "Cannot access 'activeOutletId' before initialization" (TDZ).
   const activeOutletId =
     selectedOutletId ||
     (poRecord?.outletId != null ? String(poRecord.outletId) : '') ||
     (pr?.outletId != null ? String(pr.outletId) : '') ||
     (state?.outletId != null ? String(state.outletId) : '') ||
-    (orgScopeOutletId != null ? String(orgScopeOutletId) : '');
+    (isOutletUser ? (orgScopeOutletId != null ? String(orgScopeOutletId) : (getOrgIdFromToken() ? String(getOrgIdFromToken()) : '')) : '');
+
+  // Populate subOutlets from useOrgScope for activeOutletId
+  useEffect(() => {
+    if (!activeOutletId) {
+      setSubOutlets([]);
+      return;
+    }
+    const list = getSubOutlets(activeOutletId);
+    setSubOutlets(Array.isArray(list) ? list : []);
+    setSubOutletsLoading(false);
+  }, [activeOutletId, getSubOutlets]);
+
+  useEffect(() => {
+    if (pr?.subOutletId && !selectedSubOutletId) {
+      setSelectedSubOutletId(String(pr.subOutletId));
+    }
+    if (poRecord?.subOutletId && !selectedSubOutletId) {
+      setSelectedSubOutletId(String(poRecord.subOutletId));
+    }
+  }, [pr?.subOutletId, poRecord?.subOutletId, selectedSubOutletId]);
 
   const isEditRoute = location.pathname.includes('/edit-purchase-order') || !!routeId;
   const isEditingExistingPo = isEditRoute && !state?.isCopyPr;
@@ -313,30 +347,70 @@ const CreatePurchaseOrder = () => {
   );
   const isSingleVendorPo = !isGeneratePo && (isEditingExistingPo || Boolean(state?.reviewMode) || Boolean(poRecord?.id && (poRecord?.vendorId || poRecord?.billTo)));
 
-  const [fetchedBillTo, setFetchedBillTo] = useState(null);
+  const [fetchedVendorAddress, setFetchedVendorAddress] = useState(null);
   const [fetchedShipTo, setFetchedShipTo] = useState(null);
+  const [fetchedBillTo, setFetchedBillTo] = useState(null);
 
-  const billTo = fetchedBillTo || poRecord?.billTo || state?.billTo || null;
+  // Vendor / Supplier details (from poRecord.supplierAddress or fetched dynamically)
+  const vendorAddressData = useMemo(() => {
+    if (fetchedVendorAddress) return fetchedVendorAddress;
+    if (poRecord?.supplierAddress) {
+      return {
+        vendorId: poRecord.vendorId,
+        vendorName: poRecord.vendorName,
+        isGstApplicable: poRecord.isGstApplicable ?? true,
+        addressLine1: poRecord.supplierAddress.addressLine1 || '',
+        addressLine2: poRecord.supplierAddress.addressLine2 || '',
+        cityName: poRecord.supplierAddress.cityName || '',
+        stateId: poRecord.supplierAddress.stateId,
+        stateName: poRecord.supplierAddress.stateName || '',
+        countryName: poRecord.supplierAddress.countryName || '',
+        pincode: poRecord.supplierAddress.pincode || '',
+        phoneNumber: poRecord.supplierAddress.phoneNumber || '',
+        gstNumber: poRecord.gstNumber || '',
+        panNumber: poRecord.panNumber || '',
+      };
+    }
+    return null;
+  }, [fetchedVendorAddress, poRecord]);
+
+  // Billing entity (Sub-Company)
+  const billToOrg = poRecord?.billTo || state?.billTo || fetchedBillTo || null;
+
+  // Delivery outlet
   const shipTo = fetchedShipTo || poRecord?.shipTo || state?.shipTo || null;
-  const isInterState = useMemo(() => checkIsInterState(billTo, shipTo), [billTo, shipTo]);
 
-  // Fetch vendor address if billTo is not directly provided on poRecord/state
+  // Inter-state supply check between Supplier and Ship To
+  const isInterState = useMemo(() => checkIsInterState(vendorAddressData, shipTo), [vendorAddressData, shipTo]);
+
+  // Fetch or update supplier address dynamically whenever selected vendor changes
   useEffect(() => {
-    if (poRecord?.billTo || state?.billTo) return;
-    const vendorId = commonVendorId || poRecord?.vendorId || state?.vendorId || Object.values(vendorMap).find(Boolean);
-    if (!vendorId) {
-      setFetchedBillTo(null);
+    // If editing existing PO and poRecord is still loading, wait for it
+    if (isEditingExistingPo && !poRecord) {
       return;
     }
+
+    const currentVendorId = commonVendorId || poRecord?.vendorId || state?.vendorId || Object.values(vendorMap).find(Boolean);
+    if (!currentVendorId) {
+      setFetchedVendorAddress(null);
+      return;
+    }
+
+    // If poRecord already has supplierAddress for this vendor, use it directly without API call
+    if (poRecord?.supplierAddress && String(poRecord.vendorId) === String(currentVendorId)) {
+      setFetchedVendorAddress(null);
+      return;
+    }
+
     let isCancelled = false;
-    getVendorById(vendorId)
+    getVendorById(currentVendorId)
       .then((res) => {
         if (isCancelled) return;
         const v = res?.data?.data ?? res?.data;
         if (v) {
-          setFetchedBillTo({
+          setFetchedVendorAddress({
             vendorId: v.id,
-            vendorName: v.name || v.vendorName,
+            vendorName: v.name || v.vendorName || v.companyName,
             isGstApplicable:
               v.isGstApplicable !== undefined && v.isGstApplicable !== null
                 ? Boolean(v.isGstApplicable)
@@ -355,21 +429,32 @@ const CreatePurchaseOrder = () => {
         }
       })
       .catch(() => {
-        if (!isCancelled) setFetchedBillTo(null);
+        if (!isCancelled) setFetchedVendorAddress(null);
       });
     return () => {
       isCancelled = true;
     };
-  }, [poRecord?.billTo, state?.billTo, commonVendorId, poRecord?.vendorId, state?.vendorId, vendorMap]);
+  }, [commonVendorId, isEditingExistingPo, poRecord, state?.vendorId, vendorMap]);
 
-  // Fetch outlet address if shipTo is not directly provided on poRecord/state
+  // Fetch or update outlet shipping address whenever selected outlet changes
   useEffect(() => {
-    if (poRecord?.shipTo || state?.shipTo) return;
+    // If editing existing PO and poRecord is still loading, wait for it
+    if (isEditingExistingPo && !poRecord) {
+      return;
+    }
+
     const outletId = activeOutletId || selectedOutletId || poRecord?.outletId || state?.outletId || pr?.outletId;
     if (!outletId) {
       setFetchedShipTo(null);
       return;
     }
+
+    // If poRecord already has shipTo for this outlet, use it directly without API call
+    if (poRecord?.shipTo && String(poRecord.outletId) === String(outletId)) {
+      setFetchedShipTo(null);
+      return;
+    }
+
     let isCancelled = false;
     getCompanyById(outletId)
       .then((res) => {
@@ -392,6 +477,20 @@ const CreatePurchaseOrder = () => {
             gstNumber: c.gstNumber,
             panNumber: c.panNumber,
           });
+
+          if (!poRecord?.billTo && !state?.billTo) {
+            if (c.parentId) {
+              getCompanyById(c.parentId)
+                .then((bRes) => {
+                  if (isCancelled) return;
+                  const b = bRes?.data?.data ?? bRes?.data;
+                  if (b) setFetchedBillTo(b);
+                })
+                .catch(() => {});
+            } else if (c.orgType === 'SUB_COMPANY' || c.orgType === 'COMPANY') {
+              setFetchedBillTo(c);
+            }
+          }
         }
       })
       .catch(() => {
@@ -400,13 +499,9 @@ const CreatePurchaseOrder = () => {
     return () => {
       isCancelled = true;
     };
-  }, [poRecord?.shipTo, state?.shipTo, activeOutletId, selectedOutletId, poRecord?.outletId, state?.outletId, pr?.outletId]);
+  }, [activeOutletId, isEditingExistingPo, poRecord, selectedOutletId, state?.outletId, pr?.outletId]);
 
-    // Set by PurchaseOrderApproval.jsx's navigate() call:
-  //  - 'approve' -> actionable review, shows an Approve button
-  //  - 'reject'  -> actionable review, shows a Reject button, remarks required
-  // undefined -> normal create / continue-draft flow (Save Draft / Generate)
-  const reviewMode = state?.reviewMode; // 'approve' | 'reject' | undefined
+  const reviewMode = state?.reviewMode;
   const isApproveMode = reviewMode === 'approve';
   const isRejectMode = reviewMode === 'reject';
   const isReviewMode = isApproveMode || isRejectMode;
@@ -435,8 +530,6 @@ const CreatePurchaseOrder = () => {
       setSelectedOutletId(String(poRecord.outletId));
     }
   }, [poRecord?.outletId, selectedOutletId]);
-
-
 
   useEffect(() => {
     if (isEditingExistingPo && targetPoId) {
@@ -486,6 +579,7 @@ const CreatePurchaseOrder = () => {
     });
   }, [pr, isEditingExistingPo]);
 
+  // Load PO Record into form states when in edit mode
   useEffect(() => {
     if (!isEditingExistingPo || !poRecord) return;
     if (poRecord.poDate) setPoDate(apiDateToInputDate(poRecord.poDate));
@@ -493,10 +587,21 @@ const CreatePurchaseOrder = () => {
       setExpectedDeliveryDate(apiDateToInputDate(poRecord.expectedDeliveryDate));
     }
     if (poRecord.remarks) setRemarks(poRecord.remarks);
+    if (poRecord.termsAndConditions) setTermsAndConditions(htmlToPlainText(poRecord.termsAndConditions));
+    if (poRecord.discountPercentage != null) {
+      setOverallDiscountPercentage(Number(poRecord.discountPercentage) || 0);
+    }
+    if (poRecord.vendorId && !commonVendorId) {
+      setCommonVendorId(String(poRecord.vendorId));
+    }
+    if (poRecord.outletId && !selectedOutletId) {
+      setSelectedOutletId(String(poRecord.outletId));
+    }
 
     const qtyNext = {};
     const uomNext = {};
     const priceNext = {};
+    const discountNext = {};
     const vendorNext = {};
     const remarksNext = {};
     const hsnNext = {};
@@ -504,14 +609,12 @@ const CreatePurchaseOrder = () => {
     const cessNext = {};
 
     (poRecord.details || []).forEach((d) => {
-      // normalizePo renames the API's `orderedQuantity` to `quantity` on
-      // the flattened detail object — read `d.quantity`, not
-      // `d.orderedQuantity` (which is always undefined).
-      qtyNext[d.rawMaterialId] = d.quantity;
+      qtyNext[d.rawMaterialId] = d.orderedQuantity ?? d.quantity ?? 0;
       if (d.uomId || d.uomName) {
         uomNext[d.rawMaterialId] = { uomId: d.uomId, uomName: d.uomName };
       }
       priceNext[d.rawMaterialId] = d.unitPrice;
+      discountNext[d.rawMaterialId] = Number(d.discountPercentage) || 0;
       if (d.vendorId) vendorNext[d.rawMaterialId] = d.vendorId;
       if (d.remarks) remarksNext[d.rawMaterialId] = d.remarks;
       if (d.hsnCode) hsnNext[d.rawMaterialId] = d.hsnCode;
@@ -528,9 +631,11 @@ const CreatePurchaseOrder = () => {
       else if (hasTax) gstNext[d.rawMaterialId] = Number(d.tax);
       else gstNext[d.rawMaterialId] = 18;
     });
+
     setPoQtyMap((prev) => ({ ...prev, ...qtyNext }));
     setUomMap((prev) => ({ ...prev, ...uomNext }));
     setPriceMap((prev) => ({ ...prev, ...priceNext }));
+    setDiscountMap((prev) => ({ ...prev, ...discountNext }));
     setVendorMap((prev) => ({ ...prev, ...vendorNext }));
     setItemRemarksMap((prev) => ({ ...prev, ...remarksNext }));
     setHsnMap((prev) => ({ ...prev, ...hsnNext }));
@@ -545,7 +650,6 @@ const CreatePurchaseOrder = () => {
         }))
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poRecord, isEditingExistingPo]);
 
   const [vendorOutletMappings, setVendorOutletMappings] = useState([]);
@@ -619,30 +723,27 @@ const CreatePurchaseOrder = () => {
       commonVendorId ||
       poRecord?.vendorId ||
       state?.vendorId ||
-      billTo?.vendorId ||
+      vendorAddressData?.vendorId ||
       Object.values(vendorMap).find(Boolean);
     if (!targetId) return null;
     return vendors.find((v) => String(v.id) === String(targetId)) || null;
-  }, [vendors, commonVendorId, poRecord?.vendorId, state?.vendorId, billTo?.vendorId, vendorMap]);
+  }, [vendors, commonVendorId, poRecord?.vendorId, state?.vendorId, vendorAddressData?.vendorId, vendorMap]);
 
   const isGstApplicable = useMemo(() => {
-    // 1. From matched active vendor in getAllActiveVendors()
     if (activeVendorObj && activeVendorObj.isGstApplicable !== undefined && activeVendorObj.isGstApplicable !== null) {
       return Boolean(activeVendorObj.isGstApplicable);
     }
-    // 2. Directly from getbyid response (poRecord.isGstApplicable)
     if (poRecord && poRecord.isGstApplicable !== undefined && poRecord.isGstApplicable !== null) {
       return Boolean(poRecord.isGstApplicable);
     }
-    // 3. From billTo or route state
-    if (billTo && billTo.isGstApplicable !== undefined && billTo.isGstApplicable !== null) {
-      return Boolean(billTo.isGstApplicable);
+    if (vendorAddressData && vendorAddressData.isGstApplicable !== undefined && vendorAddressData.isGstApplicable !== null) {
+      return Boolean(vendorAddressData.isGstApplicable);
     }
     if (state && state.isGstApplicable !== undefined && state.isGstApplicable !== null) {
       return Boolean(state.isGstApplicable);
     }
     return false;
-  }, [activeVendorObj, poRecord, billTo, state]);
+  }, [activeVendorObj, poRecord, vendorAddressData, state]);
 
   const handleVendorChange = async (rawMaterialId, vendorId) => {
     if (!vendorId) {
@@ -657,11 +758,6 @@ const CreatePurchaseOrder = () => {
       }));
       return;
     }
-
-    const vendorObj = vendors.find((v) => String(v.id) === String(vendorId));
-    const vendorName = vendorObj?.name || 'Selected Vendor';
-    const item = purchaseItems.find((i) => String(i.rawMaterialId) === String(rawMaterialId));
-    const itemName = item?.itemName || 'this item';
 
     try {
       const res = await getVendorPriceConfigsByVendorId(Number(vendorId));
@@ -692,33 +788,93 @@ const CreatePurchaseOrder = () => {
 
   useEffect(() => {
     (async () => {
+      const targetOrg = activeOutletId;
+      if (!targetOrg) {
+        setRawMaterials([]);
+        return;
+      }
       setRawMaterialsLoading(true);
       try {
-        const res = await getAllRawMaterialItems(0, 0, true, '', '', '');
-        setRawMaterials(res?.data?.data?.['Raw Material Details'] || []);
+        const targetSub =
+          selectedSubOutletId ||
+          poRecord?.subOutletId ||
+          pr?.subOutletId ||
+          state?.subOutletId ||
+          '';
+        const res = await getAllRawMaterialItems(0, 0, true, '', '', '', targetOrg, targetSub);
+        const raw = res?.data?.data?.['Raw Material Details'] || res?.data?.['Raw Material Details'] || [];
+        const rawItems = Array.isArray(raw) ? raw : [];
+
+        setRawMaterials(rawItems);
       } catch (err) {
         console.error('Failed to load raw materials', err);
+        setRawMaterials([]);
       } finally {
         setRawMaterialsLoading(false);
       }
     })();
-  }, []);
+  }, [
+    activeOutletId,
+    selectedSubOutletId,
+    poRecord?.subOutletId,
+    pr?.subOutletId,
+    state?.subOutletId,
+  ]);
 
-  const handleGlobalVendorChange = (vendorId) => {
+  const handleOverallDiscountChange = (value) => {
+    const discount = Math.max(0, Math.min(100, Number(value) || 0));
+    setOverallDiscountPercentage(value);
+    setDiscountMap((prev) => {
+      const next = { ...prev };
+      purchaseItems.forEach((item) => {
+        next[item.rawMaterialId] = discount;
+      });
+      return next;
+    });
+  };
+
+  const handleItemDiscountChange = (rawMaterialId, value) => {
+    const v = value === '' ? '' : Math.max(0, Math.min(100, Number(value)));
+    setDiscountMap((prev) => {
+      const next = { ...prev, [rawMaterialId]: v };
+      let sub = 0;
+      let disc = 0;
+      includedItems.forEach((item) => {
+        const q = Number(poQtyMap[item.rawMaterialId]) || 0;
+        const p = Number(priceMap[item.rawMaterialId]) || 0;
+        const d = item.rawMaterialId === rawMaterialId ? (Number(v) || 0) : (Number(next[item.rawMaterialId]) || 0);
+        const base = q * p;
+        sub += base;
+        disc += (base * d) / 100;
+      });
+      const effectivePct = sub > 0 ? Number(((disc / sub) * 100).toFixed(2)) : (Number(v) || 0);
+      setOverallDiscountPercentage(effectivePct);
+      return next;
+    });
+  };
+
+  const handleGlobalVendorChange = async (vendorId) => {
     if (!vendorId) {
       setCommonVendorId('');
       return;
     }
 
     if (isSingleVendorPo) {
-      // In single vendor PO, trigger confirmation modal before switching vendor
       const currentVendorId = commonVendorId || poRecord?.vendorId || state?.vendorId || '';
       if (String(vendorId) === String(currentVendorId)) return;
       setPendingVendorId(vendorId);
       setShowVendorChangeModal(true);
     } else {
-      // In pre-generation multi-vendor mode, apply directly to checked items
       setCommonVendorId(vendorId);
+      const selectedVendor = vendors.find(
+        (vendor) => String(vendor.id) === String(vendorId)
+      );
+
+      if (selectedVendor?.rawVendor?.termsAndConditions) {
+        setTermsAndConditions(htmlToPlainText(selectedVendor.rawVendor.termsAndConditions));
+      } else {
+        setTermsAndConditions('');
+      }
       applyCommonVendorToChecked(vendorId, rowSelection, purchaseItems);
     }
   };
@@ -728,6 +884,15 @@ const CreatePurchaseOrder = () => {
     setIsSwitchingVendor(true);
     try {
       await applyVendorSwitch(pendingVendorId);
+      const selectedVendor = vendors.find(
+        (vendor) => String(vendor.id) === String(pendingVendorId)
+      );
+
+      if (selectedVendor?.rawVendor?.termsAndConditions) {
+        setTermsAndConditions(htmlToPlainText(selectedVendor.rawVendor.termsAndConditions));
+      } else {
+        setTermsAndConditions('');
+      }
       setShowVendorChangeModal(false);
       setPendingVendorId(null);
     } finally {
@@ -755,7 +920,6 @@ const CreatePurchaseOrder = () => {
       }
     });
 
-    // All items are supplied with new vendor:
     setCommonVendorId(vendorId);
 
     setVendorMap((prev) => {
@@ -778,14 +942,13 @@ const CreatePurchaseOrder = () => {
       return next;
     });
 
-    // Fetch new vendor's address and check state against outlet
     try {
       const vendorRes = await getVendorById(Number(vendorId));
       const v = vendorRes?.data?.data ?? vendorRes?.data;
       if (v) {
         const newBillTo = {
           vendorId: v.id,
-          vendorName: v.name || v.vendorName,
+          vendorName: v.name || v.vendorName || v.companyName,
           isGstApplicable:
             v.isGstApplicable !== undefined && v.isGstApplicable !== null
               ? Boolean(v.isGstApplicable)
@@ -801,11 +964,10 @@ const CreatePurchaseOrder = () => {
           gstNumber: v.gstNumber || v.gstin,
           panNumber: v.panNumber || v.pan,
         };
-        setFetchedBillTo(newBillTo);
+        setFetchedVendorAddress(newBillTo);
 
-        // Get outlet address if not present
         const outletId = activeOutletId || selectedOutletId || poRecord?.outletId || state?.outletId || pr?.outletId;
-        let currentShipTo = shipTo;
+        let currentShipTo = shipTo || poRecord?.shipTo;
         if (!currentShipTo && outletId) {
           const companyRes = await getCompanyById(Number(outletId));
           const c = companyRes?.data?.data ?? companyRes?.data;
@@ -821,10 +983,6 @@ const CreatePurchaseOrder = () => {
           }
         }
 
-        // Check if Inter-State (vendor state != outlet state)
-        const isNewInterState = checkIsInterState(newBillTo, currentShipTo);
-
-        // Update tax fields accordingly:
         purchaseItems.forEach((item) => {
           const defaultTax = item.tax != null && Number(item.tax) > 0 ? Number(item.tax) : 18;
           setGstMap((prev) => ({ ...prev, [item.rawMaterialId]: prev[item.rawMaterialId] ?? defaultTax }));
@@ -846,9 +1004,6 @@ const CreatePurchaseOrder = () => {
     const targetRows = selectedIndexes.map((idx) => rows[Number(idx)]).filter(Boolean);
     if (targetRows.length === 0) return;
 
-    const vendorObj = vendors.find((v) => String(v.id) === String(vendorId));
-    const vendorName = passedVendorName || vendorObj?.name || 'Selected Vendor';
-
     let configs = passedConfigs;
     if (!configs) {
       try {
@@ -868,7 +1023,6 @@ const CreatePurchaseOrder = () => {
       }
     });
 
-    // Set vendor for target items
     setVendorMap((prev) => {
       const next = { ...prev };
       targetRows.forEach((item) => {
@@ -879,7 +1033,6 @@ const CreatePurchaseOrder = () => {
       return next;
     });
 
-    // Set price from config or 0 if vendor is not supplier
     setPriceMap((prev) => {
       const next = { ...prev };
       targetRows.forEach((item) => {
@@ -892,8 +1045,14 @@ const CreatePurchaseOrder = () => {
   };
 
   const handleAddRawMaterialItem = async (item) => {
-    const uomId = item.unitId ?? item.unit?.id ?? 0;
-    const uomName = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || '';
+    const uomId = item.currentStock?.unitId ?? item.unitId ?? item.unit?.id ?? 0;
+    const uomName =
+      item.currentStock?.unitName ||
+      item.currentStock?.unitSymbol ||
+      item.unit?.nameEnglish ||
+      item.unit?.symbolEnglish ||
+      item.unitName ||
+      '';
 
     if (!uomId || !uomName) {
       setItemPickError(
@@ -908,7 +1067,6 @@ const CreatePurchaseOrder = () => {
       [item.id]: { uomId, uomName },
     }));
 
-    // If single-vendor PO, assign the PO's vendor to this new item if supplied
     const targetVendor = isSingleVendorPo
       ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '')
       : (commonVendorId || '');
@@ -917,8 +1075,6 @@ const CreatePurchaseOrder = () => {
     let initialPrice = item.supplierRate ?? '';
 
     if (targetVendor) {
-      const vendorObj = vendors.find((v) => String(v.id) === String(targetVendor));
-      const vendorName = vendorObj?.name || 'Selected Vendor';
       try {
         const res = await getVendorPriceConfigsByVendorId(Number(targetVendor));
         const raw = res?.data?.data ?? res?.data ?? res ?? [];
@@ -935,7 +1091,6 @@ const CreatePurchaseOrder = () => {
       setVendorMap((prev) => ({ ...prev, [item.id]: String(vendorAssigned) }));
     }
 
-    // If previously removed, un-delete it
     setDeletedRawMaterialIds((prev) => {
       const next = new Set(prev);
       next.delete(String(item.id));
@@ -965,12 +1120,14 @@ const CreatePurchaseOrder = () => {
 
     setPoQtyMap((prev) => ({ ...prev, [item.id]: prev[item.id] || 1 }));
     setPriceMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? initialPrice }));
+    setDiscountMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? overallDiscountPercentage ?? 0 }));
     if (item.hsnCode) {
       setHsnMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? item.hsnCode }));
     }
     const itemTax = item.tax != null && item.tax !== '' ? Number(item.tax) : 18;
     setGstMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? itemTax }));
-    setCessMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? (item.cess != null && item.cess !== '' ? Number(item.cess) : 0) }));
+    const itemCess = item.isCessApplicable ? (item.cess != null && item.cess !== '' ? Number(item.cess) : 0) : 0;
+    setCessMap((prev) => ({ ...prev, [item.id]: prev[item.id] ?? itemCess }));
   };
 
   const handleUnitChange = (rawMaterialId, selectedUnitId) => {
@@ -1011,6 +1168,11 @@ const CreatePurchaseOrder = () => {
       return next;
     });
     setPriceMap((prev) => {
+      const next = { ...prev };
+      delete next[rawMaterialId];
+      return next;
+    });
+    setDiscountMap((prev) => {
       const next = { ...prev };
       delete next[rawMaterialId];
       return next;
@@ -1112,31 +1274,36 @@ const CreatePurchaseOrder = () => {
   const purchaseItems = useMemo(() => {
     const baseline = isEditingExistingPo
       ? (poRecord?.details || []).map((d, idx) => ({
-          rawMaterialId: d.rawMaterialId,
-          prDetailId: d.prDetailId != null ? Number(d.prDetailId) : (d.id != null ? Number(d.id) : null),
-          srNo: String(idx + 1).padStart(2, '0'),
-          itemName: d.rawMaterialName,
-          unit: d.uomName,
-          uomId: d.uomId,
-          uomName: d.uomName,
-          approvedQty: d.quantity,
-          remarks: d.remarks || '',
-          source: 'pr',
-        }))
+        rawMaterialId: d.rawMaterialId,
+        poDetailId: d.id != null ? Number(d.id) : null,
+        prDetailId: d.prDetailId != null ? Number(d.prDetailId) : null,
+        srNo: String(idx + 1).padStart(2, '0'),
+        itemName: d.rawMaterialName,
+        unit: d.uomName,
+        uomId: d.uomId,
+        uomName: d.uomName,
+        approvedQty: d.quantity,
+        remarks: d.remarks || '',
+        source: d.prDetailId ? 'pr' : 'manual',
+        isCessApplicable: Boolean(d.isCessApplicable),
+      }))
       : (pr?.details || []).map((d, idx) => ({
-          rawMaterialId: d.rawMaterialId,
-          prDetailId: d.id != null ? Number(d.id) : (d.prDetailId != null ? Number(d.prDetailId) : null),
-          srNo: String(idx + 1).padStart(2, '0'),
-          itemName: d.rawMaterialName,
-          unit: d.uomName,
-          uomId: d.uomId,
-          uomName: d.uomName,
-          approvedQty: d.quantity ?? d.orderedQuantity,
-          remarks: d.remarks || '',
-          source: 'pr',
-        }));
+        rawMaterialId: d.rawMaterialId,
+        poDetailId: null,
+        prDetailId: d.id != null ? Number(d.id) : (d.prDetailId != null ? Number(d.prDetailId) : null),
+        srNo: String(idx + 1).padStart(2, '0'),
+        itemName: d.rawMaterialName,
+        unit: d.uomName,
+        uomId: d.uomId,
+        uomName: d.uomName,
+        approvedQty: d.quantity ?? d.orderedQuantity,
+        remarks: d.remarks || '',
+        source: 'pr',
+        isCessApplicable: Boolean(d.isCessApplicable),
+      }));
     const fromManual = manualItems.map((m, idx) => ({
       rawMaterialId: m.rawMaterialId,
+      poDetailId: null,
       prDetailId: null,
       srNo: String(baseline.length + idx + 1).padStart(2, '0'),
       itemName: m.itemName,
@@ -1146,6 +1313,7 @@ const CreatePurchaseOrder = () => {
       approvedQty: null,
       remarks: m.remarks || '',
       source: 'manual',
+      isCessApplicable: Boolean(m.isCessApplicable),
     }));
     return [...baseline, ...fromManual]
       .filter((item) => !deletedRawMaterialIds.has(String(item.rawMaterialId)))
@@ -1155,7 +1323,6 @@ const CreatePurchaseOrder = () => {
       }));
   }, [pr, poRecord, isEditingExistingPo, manualItems, deletedRawMaterialIds]);
 
-  // Synchronize HSN, CESS and Tax rates from loaded rawMaterials
   useEffect(() => {
     if (!rawMaterials.length || !purchaseItems.length) return;
     const rmMap = {};
@@ -1207,10 +1374,15 @@ const CreatePurchaseOrder = () => {
     return purchaseItems
       .filter((_, idx) => Boolean(rowSelection[idx]))
       .map((item) => {
-        const uom = uomMap[item.rawMaterialId] || {
-          uomId: item.uomId,
-          uomName: item.uomName || item.unit || 'Unit',
-        };
+        const rm = (rawMaterials || []).find((r) => Number(r.id) === Number(item.rawMaterialId));
+        const masterUnitName =
+          rm?.unit?.nameEnglish ||
+          rm?.unit?.symbolEnglish ||
+          (typeof rm?.unit === 'string' ? rm.unit : '') ||
+          rm?.unitName ||
+          '';
+        const masterUnitId = rm?.unitId ?? (typeof rm?.unit === 'object' ? rm?.unit?.id : null) ?? null;
+
         const vId =
           vendorMap[item.rawMaterialId] ||
           (isSingleVendorPo ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '') : '') ||
@@ -1221,24 +1393,42 @@ const CreatePurchaseOrder = () => {
         const remarks = itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '';
         const currentQty = Number(poQtyMap[item.rawMaterialId]) || 1;
 
+        const resolvedUnitName =
+          masterUnitName ||
+          item.uomName ||
+          item.unit ||
+          'Unit';
+        const resolvedUnitId =
+          masterUnitId ||
+          item.uomId ||
+          item.unitId ||
+          null;
+
         return {
           id: item.rawMaterialId,
           rawMaterialId: item.rawMaterialId,
-          itemName: item.itemName,
+          itemId: item.rawMaterialId,
+          itemName: item.itemName || rm?.nameEnglish || rm?.itemName || `Item #${item.rawMaterialId}`,
           source: item.source,
-          uomId: uom.uomId,
-          uomName: uom.uomName,
+          unit: resolvedUnitName,
+          unitName: resolvedUnitName,
+          masterUnitName: masterUnitName || resolvedUnitName,
+          masterUnitId: resolvedUnitId,
+          uomId: resolvedUnitId,
+          unitId: resolvedUnitId,
+          uomName: resolvedUnitName,
           vendorId: vId,
           vendorName: vName,
           remarks: remarks,
           orderedQty: currentQty,
           transferQuantity: currentQty,
+          currentStock: rm?.currentStock ?? rm?.currentstock ?? item.currentStock ?? item.currentstock ?? null,
         };
       });
   }, [
     purchaseItems,
     rowSelection,
-    uomMap,
+    rawMaterials,
     vendorMap,
     isSingleVendorPo,
     commonVendorId,
@@ -1265,6 +1455,8 @@ const CreatePurchaseOrder = () => {
   };
 
   const calculatedTotals = useMemo(() => {
+    let subtotal = 0;
+    let totalDiscount = 0;
     let totalTaxable = 0;
     let totalCGST = 0;
     let totalSGST = 0;
@@ -1277,7 +1469,14 @@ const CreatePurchaseOrder = () => {
     includedItems.forEach((item) => {
       const qty = Number(poQtyMap[item.rawMaterialId]) || 0;
       const price = Number(priceMap[item.rawMaterialId]) || 0;
-      const taxable = qty * price;
+      const discountPct = Number(discountMap[item.rawMaterialId]) || 0;
+
+      const baseAmount = qty * price;
+      const discountAmt = (baseAmount * discountPct) / 100;
+      const taxable = Math.max(0, baseAmount - discountAmt);
+
+      subtotal += baseAmount;
+      totalDiscount += discountAmt;
       totalTaxable += taxable;
 
       const cessPct =
@@ -1324,6 +1523,9 @@ const CreatePurchaseOrder = () => {
       itemCalculations[item.rawMaterialId] = {
         qty,
         price,
+        baseAmount,
+        discountPct,
+        discountAmt,
         taxable,
         gstPct,
         gstAmt,
@@ -1377,6 +1579,8 @@ const CreatePurchaseOrder = () => {
     return {
       itemCalculations,
       taxBreakdowns,
+      subtotal,
+      totalDiscount,
       totalTaxable,
       totalCGST,
       totalSGST,
@@ -1391,11 +1595,14 @@ const CreatePurchaseOrder = () => {
       roundOff,
       amountInWords: numberToWords(netAmount),
     };
-  }, [includedItems, poQtyMap, priceMap, gstMap, cessMap, isInterState, isGstApplicable, totalOtherCosts]);
+  }, [includedItems, poQtyMap, priceMap, discountMap, gstMap, cessMap, isInterState, isGstApplicable, totalOtherCosts]);
 
   const buildSinglePayload = (status) => {
     const reqId = getPurchaseRequisitionId();
     const outletId = Number(selectedOutletId) || pr?.outletId || poRecord?.outletId || state?.outletId;
+    const activeSubOutletId = selectedSubOutletId || pr?.subOutletId || poRecord?.subOutletId || state?.subOutletId;
+    const activeSubOutletObj = subOutlets.find((s) => String(s.id) === String(activeSubOutletId));
+    const activeSubOutletName = activeSubOutletObj?.name || activeSubOutletObj?.subOutletName || activeSubOutletObj?.locationName || pr?.subOutletName || poRecord?.subOutletName || state?.subOutletName || '';
     const formattedPoDate = inputDateToApiDate(poDate);
     const formattedExpectedDate = inputDateToApiDate(expectedDeliveryDate);
     const userId = getUserIdFromToken();
@@ -1410,7 +1617,6 @@ const CreatePurchaseOrder = () => {
         cost: Number(c.cost) || 0,
       }));
 
-    // Line items inserted vendor-wise (ordered by vendorId)
     const details = [...includedItems]
       .map((item) => {
         const itemVendorId = vendorMap[item.rawMaterialId] || commonVendorId || firstVendorId;
@@ -1418,23 +1624,30 @@ const CreatePurchaseOrder = () => {
         const qty = Number(poQtyMap[item.rawMaterialId]) || 0;
         const unitPrice = Number(priceMap[item.rawMaterialId]) || 0;
         const currentUom = uomMap[item.rawMaterialId] || { uomId: item.uomId, uomName: item.uomName || item.unit };
+        const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {};
+        const poDetailId = item.poDetailId != null ? Number(item.poDetailId) : (isEditingExistingPo && item.id != null ? Number(item.id) : undefined);
+        const validPrDetailId = item.prDetailId != null ? Number(item.prDetailId) : undefined;
+        const discountPercentage = Number(discountMap[item.rawMaterialId]) || 0;
+        const discountAmount = Number((calc.discountAmt || 0).toFixed(2));
 
-        // If initial Create PO / isGeneratePo OR Non-GST vendor: NO GST, NO HSN, NO tax fields
         if (isGeneratePo || !isGstApplicable) {
           return {
+            ...(poDetailId ? { id: poDetailId } : {}),
             uomId: currentUom.uomId,
             uomName: currentUom.uomName,
             rawMaterialId: item.rawMaterialId,
             rawMaterialName: item.itemName,
             quantity: qty,
             unitPrice: unitPrice,
+            discountPercentage,
+            discountAmount,
             vendorId: itemVendorId ? Number(itemVendorId) : undefined,
             vendorName: vendorObj?.name ?? item.vendorName ?? '',
             orderedQuantity: qty,
             receivedQuantity: 0,
             tax: 0,
             taxAmount: 0,
-            totalPrice: Number((qty * unitPrice).toFixed(2)),
+            totalPrice: Number((calc.taxable || (qty * unitPrice - discountAmount)).toFixed(2)),
             hsnCode: '',
             cess: 0,
             cessAmount: 0,
@@ -1444,13 +1657,12 @@ const CreatePurchaseOrder = () => {
             sgstAmount: 0,
             igst: 0,
             igstAmount: 0,
-            prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
+            ...(validPrDetailId ? { prDetailId: validPrDetailId } : {}),
             remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
+            termsAndConditions: termsAndConditions || null,
           };
         }
 
-        // Otherwise (GST-applicable vendor): Include configured GST, HSN, Tax amounts, CESS
-        const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {};
         const hsn = hsnMap[item.rawMaterialId] || '';
         const cess = calc.cessPct ?? 0;
 
@@ -1463,7 +1675,7 @@ const CreatePurchaseOrder = () => {
         let igstAmount = 0;
         const cessAmount = Number((calc.cessAmt || 0).toFixed(2));
         const taxAmount = Number((calc.itemTax || 0).toFixed(2));
-        const totalPrice = Number((calc.itemTotal || (qty * unitPrice + (calc.itemTax || 0))).toFixed(2));
+        const totalPrice = Number((calc.itemTotal || (calc.taxable + (calc.itemTax || 0))).toFixed(2));
 
         if (isInterState) {
           igstRate = Number(calc.igstPct ?? 18);
@@ -1484,12 +1696,15 @@ const CreatePurchaseOrder = () => {
         }
 
         return {
+          ...(poDetailId ? { id: poDetailId } : {}),
           uomId: currentUom.uomId,
           uomName: currentUom.uomName,
           rawMaterialId: item.rawMaterialId,
           rawMaterialName: item.itemName,
           quantity: qty,
           unitPrice: unitPrice,
+          discountPercentage,
+          discountAmount,
           vendorId: itemVendorId ? Number(itemVendorId) : undefined,
           vendorName: vendorObj?.name ?? item.vendorName ?? '',
           orderedQuantity: qty,
@@ -1506,21 +1721,28 @@ const CreatePurchaseOrder = () => {
           sgstAmount: sgstAmount,
           igst: igstRate,
           igstAmount: igstAmount,
-          prDetailId: item.prDetailId != null ? Number(item.prDetailId) : null,
-          remarks: itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? '',
+          ...(validPrDetailId ? { prDetailId: validPrDetailId } : {}),
+          remarks: formatRemarks(itemRemarksMap[item.rawMaterialId] ?? item.remarks ?? ''),
+          termsAndConditions: termsAndConditions || null,
         };
       })
       .sort((a, b) => (Number(a.vendorId) || 0) - (Number(b.vendorId) || 0));
 
     if (isGeneratePo) {
       return {
-        purchaseRequisitionId: reqId,
-        prId: reqId,
+        ...(reqId ? { purchaseRequisitionId: reqId, prId: reqId } : {}),
         outletId,
+        subOutletId: activeSubOutletId ? Number(activeSubOutletId) : undefined,
+        subOutletName: activeSubOutletName,
         poDate: formattedPoDate,
         expectedDeliveryDate: formattedExpectedDate,
-        remarks,
-        totalAmount: Number(calculatedTotals.netAmount.toFixed(2)),
+        remarks: formatRemarks(remarks),
+        termsAndConditions: termsAndConditions || null,
+        discountPercentage: Number(overallDiscountPercentage) || 0,
+        discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
+        roundOff: calculatedTotals.roundOff,
+        subtotal: Number(calculatedTotals.subtotal.toFixed(2)),
+        totalAmount: calculatedTotals.netAmount != null ? Number(calculatedTotals.netAmount.toFixed(2)) : undefined,
         vendorId: firstVendorId ? Number(firstVendorId) : undefined,
         status,
         userId,
@@ -1532,14 +1754,19 @@ const CreatePurchaseOrder = () => {
     }
 
     return {
-      purchaseRequisitionId: reqId,
-      prId: reqId,
+      ...(reqId ? { purchaseRequisitionId: reqId, prId: reqId } : {}),
       outletId,
+      subOutletId: activeSubOutletId ? Number(activeSubOutletId) : undefined,
+      subOutletName: activeSubOutletName,
       poDate: formattedPoDate,
       expectedDeliveryDate: formattedExpectedDate,
-      remarks,
+      remarks: formatRemarks(remarks),
+      termsAndConditions: termsAndConditions || null,
+      discountPercentage: Number(overallDiscountPercentage) || 0,
+      discountAmount: Number(calculatedTotals.totalDiscount.toFixed(2)),
+      subtotal: Number(calculatedTotals.subtotal.toFixed(2)),
       roundOff: calculatedTotals.roundOff,
-      totalAmount: calculatedTotals.netAmount,
+      totalAmount: calculatedTotals.netAmount != null ? Number(calculatedTotals.netAmount.toFixed(2)) : undefined,
       vendorId: firstVendorId ? Number(firstVendorId) : undefined,
       status,
       userId,
@@ -1579,8 +1806,6 @@ const CreatePurchaseOrder = () => {
         return false;
       }
       const vendorId = vendorMap[item.rawMaterialId] || (isSingleVendorPo ? commonVendorId : '');
-      const vendorObj = vendors.find((v) => String(v.id) === String(vendorId));
-      const vendorName = vendorObj?.name || 'Selected vendor';
       if (!vendorId) {
         setSubmitError(`Please select a valid vendor for "${item.itemName}".`);
         return false;
@@ -1588,6 +1813,11 @@ const CreatePurchaseOrder = () => {
       const price = priceMap[item.rawMaterialId];
       if (price === '' || price === undefined || isNaN(Number(price)) || Number(price) < 0) {
         setSubmitError(`Please enter a valid price for "${item.itemName}".`);
+        return false;
+      }
+      const discount = discountMap[item.rawMaterialId];
+      if (discount !== '' && discount !== undefined && (isNaN(Number(discount)) || Number(discount) < 0 || Number(discount) > 100)) {
+        setSubmitError(`Please enter a valid discount percentage (0-100) for "${item.itemName}".`);
         return false;
       }
       if (!isGeneratePo && isGstApplicable) {
@@ -1615,7 +1845,6 @@ const CreatePurchaseOrder = () => {
       const currentRawStatus = poRecord?.rawStatus || state?.rawStatus;
       const targetStatus = currentRawStatus === PO_STATUS.IN_PROGRESS ? PO_STATUS.IN_PROGRESS : PO_STATUS.PENDING;
       const payload = buildSinglePayload(targetStatus);
-      console.log('=== SAVE DRAFT / GENERATE PO PAYLOAD ===', payload);
       if (isEditingExistingPo && targetPoId) {
         await update(targetPoId, payload);
       } else {
@@ -1636,7 +1865,6 @@ const CreatePurchaseOrder = () => {
     setSubmitError('');
     try {
       const payload = buildSinglePayload(PO_STATUS.SENT_FOR_APPROVAL);
-      console.log('=== SENT FOR APPROVAL PO PAYLOAD ===', payload);
       if (isEditingExistingPo && targetPoId) {
         await update(targetPoId, payload);
       } else {
@@ -1651,8 +1879,6 @@ const CreatePurchaseOrder = () => {
     }
   };
 
-  // Approve/Reject/Save-in-progress reuse the same update() call as Save Draft/Generate —
-  // only the target status (and, for reject, the required remarks) differ.
   const handleSaveInProgress = async () => {
     if (!validateForm()) return;
     setIsSubmitting(true);
@@ -1722,15 +1948,28 @@ const CreatePurchaseOrder = () => {
     }
   };
 
-  const estimatedTotal = calculatedTotals.netAmount;
-
-  // Approval Date isn't a field the PR or PO APIs return today — there's no
-  // "date approved" property in either response shape. updatedAt is the
-  // closest proxy (it does get bumped on the approve action) but it also
-  // changes on any edit, so treat this as best-effort display, not a source
-  // of truth, until the backend exposes a real approvedAt field.
   const approvalDateDisplay =
-    poRecord?.rawStatus === PO_STATUS.APPROVED ? poRecord?.updatedAt : '';
+    poRecord?.rawStatus === PO_STATUS.APPROVED
+      ? formatDisplayDate(poRecord?.updatedAt || poRecord?.approvalDate)
+      : pr?.approvalDate || pr?.approvedAt || state?.approvalDate || state?.approvedAt || ((state?.status === 'APPROVED' || state?.rawStatus === 'APPROVED') ? (state?.updatedAt || state?.date) : null) || ((pr?.status === 'APPROVED' || pr?.rawStatus === 'APPROVED') ? (pr?.updatedAt || pr?.date) : null)
+      ? formatDisplayDate(pr?.approvalDate || pr?.approvedAt || state?.approvalDate || state?.approvedAt || ((state?.status === 'APPROVED' || state?.rawStatus === 'APPROVED') ? (state?.updatedAt || state?.date) : null) || ((pr?.status === 'APPROVED' || pr?.rawStatus === 'APPROVED') ? (pr?.updatedAt || pr?.date) : null))
+      : '—';
+
+  const prRequiredDateDisplay = formatDisplayDate(
+    pr?.requiredDate ??
+    pr?.prRequiredDate ??
+    state?.requiredDate ??
+    state?.prRequiredDate
+  );
+
+  const prApprovedByDisplay =
+    pr?.updatedByName ||
+    pr?.actionBy ||
+    pr?.updatedBy ||
+    state?.updatedByName ||
+    state?.actionBy ||
+    state?.updatedBy ||
+    '—';
 
   const isSaving = poSaving || isSubmitting;
 
@@ -1741,46 +1980,47 @@ const CreatePurchaseOrder = () => {
   if (!isEditingExistingPo && !canAdd && !isReviewMode) {
     return <AccessDenied pageTitle="Purchase Order Requests" />;
   }
+  const hasAnyCessApplicable = useMemo(() => {
+    return purchaseItems.some((item) => {
+      const rm = rawMaterials.find((r) => Number(r.id) === Number(item.rawMaterialId));
+      return Boolean(item.isCessApplicable || rm?.isCessApplicable);
+    });
+  }, [purchaseItems, rawMaterials]);
 
   return (
-    <Container>
-      <div className="p-4 md:p-6">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Purchase Order Request</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            {isRejectMode
+    <Container width="fluid" className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 lg:px-6">
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={
+            isRejectMode
               ? 'Reject Purchase Order'
               : isApproveMode && !isExistingInProgress
                 ? 'Approve Purchase Order'
                 : isEditingExistingPo
                   ? 'Edit Purchase Order'
-                  : 'Create Purchase Order'}
-          </span>
-        </div>
-
-        <div className="my-6">
-          <h1 className="text-3xl font-bold text-[#0F172A]">
-            {isRejectMode
-              ? 'Reject Purchase Order'
-              : isApproveMode && !isExistingInProgress
-                ? 'Approve Purchase Order'
-                : isEditingExistingPo
-                  ? 'Edit Purchase Order'
-                  : 'Create Purchase Order'}
-          </h1>
-          <p className="text-sm text-[#737781] mt-1">
-            {isRejectMode
+                  : 'Create Purchase Order'
+          }
+          description={
+            isRejectMode
               ? 'Review the purchase order details and provide rejection remarks.'
               : isReviewMode && !isExistingInProgress
                 ? 'Review the purchase order details before submitting your decision.'
                 : isEditingExistingPo
                   ? 'Update purchase order line items, pricing, vendor assignment, and details.'
-                  : 'Review requisition details and finalize the purchase order for vendor submission.'}
-          </p>
-        </div>
+                  : 'Review requisition details and finalize the purchase order for vendor submission.'
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/purchase-order-request/purchase')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Orders
+            </button>
+          }
+          className="my-2"
+        />
 
         {prError && isGeneratePo && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
@@ -1788,10 +2028,10 @@ const CreatePurchaseOrder = () => {
           </div>
         )}
 
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm">
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm mt-6">
           <div className="px-6 py-5 border-b border-[#E2E8F0]">
             <div className="flex items-center gap-2">
-              <Info size={18} className="text-[#0B5CAD]" />
+              {/* <Info size={18} className="text-[#0B5CAD]" /> */}
               <h2 className="text-xl font-semibold text-[#1E293B]">Purchase Order Information</h2>
             </div>
           </div>
@@ -1807,72 +2047,56 @@ const CreatePurchaseOrder = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-                  <Field label="PR Date" value={pr?.date ?? state?.date} />
+                  <Field label="PR Date" value={formatDisplayDate(pr?.date ?? state?.date)} />
+                  <Field label="PR Required Date" value={prRequiredDateDisplay} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <Field label="Approval Date" value={approvalDateDisplay} />
+                  <Field label="PR Approved By" value={prApprovedByDisplay} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <Field label="Outlet Name" value={pr?.outlet ?? poRecord?.outlet ?? state?.outlet} />
-                  <Field label="PR Approved By" value={pr?.updatedBy} />
+                  <Field label="Location / Sub-Unit" value={pr?.subOutletName ?? poRecord?.subOutletName ?? state?.subOutletName ?? '—'} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                  <DateField
+                    label="PO Date"
+                    value={poDate || getTodayForDateInput()}
+                    disabled
+                    required
+                  />
+                  <DateField
+                    label="Expected Delivery Date"
+                    value={expectedDeliveryDate}
+                    min={poDate || getTodayForDateInput()}
+                    onChange={setExpectedDeliveryDate}
+                    disabled={isRejectMode}
+                    required
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      PO Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={poDate || getTodayForDateInput()}
-                      disabled
-                      readOnly
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      Expected Delivery Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={expectedDeliveryDate}
-                      min={poDate || getTodayForDateInput()}
-                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                      disabled={isRejectMode}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Vendor Name <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <select
+                        <SearchableSelect
+                          name="vendorId"
                           value={commonVendorId}
                           onChange={(e) => handleGlobalVendorChange(e.target.value)}
+                          options={mappedVendors.map((v) => ({
+                            value: String(v.id),
+                            label: v.name,
+                          }))}
+                          placeholder={vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
                           disabled={vendorsLoading || isRejectMode}
-                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                        >
-                          <option value="">
-                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
-                          </option>
-                          {mappedVendors.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                        />
                       </div>
-                      {!isRejectMode && (
-                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
-                          <Plus size={18} className="text-[#0B5CAD]" />
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -1884,67 +2108,56 @@ const CreatePurchaseOrder = () => {
                     label="PO Code"
                     value={poRecord?.poCode || state?.poCode || 'TO BE GENERATED'}
                   />
-                  <Field label="Outlet Name" value={pr?.outlet ?? poRecord?.outlet ?? state?.outlet} />
+                  <Field label="Outlet Name" value={poRecord?.outletName || pr?.outlet || poRecord?.outlet || state?.outlet} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      PO Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={poDate || getTodayForDateInput()}
-                      disabled
-                      readOnly
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      Expected Delivery Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={expectedDeliveryDate}
-                      min={poDate || getTodayForDateInput()}
-                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                      disabled={isReadOnly}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                    />
-                  </div>
+                  <Field label="Location / Sub-Unit" value={poRecord?.subOutletName || pr?.subOutletName || state?.subOutletName || '—'} />
+                  <Field label="PR Code" value={poRecord?.prCode || pr?.prCode || state?.prCode || '—'} />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-3.5">
+                  <DateField
+                    label="PO Date"
+                    value={poDate || getTodayForDateInput()}
+                    disabled
+                    required
+                  />
+                  <DateField
+                    label="Expected Delivery Date"
+                    value={expectedDeliveryDate}
+                    min={poDate || getTodayForDateInput()}
+                    onChange={setExpectedDeliveryDate}
+                    disabled={isReadOnly}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-3.5">
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Vendor Name <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <select
+                        <SearchableSelect
+                          name="vendorId"
                           value={commonVendorId}
                           onChange={(e) => handleGlobalVendorChange(e.target.value)}
+                          options={mappedVendors.map((v) => ({
+                            value: String(v.id),
+                            label: v.name,
+                          }))}
+                          placeholder={vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
                           disabled={vendorsLoading || isReadOnly || isSwitchingVendor}
-                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                        >
-                          <option value="">
-                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
-                          </option>
-                          {mappedVendors.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
+                        />
                         {isSwitchingVendor ? (
                           <Loader2 size={16} className="absolute right-8 top-1/2 -translate-y-1/2 text-[#084E92] animate-spin pointer-events-none" />
                         ) : null}
-                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                       </div>
                       {!isReadOnly && (
-                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
-                          <Plus size={18} className="text-[#0B5CAD]" />
+                        <button className="w-9 h-9 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE] shrink-0">
+                          <Plus size={16} className="text-[#0B5CAD]" />
                         </button>
                       )}
                     </div>
@@ -1953,98 +2166,98 @@ const CreatePurchaseOrder = () => {
               </>
             ) : (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                   {hasOutletDropdownAccess && (
                     <div>
-                      <label className="text-sm text-[#475569] mb-1 block">
-                        Outlet <span className="text-red-500">*</span>
+                      <label className="text-xs font-medium text-[#475569] mb-1 block">
+                        Unit <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <SearchableSelect
+                        name="outletId"
                         value={selectedOutletId ? String(selectedOutletId) : ''}
-                        onChange={(e) => setSelectedOutletId(e.target.value)}
+                        onChange={(e) => {
+                          setSelectedOutletId(e.target.value);
+                          setSelectedSubOutletId('');
+                        }}
+                        options={outlets.map((o) => ({
+                          value: String(o.id),
+                          label: `${o.name}${o.code ? ` (${o.code})` : ''}`,
+                        }))}
+                        placeholder={outletsLoading ? 'Loading units...' : 'Select unit...'}
                         disabled={outletsLoading || isReadOnly || isSwitchingVendor}
-                        className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                      >
-                        <option value="">
-                          {outletsLoading ? 'Loading outlets...' : 'Select outlet...'}
-                        </option>
-                        {outlets.map((o) => (
-                          <option key={o.id} value={String(o.id)}>
-                            {o.name} {o.code ? `(${o.code})` : ''}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
                   )}
 
                   <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
+                      Location / Sub-Unit
+                    </label>
+                    <SearchableSelect
+                      name="subOutletId"
+                      value={selectedSubOutletId ? String(selectedSubOutletId) : ''}
+                      onChange={(e) => setSelectedSubOutletId(e.target.value)}
+                      options={subOutlets.map((s) => ({
+                        value: String(s.id),
+                        label: `${s.name || s.subOutletName || s.locationName || ''}${s.shortCode || s.code ? ` (${s.shortCode || s.code})` : ''}`,
+                      }))}
+                      placeholder={subOutletsLoading ? 'Loading locations...' : (!activeOutletId ? 'Select unit first' : 'Select location (Optional)...')}
+                      disabled={subOutletsLoading || !activeOutletId || isReadOnly || isSwitchingVendor}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-medium text-[#475569] mb-1 block">
                       Vendor Name <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-2">
                       <div className="relative flex-1">
-                        <select
+                        <SearchableSelect
+                          name="vendorId"
                           value={commonVendorId}
                           onChange={(e) => handleGlobalVendorChange(e.target.value)}
-                          disabled={vendorsLoading || isReadOnly || isSwitchingVendor}
-                          className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 bg-white outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                        >
-                          <option value="">
-                            {vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
-                          </option>
-                          {mappedVendors.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </select>
+                          options={mappedVendors.map((v) => ({
+                            value: String(v.id),
+                            label: v.name,
+                          }))}
+                          placeholder={vendorsLoading ? 'Loading vendors...' : 'Select vendor...'}
+                          disabled={vendorsLoading || isRejectMode}
+                        />
                         {isSwitchingVendor ? (
                           <Loader2 size={16} className="absolute right-8 top-1/2 -translate-y-1/2 text-[#084E92] animate-spin pointer-events-none" />
                         ) : null}
-                        <ChevronDown size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
                       </div>
                       {!isReadOnly && (
-                        <button className="w-11 h-11 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE]">
-                          <Plus size={18} className="text-[#0B5CAD]" />
+                        <button className="w-9 h-9 rounded-lg border border-[#E2E8F0] bg-[#EFF6FF] flex items-center justify-center hover:bg-[#DBEAFE] shrink-0">
+                          <Plus size={16} className="text-[#0B5CAD]" />
                         </button>
                       )}
                     </div>
                   </div>
 
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      PO Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={poDate || getTodayForDateInput()}
-                      disabled
-                      readOnly
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
+                  <DateField
+                    label="PO Date"
+                    value={poDate || getTodayForDateInput()}
+                    disabled
+                    required
+                  />
 
-                  <div>
-                    <label className="text-sm text-[#475569] mb-1 block">
-                      Expected Delivery Date <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={expectedDeliveryDate}
-                      min={poDate || getTodayForDateInput()}
-                      onChange={(e) => setExpectedDeliveryDate(e.target.value)}
-                      disabled={isReadOnly}
-                      className="w-full h-11 rounded-lg border border-[#E2E8F0] px-3 outline-none focus:border-[#0B5CAD] disabled:bg-[#F8FAFC]"
-                    />
-                  </div>
+                  <DateField
+                    label="Expected Delivery Date"
+                    value={expectedDeliveryDate}
+                    min={poDate || getTodayForDateInput()}
+                    onChange={setExpectedDeliveryDate}
+                    disabled={isReadOnly}
+                    required
+                  />
                 </div>
               </>
             )}
           </div>
         </div>
 
-        {/* Bill To & Ship To Address Section (Shown only once PO is generated vendor-wise / existing / review) */}
-        {isSingleVendorPo && (billTo || shipTo) && (
+        {/* 3-Section Address Configuration: Supplier Details, Bill To, and Ship To */}
+        {isSingleVendorPo && (vendorAddressData || billToOrg || shipTo) && (
           <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm mt-6 overflow-hidden">
             <div className="px-6 py-4 border-b border-[#E2E8F0] flex items-center justify-between flex-wrap gap-3 bg-[#F8FAFC]">
               <div className="flex items-center gap-2">
@@ -2054,11 +2267,10 @@ const CreatePurchaseOrder = () => {
               <div className="flex items-center gap-2">
                 {isGstApplicable ? (
                   <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                      isInterState
-                        ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    }`}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${isInterState
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      }`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full ${isInterState ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                     {isInterState
@@ -2074,118 +2286,179 @@ const CreatePurchaseOrder = () => {
               </div>
             </div>
 
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Bill To (Vendor Address) */}
-              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative">
-                <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-[#084E92]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
-                      Bill To (Vendor Address)
-                    </span>
-                  </div>
-                </div>
-
-                {billTo ? (
-                  <div className="space-y-1.5 text-xs text-gray-700">
-                    <p className="font-bold text-sm text-gray-900">
-                      {poRecord?.vendorName || state?.vendorName || billTo?.vendorName || 'Vendor'}
-                    </p>
-                    {billTo.addressLine1 && <p>{billTo.addressLine1}</p>}
-                    {billTo.addressLine2 && <p>{billTo.addressLine2}</p>}
-                    <p className="font-medium text-gray-800">
-                      {[billTo.cityName, billTo.stateName, billTo.pincode, billTo.countryName].filter(Boolean).join(', ')}
-                    </p>
-                    <div className="pt-2 mt-2 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-gray-600">
-                      {billTo.phoneNumber && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-gray-400" />
-                          {billTo.phoneNumber}
-                        </span>
-                      )}
-                      {isGstApplicable && billTo.gstNumber && (
-                        <span>
-                          <strong className="text-gray-700">GSTIN:</strong> {billTo.gstNumber}
-                        </span>
-                      )}
-                      {billTo.panNumber && (
-                        <span>
-                          <strong className="text-gray-700">PAN:</strong> {billTo.panNumber}
-                        </span>
-                      )}
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {/* 1. Supplier Details (Vendor Address) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      {/* <Building2 className="w-4 h-4 text-[#084E92]" /> */}
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        Supplier Details (Vendor)
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p className="font-semibold text-gray-800">
-                      {commonVendorId
-                        ? mappedVendors.find((v) => String(v.id) === String(commonVendorId))?.name || 'Selected Vendor'
-                        : 'Vendor not yet selected'}
-                    </p>
-                    <p className="text-gray-400 italic">
-                      {commonVendorId
-                        ? 'Billing address details will be attached upon PO generation.'
-                        : 'Select a vendor above to preview billing details.'}
-                    </p>
+
+                  {vendorAddressData ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {vendorAddressData.vendorName || poRecord?.vendorName || state?.vendorName || 'Vendor'}
+                      </p>
+                      {vendorAddressData.addressLine1 && <p>{vendorAddressData.addressLine1}</p>}
+                      {vendorAddressData.addressLine2 && <p>{vendorAddressData.addressLine2}</p>}
+                      <p className="font-medium text-gray-800">
+                        {[vendorAddressData.cityName, vendorAddressData.stateName, vendorAddressData.pincode, vendorAddressData.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">
+                        {commonVendorId
+                          ? mappedVendors.find((v) => String(v.id) === String(commonVendorId))?.name || 'Selected Vendor'
+                          : 'Vendor not yet selected'}
+                      </p>
+                      <p className="text-gray-400 italic">
+                        Select a vendor above to view supplier address details.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {vendorAddressData && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {vendorAddressData.phoneNumber && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        {vendorAddressData.phoneNumber}
+                      </span>
+                    )}
+                    {isGstApplicable && (vendorAddressData.gstNumber || poRecord?.gstNumber) && (
+                      <span>
+                        <strong className="text-gray-700">GSTIN:</strong> {vendorAddressData.gstNumber || poRecord?.gstNumber}
+                      </span>
+                    )}
+                    {vendorAddressData.panNumber && (
+                      <span>
+                        <strong className="text-gray-700">PAN:</strong> {vendorAddressData.panNumber}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
 
-              {/* Ship To (Outlet Address) */}
-              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative">
-                <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-[#084E92]" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
-                      Ship To (Outlet Delivery Address)
-                    </span>
-                  </div>
-                </div>
-
-                {shipTo ? (
-                  <div className="space-y-1.5 text-xs text-gray-700">
-                    <p className="font-bold text-sm text-gray-900">
-                      {shipTo.companyNameEnglish || poRecord?.outlet || state?.outlet || 'Outlet'}
-                      {shipTo.companyCode ? ` (${shipTo.companyCode})` : ''}
-                    </p>
-                    {shipTo.addressEnglish && <p>{shipTo.addressEnglish}</p>}
-                    {shipTo.addressline2 && <p>{shipTo.addressline2}</p>}
-                    <p className="font-medium text-gray-800">
-                      {[shipTo.cityName, shipTo.stateName, shipTo.pincode, shipTo.countryName].filter(Boolean).join(', ')}
-                    </p>
-                    <div className="pt-2 mt-2 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-gray-600">
-                      {(shipTo.mobilenumber || shipTo.alternatemobilenumber) && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-3 h-3 text-gray-400" />
-                          {shipTo.mobilenumber || shipTo.alternatemobilenumber}
-                        </span>
-                      )}
-                      {shipTo.emailid && (
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-3 h-3 text-gray-400" />
-                          {shipTo.emailid}
-                        </span>
-                      )}
-                      {shipTo.gstNumber && (
-                        <span>
-                          <strong className="text-gray-700">GSTIN:</strong> {shipTo.gstNumber}
-                        </span>
-                      )}
-                      {shipTo.panNumber && (
-                        <span>
-                          <strong className="text-gray-700">PAN:</strong> {shipTo.panNumber}
-                        </span>
-                      )}
+              {/* 2. Bill To (Company / Sub-Company Invoicing Details) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      {/* <Receipt className="w-4 h-4 text-[#084E92]" /> */}
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        Bill To (Invoicing Entity)
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p className="font-semibold text-gray-800">
-                      {pr?.outlet || poRecord?.outlet || state?.outlet || 'Assigned Outlet'}
-                    </p>
-                    <p className="text-gray-400 italic">
-                      Delivery address configured for this outlet will be bound upon PO generation.
-                    </p>
+
+                  {billToOrg ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {billToOrg.companyNameEnglish || billToOrg.name || 'Company'}
+                        {billToOrg.companyCode ? ` (${billToOrg.companyCode})` : ''}
+                      </p>
+                      {billToOrg.addressEnglish && <p>{billToOrg.addressEnglish}</p>}
+                      {billToOrg.addressline2 && <p>{billToOrg.addressline2}</p>}
+                      <p className="font-medium text-gray-800">
+                        {[billToOrg.cityName, billToOrg.stateName, billToOrg.pincode, billToOrg.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">
+                        {poRecord?.billTo?.companyNameEnglish || 'Billing Entity'}
+                      </p>
+                      <p className="text-gray-400 italic">
+                        Invoicing entity details are attached from the organization master.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {billToOrg && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {billToOrg.emailid && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-gray-400" />
+                        {billToOrg.emailid}
+                      </span>
+                    )}
+                    {(billToOrg.gstNumber || billToOrg.gstin || billToOrg.gst) && (
+                      <span>
+                        <strong className="text-gray-700">GSTIN:</strong> {billToOrg.gstNumber || billToOrg.gstin || billToOrg.gst}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Ship To (Outlet Delivery Address) */}
+              <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-4 relative flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      {/* <Truck className="w-4 h-4 text-[#084E92]" /> */}
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
+                        Ship To (Outlet Delivery Address)
+                      </span>
+                    </div>
+                  </div>
+
+                  {shipTo ? (
+                    <div className="space-y-1.5 text-xs text-gray-700">
+                      <p className="font-bold text-sm text-gray-900">
+                        {shipTo.companyNameEnglish || poRecord?.outletName || poRecord?.outlet || state?.outlet || 'Outlet'}
+                        {shipTo.companyCode ? ` (${shipTo.companyCode})` : ''}
+                      </p>
+                      {shipTo.addressEnglish && <p>{shipTo.addressEnglish}</p>}
+                      {shipTo.addressline2 && <p>{shipTo.addressline2}</p>}
+                      <p className="font-medium text-gray-800">
+                        {[shipTo.cityName, shipTo.stateName, shipTo.pincode, shipTo.countryName].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p className="font-semibold text-gray-800">
+                        {pr?.outlet || poRecord?.outletName || poRecord?.outlet || state?.outlet || 'Assigned Outlet'}
+                      </p>
+                      <p className="text-gray-400 italic">
+                        Delivery address configured for this outlet will be bound upon PO generation.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {shipTo && (
+                  <div className="pt-2 mt-3 border-t border-gray-200/60 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
+                    {(shipTo.mobilenumber || shipTo.alternatemobilenumber) && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        {shipTo.mobilenumber || shipTo.alternatemobilenumber}
+                      </span>
+                    )}
+                    {shipTo.emailid && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="w-3 h-3 text-gray-400" />
+                        {shipTo.emailid}
+                      </span>
+                    )}
+                    {(shipTo.gstNumber || shipTo.gstin || shipTo.gst) && (
+                      <span>
+                        <strong className="text-gray-700">GSTIN:</strong> {shipTo.gstNumber || shipTo.gstin || shipTo.gst}
+                      </span>
+                    )}
+                    {(shipTo.panNumber || shipTo.pan) && (
+                      <span>
+                        <strong className="text-gray-700">PAN:</strong> {shipTo.panNumber || shipTo.pan}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
@@ -2193,33 +2466,33 @@ const CreatePurchaseOrder = () => {
           </div>
         )}
 
-        <div className="w-full my-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
+        <div className="w-full my-6 bg-white border border-[#E2E8F0] rounded-2xl shadow-sm">
           {(isEditingExistingPo ? poSaving && !poRecord : prLoading) && (
             <div className="p-4 text-sm text-gray-500 bg-blue-50/50 border-b border-blue-100 flex items-center gap-2">
               <span className="inline-block w-4 h-4 border-2 border-[#084E92] border-t-transparent rounded-full animate-spin" />
               Loading purchase items...
             </div>
           )}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-6 py-5 border-b border-[#E2E8F0] bg-white">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-[#084E92] shrink-0">
-                <ClipboardList className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-gray-900">Purchase Items</h2>
-                <p className="text-xs text-gray-500">
-                  Select items, assign vendors, quantities, rates
-                </p>
-              </div>
+          <div className="px-6 py-4 border-b border-[#E2E8F0] bg-white space-y-3">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">Purchase Items</h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Select items, assign vendors, quantities, rates
+              </p>
             </div>
+
             {!isReadOnly && (
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="w-full sm:w-72 md:w-80">
-                  <RawMaterialItemPicker
-                    rawMaterials={rawMaterials}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-gray-100">
+                <div className="w-full max-w-lg">
+                  <RawMaterialSearchPicker
+                    items={activeOutletId ? rawMaterials : []}
                     alreadyAddedIds={alreadyAddedIds}
-                    onAdd={handleAddRawMaterialItem}
+                    onSelect={handleAddRawMaterialItem}
                     loading={rawMaterialsLoading}
+                    disabled={!activeOutletId}
+                    placeholder={!activeOutletId ? 'Please select a unit first to search raw materials...' : 'Search raw material by name or code...'}
+                    label={null}
+                    isSticky={false}
                   />
                   {itemPickError && (
                     <p className="text-xs text-red-500 mt-1.5">{itemPickError}</p>
@@ -2230,7 +2503,7 @@ const CreatePurchaseOrder = () => {
                   type="button"
                   disabled={selectedItemsForTransfer.length === 0}
                   onClick={() => setShowStockTransferModal(true)}
-                  className={`inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 ${
+                  className={`inline-flex items-center justify-center gap-2 h-9.5 px-4 rounded-xl text-xs font-semibold transition-all cursor-pointer shrink-0 self-start sm:self-center ${
                     selectedItemsForTransfer.length > 0
                       ? 'bg-[#084E92] text-white hover:bg-blue-800 shadow-sm active:scale-[0.98]'
                       : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
@@ -2256,8 +2529,8 @@ const CreatePurchaseOrder = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[11px] font-semibold tracking-wider text-[#475569] uppercase">
-                  <th className="py-3 px-2 w-8 text-center">
+                <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0] text-[10px] font-semibold tracking-wider text-[#475569] uppercase">
+                  <th className="py-2.5 px-1 w-7 text-center">
                     <input
                       type="checkbox"
                       disabled={isReadOnly}
@@ -2272,40 +2545,43 @@ const CreatePurchaseOrder = () => {
                           setRowSelection(next);
                         }
                       }}
-                      className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
+                      className="w-3.5 h-3.5 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
                     />
                   </th>
-                  <th className="py-3 px-2 text-left w-52">Item Description</th>
-                  <th className="py-3 px-2 text-left w-36">Unit</th>
-                  <th className="py-3 px-2 text-left w-52">Vendor Name</th>
-                  <th className="py-3 px-2 text-center w-16">Qty</th>
-                  <th className="py-3 px-2 text-right w-20">Rate (₹)</th>
+                  <th className="py-2.5 px-1.5 text-left w-32 min-w-[100px] max-w-[140px]">Item Description</th>
+                  <th className="py-2.5 px-1 text-left w-32 min-w-[125px]">Unit</th>
+                  <th className="py-2.5 px-1 text-left w-48 min-w-[180px]">Vendor Name</th>
+                  <th className="py-2.5 px-1 text-center w-14">Qty</th>
+                  <th className="py-2.5 px-1 text-right w-16">Rate (₹)</th>
+                  <th className="py-2.5 px-1 text-right w-14">Disc (%)</th>
                   {!isGeneratePo && isGstApplicable && (
                     <>
-                      <th className="py-3 px-2 text-center w-20">HSN/SAC</th>
-                      <th className="py-3 px-1 text-center w-14">GST (%)</th>
-                      <th className="py-3 px-1 text-center w-14">CESS (%)</th>
-                      <th className="py-3 px-2 text-right w-24">Amount w/o Tax (₹)</th>
-                      <th className="py-3 px-2 text-right w-20">Tax Applied (₹)</th>
-                      <th className="py-3 px-3 text-right w-28">Total Amount (₹)</th>
+                      <th className="py-2.5 px-1 text-center w-16">HSN</th>
+                      <th className="py-2.5 px-0.5 text-center w-12">GST (%)</th>
+                      {hasAnyCessApplicable && (
+                        <th className="py-2.5 px-0.5 text-center w-12">CESS (%)</th>
+                      )}
+                      <th className="py-2.5 px-1 text-right w-20">Taxable (₹)</th>
+                      <th className="py-2.5 px-1 text-right w-16">Tax (₹)</th>
+                      <th className="py-2.5 px-1.5 text-right w-20">Total (₹)</th>
                     </>
                   )}
                   {(isGeneratePo || !isGstApplicable) && (
-                    <th className="py-3 px-4 text-right w-auto min-w-[130px]">Amount (₹)</th>
+                    <th className="py-2.5 px-2 text-right w-24">Amount (₹)</th>
                   )}
-                  <th className="py-3 px-2 text-center w-12">Action</th>
+                  <th className="py-2.5 px-1 text-center w-9">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
+              <tbody className="divide-y divide-gray-100 text-xs">
                 {purchaseItems.length === 0 ? (
                   <tr>
-                    <td colSpan={(!isGeneratePo && isGstApplicable) ? 12 : 8} className="py-14 text-center">
+                    <td colSpan={(!isGeneratePo && isGstApplicable) ? (hasAnyCessApplicable ? 13 : 12) : 9} className="py-12 text-center">
                       <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-3">
-                          <Package className="w-6 h-6" />
+                        <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-[#084E92] mb-2.5">
+                          <Package className="w-5 h-5" />
                         </div>
-                        <p className="text-sm font-semibold text-gray-800">No purchase items added</p>
-                        <p className="text-xs text-gray-400 mt-1">Search and select raw material items above to include them in this purchase order.</p>
+                        <p className="text-xs font-semibold text-gray-800">No purchase items added</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Search and select raw material items above to include them in this purchase order.</p>
                       </div>
                     </td>
                   </tr>
@@ -2315,6 +2591,8 @@ const CreatePurchaseOrder = () => {
                     const calc = calculatedTotals.itemCalculations[item.rawMaterialId] || {
                       qty: Number(poQtyMap[item.rawMaterialId]) || 0,
                       price: Number(priceMap[item.rawMaterialId]) || 0,
+                      discountPct: Number(discountMap[item.rawMaterialId]) || 0,
+                      discountAmt: 0,
                       taxable: 0,
                       gstPct: 18,
                       gstAmt: 0,
@@ -2330,28 +2608,28 @@ const CreatePurchaseOrder = () => {
 
                     return (
                       <tr key={item.rawMaterialId} className={`hover:bg-blue-50/20 transition-colors ${isSelected ? 'bg-blue-50/30' : ''}`}>
-                        <td className="py-2.5 px-2 text-center align-top pt-3.5 w-8">
+                        <td className="py-2 px-1 text-center align-top pt-2.5 w-7">
                           <input
                             type="checkbox"
                             disabled={isReadOnly}
                             checked={isSelected}
                             onChange={() => setRowSelection(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                            className="w-4 h-4 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
+                            className="w-3.5 h-3.5 rounded border-[#CBD5E1] accent-[#084E92] cursor-pointer disabled:cursor-not-allowed"
                           />
                         </td>
-                        <td className="py-2.5 px-2 align-top w-52">
+                        <td className="py-2 px-1.5 align-top w-32 min-w-[100px] max-w-[140px]">
                           <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5 min-w-0">
+                            <div className="flex items-center gap-1 min-w-0">
                               <button
                                 type="button"
                                 onClick={() => openQuotationModal(item)}
                                 title="Click to compare vendor prices"
-                                className="text-[#084E92] font-semibold underline underline-offset-2 hover:text-[#063d73] cursor-pointer text-left inline-flex items-center gap-1 text-xs truncate max-w-[140px]"
+                                className="text-[#084E92] font-semibold underline underline-offset-2 hover:text-[#063d73] cursor-pointer text-left inline-flex items-center gap-1 text-xs truncate max-w-[110px]"
                               >
                                 <span className="truncate">{item.itemName}</span>
                               </button>
                               {item.source === 'manual' && (
-                                <span className="text-[9px] font-semibold uppercase tracking-wide text-[#0B5CAD] bg-[#EFF6FF] px-1.5 py-0.2 rounded shrink-0">
+                                <span className="text-[8px] font-semibold uppercase tracking-wide text-[#0B5CAD] bg-[#EFF6FF] px-1 py-0.2 rounded shrink-0">
                                   Added
                                 </span>
                               )}
@@ -2360,18 +2638,16 @@ const CreatePurchaseOrder = () => {
                                   type="button"
                                   onClick={() => toggleItemRemarks(item.rawMaterialId)}
                                   title={isRemarksOpen ? 'Close remarks' : 'Add/Edit remarks'}
-                                  className={`p-0.5 rounded hover:bg-blue-50 transition cursor-pointer shrink-0 ${
-                                    itemRemarks ? 'text-[#084E92]' : 'text-gray-400 hover:text-gray-600'
-                                  }`}
+                                  className={`p-0.5 rounded hover:bg-blue-50 transition cursor-pointer shrink-0 ${itemRemarks ? 'text-[#084E92]' : 'text-gray-400 hover:text-gray-600'
+                                    }`}
                                 >
-                                  <Pencil size={11} />
+                                  <Pencil size={10} />
                                 </button>
                               )}
                             </div>
 
-                            {/* Show compact remarks input when opened via pencil icon */}
                             {isRemarksOpen ? (
-                              <div className="mt-1">
+                              <div className="mt-0.5">
                                 <input
                                   type="text"
                                   autoFocus
@@ -2382,23 +2658,29 @@ const CreatePurchaseOrder = () => {
                                       [item.rawMaterialId]: e.target.value,
                                     }))
                                   }
+                                  onBlur={() =>
+                                    setItemRemarksMap((prev) => ({
+                                      ...prev,
+                                      [item.rawMaterialId]: formatRemarks(prev[item.rawMaterialId] || ''),
+                                    }))
+                                  }
                                   disabled={isReadOnly}
                                   placeholder="Remarks..."
-                                  className="w-full max-w-[200px] h-6 border border-[#CBD5E1] rounded px-1.5 text-[10px] text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
+                                  className="w-full max-w-[120px] h-5.5 border border-[#CBD5E1] rounded px-1 text-[10px] text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
                                 />
                               </div>
                             ) : itemRemarks ? (
                               <p
                                 onClick={() => !isReadOnly && toggleItemRemarks(item.rawMaterialId)}
                                 title="Click to edit remarks"
-                                className="text-[10px] text-gray-500 italic truncate max-w-[180px] cursor-pointer hover:text-gray-700"
+                                className="text-[10px] text-gray-500 italic truncate max-w-[120px] cursor-pointer hover:text-gray-700 mt-0.5"
                               >
                                 {itemRemarks}
                               </p>
                             ) : null}
                           </div>
                         </td>
-                        <td className="py-2.5 px-2 align-top pt-2.5 w-36">
+                        <td className="py-2 px-1 align-top pt-1.5 w-32 min-w-[125px]">
                           {(() => {
                             const currentUom = uomMap[item.rawMaterialId] || {
                               uomId: item.uomId,
@@ -2423,14 +2705,14 @@ const CreatePurchaseOrder = () => {
 
                             if (isReadOnly) {
                               return (
-                                <span className="inline-block bg-gray-100 px-1.5 py-0.5 rounded font-medium text-[11px] text-gray-700">
+                                <span className="inline-block bg-gray-100 px-1.5 py-0.5 rounded font-medium text-[10px] text-gray-700">
                                   {currentUom.uomName || '—'}
                                 </span>
                               );
                             }
 
                             return (
-                              <div className="min-w-[110px] max-w-[150px]">
+                              <div className="w-full min-w-[120px]">
                                 <SearchableSelect
                                   name={`unit-${item.rawMaterialId}`}
                                   value={currentUom.uomId ? String(currentUom.uomId) : ''}
@@ -2438,38 +2720,36 @@ const CreatePurchaseOrder = () => {
                                   options={options}
                                   placeholder="Select unit"
                                   disabled={isReadOnly}
+                                  isClearable={false}
                                   hasError={!currentUom.uomId || !currentUom.uomName}
                                 />
                               </div>
                             );
                           })()}
                         </td>
-                        <td className="py-2.5 px-2 align-top pt-3 w-52">
-                          <div className="relative">
-                            <select
-                              value={vendorMap[item.rawMaterialId] || (isSingleVendorPo ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '') : '')}
-                              onChange={(e) => handleVendorChange(item.rawMaterialId, e.target.value)}
+                        <td className="py-2 px-1 align-top pt-1.5 w-48 min-w-[180px]">
+                          <div className="relative w-full min-w-[175px]">
+                            <SearchableSelect
+                              name={`vendor-${item.rawMaterialId}`}
+                              value={
+                                vendorMap[item.rawMaterialId] ||
+                                (isSingleVendorPo
+                                  ? (commonVendorId || poRecord?.vendorId || state?.vendorId || '')
+                                  : '')
+                              }
+                              onChange={(e) =>
+                                handleVendorChange(item.rawMaterialId, e.target.value)
+                              }
+                              options={mappedVendors.map((v) => ({
+                                value: String(v.id),
+                                label: v.name,
+                              }))}
+                              placeholder="Select Vendor"
                               disabled={isReadOnly || isSingleVendorPo}
-                              title={isSingleVendorPo ? 'Vendor is fixed per PO. Change vendor globally from PO Information above.' : 'Select Vendor'}
-                              className={`w-full h-8 border border-[#E2E8F0] rounded-lg px-2 pr-5 text-xs text-[#1E293B] appearance-none outline-none ${
-                                isSingleVendorPo
-                                  ? 'bg-[#F8FAFC] text-gray-500 cursor-not-allowed border-dashed'
-                                  : 'bg-white cursor-pointer focus:border-[#084E92]'
-                              } disabled:bg-[#F8FAFC] disabled:cursor-not-allowed truncate`}
-                            >
-                              <option value="">Select Vendor</option>
-                              {mappedVendors.map((v) => (
-                                <option key={v.id} value={v.id}>
-                                  {v.name}
-                                </option>
-                              ))}
-                            </select>
-                            {!isSingleVendorPo && (
-                              <ChevronDown size={12} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                            )}
+                            />
                           </div>
                         </td>
-                        <td className="py-2.5 px-2 text-center align-top pt-3 w-16">
+                        <td className="py-2 px-1 text-center align-top pt-1.5 w-14">
                           <input
                             type="number"
                             min="1"
@@ -2484,11 +2764,14 @@ const CreatePurchaseOrder = () => {
                               }))
                             }
                             disabled={isReadOnly}
+                            onWheel={(e) => {
+                              e.currentTarget.blur();
+                            }}
                             placeholder="0"
-                            className="w-14 h-8 border border-[#E2E8F0] rounded-lg text-center font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:text-[#475467]"
+                            className="w-12 h-7.5 border border-[#E2E8F0] rounded-lg text-center font-bold text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC] disabled:text-[#475467]"
                           />
                         </td>
-                        <td className="py-2.5 px-2 text-right align-top pt-3 w-20">
+                        <td className="py-2 px-1 text-right align-top pt-1.5 w-16">
                           <input
                             type="number"
                             min="0"
@@ -2504,13 +2787,37 @@ const CreatePurchaseOrder = () => {
                               }))
                             }
                             disabled={isReadOnly}
+                            onWheel={(e) => {
+                              e.currentTarget.blur();
+                            }}
                             placeholder="0.00"
-                            className="w-18 h-8 border border-[#E2E8F0] rounded-lg text-right px-1.5 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                            className="w-14 h-7.5 border border-[#E2E8F0] rounded-lg text-right px-1 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                          />
+                        </td>
+                        <td className="py-2 px-1 text-right align-top pt-1.5 w-14">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={discountMap[item.rawMaterialId] ?? 0}
+                            onKeyDown={(e) => {
+                              if (e.key === '-' || e.key === 'e') e.preventDefault();
+                            }}
+                            onChange={(e) =>{
+                                handleItemDiscountChange(item.rawMaterialId, e.target.value);
+                            }}
+                            disabled={isReadOnly}
+                            onWheel={(e) => {
+                              e.currentTarget.blur();
+                            }}
+                            placeholder="0"
+                            className="w-12 h-7.5 border border-[#E2E8F0] rounded-lg text-right px-1 font-medium text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                           />
                         </td>
                         {!isGeneratePo && isGstApplicable ? (
                           <>
-                            <td className="py-2.5 px-2 text-center align-top pt-3 w-20">
+                            <td className="py-2 px-1 text-center align-top pt-1.5 w-16">
                               <input
                                 type="text"
                                 value={hsnMap[item.rawMaterialId] ?? ''}
@@ -2522,10 +2829,10 @@ const CreatePurchaseOrder = () => {
                                 }
                                 disabled={isReadOnly}
                                 placeholder="HSN"
-                                className="w-18 h-8 border border-[#E2E8F0] rounded-lg px-1.5 text-center text-xs font-mono outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                                className="w-14 h-7.5 border border-[#E2E8F0] rounded-lg px-1 text-center text-xs font-mono outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                               />
                             </td>
-                            <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
+                            <td className="py-2 px-0.5 text-center align-top pt-1.5 w-12">
                               <input
                                 type="number"
                                 min="0"
@@ -2539,54 +2846,62 @@ const CreatePurchaseOrder = () => {
                                   const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
                                   setGstMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
                                 }}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 disabled={isReadOnly}
                                 placeholder="18"
-                                className="w-13 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                                className="w-10 h-7.5 border border-[#E2E8F0] rounded-lg text-center text-xs px-0.5 outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
                               />
                             </td>
-                            <td className="py-2.5 px-1 text-center align-top pt-3 w-14">
-                              <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                value={cessMap[item.rawMaterialId] ?? 0}
-                                onKeyDown={(e) => {
-                                  if (e.key === '-' || e.key === 'e') e.preventDefault();
-                                }}
-                                onChange={(e) => {
-                                  const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
-                                  setCessMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
-                                }}
-                                disabled={isReadOnly}
-                                placeholder="0"
-                                className="w-12 h-8 border border-[#E2E8F0] rounded-lg text-center text-xs outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
-                              />
-                            </td>
-                            <td className="py-2.5 px-2 text-right font-medium text-xs text-gray-700 font-mono align-top pt-3.5 w-24 whitespace-nowrap">
+                           {hasAnyCessApplicable && (
+                              <td className="py-2 px-0.5 text-center align-top pt-1.5 w-12">
+                                {(item.isCessApplicable || rawMaterials.find((r) => Number(r.id) === Number(item.rawMaterialId))?.isCessApplicable) ? (
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    step="0.01"
+                                    value={cessMap[item.rawMaterialId] ?? 0}
+                                    onKeyDown={(e) => {
+                                      if (e.key === '-' || e.key === 'e') e.preventDefault();
+                                    }}
+                                    onChange={(e) => {
+                                      const v = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                                      setCessMap((prev) => ({ ...prev, [item.rawMaterialId]: v }));
+                                    }}
+                                    onWheel={(e) => e.currentTarget.blur()}
+                                    disabled={isReadOnly}
+                                    placeholder="0"
+                                    className="w-10 h-7.5 border border-[#E2E8F0] rounded-lg text-center text-xs px-0.5 outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                                  />
+                                ) : (
+                                  <span className="text-gray-400 font-medium">-</span>
+                                )}
+                              </td>
+                            )}
+                            <td className="py-2 px-1 text-right font-medium text-xs text-gray-700 font-mono align-top pt-2 w-20 whitespace-nowrap">
                               ₹{calc.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
-                            <td className="py-2.5 px-2 text-right font-medium text-xs text-amber-700 font-mono align-top pt-3.5 w-20 whitespace-nowrap">
+                            <td className="py-2 px-1 text-right font-medium text-xs text-amber-700 font-mono align-top pt-2 w-16 whitespace-nowrap">
                               ₹{calc.itemTax.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
-                            <td className="py-2.5 px-3 text-right font-bold text-xs text-gray-900 font-mono align-top pt-3.5 w-28 whitespace-nowrap">
+                            <td className="py-2 px-1.5 text-right font-bold text-xs text-gray-900 font-mono align-top pt-2 w-20 whitespace-nowrap">
                               ₹{calc.itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </td>
                           </>
                         ) : (
-                          <td className="py-2.5 px-4 text-right font-bold text-xs text-gray-900 font-mono align-top pt-3.5 w-auto min-w-[130px] whitespace-nowrap">
-                            ₹{((Number(poQtyMap[item.rawMaterialId]) || 0) * (Number(priceMap[item.rawMaterialId]) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <td className="py-2 px-2 text-right font-bold text-xs text-gray-900 font-mono align-top pt-2 w-24 whitespace-nowrap">
+                            ₹{calc.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         )}
-                        <td className="py-2.5 px-2 text-center align-top pt-3 w-12">
+                        <td className="py-2 px-1 text-center align-top pt-2 w-9">
                           {!isReadOnly && (
                             <button
                               type="button"
                               onClick={() => setItemToDelete(item)}
-                              className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:!text-red-600 hover:!bg-red-50 transition-colors duration-150 cursor-pointer mx-auto group"
+                              className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:!text-red-600 hover:!bg-red-50 transition-colors duration-150 cursor-pointer mx-auto group"
                               title="Remove from PO"
                             >
-                              <Trash2 size={15} className="text-gray-400 group-hover:!text-red-600 transition-colors duration-150" />
+                              <Trash2 size={13} className="text-gray-400 group-hover:!text-red-600 transition-colors duration-150" />
                             </button>
                           )}
                         </td>
@@ -2598,7 +2913,7 @@ const CreatePurchaseOrder = () => {
             </table>
           </div>
 
-          {/* Summary Section: Simple for Generate PO vs Detailed Tax Invoice for Continue PO / Review */}
+          {/* Summary Section */}
           {isGeneratePo ? (
             <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] px-6 py-4 flex items-center justify-between">
               <span className="text-xs text-gray-500 font-medium">
@@ -2613,12 +2928,11 @@ const CreatePurchaseOrder = () => {
             </div>
           ) : (
             <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-6">
-              {/* If GST is applicable, show Other Costing on top across full width, then 2-col Tax Breakdown + Summary */}
               {isGstApplicable && (
                 <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mb-6">
                   <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
                     <div className="flex items-center gap-2">
-                      <PlusCircle size={16} className="text-[#084E92]" />
+                      {/* <PlusCircle size={16} className="text-[#084E92]" /> */}
                       <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92]">
                         Other Costing / Charges (Transportation, Handling, etc.)
                       </h3>
@@ -2658,6 +2972,7 @@ const CreatePurchaseOrder = () => {
                             onChange={(e) => handleOtherCostChange(costItem.id, 'cost', e.target.value)}
                             disabled={isReadOnly}
                             placeholder="0.00"
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full h-9 border border-[#E2E8F0] rounded-lg pl-6 pr-2 text-right text-xs font-mono text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
                           />
                         </div>
@@ -2687,12 +3002,11 @@ const CreatePurchaseOrder = () => {
               )}
 
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-                {/* Left Column: If GST is applicable -> Tax Breakdown. If GST NOT applicable -> Other Costing / Charges */}
                 {isGstApplicable ? (
                   <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">
                     <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-gray-100">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-[#084E92] flex items-center gap-1.5">
-                        <Receipt className="w-4 h-4" />
+                    
                         Tax Breakdown {isInterState ? '(Inter-State IGST)' : '(Intra-State CGST + SGST)'}
                       </h3>
                       <span className="text-[10px] font-semibold bg-blue-50 text-[#084E92] px-2.5 py-0.5 rounded-full border border-blue-100">
@@ -2830,7 +3144,6 @@ const CreatePurchaseOrder = () => {
                     </div>
                   </div>
                 ) : (
-                  /* Non-GST View: Left column is Other Costing / Charges */
                   <div className="xl:col-span-7 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100">
@@ -2874,6 +3187,7 @@ const CreatePurchaseOrder = () => {
                                 }}
                                 onChange={(e) => handleOtherCostChange(costItem.id, 'cost', e.target.value)}
                                 disabled={isReadOnly}
+                                onWheel={(e) => e.currentTarget.blur()}
                                 placeholder="0.00"
                                 className="w-full h-9 border border-[#E2E8F0] rounded-lg pl-6 pr-2 text-right text-xs font-mono text-[#1E293B] outline-none focus:border-[#084E92] bg-white disabled:bg-[#F8FAFC]"
                               />
@@ -2908,9 +3222,38 @@ const CreatePurchaseOrder = () => {
                 <div className="xl:col-span-5 bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col justify-between">
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between py-1 border-b border-gray-100">
-                      <span className="text-gray-500">{isGstApplicable ? 'Sub Total (Taxable):' : 'Sub Total:'}</span>
+                      <span className="text-gray-500">Sub Total:</span>
+                      <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.subtotal)}</span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Overall Discount (%):</span>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={overallDiscountPercentage}
+                          onChange={(e) => handleOverallDiscountChange(e.target.value)}
+                          onWheel={(e) => e.currentTarget.blur()}
+                          disabled={isReadOnly}
+                          className="w-16 h-7 px-2 rounded-lg border border-[#E2E8F0] text-xs text-right outline-none focus:border-[#084E92] disabled:bg-[#F8FAFC]"
+                        />
+                        <span>%</span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">Discount Amount:</span>
+                      <span className="font-semibold text-red-600 font-mono">-{formatCurrency(calculatedTotals.totalDiscount)}</span>
+                    </div>
+
+                    <div className="flex justify-between py-1 border-b border-gray-100">
+                      <span className="text-gray-500">{isGstApplicable ? 'Sub Total (Taxable):' : 'Amount after Discount:'}</span>
                       <span className="font-semibold text-gray-800 font-mono">{formatCurrency(calculatedTotals.totalTaxable)}</span>
                     </div>
+
                     {isGstApplicable && (
                       <div className="flex justify-between py-1 border-b border-gray-100">
                         <span className="text-gray-500">Total Tax:</span>
@@ -2968,7 +3311,7 @@ const CreatePurchaseOrder = () => {
             <div className="flex items-center gap-2">
               <FileText size={18} className="text-[#0B5CAD]" />
               <h2 className="text-sm font-semibold text-[#1E293B]">
-                Terms & Delivery Notes {isRejectMode && <span className="text-red-500">*</span>}
+                Remarks {isRejectMode && <span className="text-red-500">*</span>}
               </h2>
             </div>
           </div>
@@ -2981,14 +3324,14 @@ const CreatePurchaseOrder = () => {
                 setRemarks(e.target.value);
                 if (remarksError) setRemarksError('');
               }}
+              onBlur={() => setRemarks((prev) => formatRemarks(prev))}
               placeholder={
                 isRejectMode
                   ? 'Please state the reason for rejecting this purchase order...'
                   : 'Add any specific terms, instructions, or notes for the vendor...'
               }
-              className={`w-full p-4 rounded-xl border ${
-                remarksError ? 'border-red-400 focus:border-red-500' : 'border-[#E2E8F0] focus:border-[#0B5CAD]'
-              } text-sm outline-none resize-none transition disabled:bg-[#F8FAFC]`}
+              className={`w-full p-4 rounded-xl border ${remarksError ? 'border-red-400 focus:border-red-500' : 'border-[#E2E8F0] focus:border-[#0B5CAD]'
+                } text-sm outline-none resize-none transition disabled:bg-[#F8FAFC]`}
             />
             {remarksError && (
               <p className="text-xs text-red-500 mt-1.5">{remarksError}</p>
@@ -3001,6 +3344,27 @@ const CreatePurchaseOrder = () => {
             {submitError}
           </div>
         )}
+
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm mt-6">
+          <div className="px-6 py-5 border-b border-[#E2E8F0]">
+            <div className="flex items-center gap-2">
+              <FileText size={18} className="text-[#0B5CAD]" />
+              <h2 className="text-sm font-semibold text-[#1E293B]">
+                Terms &amp; Conditions
+              </h2>
+            </div>
+          </div>
+          <div className="p-6">
+            <textarea
+              rows={4}
+              value={termsAndConditions}
+              disabled={isReadOnly && !isRejectMode}
+              onChange={(e) => setTermsAndConditions(e.target.value)}
+              placeholder="Vendor's terms & conditions will auto-fill here on vendor selection — you can edit them."
+              className="w-full p-4 rounded-xl border border-[#E2E8F0] focus:border-[#0B5CAD] text-sm outline-none resize-none transition disabled:bg-[#F8FAFC]"
+            />
+          </div>
+        </div>
 
         <div className="flex justify-between items-center mt-6">
           <button
@@ -3109,7 +3473,7 @@ const CreatePurchaseOrder = () => {
       <DeleteConfirmModal
         isOpen={Boolean(itemToDelete)}
         onClose={() => setItemToDelete(null)}
-        onConfirm={() => {
+          onConfirm={() => {
           if (itemToDelete?.rawMaterialId) {
             handleRemoveItem(itemToDelete.rawMaterialId);
           }
@@ -3120,7 +3484,6 @@ const CreatePurchaseOrder = () => {
         description={`Are you sure you want to remove "${itemToDelete?.itemName}" from this purchase order?`}
       />
 
-      {/* Vendor Change Confirmation Modal */}
       <VendorChangeConfirmModal
         isOpen={showVendorChangeModal}
         onClose={() => {
@@ -3134,7 +3497,6 @@ const CreatePurchaseOrder = () => {
         loading={isSwitchingVendor}
       />
 
-      {/* Generate Stock Transfer Modal */}
       <GenerateStockTransferModal
         isOpen={showStockTransferModal}
         onClose={() => setShowStockTransferModal(false)}

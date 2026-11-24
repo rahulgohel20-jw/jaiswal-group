@@ -10,6 +10,14 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { OtherChargesModal } from "../stock-purchase/models/purchases.models";
+import { Container } from '@/components/common/container';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const inputCls =
   "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white " +
@@ -80,10 +88,11 @@ const AddPurchaseReturn = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 -mt-4">
-      <div className="max-w-5xl mx-auto space-y-5 pt-2">
-        <div className="mb-12">
-          <h1 className="text-2xl font-bold text-gray-900 leading-none">Add Purchase Return</h1>
+     <Container>
+    <div className="mx-auto px-4">
+      <div>
+        <div className="mb-3">
+          <h1 className="font-bold text-[#101828] text-[28px]">Add Purchase Return</h1>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-6 space-y-5">
@@ -98,21 +107,21 @@ const AddPurchaseReturn = () => {
             </span>
           </div>
 
-          <div className="flex items-end gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
             <div className="flex-1">
               <Label required>Supplier/Third Party</Label>
               <div className="relative">
-                <select
-                  value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
-                  className={`${inputCls} appearance-none cursor-pointer pr-8`}
-                >
-                  <option value="">Select Supplier</option>
-                  <option value="shubh">Shubh Enterprises</option>
-                  <option value="nexora">Nexora Traders</option>
-                  <option value="vertex">Vertex Fabrics Pvt Ltd</option>
-                </select>
-                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Select value={supplier} onValueChange={setSupplier}>
+                    <SelectTrigger className="w-full h-11 rounded-lg border border-gray-200 bg-white px-3.5 text-sm text-gray-800 focus:border-blue-400 focus:ring-1 focus:ring-blue-300">
+                      <SelectValue placeholder="Select Supplier" />
+                    </SelectTrigger>
+
+                    <SelectContent>
+                      <SelectItem value="shubh">Shubh Enterprises</SelectItem>
+                      <SelectItem value="nexora">Nexora Traders</SelectItem>
+                      <SelectItem value="vertex">Vertex Fabrics Pvt Ltd</SelectItem>
+                    </SelectContent>
+                  </Select>
               </div>
             </div>
             <div className="flex-1">
@@ -191,16 +200,22 @@ const AddPurchaseReturn = () => {
                       <input type="checkbox" className="accent-blue-600 cursor-pointer" />
                     </td>
                     <td className="px-3 py-2.5">
-                      <select
+                      <Select
                         value={li.rawMaterial}
-                        onChange={(e) => updateLine(li.id, "rawMaterial", e.target.value)}
-                        className={`${cellInputCls} cursor-pointer`}
+                        onValueChange={(value) =>
+                          updateLine(li.id, "rawMaterial", value)
+                        }
                       >
-                        <option value="">Select/Add Raw Material</option>
-                        <option value="flour">Refined Flour</option>
-                        <option value="sugar">Sugar</option>
-                        <option value="oil">Cooking Oil</option>
-                      </select>
+                        <SelectTrigger className="w-full h-9 rounded-md border border-gray-200 bg-white px-2 text-sm text-gray-800 focus:border-blue-400 focus:ring-1 focus:ring-blue-300">
+                          <SelectValue placeholder="Select/Add Raw Material" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          <SelectItem value="flour">Refined Flour</SelectItem>
+                          <SelectItem value="sugar">Sugar</SelectItem>
+                          <SelectItem value="oil">Cooking Oil</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </td>
                     <td className="px-3 py-2.5">
                       <input
@@ -213,17 +228,23 @@ const AddPurchaseReturn = () => {
                       />
                     </td>
                     <td className="px-3 py-2.5">
-                      <select
+                      <Select
                         value={li.unit}
-                        onChange={(e) => updateLine(li.id, "unit", e.target.value)}
-                        className={`${cellInputCls} cursor-pointer`}
+                        onValueChange={(value) =>
+                          updateLine(li.id, "unit", value)
+                        }
                       >
-                        <option value="">Unit</option>
-                        <option value="kg">kg</option>
-                        <option value="g">g</option>
-                        <option value="l">l</option>
-                        <option value="pcs">pcs</option>
-                      </select>
+                        <SelectTrigger className="w-full h-9 rounded-md border border-gray-200 bg-white px-2 text-sm text-gray-800 focus:border-blue-400 focus:ring-1 focus:ring-blue-300">
+                          <SelectValue placeholder="Unit" />
+                        </SelectTrigger>
+
+                        <SelectContent>
+                          <SelectItem value="kg">kg</SelectItem>
+                          <SelectItem value="g">g</SelectItem>
+                          <SelectItem value="l">l</SelectItem>
+                          <SelectItem value="pcs">pcs</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </td>
                     <td className="px-3 py-2.5">
                       <input
@@ -393,6 +414,7 @@ const AddPurchaseReturn = () => {
         />
       )}
     </div>
+    </Container>
   );
 };
 

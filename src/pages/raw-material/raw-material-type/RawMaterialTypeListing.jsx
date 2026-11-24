@@ -1,18 +1,18 @@
 import {
     Blocks,
-    ChevronRight,
     CircleCheck,
     CircleX,
     Clock,
+    Download,
     Eye,
     Plus,
-    Search,
     SquarePen,
     Trash2,
     Upload,
 } from 'lucide-react'
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useState, useEffect, useMemo } from 'react'
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
@@ -33,6 +33,9 @@ import {
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -40,6 +43,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 
 const mapType = (t) => ({
@@ -51,7 +56,8 @@ const mapType = (t) => ({
 });
 
 const RawMaterialTypeListing = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Types');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Types');
+    const navigate = useNavigate();
     const [types, setTypes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -74,6 +80,8 @@ const RawMaterialTypeListing = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [sorting, setSorting] = useState([]);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const openEditModal = (row) => {
         setEditingType(row);
@@ -207,7 +215,7 @@ const RawMaterialTypeListing = () => {
                     <DataGridColumnHeader title="S.NO" column={column} className="py-4" />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-500 py-4">{String(row.index + 1).padStart(2, '0')}</span>
+                    <span className="text-gray-500 py-4 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
                 ),
                 enableSorting: false,
                 size: 70,
@@ -219,9 +227,10 @@ const RawMaterialTypeListing = () => {
                     <DataGridColumnHeader title="TYPE NAME" column={column} />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 py-2 capitalize">{row.original.nameEnglish}</div>
+                    <div className="font-medium text-xs text-gray-800 py-2 capitalize">{row.original.nameEnglish}</div>
                 ),
                 size: 260,
+                enableSorting: true,
             },
             {
                 id: "status",
@@ -254,6 +263,7 @@ const RawMaterialTypeListing = () => {
                     </label>
                 ),
                 size: 160,
+                enableSorting: false,
             },
             {
                 id: "actions",
@@ -286,8 +296,10 @@ const RawMaterialTypeListing = () => {
     const table = useReactTable({
         data: filteredTypes,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
+        onSortingChange: setSorting,
+        getSortedRowModel: getSortedRowModel(),
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
@@ -307,25 +319,33 @@ const RawMaterialTypeListing = () => {
         {
             title: "Total Types",
             value: String(stats.total),
-            icon: <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
+            icon: <Blocks size={18} />,
+            iconBg: 'bg-[#D5E3FF]',
+            iconColor: 'text-[#00376C]',
             color: "text-[#1B1B1F]",
         },
         {
             title: "Active Types",
             value: String(stats.active).padStart(2, '0'),
-            icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
+            icon: <CircleCheck size={18} />,
+            iconBg: 'bg-[#DCFCE7]',
+            iconColor: 'text-[#15803D]',
             color: "text-[#15803D]",
         },
         {
             title: "Inactive Types",
             value: String(stats.inactive).padStart(2, '0'),
-            icon: <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />,
-            color: "text-[#1B1B1F]",
+            icon: <CircleX size={18} />,
+            iconBg: 'bg-[#FEE2E2]',
+            iconColor: 'text-[#DC2626]',
+            color: "text-[#DC2626]",
         },
         {
             title: "Last Updated",
             value: lastUpdatedLabel,
-            icon: <Clock size={22} className="text-[#7C3AED] p-1 bg-[#EDE9FE] rounded" />,
+            icon: <Clock size={18} />,
+            iconBg: 'bg-[#EDE9FE]',
+            iconColor: 'text-[#7C3AED]',
             color: "text-[#1B1B1F]",
         },
     ];
@@ -336,72 +356,56 @@ const RawMaterialTypeListing = () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Master Data</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Raw Material Type</span>
-                </div>
+            <div className="pt-2 pb-6 mx-auto space-y-4">
+                <PageHeader
+                    title="Raw Material Type Master"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openCreateModal}>
+                                    Add Type
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
+                />
 
-                <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold">Raw Material Type Master</h1>
-                    </div>
-
-                    <div className="flex gap-3 self-end">
-                        <button
-                            type="button"
-                            className="px-4 py-2 border border-[#C3C6D1] text-[#43474F] rounded-lg flex gap-2 items-center cursor-pointer hover:bg-gray-50 transition"
-                        >
-                            <Upload size={16} />
-                            Export
-                        </button>
-                        {canAdd && (
-                            <button
-                                type="button"
-                                onClick={openCreateModal}
-                                className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                            >
-                                <Plus size={16} />
-                                Add Type
-                            </button>
-                        )}
-                    </div>
-                </div>
+                <PageErrorAlert error={error} onRetry={fetchTypes} className="my-3" />
 
                 {/* Stat cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 text-[#43474F]">
                     {STATS.map((item) => (
-                        <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
-                            <div className="flex justify-between items-center pb-2">
-                                <p>{item.icon}</p>
+                        <div key={item.title} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                            <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                {item.icon}
                             </div>
-                            <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                            <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
+                            <div className="flex flex-col items-end text-right">
+                                <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
+                            </div>
                         </div>
                     ))}
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+                <div className="bg-white flex flex-col gap-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                        <div className="relative min-w-0 border border-[#C3C6D1] rounded-lg">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                            <input
-                                placeholder="Search by type name..."
-                                className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+                        <SearchBar
+                            placeholder="Search by type name..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                         <Select
                             value={statusFilter}
                             onValueChange={(value) => setStatusFilter(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Status" />
                             </SelectTrigger>
 
@@ -426,8 +430,18 @@ const RawMaterialTypeListing = () => {
                 {/* Table */}
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {loading && <p className="p-4 text-sm text-gray-500">Loading raw material types...</p>}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                    <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl ">
+                    <DataGrid
+                        table={table}
+                        recordCount={filteredTypes.length}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
                             <CardTable>
                                 <ScrollArea>
@@ -470,6 +484,12 @@ const RawMaterialTypeListing = () => {
                     onConfirm={confirmDelete}
                     itemLabel={deleteTarget?.name}
                     saving={deleteLoading}
+                />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="raw_material_category_type"
+                    title="Export Raw Material Type Report"
                 />
             </div>
         </Container>

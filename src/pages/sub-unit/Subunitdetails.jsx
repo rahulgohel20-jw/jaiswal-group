@@ -12,16 +12,36 @@ import {
   User,
   AlertTriangle,
   Loader2,
+  Layers,
+  Plus,
+  Eye,
+  ExternalLink,
 } from "lucide-react";
-import { getSubOutletById, deleteSubOutletById } from "@/services/apiServices";
+import {
+  getSubOutletById,
+  deleteSubOutletById,
+} from "@/services/apiServices";
 import { notify } from "@/utils/toast";
+import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
+import { useOrgScope } from '@/hooks/useOrgScope';
+
+const extractArray = (res) => {
+  if (!res) return [];
+  const raw = res?.data?.data ?? res?.data;
+  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw?.content)) return raw.content;
+  if (Array.isArray(res?.data?.content)) return res.data.content;
+  if (Array.isArray(res?.data)) return res.data;
+  return [];
+};
 
 const InfoCard = ({ label, value }) => (
   <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
     <p className="text-[11px] uppercase tracking-wide text-gray-400 font-semibold">
       {label}
     </p>
-    <p className="text-sm font-semibold text-gray-800 mt-1 break-words">
+    <p className="text-sm font-semibold text-gray-800 mt-1 wrap-break-word">
       {value || "—"}
     </p>
   </div>
@@ -86,6 +106,7 @@ const SubUnitDetails = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
+  const { getSubLocations } = useOrgScope();
 
   const [subUnit, setSubUnit] = useState(location.state?.subUnit ?? null);
   const [loading, setLoading] = useState(!location.state?.subUnit);
@@ -130,6 +151,18 @@ const SubUnitDetails = () => {
       setDeleting(false);
     }
   };
+
+  const [subLocations, setSubLocations] = useState([]);
+  const [loadingSubLocations, setLoadingSubLocations] = useState(false);
+
+  useEffect(() => {
+    const rawData = subUnit?.originalData || subUnit;
+    const unitId = rawData?.id || params.id;
+    if (!unitId) return;
+
+    const list = getSubLocations(unitId) || [];
+    setSubLocations(list);
+  }, [subUnit, params.id, getSubLocations]);
 
   if (loading) {
     return (
@@ -178,44 +211,39 @@ const SubUnitDetails = () => {
   const statusLabel = isActive ? "Active" : "Inactive";
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-        <div>
-          <button
-            type="button"
-            onClick={() => navigate("/sub-units")}
-            className="flex items-center gap-2 text-[#084E92] font-semibold text-sm mb-2 cursor-pointer bg-transparent border-0 p-0"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back to Sub Units
-          </button>
-          <h1 className="text-3xl md:text-4xl font-bold text-[#084E92]">
-            {subOutletName}
-          </h1>
-          <p className="text-[#737781] mt-1 text-sm">
-            Complete sub unit profile and address information.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleEdit}
-            className="bg-[#084E92] hover:bg-[#073e77] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold border-0 cursor-pointer transition"
-          >
-            <SquarePen className="w-4 h-4" /> Edit Sub Unit
-          </button>
-        </div>
-      </div>
+     <Container>
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
+      <PageHeader
+        title={<span className="capitalize">{subOutletName}</span>}
+        description="Complete sub unit profile and address information."
+        actions={
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/sub-units")}
+              className="flex items-center gap-1.5 text-[#084E92] hover:text-[#063b6f] font-semibold text-sm cursor-pointer bg-transparent border-0 p-0"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back to Sub Units
+            </button>
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="bg-[#084E92] hover:bg-[#073e77] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold border-0 cursor-pointer transition"
+            >
+              <SquarePen className="w-4 h-4" /> Edit Sub Unit
+            </button>
+          </div>
+        }
+      />
 
       {/* Profile Banner */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+      <div className="bg-white rounded-3xl my-6 border border-gray-100 shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
         <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center overflow-hidden border border-gray-200 shrink-0">
           <Store className="w-10 h-10 text-[#084E92]" />
         </div>
 
         <div className="text-center sm:text-left flex-1">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold text-gray-900 capitalize">
             {subOutletName}
           </h2>
 
@@ -239,14 +267,14 @@ const SubUnitDetails = () => {
 
       {/* Sections */}
       <div className="space-y-6">
-        {/* Parent Outlet Information */}
+        {/* Parent Unit Information */}
         <SectionCard
-          title="Parent Outlet"
+          title="Parent Unit"
           icon={Store}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <InfoCard label="Outlet Name" value={outletName} />
-            <InfoCard label="Outlet Code" value={outletCode} />
+            <InfoCard label="Unit Name" value={outletName} />
+            <InfoCard label="Unit Code" value={outletCode} />
           </div>
         </SectionCard>
 
@@ -256,12 +284,172 @@ const SubUnitDetails = () => {
           icon={Info}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <InfoCard label="Sub Outlet Name" value={subOutletName} />
+            <InfoCard label="Type" value={raw.subOutletType || raw.type || raw.locationType || "LOCATION"} />
+            <InfoCard label="Sub Unit Name" value={subOutletName} />
             <InfoCard label="Contact Person" value={contactPerson} />
             <InfoCard label="Contact Number" value={contactNumber} />
             <InfoCard label="Email" value={email} />
           </div>
         </SectionCard>
+
+        {/* Sub Locations Section */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                <Layers className="w-5 h-5 text-[#084E92]" />
+              </div>
+              <div>
+                <h2 className="font-bold text-gray-800 text-base">
+                  Registered Sub Locations
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Stores, kitchens, and sub locations under this sub unit
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate('/sub-locations', {
+                    state: {
+                      subOutletId: raw.id,
+                      subOutletName: subOutletName,
+                      organizationId: raw.organizationId || raw.orgId,
+                    },
+                  })
+                }
+                className="text-xs font-semibold text-[#084E92] hover:underline flex items-center gap-1 px-3 py-1.5 rounded-lg border border-blue-100 bg-blue-50/50 cursor-pointer"
+              >
+                View in Master
+                <ExternalLink size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  navigate('/sub-locations/add', {
+                    state: {
+                      subLocation: {
+                        subOutletId: raw.id,
+                        organizationId: raw.organizationId || raw.orgId,
+                      },
+                    },
+                  })
+                }
+                className="flex items-center gap-1.5 bg-[#084E92] text-white text-xs font-semibold px-3 py-1.5 rounded-lg border-0 cursor-pointer hover:bg-[#073e77] transition"
+              >
+                <Plus size={14} /> Add Sub Location
+              </button>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {loadingSubLocations ? (
+              <div className="flex items-center justify-center py-8 text-gray-400 text-sm gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                Loading sub locations...
+              </div>
+            ) : subLocations.length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-sm">
+                <p>No sub locations registered under this sub unit yet.</p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate('/sub-locations/add', {
+                      state: {
+                        subLocation: {
+                          subOutletId: raw.id,
+                          organizationId: raw.organizationId || raw.orgId,
+                        },
+                      },
+                    })
+                  }
+                  className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-[#084E92] hover:underline cursor-pointer bg-transparent border-0"
+                >
+                  <Plus size={15} /> Create First Sub Location
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 text-[11px] font-bold text-gray-500 uppercase tracking-wider bg-gray-50/60">
+                      <th className="py-2.5 px-4 rounded-l-lg">S.No</th>
+                      <th className="py-2.5 px-4">Sub Location Name</th>
+                      <th className="py-2.5 px-4">Type</th>
+                      <th className="py-2.5 px-4">Code</th>
+                      <th className="py-2.5 px-4">Contact</th>
+                      <th className="py-2.5 px-4">Status</th>
+                      <th className="py-2.5 px-4 text-right rounded-r-lg">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {subLocations.map((loc, idx) => (
+                      <tr key={loc.id || idx} className="hover:bg-gray-50/50 transition">
+                        <td className="py-3 px-4 text-gray-500 text-xs">
+                          {String(idx + 1).padStart(2, '0')}
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-[#084E92]">
+                          {loc.locationName || loc.name || '—'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="text-xs font-semibold text-gray-700 uppercase">
+                            {loc.locationType || loc.type || 'STORE'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-gray-600 font-mono text-xs">
+                          {loc.shortCode || loc.locationCode || '—'}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600 text-xs">
+                          {loc.contactPerson || loc.contactNumber || '—'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`text-xs font-semibold ${
+                              loc.isActive ? 'text-emerald-600' : 'text-gray-400'
+                            }`}
+                          >
+                            {loc.isActive ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate('/sub-locations/sub-location-details', {
+                                  state: { subLocation: loc },
+                                })
+                              }
+                              className="text-gray-500 hover:text-green-600 cursor-pointer"
+                              title="View details"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                navigate('/sub-locations/add', {
+                                  state: { subLocation: loc },
+                                })
+                              }
+                              className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                              title="Edit"
+                            >
+                              <SquarePen size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Address Information */}
         <SectionCard
@@ -281,6 +469,7 @@ const SubUnitDetails = () => {
         </SectionCard>
       </div>
     </div>
+    </Container>
   );
 };
 

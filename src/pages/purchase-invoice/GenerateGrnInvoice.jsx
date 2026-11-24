@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Receipt, Trash2, Save, Loader2, Plus, ChevronRight } from 'lucide-react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Receipt, Trash2, Save, Loader2, Plus, FileCheck, FileText, Eye, FileMinus, X } from 'lucide-react';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { toast } from 'sonner';
 import { formatCurrency, numberToWords } from '@/pages/purchase-order-requests/utils/taxUtils';
 import {
@@ -11,26 +12,53 @@ import {
   getOrganizationByType,
   getAllActiveVendors,
   getRawMaterialById,
-  updatePurchaseInvoiceStatus
+  updatePurchaseInvoiceStatus,
+  getEligibleGrnDetails,
+  createDebitCreditNote,
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '../../utils/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
+import CreateDebitNoteModal from '../purchase-credit-debite-note/CreateDebitNoteModal';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
+
+const formatToDDMMYYYY = (dateStr) => {
+  const d = dateStr ? new Date(dateStr) : new Date();
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 const GenerateGrnInvoice = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const isEditMode = Boolean(id);
+  const { canAdd, canEdit, canView } = usePagePermissions([
+    'Purchase Invoice List',
+    'Generate Purchase Invoice',
+  ]);
 
-  const selectedGrns = location.state?.selectedGrns || (() => {
-    try {
-      return JSON.parse(sessionStorage.getItem('selectedGrns') || '[]');
-    } catch {
-      return [];
+  const rawGrnIds = useMemo(() => {
+    const fromQuery = searchParams.get('grnIds');
+    if (fromQuery) return fromQuery;
+    if (location.state?.grnIds) {
+      return Array.isArray(location.state.grnIds)
+        ? location.state.grnIds.join(',')
+        : String(location.state.grnIds);
     }
-  })();
+    if (Array.isArray(location.state?.selectedGrns)) {
+      return location.state.selectedGrns
+        .map((g) => g.id || g.grnId)
+        .filter(Boolean)
+        .join(',');
+    }
+    return '';
+  }, [searchParams, location.state]);
 
   const [billNumber, setBillNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(todayISO());
@@ -43,10 +71,24 @@ const GenerateGrnInvoice = () => {
   const [vendorsLoading, setVendorsLoading] = useState(false);
   const [editVendorId, setEditVendorId] = useState('');
   const [editOutletId, setEditOutletId] = useState('');
+  const [editVendorName, setEditVendorName] = useState('');
+  const [editOutletName, setEditOutletName] = useState('');
+  const [editVendorStateId, setEditVendorStateId] = useState(null);
+  const [editOutletStateId, setEditOutletStateId] = useState(null);
   const [otherCosts, setOtherCosts] = useState([{ id: Date.now(), label: '', cost: 0 }]);
   const [rows, setRows] = useState([]);
+  const [attachedImages, setAttachedImages] = useState([]);
+  const [activeGrnIds, setActiveGrnIds] = useState([]);
+
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+  const [isDebitModalOpen, setIsDebitModalOpen] = useState(false);
+  const [debitNoteGeneralRemarks, setDebitNoteGeneralRemarks] = useState('');
+  const [debitNoteItems, setDebitNoteItems] = useState([]);
+  const [isCreatingDebitNote, setIsCreatingDebitNote] = useState(false);
+  const [pendingDebitNotes, setPendingDebitNotes] = useState([]);
 
   useEffect(() => {
+    if (isEditMode) return;
     const fetchOutlets = async () => {
       setOutletsLoading(true);
       try {
@@ -54,21 +96,22 @@ const GenerateGrnInvoice = () => {
         const raw = res?.data?.data || res?.data?.content || res?.data || [];
         setOutlets(Array.isArray(raw) ? raw.map(o => ({
           id: o.id,
-          name: o.companyNameEnglish || o.name || `Outlet #${o.id}`,
+          name: o.companyNameEnglish || o.name || `Unit #${o.id}`,
           stateId: o.stateId ?? o.state?.id
         })) : []);
       } catch (err) {
         console.error(err);
-        toast.error('Failed to load outlets');
+        toast.error('Failed to load units');
       } finally {
         setOutletsLoading(false);
       }
     };
 
     fetchOutlets();
-  }, []);
+  }, [isEditMode]);
 
   useEffect(() => {
+    if (isEditMode) return;
     const fetchVendors = async () => {
       setVendorsLoading(true);
       try {
@@ -87,24 +130,84 @@ const GenerateGrnInvoice = () => {
     };
 
     fetchVendors();
-  }, []);
+  }, [isEditMode]);
 
   useEffect(() => {
     if (isEditMode) return;
 
-    setRows(
-      selectedGrns.flatMap(grn =>
-        (grn.details || []).map(detail => {
+    if (!rawGrnIds) {
+      setRows([]);
+      return;
+    }
+
+    const fetchGrnDetails = async () => {
+      setInvoiceLoading(true);
+      try {
+        const res = await getEligibleGrnDetails(rawGrnIds);
+        const resData = res?.data?.data || {};
+
+        const detailDtos = Array.isArray(resData.eligibleGrnDetailResponseDtos)
+          ? resData.eligibleGrnDetailResponseDtos
+          : [];
+        const otherCostList = Array.isArray(resData.otherCostResponseDtos)
+          ? resData.otherCostResponseDtos
+          : [];
+        const imageList = Array.isArray(resData.images)
+          ? resData.images
+          : [];
+
+        setAttachedImages(imageList);
+
+        if (otherCostList.length > 0) {
+          setOtherCosts(
+            otherCostList.map((item, index) => ({
+              id: item.id || Date.now() + index,
+              label: item.label || '',
+              cost: Number(item.cost) || 0,
+              moduleName: item.moduleName || 'POINVOICE'
+            }))
+          );
+        } else {
+          setOtherCosts([{ id: Date.now(), label: '', cost: 0 }]);
+        }
+
+        const grnIdList = [...new Set(detailDtos.map((d) => d.grnId).filter(Boolean))];
+        setActiveGrnIds(grnIdList);
+
+        const primaryGrn = location.state?.selectedGrns?.[0] || {};
+        if (primaryGrn.vendorId) setEditVendorId(String(primaryGrn.vendorId));
+        if (primaryGrn.organizationId) setEditOutletId(String(primaryGrn.organizationId));
+
+        let initialSubtotal = 0;
+        let initialTotalDiscount = 0;
+
+        const mappedRows = detailDtos.map(detail => {
           const allowedUnits = Array.isArray(detail.allowedUnits) ? detail.allowedUnits : [];
           const selectedUnit = allowedUnits.find(u => String(u.id) === String(detail.unitId));
           const unitId = detail.unitId ?? selectedUnit?.id ?? '';
           const unitName = detail.unitName || selectedUnit?.nameEnglish || selectedUnit?.symbolEnglish || '—';
 
+          const unitPrice = Number(detail.unitPrice) || 0;
+          const invoiceableQty = Number(detail.invoiceableQuantity) || 0;
+          let prefilledDiscount = Number(detail.discountPercentage) || 0;
+
+          const baseAmount = unitPrice * invoiceableQty;
+          let discountAmt = Number(detail.discountAmount) || 0;
+
+          if (!prefilledDiscount && discountAmt > 0 && baseAmount > 0) {
+            prefilledDiscount = Number(((discountAmt / baseAmount) * 100).toFixed(2));
+          } else if (prefilledDiscount > 0 && !discountAmt) {
+            discountAmt = (baseAmount * prefilledDiscount) / 100;
+          }
+
+          initialSubtotal += baseAmount;
+          initialTotalDiscount += discountAmt;
+
           return {
-            key: `${grn.grnId || grn.id}-${detail.grnDetailId}`,
-            grnId: detail.grnId || grn.grnId || grn.id,
+            key: `${detail.grnId}-${detail.grnDetailId}`,
+            grnId: detail.grnId,
             grnDetailId: detail.grnDetailId,
-            grnCode: detail.grnCode || grn.grnCode || '—',
+            grnCode: detail.grnCode || '—',
             poCode: detail.poCode || '—',
             purchaseOrderDetailId: detail.purchaseOrderDetailId,
             purchaseOrderId: detail.purchaseOrderId,
@@ -115,20 +218,44 @@ const GenerateGrnInvoice = () => {
             allowedUnits,
             acceptedQuantity: Number(detail.acceptedQuantity) || 0,
             previouslyInvoicedQuantity: Number(detail.previouslyInvoicedQuantity) || 0,
-            invoiceableQuantity: Number(detail.invoiceableQuantity) || 0,
-            qty: Number(detail.invoiceableQuantity) || 0,
-            rate: Number(detail.unitPrice) || 0,
-            discount: Number(detail.discountPercentage) || 0,
+            invoiceableQuantity: invoiceableQty,
+            qty: invoiceableQty,
+            rate: unitPrice,
+            discount: prefilledDiscount,
             hsn: detail.hsnCode || '',
             gst: Number(detail.igstRate) > 0
               ? Number(detail.igstRate)
               : (Number(detail.cgstRate) || 0) + (Number(detail.sgstRate) || 0),
-            cess: Number(detail.cessRate) || 0
+            cess: Number(detail.cessRate) || 0,
+            isCessApplicable: Boolean(detail.isCessApplicable),
+            hasDebitNote: false,
+            debitNoteInfo: null,
           };
-        })
-      )
-    );
-  }, [isEditMode, selectedGrns]);
+        });
+
+        setRows(mappedRows);
+
+    // Auto-calculate and show overall discount percentage on load
+        if (initialSubtotal > 0 && initialTotalDiscount > 0) {
+          const calculatedOverallPct = Number(((initialTotalDiscount / initialSubtotal) * 100).toFixed(2));
+          setDiscountPercentage(calculatedOverallPct);
+        } else {
+          setDiscountPercentage(0);
+        }
+      } catch (err) {
+        console.error('Failed to load eligible GRN details:', err);
+        toast.error(
+          err?.response?.data?.msg ||
+          err?.response?.data?.message ||
+          'Failed to load eligible GRN details'
+        );
+      } finally {
+        setInvoiceLoading(false);
+      }
+    };
+
+    fetchGrnDetails();
+  }, [isEditMode, rawGrnIds, location.state]);
 
   useEffect(() => {
     if (!isEditMode) return;
@@ -151,6 +278,11 @@ const GenerateGrnInvoice = () => {
         setDiscountPercentage(Number(inv.discountPercentage) || 0);
         setEditVendorId(inv.vendorId ?? '');
         setEditOutletId(inv.organizationId ?? '');
+        setEditVendorName(inv.vendorName || '');
+        setEditOutletName(inv.organizationName || '');
+        setEditVendorStateId(inv.billTo?.stateId ?? null);
+        setEditOutletStateId(inv.shipTo?.stateId ?? null);
+        setActiveGrnIds(Array.isArray(inv.grnIds) ? inv.grnIds : []);
 
         setOtherCosts(
           Array.isArray(inv.otherCosts) && inv.otherCosts.length
@@ -161,6 +293,7 @@ const GenerateGrnInvoice = () => {
             }))
             : [{ id: Date.now(), label: '', cost: 0 }]
         );
+        setAttachedImages(Array.isArray(inv.images) ? inv.images : []);
 
         const invoiceRows = await Promise.all(
           (inv.details || []).map(async (detail, index) => {
@@ -199,8 +332,18 @@ const GenerateGrnInvoice = () => {
               itemDetails?.unit?.symbolEnglish ||
               '—';
 
+            const unitPrice = Number(detail.unitPrice) || 0;
+            const invoiceQty = Number(detail.invoiceQuantity) || 0;
+            const discountAmt = Number(detail.discountAmount) || 0;
+            let itemDiscountPct = Number(detail.discountPercentage) || 0;
+
+            if ((itemDiscountPct > 100 || !itemDiscountPct) && discountAmt > 0 && unitPrice * invoiceQty > 0) {
+              itemDiscountPct = Number(((discountAmt / (unitPrice * invoiceQty)) * 100).toFixed(2));
+            }
+
             return {
               key: `${detail.grnDetailId || detail.id || 'row'}-${index}`,
+              id: detail.id,
               grnId: detail.grnId,
               grnDetailId: detail.grnDetailId,
               grnCode: detail.grnCode || '—',
@@ -215,14 +358,17 @@ const GenerateGrnInvoice = () => {
               acceptedQuantity: Number(detail.acceptedQuantity) || 0,
               previouslyInvoicedQuantity: Number(detail.previouslyInvoicedQuantity) || 0,
               invoiceableQuantity: Number(detail.invoiceableQuantity) || 0,
-              qty: Number(detail.invoiceQuantity) || 0,
-              rate: Number(detail.unitPrice) || 0,
-              discount: Number(detail.discountPercentage) || 0,
+              qty: invoiceQty,
+              rate: unitPrice,
+              discount: itemDiscountPct,
               hsn: detail.hsnCode || itemDetails?.hsnCode || '',
               gst: Number(detail.igstRate) > 0
                 ? Number(detail.igstRate)
                 : (Number(detail.cgstRate) || 0) + (Number(detail.sgstRate) || 0),
-              cess: Number(detail.cessRate) || 0
+              cess: Number(detail.cessRate) || 0,
+              isCessApplicable: Boolean(detail.isCessApplicable ?? itemDetails?.isCessApplicable),
+              hasDebitNote: false,
+              debitNoteInfo: null,
             };
           })
         );
@@ -244,18 +390,23 @@ const GenerateGrnInvoice = () => {
     fetchInvoice();
   }, [id, isEditMode, navigate]);
 
-  const selectedVendorId = isEditMode ? editVendorId : selectedGrns[0]?.vendorId;
-  const selectedOutletId = isEditMode ? editOutletId : selectedGrns[0]?.organizationId;
+  const selectedVendorId = isEditMode
+    ? editVendorId
+    : editVendorId || location.state?.selectedGrns?.[0]?.vendorId || location.state?.vendorId || location.state?.data?.vendorId;
+
+  const selectedOutletId = isEditMode
+    ? editOutletId
+    : editOutletId || location.state?.selectedGrns?.[0]?.organizationId || location.state?.selectedGrns?.[0]?.outletId || location.state?.organizationId || location.state?.data?.organizationId;
 
   const vendorStateId = isEditMode
-    ? vendors.find(v => Number(v.id) === Number(selectedVendorId))?.stateId
-    : selectedGrns[0]?.vendorStateId ??
-      vendors.find(v => Number(v.id) === Number(selectedVendorId))?.stateId;
+    ? (editVendorStateId ?? vendors.find(v => Number(v.id) === Number(selectedVendorId))?.stateId)
+    : location.state?.selectedGrns?.[0]?.vendorStateId ??
+    vendors.find(v => Number(v.id) === Number(selectedVendorId))?.stateId;
 
   const outletStateId = isEditMode
-    ? outlets.find(o => Number(o.id) === Number(selectedOutletId))?.stateId
-    : selectedGrns[0]?.outletStateId ??
-      outlets.find(o => Number(o.id) === Number(selectedOutletId))?.stateId;
+    ? (editOutletStateId ?? outlets.find(o => Number(o.id) === Number(selectedOutletId))?.stateId)
+    : location.state?.selectedGrns?.[0]?.outletStateId ??
+    outlets.find(o => Number(o.id) === Number(selectedOutletId))?.stateId;
 
   const isInterState =
     vendorStateId != null && outletStateId != null
@@ -264,21 +415,21 @@ const GenerateGrnInvoice = () => {
 
   const selectedVendor = vendors.find(v => Number(v.id) === Number(selectedVendorId));
 
-  const vendorName =
-    selectedVendor?.fullName ||
+  const vendorName = isEditMode
+    ? editVendorName || selectedVendor?.fullName || selectedVendor?.companyName || selectedVendor?.vendorName || `Vendor #${selectedVendorId || '—'}`
+    : selectedVendor?.fullName ||
     selectedVendor?.companyName ||
     selectedVendor?.vendorName ||
     selectedVendor?.name ||
     `Vendor #${selectedVendorId || '—'}`;
 
   const outletName = isEditMode
-    ? outlets.find(o => Number(o.id) === Number(selectedOutletId))?.name ||
-      `Outlet #${selectedOutletId || '—'}`
-    : selectedGrns[0]?.organizationName ||
-      selectedGrns[0]?.outletName ||
-      selectedGrns[0]?.outlet ||
-      outlets.find(o => Number(o.id) === Number(selectedOutletId))?.name ||
-      '—';
+    ? editOutletName || outlets.find(o => Number(o.id) === Number(selectedOutletId))?.name || `Outlet #${selectedOutletId || '—'}`
+    : location.state?.selectedGrns?.[0]?.organizationName ||
+    location.state?.selectedGrns?.[0]?.outletName ||
+    location.state?.selectedGrns?.[0]?.outlet ||
+    outlets.find(o => Number(o.id) === Number(selectedOutletId))?.name ||
+    '—';
 
   const updateRow = (key, field, value) => {
     setRows(prev =>
@@ -304,12 +455,63 @@ const GenerateGrnInvoice = () => {
 
   const removeRow = key => {
     setRows(prev => prev.filter(r => r.key !== key));
+    setSelectedRowKeys(prev => prev.filter(k => k !== key));
+    setPendingDebitNotes(prev => prev.filter(n => !n.rowKeys.includes(key)));
+  };
+
+  const handleRemoveDebitNote = (rowKey) => {
+    setRows(prev =>
+      prev.map(r => {
+        if (r.key === rowKey) {
+          const originalRate = r.debitNoteInfo?.originalRate ?? r.rate;
+          return {
+            ...r,
+            rate: originalRate,
+            hasDebitNote: false,
+            debitNoteInfo: null,
+          };
+        }
+        return r;
+      })
+    );
+
+    setPendingDebitNotes(prev =>
+      prev
+        .map(note => ({
+          ...note,
+          details: note.details.filter(d => d.key !== rowKey),
+          rowKeys: note.rowKeys.filter(k => k !== rowKey),
+        }))
+        .filter(note => note.details.length > 0)
+    );
+
+    toast.success('Debit note removed');
   };
 
   const handleOverallDiscountChange = value => {
-    const discount = Math.max(0, Math.min(100, Number(value) || 0));
+    const discount = value === '' ? '' : Math.max(0, Math.min(100, Number(value) || 0));
     setDiscountPercentage(value);
-    setRows(prev => prev.map(row => ({ ...row, discount })));
+    setRows(prev => prev.map(row => ({ ...row, discount: discount === '' ? 0 : discount })));
+  };
+
+  const handleItemDiscountChange = (key, value) => {
+    const v = value === '' ? '' : Math.max(0, Math.min(100, Number(value)));
+    setRows(prev => {
+      const nextRows = prev.map(r => r.key === key ? { ...r, discount: v } : r);
+      let sub = 0;
+      let disc = 0;
+      nextRows.forEach(r => {
+        const q = Number(r.qty) || 0;
+        const p = Number(r.rate) || 0;
+        const d = Number(r.discount) || 0;
+        const base = q * p;
+        sub += base;
+        disc += (base * d) / 100;
+      });
+      const effectivePct = sub > 0 ? Number(((disc / sub) * 100).toFixed(2)) : (Number(v) || 0);
+      setDiscountPercentage(effectivePct);
+      return nextRows;
+    });
   };
 
   const updateOtherCost = (id, field, value) => {
@@ -330,109 +532,291 @@ const GenerateGrnInvoice = () => {
   };
 
   const rowCalculation = r => {
-    const base = (Number(r.qty) || 0) * (Number(r.rate) || 0);
-    const discountRate = Number(r.discount) || 0;
-    const gstRate = Number(r.gst) || 0;
-    const cessRate = Number(r.cess) || 0;
-    const discountAmount = (base * discountRate) / 100;
-    const taxableAmount = Math.max(0, base - discountAmount);
-    const gstAmount = (taxableAmount * gstRate) / 100;
-    const cessAmount = (taxableAmount * cessRate) / 100;
-    const totalTax = gstAmount + cessAmount;
-    const amountAfterTax = taxableAmount + totalTax;
+    const qty = Number(r.qty) || 0;
+    const price = Number(r.rate) || 0;
+    const discountPct = Number(r.discount) || 0;
+    const gstPct = Number(r.gst) || 0;
+    const cessPct = r.isCessApplicable ? (Number(r.cess) || 0) : 0;
+
+    const baseAmount = qty * price;
+    const discountAmt = (baseAmount * discountPct) / 100;
+    const taxable = Math.max(0, baseAmount - discountAmt);
+
+    const cessAmt = (taxable * cessPct) / 100;
+
+    let itemTax = 0;
+    let cgstPct = 0;
+    let sgstPct = 0;
+    let igstPct = 0;
+    let cgstAmt = 0;
+    let sgstAmt = 0;
+    let igstAmt = 0;
+    let gstAmt = 0;
+
+    if (isInterState) {
+      igstPct = gstPct;
+      igstAmt = (taxable * igstPct) / 100;
+      gstAmt = igstAmt;
+    } else {
+      cgstPct = gstPct / 2;
+      sgstPct = gstPct / 2;
+      cgstAmt = (taxable * cgstPct) / 100;
+      sgstAmt = (taxable * sgstPct) / 100;
+      gstAmt = cgstAmt + sgstAmt;
+    }
+
+    itemTax = gstAmt + cessAmt;
+    const itemTotal = taxable + itemTax;
 
     return {
-      base,
-      discountAmount,
-      taxableAmount,
-      gstAmount,
-      cessAmount,
-      totalTax,
-      amountAfterTax,
-      total: amountAfterTax
+      base: baseAmount,
+      baseAmount,
+      discountPct,
+      discountAmt,
+      discountAmount: discountAmt,
+      taxable,
+      taxableAmount: taxable,
+      gstPct,
+      gstAmount: gstAmt,
+      gstAmt,
+      cgstPct,
+      sgstPct,
+      igstPct,
+      cgstAmt,
+      sgstAmt,
+      igstAmt,
+      cessPct,
+      cessAmt,
+      cessAmount: cessAmt,
+      totalTax: itemTax,
+      itemTax,
+      amountAfterTax: itemTotal,
+      total: itemTotal,
+      itemTotal
     };
   };
 
   const totals = useMemo(() => {
     let subtotal = 0;
-    let discountAmount = 0;
-    let taxable = 0;
-    let gstAmt = 0;
-    let cessAmt = 0;
-    let amountAfterTax = 0;
+    let totalDiscount = 0;
+    let totalTaxable = 0;
+    let totalCGST = 0;
+    let totalSGST = 0;
+    let totalIGST = 0;
+    let totalCESS = 0;
 
     rows.forEach(row => {
       const calc = rowCalculation(row);
-      subtotal += calc.base;
-      discountAmount += calc.discountAmount;
-      taxable += calc.taxableAmount;
-      gstAmt += calc.gstAmount;
-      cessAmt += calc.cessAmount;
-      amountAfterTax += calc.amountAfterTax;
+      subtotal += calc.baseAmount;
+      totalDiscount += calc.discountAmt;
+      totalTaxable += calc.taxable;
+      totalCESS += calc.cessAmt;
+      if (isInterState) {
+        totalIGST += calc.igstAmt;
+      } else {
+        totalCGST += calc.cgstAmt;
+        totalSGST += calc.sgstAmt;
+      }
     });
 
-    const totalTax = gstAmt + cessAmt;
-    const totalOtherCosts = otherCosts.reduce(
-      (sum, item) => sum + (Number(item.cost) || 0),
-      0
-    );
+    const totalGST = isInterState ? totalIGST : totalCGST + totalSGST;
+    const totalTax = totalGST + totalCESS;
 
-    const rawNet = amountAfterTax + totalOtherCosts;
-    const netAmount = Math.round(rawNet);
-    const roundOff = netAmount - rawNet;
+    const totalOtherCosts = otherCosts.reduce((sum, item) => {
+      const val = Number(item.cost);
+      return sum + (!isNaN(val) && val > 0 ? val : 0);
+    }, 0);
+
+    const rawNet = totalTaxable + totalTax + totalOtherCosts;
+    const roundedNet = Math.round(rawNet);
+    const roundOff = Number((roundedNet - rawNet).toFixed(2));
+    const netAmount = roundedNet;
 
     return {
       subtotal,
-      discountAmount,
-      taxable,
-      gstAmt,
-      cessAmt,
+      discountAmount: totalDiscount,
+      totalDiscount,
+      taxable: totalTaxable,
+      totalTaxable,
+      gstAmt: totalGST,
+      totalGST,
+      totalCGST,
+      totalSGST,
+      totalIGST,
+      cessAmt: totalCESS,
+      totalCESS,
       totalTax,
-      amountAfterTax,
-      amountAfterDiscount: taxable,
+      amountAfterTax: totalTaxable + totalTax,
+      amountAfterDiscount: totalTaxable,
       totalOtherCosts,
       rawNet,
       netAmount,
+      roundedNet,
       roundOff
     };
-  }, [rows, otherCosts]);
+  }, [rows, otherCosts, isInterState]);
 
   const taxBreakdown = useMemo(() => {
-    const grouped = {};
+    const taxRateGroups = {};
 
     rows.forEach(row => {
       const calc = rowCalculation(row);
-      const gstRate = Number(row.gst) || 0;
-      const cessRate = Number(row.cess) || 0;
-      const key = `${gstRate}-${cessRate}`;
+      const rateKey = `${calc.gstPct}_${calc.cessPct}`;
 
-      if (!grouped[key]) {
-        grouped[key] = {
-          rate: gstRate,
+      if (!taxRateGroups[rateKey]) {
+        taxRateGroups[rateKey] = {
+          rate: calc.gstPct,
+          gstPct: calc.gstPct,
+          cessPct: calc.cessPct,
+          cgstPct: calc.cgstPct,
+          sgstPct: calc.sgstPct,
+          igstPct: calc.igstPct,
           taxable: 0,
-          gstAmt: 0,
           cgstAmt: 0,
           sgstAmt: 0,
           igstAmt: 0,
-          cessAmt: 0,
-          cessPct: cessRate
+          gstAmt: 0,
+          cessAmt: 0
         };
       }
 
-      grouped[key].taxable += calc.taxableAmount;
-      grouped[key].gstAmt += calc.gstAmount;
-      grouped[key].cessAmt += calc.cessAmount;
-
-      if (isInterState) {
-        grouped[key].igstAmt += calc.gstAmount;
-      } else {
-        grouped[key].cgstAmt += calc.gstAmount / 2;
-        grouped[key].sgstAmt += calc.gstAmount / 2;
-      }
+      taxRateGroups[rateKey].taxable += calc.taxable;
+      taxRateGroups[rateKey].cgstAmt += calc.cgstAmt;
+      taxRateGroups[rateKey].sgstAmt += calc.sgstAmt;
+      taxRateGroups[rateKey].igstAmt += calc.igstAmt;
+      taxRateGroups[rateKey].gstAmt += calc.gstAmt;
+      taxRateGroups[rateKey].cessAmt += calc.cessAmt;
     });
 
-    return Object.values(grouped).sort((a, b) => a.rate - b.rate);
+    return Object.values(taxRateGroups).sort((a, b) => b.gstPct - a.gstPct || b.cessPct - a.cessPct);
   }, [rows, isInterState]);
+
+  const selectableRows = useMemo(() => rows.filter(r => !r.hasDebitNote), [rows]);
+
+  const handleToggleSelectAll = (checked) => {
+    if (checked) {
+      setSelectedRowKeys(selectableRows.map(r => r.key));
+    } else {
+      setSelectedRowKeys([]);
+    }
+  };
+
+  const handleToggleSelectRow = (key) => {
+    const targetRow = rows.find(r => r.key === key);
+    if (targetRow?.hasDebitNote) return;
+
+    setSelectedRowKeys(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
+  const handleOpenDebitNoteModal = () => {
+    const selected = rows.filter(r => selectedRowKeys.includes(r.key) && !r.hasDebitNote);
+    if (!selected.length) {
+      toast.error('Select at least one eligible item to create a debit note');
+      return;
+    }
+
+    setDebitNoteItems(
+      selected.map(r => ({
+        key: r.key,
+        rawMaterialId: r.rawMaterialId,
+        itemName: r.itemName,
+        unitId: r.unitId,
+        unitName: r.unitName,
+        qty: Number(r.qty) || 0,
+        originalRate: Number(r.rate) || 0,
+        revisedRate: Number(r.rate) || 0,
+        remarks: '',
+        grnDetailId: r.grnDetailId,
+        purchaseOrderDetailId: r.purchaseOrderDetailId,
+        purchaseOrderId: r.purchaseOrderId,
+        grnId: r.grnId,
+        rowRef: r
+      }))
+    );
+    setDebitNoteGeneralRemarks('');
+    setIsDebitModalOpen(true);
+  };
+
+  const updateDebitModalItem = (key, field, value) => {
+    setDebitNoteItems(prev =>
+      prev.map(item => item.key === key ? { ...item, [field]: value } : item)
+    );
+  };
+
+  const handleStageDebitNote = () => {
+    const hasInvalidDifference = debitNoteItems.some(
+      item => Number(item.revisedRate) >= Number(item.originalRate)
+    );
+    if (hasInvalidDifference) {
+      toast.warning('Revised rate should be lower than original rate for rate difference.');
+    }
+
+    const details = debitNoteItems.map(item => {
+      const calc = rowCalculation(item.rowRef);
+      const originalRate = Number(item.originalRate) || 0;
+      const revisedRate = Number(item.revisedRate) || 0;
+      const rateDiff = Number((originalRate - revisedRate).toFixed(2));
+      const taxableAmount = Number((rateDiff * item.qty).toFixed(2));
+
+      return {
+        key: item.key,
+        rawMaterialId: Number(item.rawMaterialId) || 0,
+        unitId: Number(item.unitId) || 0,
+        originalQuantity: Number(item.qty) || 0,
+        adjustedQuantity: Number(item.qty) || 0,
+        originalRate: originalRate,
+        revisedRate: revisedRate,
+        rateDifference: rateDiff,
+        taxableAmount: taxableAmount,
+        cgstRate: Number(calc.cgstPct || 0),
+        sgstRate: Number(calc.sgstPct || 0),
+        igstRate: Number(calc.igstPct || 0),
+        cessRate: Number(calc.cessPct || 0),
+        remarks: item.remarks || '',
+        batchNo: '',
+        grnDetailId: Number(item.grnDetailId) || 0,
+        purchaseOrderDetailId: Number(item.purchaseOrderDetailId) || 0,
+        purchaseInvoiceDetailId: isEditMode && item.rowRef.id ? Number(item.rowRef.id) : 0,
+      };
+    });
+
+    const stagedNote = {
+      purchaseOrderId: debitNoteItems[0]?.purchaseOrderId ? Number(debitNoteItems[0].purchaseOrderId) : 0,
+      grnId: debitNoteItems[0]?.grnId ? Number(debitNoteItems[0].grnId) : (activeGrnIds[0] ? Number(activeGrnIds[0]) : 0),
+      remarks: debitNoteGeneralRemarks || 'Debit note created for rate difference',
+      details,
+      rowKeys: debitNoteItems.map(item => item.key)
+    };
+
+    setPendingDebitNotes(prev => [...prev, stagedNote]);
+
+    setRows(prevRows =>
+      prevRows.map(r => {
+        const matchedModalItem = debitNoteItems.find(item => item.key === r.key);
+        if (matchedModalItem) {
+          const originalRate = Number(matchedModalItem.originalRate) || 0;
+          const revisedRate = Number(matchedModalItem.revisedRate) || 0;
+          return {
+            ...r,
+            rate: revisedRate || r.rate,
+            hasDebitNote: true,
+            debitNoteInfo: {
+              originalRate,
+              revisedRate,
+              rateDifference: Number((originalRate - revisedRate).toFixed(2))
+            }
+          };
+        }
+        return r;
+      })
+    );
+
+    toast.success('Debit note staged! It will be generated when you create the invoice.');
+    setIsDebitModalOpen(false);
+    setSelectedRowKeys([]);
+  };
 
   const handleGenerate = async (approve = false) => {
     if (!rows.length) {
@@ -451,12 +835,12 @@ const GenerateGrnInvoice = () => {
     }
 
     if (!selectedOutletId) {
-      toast.error('Outlet is missing');
+      toast.error('Unit is missing');
       return;
     }
 
     if (vendorStateId == null || outletStateId == null) {
-      toast.error('Vendor or outlet state is missing');
+      toast.error('Vendor or unit state is missing');
       return;
     }
 
@@ -465,8 +849,6 @@ const GenerateGrnInvoice = () => {
     try {
       const details = rows.map(r => {
         const calc = rowCalculation(r);
-        const gstRate = Number(r.gst) || 0;
-        const cessRate = Number(r.cess) || 0;
 
         return {
           grnDetailId: r.grnDetailId,
@@ -475,33 +857,33 @@ const GenerateGrnInvoice = () => {
           unitPrice: Number(r.rate) || 0,
           invoiceQuantity: Number(r.qty) || 0,
           discountPercentage: Number(r.discount) || 0,
-          discountAmount: calc.discountAmount,
-          cgstRate: isInterState ? 0 : gstRate / 2,
-          sgstRate: isInterState ? 0 : gstRate / 2,
-          igstRate: isInterState ? gstRate : 0,
-          cessRate,
-          taxableAmount: calc.taxableAmount,
-          cgstAmount: isInterState ? 0 : calc.gstAmount / 2,
-          sgstAmount: isInterState ? 0 : calc.gstAmount / 2,
-          igstAmount: isInterState ? calc.gstAmount : 0,
-          cessAmount: calc.cessAmount,
-          tax: calc.totalTax,
-          lineTotal: calc.total
+          discountAmount: Number(calc.discountAmt.toFixed(2)),
+          cgstRate: Number(calc.cgstPct || 0),
+          sgstRate: Number(calc.sgstPct || 0),
+          igstRate: Number(calc.igstPct || 0),
+          cessRate: Number(calc.cessPct || 0),
+          taxableAmount: Number(calc.taxable.toFixed(2)),
+          cgstAmount: Number(calc.cgstAmt.toFixed(2)),
+          sgstAmount: Number(calc.sgstAmt.toFixed(2)),
+          igstAmount: Number(calc.igstAmt.toFixed(2)),
+          cessAmount: Number(calc.cessAmt.toFixed(2)),
+          tax: Number(calc.totalTax.toFixed(2)),
+          lineTotal: Number(calc.total.toFixed(2))
         };
       });
 
       const payload = {
-        subtotal: totals.subtotal,
+        subtotal: Number(totals.subtotal.toFixed(2)),
         discountPercentage: Number(discountPercentage) || 0,
-        discountAmount: totals.discountAmount,
-        cgstAmount: isInterState ? 0 : totals.gstAmt / 2,
-        sgstAmount: isInterState ? 0 : totals.gstAmt / 2,
-        igstAmount: isInterState ? totals.gstAmt : 0,
-        cessAmount: totals.cessAmt,
-        totalAmount: totals.netAmount,
-        roundOff: totals.roundOff,
+        discountAmount: Number(totals.discountAmount.toFixed(2)),
+        cgstAmount: Number(totals.totalCGST.toFixed(2)),
+        sgstAmount: Number(totals.totalSGST.toFixed(2)),
+        igstAmount: Number(totals.totalIGST.toFixed(2)),
+        cessAmount: Number(totals.cessAmt.toFixed(2)),
+        totalAmount: Number(totals.netAmount),
+        roundOff: Number(totals.roundOff),
         details,
-        grnIds: [...new Set(rows.map(r => r.grnId).filter(id => id != null))],
+        grnIds: activeGrnIds.length > 0 ? activeGrnIds : [...new Set(rows.map(r => r.grnId).filter(id => id != null))],
         invoiceDate,
         organizationId: Number(selectedOutletId),
         otherCosts: otherCosts
@@ -514,7 +896,8 @@ const GenerateGrnInvoice = () => {
           })),
         userId: Number(getUserIdFromToken()) || 0,
         vendorId: Number(selectedVendorId),
-        vendorInvoiceNumber: billNumber.trim()
+        vendorInvoiceNumber: billNumber.trim(),
+        images: attachedImages,
       };
 
       const response = isEditMode
@@ -531,7 +914,8 @@ const GenerateGrnInvoice = () => {
         throw new Error('Invoice ID was not returned after saving invoice');
       }
 
-      if (approve) {
+      const shouldApprove = approve || pendingDebitNotes.length > 0;
+      if (shouldApprove) {
         await updatePurchaseInvoiceStatus(
           invoiceId,
           'APPROVED',
@@ -539,6 +923,45 @@ const GenerateGrnInvoice = () => {
         );
       }
 
+      if (pendingDebitNotes.length > 0) {
+        for (const note of pendingDebitNotes) {
+          const debitPayload = {
+            noteType: 'DEBIT_NOTE',
+            adjustmentNature: 'RATE_DIFFERENCE',
+            referenceType: 'PURCHASE_INVOICE',
+            autoApprove: false,
+            organizationId: Number(selectedOutletId) || 0,
+            subOutletId: 0,
+            subLocationId: 0,
+            vendorId: Number(selectedVendorId) || 0,
+            purchaseInvoiceId: invoiceId,
+            purchaseOrderId: note.purchaseOrderId,
+            grnId: note.grnId,
+            noteDate: formatToDDMMYYYY(invoiceDate),
+            remarks: note.remarks,
+            vendorNoteNumber: '',
+            userId: Number(getUserIdFromToken()) || 0,
+            details: note.details.map(({ key, ...item }) => item)
+          };
+
+          try {
+            await createDebitCreditNote(debitPayload);
+          } catch (debitErr) {
+            console.error('Failed to create debit note for invoice:', debitErr);
+            toast.error(
+              debitErr?.response?.data?.message ||
+              debitErr?.response?.data?.msg ||
+              'Invoice approved, but failed to generate debit note'
+            );
+          }
+        }
+      }
+
+      toast.success(
+        isEditMode
+          ? 'Purchase invoice updated successfully'
+          : 'Purchase invoice created and approved successfully'
+      );
       navigate('/purchase/invoice-listing');
     } catch (err) {
       console.error(err);
@@ -552,6 +975,22 @@ const GenerateGrnInvoice = () => {
     }
   };
 
+  const taxGridClass = isInterState
+    ? totals.cessAmt > 0
+      ? 'grid-cols-[1.1fr_1fr_1fr_24px_1.4fr]'
+      : 'grid-cols-[1.1fr_1fr_1fr]'
+    : totals.cessAmt > 0
+      ? 'grid-cols-[1.1fr_1fr_1fr_24px_1fr_24px_1.5fr]'
+      : 'grid-cols-[1.1fr_1fr_1fr_24px_1fr]';
+
+  const hasAnyCessApplicable = useMemo(() => {
+    return rows.some((row) => Boolean(row.isCessApplicable));
+  }, [rows]);
+  
+  if (!canView) {
+    return <AccessDenied pageTitle={isEditMode ? "Purchase Invoice List" : "Generate Purchase Invoice"} />;
+  }
+
   if (invoiceLoading) {
     return (
       <Container>
@@ -563,7 +1002,7 @@ const GenerateGrnInvoice = () => {
     );
   }
 
-  if (!isEditMode && !selectedGrns.length) {
+  if (!isEditMode && !rawGrnIds && !rows.length) {
     return (
       <Container>
         <div className="py-10 text-center">
@@ -581,44 +1020,24 @@ const GenerateGrnInvoice = () => {
     );
   }
 
-  const taxGridClass = isInterState
-    ? totals.cessAmt > 0
-      ? 'grid-cols-[1.1fr_1fr_1fr_24px_1.4fr]'
-      : 'grid-cols-[1.1fr_1fr_1fr]'
-    : totals.cessAmt > 0
-      ? 'grid-cols-[1.1fr_1fr_1fr_24px_1fr_24px_1.5fr]'
-      : 'grid-cols-[1.1fr_1fr_1fr_24px_1fr]';
-
   return (
     <Container>
-      <div className="w-full max-w-full min-w-0 overflow-x-hidden px-2 sm:px-4">
-        <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400 mb-3 min-w-0">
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
-          <ChevronRight size={12} className="shrink-0" />
-          <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/purchase/invoice-listing')}>Purchase Invoice</span>
-          <ChevronRight size={12} className="shrink-0" />
-          <span className="text-[#084E92] font-medium truncate">{isEditMode ? 'Edit GRN Invoice' : 'Generate GRN Invoice'}</span>
-        </div>
-
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3 min-w-0">
-          <div className="flex items-start sm:items-center gap-3 min-w-0">
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? 'Edit Purchase Invoice' : 'Generate Purchase Invoice'}
+          description={isEditMode ? 'Update purchase invoice details' : 'Create purchase invoice from selected GRNs'}
+          actions={
             <button
               type="button"
-              onClick={() => navigate(-1)}
-              className="h-9 w-9 shrink-0 flex items-center cursor-pointer justify-center rounded-lg border border-gray-200 hover:bg-gray-50"
+              onClick={() => navigate('/purchase/invoice-listing')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft className="w-4 h-4" />
+              Back to Invoices
             </button>
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
-                {isEditMode ? 'Edit GRN Invoice' : 'Generate GRN Invoice'}
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 truncate">
-                {isEditMode ? 'Update purchase invoice details' : 'Create purchase invoice from selected GRNs'}
-              </p>
-            </div>
-          </div>
-        </div>
+          }
+          className="mb-6"
+        />
 
         <div className="w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-xl p-3 sm:p-5 mb-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -650,7 +1069,7 @@ const GenerateGrnInvoice = () => {
             </div>
 
             <div className="min-w-0">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Outlet</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Unit</label>
               <div className="w-full h-10 px-3 flex items-center rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-700 truncate">
                 {outletsLoading ? 'Loading...' : outletName}
               </div>
@@ -658,50 +1077,165 @@ const GenerateGrnInvoice = () => {
           </div>
         </div>
 
+        {/* Attached Invoices & Documents */}
+        {attachedImages.length > 0 && (
+          <div className="w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-xl p-3 sm:p-5 mb-3">
+            <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileCheck size={17} className="text-[#084E92] shrink-0" />
+                <h3 className="text-sm font-semibold text-[#084E92] uppercase truncate">
+                  Attached Invoices & Documents
+                </h3>
+              </div>
+              <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2.5 py-0.5 rounded-full">
+                {attachedImages.length} {attachedImages.length === 1 ? 'file' : 'files'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {attachedImages.map((img, idx) => {
+                const filePath = img.path || img.filePath;
+                const fileName = filePath ? filePath.split('/').pop() : 'invoice_document';
+
+                return (
+                  <div
+                    key={img.id || idx}
+                    className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-gray-200 bg-gray-50/60"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-7 h-7 rounded-md bg-blue-100 text-[#084E92] flex items-center justify-center shrink-0">
+                        <FileText size={14} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-800 truncate" title={fileName}>
+                          {fileName}
+                        </p>
+                        <p className="text-[10px] text-gray-400 truncate">
+                          {img.fileType || img.moduleName || 'Document'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {filePath && (
+                      <a
+                        href={filePath}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-7 h-7 rounded-md bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:text-[#084E92] hover:border-[#084E92] transition shrink-0"
+                        title="View document"
+                      >
+                        <Eye size={13} />
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-xl overflow-hidden mb-6">
-          <div className="px-3 sm:px-5 py-4 border-b border-gray-200 min-w-0">
-            <h2 className="font-semibold text-gray-900">Invoice Items</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Overall discount updates all items. Individual discount can be changed separately.</p>
+          <div className="px-3 sm:px-5 py-4 border-b border-gray-200 min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h2 className="font-semibold text-gray-900">Invoice Items</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Overall discount updates all items. Individual discount can be changed separately.</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenDebitNoteModal}
+              disabled={selectedRowKeys.length === 0}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                selectedRowKeys.length > 0
+                  ? 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer shadow-sm'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+              }`}
+            >
+              <FileMinus size={15} />
+              Create Debit Note {selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}
+            </button>
           </div>
 
-          <div className="w-full max-w-full min-w-0 overflow-x-auto overscroll-x-contain">
-            <table className="w-full min-w-287.5 text-xs">
-              <thead className="bg-gray-50 border-b border-gray-200 uppercase">
+          <div className="w-full max-w-full overflow-x-auto">
+            <table className="w-full table-fixed text-xs">
+              <thead className="bg-gray-50 border-b border-gray-200 uppercase text-gray-700">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Item Description</th>
-                  <th className="px-2 py-3 text-left font-semibold text-gray-700">Unit</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Qty</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Rate (₹)</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Discount (%)</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">HSN/SAC</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">GST (%)</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">CESS (%)</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Amount(₹)</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Tax<br />Applied (₹)</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Total<br />Amount (₹)</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">Action</th>
+                  <th className="w-8 px-2 py-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectableRows.length > 0 && selectedRowKeys.length === selectableRows.length}
+                      disabled={selectableRows.length === 0}
+                      onChange={(e) => handleToggleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-[#084E92] focus:ring-0 cursor-pointer h-3.5 w-3.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                    />
+                  </th>
+                  <th className="w-[18%] px-2 py-2.5 text-left font-semibold">Item Description</th>
+                  <th className="w-[10%] px-1 py-2.5 text-left font-semibold">Unit</th>
+                  <th className="w-[6%] px-1 py-2.5 text-right font-semibold">Qty</th>
+                  <th className="w-[8%] px-1 py-2.5 text-right font-semibold">Rate (₹)</th>
+                  <th className="w-[7%] px-1 py-2.5 text-right font-semibold">Disc(%)</th>
+                  <th className="w-[8%] px-1 py-2.5 text-left font-semibold">HSN/SAC</th>
+                  <th className="w-[6%] px-1 py-2.5 text-right font-semibold">GST(%)</th>
+                  {hasAnyCessApplicable && (
+                    <th className="w-[6%] px-1 py-2.5 text-right font-semibold">CESS(%)</th>
+                  )}
+                  <th className="w-[9%] px-1 py-2.5 text-right font-semibold">Amount(₹)</th>
+                  <th className="w-[8%] px-1 py-2.5 text-right font-semibold leading-tight">Tax (₹)</th>
+                  <th className="w-[9%] px-1 py-2.5 text-right font-semibold leading-tight">Total (₹)</th>
+                  <th className="w-9 px-1 py-2.5 text-center font-semibold">Act</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-gray-100 text-xs">
                 {rows.map(row => {
                   const calc = rowCalculation(row);
+                  const isChecked = selectedRowKeys.includes(row.key);
 
                   return (
-                    <tr key={row.key} className="hover:bg-gray-50/70">
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-[#084E92] max-w-55 truncate" title={row.itemName}>
-                          {row.itemName}
-                        </div>
+                    <tr key={row.key} className={`hover:bg-gray-50/70 ${isChecked ? 'bg-blue-50/30' : ''} ${row.hasDebitNote ? 'bg-amber-50/20' : ''}`}>
+                      <td className="px-2 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          disabled={row.hasDebitNote}
+                          onChange={() => handleToggleSelectRow(row.key)}
+                          title={row.hasDebitNote ? 'Debit note created/staged for this item' : ''}
+                          className={`rounded border-gray-300 text-[#084E92] focus:ring-0 h-3.5 w-3.5 ${row.hasDebitNote ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'
+                            }`}
+                        />
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="px-2 py-2.5 min-w-0">
+                        <div className="font-medium text-[#084E92] truncate" title={row.itemName}>
+                          {row.itemName}
+                        </div>
+                        {row.hasDebitNote && (
+                          <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded w-fit max-w-full">
+                            <FileMinus size={11} className="shrink-0 text-amber-600" />
+                            <span className="font-semibold shrink-0">Debit Note</span>
+                            {row.debitNoteInfo && (
+                              <span className="truncate text-gray-500 font-mono">
+                                (₹{row.debitNoteInfo.originalRate}→₹{row.debitNoteInfo.revisedRate})
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDebitNote(row.key)}
+                              title="Remove staged debit note"
+                              className="ml-1 text-gray-400 hover:text-red-500 transition-colors p-0.5 rounded cursor-pointer"
+                            >
+                              <X size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+
+                      <td className="px-1 py-2.5">
                         <Select
                           value={row.unitId != null && row.unitId !== '' ? String(row.unitId) : undefined}
                           onValueChange={value => updateUnit(row.key, value)}
                         >
-                          <SelectTrigger className="h-9 min-w-27.5 border-gray-200 text-sm focus:ring-0 focus:ring-offset-0">
-                            <SelectValue placeholder="Select Unit" />
+                          <SelectTrigger className="h-8 w-full border-gray-200 text-xs px-2 focus:ring-0 focus:ring-offset-0">
+                            <SelectValue placeholder="Unit" />
                           </SelectTrigger>
                           <SelectContent>
                             {row.allowedUnits?.length ? (
@@ -719,51 +1253,44 @@ const GenerateGrnInvoice = () => {
                         </Select>
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-1 py-2.5">
                         <input
                           type="number"
                           min="0"
                           value={row.qty}
                           onChange={e => updateRow(row.key, 'qty', e.target.value)}
                           onWheel={e => e.currentTarget.blur()}
-                          className="w-12 h-9 px-2 rounded-lg border border-gray-200 text-sm text-right outline-none focus:border-[#084E92]"
+                          className="w-full h-8 px-1.5 rounded-md border border-gray-200 text-xs text-right outline-none focus:border-[#084E92]"
                         />
                       </td>
 
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          value={row.rate}
-                          onChange={e => updateRow(row.key, 'rate', e.target.value)}
-                          onWheel={e => e.currentTarget.blur()}
-                          className="w-20 h-9 px-2 rounded-lg border border-gray-200 text-sm text-right outline-none focus:border-[#084E92]"
-                        />
+                      <td className="px-1 py-2.5  font-medium text-right text-gray-700">
+                        {formatCurrency(row.rate)}
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-1 py-2.5">
                         <input
                           type="number"
                           min="0"
                           max="100"
                           step="0.01"
                           value={row.discount}
-                          onChange={e => updateRow(row.key, 'discount', e.target.value)}
+                          onChange={e => handleItemDiscountChange(row.key, e.target.value)}
                           onWheel={e => e.currentTarget.blur()}
-                          className="w-16 h-9 px-2 rounded-lg border border-gray-200 text-sm text-right outline-none focus:border-[#084E92]"
+                          className="w-full h-8 px-1.5 rounded-md border border-gray-200 text-xs text-right outline-none focus:border-[#084E92]"
                         />
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-1 py-2.5">
                         <input
                           value={row.hsn}
                           onChange={e => updateRow(row.key, 'hsn', e.target.value)}
                           placeholder="HSN"
-                          className="w-20 h-9 px-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-[#084E92]"
+                          className="w-full h-8 px-1.5 rounded-md border border-gray-200 text-xs outline-none focus:border-[#084E92]"
                         />
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-1 py-2.5">
                         <input
                           type="number"
                           min="0"
@@ -772,42 +1299,48 @@ const GenerateGrnInvoice = () => {
                           value={row.gst}
                           onChange={e => updateRow(row.key, 'gst', e.target.value)}
                           onWheel={e => e.currentTarget.blur()}
-                          className="w-16 h-9 px-2 rounded-lg border border-gray-200 text-sm text-right outline-none focus:border-[#084E92]"
+                          className="w-full h-8 px-1.5 rounded-md border border-gray-200 text-xs text-right outline-none focus:border-[#084E92]"
                         />
                       </td>
 
-                      <td className="px-4 py-3">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={row.cess}
-                          onChange={e => updateRow(row.key, 'cess', e.target.value)}
-                          onWheel={e => e.currentTarget.blur()}
-                          className="w-16 h-9 px-2 rounded-lg border border-gray-200 text-sm text-right outline-none focus:border-[#084E92]"
-                        />
-                      </td>
+                      {hasAnyCessApplicable && (
+                        <td className="px-1 py-2.5 text-right">
+                          {row.isCessApplicable ? (
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              value={row.cess}
+                              onChange={e => updateRow(row.key, 'cess', e.target.value)}
+                              onWheel={e => e.currentTarget.blur()}
+                              className="w-full h-8 px-1.5 rounded-md border border-gray-200 text-xs text-right outline-none focus:border-[#084E92]"
+                            />
+                          ) : (
+                            <span className="text-gray-400 font-medium">-</span>
+                          )}
+                        </td>
+                      )}
 
-                      <td className="px-4 py-3 text-right font-medium text-gray-900 whitespace-nowrap">
+                      <td className="px-1 py-2.5 text-right font-medium text-gray-900 truncate">
                         {formatCurrency(calc.taxableAmount)}
                       </td>
 
-                      <td className="px-4 py-3 text-right font-medium text-orange-600 whitespace-nowrap">
+                      <td className="px-1 py-2.5 text-right font-medium text-orange-600 truncate">
                         {formatCurrency(calc.totalTax)}
                       </td>
 
-                      <td className="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">
+                      <td className="px-1 py-2.5 text-right font-semibold text-gray-900 truncate">
                         {formatCurrency(calc.total)}
                       </td>
 
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-1 py-2.5 text-center">
                         <button
                           type="button"
                           onClick={() => removeRow(row.key)}
-                          className="h-8 w-8 inline-flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50"
+                          className="h-7 w-7 inline-flex items-center justify-center rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
@@ -816,13 +1349,26 @@ const GenerateGrnInvoice = () => {
 
                 {!rows.length && (
                   <tr>
-                    <td colSpan={12} className="px-4 py-10 text-center text-gray-500">No invoice items.</td>
+                    <td colSpan={hasAnyCessApplicable ? 13 : 12} className="px-4 py-8 text-center text-gray-500">
+                      No invoice items.
+                    </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
+
+        <CreateDebitNoteModal
+          isOpen={isDebitModalOpen}
+          onClose={() => setIsDebitModalOpen(false)}
+          items={debitNoteItems}
+          onItemChange={updateDebitModalItem}
+          generalRemarks={debitNoteGeneralRemarks}
+          onGeneralRemarksChange={setDebitNoteGeneralRemarks}
+          onSubmit={handleStageDebitNote}
+          isSubmitting={isCreatingDebitNote}
+        />
 
         <div className="w-full max-w-full min-w-0 bg-white border border-gray-200 rounded-xl p-3 sm:p-4 mb-3">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 pb-3">
@@ -925,14 +1471,14 @@ const GenerateGrnInvoice = () => {
               </div>
 
               {taxBreakdown.length ? (
-                taxBreakdown.map(rate => (
+                taxBreakdown.map((rate, idx) => (
                   <div
-                    key={`${rate.rate}-${rate.cessPct}`}
+                    key={`${rate.gstPct}_${rate.cessPct}_${idx}`}
                     className={`grid ${taxGridClass} items-center px-2 py-2.5 border-b border-gray-100 min-w-max text-xs`}
                   >
                     <div>
                       <span className="inline-flex px-2.5 py-1 rounded-md bg-blue-50 text-[#084E92] font-semibold text-xs whitespace-nowrap">
-                        {Number(rate.rate).toFixed(2)}% GST
+                        {Number(rate.gstPct).toFixed(2)}% GST
                       </span>
                     </div>
 
@@ -990,18 +1536,18 @@ const GenerateGrnInvoice = () => {
 
                 {!isInterState ? (
                   <>
-                    <div className="text-right">{formatCurrency(totals.gstAmt / 2)}</div>
+                    <div className="text-right">{formatCurrency(totals.totalSGST)}</div>
                     <div></div>
-                    <div className="text-right">{formatCurrency(totals.gstAmt / 2)}</div>
+                    <div className="text-right">{formatCurrency(totals.totalCGST)}</div>
                   </>
                 ) : (
-                  <div className="text-right text-[#084E92]">{formatCurrency(totals.gstAmt)}</div>
+                  <div className="text-right text-[#084E92]">{formatCurrency(totals.totalIGST)}</div>
                 )}
 
                 {totals.cessAmt > 0 && (
                   <>
                     <div></div>
-                    <div className="text-right text-[#084E92]">{formatCurrency(totals.cessAmt)}</div>
+                    <div className="text-right text-[#084E92]">{formatCurrency(totals.totalCESS)}</div>
                   </>
                 )}
               </div>
@@ -1106,14 +1652,16 @@ const GenerateGrnInvoice = () => {
             Cancel
           </button>
 
-          <button
-            type="button"
-            onClick={() => handleGenerate(false)}
-            disabled={isSubmitting || invoiceLoading || !rows.length}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-[#084E92] text-[#084E92] cursor-pointer text-sm font-medium hover:bg-blue-50 disabled:opacity-50"
-          >
-            {isEditMode ? 'Update Draft' : 'Save Draft'}
-          </button>
+          {pendingDebitNotes.length === 0 && (
+            <button
+              type="button"
+              onClick={() => handleGenerate(false)}
+              disabled={isSubmitting || invoiceLoading || !rows.length}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-lg border border-[#084E92] text-[#084E92] cursor-pointer text-sm font-medium hover:bg-blue-50 disabled:opacity-50"
+            >
+              {isEditMode ? 'Update Draft' : 'Save Draft'}
+            </button>
+          )}
 
           <button
             type="button"
@@ -1122,9 +1670,7 @@ const GenerateGrnInvoice = () => {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg cursor-pointer bg-[#084E92] text-white text-sm font-medium hover:bg-[#063d73] disabled:opacity-50"
           >
             {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            {isSubmitting
-              ? (isEditMode ? 'Updating...' : 'Creating...')
-              : (isEditMode ? 'Create Invoice' : 'Create Invoice')}
+            {isEditMode ? 'Update' : 'Create Invoice'}
           </button>
         </div>
       </div>

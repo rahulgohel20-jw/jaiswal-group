@@ -1,13 +1,16 @@
-import { ChevronRight, ScanLine, RotateCcw, ChevronDown } from 'lucide-react';
+import { ScanLine, RotateCcw, ChevronDown, ArrowLeft } from 'lucide-react';
 import React, { useState } from 'react'
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { formatRemarks } from '@/utils/textUtils';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const KITCHENS = [
     "Central Kitchen",
@@ -186,6 +189,7 @@ const Select = ({
 };
 
 const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => {
+    const navigate = useNavigate();
     const isEditMode = Boolean(transferToEdit);
     const { canAdd, canEdit, canView } = usePagePermissions('Asset Transfer');
     const initialForm = isEditMode ? { ...emptyForm, ...transferToEdit } : emptyForm;
@@ -222,7 +226,7 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
     const handleSave = (addAnother) => {
         if (!validate()) return;
 
-        onSaveTransfer?.(form);
+        onSaveTransfer?.({ ...form, reason: formatRemarks(form.reason || '') });
 
         if (addAnother) {
             setForm(emptyForm);
@@ -235,51 +239,22 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
     }
 
     return (
-        <div className="p-4 md:p-6">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 flex-wrap">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <button onClick={onBackToList} className="hover:underline">
-                    Asset Transfer Log
-                </button>
-                <ChevronRight size={12} />
-                <span className="text-[#095ab1] font-medium">
-                    {isEditMode ? "Edit Asset Transfer" : "Add Asset Transfer"}
-                </span>
-            </div>
-
-            {/* Header */}
-            <div className="flex justify-between flex-col gap-5 sm:flex-row sm:items-start">
-                <div>
-                    <h1 className="text-2xl font-bold ">
-                        Asset Transfer Registration
-                    </h1>
-
-                    <p className="text-sm text-gray-500 mt-1">
-                        Systematically record and track the movement of operational assets between kitchen
-                        facilities and hub locations.
-                    </p>
-                </div>
-
-                 <div className="flex gap-3 shrink-0">
-                    <Link
-                        to="/assets/asset-transfer-log"
-                        className="h-11 px-5 cursor-pointer rounded-xl border border-[#D9E2EC] text-[#121C2A] font-medium hover:bg-gray-50 transition inline-flex items-center justify-center"
-                    >
-                        Back to List
-                    </Link>
-
+        <Container>
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
+            <PageHeader
+                title="Asset Transfer Registration"
+                description="Systematically record and track the movement of operational assets between kitchen facilities and hub locations."
+                actions={
                     <button
-                        onClick={() => handleSave(false)}
-                        className="h-11 px-5 cursor-pointer rounded-xl bg-[#0B5CAB] text-white font-medium hover:bg-[#094b8f] transition"
+                        type="button"
+                        onClick={() => navigate('/assets/asset-transfer-log')}
+                        className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
                     >
-                        Save Transfer
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to List
                     </button>
-                </div>
-            </div>
+                }
+            />
 
             {/* Form Card */}
             <div className="bg-white border border-[#E6EAF2] rounded-2xl mt-6 overflow-hidden">
@@ -396,6 +371,7 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
                         <textarea
                             value={form.reason}
                             onChange={handleChange("reason")}
+                            onBlur={() => setForm((prev) => ({ ...prev, reason: formatRemarks(prev.reason) }))}
                             placeholder="Enter detailed reason for asset movement..."
                             rows={5}
                             className="w-full rounded-xl border border-[#D9E2EC] bg-[#F8F9FF80] px-4 py-3 text-sm text-[#121C2A] outline-none focus:ring-2 focus:ring-[#0B5CAB]/20 resize-none"
@@ -417,6 +393,7 @@ const AddAssetsTransfer = ({ onBackToList, onSaveTransfer, transferToEdit }) => 
                 </div>
             </div>
         </div>
+        </Container>
     );
 };
 

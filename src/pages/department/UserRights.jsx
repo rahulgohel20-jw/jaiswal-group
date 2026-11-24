@@ -3,12 +3,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { getApiErrorMessage } from '@/utils/toast';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { getAllRoleMasterByUserId } from '@/services/apiServices';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import PermissionsModal from './PermissionsModal';
+import { useNavigate } from 'react-router';
+import HeaderActionButton from '../../components/common/HeaderActionButton';
+import MasterExportModal from '../../utils/MasterExportModal';
 
 // Backend sends createdAt as "DD/MM/YYYY" (e.g. "06/08/2026" = 06 Aug 2026).
 // Reused verbatim from Departmentlist.jsx's date-parsing logic.
@@ -37,14 +42,15 @@ const mapRole = (row) => ({
 const PAGE_SIZE_OPTIONS = [10, 25, 50];
 
 const UserRights = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('User Rights');
-
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('User Rights');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const navigate = useNavigate();
 
   // mode: 'rights' | 'reportRights'
   const [permissionsModal, setPermissionsModal] = useState({
@@ -98,26 +104,36 @@ const UserRights = () => {
 
   return (
     <Container>
-      <div className="min-h-screen px-6 py-6">
-        <h1 className="text-2xl font-bold text-[#084E92] mb-6">User Rights</h1>
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
+        <PageHeader
+          title="User Rights"
+          actions={
+            canExport && <HeaderActionButton
+              variant="outline"
+              onClick={() => setShowExportModal(true)}
+              icon={<Download className={`w-3.5 h-3.5`} />}
+              label="Export"
+            />
+          }
+        />
 
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchRoles}
+        />
 
         <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB]">
               <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F]">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F] border-r border-[#E5E7EB] w-16">
                   Sr No#
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F]">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F] border-r border-[#E5E7EB]">
                   Role
                 </th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F]">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F] border-r border-[#E5E7EB]">
                   Created Date
                 </th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-[#43474F]">
@@ -150,11 +166,13 @@ const UserRights = () => {
                     key={role.id}
                     className="border-b border-[#F0F1F3] last:border-b-0 hover:bg-[#FAFBFC]"
                   >
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-gray-500 text-xs border-r border-[#F0F1F3]">
                       {pageStart + idx + 1}
                     </td>
-                    <td className="px-4 py-3 text-gray-800">{role.name}</td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 text-xs font-semibold text-[#084E92] truncate max-w-[280px] border-r border-[#F0F1F3]">
+                      {role.name}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600 font-medium whitespace-nowrap border-r border-[#F0F1F3]">
                       {role.createdDate}
                     </td>
                     <td className="px-4 py-3">
@@ -232,6 +250,12 @@ const UserRights = () => {
           mode={permissionsModal.mode}
           canEdit={canEdit}
           canAdd={canAdd}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="userrights"
+          title="Export User Rights Report"
         />
       </div>
     </Container>

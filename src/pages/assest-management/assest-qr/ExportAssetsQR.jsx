@@ -1,26 +1,29 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Container } from "@/components/common/container";
-import { CheckCircle2, ChevronRight, QrCode, Search, Trash2, X } from 'lucide-react';
-import { getActiveCompany, getAllAssets, getAssetCategories, getAssignedAssetsByOrgAndSubOutlet, getAssignmentsByAssetId } from '../../../services/apiServices';
+import { PageHeader } from '@/components/common/PageHeader';
+import { CheckCircle2, QrCode, Trash2, X, ChevronDown } from 'lucide-react';
+import {
+    getAssignedAssetsByOrgAndSubOutlet,
+    getAssignmentsByAssetId,
+    getOrganizationByType,
+    getChildrenByParentId,
+    getAssetUnitLocationsByOrganization,
+    createAssetQrBulk,
+} from '../../../services/apiServices';
+import { OrgTypes } from '@/constants/orgTypes';
+import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import QRCode from 'react-qr-code'
-import { createPortal } from 'react-dom'
+import QRCode from 'react-qr-code';
+import { createPortal } from 'react-dom';
 import SearchableSelect from '../../../utils/SearchableSelect';
+import { useOrgScope } from '@/hooks/useOrgScope';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { toAbsoluteUrl } from '@/lib/helpers';
 
-
-const ASSET_QR_BASE_URL = 'https://app.justerp.in';
-
-const getAssetQRUrl = (asset) =>
-    `${ASSET_QR_BASE_URL}/assets/edit-asset/${encodeURIComponent(asset.id)}`;
+// Directly encodes the raw UUID for scanner app integration
+const getAssetQRValue = (asset) => asset.uuid || String(asset.id || '');
 
 const toTitleCase = (str) => {
     if (!str) return str;
@@ -29,548 +32,705 @@ const toTitleCase = (str) => {
         .replace(/\b\w/g, (c) => c.toUpperCase());
 };
 
-/**
- * Single source of truth for label layout. Rendered once for the on-screen
- * 2in x 1in preview and once (unchanged) inside the print block, so preview
- * and print output can never drift apart.
- */
-const AssetLabel = ({ asset, qrSize = 68 }) => (
-    <div className="asset-label w-48 h-24 bg-white box-border flex items-center p-[0.04in] m-0 overflow-hidden break-inside-avoid">
-        <div className="w-[0.86in] h-[0.86in] shrink-0 flex items-center justify-center p-0.5">
-            <QRCode value={getAssetQRUrl(asset)} size={qrSize} level='M' />
+const normalizeCompany = (item) => ({
+    id: item.id,
+    name: item.companyNameEnglish || item.name || item.organizationName || `Company #${item.id}`,
+    code: item.companyCode || item.shortCode || '',
+    status: item.isActive !== false ? 'active' : 'inactive',
+});
+
+const normalizeOutlet = (item) => ({
+    id: item.id,
+    name: item.companyNameEnglish || item.name || item.organizationName || `Outlet #${item.id}`,
+    code: item.companyCode || item.shortCode || '',
+    organizationId: item.parentId || item.organizationId,
+    status: item.isActive !== false ? 'active' : 'inactive',
+});
+
+const normalizeLocation = (item) => ({
+    id: item.id,
+    name: item.locationName || item.name || `Location #${item.id}`,
+    organizationId: item.organizationId,
+    status: item.active !== false && item.isActive !== false ? 'active' : 'inactive',
+});
+
+export const getAssetLocationOrCustodian = (asset) => {
+    const loc = asset?.assetUnitLocationName || asset?.locationName;
+    if (loc) {
+        return loc;
+    }
+    const isUser = !asset?.custodianType || asset?.custodianType === 'USER';
+    const userName = asset?.custodianName || asset?.assignedToName;
+    if (isUser && userName) {
+        return userName;
+    }
+    return '';
+};
+
+const AssetLabel = ({ asset, qrSize = 60 }) => (
+    <div className="asset-label relative w-48 h-24 bg-white box-border flex items-center justify-between px-[0.04in] py-[0.08in] m-0 overflow-hidden break-inside-avoid border border-gray-200 rounded-md">
+        {/* Top-Right Logo */}
+        <img
+            className="absolute top-2 right-1.5 w-[18px] h-[18px] rounded-full shrink-0 object-cover z-10"
+            src={toAbsoluteUrl('/media/app/jaiswal-group-logo.png')}
+            alt="Jaiswal Group"
+        />
+
+        {/* QR Code */}
+        <div className="w-[0.75in] h-[0.75in] shrink-0 flex items-center justify-center">
+            <QRCode value={getAssetQRValue(asset)} size={qrSize} level="M" />
         </div>
 
-        <div className="flex-1 min-w-0 h-full pl-[0.06in] overflow-hidden flex flex-col justify-center gap-[0.05in]">
-            <div className="text-[5pt] font-bold leading-[1.1]">Jaiswal Group</div>
-            {asset.organizationname && asset.organizationname !== 'Jaiswal Group' 
-             ? <div className="text-[5pt] font-normal leading-[1.1] uppercase">{asset.organizationname}</div>
-             : <div className="text-[5pt] font-normal leading-[1.1] uppercase">Head Office</div>}
-            <div className="text-[5pt] font-semibold leading-[1.1]">{asset.categoryName}</div>
-            <div className="text-[5pt] font-semibold leading-[1.1]">{toTitleCase(asset.name) || '-'}</div>
-            <div className="text-[5pt] font-normal leading-[1.1]">{asset.code || '-'}</div>
+        {/* Details Column */}
+        <div className="flex-1 min-w-0 h-full flex flex-col justify-between pl-1.5 pr-0.5 text-left text-black">
+            <div className="text-[6.5pt] font-black leading-[1.08] break-words text-black pr-5">Jaiswal Group</div>
+            {asset.organizationname && asset.organizationname !== 'Jaiswal Group' ? (
+                <div className="text-[6.5pt] font-bold leading-[1.08] uppercase break-words text-black">{asset.organizationname}</div>
+            ) : asset.organizationname === 'Jaiswal Group' ? (
+                <div className="text-[6.5pt] font-bold leading-[1.08] uppercase break-words text-black">Head Office</div>
+            ) : null}
+            {getAssetLocationOrCustodian(asset) ? (
+                <div className="text-[6pt] font-bold leading-[1.08] break-words text-black">{getAssetLocationOrCustodian(asset)}</div>
+            ) : null}
+            {asset.categoryName ? (
+                <div className="text-[6pt] font-bold leading-[1.08] break-words text-black">{asset.categoryName}</div>
+            ) : null}
+            <div className="text-[7pt] font-black leading-[1.08] break-words text-black">{toTitleCase(asset.name) || '-'}</div>
+            <div className="text-[7pt] font-black font-mono leading-none break-words tracking-wide text-black">{asset.code || '-'}</div>
         </div>
     </div>
 );
-const AssetSearchDropdown = ({ label, placeholder, options, onSelect, loading }) => {
-    const [open, setOpen] = useState(false);
-    const [query, setQuery] = useState('');
-    const wrapperRef = useRef(null);
 
-    useEffect(() => {
-        const handleClickOutside = (e) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-                setOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+export const AssetMultiSelect = ({
+    options = [],
+    selected = [],
+    onChange,
+    disabled = false,
+    loading = false,
+}) => {
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
 
     const filteredOptions = useMemo(() => {
         const term = query.trim().toLowerCase();
         if (!term) return options;
-        return options.filter(
-            (o) =>
-                (o.name ?? '').toLowerCase().includes(term) ||
-                (o.code ?? '').toLowerCase().includes(term)
+        return options.filter((o) =>
+            (o.name ?? "").toLowerCase().includes(term) ||
+            (o.code ?? "").toLowerCase().includes(term)
         );
     }, [options, query]);
 
-    const handlePick = (option) => {
-        onSelect(option);
-        setQuery('');
-        setOpen(false);
+    const isSelected = (id) => selected.some((s) => String(s.id) === String(id));
+
+    const toggleOption = (asset) => {
+        if (isSelected(asset.id)) {
+            onChange(selected.filter((s) => String(s.id) !== String(asset.id)));
+        } else {
+            onChange([...selected, asset]);
+        }
+    };
+
+    const isAllSelected = options.length > 0 && selected.length === options.length;
+
+    const toggleSelectAll = () => {
+        onChange(isAllSelected ? [] : [...options]);
     };
 
     return (
-        <div ref={wrapperRef} className="relative w-full">
-            <label className="text-xs font-medium text-[#475569] mb-1.5 block">{label}</label>
-
-            <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                    value={query}
-                    onFocus={() => setOpen(true)}
-                    onChange={(e) => {
-                        setQuery(e.target.value);
-                        setOpen(true);
-                    }}
-                    placeholder={loading ? 'Loading assets...' : placeholder}
-                    className="w-full h-11 pl-9 pr-8 border border-[#C3C6D1] rounded-lg text-sm outline-none focus:border-[#084E92]"
-                />
-                {query && (
-                    <X
-                        size={14}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer hover:text-red-500"
-                        onClick={() => setQuery('')}
-                    />
-                )}
-            </div>
-
-            {open && (
-                <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                    {loading && <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>}
-
-                    {!loading && filteredOptions.length === 0 && (
-                        <p className="px-3 py-2 text-sm text-gray-400">No assets found.</p>
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <div
+                    role="button"
+                    tabIndex={disabled ? -1 : 0}
+                    className={`min-h-11 w-full border rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${
+                        disabled
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
+                            : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92]"
+                    } border-[#C3C6D1]`}
+                >
+                    {selected.length > 2 ? (
+                        <span className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-semibold px-2 py-0.5 rounded">
+                            {isAllSelected
+                                ? `All Assets (${options.length})`
+                                : `Selected Assets (${selected.length})`}
+                            {!disabled && (
+                                <X
+                                    size={12}
+                                    className="cursor-pointer hover:text-red-500 ml-1"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onChange([]);
+                                    }}
+                                />
+                            )}
+                        </span>
+                    ) : (
+                        selected.map((item) => (
+                            <span
+                                key={item.id}
+                                className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-0.5 rounded"
+                            >
+                                <span className="truncate max-w-28">{item.name}</span>
+                                {!disabled && (
+                                    <X
+                                        size={12}
+                                        className="cursor-pointer hover:text-red-500 shrink-0"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onChange(selected.filter((s) => String(s.id) !== String(item.id)));
+                                        }}
+                                    />
+                                )}
+                            </span>
+                        ))
                     )}
 
-                    {!loading &&
-                        filteredOptions.map((option) => (
-                            <button
-                                type="button"
-                                key={option.id}
-                                onClick={() => handlePick(option)}
-                                className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-[#F4F7FF]"
-                            >
-                                <span className="text-sm font-medium text-[#1B1B1F] capitalize">{option.name}</span>
-                                <span className="text-xs text-gray-400">
-                                    {option.code}
-                                </span>
-                            </button>
-                        ))}
+                    <input
+                        type="text"
+                        value={query}
+                        disabled={disabled}
+                        placeholder={
+                            selected.length === 0
+                                ? loading
+                                    ? "Loading assets..."
+                                    : "Search and select assets..."
+                                : ""
+                        }
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (!open) setOpen(true);
+                        }}
+                        onChange={(e) => {
+                            setQuery(e.target.value);
+                            if (!open) setOpen(true);
+                        }}
+                        className="flex-1 min-w-24 bg-transparent text-sm text-gray-800 outline-none border-none p-0.5 placeholder:text-gray-400 cursor-text"
+                    />
+
+                    <div className="flex items-center gap-1 ml-auto shrink-0">
+                        {selected.length > 0 && !disabled && (
+                            <X
+                                size={14}
+                                className="text-gray-400 hover:text-red-500 cursor-pointer"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onChange([]);
+                                    setQuery("");
+                                }}
+                            />
+                        )}
+                        <ChevronDown
+                            size={16}
+                            className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+                        />
+                    </div>
                 </div>
-            )}
-        </div>
+            </PopoverTrigger>
+
+            <PopoverContent
+                align="start"
+                sideOffset={4}
+                onOpenAutoFocus={(e) => e.preventDefault()}
+                className="p-1 w-(--radix-popover-trigger-width) min-w-64 max-h-60 overflow-y-auto bg-white border border-[#C3C6D1] rounded-xl shadow-xl z-50 text-xs"
+            >
+                {filteredOptions.length === 0 ? (
+                    <p className="px-3 py-3 text-gray-400 text-center">No assets found.</p>
+                ) : (
+                    <>
+                        {options.length > 0 && !query.trim() && (
+                            <label className="flex items-center gap-2 px-3 py-2 font-semibold text-[#00376C] hover:bg-blue-50/70 rounded cursor-pointer border-b border-gray-100 mb-1">
+                                <input
+                                    type="checkbox"
+                                    checked={isAllSelected}
+                                    onChange={toggleSelectAll}
+                                    className="accent-[#00376C] rounded"
+                                />
+                                Select All Assets ({options.length})
+                            </label>
+                        )}
+
+                        {filteredOptions.map((opt) => (
+                            <label
+                                key={opt.id}
+                                className="flex items-center gap-2 px-3 py-1.5 text-gray-700 hover:bg-blue-50/70 rounded cursor-pointer"
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={isSelected(opt.id)}
+                                    onChange={() => toggleOption(opt)}
+                                    className="accent-[#00376C] rounded"
+                                />
+                                <div className="flex flex-col min-w-0">
+                                    <span className="truncate font-medium">{opt.name}</span>
+                                    {opt.code && <span className="text-[10px] text-gray-400">{opt.code}</span>}
+                                </div>
+                            </label>
+                        ))}
+                    </>
+                )}
+            </PopoverContent>
+        </Popover>
     );
 };
-
-
 
 const ExportAssetsQR = () => {
     const { canView } = usePagePermissions('Export Assets QR');
 
+    const {
+        loading: scopeLoading,
+        isOutletUser,
+        isCompanyUser,
+        isGroupUser,
+        units: scopedOutlets,
+        effectiveOutletId,
+        selfOrg,
+    } = useOrgScope();
+
+    // Cascading dropdown lists
+    const [companies, setCompanies] = useState([]);
+    const [outlets, setOutlets] = useState([]);
+    const [locations, setLocations] = useState([]);
+
+    // Filter values
+    const [company, setCompany] = useState('');
+    const [outlet, setOutlet] = useState('');
+    const [location, setLocation] = useState('');
+
+    // Filter loading states
+    const [loadingCompanies, setLoadingCompanies] = useState(false);
+    const [loadingOutlets, setLoadingOutlets] = useState(false);
+    const [loadingLocations, setLoadingLocations] = useState(false);
+
+    // Assets state
     const [assets, setAssets] = useState([]);
     const [assetsLoading, setAssetsLoading] = useState(false);
-    const [tab, setTab] = useState('selected');
-    const [orgFilter, setOrgFilter] = useState('');
+
+    const [pickedAssets, setPickedAssets] = useState([]);
     const [selectedAssets, setSelectedAssets] = useState([]);
+
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+
+    // Printing & QR states
     const [isPrinting, setIsPrinting] = useState(false);
-    const [organization, setOrganization] = useState([])
-    const [orgLoading, setOrgLoading] = useState(false);
-    const [allAssets, setAllAssets] = useState([])
+    const [generatingQrs, setGeneratingQrs] = useState(false);
+    const [generatedPrintItems, setGeneratedPrintItems] = useState([]);
 
-    useEffect(() => {
-        const onBeforePrint = () => setIsPrinting(true);
-        const onAfterPrint = () => setIsPrinting(false);
-        window.addEventListener('beforeprint', onBeforePrint);
-        window.addEventListener('afterprint', onAfterPrint);
-        return () => {
-            window.removeEventListener('beforeprint', onBeforePrint);
-            window.removeEventListener('afterprint', onAfterPrint);
-        };
-    }, []);
-
-    const handlePrintLabels = () => {
-        setIsPrinting(true);
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                window.print();
-            });
-        });
-    };
-
-    const fetchAssignedAssets = async (organizationId) => {
-        try {
-            setAssetsLoading(true);
-
-            const assetRes = await getAssignedAssetsByOrgAndSubOutlet(
-                organizationId,
-                0
-            );
-
-            const rawAssets =
-                assetRes?.data?.data ?? assetRes?.data ?? assetRes ?? [];
-
-            const normalizedAssets = rawAssets.map((item) => {
-                const asset = item.assetDetails;
-                const assignment = item.assignDetails;
-
-                return {
-                    id: asset.id,
-                    name: asset.itemName,
-                    code: asset.assetCode,
-
-                    organizationId:
-                        assignment?.companiesId ??
-                        asset.assignOrganizationId,
-
-                    organizationname:
-                        assignment?.companiesName ??
-                        asset.organizationname ??
-                        '',
-
-                    subOutletId:
-                        assignment?.subOutletId ??
-                        asset.subOutletId ??
-                        null,
-
-                    suboutletname:
-                        assignment?.suboutletname ??
-                        asset.suboutletname ??
-                        '',
-
-                    categoryId:
-                        asset.categoryId ??
-                        asset.category?.id,
-
-                    categoryName:
-                        asset.categoryName ??
-                        asset.category?.categoryName ??
-                        asset.category?.name ??
-                        asset.assetCategoryName ??
-                        '',
-                    department: asset.department,
-                    location: asset.assetLocationName,
-
-                    quantity:
-                        assignment?.quantity ??
-                        asset.totalQuantity ??
-                        0,
-                };
-            });
-
-            setAssets(normalizedAssets);
-        } catch (error) {
-            console.error('Error fetching assigned assets:', error);
-            setAssets([]);
-        } finally {
-            setAssetsLoading(false);
+    // All valid Organization IDs for current filter
+    // If Outlet is selected -> only that Outlet
+    // If only Company is selected -> Company ID AND all child Outlet IDs under that Company
+    const targetOrgIds = useMemo(() => {
+        if (outlet) return new Set([String(outlet)]);
+        if (company) {
+            const ids = new Set([String(company)]);
+            (outlets || []).forEach((o) => ids.add(String(o.id)));
+            return ids;
         }
-    };
+        return null;
+    }, [outlet, company, outlets]);
+
+    // Initial Scope Setup
     useEffect(() => {
-        const fetchOrganization = async () => {
-            try {
-                setOrgLoading(true);
-                const orgRes = await getActiveCompany();
-                const rawOrg =
-                    orgRes?.data?.data ?? orgRes?.data ?? orgRes ?? [];
+        if (scopeLoading) return;
 
-                const normalizedOrganization = (Array.isArray(rawOrg)
-                    ? rawOrg
-                    : Object.values(rawOrg)
-                ).map((c) => ({
-                    id: c.id,
-                    name: c.companyNameEnglish ?? c.name,
-                }));
-
-                setOrganization(normalizedOrganization);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setOrgLoading(false);
+        if (isGroupUser) {
+            const fetchCompanies = async () => {
+                setLoadingCompanies(true);
+                try {
+                    const res = await getOrganizationByType(OrgTypes.SUB_COMPANY);
+                    const list = res?.data?.data || res?.data?.content || res?.data || [];
+                    setCompanies(Array.isArray(list) ? list.map(normalizeCompany) : []);
+                } catch (err) {
+                    console.error('Failed to load companies:', err);
+                    setCompanies([]);
+                } finally {
+                    setLoadingCompanies(false);
+                }
+            };
+            fetchCompanies();
+        } else if (isCompanyUser) {
+            const userCompanyId = selfOrg?.id || getOrgIdFromToken();
+            if (userCompanyId) {
+                setCompany(String(userCompanyId));
+                if (selfOrg) {
+                    setCompanies([normalizeCompany(selfOrg)]);
+                }
             }
+            const mappedOutlets = (scopedOutlets || []).map(normalizeOutlet);
+            setOutlets(mappedOutlets);
+            if (mappedOutlets.length === 1) {
+                setOutlet(String(mappedOutlets[0].id));
+            }
+        } else if (isOutletUser) {
+            if (selfOrg?.parentId || selfOrg?.parentOrganizationId) {
+                setCompany(String(selfOrg.parentId || selfOrg.parentOrganizationId));
+            }
+            const targetOutletId = effectiveOutletId || selfOrg?.id || getOrgIdFromToken();
+            if (targetOutletId) {
+                setOutlet(String(targetOutletId));
+            }
+            setOutlets((scopedOutlets || []).map(normalizeOutlet));
         }
-        fetchOrganization()
-    }, [])
+    }, [scopeLoading, isGroupUser, isCompanyUser, isOutletUser, selfOrg, scopedOutlets, effectiveOutletId]);
 
+    // Handle Company change (Group User)
+    const handleCompanyChange = async (newCompanyId) => {
+        setCompany(newCompanyId);
+        setOutlet('');
+        setLocation('');
+        setPickedAssets([]);
+        setSelectedAssets([]);
+
+        if (!newCompanyId) {
+            setOutlets([]);
+            return;
+        }
+
+        setLoadingOutlets(true);
+        try {
+            const res = await getChildrenByParentId(newCompanyId);
+            const list = res?.data?.data || res?.data?.content || res?.data || [];
+            const mapped = (Array.isArray(list) ? list : []).map(normalizeOutlet);
+            setOutlets(mapped);
+            if (mapped.length === 1) {
+                setOutlet(String(mapped[0].id));
+            }
+        } catch (err) {
+            console.error('Failed to load outlets for company:', err);
+            setOutlets([]);
+        } finally {
+            setLoadingOutlets(false);
+        }
+    };
+
+    // Fetch Sub-Outlets when Outlet changes
     useEffect(() => {
-        const fetchAssets = async () => {
+        if (!outlet) {
+            setLocations([]);
+            setLocation('');
+            return;
+        }
+
+        const fetchLocationsData = async () => {
+            setLoadingLocations(true);
             try {
-                setAssetsLoading(true);
-                const assetRes = await getAllAssets();
-                const rawAssets =
-                    assetRes?.data?.data ?? assetRes?.data ?? assetRes ?? [];
-
-                const normalizedAssets = (Array.isArray(rawAssets)
-                    ? rawAssets
-                    : Object.values(rawAssets)
-                ).map((a) => ({
-                    id: a.id,
-                    name: a.itemName,
-                    code: a.assetCode ?? a.code,
-                    organizationname: a.organizationname ?? '',
-                    organizationId: a.assignOrganizationId ?? null,
-                    suboutletname: a.suboutletname ?? '',
-                    subOutletId: a.subOutletId ?? null,
-
-                    // Keep these if other UI parts use them
-                    unitName: a.organizationname ?? '',
-                    categoryId: a.categoryId ?? a.category?.id,
-                    categoryName: a.categoryName ?? a.categoryName,
-                    department: a.department,
-                    location: a.location,
-                }));
-
-
-                setAllAssets(normalizedAssets);
-                setAssets(normalizedAssets);
+                const res = await getAssetUnitLocationsByOrganization(outlet);
+                const list = res?.data?.data || res?.data?.content || res?.data || [];
+                setLocations((Array.isArray(list) ? list : []).map(normalizeLocation));
             } catch (err) {
-                console.error(err);
+                console.error('Failed to load locations:', err);
+                setLocations([]);
             } finally {
-                setAssetsLoading(false);
+                setLoadingLocations(false);
             }
         };
 
-        fetchAssets();
-    }, []);
+        fetchLocationsData();
+    }, [outlet]);
 
-    const normalizeLocationValue = (value) => {
-        return String(value ?? '')
-            .trim()
-            .toLowerCase();
-    };
-
-    const getAssetLocationKey = (asset) => {
-        return [
-            normalizeLocationValue(asset.name),
-            normalizeLocationValue(asset.organizationname),
-            normalizeLocationValue(asset.suboutletname),
-        ].join('|');
-    };
-    const handleSelectAsset = async (asset) => {
-        try {
-            setAssetsLoading(true);
-
-            // Call assignment API only after selecting the asset
-            const assignmentRes = await getAssignmentsByAssetId(asset.id);
-
-            const rawAssignments =
-                assignmentRes?.data?.data ??
-                assignmentRes?.data ??
-                assignmentRes ??
-                [];
-
-            const assignments = Array.isArray(rawAssignments)
-                ? rawAssignments
-                : Object.values(rawAssignments);
-
-            if (assignments.length === 0) {
-                setSelectedAssets((prev) => {
-                    const alreadySelected = prev.some(
-                        (item) =>
-                            String(item.id) === String(asset.id) &&
-                            !item.isAssigned
-                    );
-
-                    if (alreadySelected) {
-                        return prev;
-                    }
-
-                    return [
-                        ...prev,
-                        {
-                            ...asset,
-                            isAssigned: false,
-
-                            assignmentId: null,
-                            availableQuantity:
-                                asset.availableQuantity ??
-                                asset.availableQty ??
-                                asset.totalQuantity ??
-                                asset.quantity ??
-                                0,
-                            rowKey:
-                                `${asset.id}-unassigned-${Date.now()}-${Math.random()}`,
-                        },
-                    ];
-                });
-                return;
-            }
-
-            const assignmentRows = assignments.map((assignment, index) => ({
-                ...asset,
-
-                isAssigned: true,
-
-                assignmentId:
-                    assignment.id ??
-                    assignment.assignmentId ??
-                    assignment.assignId ??
-                    null,
-
-                organizationId:
-                    assignment.companiesId ??
-                    assignment.organizationId ??
-                    asset.organizationId ??
-                    null,
-
-                organizationname:
-                    assignment.companiesName ??
-                    assignment.organizationName ??
-                    asset.organizationname ??
-                    '',
-
-                subOutletId:
-                    assignment.subOutletId ??
-                    assignment.suboutletId ??
-                    asset.subOutletId ??
-                    null,
-
-                suboutletname:
-                    assignment.suboutletname ??
-                    assignment.subOutletName ??
-                    assignment.subOutletNameEnglish ??
-                    '',
-
-                quantity:
-                    assignment.quantity ??
-                    assignment.assignedQuantity ??
-                    0,
-
-                availableQuantity:
-                    assignment.availableQuantity ??
-                    assignment.availableQty ??
-                    0,
-                assignmentIndex: index,
-                rowKey: `${asset.id}-${assignment.id ?? index
-                    }-${Date.now()}-${Math.random()}`,
-            }));
-
-            const groupedAssignments = new Map();
-
-            assignmentRows.forEach((row) => {
-                const locationKey =
-                    getAssetLocationKey(row);
-
-                if (!groupedAssignments.has(locationKey)) {
-                    groupedAssignments.set(
-                        locationKey,
-                        {
-                            ...row,
-                            assignmentId: row.assignmentId,
-                            quantity: row.quantity ?? 0,
-                            availableQuantity: row.availableQuantity ?? 0,
-                            rowKey:
-                                `${asset.id}-${locationKey}-${Date.now()}-${Math.random()}`,
-                        }
-                    );
-                    return;
-                }
-
-                const existing = groupedAssignments.get(locationKey);
-
-                existing.quantity =
-                    Number(existing.quantity ?? 0) +
-                    Number(row.quantity ?? 0);
-                existing.availableQuantity =
-                    Number(existing.availableQuantity ?? 0) + Number(row.availableQuantity ?? 0);
-            });
-
-
-            const uniqueAssignmentRows =
-                Array.from(
-                    groupedAssignments.values()
-                );
-            // Add all assignments as separate printable rows
-            setSelectedAssets((prev) => {
-
-                const newRows = uniqueAssignmentRows.filter((newRow) => {
-
-                    const newKey = getAssetLocationKey(newRow);
-                    return !prev.some(
-                        (existing) =>
-                            getAssetLocationKey(existing) === newKey
-                    );
-                }
-                );
-
-                return [
-                    ...prev,
-                    ...newRows
-                ];
-            });
-
-        } catch (error) {
-            console.error('Error fetching asset assignments:', error);
-        } finally {
-            setAssetsLoading(false);
-        }
-    };
-
-    const getOrganizationAssets = () => {
-        if (!orgFilter) {
+    // ALWAYS Fetch Assigned Assets by Org and Location (Never getAllAssets)
+    const fetchAssignedAssets = useCallback(async (orgId, locationId = 0) => {
+        if (!orgId) {
+            setAssets([]);
             return [];
         }
 
-        return assets.filter(
-            (asset) =>
-                String(asset.organizationId) === String(orgFilter)
-        );
-    };
+        try {
+            setAssetsLoading(true);
+            const assetRes = await getAssignedAssetsByOrgAndSubOutlet(
+                Number(orgId),
+                Number(locationId || 0)
+            );
+            const rawAssets = assetRes?.data?.data ?? assetRes?.data ?? assetRes ?? [];
+            const rawList = Array.isArray(rawAssets) ? rawAssets : Object.values(rawAssets);
 
+            const uniqueMap = new Map();
 
-    const isAllOrganizationAssetsSelected = () => {
-        const orgAssets = getOrganizationAssets();
+            rawList.forEach((item) => {
+                const asset = item.assetDetails || item;
+                const assignment = item.assignDetails || {};
+                const assetId = asset.id;
+                if (!assetId) return;
 
-        if (orgAssets.length === 0) {
-            return false;
+                const rowQty = Number(assignment?.quantity ?? asset.quantity ?? asset.totalQuantity ?? 1);
+                const locId = assignment?.assetUnitLocationId ?? null;
+                const locName = locId ? (assignment?.assetUnitLocationName ?? assignment?.locationName ?? '') : '';
+                const custodianType = assignment?.custodianType ?? asset?.custodianType ?? null;
+                const custodianValue = assignment?.custodianValue ?? asset?.custodianValue ?? null;
+                const custodianName = assignment?.custodianName ?? assignment?.assignedToName ?? asset?.custodianName ?? asset?.assignedToName ?? '';
+
+                if (!uniqueMap.has(String(assetId))) {
+                    uniqueMap.set(String(assetId), {
+                        id: asset.id,
+                        name: asset.itemName || asset.name,
+                        code: asset.assetCode || asset.code,
+                        organizationId: assignment?.companiesId ?? asset.assignOrganizationId ?? orgId,
+                        organizationname: assignment?.companiesName ?? asset.organizationname ?? '',
+                        assetUnitLocationId: locId,
+                        assetUnitLocationName: locName,
+                        custodianType,
+                        custodianValue,
+                        custodianName,
+                        categoryId: asset.categoryId ?? asset.category?.id,
+                        categoryName: asset.categoryName ?? asset.category?.categoryName ?? asset.category?.name ?? asset.assetCategoryName ?? '',
+                        department: asset.department,
+                        quantity: rowQty,
+                    });
+                } else {
+                    const existing = uniqueMap.get(String(assetId));
+                    existing.quantity += rowQty;
+                }
+            });
+
+            return Array.from(uniqueMap.values());
+        } catch (error) {
+            console.error('Error fetching assigned assets:', error);
+            return [];
+        } finally {
+            setAssetsLoading(false);
+        }
+    }, []);
+
+    // Trigger getAssignedAssetsByOrgAndSubOutlet whenever Outlet, Company, or Location changes
+    useEffect(() => {
+        // Only use token org if the user is an outlet user; otherwise wait for outlet selection
+        const activeOrgId = outlet || (isOutletUser ? getOrgIdFromToken() : (isCompanyUser ? company : ''));
+        if (!activeOrgId) {
+            setAssets([]);
+            return;
         }
 
-        return orgAssets.every((asset) =>
-            selectedAssets.some(
-                (selected) =>
-                    getAssetLocationKey(selected) ===
-                    getAssetLocationKey(asset)
-            )
-        );
-    };
-    const printableAssets = useMemo(() => {
-        if (!selectedAssets.length) return [];
-        return selectedAssets.flatMap((asset) => {
-            const quantity = Math.max(
-                1,
-                Number(asset.quantity ?? 1)
-            );
+        let isCurrent = true;
 
+        fetchAssignedAssets(Number(activeOrgId), location ? Number(location) : 0).then((data) => {
+            if (isCurrent) {
+                setAssets(data);
+            }
+        });
+
+        return () => {
+            isCurrent = false; // Discards previous slow responses when PDEU is selected
+        };
+    }, [outlet, company, location, isOutletUser, isCompanyUser, fetchAssignedAssets]);
+
+    const normalizeLocationValue = (value) => String(value ?? '').trim().toLowerCase();
+
+    const getAssetLocationKey = (asset) => [
+        normalizeLocationValue(asset.name),
+        normalizeLocationValue(asset.organizationname),
+        normalizeLocationValue(asset.assetUnitLocationName || asset.assetLocationName || asset.location),
+        normalizeLocationValue(asset.custodianName),
+    ].join('|');
+
+    // Debounced assignment processor
+    useEffect(() => {
+        if (pickedAssets.length === 0) {
+            setSelectedAssets([]);
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const timer = setTimeout(async () => {
+            try {
+                setAssetsLoading(true);
+                const isAllSelected = assets.length > 0 && pickedAssets.length === assets.length;
+                const queryParams = isAllSelected ? undefined : pickedAssets.map((a) => a.id);
+
+                const assignmentRes = await getAssignmentsByAssetId(queryParams, {
+                    signal: controller.signal,
+                });
+
+                const rawAssignments = assignmentRes?.data?.data ?? assignmentRes?.data ?? assignmentRes ?? [];
+                const assignments = Array.isArray(rawAssignments) ? rawAssignments : Object.values(rawAssignments);
+
+                const assignmentsByAsset = new Map();
+                assignments.forEach((assign) => {
+                    const aId = String(assign.assetId);
+                    if (!assignmentsByAsset.has(aId)) {
+                        assignmentsByAsset.set(aId, []);
+                    }
+                    assignmentsByAsset.get(aId).push(assign);
+                });
+
+                const updatedSelected = [];
+
+                for (const asset of pickedAssets) {
+                    let assetAssignments = assignmentsByAsset.get(String(asset.id)) || [];
+
+                    if (targetOrgIds && targetOrgIds.size > 0) {
+                        assetAssignments = assetAssignments.filter((assign) => {
+                            const assignOrgId = String(assign.companiesId ?? assign.organizationId);
+                            if (!targetOrgIds.has(assignOrgId)) return false;
+                            if (location) {
+                                return String(assign.assetUnitLocationId ?? assign.locationId ?? '') === String(location);
+                            }
+                            return true;
+                        });
+                    }
+
+                    if (assetAssignments.length === 0) {
+                        updatedSelected.push({
+                            ...asset,
+                            isAssigned: false,
+                            organizationId: asset.organizationId || outlet || company || null,
+                            organizationname: asset.organizationname || '',
+                            assignmentId: null,
+                            custodianType: asset.custodianType ?? null,
+                            custodianValue: asset.custodianValue ?? null,
+                            custodianName: asset.custodianName ?? asset.assignedToName ?? '',
+                            availableQuantity: asset.availableQuantity ?? asset.totalQuantity ?? 1,
+                            quantity: Math.max(1, Number(asset.quantity ?? 1)),
+                            rowKey: `${asset.id}-unassigned-${Date.now()}-${Math.random()}`,
+                        });
+                    } else {
+                        const assignmentRows = assetAssignments.map((assignment, index) => {
+                            const custodianType = assignment.custodianType ?? asset.custodianType ?? null;
+                            const custodianValue = assignment.custodianValue ?? asset.custodianValue ?? null;
+                            const custodianName = assignment.custodianName ?? assignment.assignedToName ?? asset.custodianName ?? asset.assignedToName ?? '';
+
+                            return {
+                                ...asset,
+                                isAssigned: true,
+                                assignmentId: assignment.id ?? assignment.assignmentId ?? null,
+                                organizationId: assignment.companiesId ?? assignment.organizationId ?? asset.organizationId ?? null,
+                                organizationname: assignment.companiesName ?? assignment.organizationName ?? asset.organizationname ?? '',
+                                assetUnitLocationId: assignment.assetUnitLocationId ?? assignment.locationId ?? null,
+                                assetUnitLocationName: assignment.assetUnitLocationName ?? assignment.locationName ??  '',
+                                custodianType,
+                                custodianValue,
+                                custodianName,
+                                quantity: assignment.quantity ?? assignment.assignedQuantity ?? 1,
+                                remarks: assignment.remarks ?? "",
+                                availableQuantity: assignment.availableQuantity ?? 0,
+                                assignmentIndex: index,
+                                rowKey: `${asset.id}-${assignment.id ?? index}-${Date.now()}-${Math.random()}`,
+                            };
+                        });
+
+                        const groupedAssignments = new Map();
+                        assignmentRows.forEach((row) => {
+                            const locationKey = getAssetLocationKey(row);
+                            if (!groupedAssignments.has(locationKey)) {
+                                groupedAssignments.set(locationKey, { ...row });
+                            } else {
+                                const existing = groupedAssignments.get(locationKey);
+                                existing.quantity = Number(existing.quantity ?? 0) + Number(row.quantity ?? 0);
+                            }
+                        });
+
+                        updatedSelected.push(...Array.from(groupedAssignments.values()));
+                    }
+                }
+
+                setSelectedAssets(updatedSelected);
+            } catch (error) {
+                if (error?.name !== 'CanceledError' && error?.name !== 'AbortError') {
+                    console.error("Error processing asset assignments:", error);
+                }
+            } finally {
+                setAssetsLoading(false);
+            }
+        }, 350);
+
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [pickedAssets, targetOrgIds, location, outlet, company, assets.length]);
+
+    // Flat list of units to be printed based on selected quantities
+    const printableAssets = useMemo(() => {
+        let list = selectedAssets;
+
+        if (targetOrgIds && targetOrgIds.size > 0) {
+            list = list.filter((asset) => {
+                const orgId = String(asset.organizationId);
+                return !asset.organizationId || targetOrgIds.has(orgId);
+            });
+            if (location) {
+                list = list.filter((asset) => String(asset.assetUnitLocationId) === String(location));
+            }
+        }
+
+        if (!list.length) return [];
+
+        return list.flatMap((asset) => {
+            const quantity = Math.max(1, Number(asset.quantity ?? 1));
             return Array.from({ length: quantity }, (_, index) => ({
                 ...asset,
                 printIndex: index,
             }));
         });
-    }, [selectedAssets]);
-    const handleSelectAllOrgazination = (checked) => {
-        const orgAssets = getOrganizationAssets();
+    }, [selectedAssets, targetOrgIds, location]);
 
-        if (!checked) {
-            setSelectedAssets((prev) =>
-                prev.filter(
-                    (selected) =>
-                        !orgAssets.some(
-                            (asset) =>
-                                getAssetLocationKey(selected) ===
-                                getAssetLocationKey(asset)
-                        )
-                )
-            );
+    const handlePrintLabels = async () => {
+        if (printableAssets.length === 0) return;
 
-            return;
-        }
+        setGeneratingQrs(true);
+        try {
+            // Group quantities per assetId
+            const itemsMap = new Map();
+            printableAssets.forEach((item) => {
+                const qty = itemsMap.get(item.id) || 0;
+                itemsMap.set(item.id, qty + 1);
+            });
 
-        setSelectedAssets((prev) => {
-            const existingLocationKeys = new Set(
-                prev.map((item) => getAssetLocationKey(item))
-            );
+            const requestItems = Array.from(itemsMap.entries()).map(([assetId, qty]) => ({
+                assetId: Number(assetId),
+                qty: Number(qty),
+            }));
 
-            const newAssets = orgAssets
-                .filter((asset) => {
-                    const locationKey = getAssetLocationKey(asset);
+            const payload = {
+                createdBy: Number(getUserIdFromToken?.() || 0),
+                organizationId: Number(outlet || company || getOrgIdFromToken() || 0),
+                assetSubLocationId: location ? Number(location) : null,
+                items: requestItems,
+            };
 
-                    return !existingLocationKeys.has(locationKey);
-                })
-                .map((asset) => ({
+            const res = await createAssetQrBulk(payload);
+            const records = res?.data?.data || [];
+
+            // Queue returned UUIDs per assetId
+            const uuidQueues = new Map();
+            records.forEach((row) => {
+                const key = String(row.assetId);
+                if (!uuidQueues.has(key)) {
+                    uuidQueues.set(key, []);
+                }
+                uuidQueues.get(key).push(row.uuid);
+            });
+
+            // Assign unique UUID to each printed item
+            const assetsWithUuids = printableAssets.map((asset) => {
+                const queue = uuidQueues.get(String(asset.id));
+                const assignedUuid = queue && queue.length > 0 ? queue.shift() : null;
+
+                return {
                     ...asset,
+                    uuid: assignedUuid,
+                };
+            });
 
-                    // Make sure quantity is available for printing
-                    quantity: Math.max(
-                        1,
-                        Number(asset.quantity ?? 1)
-                    ),
+            setGeneratedPrintItems(assetsWithUuids);
+            setIsPrinting(true);
 
-                    rowKey:
-                        `${asset.id}-${asset.organizationId}-${asset.subOutletId ?? 'no-suboutlet'}-${Date.now()}-${Math.random()}`,
-                }));
-
-            return [...prev, ...newAssets];
-        });
+            setTimeout(() => {
+                window.print();
+                setIsPrinting(false);
+            }, 50);
+        } catch (err) {
+            console.error('Error generating asset QRs:', err);
+        } finally {
+            setGeneratingQrs(false);
+        }
     };
 
     const openDeleteConfirm = (row) => {
         setDeleteTarget({
             rowKey: row.rowKey,
+            assetId: row.id,
             name: `${row.name}`,
         });
         setShowDeleteConfirm(true);
@@ -584,21 +744,51 @@ const ExportAssetsQR = () => {
 
     const confirmDelete = () => {
         if (!deleteTarget) return;
-        setSelectedAssets((prev) => prev.filter((a) => a.rowKey !== deleteTarget.rowKey));
+        setSelectedAssets((prev) => {
+            const remaining = prev.filter((a) => a.rowKey !== deleteTarget.rowKey);
+            const hasMoreOfSameAsset = remaining.some((a) => String(a.id) === String(deleteTarget.assetId));
+            if (!hasMoreOfSameAsset) {
+                setPickedAssets((current) => current.filter((p) => String(p.id) !== String(deleteTarget.assetId)));
+            }
+            return remaining;
+        });
         setShowDeleteConfirm(false);
         setDeleteTarget(null);
     };
 
-    const organizationOptions = [
-        {
-            value: '',
-            label: "All Organizations",
-        },
-        ...organization.map((org) => ({
-            value: org.id,
-            label: org.companyNameEnglish || org.name || "-",
-        })),
-    ];
+    // Dropdown Select Options
+    const companyOptions = useMemo(
+        () =>
+            companies
+                .filter((c) => c.status === 'active')
+                .map((c) => ({
+                    value: String(c.id),
+                    label: c.name,
+                })),
+        [companies]
+    );
+
+    const outletOptions = useMemo(
+        () =>
+            outlets
+                .filter((o) => o.status === 'active')
+                .map((o) => ({
+                    value: String(o.id),
+                    label: o.name,
+                })),
+        [outlets]
+    );
+
+    const locationOptions = useMemo(
+        () =>
+            locations
+                .filter((l) => l.status === 'active')
+                .map((l) => ({
+                    value: String(l.id),
+                    label: l.name,
+                })),
+        [locations]
+    );
 
     if (!canView) {
         return <AccessDenied pageTitle="Export Assets QR" />;
@@ -606,206 +796,183 @@ const ExportAssetsQR = () => {
 
     return (
         <>
+      <style>{`
+    @media print {
+        @page {
+            /* Exact 4in width (2 labels x 2in) by 1in height - 0 gap, 0 margin */
+            size: 4in 1in;
+            margin: 0;
+        }
+        html, body {
+            width: 4in !important;
+            height: 1in !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        #root {
+            display: none !important;
+        }
+        .qr-print-area {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            width: 4in !important;
+            height: 1in !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important; /* Zero gap between labels */
+            box-sizing: border-box !important;
+        }
+        .asset-label {
+            display: flex !important;
+            align-items: center !important;
+            width: 2in !important;
+            height: 1in !important;
+            min-width: 2in !important;
+            min-height: 1in !important;
+            max-width: 2in !important;
+            max-height: 1in !important;
+            margin: 0 !important;
+            padding: 0.08in 0.04in !important;
+            box-sizing: border-box !important;
+            border: 1px solid #cbd5e1 !important; /* Sharp pure black border for clear separation */
+            border-radius: 6px !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            overflow: hidden !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+        }
+        .asset-label * {
+            color: #000000 !important;
+        }
 
-            <style>{`
-                @media print {
-               @page {
-                   size: 2in 1in;
-                   margin: 0;
-               }
-            
-               html,
-               body {
-                   width: 2in !important;
-                   margin: 0 !important;
-                   padding: 0 !important;
-                   background: white !important;
-               }
-            
-               #root {
-                   display: none !important;
-               }
-            
-               .qr-print-area {
-                   display: block !important;
-                   width: 2in !important;
-                   margin: 0 !important;
-                   padding: 0 !important;
-               }
-            
-               .asset-label {
-                   display: flex !important;
-            
-                   width: 2in !important;
-                   height: 1in !important;
-            
-                   min-width: 2in !important;
-                   min-height: 1in !important;
-            
-                   max-width: 2in !important;
-                   max-height: 1in !important;
-            
-                   margin: 0 !important;
-                   padding: 0.04in !important;
-            
-                   box-sizing: border-box !important;
-            
-                   overflow: hidden !important;
-            
-                   page-break-after: always !important;
-                   break-after: page !important;
-            
-                   page-break-inside: avoid !important;
-                   break-inside: avoid !important;
-               }
-            
-               .asset-label:last-child {
-                   page-break-after: auto !important;
-                   break-after: auto !important;
-               }
-            
-               .asset-label svg {
-                   width: 0.86in !important;
-                   height: 0.86in !important;
-                   flex-shrink: 0 !important;
-               }
-             }
-           `}</style>
+        /* Prevent double border in the middle where the two labels meet */
+        .asset-label:nth-child(2n) {
+            border-left: none !important;
+            page-break-after: always !important;
+            break-after: page !important;
+        }
+        .asset-label:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
+        }
+        .asset-label svg {
+            width: 0.75in !important;
+            height: 0.75in !important;
+            flex-shrink: 0 !important;
+        }
+    }
+`}</style>
 
-            {/* Normal UI — hidden while printing */}
             <div className="print:hidden">
                 <Container>
-                    <div className='p-4 md:p-6'>
-                        <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                            <span>Dashboard</span>
-                            <ChevronRight size={12} />
-                            <span>Asset Management</span>
-                            <ChevronRight size={12} />
-                            <span className="text-[#084E92] font-medium">Export Assets QR</span>
-                        </div>
-
-                        <div>
-                            <h1 className="text-2xl font-bold">
-                                Export Assets QR
-                            </h1>
-
-                            <p className="text-[#737781] mt-1 text-sm">
-                                Generate and export high-resolution QR codes for registered assets for inventory tracking.
-                            </p>
-                        </div>
+                    <div className="pt-2 pb-6 mx-auto space-y-4">
+                        <PageHeader title="Export Assets QR" />
 
                         <div className="grid grid-cols-1 lg:grid-cols-[450px_1fr] gap-5 mt-6 items-stretch lg:h-[calc(100vh-13rem)]">
-                            {/* Select Assets */}
+                            {/* Controls Card */}
                             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col h-full min-h-0">
-                                <h2 className="text-base font-semibold text-[#1B1B1F] py-4 border-b-2 border-[#E2E8F099]">Select Assets</h2>
+                                <div className="space-y-4">
+                                    {/* 1. Company Filter */}
+                                    {isGroupUser && (
+                                        <div>
+                                            <label className="text-xs font-medium text-[#475569] mb-1.5 block">
+                                                Company 
+                                            </label>
+                                            <SearchableSelect
+                                                name="company"
+                                                value={company}
+                                                disabled={loadingCompanies || generatingQrs}
+                                                onChange={(e) => handleCompanyChange(e.target.value)}
+                                                options={companyOptions}
+                                                placeholder={loadingCompanies ? "Loading companies..." : "Select Company"}
+                                                isClearable={true}
+                                            />
+                                        </div>
+                                    )}
 
-                                <div className="grid grid-cols-2 gap-1 bg-[#F4F7FF] rounded-lg p-1 mt-6">
-                                    <button
-                                        type="button"
-                                        onClick={() => setTab('all')}
-                                        className={`py-1.5 cursor-pointer rounded-md text-sm font-medium transition ${tab === 'all' ? 'bg-white text-[#1B1B1F] shadow-sm' : 'text-gray-400 hover:text-[#43474F]'
-                                            }`}
-                                    >
-                                        All Assets
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setTab('selected')}
-                                        className={`py-1.5 cursor-pointer rounded-md text-sm font-medium transition ${tab === 'selected' ? 'bg-[#084E92] text-white shadow-sm' : 'text-gray-400 hover:text-[#43474F]'
-                                            }`}
-                                    >
-                                        Selected Assets
-                                    </button>
-                                </div>
+                                    {/* 2. Outlet Filter */}
+                                    {!isOutletUser && (
+                                        <div>
+                                            <label className="text-xs font-medium text-[#475569] mb-1.5 block">
+                                                Unit 
+                                            </label>
+                                            <SearchableSelect
+                                                name="outlet"
+                                                value={outlet}
+                                                disabled={(isGroupUser && !company) || loadingOutlets || generatingQrs}
+                                                onChange={(e) => {
+                                                    setOutlet(e.target.value);
+                                                    setLocation('');
+                                                    setPickedAssets([]);
+                                                    setSelectedAssets([]);
+                                                }}
+                                                options={outletOptions}
+                                                placeholder={
+                                                    loadingOutlets
+                                                        ? "Loading outlets..."
+                                                        : isGroupUser && !company
+                                                            ? "Select Company first"
+                                                            : "Select Unit"
+                                                }
+                                                isClearable={true}
+                                            />
+                                        </div>
+                                    )}
 
-                                <div className="mt-4">
-                                    <AssetSearchDropdown
-                                        label="Search Assets"
-                                        placeholder="Search by name or asset code"
-                                        options={assets}
-                                        onSelect={handleSelectAsset}
-                                        loading={assetsLoading}
-                                    />
-                                </div>
-
-                                <div className="mt-4">
-                                    <label className="text-xs font-medium text-[#475569] mb-1.5 block">
-                                        Organization Filter
-                                    </label>
-
-                                    <SearchableSelect
-                                        name="organization"
-                                        value={orgFilter}
-                                        onChange={(e) => {
-                                            const selectedOrg = e.target.value;
-
-                                            setOrgFilter(selectedOrg);
-
-                                            if (selectedOrg) {
-                                                fetchAssignedAssets(Number(selectedOrg));
-                                            } else {
-                                                setAssets(allAssets);
+                                    {/* 3. Sub-Outlet Location Filter */}
+                                    <div>
+                                        <label className="text-xs font-medium text-[#475569] mb-1.5 block">
+                                            Location 
+                                        </label>
+                                        <SearchableSelect
+                                            name="location"
+                                            value={location}
+                                            disabled={!outlet || loadingLocations || generatingQrs}
+                                            onChange={(e) => {
+                                                setLocation(e.target.value);
+                                                setPickedAssets([]);
+                                                setSelectedAssets([]);
+                                            }}
+                                            options={locationOptions}
+                                            placeholder={
+                                                !outlet
+                                                    ? "Select Unit first"
+                                                    : loadingLocations
+                                                        ? "Loading locations..."
+                                                        : "Select Location"
                                             }
-                                        }}
-                                        options={organizationOptions}
-                                        placeholder={orgLoading ? "Loading organizations..." : "Select Organization"}
-                                        disabled={orgLoading}
-                                    />
-                                    <div className="flex items-center gap-2 mt-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={isAllOrganizationAssetsSelected()}
-                                            onChange={(e) =>
-                                                handleSelectAllOrgazination(e.target.checked)
-                                            }
-                                            disabled={
-                                                !orgFilter ||
-                                                getOrganizationAssets().length === 0 ||
-                                                assetsLoading
-                                            }
-                                            className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer disabled:cursor-not-allowed"
+                                            isClearable={true}
                                         />
+                                    </div>
 
-                                        <span className="text-sm font-medium text-[#334155]">
-                                            Organization According Select All for Print
-                                        </span>
-
-                                        {orgFilter && getOrganizationAssets().length > 0 && (
-                                            <span className="text-xs text-gray-400">
-                                                ({getOrganizationAssets().length} assets)
-                                            </span>
-                                        )}
+                                    {/* 4. Assets Multi-Select */}
+                                    <div>
+                                        <label className="text-xs font-medium text-[#475569] mb-1.5 block">
+                                            Select Assets
+                                        </label>
+                                        <AssetMultiSelect
+                                            options={assets}
+                                            selected={pickedAssets}
+                                            onChange={setPickedAssets}
+                                            loading={assetsLoading}
+                                            disabled={assetsLoading || generatingQrs}
+                                        />
                                     </div>
                                 </div>
-
-                                {tab === 'all' && (
-                                    <div className="my-4 flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
-                                        {assets.map((a) => (
-                                            <button
-                                                key={a.id}
-                                                type="button"
-                                                onClick={() => handleSelectAsset(a)}
-                                                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-[#E5E7EB] hover:border-[#084E92] hover:bg-[#F4F7FF] text-left"
-                                            >
-                                                <span>
-                                                    <span className="block text-sm font-medium text-[#1B1B1F] capitalize">{a.name}</span>
-                                                    <span className="text-xs text-[#64748B]">{a.code}</span>
-                                                </span>
-                                                <span className="text-xs font-medium text-[#084E92]">Add</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
 
                                 <div className="border-t border-[#C3C6D1] mt-auto pt-4 flex gap-2">
                                     <button
                                         type="button"
-                                        disabled={selectedAssets.length === 0}
+                                        disabled={printableAssets.length === 0 || generatingQrs}
                                         onClick={handlePrintLabels}
                                         className="w-max h-11 cursor-pointer bg-[#084E92] text-white rounded-lg px-4 flex items-center justify-center gap-2 text-sm font-medium hover:bg-[#073e77] transition disabled:opacity-40 disabled:cursor-not-allowed"
                                     >
                                         <QrCode size={16} />
-                                        Print Labels ({printableAssets.length})
+                                        {generatingQrs ? 'Generating QRs...' : `Print Labels (${printableAssets.length})`}
                                     </button>
                                 </div>
                             </div>
@@ -816,7 +983,7 @@ const ExportAssetsQR = () => {
                                     <div>
                                         <h2 className="text-base font-semibold text-[#1B1B1F]">Selected Assets List</h2>
                                         <p className="text-sm text-gray-400 mt-0.5">
-                                            {printableAssets.length} asset{printableAssets.length === 1 ? '' : 's'} ready for QR export.
+                                            {printableAssets.length} label{printableAssets.length === 1 ? '' : 's'} ready for QR export.
                                         </p>
                                     </div>
                                     {printableAssets.length > 0 && (
@@ -830,16 +997,16 @@ const ExportAssetsQR = () => {
                                 <div className="mt-4 space-y-3 flex-1 min-h-0 overflow-y-auto">
                                     {printableAssets.length === 0 ? (
                                         <div className="border border-dashed border-[#C3C6D1] rounded-lg py-12 text-center text-sm text-gray-400">
-                                            No assets selected yet. Search or browse on the left to add assets.
+                                            No assets selected yet. Use the dropdown on the left to pick assets.
                                         </div>
                                     ) : (
                                         printableAssets.map((a, index) => (
-                                            <div key={`${a.rowKey}-${a.printIndex}-${index}`} className='flex gap-2 items-center justify-between'>
+                                            <div key={`${a.rowKey}-${a.printIndex}-${index}`} className="flex gap-2 items-center justify-between">
                                                 <div className="flex items-center gap-3 border border-[#E5E7EB] rounded-lg p-3 w-full">
                                                     <div className="w-18 h-18 shrink-0 rounded-lg border border-[#E2E8F0] flex items-center justify-center overflow-hidden">
                                                         <div className="w-14 h-14 shrink-0 rounded-lg p-1 border border-[#E2E8F0] flex items-center justify-center overflow-hidden">
                                                             <QRCode
-                                                                value={getAssetQRUrl(a)}
+                                                                value={getAssetQRValue(a)}
                                                                 size={44}
                                                                 level="M"
                                                             />
@@ -848,7 +1015,14 @@ const ExportAssetsQR = () => {
 
                                                     <div className="min-w-0 flex-1 my-auto">
                                                         <p className="text-sm text-gray-600 capitalize mb-1">Jaiswal Group</p>
-                                                        <p className="text-sm text-gray-600 capitalize mb-1"> {a.organizationname && a.organizationname !== 'Jaiswal Group' ? <span className='uppercase'> {(a.organizationname)} </span> : 'HEAD OFFICE'}</p>
+                                                        <p className="text-sm text-gray-600 capitalize mb-1">
+                                                            {a.organizationname && a.organizationname !== 'Jaiswal Group' ? (
+                                                                <span className='uppercase'>{a.organizationname}</span>
+                                                            ) : a.organizationname === 'Jaiswal Group' ? 'HEAD OFFICE' : ''}
+                                                        </p>
+                                                        {getAssetLocationOrCustodian(a) ? (
+                                                            <p className="text-sm text-gray-600 capitalize mb-1">{getAssetLocationOrCustodian(a)}</p>
+                                                        ) : null}
                                                         <p className="text-sm text-gray-600 capitalize mb-1">{a.categoryName}</p>
                                                         <p className="text-sm font-medium text-[#1B1B1F] capitalize truncate mb-1">{toTitleCase(a.name) || '-'}</p>
                                                         <span className="bg-[#F1F5F9] text-[#64748B] font-bold tracking-wide px-1.5 py-0.5 rounded text-xs">
@@ -880,12 +1054,12 @@ const ExportAssetsQR = () => {
             </div>
 
             {isPrinting && createPortal(
-                <div className="qr-print-area hidden print:block">
-                    {printableAssets.map((a, index) => (
+                <div className="qr-print-area hidden print:flex print:flex-wrap">
+                    {generatedPrintItems.map((a, index) => (
                         <AssetLabel
                             key={`print-${a.rowKey}-${a.printIndex}-${index}`}
                             asset={a}
-                            qrSize={68}
+                            qrSize={60}
                         />
                     ))}
                 </div>,

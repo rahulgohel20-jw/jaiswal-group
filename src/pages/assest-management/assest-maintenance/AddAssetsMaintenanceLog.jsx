@@ -1,7 +1,8 @@
-import { ArrowLeft, Building2, ChevronRight, ClipboardList, Info, MapPin, Save, Store, Users, Wrench } from 'lucide-react';
+import { ArrowLeft, Building2, ClipboardList, Info, MapPin, Save, Store, Users, Wrench } from 'lucide-react';
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useLocation } from 'react-router';
 import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import SearchableSelect from '../../../utils/SearchableSelect';
@@ -30,7 +31,7 @@ const STATUS_OPTIONS = [
 const ORG_TYPE_META = {
     GROUP: { label: 'Group', icon: Users },
     SUB_COMPANY: { label: 'Company', icon: Building2 },
-    OUTLET: { label: 'Outlet', icon: Store },
+    OUTLET: { label: 'Unit', icon: Store },
 };
 const orgTypeLabel = (orgType) => ORG_TYPE_META[orgType]?.label ?? '—';
 
@@ -366,54 +367,27 @@ const AddAssetsMaintenanceLog = () => {
 
     return (
        <Container>
-         <div className='p-4 md:p-6'>
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#002246] font-medium">
-                    {isEditMode ? 'Edit Maintenance Log' : 'Add Maintenance Log'}
-                </span>
-            </div>
-            {/* Header */}
-            <div className="flex items-start justify-between flex-wrap gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">
-                        {isEditMode ? 'Update Maintenance Log' : 'Maintenance Log Registration'}
-                    </h1>
-
-                    <p className="text-sm text-gray-500 mt-1">
-                        {isEditMode
-                            ? 'Update the details of this maintenance record.'
-                            : 'Record maintenance activities performed on assets for tracking and service history.'}
-                    </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <Link to="/assets/asset-maintenance">
-                        <button
-                            type="button"
-                            className="flex items-center cursor-pointer gap-2 px-5 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium hover:bg-gray-50 transition"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            Back to List
-                        </button>
-                    </Link>
-
+         <div className="mx-auto pt-2 pb-6 space-y-3.5">
+            <PageHeader
+                title={isEditMode ? 'Update Maintenance Log' : 'Maintenance Log Registration'}
+                description={
+                    isEditMode
+                        ? 'Update the details of this maintenance record.'
+                        : 'Record maintenance activities performed on assets for tracking and service history.'
+                }
+                actions={
                     <button
                         type="button"
-                        disabled={submitting || loadingRecord}
-                        onClick={() => handleSave(false)}
-                        className="flex items-center cursor-pointer gap-2 px-5 py-2.5 rounded-lg bg-[#084E92] text-white font-medium hover:bg-[#073e77] transition disabled:opacity-60"
+                        onClick={() => navigate('/assets/asset-maintenance')}
+                        className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
                     >
-                        <Save className="w-4 h-4" />
-                        {saveLabel}
+                        <ArrowLeft className="w-4 h-4" />
+                        Back to List
                     </button>
-                </div>
-            </div>
+                }
+            />
 
-            <div className="mt-5 border rounded-2xl shadow-2xs flex flex-col">
+            <div className="mt-8 border rounded-2xl shadow-2xs flex flex-col">
                 {loadingRecord && (
                     <div className="px-6 pt-6 text-sm text-gray-500">
                         Loading maintenance record...

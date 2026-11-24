@@ -2,7 +2,7 @@
 // File: src/pages/purchase-order/PurchaseOrderApproval.jsx
 // ============================================
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import {
   Search,
@@ -19,15 +19,16 @@ import {
   Package,
   FileText,
   Download,
+  Ban,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePurchaseOrders } from '../purchase-order-requests/utils/usePurchaseOrders';
@@ -37,12 +38,24 @@ import { getUserIdFromToken, getUsernameFromToken } from '@/utils/auth';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { ExportReportModal } from './ExportReportModal';
 import { ClosePurchaseOrderModal } from './ClosePurchaseOrderModal';
+import { formatRemarks } from '@/utils/textUtils';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { SearchBar } from '@/components/common/SearchBar';
+import { CodeCell } from '@/components/common/CodeCell';
 
 // Statuses visible to an approver, which of those still allow Approve/Reject,
 // and which are editable (approver can still adjust an in-progress PO).
@@ -76,7 +89,7 @@ const STATUS_META = {
 const TruncatedCell = ({
   value,
   widthClass = 'max-w-[180px]',
-  className = 'text-[#475467]',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -84,11 +97,12 @@ const TruncatedCell = ({
 );
 
 function StatusPill({ status }) {
-  const meta = STATUS_META[status] ?? { bg: '#F2F4F7', fg: '#667085' };
+  const meta = STATUS_META[status] ?? { fg: '#667085' };
   return (
     <span
-      style={{ background: meta.bg, color: meta.fg }}
-      className="px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase"
+      style={{ color: meta.fg }}
+      title={getPoStatusLabel(status)}
+      className="text-xs font-semibold block truncate max-w-full"
     >
       {getPoStatusLabel(status)}
     </span>
@@ -97,15 +111,15 @@ function StatusPill({ status }) {
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex items-center gap-3.5">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: iconBg, color: iconFg }}>
         {icon}
       </div>
-      <div>
-        <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide">{label}</div>
-        <div className="text-2xl font-bold text-[#101828] mt-0.5" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
           {value}
-        </div>
+        </span>
       </div>
     </div>
   );
@@ -132,17 +146,21 @@ function StatusDropdown({ value, onChange }) {
   return (
     <div className="relative">
       <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3] min-w-[190px]"
-      >
-        {STATUS_FILTER_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+     <Select value={value} onValueChange={onChange}>
+        <SelectTrigger
+          className="h-10 pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
+        >
+          <SelectValue />
+        </SelectTrigger>
+
+        <SelectContent>
+          {STATUS_FILTER_OPTIONS.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
@@ -189,6 +207,17 @@ const PurchaseOrderApproval = () => {
   const [statusFilter, setStatusFilter] = useState(ALL_STATUS);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
 
+  const handlePaginationChange = useCallback((updater) => {
+    setPagination((old) => {
+      const next = typeof updater === 'function' ? updater(old) : updater;
+      if (next.pageSize !== old.pageSize) {
+        return { ...next, pageIndex: 0 };
+      }
+      return next;
+    });
+  }, []);
+  const [sorting, setSorting] = useState([]);
+
   // Close PO modal state
   const [closeModalOpen, setCloseModalOpen] = useState(false);
   const [selectedPoToClose, setSelectedPoToClose] = useState(null);
@@ -215,6 +244,7 @@ const PurchaseOrderApproval = () => {
     selectedUnitId,
     setSelectedUnitId,
     effectiveOutletId,
+    companyId,
     filterRowsByScope,
     retry: retryScope,
   } = useOrgScope();
@@ -223,27 +253,43 @@ const PurchaseOrderApproval = () => {
     list: allPos,
     loading: poLoading,
     error: poError,
+    totalElements: poTotalElements,
+    totalPages: poTotalPages,
     fetchByOutletandStatus,
   } = usePurchaseOrders();
 
-  const currentUnitId = effectiveOutletId;
+  const currentUnitId = isOutletUser
+    ? Number(effectiveOutletId)
+    : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
 
-  const targetStatus = useMemo(() => {
-    if (!statusFilter || statusFilter === ALL_STATUS) return APPROVER_VISIBLE_STATUSES;
-    return statusFilter;
-  }, [statusFilter]);
-
-  const loadData = () => {
-    if (scopeLoading) return;
-    fetchByOutletandStatus(currentUnitId, targetStatus);
-  };
+  const loadData = useCallback(() => {
+    if (scopeLoading || scopeError) return;
+    const statusParam = statusFilter === ALL_STATUS ? undefined : statusFilter;
+    const pageParam = pagination.pageIndex;
+    const sizeParam = pagination.pageSize;
+    fetchByOutletandStatus(
+      currentUnitId,
+      statusParam,
+      pageParam,
+      sizeParam,
+      query.trim() || undefined
+    );
+  }, [
+    scopeLoading,
+    scopeError,
+    currentUnitId,
+    statusFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+    query,
+    fetchByOutletandStatus,
+  ]);
 
   useEffect(() => {
-    if (!scopeLoading) {
+    if (!scopeLoading && !scopeError) {
       loadData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeLoading, currentUnitId, targetStatus]);
+  }, [loadData, scopeLoading, scopeError]);
 
   useEffect(() => {
     setPagination((p) => ({ ...p, pageIndex: 0 }));
@@ -295,6 +341,7 @@ const PurchaseOrderApproval = () => {
         (p) =>
           (p.poCode || '').toLowerCase().includes(q) ||
           (p.outlet || '').toLowerCase().includes(q) ||
+          (p.subOutletName || '').toLowerCase().includes(q) ||
           (p.raisedBy || '').toLowerCase().includes(q) ||
           (p.createdByName || '').toLowerCase().includes(q),
       );
@@ -360,7 +407,7 @@ const PurchaseOrderApproval = () => {
       const payload = {
         actionBy: String(actionBy),
         poids: [Number(selectedPoToClose.id)],
-        reason: closeReason.trim(),
+        reason: formatRemarks(closeReason.trim()),
         userId: Number(userId),
       };
 
@@ -419,7 +466,20 @@ const PurchaseOrderApproval = () => {
           );
         },
         enableSorting: false,
-        size: 55,
+        size: 36,
+      },
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-xs text-gray-500 py-2">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
+        ),
+        enableSorting: false,
+        size: 36,
       },
       {
         id: 'poCode',
@@ -428,14 +488,10 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <span
-            className="font-semibold text-[#2952E3] text-[13px]"
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
-          >
-            {row.original.poCode}
-          </span>
+          <CodeCell code={row.original.poCode} maxWidth="max-w-full" className="text-xs" />
         ),
-        size: 190,
+        enableSorting: false,
+        size: 200,
       },
       {
         id: 'date',
@@ -443,28 +499,43 @@ const PurchaseOrderApproval = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="PO DATE" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
-        size: 130,
+        cell: ({ row }) => <span className="whitespace-nowrap text-xs text-gray-600 font-medium">{row.original.date || '—'}</span>,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'expectedDeliveryDate',
         accessorFn: (row) => row.expectedDeliveryDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="DELIVERY DATE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="DELV. DATE" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.expectedDeliveryDate} widthClass="max-w-[130px]" />
+          <span className="whitespace-nowrap text-xs text-gray-600 font-medium">{row.original.expectedDeliveryDate || '—'}</span>
         ),
-        size: 180,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
-        size: 190,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-full" />,
+        enableSorting: false,
+        size: 115,
+      },
+      {
+        id: 'location',
+        accessorFn: (row) => row.subOutletName,
+        header: ({ column }) => (
+          <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+        ),
+        cell: ({ row }) => (
+          <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-full" />
+        ),
+        enableSorting: false,
+        size: 100,
       },
       {
         id: 'raisedBy',
@@ -474,9 +545,10 @@ const PurchaseOrderApproval = () => {
         ),
         cell: ({ row }) => {
           const name = row.original.raisedBy || row.original.createdByName;
-          return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+          return <TruncatedCell value={name || '—'} widthClass="max-w-full" />;
         },
-        size: 150,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'status',
@@ -485,13 +557,16 @@ const PurchaseOrderApproval = () => {
           <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
         ),
         cell: ({ row }) => <StatusPill status={row.original.rawStatus} />,
-        size: 150,
+        enableSorting: false,
+        size: 120,
       },
       {
         id: 'action',
         header: ({ column }) => (
           <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
         ),
+        enableSorting: false,
+        size: 80,
         cell: ({ row }) => {
           const po = row.original;
           const actionable = ACTIONABLE_STATUSES.includes(po.rawStatus);
@@ -500,18 +575,22 @@ const PurchaseOrderApproval = () => {
 
           if (actionable) {
             return (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
+                  type="button"
                   onClick={() => handleApprove(po)}
-                  className="px-3.5 py-1.5 cursor-pointer rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
+                  className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-0.5 rounded hover:bg-emerald-50 transition"
+                  title="Approve PO"
                 >
-                  Approve
+                  <CheckCircle2 size={16} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleReject(po)}
-                  className="px-3.5 py-1.5 cursor-pointer rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                  className="text-rose-500 hover:text-rose-700 cursor-pointer p-0.5 rounded hover:bg-rose-50 transition"
+                  title="Reject PO"
                 >
-                  Reject
+                  <XCircle size={16} />
                 </button>
               </div>
             );
@@ -519,63 +598,86 @@ const PurchaseOrderApproval = () => {
 
           if (editable) {
             return (
-              <button
-                onClick={() => handleEdit(po)}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#F5C77E] text-[#B7791F] text-xs font-semibold hover:bg-[#FEF6E7] transition-colors"
-              >
-                <Pencil size={13} />
-                Edit
-              </button>
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={() => handleEdit(po)}
+                  className="text-gray-500 hover:text-blue-600 cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
+                  title="Edit PO"
+                >
+                  <Pencil size={16} />
+                </button>
+              </div>
             );
           }
 
           if (isApproved) {
             return (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
+                  type="button"
                   onClick={() => handleView(po)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#E7EAF0] text-[#475467] text-xs font-semibold hover:bg-[#F9FAFC] transition-colors"
+                  className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
+                  title="View PO"
                 >
-                  <Eye size={13} />
-                  View
+                  <Eye size={16} />
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleOpenCloseModal(po)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                  className="text-red-400 hover:text-red-600 cursor-pointer p-0.5 rounded hover:bg-red-50 transition"
+                  title="Close PO"
                 >
-                  <XCircle size={13} />
-                  Close PO
+                  <Ban size={16} />
                 </button>
               </div>
             );
           }
 
           return (
-            <button
-              onClick={() => handleView(po)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-[#E7EAF0] text-[#475467] text-xs font-semibold hover:bg-[#F9FAFC] transition-colors"
-            >
-              <Eye size={13} />
-              View
-            </button>
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => handleView(po)}
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
+                title="View PO"
+              >
+                <Eye size={16} />
+              </button>
+            </div>
           );
         },
-        enableSorting: false,
-        size: 220,
       },
     ],
-    [selectedPoId],
+    [selectedPoId, pagination.pageIndex, pagination.pageSize],
   );
 
   const { canView } = usePagePermissions('Approve Purchase Order');
 
+  const displayRows = useMemo(() => {
+    if (poTotalElements > 0 && poTotalElements === allPos.length && filtered.length > pagination.pageSize) {
+      const start = pagination.pageIndex * pagination.pageSize;
+      return filtered.slice(start, start + pagination.pageSize);
+    }
+    return filtered;
+  }, [filtered, poTotalElements, allPos.length, pagination.pageIndex, pagination.pageSize]);
+
+  const pageCount = useMemo(() => {
+    if (poTotalPages > 0) return poTotalPages;
+    return Math.max(1, Math.ceil((poTotalElements || filtered.length) / pagination.pageSize));
+  }, [poTotalPages, poTotalElements, filtered.length, pagination.pageSize]);
+
   const table = useReactTable({
-    data: filtered,
+    data: displayRows,
     columns,
-    state: { pagination },
-    onPaginationChange: setPagination,
+    state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
+    onPaginationChange: handlePaginationChange,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) {
@@ -584,64 +686,46 @@ const PurchaseOrderApproval = () => {
 
   return (
     <Container>
-      <div className="py-1 md:py-2 pb-6 space-y-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Purchase</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Purchase Order Approval</span>
-        </div>
-
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
         {/* Header with Separate Report Export Buttons */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Purchase Order Approval
-            </h1>
-            <p className="text-[#667085] text-sm mt-0.5 max-w-xl">
-              Manage and review purchase orders awaiting your review.
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Button 1: Short Item Received */}
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal('Short Item Received')}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition-colors shadow-sm cursor-pointer"
-            >
-              <Download size={14} />
-              Short Item Received
-              {selectedPoId && (
-                <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">
-                  1 PO Selected
-                </span>
-              )}
-            </button>
+        <PageHeader
+          title="Purchase Order Approval"
+          actions={
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {/* Button 1: Short Item Received */}
+              <button
+                type="button"
+                onClick={() => handleOpenExportModal('SHORT_ITEM_RECEIVED')}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition shadow-2xs cursor-pointer whitespace-nowrap"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Short Item Received
+                {selectedPoId && (
+                  <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded text-[10px] font-mono">
+                    1 PO Selected
+                  </span>
+                )}
+              </button>
 
-            {/* Button 2: Pending GRN */}
-            <button
-              type="button"
-              onClick={() => handleOpenExportModal("Pending GRN")}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition-colors shadow-sm cursor-pointer"
-            >
-              <FileText size={14} className="text-[#084E92]" />
-              Pending GRN
-            </button>
-          </div>
-        </div>
+              {/* Button 2: Pending GRN */}
+              <button
+                type="button"
+                onClick={() => handleOpenExportModal("PENDING_GRN")}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-[#E7EAF0] text-[#101828] text-xs font-semibold hover:bg-gray-50 transition shadow-2xs cursor-pointer whitespace-nowrap"
+              >
+                <FileText className="w-3.5 h-3.5 text-[#084E92]" />
+                Pending GRN
+              </button>
+            </div>
+          }
+        />
 
-        {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-            <span className="text-sm text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0 cursor-pointer">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || poError}
+          onRetry={scopeError ? retryScope : loadData}
+        />
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5">
           <StatCard icon={<ClipboardList size={18} />} iconBg="#EEF2FE" iconFg="#2952E3" label="Sent for approval" value={counts[PO_STATUS.SENT_FOR_APPROVAL] ?? 0} />
           <StatCard icon={<Clock3 size={18} />} iconBg="#FEF6E7" iconFg="#B7791F" label="In progress" value={counts[PO_STATUS.IN_PROGRESS] ?? 0} />
           <StatCard icon={<CheckCircle2 size={18} />} iconBg="#E7F7EE" iconFg="#14804A" label="Approved" value={counts[PO_STATUS.APPROVED] ?? 0} />
@@ -650,13 +734,12 @@ const PurchaseOrderApproval = () => {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
-            <input
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search PO code or outlet..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              onClear={() => setQuery('')}
+              placeholder="Search PO code or unit..."
             />
           </div>
           {showUnitDropdown && (
@@ -664,13 +747,6 @@ const PurchaseOrderApproval = () => {
           )}
           <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
         </div>
-
-        {poError && !scopeLoading && !poLoading && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{poError}</span>
-          </div>
-        )}
 
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-sm">
           {scopeLoading || poLoading ? (
@@ -681,9 +757,10 @@ const PurchaseOrderApproval = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filtered.length}
+              recordCount={poTotalElements || filtered.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
@@ -691,11 +768,8 @@ const PurchaseOrderApproval = () => {
               }}
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                   <DataGridPagination />

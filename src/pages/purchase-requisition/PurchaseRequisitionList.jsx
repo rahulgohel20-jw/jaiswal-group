@@ -27,7 +27,6 @@
   import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
   import { DataGridPagination } from '@/components/ui/data-grid-pagination';
   import { DataGridTable } from '@/components/ui/data-grid-table';
-  import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
   import SearchableSelect from '@/utils/searchableSelect';
   import { getPurchaseRequisitionsByOutlet, deletePurchaseRequisition } from '@/services/apiServices';
   import { useOrgScope } from '@/hooks/useOrgScope';
@@ -36,35 +35,40 @@
   import { getUserIdFromToken, getUsernameFromToken } from '../../utils/auth';
   import { usePagePermissions } from '@/utils/permissions';
   import { AccessDenied } from '@/components/common/AccessDenied';
+  import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { CodeCell } from '@/components/common/CodeCell';
+import { SearchBar } from '@/components/common/SearchBar';
+import { useServerPagination } from '@/hooks/useServerPagination';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
   /* -------------------------------------------------------------------------
   * Shared style tokens & primitives (unchanged)
   * ---------------------------------------------------------------------- */
 
-  const STATUS_STYLES = {
-    Pending: 'bg-red-50 text-red-600',
-    'Sent for Approval': 'bg-amber-50 text-amber-600',
-    'In Progress': 'bg-blue-50 text-blue-600',
-    Approved: 'bg-emerald-50 text-emerald-600',
-    Rejected: 'bg-rose-50 text-rose-600',
+  const STATUS_TEXT_COLORS = {
+    Pending: 'text-rose-600',
+    'Sent for Approval': 'text-amber-600',
+    'In Progress': 'text-blue-600',
+    Approved: 'text-emerald-600',
+    Rejected: 'text-rose-600',
   };
 
-  const STATUS_DOT = {
-    Pending: 'bg-red-500',
-    'Sent for Approval': 'bg-amber-500',
-    'In Progress': 'bg-blue-500',
-    Approved: 'bg-emerald-500',
-    Rejected: 'bg-rose-500',
-  };
-
-  const StatusBadge = ({ status, size = 'md' }) => (
+  const StatusBadge = ({ status }) => (
     <span
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-full ${
-        size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
-      } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
+      title={status || '—'}
+      className={`font-semibold text-xs block truncate max-w-full ${
+        STATUS_TEXT_COLORS[status] || 'text-gray-600'
+      }`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
-      {status}
+      {status || '—'}
     </span>
   );
 
@@ -72,11 +76,11 @@
   // (mirrors TruncatedCell from UserManagementList.jsx)
   const TruncatedCell = ({
     value,
-    widthClass = 'max-w-[180px]',
-    className = 'text-gray-600',
+    widthClass = 'max-w-full',
+    className = 'text-gray-800 font-medium',
   }) => (
-    <span title={value} className={`block truncate ${widthClass} ${className}`}>
-      {value}
+    <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
+      {value || '—'}
     </span>
   );
 
@@ -91,7 +95,7 @@
           value={selectedUnitId ?? ''}
           onChange={(e) => onChange(e.target.value)}
           options={options}
-          placeholder={units.length === 0 ? 'No outlets available' : 'Select outlet...'}
+          placeholder={units.length === 0 ? 'No units available' : 'Select unit...'}
           disabled={units.length === 0}
         />
       </div>
@@ -100,19 +104,24 @@
 
   function StatusDropdown({ value, onChange }) {
     return (
-      <div className="relative min-w-[190px]">
+      <div className="relative min-w-47.5">
         <Filter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3] pointer-events-none" />
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="h-11 w-full pl-10 pr-8 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] font-medium appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
-        >
-          {PR_STATUS_LIST.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+        <Select value={value || 'all'} onValueChange={(val) => onChange(val === 'all' ? '' : val)}>
+          <SelectTrigger
+            className="h-10 w-full pl-10 pr-8 rounded-xl border border-[#C3C6D1] bg-white text-sm text-[#101828] font-medium focus:outline-none focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
+          >
+            <SelectValue placeholder="All Status" />
+          </SelectTrigger>
+
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            {PR_STATUS_LIST.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     );
   }
@@ -129,6 +138,8 @@
     requiredDate: pr.prRequiredDate,
     outlet: pr.outletName ?? '',
     outletId: pr.outletId,
+    subOutletId: pr.subOutletId,
+    subOutletName: pr.subOutletName ?? pr.locationName ?? '',
     status: getStatusLabel(pr.status),
     rawStatus: pr.status,
     remarks: pr.remarks ?? '',
@@ -203,6 +214,7 @@
       selectedUnitId,
       setSelectedUnitId,
       effectiveOutletId,
+      companyId,
       filterRowsByScope,
       retry: retryScope,
     } = useOrgScope();
@@ -212,21 +224,47 @@
     const [prError, setPrError] = useState(null);
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState(PR_STATUS.PENDING); // default: Pending
-    const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+    const [statusFilter, setStatusFilter] = useState(''); // default: all statuses
+
+    const {
+      pagination,
+      setPagination,
+      totalElements,
+      pageCount,
+      updateFromResponse,
+      resetPage,
+    } = useServerPagination({ defaultPageSize: PAGE_SIZE });
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
 
     const loadData = useCallback(async () => {
-      if (scopeLoading) return;
+      if (scopeLoading || scopeError) return;
       setLoading(true);
       setPrError(null);
       try {
-        const res = await getPurchaseRequisitionsByOutlet(effectiveOutletId, statusFilter || PR_STATUS.PENDING);
-        const raw = res?.data?.data ?? res?.data ?? res ?? [];
-        const rows = Array.isArray(raw) ? raw.map(normalizeRow) : [];
+        const outletId = isOutletUser
+          ? Number(effectiveOutletId)
+          : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
+        const reqPayload = {
+          outletId,
+          status: statusFilter || undefined,
+          search: searchQuery.trim() || undefined,
+          page: pagination.pageIndex,
+          size: pagination.pageSize,
+        };
+        const res = await getPurchaseRequisitionsByOutlet(reqPayload);
+        const body = res?.data || {};
+        const raw = Array.isArray(body.data)
+          ? body.data
+          : Array.isArray(body.content)
+          ? body.content
+          : Array.isArray(body)
+          ? body
+          : [];
+        updateFromResponse(res, raw.length);
+        const rows = raw.map(normalizeRow);
         const scopedRows = filterRowsByScope(rows);
         setList(scopedRows);
       } catch (err) {
@@ -234,7 +272,25 @@
       } finally {
         setLoading(false);
       }
-    }, [scopeLoading, effectiveOutletId, statusFilter, filterRowsByScope]);
+    }, [
+      scopeLoading,
+      scopeError,
+      isOutletUser,
+      effectiveOutletId,
+      companyId,
+      selectedUnitId,
+      isCompanyUser,
+      statusFilter,
+      pagination.pageIndex,
+      pagination.pageSize,
+      searchQuery,
+      filterRowsByScope,
+      updateFromResponse,
+    ]);
+
+    useEffect(() => {
+      resetPage();
+    }, [searchQuery, statusFilter, isOutletUser, effectiveOutletId, selectedUnitId, companyId, resetPage]);
 
     useEffect(() => {
       loadData();
@@ -268,13 +324,14 @@
     };
 
     const filteredRows = useMemo(() => {
-      let rows = list.filter((r) => r.rawStatus === statusFilter);
+      let rows = statusFilter ? list.filter((r) => r.rawStatus === statusFilter) : list;
       const q = searchQuery.trim().toLowerCase();
       if (q) {
         rows = rows.filter(
           (r) =>
             r.prCode.toLowerCase().includes(q) ||
             r.outlet.toLowerCase().includes(q) ||
+            (r.subOutletName || '').toLowerCase().includes(q) ||
             (r.raisedBy || '').toLowerCase().includes(q) ||
             (r.createdByName || '').toLowerCase().includes(q),
         );
@@ -283,8 +340,8 @@
     }, [list, statusFilter, searchQuery]);
 
     useEffect(() => {
-      setPagination((p) => ({ ...p, pageIndex: 0 }));
-    }, [searchQuery, statusFilter, selectedUnitId]);
+      resetPage();
+    }, [searchQuery, statusFilter, selectedUnitId, resetPage]);
 
     const handleView = (row) => navigate(`/purchase-requisition/view/${row.id}`);
     const handleEdit = (row) => navigate(`/purchase-requisition/edit/${row.id}`, { state: row });
@@ -301,15 +358,29 @@
     const columns = useMemo(
       () => [
         {
+          id: 'sno',
+          header: ({ column }) => (
+            <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => (
+            <span className="text-gray-500 py-2 text-xs">
+              {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+            </span>
+          ),
+          enableSorting: false,
+          size: 36,
+        },
+        {
           id: 'prCode',
           accessorFn: (row) => row.prCode,
           header: ({ column }) => (
             <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => (
-            <span className="font-semibold text-[#084E92]">{row.original.prCode}</span>
+            <CodeCell code={row.original.prCode} maxWidth="max-w-full" className="text-xs" />
           ),
-          size: 140,
+          enableSorting: false,
+          size: 195,
         },
         {
           id: 'date',
@@ -317,28 +388,41 @@
           header: ({ column }) => (
             <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />
           ),
-          cell: ({ row }) => <TruncatedCell value={row.original.date} widthClass="max-w-[120px]" />,
-          size: 130,
+          cell: ({ row }) => <span className="text-gray-800 font-medium whitespace-nowrap text-xs">{row.original.date || '—'}</span>,
+          enableSorting: false,
+          size: 85,
         },
         {
           id: 'requiredDate',
           accessorFn: (row) => row.requiredDate,
           header: ({ column }) => (
-            <DataGridColumnHeader title="REQUIRED DATE" column={column} className="my-2 text-xs" />
+            <DataGridColumnHeader title="REQ. DATE" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => (
-            <TruncatedCell value={row.original.requiredDate} widthClass="max-w-[130px]" />
+            <span className="text-gray-800 font-medium whitespace-nowrap text-xs">{row.original.requiredDate || '—'}</span>
           ),
-          size: 140,
+          enableSorting: false,
+          size: 85,
         },
         {
           id: 'outlet',
           accessorFn: (row) => row.outlet,
           header: ({ column }) => (
-            <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+            <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />
           ),
-          cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
-          size: 190,
+          cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-full" />,
+          enableSorting: false,
+          size: 120,
+        },
+        {
+          id: 'subOutletName',
+          accessorFn: (row) => row.subOutletName,
+          header: ({ column }) => (
+            <DataGridColumnHeader title="LOCATION" column={column} className="my-2 text-xs" />
+          ),
+          cell: ({ row }) => <TruncatedCell value={row.original.subOutletName || '—'} widthClass="max-w-full" />,
+          enableSorting: false,
+          size: 100,
         },
         {
           id: 'raisedBy',
@@ -348,9 +432,10 @@
           ),
           cell: ({ row }) => {
             const name = row.original.raisedBy || row.original.createdByName;
-            return <TruncatedCell value={name || '—'} widthClass="max-w-[140px]" />;
+            return <TruncatedCell value={name || '—'} widthClass="max-w-full" />;
           },
-          size: 150,
+          enableSorting: false,
+          size: 75,
         },
         {
           id: 'status',
@@ -359,71 +444,75 @@
             <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
           ),
           cell: ({ row }) => <StatusBadge status={row.original.status} />,
-          size: 160,
+          enableSorting: false,
+          size: 115,
         },
         {
           id: 'action',
           header: ({ column }) => (
             <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
           ),
+          enableSorting: false,
+          size: 75,
           cell: ({ row }) => {
             const original = row.original;
             const isRejected = original.rawStatus === PR_STATUS.REJECTED || String(original.rawStatus).toUpperCase() === 'REJECTED';
+            const isApproved = original.rawStatus === PR_STATUS.APPROVED || String(original.rawStatus).toUpperCase() === 'APPROVED';
+            const canCopy = isRejected || isApproved;
             return (
-              <div className="flex items-center gap-2 whitespace-nowrap">
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => handleView(original)}
-                  className="text-gray-500 hover:text-green-600 cursor-pointer"
+                  className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
                   title="View"
                 >
-                  <Eye size={18} />
+                  <Eye size={16} />
                 </button>
                 {canEdit && EDITABLE_STATUSES.has(original.rawStatus) && (
                   <button
                     type="button"
                     onClick={() => handleEdit(original)}
-                    className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                    className="text-gray-500 hover:text-blue-600 cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
                     title="Edit"
                   >
-                    <Pencil size={18} />
+                    <Pencil size={16} />
                   </button>
                 )}
                 {canDelete && original.rawStatus === PR_STATUS.PENDING && (
                   <button
                     type="button"
                     onClick={() => openDeleteConfirm(original)}
-                    className="text-red-300 hover:text-red-600 cursor-pointer"
+                    className="text-red-400 hover:text-red-600 cursor-pointer p-0.5 rounded hover:bg-red-50 transition"
                     title="Delete"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 )}
-                {canAdd && isRejected && (
+                {canAdd && canCopy && (
                   <button
                     type="button"
                     onClick={() => handleCopyPr(original)}
-                    className="text-gray-500 hover:text-[#084E92] cursor-pointer"
+                    className="text-gray-500 hover:text-[#084E92] cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
                     title="Copy PR"
                   >
-                    <Copy size={18} />
+                    <Copy size={16} />
                   </button>
                 )}
               </div>
             );
           },
-          enableSorting: false,
-          size: 120,
         },
       ],
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [canAdd, canEdit, canDelete],
+      [pagination.pageIndex, pagination.pageSize, canAdd, canEdit, canDelete],
     );
 
     const table = useReactTable({
       data: filteredRows,
       columns,
       state: { pagination },
+      manualPagination: true,
+      pageCount,
       onPaginationChange: setPagination,
       getCoreRowModel: getCoreRowModel(),
       getPaginationRowModel: getPaginationRowModel(),
@@ -435,55 +524,31 @@
 
     return (
       <Container>
-        <div className="mx-auto py-10 p-6">
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-            <span>Dashboard</span>
-            <ChevronRight size={12} />
-            <span>Purchase</span>
-            <ChevronRight size={12} />
-            <span className="text-[#084E92] font-medium">Purchase Requisition List</span>
-          </div>
-
-          <div className="flex items-start justify-between gap-4 flex-wrap mt-3 mb-6">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                Purchase Requisition List
-              </h1>
-              <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-                View and manage all purchase requisitions across enterprise departments.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              {canAdd && (
-                <Link
-                  to="/purchase-requisition/add"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition"
-                >
-                  <Plus className="w-4 h-4" />
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
+          <PageHeader
+            title="Purchase Requisition List"
+            actions={
+              canAdd && (
+                <HeaderActionButton to="/purchase-requisition/add">
                   Create Purchase Requisition
-                </Link>
-              )}
-            </div>
-          </div>
+                </HeaderActionButton>
+              )
+            }
+          />
 
-          {scopeError && (
-            <div className="mb-6 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
-              <span className="text-sm text-[#C0293D]">{scopeError}</span>
-              <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
-                Retry
-              </button>
-            </div>
-          )}
+          <PageErrorAlert
+            error={scopeError || prError}
+            onRetry={scopeError ? retryScope : loadData}
+          />
 
           {/* Search + unit dropdown + status dropdown, aligned in one row */}
-          <div className="flex items-center gap-3 mb-5 flex-wrap">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
-              <input
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex-1 min-w-[220px]">
+              <SearchBar
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search PR Code, Outlet..."
-                className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+                onClear={() => setSearchQuery('')}
+                placeholder="Search PR Code, Unit..."
               />
             </div>
 
@@ -494,18 +559,7 @@
             <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
           </div>
 
-          {prError && (
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 text-sm text-[#C0293D]">
-              <span>{prError}</span>
-              <button
-                type="button"
-                onClick={loadData}
-                className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-              >
-                Retry
-              </button>
-            </div>
-          )}
+
 
           <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden">
             {loading || scopeLoading ? (
@@ -516,9 +570,10 @@
             ) : (
               <DataGrid
                 table={table}
-                recordCount={filteredRows.length}
+                recordCount={totalElements || filteredRows.length}
                 className="rounded-2xl"
                 tableLayout={{
+                  dense: true,
                   width: 'fixed',
                   cellBorder: true,
                   headerBorder: true,
@@ -526,11 +581,8 @@
                 }}
               >
                 <Card className="rounded-t-none border-t-0 rounded-2xl">
-                  <CardTable>
-                    <ScrollArea>
-                      <DataGridTable />
-                      <ScrollBar orientation="horizontal" />
-                    </ScrollArea>
+                  <CardTable className="w-full overflow-x-hidden">
+                    <DataGridTable />
                   </CardTable>
                   <CardFooter className="bg-[#F9FAFC] rounded-b-2xl">
                     <DataGridPagination />

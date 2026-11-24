@@ -1,13 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify, getApiErrorMessage } from '@/utils/toast';
+import { formatRemarks } from '@/utils/textUtils';
 import {
+  ArrowLeft,
   Briefcase,
   Building2,
   Check,
   ChevronDown,
   ClipboardList,
   Landmark,
+  Loader2,
   Map,
   MapPin,
   Plus,
@@ -20,10 +23,13 @@ import {
 import { useLocation, useNavigate } from 'react-router';
 import {
   getAllCountries,
+  getAllDepartmentMaster,
   getAllRoleMasterByUserId,
   getCitiesByState,
   getOrganizationByType,
+  getPages,
   getStatesByCountry,
+  getUserRightsByRole,
   saveVendor,
   updateVendor,
   getVendorById,
@@ -52,7 +58,66 @@ import {
   lookupIFSC,
 } from '@/utils/validations';
 import SearchableSelect from '../../utils/SearchableSelect';
+import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
+const ACTIONS = [
+  { key: 'add', label: 'Add' },
+  { key: 'edit', label: 'Edit' },
+  { key: 'view', label: 'View' },
+  { key: 'delete', label: 'Delete' },
+];
+
+const emptyRow = { add: false, edit: false, view: false, delete: false };
+const fullRow = { add: true, edit: true, view: true, delete: true };
+
+const normalizePages = (res) => {
+  const modules =
+    res?.data?.data?.ModuleWiseUserRights ??
+    res?.data?.ModuleWiseUserRights ??
+    (Array.isArray(res?.data?.data) ? res.data.data : Array.isArray(res?.data) ? res.data : []);
+  const grouped = {};
+  if (Array.isArray(modules)) {
+    modules.forEach((m) => {
+      const pages = m.userRightsPages ?? m.userRights ?? m.pages ?? [];
+      grouped[m.moduleName || `Module ${m.moduleId}`] = pages.map((p) => ({
+        id: p.pageId ?? p.pageid ?? p.id,
+        name: p.pagename ?? p.pageName ?? p.name ?? `Page ${p.pageId ?? p.pageid ?? p.id}`,
+        moduleId: m.moduleId ?? p.moduleId,
+      }));
+    });
+  }
+  return grouped;
+};
+
+const normalizeExistingRights = (res) => {
+  const raw = res?.data?.data ?? res?.data ?? res ?? {};
+  const modules =
+    raw?.UserRights ??
+    raw?.userRights?.userRights ??
+    raw?.userRights ??
+    (Array.isArray(raw) ? raw : []);
+
+  const map = {};
+  if (Array.isArray(modules)) {
+    modules.forEach((m) => {
+      const pageList = m.userRights ?? m.userRightsPages ?? m.pages ?? (Array.isArray(m) ? m : []);
+      pageList.forEach((r) => {
+        const pid = r.pageid ?? r.pageId ?? r.id;
+        if (pid != null) {
+          map[pid] = {
+            moduleId: m.moduleId ?? r.moduleId,
+            add: Boolean(r.add),
+            edit: Boolean(r.edit),
+            view: Boolean(r.view),
+            delete: Boolean(r.delete),
+          };
+        }
+      });
+    });
+  }
+  return map;
+};
 
 
 const inputCls =
@@ -345,7 +410,7 @@ const AddressFields = ({
   errors = {},
 }) => (
   <div className="space-y-4">
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <Label required>Country</Label>
         <SearchableSelect
@@ -400,7 +465,7 @@ const AddressFields = ({
       />
     </div>
 
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <Label required>City</Label>
         <SearchableSelect
@@ -464,6 +529,7 @@ const ORGANIZATION_TYPE = 'GROUP';
 
 const SECTIONS = {
   PERSONAL: 'personal',
+  PERMISSIONS: 'permissions',
   COMMON: 'common',
   BUSINESS: 'business',
   ADDRESS: 'address',
@@ -533,15 +599,38 @@ const VendorRegistration = () => {
   // Bank-row errors keyed by bank.id: { [bankId]: { field: message } }
   const [bankErrors, setBankErrors] = useState({});
 
-  const [openSection, setOpenSection] = useState(SECTIONS.PERSONAL);
+  const [openSections, setOpenSections] = useState({
+    [SECTIONS.PERSONAL]: true,
+    [SECTIONS.PERMISSIONS]: true,
+    [SECTIONS.COMMON]: true,
+    [SECTIONS.BUSINESS]: true,
+    [SECTIONS.ADDRESS]: true,
+    [SECTIONS.BANK]: true,
+    [SECTIONS.REMARKS]: true,
+    terms: true,
+  });
   const toggleSection = (key) =>
-    setOpenSection((prev) => (prev === key ? null : key));
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   // Which address the map picker modal is currently editing.
   const [mapPickerTarget, setMapPickerTarget] = useState(null); // 'commonAddress' | 'billingAddress' | 'shippingAddress' | null
 
   const [form, setForm] = useState(DEFAULT_FORM);
   const [savedTermsContent, setSavedTermsContent] = useState('');
+
+  // Departments from /api/department/getall
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+
+  // Roles from /api/roles/getallbyuserid
+  const [roles, setRoles] = useState([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+
+  // Permissions / Pages state
+  const [pagesByModule, setPagesByModule] = useState({});
+  const [checks, setChecks] = useState({});
+  const [loadingPages, setLoadingPages] = useState(false);
+  const [loadingRoleRights, setLoadingRoleRights] = useState(false);
 
   // Once the user manually edits Company Name, stop auto-syncing it from
   // Vendor Name.
@@ -561,6 +650,12 @@ const VendorRegistration = () => {
             setForm(mapped);
             setSavedTermsContent(mapped.termsAndConditions);
             setTradeNameTouched(true);
+
+            // Load existing user rights if present in vendor data
+            const initialChecks = normalizeExistingRights(data);
+            if (Object.keys(initialChecks).length > 0) {
+              setChecks(initialChecks);
+            }
 
             // Auto-trigger IFSC lookup for loaded banks to populate branch name
             mapped.banks.forEach((bank) => {
@@ -589,6 +684,7 @@ const VendorRegistration = () => {
     } else {
       setEditingVendor(null);
       setForm(DEFAULT_FORM);
+      setChecks({});
       setSavedTermsContent('');
       setTradeNameTouched(false);
     }
@@ -596,6 +692,87 @@ const VendorRegistration = () => {
     setBankErrors({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorId]);
+
+  // Fetch departments from Department Master
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDepartments = async () => {
+      setLoadingDepartments(true);
+      try {
+        const res = await getAllDepartmentMaster();
+        if (!cancelled) {
+          const list = extractList(res).map((d) => ({
+            id: d.id,
+            name: d.name ?? d.departmentName ?? '',
+          }));
+          setDepartments(list);
+        }
+      } catch (err) {
+        console.error('Failed to load departments:', err);
+        if (!cancelled) setDepartments([]);
+      } finally {
+        if (!cancelled) setLoadingDepartments(false);
+      }
+    };
+    fetchDepartments();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch roles for logged in user
+  useEffect(() => {
+    let cancelled = false;
+    const fetchRoles = async () => {
+      setLoadingRoles(true);
+      try {
+        const userId = getUserIdFromToken();
+        if (!userId) {
+          if (!cancelled) setRoles([]);
+          return;
+        }
+        const res = await getAllRoleMasterByUserId(userId);
+        if (!cancelled) {
+          const list = extractList(res).map((r) => ({
+            id: r.id,
+            name: r.name ?? r.roleName ?? '',
+          }));
+          setRoles(list);
+        }
+      } catch (err) {
+        console.error('Failed to load roles:', err);
+        if (!cancelled) setRoles([]);
+      } finally {
+        if (!cancelled) setLoadingRoles(false);
+      }
+    };
+    fetchRoles();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch module pages definition for permissions grid
+  useEffect(() => {
+    let cancelled = false;
+    const fetchModulePages = async () => {
+      setLoadingPages(true);
+      try {
+        const pagesRes = await getPages(false, true);
+        if (!cancelled) {
+          setPagesByModule(normalizePages(pagesRes));
+        }
+      } catch (err) {
+        console.error('Failed to load pages for permissions:', err);
+      } finally {
+        if (!cancelled) setLoadingPages(false);
+      }
+    };
+    fetchModulePages();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const setField = (key, val) => setForm((f) => ({ ...f, [key]: val }));
 
@@ -667,34 +844,130 @@ const VendorRegistration = () => {
       banks: f.banks.map((b) => (b.id === id ? { ...b, [key]: val } : b)),
     }));
 
-const [ifscLoading, setIfscLoading] = useState({}); // { [bankId]: boolean }
+  const [ifscLoading, setIfscLoading] = useState({}); // { [bankId]: boolean }
 
-const handleIfscBlur = async (bankId, ifscValue) => {
-  const formatErr = validateIFSC(ifscValue);
-  setBankErrorFor(bankId, 'ifsc', formatErr);
-  if (formatErr) {
-    setBankField(bankId, 'bankName', '');
-    setBankField(bankId, 'bankBranch', '');
-    return;
-  }
-
-  setIfscLoading((prev) => ({ ...prev, [bankId]: true }));
-  try {
-    const result = await lookupIFSC(ifscValue);
-    if (!result) {
-      setBankErrorFor(bankId, 'ifsc', 'This IFSC code was not found. Please check and re-enter.');
+  const handleIfscBlur = async (bankId, ifscValue) => {
+    const formatErr = validateIFSC(ifscValue);
+    setBankErrorFor(bankId, 'ifsc', formatErr);
+    if (formatErr) {
       setBankField(bankId, 'bankName', '');
       setBankField(bankId, 'bankBranch', '');
       return;
     }
-    setBankErrorFor(bankId, 'ifsc', '');
-    setBankErrorFor(bankId, 'bankName', '');
-    setBankField(bankId, 'bankName', result.bank);
-    setBankField(bankId, 'bankBranch', result.branch);
-  } finally {
-    setIfscLoading((prev) => ({ ...prev, [bankId]: false }));
-  }
-};
+
+    setIfscLoading((prev) => ({ ...prev, [bankId]: true }));
+    try {
+      const result = await lookupIFSC(ifscValue);
+      if (!result) {
+        setBankErrorFor(bankId, 'ifsc', 'This IFSC code was not found. Please check and re-enter.');
+        setBankField(bankId, 'bankName', '');
+        setBankField(bankId, 'bankBranch', '');
+        return;
+      }
+      setBankErrorFor(bankId, 'ifsc', '');
+      setBankErrorFor(bankId, 'bankName', '');
+      setBankField(bankId, 'bankName', result.bank);
+      setBankField(bankId, 'bankBranch', result.branch);
+    } finally {
+      setIfscLoading((prev) => ({ ...prev, [bankId]: false }));
+    }
+  };
+
+  // --- Permission helper methods ---
+  const allPageIds = useMemo(
+    () =>
+      Object.values(pagesByModule)
+        .flat()
+        .map((p) => p.id),
+    [pagesByModule],
+  );
+
+  const isRowFullyChecked = (pageId) => {
+    const row = checks[pageId];
+    if (!row) return false;
+    return ACTIONS.every((a) => Boolean(row[a.key]));
+  };
+
+  const isColumnFullyChecked = (actionKey) =>
+    allPageIds.length > 0 && allPageIds.every((id) => Boolean(checks[id]?.[actionKey]));
+
+  const isEverythingChecked = useMemo(() => {
+    return allPageIds.length > 0 && allPageIds.every((id) => isRowFullyChecked(id));
+  }, [allPageIds, checks]);
+
+  const toggle = (pageId, actionKey, moduleId) => {
+    setChecks((prev) => {
+      const prevRow = prev[pageId] ?? emptyRow;
+      return {
+        ...prev,
+        [pageId]: {
+          ...prevRow,
+          moduleId: prevRow.moduleId ?? moduleId,
+          [actionKey]: !prevRow[actionKey],
+        },
+      };
+    });
+  };
+
+  const toggleRow = (pageId, moduleId) => {
+    const shouldCheck = !isRowFullyChecked(pageId);
+    setChecks((prev) => ({
+      ...prev,
+      [pageId]: shouldCheck
+        ? { ...fullRow, moduleId: prev[pageId]?.moduleId ?? moduleId }
+        : { ...emptyRow, moduleId: prev[pageId]?.moduleId ?? moduleId },
+    }));
+  };
+
+  const toggleColumn = (actionKey) => {
+    const shouldCheck = !isColumnFullyChecked(actionKey);
+    setChecks((prev) => {
+      const next = { ...prev };
+      allPageIds.forEach((id) => {
+        const pageInfo = Object.values(pagesByModule).flat().find((p) => p.id === id);
+        next[id] = {
+          ...(next[id] ?? emptyRow),
+          moduleId: next[id]?.moduleId ?? pageInfo?.moduleId,
+          [actionKey]: shouldCheck,
+        };
+      });
+      return next;
+    });
+  };
+
+  const toggleEverything = () => {
+    const shouldCheck = !isEverythingChecked;
+    setChecks((prev) => {
+      const next = { ...prev };
+      Object.values(pagesByModule).flat().forEach((p) => {
+        next[p.id] = shouldCheck
+          ? { ...fullRow, moduleId: p.moduleId }
+          : { ...emptyRow, moduleId: p.moduleId };
+      });
+      return next;
+    });
+  };
+
+  // --- Role selection and auto-loading permissions ---
+  const handleRoleChange = async (value) => {
+    const roleId = typeof value === 'object' && value?.target ? value.target.value : value;
+    setField('roleId', roleId);
+    setErrorFor('roleId', '');
+    if (!roleId) return;
+
+    setLoadingRoleRights(true);
+    try {
+      const res = await getUserRightsByRole(roleId);
+      const rightsMap = normalizeExistingRights(res);
+      setChecks(rightsMap);
+      notify.success('Permissions loaded for selected role');
+    } catch (err) {
+      console.error('Failed to fetch role user rights:', err);
+      notify.error('Failed to load permissions for the selected role.');
+    } finally {
+      setLoadingRoleRights(false);
+    }
+  };
 
   // --- Organization (fetched by type = GROUP, assigned directly — no UI) ---
   const [loadingOrganizations, setLoadingOrganizations] = useState(false);
@@ -723,34 +996,6 @@ const handleIfscBlur = async (bankId, ifscValue) => {
     };
   }, []);
 
-  // --- Role (fetched for the logged-in user) ---
-  const [roles, setRoles] = useState([]);
-  const [loadingRoles, setLoadingRoles] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    const fetchRoles = async () => {
-      setLoadingRoles(true);
-      try {
-        const userId = getUserIdFromToken();
-        if (!userId) {
-          if (!cancelled) setRoles([]);
-          return;
-        }
-        const res = await getAllRoleMasterByUserId(userId);
-        if (!cancelled) setRoles(extractList(res));
-      } catch (err) {
-        console.error(err);
-        if (!cancelled) setRoles([]);
-      } finally {
-        if (!cancelled) setLoadingRoles(false);
-      }
-    };
-    fetchRoles();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // --- Countries (shared by all address sections) ---
   const [countries, setCountries] = useState([]);
@@ -1056,13 +1301,6 @@ const handleIfscBlur = async (bankId, ifscValue) => {
     setAddressErrorFor('shippingAddress', 'cityId', validateRequired(value, 'City'));
   };
 
-  const handleRoleChange = (e) => {
-    const value = e.target.value;
-    setField('roleId', value);
-    setErrorFor('roleId', validateRequired(value, 'Role'));
-  };
-
-
   const runValidation = () => {
     const formErrors = {};
 
@@ -1078,8 +1316,8 @@ const handleIfscBlur = async (bankId, ifscValue) => {
     const mobileErr = validateMobile(form.mobile);
     if (mobileErr) formErrors.mobile = mobileErr;
 
-    const roleErr = validateRequired(form.roleId, 'Role');
-    if (roleErr) formErrors.roleId = roleErr;
+    const deptErr = validateRequired(form.deptId, 'Department');
+    if (deptErr) formErrors.deptId = deptErr;
 
     // Password is optional in edit/update mode — only validate if the user has typed something.
     if (!isEditMode && form.password === '' ) {
@@ -1166,12 +1404,14 @@ const handleIfscBlur = async (bankId, ifscValue) => {
 
     if (hasErrors) {
       setSubmitError('Please fix the highlighted errors before saving.');
+      const sectionsToOpen = {};
       if (Object.keys(bankErrs).length > 0) {
-        setOpenSection(SECTIONS.BANK);
-      } else {
-        const firstKey = Object.keys(formErrors)[0];
-        setOpenSection(sectionForKey(firstKey));
+        sectionsToOpen[SECTIONS.BANK] = true;
       }
+      Object.keys(formErrors).forEach((firstKey) => {
+        sectionsToOpen[sectionForKey(firstKey)] = true;
+      });
+      setOpenSections((prev) => ({ ...prev, ...sectionsToOpen }));
     }
     return hasErrors;
   };
@@ -1181,7 +1421,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
     const { formErrors, bankErrs } = runValidation();
     if (applyValidationResult(formErrors, bankErrs)) return;
 
-    const payload = buildVendorPayload(form, { isEditMode, editingVendor });
+    const payload = buildVendorPayload(form, { isEditMode, editingVendor, checks });
     setSubmitting(true);
     try {
       if (isEditMode) {
@@ -1206,17 +1446,27 @@ const handleIfscBlur = async (bankId, ifscValue) => {
     const { formErrors, bankErrs } = runValidation();
     if (applyValidationResult(formErrors, bankErrs)) return;
 
-    const payload = buildVendorPayload(form, { isEditMode, editingVendor });
+    const payload = buildVendorPayload(form, { isEditMode, editingVendor, checks });
     setSubmitting(true);
     try {
       await saveVendor(payload);
       notify.success('Vendor created successfully');
       setForm((f) => ({ ...DEFAULT_FORM, organizationId: f.organizationId }));
+      setChecks({});
       setSavedTermsContent('');
       setTradeNameTouched(false);
       setErrors({});
       setBankErrors({});
-      setOpenSection(SECTIONS.PERSONAL);
+      setOpenSections({
+        [SECTIONS.PERSONAL]: true,
+        [SECTIONS.PERMISSIONS]: true,
+        [SECTIONS.COMMON]: true,
+        [SECTIONS.BUSINESS]: true,
+        [SECTIONS.ADDRESS]: true,
+        [SECTIONS.BANK]: true,
+        [SECTIONS.REMARKS]: true,
+        terms: true,
+      });
     } catch (err) {
       console.error(err);
       const msg = getApiErrorMessage(err, 'Failed to save vendor. Please try again.');
@@ -1232,7 +1482,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
     'username',
     'email',
     'mobile',
-    'roleId',
+    'deptId',
     'password',
   ].some((k) => errors[k]);
   const commonSectionHasError = Object.keys(errors).some((k) =>
@@ -1257,31 +1507,40 @@ const handleIfscBlur = async (bankId, ifscValue) => {
   }
 
   return (
-    <div className="mx-4 min-h-screen p-4 md:p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          {isEditMode ? 'Update Vendor' : 'Vendor Registration'}
-        </h1>
-        <p className="text-[#43474F]">
-          {isEditMode
+     <Container>
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
+      <PageHeader
+        title={isEditMode ? 'Update Vendor' : 'Vendor Registration'}
+        description={
+          isEditMode
             ? `Update the account details for ${editingVendor?.fullName ?? editingVendor?.name ?? 'this vendor'}.`
-            : 'Onboard a new vendor to the Jaiswal ERP ecosystem with comprehensive business and financial details.'}
-        </p>
-      </div>
+            : 'Onboard a new vendor to the Jaiswal ERP ecosystem with comprehensive business and financial details.'
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => navigate('/vendors')}
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Vendors
+          </button>
+        }
+      />
 
       {/* Personal Information */}
       <SectionCard className="mt-4">
         <SectionHeader
           icon={User}
           title="Personal Information"
-          open={openSection === SECTIONS.PERSONAL}
+          open={!!openSections[SECTIONS.PERSONAL]}
           onToggle={() => toggleSection(SECTIONS.PERSONAL)}
           hasError={personalSectionHasError}
         />
 
-        {openSection === SECTIONS.PERSONAL && (
+        {openSections[SECTIONS.PERSONAL] && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label required>Vendor Name</Label>
                 <input
@@ -1323,7 +1582,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
             </div>
 
             <div
-              className={`grid ${isEditMode ? 'grid-cols-2' : 'grid-cols-1'} gap-4`}
+              className={`grid grid-cols-1 ${isEditMode ? 'sm:grid-cols-2' : 'grid-cols-1'} gap-4`}
             >
               {isEditMode && (
                 <div>
@@ -1347,7 +1606,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <Label required>Email Address</Label>
                 <input
@@ -1392,29 +1651,179 @@ const handleIfscBlur = async (bankId, ifscValue) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label required>Role</Label>
+                <Label required>Department</Label>
                 <SearchableSelect
-                  name="role"
+                  name="deptId"
+                  value={form.deptId}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setField('deptId', val);
+                    setErrorFor('deptId', validateRequired(val, 'Department'));
+                  }}
+                  options={departments.map((d) => ({
+                    value: d.id,
+                    label: d.name,
+                  }))}
+                  placeholder={loadingDepartments ? 'Loading...' : 'Select Department'}
+                  disabled={loadingDepartments}
+                  hasError={!!errors.deptId}
+                />
+                <ErrorText error={errors.deptId} />
+              </div>
+
+              <div>
+                <Label>Role</Label>
+                <SearchableSelect
+                  name="roleId"
                   value={form.roleId}
                   onChange={handleRoleChange}
-                  options={roles.map((role) => ({
-                    value: role.id,
-                    label: role.name,
+                  options={roles.map((r) => ({
+                    value: r.id,
+                    label: r.name,
                   }))}
-                  placeholder={loadingRoles ? 'Loading...' : 'Select Role'}
-                  disabled={loadingRoles}
-                  error={!!errors.roleId}
+                  placeholder={
+                    loadingRoles
+                      ? 'Loading...'
+                      : loadingRoleRights
+                      ? 'Loading permissions...'
+                      : 'Select Role (optional)'
+                  }
+                  disabled={loadingRoles || loadingRoleRights}
                 />
-                <ErrorText error={errors.roleId} />
               </div>
             </div>
-
 
           </div>
         )}
       </SectionCard>
+
+      {/* User Permissions Matrix (Commented out as of now) */}
+      {/*
+      <SectionCard className="mt-4">
+        <SectionHeader
+          icon={ShieldCheck}
+          title="User Permissions"
+          subtitle="Configure or customize module and page-level access permissions for this vendor"
+          open={!!openSections[SECTIONS.PERMISSIONS]}
+          onToggle={() => toggleSection(SECTIONS.PERMISSIONS)}
+        />
+
+        {openSections[SECTIONS.PERMISSIONS] && (
+          <div className="px-6 py-6 space-y-4">
+            <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-gray-500">
+              <p>
+                {form.roleId
+                  ? 'Permissions populated from selected role. You can edit or grant additional rights below.'
+                  : 'Select a role above to auto-populate rights, or check specific permissions manually.'}
+              </p>
+              {loadingRoleRights && (
+                <div className="flex items-center gap-1.5 text-blue-600 font-medium">
+                  <Loader2 className="animate-spin h-3.5 w-3.5" />
+                  Loading role rights...
+                </div>
+              )}
+            </div>
+
+            {loadingPages ? (
+              <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                <Loader2 className="animate-spin" size={18} />
+                Loading pages and modules...
+              </div>
+            ) : Object.keys(pagesByModule).length === 0 ? (
+              <div className="text-center py-10 text-sm text-gray-400">
+                No page modules available.
+              </div>
+            ) : (
+              <div className="border border-[#E5E7EB] rounded-xl overflow-hidden overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#F7F8FA] border-b border-[#E5E7EB]">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold text-[#43474F]">
+                        Page Name
+                      </th>
+                      <th className="text-center px-4 py-3 font-semibold">
+                        <div className="flex flex-col items-center gap-1">
+                          <span>All</span>
+                          <input
+                            type="checkbox"
+                            checked={isEverythingChecked}
+                            onChange={toggleEverything}
+                            className="rounded cursor-pointer"
+                            title="Toggle Add/Edit/View/Delete for every page"
+                          />
+                        </div>
+                      </th>
+                      {ACTIONS.map((a) => (
+                        <th
+                          key={a.key}
+                          className="text-center px-4 py-3 font-semibold"
+                        >
+                          <div className="flex flex-col items-center gap-1">
+                            <span>{a.label}</span>
+                            <input
+                              type="checkbox"
+                              checked={isColumnFullyChecked(a.key)}
+                              onChange={() => toggleColumn(a.key)}
+                              className="rounded cursor-pointer"
+                              title={`Toggle ${a.label} for all`}
+                            />
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(pagesByModule).map(([moduleName, pages]) => (
+                      <React.Fragment key={moduleName}>
+                        <tr className="bg-[#F7F8FA]">
+                          <td
+                            colSpan={ACTIONS.length + 2}
+                            className="px-4 py-2 font-semibold text-[#43474F]"
+                          >
+                            {moduleName}
+                          </td>
+                        </tr>
+                        {pages.map((page) => (
+                          <tr
+                            key={page.id}
+                            className="border-b border-[#F0F1F3] last:border-b-0"
+                          >
+                            <td className="px-4 py-2.5 pl-8 text-gray-700">
+                              {page.name}
+                            </td>
+                            <td className="text-center px-4 py-2.5">
+                              <input
+                                type="checkbox"
+                                checked={isRowFullyChecked(page.id)}
+                                onChange={() => toggleRow(page.id, page.moduleId)}
+                                className="rounded cursor-pointer"
+                                title="Toggle Add/Edit/View/Delete for this row"
+                              />
+                            </td>
+                            {ACTIONS.map((a) => (
+                              <td key={a.key} className="text-center px-4 py-2.5">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(checks[page.id]?.[a.key])}
+                                  onChange={() => toggle(page.id, a.key, page.moduleId)}
+                                  className="rounded cursor-pointer"
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </SectionCard>
+      */}
 
       {/* Common Address */}
       <SectionCard className="mt-4">
@@ -1422,12 +1831,12 @@ const handleIfscBlur = async (bankId, ifscValue) => {
           icon={Building2}
           title="Common Address"
           subtitle="A general address on record for this vendor"
-          open={openSection === SECTIONS.COMMON}
+          open={!!openSections[SECTIONS.COMMON]}
           onToggle={() => toggleSection(SECTIONS.COMMON)}
           hasError={commonSectionHasError}
         />
 
-        {openSection === SECTIONS.COMMON && (
+        {openSections[SECTIONS.COMMON] && (
           <div className="px-6 py-6 space-y-4">
             <div className="flex items-center justify-end">
               <button
@@ -1469,16 +1878,16 @@ const handleIfscBlur = async (bankId, ifscValue) => {
         <SectionHeader
           icon={Briefcase}
           title="Business Details"
-          open={openSection === SECTIONS.BUSINESS}
+          open={!!openSections[SECTIONS.BUSINESS]}
           onToggle={() => toggleSection(SECTIONS.BUSINESS)}
           hasError={businessSectionHasError}
         />
 
-        {openSection === SECTIONS.BUSINESS && (
+        {openSections[SECTIONS.BUSINESS] && (
           <div className="px-6 py-6 space-y-6">
             <div className="space-y-5">
               {/* Registration Toggles (Side-by-side Interactive Cards) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* GST Toggle Card */}
                 <div
                   onClick={() => {
@@ -1495,7 +1904,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs'
                   }`}
                 >
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3.5">
                     <div
                       className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
                         form.isGstApplicable
@@ -1506,12 +1915,12 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       <Receipt size={20} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-0.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-0.5">
                         <span className="text-sm font-bold text-gray-900">
                           GST Registered Vendor
                         </span>
                         <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
+                          className={`text-[10px] font-bold uppercase w-max tracking-wider px-2 py-0.5 mb-1 rounded-full border transition-colors ${
                             form.isGstApplicable
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-gray-100 text-gray-500 border-gray-200'
@@ -1555,7 +1964,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-2xs'
                   }`}
                 >
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3.5">
                     <div
                       className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-300 ${
                         form.msmeRegistered
@@ -1566,12 +1975,12 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       <ShieldCheck size={20} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-0.5">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-0.5">
                         <span className="text-sm font-bold text-gray-900">
                           MSME / Udyam Registered
                         </span>
                         <span
-                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
+                          className={`text-[10px] font-bold uppercase w-max mb-1 tracking-wider px-2 py-0.5 rounded-full border transition-colors ${
                             form.msmeRegistered
                               ? 'bg-blue-50 text-blue-700 border-blue-200'
                               : 'bg-gray-100 text-gray-500 border-gray-200'
@@ -1603,7 +2012,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
               {/* GST Fields (Expanded) */}
               {form.isGstApplicable && (
                 <div className="p-5 rounded-2xl border border-blue-100/90 bg-gradient-to-b from-blue-50/40 to-slate-50/20 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-blue-100/70 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-blue-100/70 pb-3">
                     <div className="flex items-center gap-2">
                       <span className="w-6 h-6 rounded-md bg-[#084E92]/10 flex items-center justify-center text-[#084E92]">
                         <Receipt className="w-3.5 h-3.5" />
@@ -1612,7 +2021,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                         GST Registration Information
                       </h4>
                     </div>
-                    <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs font-medium text-emerald-700  w-max my-2 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                       GST Invoice Applicable
                     </span>
                   </div>
@@ -1664,7 +2073,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
               {/* MSME Fields (Expanded) */}
               {form.msmeRegistered && (
                 <div className="p-5 rounded-2xl border border-blue-100/90 bg-gradient-to-b from-blue-50/40 to-slate-50/20 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-blue-100/70 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-blue-100/70 pb-3">
                     <div className="flex items-center gap-2">
                       <span className="w-6 h-6 rounded-md bg-[#084E92]/10 flex items-center justify-center text-[#084E92]">
                         <ShieldCheck className="w-3.5 h-3.5" />
@@ -1673,7 +2082,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                         MSME / Udyam Details
                       </h4>
                     </div>
-                    <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                    <span className="text-xs font-medium text-blue-700 w-max my-2 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
                       MSME Benefits Linked
                     </span>
                   </div>
@@ -1717,7 +2126,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
             </div>
 
             <div className="border-t border-gray-100 pt-6 space-y-5">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <Label>Currency</Label>
                   <SearchableSelect
@@ -1799,12 +2208,12 @@ const handleIfscBlur = async (bankId, ifscValue) => {
           icon={MapPin}
           title="Address Details"
           subtitle="Billing and shipping addresses for this vendor"
-          open={openSection === SECTIONS.ADDRESS}
+          open={!!openSections[SECTIONS.ADDRESS]}
           onToggle={() => toggleSection(SECTIONS.ADDRESS)}
           hasError={addressSectionHasError}
         />
 
-        {openSection === SECTIONS.ADDRESS && (
+        {openSections[SECTIONS.ADDRESS] && (
           <div className="px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Billing Address card */}
             <div className="border border-gray-200 rounded-xl p-5 space-y-4">
@@ -1938,12 +2347,12 @@ const handleIfscBlur = async (bankId, ifscValue) => {
         <SectionHeader
           icon={Landmark}
           title="Bank Details"
-          open={openSection === SECTIONS.BANK}
+          open={!!openSections[SECTIONS.BANK]}
           onToggle={() => toggleSection(SECTIONS.BANK)}
           hasError={bankSectionHasError}
         />
 
-        {openSection === SECTIONS.BANK && (
+        {openSections[SECTIONS.BANK] && (
           <div className="px-6 py-6 space-y-4">
             {form.banks.map((bank) => {
               const be = bankErrors[bank.id] || {};
@@ -1961,7 +2370,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       <X className="w-4 h-4" />
                     </button>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label required>Account Holder Name</Label>
                       <input
@@ -1992,7 +2401,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
                       <ErrorText error={be.bankName} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label required>Account Number</Label>
                       <input
@@ -2081,16 +2490,17 @@ const handleIfscBlur = async (bankId, ifscValue) => {
         <SectionHeader
           icon={ClipboardList}
           title="Remarks & Internal Notes"
-          open={openSection === SECTIONS.REMARKS}
+          open={!!openSections[SECTIONS.REMARKS]}
           onToggle={() => toggleSection(SECTIONS.REMARKS)}
         />
 
-        {openSection === SECTIONS.REMARKS && (
+        {openSections[SECTIONS.REMARKS] && (
           <div className="px-6 py-6">
             <textarea
               rows={4}
               value={form.remarks}
               onChange={(e) => setField('remarks', e.target.value)}
+              onBlur={() => setField('remarks', formatRemarks(form.remarks))}
               placeholder="Add any specific observations, compliance notes, or internal instructions regarding this vendor..."
               className={`${inputCls} resize-none`}
             />
@@ -2104,11 +2514,11 @@ const handleIfscBlur = async (bankId, ifscValue) => {
           icon={ClipboardList}
           title="Terms & Conditions"
           subtitle="Add the terms and conditions applicable to this vendor"
-          open={openSection === 'terms'}
+          open={!!openSections.terms}
           onToggle={() => toggleSection('terms')}
         />
 
-        <div className={openSection === 'terms' ? 'block' : 'hidden'}>
+        {openSections.terms && (
           <div className="px-6 py-6 space-y-4">
             <textarea
               rows={8}
@@ -2131,7 +2541,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
               </button>
             </div>
           </div>
-        </div>
+        )}
       </SectionCard>
 
       {/* Footer actions */}
@@ -2170,6 +2580,7 @@ const handleIfscBlur = async (bankId, ifscValue) => {
         />
       )}
     </div>
+    </Container>
   );
 };
 

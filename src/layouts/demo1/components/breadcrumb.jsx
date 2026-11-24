@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { ChevronRight, Home, Slash } from 'lucide-react';
-import { Link, useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router-dom';
 import { MENU_SIDEBAR } from '@/config/menu.config';
 import { cn } from '@/lib/utils';
 import { useMenu } from '@/hooks/use-menu';

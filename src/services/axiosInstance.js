@@ -1,5 +1,6 @@
 import axios from "axios";
 import { toast } from "sonner";
+import { formatRemarks, isRemarksKey, transformRemarksInPayload } from "../utils/textUtils";
 
 let activeRequests = 0;
 
@@ -62,6 +63,48 @@ axiosInstance.interceptors.request.use((config) => {
     delete config.headers["Content-Type"];
   }
 
+  // Automatically format remarks to Title Case in payload (data), query params, or URL
+  // e.g. "contact site manager for further details" -> "Contact Site Manager For Further Details"
+  if (config.data) {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      try {
+        for (const [key, val] of Array.from(config.data.entries())) {
+          if (isRemarksKey(key) && typeof val === 'string') {
+            config.data.set(key, formatRemarks(val));
+          }
+        }
+      } catch (e) {
+        console.error('[axiosInstance] Error formatting FormData remarks:', e);
+      }
+    } else if (typeof config.data === 'string') {
+      try {
+        const parsed = JSON.parse(config.data);
+        if (parsed && typeof parsed === 'object') {
+          config.data = JSON.stringify(transformRemarksInPayload(parsed));
+        }
+      } catch {
+        // Not a JSON string, leave unchanged
+      }
+    } else if (typeof config.data === 'object') {
+      config.data = transformRemarksInPayload(config.data);
+    }
+  }
+
+  if (config.params && typeof config.params === 'object') {
+    config.params = transformRemarksInPayload(config.params);
+  }
+
+  if (typeof config.url === 'string' && /remarks?=/i.test(config.url)) {
+    config.url = config.url.replace(/([?&][^&=]*remarks?[^&=]*=)([^&]*)/gi, (match, prefix, val) => {
+      try {
+        const decoded = decodeURIComponent(val);
+        return `${prefix}${encodeURIComponent(formatRemarks(decoded))}`;
+      } catch {
+        return match;
+      }
+    });
+  }
+
   return config;
 }, (error) => {
   updateLoader(-1, error?.config);
@@ -113,6 +156,38 @@ axiosInstance.interceptors.response.use(
     const method = response.config?.method?.toUpperCase();
     const skipToast = response.config?.skipGlobalToast;
     const isBlob = response.config?.responseType === 'blob' || (typeof Blob !== 'undefined' && response.data instanceof Blob);
+
+    const data = response.data;
+    const isExplicitFailure =
+      data &&
+      typeof data === 'object' &&
+      !isBlob &&
+      (data.success === false ||
+       data.isSuccess === false ||
+       data.status === false ||
+       data.status === 'FAILED' ||
+       data.status === 'ERROR' ||
+       data.status === 'error' ||
+       data.result === 'FAILED' ||
+       data.result === 'ERROR');
+
+    if (isExplicitFailure) {
+      const errMsg =
+        data.errorMessage ||
+        data.message ||
+        data.error ||
+        (data.msg && data.msg !== 'FAILED' && data.msg !== 'ERROR' ? data.msg : null) ||
+        "Operation failed.";
+      if (!skipToast) {
+        toast.error(errMsg);
+      }
+      const customError = new Error(errMsg);
+      customError.response = response;
+      customError.data = data;
+      customError.isHandled = !skipToast;
+      return Promise.reject(customError);
+    }
+
     if (method && method !== 'GET' && !skipToast && !isBlob) {
       const msg = response.data?.message || response.data?.msg || "Operation completed successfully.";
       toast.success(msg);
@@ -139,14 +214,22 @@ axiosInstance.interceptors.response.use(
         error.config.url?.includes("/auth/reset-password") ||
         error.config.url?.includes("/system-api/admin/token");
       if (!isAuthPath) {
+        const isNetworkError =
+          error.code === 'ERR_NETWORK' ||
+          !error.response ||
+          error.message === 'Network Error' ||
+          (typeof error.message === 'string' && error.message.toLowerCase().includes('network error'));
+
         const data = error.response?.data;
         const msg =
           data?.errorMessage ||
           data?.message ||
           (data?.msg && data.msg !== "FAILED" && data.msg !== "ERROR" ? data.msg : null) ||
-          error.message ||
+          (isNetworkError ? "Network Error" : error.message) ||
           "An error occurred.";
-        toast.error(msg);
+
+        const toastId = isNetworkError ? "network-error" : (typeof msg === "string" ? `error-${msg}` : undefined);
+        toast.error(msg, toastId ? { id: toastId } : undefined);
       }
     }
 

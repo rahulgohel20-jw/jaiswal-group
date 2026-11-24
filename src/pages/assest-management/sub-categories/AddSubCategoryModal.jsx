@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronRight, Info, Layers, Save, X } from 'lucide-react';
+import { ChevronDown, Info, Layers, Save, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -90,10 +90,6 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSaved, initialData, defaultCat
     }
   }, [isOpen, form.categoryId, categories]);
 
-
-  const selectedCategoryName =
-    categories.find((c) => String(c.id) === String(form.categoryId))?.name || '—';
-
   if (!isOpen) return null;
 
   const handleClose = () => {
@@ -160,17 +156,6 @@ const AddSubCategoryModal = ({ isOpen, onClose, onSaved, initialData, defaultCat
           >
             <X className="h-5 w-5 cursor-pointer" />
           </button>
-        </div>
-
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 px-4 pt-3 pb-1 shrink-0 flex-wrap">
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span>{selectedCategoryName}</span>
-          <ChevronRight size={12} />
-          <span className="text-primary font-semibold">
-            {isEditMode ? 'Edit Sub Category' : 'New Sub Category'}
-          </span>
         </div>
 
         {/* Content - Scrollable */}

@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router';
 import {
-  ChevronRight,
+  ArrowLeft,
   Loader2,
   CheckCircle2,
   Building2,
@@ -14,19 +14,23 @@ import {
   Pencil,
   RotateCcw,
   X,
+  Copy,
+  Trash2,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import {
   createGrn,
   getPOByIdAndOpenItem,
   getPOByidandopenitems,
-  getAllSubOutletsByOrganization,
   getGrnById,
   getGrnDetailById,
 } from '@/services/apiServices';
+import { useOrgScope } from '@/hooks/useOrgScope';
 import { getUserIdFromToken } from '@/utils/auth';
+import { formatRemarks } from '@/utils/textUtils';
 import { getTodayInputDate } from '@/utils/GetCurrentToday';
-import { toast } from 'sonner';
+import { notify } from '@/utils/toast';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 
@@ -37,7 +41,7 @@ const inputCls =
 const labelCls = 'text-sm font-medium text-gray-700 mb-1.5 block';
 
 const SectionCard = ({ children, className = '' }) => (
-  <div className={`bg-white border border-gray-200 rounded-2xl shadow-2xs ${className}`}>
+  <div className={`w-full min-w-0 max-w-full bg-white border border-gray-200 rounded-2xl shadow-2xs ${className}`}>
     {children}
   </div>
 );
@@ -93,6 +97,54 @@ const GenerateGRNDetail = () => {
   const [subOutlets, setSubOutlets] = useState([]);
   const [selectedSubOutletId, setSelectedSubOutletId] = useState('');
   const [loadingSubOutlets, setLoadingSubOutlets] = useState(false);
+
+  const [subLocations, setSubLocations] = useState([]);
+  const [selectedSubLocationId, setSelectedSubLocationId] = useState('');
+  const [loadingSubLocations, setLoadingSubLocations] = useState(false);
+
+  const sortedSubOutlets = useMemo(() => {
+    return [...subOutlets].sort((a, b) => {
+      const typeA = String(a.subOutletType || a.type || a.locationType || '').toUpperCase();
+      const typeB = String(b.subOutletType || b.type || b.locationType || '').toUpperCase();
+      const isStoreA = typeA === 'STORE' ? 1 : 0;
+      const isStoreB = typeB === 'STORE' ? 1 : 0;
+      if (isStoreA !== isStoreB) {
+        return isStoreB - isStoreA; // STORE first
+      }
+      const nameA = a.subOutletName || a.name || '';
+      const nameB = b.subOutletName || b.name || '';
+      return nameA.localeCompare(nameB);
+    });
+  }, [subOutlets]);
+
+  const handleSubOutletChange = (newSubOutletId) => {
+    setSelectedSubOutletId(newSubOutletId);
+    setSelectedSubLocationId('');
+  };
+
+  const { getSubOutlets, getSubLocations } = useOrgScope();
+
+  useEffect(() => {
+    const orgId = po?.outletId || po?.orgId;
+    if (orgId) {
+      const rawSubs = getSubOutlets(orgId);
+      if (Array.isArray(rawSubs) && rawSubs.length > 0) {
+        setSubOutlets(rawSubs);
+      }
+      setLoadingSubOutlets(false);
+    }
+  }, [po?.outletId, po?.orgId, getSubOutlets]);
+
+  useEffect(() => {
+    if (!selectedSubOutletId) {
+      setSubLocations([]);
+      setSelectedSubLocationId('');
+      return;
+    }
+    const locs = getSubLocations(selectedSubOutletId);
+    setSubLocations(Array.isArray(locs) ? locs : []);
+    setLoadingSubLocations(false);
+  }, [selectedSubOutletId, getSubLocations]);
 
   const [grnDate, setGrnDate] = useState(getTodayInputDate());
   const [remarks, setRemarks] = useState('');
@@ -220,20 +272,12 @@ const GenerateGRNDetail = () => {
 
       setResolvedGrnCode(dynamicGrnCode || '');
 
-      // Fetch sub-outlets for this organization / outlet
+      // Populate sub-outlets for this organization / outlet
       const orgId = normalizedPo.outletId || normalizedPo.orgId;
       if (orgId) {
-        try {
-          setLoadingSubOutlets(true);
-          const subRes = await getAllSubOutletsByOrganization(orgId);
-          const rawSubs = subRes?.data?.data ?? subRes?.data ?? subRes ?? [];
-          setSubOutlets(Array.isArray(rawSubs) ? rawSubs : []);
-        } catch (subErr) {
-          console.warn('Failed to load sub-outlets for organization:', subErr);
-          setSubOutlets([]);
-        } finally {
-          setLoadingSubOutlets(false);
-        }
+        const rawSubs = getSubOutlets(orgId);
+        setSubOutlets(Array.isArray(rawSubs) ? rawSubs : []);
+        setLoadingSubOutlets(false);
       }
 
       // Populate line items
@@ -325,12 +369,15 @@ const GenerateGRNDetail = () => {
           returnQty: initialReturn,
           returnReplacementStatus: lineStatus,
           approvedQty: initialApproved,
+          totalReceivedQty: initialApproved + initialReturn,
           isPoDetailClosed: false,
           remarks: d.remarks || '',
           isReplacementItem: !isCompleted && (isDirectTarget || Boolean(prevDetail && prevStatus === 'RETURN_REPLACEMENT_REQUESTED')),
           isCompleted: isCompleted,
           returnGrnDetailId: lineReturnGrnDetailId,
           oldGrnId: oldGrnId ? Number(oldGrnId) : undefined,
+          batchNo: d.batchNo || d.batchNumber || '',
+          useByDate: d.useByDate ? (d.useByDate.includes('T') ? d.useByDate.split('T')[0] : d.useByDate) : '',
         };
       });
       setItems(mappedItems);
@@ -383,6 +430,13 @@ const GenerateGRNDetail = () => {
     return po?.vendorName || 'Vendor Address';
   }, [po]);
 
+  const poCodesList = useMemo(() => {
+    if (!po) return [];
+    return (po.poCodes || po.poCode || `PO-${po.id}`)
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }, [po]);
 
   const toggleItemRemarks = (itemId) => {
     setOpenRemarksMap((prev) => ({
@@ -404,7 +458,7 @@ const GenerateGRNDetail = () => {
 
   const handleApprovedQtyChange = (itemId, val) => {
     if (val !== '' && Number(val) < 0) {
-      toast.error('Negative numbers are not allowed.');
+      notify.error('Negative numbers are not allowed.');
       return;
     }
     const numericVal = val === '' ? '' : Math.max(0, Number(val));
@@ -414,6 +468,7 @@ const GenerateGRNDetail = () => {
           return {
             ...item,
             approvedQty: numericVal,
+            totalReceivedQty: Math.round(((numericVal === '' ? 0 : Number(numericVal)) + (item.returnQty === '' ? 0 : Number(item.returnQty))) * 10000) / 10000,
           };
         }
         return item;
@@ -423,7 +478,7 @@ const GenerateGRNDetail = () => {
 
   const handleReturnQtyChange = (itemId, val) => {
     if (val !== '' && Number(val) < 0) {
-      toast.error('Negative numbers are not allowed.');
+      notify.error('Negative numbers are not allowed.');
       return;
     }
     const numericVal = val === '' ? '' : Math.max(0, Number(val));
@@ -434,6 +489,7 @@ const GenerateGRNDetail = () => {
           return {
             ...item,
             returnQty: numericVal,
+            totalReceivedQty: Math.round(((item.approvedQty === '' ? 0 : Number(item.approvedQty)) + (numericVal === '' ? 0 : Number(numericVal))) * 10000) / 10000,
             returnReplacementStatus: retVal > 0 ? (item.returnReplacementStatus || 'RETURN') : (item.returnReplacementStatus || 'RETURN'),
           };
         }
@@ -464,28 +520,119 @@ const GenerateGRNDetail = () => {
     );
   };
 
+  const handleBatchNoChange = (itemId, val) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, batchNo: val };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleUseByDateChange = (itemId, val) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id === itemId) {
+          return { ...item, useByDate: val };
+        }
+        return item;
+      })
+    );
+  };
+
+  const handleCopyItem = (itemToCopy) => {
+    const newItem = {
+      ...itemToCopy,
+      id: `copy_${itemToCopy.purchaseOrderDetailId || itemToCopy.rawMaterialId || Date.now()}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      purchaseOrderDetailId: itemToCopy.purchaseOrderDetailId,
+      purchaseOrderId: itemToCopy.purchaseOrderId,
+      poCode: itemToCopy.poCode,
+      rawMaterialId: itemToCopy.rawMaterialId,
+      itemName: itemToCopy.itemName,
+      itemCode: itemToCopy.itemCode,
+      uomName: itemToCopy.uomName,
+      orderedQty: itemToCopy.orderedQty,
+      receivedQuantity: itemToCopy.receivedQuantity,
+      recQty: 0,
+      approvedQty: 0,
+      returnQty: 0,
+      totalReceivedQty: 0,
+      returnReplacementStatus: 'RETURN_REQUESTED',
+      isPoDetailClosed: false,
+      remarks: '',
+      isReplacementItem: Boolean(itemToCopy.isReplacementItem),
+      isCompleted: false,
+      returnGrnDetailId: itemToCopy.returnGrnDetailId,
+      oldGrnId: itemToCopy.oldGrnId,
+      batchNo: '',
+      useByDate: '',
+      isCopied: true,
+    };
+
+    setItems((prev) => {
+      const index = prev.findIndex((i) => i.id === itemToCopy.id);
+      if (index === -1) return [...prev, newItem];
+      const next = [...prev];
+      next.splice(index + 1, 0, newItem);
+      return next;
+    });
+
+    notify.success(`Copied line item for "${itemToCopy.itemName}"`);
+  };
+
+  const handleRemoveItem = (itemId) => {
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
+  };
+
   const handleGenerateGRN = async () => {
     if (!po) {
-      toast.error('Purchase order details not loaded.');
+      notify.error('Purchase order details not loaded.');
       return;
     }
 
     if (!grnDate) {
-      toast.error('Please specify a valid GRN Date.');
+      notify.error('Please specify a valid GRN Date.');
       return;
     }
 
     const todayStr = getTodayInputDate();
     if (grnDate < todayStr) {
-      toast.error('Past date is not allowed for GRN Date.');
+      notify.error('Past date is not allowed for GRN Date.');
+      return;
+    }
+
+    if (!invoiceFile) {
+      notify.error('Please upload an invoice file.');
       return;
     }
 
     // Validate quantities
     for (const item of items) {
       if (Number(item.approvedQty) < 0 || Number(item.returnQty) < 0) {
-        toast.error(`Negative quantities not allowed for ${item.itemName}.`);
+        notify.error(`Negative quantities not allowed for ${item.itemName}.`);
         return;
+      }
+    }
+
+    // Check if the same raw material has multiple copies and approved quantity is 0
+    const rawMaterialCounts = {};
+    for (const item of items) {
+      if (item.isCompleted) continue;
+      const key = item.rawMaterialId || item.purchaseOrderDetailId || item.itemName;
+      rawMaterialCounts[key] = (rawMaterialCounts[key] || 0) + 1;
+    }
+
+    for (const item of items) {
+      if (item.isCompleted) continue;
+      const key = item.rawMaterialId || item.purchaseOrderDetailId || item.itemName;
+      if (rawMaterialCounts[key] > 1) {
+        const apprQty = Number(item.approvedQty);
+        if (!apprQty || apprQty <= 0) {
+          notify.error(`Please enter quantity greater than 0 for "${item.itemName}" or remove copied raw material.`);
+          return;
+        }
       }
     }
 
@@ -495,9 +642,38 @@ const GenerateGRNDetail = () => {
     );
 
     if (activeItems.length === 0) {
-      toast.error('No pending items with quantities to generate GRN.');
+      notify.error('No pending items with quantities to generate GRN.');
       return;
     }
+
+    // Validate mandatory Best Before date for active items receiving approved quantity
+    for (const item of activeItems) {
+      if (Number(item.approvedQty) > 0 && !item.useByDate) {
+        notify.error(`Best Before date is mandatory for "${item.itemName}".`);
+        return;
+      }
+    }
+
+    // Validate batch number: check if line items of the same raw material have duplicate batch numbers
+    const rawMaterialBatches = {};
+    for (const item of activeItems) {
+      const batch = item.batchNo ? item.batchNo.trim() : '';
+      if (batch) {
+        const key = item.rawMaterialId || item.purchaseOrderDetailId || item.itemName;
+        if (!rawMaterialBatches[key]) {
+          rawMaterialBatches[key] = new Set();
+        }
+        const normalizedBatch = batch.toLowerCase();
+        if (rawMaterialBatches[key].has(normalizedBatch)) {
+          notify.error(`Duplicate batch number "${batch}" found for "${item.itemName}". Please add a unique batch number or keep it blank.`);
+          return;
+        }
+        rawMaterialBatches[key].add(normalizedBatch);
+      }
+    }
+
+    const subOutletId = selectedSubOutletId ? Number(selectedSubOutletId) : null;
+    const subLocationId = selectedSubLocationId ? Number(selectedSubLocationId) : null;
 
     // Validate details
     const detailsPayload = activeItems.map((item) => {
@@ -507,6 +683,13 @@ const GenerateGRNDetail = () => {
         ? Number(item.returnGrnDetailId)
         : (returnGrnDetailId && item.isReplacementItem ? Number(returnGrnDetailId) : null);
 
+      const formattedUseByDate = (() => {
+        if (!item.useByDate) return null;
+        const [y, m, d] = item.useByDate.split('-');
+        if (!d || !m || !y) return item.useByDate;
+        return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
+      })();
+
       return {
         acceptedQuantity: apprQty,
         purchaseOrderDetailId: Number(item.purchaseOrderDetailId || item.id || 0),
@@ -514,11 +697,15 @@ const GenerateGRNDetail = () => {
         returnReplacementStatus: retQty > 0 ? (item.returnReplacementStatus || 'RETURN_REQUESTED') : null,
         returnedQuantity: retQty,
         isPoDetailClosed: Boolean(item.isPoDetailClosed),
+        batchNo: item.batchNo ? item.batchNo.trim() : null,
+        useByDate: formattedUseByDate,
+        subOutletId: subOutletId,
+        subLocationId: subLocationId,
       };
     });
 
     if (detailsPayload.length === 0) {
-      toast.error('No items found to generate GRN.');
+      notify.error('No items found to generate GRN.');
       return;
     }
 
@@ -533,8 +720,6 @@ const GenerateGRNDetail = () => {
       return `${d.padStart(2, '0')}/${m.padStart(2, '0')}/${y}`;
     })();
 
-    const subOutletId = selectedSubOutletId ? Number(selectedSubOutletId) : null;
-
     const effectivePoIds = (po.poIds && po.poIds.length > 0)
       ? po.poIds.map(Number)
       : (poIds && poIds.length > 0 ? poIds.map(Number) : (po.id ? [Number(po.id)] : []));
@@ -546,8 +731,9 @@ const GenerateGRNDetail = () => {
       grnDate: formattedGrnDate,
       orgId: orgId,
       purchaseOrderIds: effectivePoIds,
-      remarks: remarks || '',
+      remarks: formatRemarks(remarks || ''),
       subOutletId: subOutletId,
+      subLocationId: subLocationId,
       userId: userId,
       vendorId: vendorId,
     };
@@ -573,12 +759,9 @@ const GenerateGRNDetail = () => {
     setGenerating(true);
     try {
       await createGrn(formData);
-      toast.success('GRN generated successfully!');
       navigate('/inventory/grn-listing');
     } catch (err) {
       console.error('Failed to create GRN:', err);
-      const msg = err?.response?.data?.message || err?.message || 'Failed to generate GRN.';
-      toast.error(msg);
     } finally {
       setGenerating(false);
     }
@@ -591,7 +774,7 @@ const GenerateGRNDetail = () => {
   if (loading) {
     return (
       <Container>
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-10 flex items-center justify-center">
+        <div className="pt-2 pb-6 mx-auto min-h-screen flex items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
         </div>
       </Container>
@@ -601,7 +784,7 @@ const GenerateGRNDetail = () => {
   if (error || !po) {
     return (
       <Container>
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-10">
+        <div className="pt-2 pb-6 mx-auto min-h-screen">
           <SectionCard className="mt-10 p-8 text-center">
             <p className="text-sm text-red-500 font-medium">{error || 'Purchase Order not found'}</p>
             <button
@@ -618,51 +801,39 @@ const GenerateGRNDetail = () => {
   }
 
   return (
-    <Container>
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 min-h-screen pb-10">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 mt-1">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Inventory</span>
-          <ChevronRight size={12} />
-          <span
-            onClick={() => navigate('/inventory/generate-grn')}
-            className="cursor-pointer hover:text-[#084E92] transition"
-          >
-            Generate GRN
-          </span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">GRN Details</span>
-        </div>
-
-        {/* Header */}
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
-          <div>
-            <h1 className="text-2xl md:text-4xl font-semibold">
-              Generate GRN
-            </h1>
-            <p className="text-[#43474F] mt-1 text-sm sm:text-base">
-              Generate Goods Received Note for {po.poCode || `PO-${po.id}`}.
-            </p>
-          </div>
-        </div>
+    <Container width="fluid" className="w-full max-w-full overflow-x-hidden px-2 sm:px-4 lg:px-6">
+      <div className="pt-2 pb-6 mx-auto space-y-3 w-full min-w-0 max-w-full">
+        <PageHeader
+          title="Generate GRN"
+          description="Generate Goods Received Note."
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/inventory/generate-grn')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Generate GRN
+            </button>
+          }
+          className="mt-1"
+        />
 
         {/* Return & Replacement Banner */}
         {resolvedGrnCode || returnGrnDetailId ? (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3.5 mt-4 flex items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-2.5">
-              <RotateCcw size={16} className="text-[#084E92] shrink-0" />
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mt-3 flex items-center justify-between gap-2.5 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <RotateCcw size={15} className="text-[#084E92] shrink-0" />
               <p className="text-xs font-semibold text-[#084E92]">
                 Processing Return / Replacement {resolvedGrnCode ? `against GRN (${resolvedGrnCode})` : `(Detail #${returnGrnDetailId})`}
               </p>
             </div>
             {resolvedGrnCode ? (
-              <span className="text-[11px] font-semibold text-blue-700 bg-white border border-blue-200 px-2.5 py-0.5 rounded-md shrink-0 font-mono">
+              <span className="text-[10px] font-semibold text-blue-700 bg-white border border-blue-200 px-2 py-0.5 rounded shrink-0 font-mono">
                 {resolvedGrnCode}
               </span>
             ) : returnGrnDetailId ? (
-              <span className="text-[11px] font-semibold text-blue-700 bg-white border border-blue-200 px-2.5 py-0.5 rounded-md shrink-0 font-mono">
+              <span className="text-[10px] font-semibold text-blue-700 bg-white border border-blue-200 px-2 py-0.5 rounded shrink-0 font-mono">
                 Return Detail #{returnGrnDetailId}
               </span>
             ) : null}
@@ -670,35 +841,35 @@ const GenerateGRNDetail = () => {
         ) : null}
 
         {/* General Information Card */}
-        <SectionCard className="mt-5 p-5 sm:p-6">
-          <h2 className="text-base font-semibold text-gray-900 pb-3 border-b border-gray-100 mb-5">
+        <SectionCard className="mt-3 p-3.5 sm:p-4 overflow-hidden">
+          <h2 className="text-sm font-semibold text-gray-900 pb-2 border-b border-gray-100 mb-3">
             General Information
           </h2>
 
-          {/* Row 1: PO Code & Date */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">
-                PO Code{po.poIds && po.poIds.length > 1 ? 's' : ''}
+          {/* Row 1: PO Code(s) & Date */}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
+                PO Code{poCodesList.length > 1 ? 's' : ''}
               </label>
-              <div className="min-h-[44px] border border-gray-200 rounded-xl px-3 py-1.5 flex flex-wrap items-center gap-1.5 bg-[#F8FAFC]">
-                {(po.poCodes || po.poCode || `PO-${po.id}`)
-                  .split(',')
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-                  .map((code, idx) => (
+              <div className="w-full min-h-[34px] border border-gray-200 rounded-lg p-1 px-2.5 flex items-center bg-[#F8FAFC]">
+                <div className="flex flex-wrap items-center gap-1.5 w-full">
+                  {poCodesList.map((code, idx) => (
                     <span
                       key={idx}
-                      className="font-mono text-xs font-bold text-[#084E92] bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg inline-block"
+                      className="font-mono text-[11px] font-bold text-[#084E92] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md text-center whitespace-nowrap"
+                      title={code}
                     >
                       {code}
                     </span>
                   ))}
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
                 Date <span className="text-red-500">*</span>
               </label>
               <input
@@ -706,47 +877,87 @@ const GenerateGRNDetail = () => {
                 value={grnDate}
                 min={getTodayInputDate()}
                 onChange={(e) => setGrnDate(e.target.value)}
-                className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-medium text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]"
+                className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 text-xs sm:text-sm font-medium text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]"
               />
             </div>
           </div>
 
-          {/* Row 2: Outlet Name, Sub-outlet / Sublet & Invoice Upload */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Outlet Name</label>
-              <div className="w-full h-11 border border-gray-200 rounded-xl px-3.5 flex items-center bg-white">
-                <span className="text-sm font-medium text-gray-800 truncate">{po.outletName || po.outlet || `Outlet #${po.outletId}`}</span>
+          {/* Row 2: Unit Name & Sub-unit / Location */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Unit Name</label>
+              <div className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 flex items-center bg-gray-50">
+                <span className="text-xs sm:text-sm font-medium text-gray-800 truncate">{po.outletName || po.outlet || `Unit #${po.outletId}`}</span>
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">
-                Sub-outlet / Sublet <span className="text-gray-400 font-normal">(Optional)</span>
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
+                Sub-unit <span className="text-gray-400 font-normal">(Optional)</span>
               </label>
               <select
                 value={selectedSubOutletId}
-                onChange={(e) => setSelectedSubOutletId(e.target.value)}
+                onChange={(e) => handleSubOutletChange(e.target.value)}
                 disabled={loadingSubOutlets}
-                className="w-full h-11 border border-gray-200 rounded-xl px-3.5 text-sm font-medium text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer"
+                className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 text-xs sm:text-sm font-medium text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
               >
-                <option value="">None (Direct to {po.outletName || po.outlet || 'Outlet'})</option>
-                {subOutlets.map((sub) => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.subOutletName || sub.name || `Sub-outlet #${sub.id}`}
-                  </option>
-                ))}
+                <option value="">None (Direct to {po.outletName || po.outlet || 'Unit'})</option>
+                {sortedSubOutlets.map((sub) => {
+                  const name = sub.subOutletName || sub.name || `Sub-unit #${sub.id}`;
+                  const type = sub.subOutletType || sub.type || sub.locationType;
+                  return (
+                    <option key={sub.id} value={sub.id}>
+                      {name}{type ? ` (${type})` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+          </div>
+
+          {/* Row 3: Sub Location & Invoice Upload */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
+                Sub Location <span className="text-gray-400 font-normal">(Optional)</span>
+              </label>
+              <select
+                value={selectedSubLocationId}
+                onChange={(e) => setSelectedSubLocationId(e.target.value)}
+                disabled={!selectedSubOutletId || loadingSubLocations}
+                className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 text-xs sm:text-sm font-medium text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer disabled:bg-gray-50 disabled:text-gray-400"
+              >
+                <option value="">
+                  {!selectedSubOutletId
+                    ? 'None (Select Sub-unit first)'
+                    : loadingSubLocations
+                    ? 'Loading sub locations...'
+                    : subLocations.length === 0
+                    ? 'None (No sub locations available)'
+                    : 'None (Direct to Sub-unit)'}
+                </option>
+                {subLocations.map((loc) => {
+                  const name = loc.subLocationName || loc.locationName || loc.name || `Sub Location #${loc.id}`;
+                  const type = loc.locationType || loc.type || loc.subLocationType;
+                  return (
+                    <option key={loc.id} value={loc.id}>
+                      {name}{type ? ` (${type})` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">Invoice Upload</label>
-              <div className="relative">
-                <label className="w-full h-11 border border-dashed border-gray-300 rounded-xl px-3.5 flex items-center justify-between bg-white cursor-pointer hover:bg-gray-50 transition">
-                  <span className={`text-sm truncate pr-6 ${invoiceFile ? 'font-semibold text-[#084E92]' : 'text-gray-400'}`}>
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
+                Invoice Upload <span className="text-red-500">*</span>
+              </label>
+              <div className="relative min-w-0">
+                <label className="w-full h-8.5 border border-dashed border-gray-300 rounded-lg px-2.5 flex items-center justify-between bg-white cursor-pointer hover:bg-gray-50 transition">
+                  <span className={`text-xs sm:text-sm truncate pr-6 ${invoiceFile ? 'font-semibold text-[#084E92]' : 'text-gray-400'}`}>
                     {invoiceFile ? invoiceFile.name : 'Upload invoice (PDF, Excel, Doc)...'}
                   </span>
-                  <Upload size={16} className="text-[#084E92] shrink-0" />
+                  <Upload size={14} className="text-[#084E92] shrink-0" />
                   <input
                     type="file"
                     accept=".pdf,.xlsx,.xls,.csv,.doc,.docx,.png,.jpg,.jpeg,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/*"
@@ -763,98 +974,111 @@ const GenerateGRNDetail = () => {
                       setInvoiceFile(null);
                     }}
                     title="Remove file"
-                    className="absolute right-9 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gray-100 hover:bg-red-50 hover:text-red-500 text-gray-500 flex items-center justify-center transition cursor-pointer"
+                    className="absolute right-7 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-gray-100 hover:bg-red-50 hover:text-red-500 text-gray-500 flex items-center justify-center transition cursor-pointer"
                   >
-                    <X size={12} />
+                    <X size={10} />
                   </button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Address Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">
-                Shipping Details (Outlet Address)
+          {/* Row 4: Remarks / Notes */}
+          <div className="grid grid-cols-1 mb-3">
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
+                Remarks / Notes
               </label>
-              <div className="border border-gray-200 rounded-xl p-4 flex items-start gap-3 bg-white min-h-[76px] shadow-2xs">
-                <MapPin size={18} className="text-[#084E92] mt-0.5 shrink-0" />
+              <input
+                type="text"
+                placeholder="e.g. Received in good condition"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                onBlur={() => setRemarks((prev) => formatRemarks(prev))}
+                className="w-full h-8.5 border border-gray-200 rounded-lg px-2.5 text-xs sm:text-sm text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]"
+              />
+            </div>
+          </div>
+
+          {/* Address Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
+                Shipping Details (Unit Address)
+              </label>
+              <div className="border border-gray-200 rounded-lg p-2.5 flex items-start gap-2 bg-white min-h-[52px] shadow-2xs">
+                <MapPin size={15} className="text-[#084E92] mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-gray-900">
-                    {po?.shipTo?.companyNameEnglish || po?.outletName || 'Outlet'}
+                  <p className="text-xs font-bold text-gray-900 truncate">
+                    {po?.shipTo?.companyNameEnglish || po?.outletName || 'Unit'}
                   </p>
-                  <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  <p className="text-[11px] text-gray-600 mt-0.5 leading-snug line-clamp-2">
                     {shippingAddress}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-medium text-gray-600 mb-1.5 block">
+            <div className="min-w-0">
+              <label className="text-xs font-medium text-gray-600 mb-1 block">
                 Billing Details (Vendor Address)
               </label>
-              <div className="border border-gray-200 rounded-xl p-4 flex items-start gap-3 bg-white min-h-[76px] shadow-2xs">
-                <Building2 size={18} className="text-[#084E92] mt-0.5 shrink-0" />
+              <div className="border border-gray-200 rounded-lg p-2.5 flex items-start gap-2 bg-white min-h-[52px] shadow-2xs">
+                <Building2 size={15} className="text-[#084E92] mt-0.5 shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-bold text-gray-900">
+                  <p className="text-xs font-bold text-gray-900 truncate">
                     {po?.vendorName || 'Vendor'}
                   </p>
-                  <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                  <p className="text-[11px] text-gray-600 mt-0.5 leading-snug line-clamp-2">
                     {billingAddress}
                   </p>
                 </div>
               </div>
             </div>
           </div>
-
-          <div className="mt-4">
-            <label className={labelCls}>
-              Remarks / Notes
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Received in good condition, checked by store manager"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              className="w-full h-10 border border-gray-200 rounded-xl px-3 text-sm text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]"
-            />
-          </div>
         </SectionCard>
 
         {/* Received Items */}
-        <SectionCard className="mt-5 p-5 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
+        <SectionCard className="mt-3 p-3.5 sm:p-4 overflow-hidden">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Received Items</h2>
+              <h2 className="text-sm font-semibold text-gray-900">Received Items</h2>
               <p className="text-xs text-gray-500 mt-0.5">Verify received goods against purchase order</p>
             </div>
-            <span className="text-xs font-semibold text-[#084E92] bg-blue-50 border border-blue-100 rounded-xl px-3 py-1">
+            <span className="text-xs font-semibold text-[#084E92] bg-blue-50 border border-blue-100 rounded-lg px-2 py-0.5">
               Total: {items.length} {items.length === 1 ? 'item' : 'items'}
             </span>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white shadow-2xs overflow-hidden">
+          <div className="w-full min-w-0 max-w-full rounded-xl border border-gray-200 bg-white shadow-2xs overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="bg-[#F8FAFC] border-b border-gray-200 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
-                  <th className="text-center px-1.5 py-2.5 w-8">#</th>
+                <tr className="bg-[#F8FAFC] border-b border-gray-200 text-[10px] font-bold uppercase tracking-wider text-[#64748B] whitespace-nowrap">
+                  <th className="text-center px-1 py-1.5 w-6 whitespace-nowrap">#</th>
                   {po?.poIds && po.poIds.length > 1 && (
-                    <th className="text-left px-2 py-2.5 w-32">PO Code</th>
+                    <th className="text-left px-1.5 py-1.5 w-20 whitespace-nowrap">PO Code</th>
                   )}
-                  <th className="text-left px-2 py-2.5">Item Description</th>
-                  <th className="text-center px-1 py-2.5 w-14">Unit</th>
-                  <th className="text-right px-1.5 py-2.5 w-16">Ordered</th>
-                  <th className="text-right px-1.5 py-2.5 w-16" title="Quantity already received in previous GRNs (read-only)">
+                  <th className="text-left px-2 py-1.5 w-full min-w-[140px] whitespace-nowrap">Item Description</th>
+                  <th className="text-center px-1 py-1.5 w-10 whitespace-nowrap">Unit</th>
+                  <th className="text-right px-1 py-1.5 w-14 whitespace-nowrap">Ordered</th>
+                  <th className="text-right px-1 py-1.5 w-14 whitespace-nowrap" title="Quantity already received in previous GRNs (read-only)">
                     Received
                   </th>
-                  <th className="text-right px-1.5 py-2.5 w-20">
-                    Approved <span className="text-red-500">*</span>
+                  <th className="text-center px-1.5 py-1.5 w-[105px] min-w-[105px] max-w-[105px] whitespace-nowrap" title="Total received quantity for this GRN line (Approved + Return)">
+                    Total Received
                   </th>
-                  <th className="text-right px-1.5 py-2.5 w-16">Return</th>
-                  <th className="text-left px-1.5 py-2.5 w-36">Return Status</th>
-                  <th className="text-center px-1.5 py-2.5 w-20" title="Close PO if items are completed / short received">
+                  <th className="text-right px-1.5 py-1.5 w-16 min-w-[65px] whitespace-nowrap">
+                    Approved <span className="text-red-500 inline-block ml-0.5">*</span>
+                  </th>
+                  <th className="text-left px-1.5 py-1.5 w-20 whitespace-nowrap" title="Leave blank to auto-generate batch number from backend">
+                    Batch No
+                  </th>
+                  <th className="text-left px-1.5 py-1.5 w-28 min-w-[115px] whitespace-nowrap" title="Best before / Use by date (Mandatory)">
+                    Best Before <span className="text-red-500 inline-block ml-0.5">*</span>
+                  </th>
+                  <th className="text-right px-1 py-1.5 w-12 whitespace-nowrap">Return</th>
+                  <th className="text-left px-1 py-1.5 w-24 whitespace-nowrap">Return Status</th>
+                  <th className="text-center px-1 py-1.5 w-14" title="Close PO if items are completed / short received">
                     <div className="flex items-center justify-center gap-1">
                       <span className="whitespace-nowrap">Close PO</span>
                       <input
@@ -871,7 +1095,7 @@ const GenerateGRNDetail = () => {
                             )
                           );
                         }}
-                        className="w-3.5 h-3.5 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 cursor-pointer accent-[#084E92]"
+                        className="w-3 h-3 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 cursor-pointer accent-[#084E92]"
                         title="Toggle Close PO for all items"
                       />
                     </div>
@@ -881,32 +1105,37 @@ const GenerateGRNDetail = () => {
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={(po?.poIds && po.poIds.length > 1 ? 1 : 0) + 9} className="px-4 py-12 text-center text-gray-400">
+                    <td colSpan={(po?.poIds && po.poIds.length > 1 ? 1 : 0) + 12} className="px-4 py-8 text-center text-gray-400">
                       No items found on this order.
                     </td>
                   </tr>
                 ) : (
                   items.map((item, i) => (
                     <tr key={item.id} className="border-b border-gray-100 last:border-b-0 hover:bg-[#F8FAFC]/70 transition-colors">
-                      <td className="px-1.5 py-2 text-center text-gray-400 font-medium">
+                      <td className="px-1 py-1 text-center text-gray-400 font-medium">
                         {String(i + 1).padStart(2, '0')}
                       </td>
                       {po?.poIds && po.poIds.length > 1 && (
-                        <td className="px-2 py-2 text-left whitespace-nowrap">
-                          <span className="font-mono text-[10px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded inline-block">
+                        <td className="px-1.5 py-1 text-left whitespace-nowrap">
+                          <span className="font-mono text-[10px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1 py-0.5 rounded inline-block">
                             {item.poCode || `PO-${item.purchaseOrderId}`}
                           </span>
                         </td>
                       )}
-                      <td className="px-2 py-2">
+                      <td className="px-2 py-1 w-full min-w-[140px]">
                         <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                            <span className="font-semibold text-[#084E92] text-xs truncate max-w-[160px]">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="font-semibold text-[#084E92] text-xs truncate max-w-[200px] sm:max-w-[300px]" title={item.itemName}>
                               {item.itemName}
                             </span>
                             {item.isReplacementItem ? (
                               <span className="text-[9px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1 py-0.2 rounded shrink-0">
                                 Replacement
+                              </span>
+                            ) : null}
+                            {item.isCopied ? (
+                              <span className="text-[9px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-1 py-0.2 rounded shrink-0">
+                                Copied
                               </span>
                             ) : null}
                             <button
@@ -919,54 +1148,82 @@ const GenerateGRNDetail = () => {
                             >
                               <Pencil size={10} />
                             </button>
+                            {!item.isCompleted && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyItem(item)}
+                                title="Copy line item"
+                                className="p-0.5 rounded text-gray-400 hover:text-[#084E92] hover:bg-blue-50 transition cursor-pointer shrink-0"
+                              >
+                                <Copy size={11} />
+                              </button>
+                            )}
+                            {item.isCopied && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(item.id)}
+                                title="Remove copied item"
+                                className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition cursor-pointer shrink-0"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            )}
                           </div>
-                          <p className="text-[10px] text-gray-400 font-mono uppercase tracking-wide">
-                            {item.itemCode}
-                          </p>
                           {openRemarksMap[item.id] ? (
-                            <div className="mt-1">
+                            <div className="mt-0.5">
                               <input
                                 type="text"
                                 autoFocus
                                 value={item.remarks || ''}
                                 onChange={(e) => handleItemRemarksChange(item.id, e.target.value)}
+                                onBlur={() => handleItemRemarksChange(item.id, formatRemarks(item.remarks || ''))}
                                 placeholder="Add remarks..."
-                                className="w-full max-w-[160px] h-6 border border-[#CBD5E1] rounded px-1.5 text-xs text-[#1E293B] outline-none focus:border-[#084E92] bg-white"
+                                className="w-full max-w-[120px] h-5.5 border border-[#CBD5E1] rounded px-1 text-xs text-[#1E293B] outline-none focus:border-[#084E92] bg-white"
                               />
                             </div>
                           ) : item.remarks ? (
                             <p
                               onClick={() => toggleItemRemarks(item.id)}
                               title="Click to edit remarks"
-                              className="text-[10px] text-gray-500 italic truncate max-w-[160px] cursor-pointer hover:text-gray-700 mt-0.5"
+                              className="text-[10px] text-gray-500 italic truncate max-w-[120px] cursor-pointer hover:text-gray-700"
                             >
                               {item.remarks}
                             </p>
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-1 py-2 text-center">
-                        <span className="inline-block text-[11px] font-semibold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded whitespace-nowrap">
+                      <td className="px-1 py-1 text-center w-10">
+                        <span className="inline-block text-[10px] font-semibold text-gray-700 bg-gray-100 px-1 py-0.5 rounded whitespace-nowrap">
                           {item.uomName}
                         </span>
                       </td>
                       {/* Ordered Qty (Read-Only) */}
-                      <td className="px-1.5 py-2 text-right">
-                        <span className="inline-flex items-center justify-center min-w-[32px] h-7 px-1 rounded-md bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800">
+                      <td className="px-1 py-1 text-right w-14 whitespace-nowrap">
+                        <span className="inline-flex items-center justify-center min-w-[24px] h-5.5 px-1 rounded bg-gray-50 border border-gray-200 text-xs font-bold text-gray-800">
                           {item.orderedQty}
                         </span>
                       </td>
                       {/* Received Qty (Read-Only: from past GRNs) */}
-                      <td className="px-1.5 py-2 text-right">
-                        <span className="inline-flex items-center justify-center min-w-[32px] h-7 px-1 rounded-md bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600">
+                      <td className="px-1 py-1 text-right w-14 whitespace-nowrap">
+                        <span className="inline-flex items-center justify-center min-w-[24px] h-5.5 px-1 rounded bg-gray-50 border border-gray-200 text-xs font-bold text-gray-600">
                           {item.receivedQuantity}
                         </span>
                       </td>
-                      {/* Approved Qty (Editable / Completed) */}
-                      <td className="px-1.5 py-2 text-right">
+                      {/* Total Received Qty (Read-Only / Calculated: Approved + Return) */}
+                      <td className="px-1.5 py-1 text-center w-[105px] min-w-[105px] max-w-[105px] whitespace-nowrap">
                         {item.isCompleted ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded whitespace-nowrap">
-                            <CheckCircle2 size={10} />
+                          <span className="text-gray-400 text-xs font-medium">—</span>
+                        ) : (
+                          <span className="inline-flex items-center justify-center min-w-[24px] h-5.5 px-1.5 rounded bg-blue-50/60 border border-blue-200 text-xs font-bold text-[#084E92]">
+                            {item.totalReceivedQty ?? Math.round(((Number(item.approvedQty) || 0) + (Number(item.returnQty) || 0)) * 10000) / 10000}
+                          </span>
+                        )}
+                      </td>
+                      {/* Approved Qty (Editable / Completed) */}
+                      <td className="px-1.5 py-1 text-right w-16 min-w-[65px] whitespace-nowrap">
+                        {item.isCompleted ? (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded whitespace-nowrap">
+                            <CheckCircle2 size={9} />
                             Completed
                           </span>
                         ) : (
@@ -975,12 +1232,42 @@ const GenerateGRNDetail = () => {
                             min="0"
                             value={item.approvedQty}
                             onChange={(e) => handleApprovedQtyChange(item.id, e.target.value)}
-                            className="w-16 h-7 border border-gray-200 rounded-md px-1 text-right font-bold text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition"
+                            className="w-12 h-5.5 border border-gray-200 rounded px-1 text-right font-bold text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition"
+                          />
+                        )}
+                      </td>
+                      {/* Batch No (Editable / Auto) */}
+                      <td className="px-1.5 py-1 text-left w-20 whitespace-nowrap">
+                        {item.isCompleted ? (
+                          <span className="text-gray-400 text-xs font-medium">—</span>
+                        ) : (
+                          <input
+                            type="text"
+                            value={item.batchNo || ''}
+                            onChange={(e) => handleBatchNoChange(item.id, e.target.value)}
+                            placeholder="Auto"
+                            title="Leave blank to auto-generate batch number from backend"
+                            className="w-full min-w-[55px] h-5.5 border border-gray-200 rounded px-1 text-xs font-medium text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition placeholder:text-gray-400 placeholder:italic"
+                          />
+                        )}
+                      </td>
+                      {/* Best Before Date (Editable) */}
+                      <td className="px-1.5 py-1 text-left w-28 min-w-[115px] whitespace-nowrap">
+                        {item.isCompleted ? (
+                          <span className="text-gray-400 text-xs font-medium">—</span>
+                        ) : (
+                          <input
+                            type="date"
+                            value={item.useByDate || ''}
+                            onChange={(e) => handleUseByDateChange(item.id, e.target.value)}
+                            min={getTodayInputDate()}
+                            title="Best before / Use by date"
+                            className="w-full min-w-[85px] h-5.5 border border-gray-200 rounded px-1 text-xs text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition"
                           />
                         )}
                       </td>
                       {/* Return Qty (Editable / Completed) */}
-                      <td className="px-1.5 py-2 text-right">
+                      <td className="px-1 py-1 text-right w-12 whitespace-nowrap">
                         {item.isCompleted ? (
                           <span className="text-gray-400 text-xs font-medium">—</span>
                         ) : (
@@ -989,12 +1276,12 @@ const GenerateGRNDetail = () => {
                             min="0"
                             value={item.returnQty}
                             onChange={(e) => handleReturnQtyChange(item.id, e.target.value)}
-                            className="w-14 h-7 border border-gray-200 rounded-md px-1 text-right font-bold text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition"
+                            className="w-10 h-5.5 border border-gray-200 rounded px-1 text-right font-bold text-xs text-gray-900 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 transition"
                           />
                         )}
                       </td>
                       {/* Return Status */}
-                      <td className="px-1.5 py-2 text-left w-36">
+                      <td className="px-1 py-1 text-left w-24">
                         {item.isCompleted ? (
                           <span className="text-gray-400 text-xs pl-1">—</span>
                         ) : (
@@ -1002,7 +1289,7 @@ const GenerateGRNDetail = () => {
                             value={item.returnReplacementStatus || 'RETURN_REQUESTED'}
                             onChange={(e) => handleReturnStatusChange(item.id, e.target.value)}
                             disabled={!Number(item.returnQty)}
-                            className={`h-7 w-full border rounded-md px-1 text-[11px] font-semibold outline-none transition ${
+                            className={`h-5.5 w-full border rounded px-0.5 text-[9px] font-semibold outline-none transition ${
                               Number(item.returnQty) > 0
                                 ? 'border-amber-300 bg-amber-50/50 text-amber-900 cursor-pointer focus:border-[#084E92]'
                                 : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
@@ -1014,7 +1301,7 @@ const GenerateGRNDetail = () => {
                         )}
                       </td>
                       {/* Close PO Checkbox */}
-                      <td className="px-1.5 py-2 text-center whitespace-nowrap">
+                      <td className="px-1 py-1 text-center w-14 whitespace-nowrap">
                         {item.isCompleted ? (
                           <span className="text-gray-400 text-xs font-medium">—</span>
                         ) : (
@@ -1077,4 +1364,3 @@ const GenerateGRNDetail = () => {
 };
 
 export default GenerateGRNDetail;
-

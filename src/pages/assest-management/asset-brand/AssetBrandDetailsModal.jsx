@@ -4,17 +4,15 @@ import React from 'react';
 import { Award, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const StatusBadge = ({ status }) => {
-  const styles = {
-    Active: 'bg-green-100 text-green-700',
-    Inactive: 'bg-gray-200 text-gray-600',
-  };
-  return (
-    <span className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${styles[status]}`}>
-      {status}
-    </span>
-  );
-};
+const StatusBadge = ({ status }) => (
+  <span
+    className={`text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${
+      status === 'Active' ? 'text-emerald-600' : 'text-gray-500'
+    }`}
+  >
+    {status || '—'}
+  </span>
+);
 
 const Field = ({ label, children }) => (
   <div>

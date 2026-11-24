@@ -1,4 +1,5 @@
-import { ChevronRight, CircleCheck, CircleX, Download, Eye, Loader2, MoreVertical, Package, Plus, RotateCcw, Search, SquarePen, Trash2 } from 'lucide-react'
+import { ChevronRight, CircleCheck, CircleX, Download, Eye, Loader2, MoreVertical, Package, Plus, RotateCcw, SquarePen, Trash2 } from 'lucide-react'
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -20,6 +21,9 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -27,6 +31,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 
 const STATUS_COLORS = {
@@ -36,20 +42,16 @@ const STATUS_COLORS = {
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`px-3 py-1 rounded-full text-[10px] font-semibold ${status === "Active"
-      ? "bg-[#DCFCE7] text-[#15803D]"
-      : "bg-[#E5EAF5] text-[#6B7280]"
-      }`}
+    className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${
+      status === "Active" ? "text-emerald-600" : "text-gray-500"
+    }`}
   >
-    {(status || "").toUpperCase()}
+    {status || "—"}
   </span>
 );
 
-const ConditionCell = ({ name, color }) => (
-  <div className="flex items-center gap-2">
-    <span className={`w-2 h-2 rounded-full ${color || "bg-[#C3C6D1]"}`} />
-    <span className="font-medium text-[#0F172A]">{name}</span>
-  </div>
+const ConditionCell = ({ name }) => (
+  <span className="font-medium text-xs text-gray-800 truncate block max-w-[200px]">{name}</span>
 );
 
 // Normalizes whatever shape the API returns into what the table/form expect.
@@ -64,11 +66,10 @@ const normalizeCondition = (raw = {}, index = 0) => ({
 const EMPTY_FORM = { id: null, name: "", status: "Active" };
 
 const ConditionMasterModule = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Conditions Master');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Conditions Master');
 
   const [conditions, setConditions] = useState([]);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [rowSelection, setRowSelection] = useState({});
 
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState(null);
@@ -87,8 +88,9 @@ const ConditionMasterModule = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
-
+  const navigate = useNavigate();
 
   const loadConditions = async () => {
     setListLoading(true);
@@ -113,26 +115,26 @@ const ConditionMasterModule = () => {
     {
       title: "Total Conditions",
       value: `${conditions.length}`,
-      badge: "+2 new",
       icon: Package,
-      iconBg: "bg-[#EAF3FF]",
-      iconColor: "text-[#084E92]",
+      iconBg: "bg-[#D5E3FF]",
+      iconColor: "text-[#00376C]",
+      color: "text-[#1B1B1F]",
     },
     {
       title: "Operational",
       value: `${conditions.filter((c) => c.status == 'Active').length}`,
-      badge: "ACTIVE",
       icon: CircleCheck,
-      iconBg: "bg-[#ECFDF3]",
-      iconColor: "text-[#16A34A]",
+      iconBg: "bg-[#DCFCE7]",
+      iconColor: "text-[#15803D]",
+      color: "text-[#15803D]",
     },
     {
       title: "Archived",
       value: `${conditions.filter((c) => c.status == 'Inactive').length}`,
-      badge: "INACTIVE",
       icon: CircleX,
-      iconBg: "bg-[#EEF2F6]",
-      iconColor: "text-[#6B7280]",
+      iconBg: "bg-[#FEE2E2]",
+      iconColor: "text-[#DC2626]",
+      color: "text-[#DC2626]",
     }
   ];
   // -------------------------------------------------------------------
@@ -238,38 +240,17 @@ const ConditionMasterModule = () => {
   // -------------------------------------------------------------------
   const columns = useMemo(() => [
     {
-      id: "select",
-      header: ({ table }) => (
-        <input
-          type="checkbox"
-          checked={table.getIsAllPageRowsSelected()}
-          onChange={table.getToggleAllPageRowsSelectedHandler()}
-          className='mx-4 my-5'
-        />
-      ),
-      cell: ({ row }) => (
-        <input
-          type="checkbox"
-          checked={row.getIsSelected()}
-          onChange={row.getToggleSelectedHandler()}
-          className='mx-4 my-2'
-        />
-      ),
-      enableSorting: false,
-      size: 50,
-    },
-
-    {
       accessorKey: "srNo",
       header: ({ column }) => (
         <DataGridColumnHeader title="S.NO" column={column} className="font-semibold text-[#43474F]" />
       ),
       cell: ({ row }) => (
-        <span className="text-[#737781]">
+        <span className="text-gray-500 py-2 text-xs">
           {row.original.srNo}
         </span>
       ),
-      size: 50,
+      enableSorting: false,
+      size: 36,
     },
 
     {
@@ -287,6 +268,8 @@ const ConditionMasterModule = () => {
           color={row.original.color}
         />
       ),
+      enableSorting: false,
+      size: 200,
     },
 
     {
@@ -301,6 +284,8 @@ const ConditionMasterModule = () => {
       cell: ({ row }) => (
         <StatusBadge status={row.original.status} />
       ),
+      enableSorting: false,
+      size: 80,
     },
 
     {
@@ -314,7 +299,7 @@ const ConditionMasterModule = () => {
       ),
 
       cell: ({ row }) => (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 whitespace-nowrap">
           <Eye
             size={18}
             className="text-gray-500 hover:text-green-600 cursor-pointer"
@@ -347,6 +332,7 @@ const ConditionMasterModule = () => {
       ),
 
       enableSorting: false,
+      size: 80,
     },
   ], [canEdit, canDelete, deletingId]);
 
@@ -377,10 +363,8 @@ const ConditionMasterModule = () => {
   const table = useReactTable({
     data: filteredConditions,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination },
     onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
-    enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
@@ -391,89 +375,66 @@ const ConditionMasterModule = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">Condition Master</span>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Condition Master"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={openAddModal}>
+                  Add Condition
+                </HeaderActionButton>
+              )}
+            </div>}
+        />
 
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">
-              Condition Master
-            </h1>
-
-            <p className="text-[#5F6368] mt-1 max-w-2xl text-sm">
-              Configure and standardize asset health states
-              across the enterprise.
-            </p>
-          </div>
-
-          {canAdd && (
-            <div className="flex gap-3">
-              <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-linear-to-r from-[#084E92] to-[#002246] text-white cursor-pointer rounded-lg">
-                <Plus size={16} />
-                Add Condition
-              </button>
-            </div>
-          )}
-        </div>
+        <PageErrorAlert error={listError} onRetry={loadConditions} className="my-3" />
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 mt-6">
           {STATS.map((item, index) => {
             const Icon = item.icon;
 
             return (
               <div
                 key={index}
-                className="bg-white rounded-3xl border border-[#E6EBF4] p-5 shadow-sm"
+                className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
               >
-                <div className="flex justify-between items-start mb-2">
-                  <div
-                    className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
-                  >
-                    <Icon
-                      size={15}
-                      className={item.iconColor}
-                    />
-                  </div>
-
-                  {index === 0 && (
-                    <MoreVertical
-                      size={16}
-                      className="text-[#9CA3AF]"
-                    />
-                  )}
+                <div
+                  className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}
+                >
+                  <Icon size={18} />
                 </div>
-                <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                <h2 className={`text-xl font-bold`}>{item.value}</h2>
-                <p className={`text-xs ${item.iconColor}`}>{item.badge}</p>
+
+                <div className="flex flex-col items-end text-right">
+                  <span className="text-xs font-semibold text-[#00376C]">
+                    {item.title}
+                  </span>
+
+                  <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
+                    {item.value}
+                  </span>
+                </div>
               </div>
             );
           })}
         </div>
 
-        <div className="rounded-2xl border border-[#D9DEE8] p-5 my-10 bg-white">
+        <div className="bg-white">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
             {/* Search  */}
-            <div className="relative border border-[#C3C6D1] rounded-lg col-span-1 md:col-span-2 py-0">
-              <Search
-                size={16}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              />
-
-              <input
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Type to search conditions..."
-                className="w-full pl-10 py-2 rounded-lg outline-none"
-              />
-            </div>
+            <SearchBar
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Type to search conditions..."
+              wrapperClassName="col-span-1 md:col-span-2"
+            />
 
 
             {/* Status */}
@@ -481,7 +442,7 @@ const ConditionMasterModule = () => {
               value={statusInput}
               onValueChange={(value) => setStatusInput(value)}
             >
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
 
@@ -502,12 +463,6 @@ const ConditionMasterModule = () => {
           </div>
         </div>
 
-        {listError && (
-          <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
-            {listError}
-          </div>
-        )}
-
         {/* Table */}
         <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
           {listLoading ? (
@@ -516,13 +471,21 @@ const ConditionMasterModule = () => {
               Loading conditions...
             </div>
           ) : (
-            <DataGrid table={table} recordCount={filteredConditions.length} className="rounded-2xl">
+            <DataGrid
+              table={table}
+              recordCount={filteredConditions.length}
+              className="rounded-2xl"
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+              }}
+            >
               <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                   <DataGridPagination />
@@ -549,6 +512,12 @@ const ConditionMasterModule = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.itemLabel}
           saving={deleteSaving}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="assets_condition"
+          title="Export Asset Condition Report"
         />
       </div>
     </Container>

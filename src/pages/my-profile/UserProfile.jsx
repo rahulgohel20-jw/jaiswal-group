@@ -526,11 +526,6 @@ const UserProfile = () => {
             <div className="mx-auto max-w-6xl">
                 <div className="mb-6 flex items-center justify-between">
                     <h1 className="text-2xl font-semibold text-gray-900">My Profile</h1>
-                    <div className="hidden text-sm text-gray-500 sm:block">
-                        <span className="text-blue-600">Dashboard</span>
-                        <span className="mx-1.5">›</span>
-                        <span>My Profile</span>
-                    </div>
                 </div>
 
                 {submitError && (
@@ -545,14 +540,16 @@ const UserProfile = () => {
                             <div>
                                 <h2 className="text-lg font-semibold text-gray-900">{fullNameDisplay}</h2>
                                 <p className="text-sm text-gray-500">{form.designation}</p>
-                                <span
-                                    className={`mt-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${raw?.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'
-                                        }`}
-                                >
-                                    <span className={`h-1.5 w-1.5 rounded-full ${raw?.isActive ? 'bg-emerald-500' : 'bg-gray-400'}`} />
-                                    {raw?.isActive ? 'Active' : 'Inactive'} 
-                                </span>
-                                 <span className="text-blue-600  bg-blue-100 rounded-full px-2.5 py-0.5 text-xs font-medium mx-2">{raw.userCode}</span>
+                                <div className="mt-1 flex items-center gap-2 text-xs font-semibold">
+                                    <span className={raw?.isActive ? 'text-emerald-700' : 'text-gray-500'}>
+                                        {raw?.isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                    {raw?.userCode && (
+                                        <span className="text-gray-700">
+                                            {raw.userCode}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
 

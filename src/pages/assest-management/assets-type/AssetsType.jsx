@@ -1,4 +1,5 @@
-import { ArrowRightLeft, Building2, ChevronRight, CircleCheck, CircleX, ClipboardList, Download, Eye, MonitorSmartphone, Package, Plus, RotateCcw, Search, SquareCheckBig, SquarePen, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Building2, ChevronRight, CircleCheck, CircleX, ClipboardList, Download, Eye, MonitorSmartphone, Package, Plus, RotateCcw, SquareCheckBig, SquarePen, Trash2 } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -14,6 +15,9 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -21,22 +25,19 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 
-const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-gray-600" }) => (
+const TruncatedCell = ({ value, widthClass = "max-w-[180px]", className = "text-xs text-gray-800 font-medium" }) => (
     <span title={value} className={`block truncate ${widthClass} ${className}`}>
         {value}
     </span>
 );
 
 const TypeBadge = ({ type }) => {
-    const styles = {
-        Fixed: "bg-blue-100 text-blue-700",
-        "Unit-to-Unit": "bg-green-100 text-green-700",
-        Movable: "bg-orange-100 text-orange-700",
-    };
     return (
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[type] || 'bg-gray-100 text-gray-700'}`}>
+        <span className="text-xs font-medium text-gray-800 uppercase tracking-wide">
             {type}
         </span>
     );
@@ -52,12 +53,11 @@ const mapAssetType = (t) => ({
 });
 
 const AssetsType = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Assets Type Master');
-
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Assets Type Master');
+    const navigate = useNavigate();
     const [type, setType] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [rowSelection, setRowSelection] = useState({});
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingType, setEditingType] = useState(null);
     const [viewingType, setViewingType] = useState(null);
@@ -65,6 +65,7 @@ const AssetsType = () => {
     const [searchInput, setSearchInput] = useState("");
     const [typeInput, setTypeInput] = useState("All");
     const [transferInput, setTransferInput] = useState("Any");
+    const [showExportModal, setShowExportModal] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 const [deleteTarget, setDeleteTarget] = useState(null);
 const [deleteSaving, setDeleteSaving] = useState(false);
@@ -176,52 +177,42 @@ const confirmDelete = async () => {
             title: "Total Asset Types",
             value: `${type.length}`,
             icon: Package,
-            bg: "bg-[#F5F7FB]",
-            iconColor: "text-[#245AA8]",
+            bg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
         },
         {
             title: "Fixed Assets",
             value: `${type.filter((c) => c.name == 'fixed').length}`,
             icon: Building2,
             bg: "bg-[#EEF5FF]",
-            iconColor: "text-[#245AA8]",
+            iconColor: "text-[#00376C]",
         },
         {
             title: "Unit-to-Unit Assets",
             value: `${type.filter((c) => c.name == "unit-to-unit").length}`,
             icon: ArrowRightLeft,
-            bg: "bg-[#ECFDF3]",
-            iconColor: "text-[#10B981]",
+            bg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
         },
         {
             title: "Movable Assets",
             value: `${type.filter((c) => c.name == "movable").length}`,
             icon: MonitorSmartphone,
-            bg: "bg-[#FFF3ED]",
-            iconColor: "text-[#F97316]",
+            bg: "bg-[#FEF3C7]",
+            iconColor: "text-[#B45309]",
         },
     ];
     const columns = useMemo(() => [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className="mx-6"
-                />
+            id: "sno",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="mx-6"
-                />
+                <span className="text-xs text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 100,
+            size: 36,
         },
         {
             accessorKey: "assetType",
@@ -229,29 +220,22 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="ASSET TYPE" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => <TypeBadge type={row.original.name} />,
-            size: 150,
+            enableSorting: false,
+            size: 160,
         },
-        {
-            accessorKey: "description",
-            header: ({ column }) => (
-                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold my-2.5" />
-            ),
-            cell: ({ row }) => (
-                <TruncatedCell value={row.original.description} widthClass="max-w-[220px]" />
-            ),
-            size: 220,
-        },
+
         {
             accessorKey: "status",
             header: ({ column }) => (
                 <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className={`flex items-center gap-2 text-sm font-medium ${row.original.status === 'Active' ? 'text-[#16A34A]' : 'text-[#737781]'}`}>
-                    <span className={`w-2 h-2 rounded-full my-4 ${row.original.status === 'Active' ? 'bg-[#16A34A]' : 'bg-[#9CA3AF]'}`} />
-                    {row.original.status}
-                </div>
+                <span className={`text-xs font-semibold whitespace-nowrap ${row.original.status === 'Active' ? 'text-emerald-600' : 'text-gray-500'}`}>
+                    {row.original.status || '—'}
+                </span>
             ),
+            enableSorting: false,
+            size: 80,
         },
         {
             id: "actions",
@@ -259,7 +243,7 @@ const confirmDelete = async () => {
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 whitespace-nowrap">
                     <Eye
                         size={18}
                         className="text-[#64748B] hover:text-green-600 cursor-pointer"
@@ -285,14 +269,12 @@ const confirmDelete = async () => {
                 </div>
             ),
             enableSorting: false,
+            size: 80,
         },
     ], [canEdit, canDelete])
     const table = useReactTable({
         data: filteredTypes,
         columns,
-        state: { rowSelection },
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
@@ -306,86 +288,71 @@ const confirmDelete = async () => {
 
     return (
         <Container>
-            <div className="space-y-6 p-6">
+            <div className="pt-2 pb-6 mx-auto space-y-4">
+                <PageHeader
+                    title="Assign Asset Types"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                            <HeaderActionButton onClick={openCreateModal}>
+                                Add Asset Type
+                            </HeaderActionButton>
+                        )}
+                        </div>
+                    }
+                />
 
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Asset Types</span>
-            </div>
+            <PageErrorAlert error={error} onRetry={fetchTypes} className="my-3" />
 
-            {/* Header */}
-            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">Assign Asset Types</h1>
-                    <p className="text-[#5F6368] mt-2 max-w-3xl text-sm">
-                        Configure classification rules and transfer protocols for organizational assets.
-                    </p>
-                </div>
-                {canAdd && (
-                    <div className="flex gap-3">
-                        <button onClick={openCreateModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg hover:bg-[#063b6d] cursor-pointer">
-                            <Plus size={16} />
-                            Add Asset Type
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Stats Cards — unchanged, still static */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-2">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 py-4 text-[#43474F]">
                 {STATS.map((item, index) => {
                     const Icon = item.icon;
 
                     return (
                         <div
                             key={index}
-                            className={`border border-[#C3C6D1] rounded-2xl p-4 shadow-sm`}
+                            className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
                         >
-                            <div className="flex items-center justify-between mb-2">
-                                <div
-                                    className={`w-7 h-7 rounded ${item.bg} flex items-center justify-center`}
-                                >
-                                    <Icon className={`w-4 h-4 ${item.iconColor}`} />
-                                </div>
+                            <div
+                                className={`w-9 h-9 rounded-xl ${item.bg} ${item.iconColor} flex items-center justify-center shrink-0`}
+                            >
+                                <Icon className="w-5 h-5" />
                             </div>
 
-                            <p className="text-sm text-[#43474F]">
-                                {item.title}
-                            </p>
+                            <div className="flex flex-col items-end text-right">
+                                <span className="text-xs font-semibold text-[#00376C]">
+                                    {item.title}
+                                </span>
 
-                            <h2 className="text-xl font-bold text-[#111827]">
-                                {item.value}
-                            </h2>
+                                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
+                                    {item.value}
+                                </span>
+                            </div>
                         </div>
                     );
                 })}
             </div>
             {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
-                    <div className="relative w-full border border-[#C3C6D1] rounded-lg">
-                        <Search
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
-
-                        <input
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            placeholder="Search by type, description..."
-                            className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
-                        />
-                    </div>
+                    <SearchBar
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        placeholder="Search by type, description..."
+                    />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
                         {/* Asset Type */}
-                            <div className="border border-[#C3C6D1] rounded-lg py-0.5 my-auto">
+                            <div className="border border-[#C3C6D1] rounded-xl py-0.5 my-auto">
                                 <Select
                                     value={typeInput}
                                     onValueChange={(value) => setTypeInput(value)}
@@ -411,7 +378,7 @@ const confirmDelete = async () => {
 
 
                             {/* Transfer Allowed */}
-                            <div className="border border-[#C3C6D1] rounded-lg py-0.5 my-auto">
+                            <div className="border border-[#C3C6D1] rounded-xl py-0.5 my-auto">
                                 <Select
                                     value={transferInput}
                                     onValueChange={(value) => setTransferInput(value)}
@@ -437,14 +404,21 @@ const confirmDelete = async () => {
             {/* Table */}
             <div className='w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden'>
                 {loading && <p className="p-4 text-sm text-gray-500">Loading asset types...</p>}
-                {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                <DataGrid table={table} recordCount={filteredTypes.length} className="rounded-2xl">
+                <DataGrid
+                    table={table}
+                    recordCount={filteredTypes.length}
+                    className="rounded-2xl"
+                    tableLayout={{
+                        dense: true,
+                        width: 'fixed',
+                        cellBorder: true,
+                        headerBorder: true,
+                        rowBorder: true,
+                    }}
+                >
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
+                        <CardTable className="w-full overflow-x-hidden">
+                            <DataGridTable />
                         </CardTable>
                     </Card>
                 </DataGrid>
@@ -470,9 +444,15 @@ const confirmDelete = async () => {
     onClose={closeDeleteConfirm}
     onConfirm={confirmDelete}
     itemLabel={deleteTarget?.itemLabel}
-    saving={deleteSaving}
-/>
-        </div>
+                    saving={deleteSaving}
+                />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_type"
+                    title="Export Asset Type Report"
+                />
+            </div>
         </Container>
     );
 };

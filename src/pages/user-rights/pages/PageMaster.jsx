@@ -4,8 +4,10 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
-import { ChevronRight, Eye, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
+import {  Download, Eye, SquarePen, Trash2 } from 'lucide-react';
 import { deletePage, getPages } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -14,10 +16,15 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddPageModal from './AddPageModal';
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Maps a raw API page object (+ its row position) to the shape the table expects
 const mapPage = (p, index) => ({
@@ -27,8 +34,21 @@ const mapPage = (p, index) => ({
   moduleName: p.moduleName,
 });
 
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-[220px]',
+  className = 'text-gray-800 font-medium',
+}) => (
+  <span
+    title={value}
+    className={`block truncate text-xs ${className} ${widthClass}`}
+  >
+    {value || '—'}
+  </span>
+);
+
 const PageMaster = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Pages');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Pages');
 
   const [pages, setPages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,7 +61,9 @@ const PageMaster = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
+  const navigate = useNavigate();
+  const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
   const openViewModal = (row) => {
     setIsViewOnly(true);
     setEditingPage(row);
@@ -149,13 +171,13 @@ const PageMaster = () => {
         accessorFn: (row) => row.srNo,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Sr No#"
+            title="S.NO"
             column={column}
             className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{row.original.srNo}</span>
+          <span className="text-gray-500 py-2 text-xs">{row.original.srNo}</span>
         ),
         enableSorting: false,
         size: 90,
@@ -165,7 +187,7 @@ const PageMaster = () => {
         accessorFn: (row) => row.name,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Page Name"
+            title="PAGE NAME"
             column={column}
             className="text-[#43474F] font-semibold"
           />
@@ -174,58 +196,65 @@ const PageMaster = () => {
           <button
             type="button"
             onClick={() => (canEdit ? openEditModal(row.original) : openViewModal(row.original))}
-            className="text-[#084E92] font-medium hover:underline text-left cursor-pointer"
+            className="text-gray-800 font-medium text-xs hover:underline text-left cursor-pointer truncate max-w-[250px] block"
+            title={row.original.name}
           >
             {row.original.name}
           </button>
         ),
         size: 280,
+        enableSorting: true,
       },
       {
         id: 'moduleName',
         accessorFn: (row) => row.moduleName,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Module Name"
+            title="MODULE NAME"
             column={column}
             className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-[#084E92]">{row.original.moduleName}</span>
+          <TruncatedCell value={row.original.moduleName} />
         ),
         size: 280,
+        enableSorting: true,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Actions"
+            title="ACTIONS"
             column={column}
             className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => openViewModal(row.original)}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-400 text-gray-600 hover:bg-gray-100 transition cursor-pointer"
               aria-label={`View ${row.original.name}`}
               title="View Details"
             >
-              <Eye size={14} />
+              <Eye
+                size={18}
+                className="text-gray-500 hover:text-green-600 cursor-pointer"
+              />
             </button>
 
             {canEdit && (
               <button
                 type="button"
                 onClick={() => openEditModal(row.original)}
-                className="w-8 h-8 flex items-center justify-center rounded-full border border-[#084E92] text-[#084E92] hover:bg-[#084E92] hover:text-white transition cursor-pointer"
                 aria-label={`Edit ${row.original.name}`}
                 title="Edit"
               >
-                <SquarePen size={14} />
+                <SquarePen
+                  size={18}
+                  className="text-gray-500 hover:text-blue-600 cursor-pointer"
+                />
               </button>
             )}
 
@@ -233,11 +262,13 @@ const PageMaster = () => {
               <button
                 type="button"
                 onClick={() => openDeleteConfirm(row.original)}
-                className="w-8 h-8 flex items-center justify-center rounded-full border border-red-300 text-red-500 hover:bg-red-50 transition cursor-pointer"
                 aria-label={`Delete ${row.original.name}`}
                 title="Delete"
               >
-                <Trash2 size={14} />
+                <Trash2
+                  size={18}
+                  className="text-red-300 hover:text-red-600 cursor-pointer"
+                />
               </button>
             )}
           </div>
@@ -252,9 +283,11 @@ const PageMaster = () => {
   const table = useReactTable({
     data: filteredPages,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     getPaginationRowModel: getPaginationRowModel(),
   });
 
@@ -264,38 +297,36 @@ const PageMaster = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Header row: title left, breadcrumb + primary action right */}
-        <div className="flex justify-between items-start flex-col sm:flex-row gap-4 mb-6">
-          <h1 className="text-2xl font-bold text-[#1B1B1F]">Page Master</h1>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
+        <PageHeader
+          title="Page Master"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
+                icon={<Download className={`w-3.5 h-3.5`} />}
+                label="Export"
+              />}
+              {canAdd && (
+                <HeaderActionButton onClick={openCreateModal}>
+                  Add Page
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        {/* Search + Add Page */}
-        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-4">
-          <div className="relative w-full sm:w-80 border border-[#C3C6D1] rounded-lg">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search Page"
-              className="w-full pl-10 py-2 outline-none rounded-lg bg-transparent"
-            />
-          </div>
+        <PageErrorAlert error={error} onRetry={fetchPages} />
 
-          {canAdd && (
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition self-end sm:self-auto cursor-pointer"
-            >
-              <Plus size={16} />
-              Add Page
-            </button>
-          )}
+        {/* Search */}
+        <div className="w-full">
+          <SearchBar
+            placeholder="Search Page..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            isStandalone={true}
+          />
         </div>
 
         {/* Table */}
@@ -303,11 +334,17 @@ const PageMaster = () => {
           {loading && (
             <p className="p-4 text-sm text-gray-500">Loading pages...</p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
           <DataGrid
             table={table}
             recordCount={filteredPages.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>
@@ -337,6 +374,12 @@ const PageMaster = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.name}
           saving={deleteLoading}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="userrights_pages"
+          title="Export Pages Report"
         />
       </div>
     </Container>

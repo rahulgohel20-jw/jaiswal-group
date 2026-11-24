@@ -1,12 +1,12 @@
 import {
     ArrowLeft,
-    ChevronRight,
     FileText,
     Save,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
 import SearchableSelect from "../../../utils/SearchableSelect";
@@ -21,6 +21,7 @@ import {
 } from "../../../services/apiServices";
 import { getUserIdFromToken } from "../../../utils/auth";
 import { OrgTypes } from "../../../constants/orgTypes";
+import { formatRemarks } from "@/utils/textUtils";
 
 const inputCls =
     "w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 " +
@@ -72,7 +73,7 @@ const orgTypeLabel = (orgType) => {
         case OrgTypes.SUB_COMPANY:
             return "Company";
         case OrgTypes.OUTLET:
-            return "Outlet";
+            return "Unit";
         default:
             return orgType ?? "";
     }
@@ -428,7 +429,7 @@ const AddAssetsDisposal = () => {
             orgId: resolvedOrgId,
 
             qty: Number(form.qty) || 0,
-            remarks: form.remarks,
+            remarks: formatRemarks(form.remarks || ""),
             saleValue: Number(form.saleValue) || 0,
 
             subOutletId: form.subUnit ? Number(form.subUnit) : 0,
@@ -483,54 +484,25 @@ const AddAssetsDisposal = () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
-                {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Asset Management</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#0151a8] font-medium">
-                        {isEditMode ? "Edit Disposal Record" : "Asset Disposal Registration"}
-                    </span>
-                </div>
-
-                {/* Header */}
-                <div className="flex items-start justify-between flex-wrap gap-4">
-                    <div>
-                        <h1 className="text-2xl font-semibold">
-                            {isEditMode ? "Update Disposal Record" : "Asset Disposal Registration"}
-                        </h1>
-
-                        <p className="text-sm text-gray-500 mt-1">
-                            {isEditMode
-                                ? "Update the details of this disposal record."
-                                : "Systematically record disposal details for organizational assets to ensure accurate lifecycle tracking and regulatory compliance."}
-                        </p>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <Link to="/assets/asset-disposal">
-                            <button
-                                type="button"
-                                className="flex items-center cursor-pointer text-xs gap-2 border-2 border-[#E2E8F0] text-[#334155] font-semibold px-5 py-2.5 rounded-lg bg-white hover:bg-gray-50"
-                            >
-                                <ArrowLeft size={16} />
-                                Back to List
-                            </button>
-                        </Link>
-
+            <div className="mx-auto pt-2 pb-6 space-y-3.5">
+                <PageHeader
+                    title={isEditMode ? "Update Disposal Record" : "Asset Disposal Registration"}
+                    description={
+                        isEditMode
+                            ? "Update the details of this disposal record."
+                            : "Systematically record disposal details for organizational assets to ensure accurate lifecycle tracking and regulatory compliance."
+                    }
+                    actions={
                         <button
                             type="button"
-                            disabled={submitting || loadingRecord}
-                            onClick={() => handleSave(false)}
-                            className="flex items-center cursor-pointer text-xs gap-2 bg-[#084E92] text-white px-5 py-2.5 rounded-lg hover:bg-[#06396c] disabled:opacity-60"
+                            onClick={() => navigate('/assets/asset-disposal')}
+                            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
                         >
-                            <Save size={16} />
-                            {saveLabel}
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to List
                         </button>
-                    </div>
-                </div>
+                    }
+                />
 
                 {/* Card */}
                 <div className="mt-6 rounded-2xl border shadow-sm overflow-hidden">
@@ -732,6 +704,7 @@ const AddAssetsDisposal = () => {
                                     placeholder="Detailed reason for disposing this asset (e.g., End of useful life, excessive maintenance costs, damaged beyond repair)..."
                                     value={form.remarks}
                                     onChange={handleInputChange}
+                                    onBlur={() => set("remarks", formatRemarks(form.remarks))}
                                 />
                             </div>
 

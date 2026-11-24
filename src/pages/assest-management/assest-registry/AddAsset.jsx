@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import {
+  ArrowLeft,
   Boxes,
   ChevronDown,
   Copy,
-  Download,
   Landmark,
   Package,
   QrCode,
@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   Wrench,
   Save,
-  UserPlus,
   CirclePlus,
   ImagePlus,
   X,
@@ -27,18 +26,34 @@ import {
   getActiveAssetTypes,
   getActiveAssetBrands,
   createAsset,
+  updateAsset,
   getActiveConditions,
   getActiveStatuses,
-  updateAsset
+  getOrganizationByType,
+  getAssetUnitLocationsByOrganization,
+  createAssignAsset,
+  updateAssignAsset,
+  getAssetById,
+  getAllAssignAssets,
+  getHrmsUsersPaginated,
+  getAllDepartmentMaster,
 } from '@/services/apiServices';
+import { OrgTypes } from '@/constants/orgTypes';
+
+const CUSTODIAN_TYPE_OPTIONS = [
+  { value: 'USER', label: 'Individual' },
+  { value: 'DEPT', label: 'Department' },
+];
+import { useOrgScope } from '@/hooks/useOrgScope';
+import { getOrgIdFromToken } from '@/utils/auth';
 import AddAssetTypeModal from '../assets-type/AddAssetTypeModal';
 import AddAssetBrandModal from '../asset-brand/AddAssetBrandModal';
-import { getAssetById } from '../../../services/apiServices';
 import { notify } from "@/utils/toast";
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import { Input } from "@/components/ui/input";
 import SearchableSelect from '../../../utils/SearchableSelect';
+import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -255,20 +270,12 @@ const toDDMMYYYY = (dateStr) => {
 };
 const toInputDate = (dateStr) => {
   if (!dateStr) return '';
-
+  if (dateStr.includes('-')) return dateStr;
   const [day, month, year] = dateStr.split('/');
 
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 };
 
-
-// <input type="date"> gives "yyyy-mm-dd"; backend expects "mm/dd/yyyy". Returns null for empty/invalid input.
-const toMMDDYYYY = (dateStr) => {
-  if (!dateStr) return null;
-  const [year, month, day] = dateStr.split('-');
-  if (!year || !month || !day) return null;
-  return `${month}/${day}/${year}`;
-};
 const handleQuantityKeyDown = (e) => {
   if (["e", "E", "+", "-", ".", ","].includes(e.key)) {
     e.preventDefault();
@@ -276,7 +283,7 @@ const handleQuantityKeyDown = (e) => {
 };
 const AddAsset = () => {
   const { id: assetIdParam } = useParams();
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
   const isEditMode = !!assetIdParam;
   const { canAdd, canEdit, canView } = usePagePermissions('Assets');
 
@@ -284,14 +291,16 @@ const AddAsset = () => {
     identification: true,
     product: true,
     status: true,
+    assignment: true,
   });
   const toggleSection = (s) => setOpenSections((p) => ({ ...p, [s]: !p[s] }));
 
   const [amcActive, setAmcActive] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [existingAssignmentId, setExistingAssignmentId] = useState(null);
 
   // ---- Validation ----
-  const [ errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({});
 
   // ---- Dynamic dropdown data ----
   const [categories, setCategories] = useState([]);
@@ -317,32 +326,133 @@ const AddAsset = () => {
   const [statuses, setStatuses] = useState([]);
   const [statusesLoading, setStatusesLoading] = useState(true);
 
+  // ---- Unit & Location assignment scope and options ----
+  const { isGroupUser, isCompanyUser, isOutletUser, selfOrg, units: scopedUnits, effectiveOutletId, userCompanyId } = useOrgScope();
+  const [units, setUnits] = useState([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [locations, setLocations] = useState([]);
+  const [loadingLocations, setLoadingLocations] = useState(false);
+
   const [originalForm, setOriginalForm] = useState(null);
   const [originalAmcActive, setOriginalAmcActive] = useState(false);
 
   const [showQrPreview, setShowQrPreview] = useState(false);
 
+  const initialFormState = {
+    assetId: '',
+    category: '',
+    subCategory: '',
+    assetType: '',
 
+    itemName: '',
+    brand: '',
+    modelNumber: '',
+    serialNumber: '',
+    assetImage: null,
+    existingImage: '',
+
+    purchaseDate: '',
+    vendor: '',
+    invoiceNumber: '',
+    purchaseCost: '',
+    currentValue: '',
+    depreciation: '10',
+
+    warrantyStart: '',
+    warrantyEnd: '',
+    amcExpiry: '',
+    amcProvider: '',
+
+    lastMaintenance: '',
+    nextMaintenance: '',
+    frequency: '',
+    maintenanceCost: '',
+
+    condition: '',
+    status: '',
+    totalQty: '1',
+    availableQty: '1',
+    reservedQty: '0',
+
+    unitId: '',
+    assetUnitLocationId: '',
+    assignQty: '',
+    custodianType: 'USER',
+    custodianValue: '',
+  };
+
+  const [form, setForm] = useState(initialFormState);
+
+  const set = (key, val) => {
+    setForm((f) => ({ ...f, [key]: val }));
+    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
+  };
+
+  // Pre-fill asset details and assignment in edit mode
   useEffect(() => {
     if (!isEditMode) return;
 
     const fetchAsset = async () => {
       try {
         const res = await getAssetById(assetIdParam);
-        const asset = res?.data?.data;
+        const asset = res?.data?.data ?? res?.data;
 
         if (!asset) return;
 
         if (asset.categoryId) {
           await fetchSubCategories(asset.categoryId);
         }
+
+        const loadedDepreciation =
+          asset.depreciationPercentage != null
+            ? String(asset.depreciationPercentage)
+            : '10';
+
+        let assignUnitId = '';
+        let assignLocationId = '';
+        let assignQtyVal = '';
+        let assignCustodianType = 'USER';
+        let assignCustodianVal = '';
+
+        // Fetch existing assignment to autofill unit, location, and quantity
+        try {
+          const assignRes = await getAllAssignAssets();
+          const allAssignments = unwrapList(assignRes);
+          const currentAssign = allAssignments.find(
+            (a) => Number(a.assetId) === Number(assetIdParam) && a.active !== false
+          );
+
+          if (currentAssign) {
+            setExistingAssignmentId(currentAssign.id);
+            assignUnitId = currentAssign.companiesId ? String(currentAssign.companiesId) : '';
+            assignLocationId = currentAssign.assetUnitLocationId ? String(currentAssign.assetUnitLocationId) : '';
+            assignQtyVal = currentAssign.quantity != null
+              ? String(currentAssign.quantity)
+              : currentAssign.qty != null
+                ? String(currentAssign.qty)
+                : currentAssign.assetItems?.[0]?.qty != null
+                  ? String(currentAssign.assetItems[0].qty)
+                  : '';
+            assignCustodianType = currentAssign.custodianType || (currentAssign.assignToId ? 'USER' : 'USER');
+            assignCustodianVal = currentAssign.custodianValue
+              ? String(currentAssign.custodianValue)
+              : currentAssign.assignToId
+                ? String(currentAssign.assignToId)
+                : '';
+          }
+        } catch (assignFetchErr) {
+          console.error('Failed to load assignments for autofill:', assignFetchErr);
+        }
+
         const loadedForm = {
           ...initialFormState,
 
           existingImage:
             Array.isArray(asset.images) && asset.images.length > 0
               ? asset.images[asset.images.length - 1].path
-              : '',
+              : Array.isArray(asset.assetImagePaths) && asset.assetImagePaths.length > 0
+                ? asset.assetImagePaths[0]
+                : '',
 
           assetId: asset.assetCode || '',
 
@@ -361,9 +471,9 @@ const AddAsset = () => {
           vendor: String(asset.vendorId || ''),
           invoiceNumber: asset.invoiceNumber || '',
 
-          purchaseCost: String(asset.purchaseCost || ''),
-          currentValue: String(asset.currentValue || ''),
-          depreciation: String(asset.depreciationPercentage || ''),
+          purchaseCost: asset.purchaseCost != null ? String(asset.purchaseCost) : '',
+          currentValue: asset.currentValue != null ? String(asset.currentValue) : '',
+          depreciation: loadedDepreciation,
 
           warrantyStart: toInputDate(asset.warrantyStartDate),
           warrantyEnd: toInputDate(asset.warrantyEndDate),
@@ -380,26 +490,28 @@ const AddAsset = () => {
           totalQty: String(asset.totalQuantity || 0),
           availableQty: String(asset.availableQuantity || 0),
           reservedQty: String(asset.reservedQuantity || 0),
+
+          unitId: assignUnitId,
+          assetUnitLocationId: assignLocationId,
+          assignQty: assignQtyVal,
+          custodianType: assignCustodianType,
+          custodianValue: assignCustodianVal,
         };
 
         setForm(loadedForm);
-
         setOriginalForm(loadedForm);
-        setOriginalAmcActive(asset.amcActive);
+        setOriginalAmcActive(Boolean(asset.amcActive));
+        setAmcActive(Boolean(asset.amcActive));
 
-        setAmcActive(asset.amcActive);
-
-        // AMC expiry API me nahi aa raha
-        set('amcProvider', '');
-        set('amcExpiry', '');
-
+        set('amcProvider', asset.amcProvider || '');
+        set('amcExpiry', toInputDate(asset.amcExpiryDate));
       } catch (err) {
         console.error('Failed to load asset', err);
       }
     };
 
     fetchAsset();
-  }, [assetIdParam]);
+  }, [assetIdParam, isEditMode]);
 
   const handleReset = () => {
     if (isEditMode && originalForm) {
@@ -408,6 +520,12 @@ const AddAsset = () => {
     } else {
       setForm(initialFormState);
       setAmcActive(false);
+      if (isOutletUser) {
+        const targetUnitId = effectiveOutletId || selfOrg?.id || getOrgIdFromToken();
+        if (targetUnitId) {
+          set('unitId', String(targetUnitId));
+        }
+      }
     }
     setErrors({});
   };
@@ -419,11 +537,11 @@ const AddAsset = () => {
       const res = await getAssetCategories();
       const allCategories = unwrapList(res);
 
-    const activeCategories = allCategories.filter(
-      (category) => category.active === true
-    );
+      const activeCategories = allCategories.filter(
+        (category) => category.active === true
+      );
 
-    setCategories(activeCategories);
+      setCategories(activeCategories);
     } catch (err) {
       console.error(err);
     } finally {
@@ -436,10 +554,10 @@ const AddAsset = () => {
     try {
       const res = await getActiveAssetTypes();
       const activeAssetTypes = unwrapList(res).filter(
-      (assetType) => assetType.active === true
+        (assetType) => assetType.active === true
       );
 
-     setAssetTypes(activeAssetTypes);
+      setAssetTypes(activeAssetTypes);
     } catch (err) {
       console.error(err);
     } finally {
@@ -462,7 +580,7 @@ const AddAsset = () => {
         (subCategory) => subCategory.active === true
       );
 
-    setSubCategories(activeSubCategories);
+      setSubCategories(activeSubCategories);
     } catch (err) {
       console.error(err);
       setSubCategories([]);
@@ -476,7 +594,7 @@ const AddAsset = () => {
     try {
       const res = await getActiveAssetBrands();
       const activeBrands = unwrapList(res).filter(
-      (brand) => brand.active === true
+        (brand) => brand.active === true
       );
 
       setAssetBrand(activeBrands);
@@ -493,7 +611,7 @@ const AddAsset = () => {
     try {
       const res = await getActiveConditions();
       const activeConditions = unwrapList(res).filter(
-      (condition) => condition.active === true
+        (condition) => condition.active === true
       );
 
       setConditions(activeConditions);
@@ -509,10 +627,10 @@ const AddAsset = () => {
     try {
       const res = await getActiveStatuses();
       const activeStatuses = unwrapList(res).filter(
-      (status) => status.active === true
-    );
+        (status) => status.active === true
+      );
 
-    setStatuses(activeStatuses);
+      setStatuses(activeStatuses);
     } catch (err) {
       console.error(err);
     } finally {
@@ -529,57 +647,226 @@ const AddAsset = () => {
     fetchStatuses();
   }, []);
 
-  const [form, setForm] = useState({
-    assetId: '',
-    category: '',
-    subCategory: '',
-    assetType: '',
-
-    itemName: '',
-    brand: '',
-    modelNumber: '',
-    serialNumber: '',
-
-    assetImage: null,
-    existingImage: '',
-
-    purchaseDate: '',
-    vendor: '',
-    invoiceNumber: '',
-    purchaseCost: '',
-    currentValue: '',
-    depreciation: '',
-
-    warrantyStart: '',
-    warrantyEnd: '',
-    amcExpiry: '',
-    amcProvider: '',
-
-    lastMaintenance: '',
-    nextMaintenance: '',
-    frequency: '',
-    maintenanceCost: '',
-
-    condition: '',
-    status: '',
-    totalQty: '1',
-    availableQty: '1',
-    reservedQty: '0',
+  const normalizeUnit = (item) => ({
+    value: String(item.id),
+    label: item.companyNameEnglish || item.name || item.organizationName || `Unit #${item.id}`,
   });
 
-  const qrAssetCode = form.assetId;
+  // Fetch unit list according to role
+  useEffect(() => {
+    const fetchUnits = async () => {
+      if (isOutletUser) {
+        const targetUnitId = effectiveOutletId || selfOrg?.id || getOrgIdFromToken();
+        if (targetUnitId) {
+          set('unitId', String(targetUnitId));
+        }
+        return;
+      }
 
-  const qrUrl = qrAssetCode
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-      qrAssetCode
-    )}`
-    : null;
+      setLoadingUnits(true);
+      try {
+        if (isGroupUser) {
+          const res = await getOrganizationByType(OrgTypes.OUTLET);
+          const list = unwrapList(res);
+          const unitOpts = list.length > 0 ? list.map(normalizeUnit) : (scopedUnits || []).map(normalizeUnit);
+          setUnits(unitOpts);
+        } else if (isCompanyUser) {
+          const mapped = (scopedUnits || []).map(normalizeUnit);
+          setUnits(mapped);
+          if (mapped.length === 1 && !form.unitId) {
+            set('unitId', String(mapped[0].value));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load units:', err);
+        setUnits((scopedUnits || []).map(normalizeUnit));
+      } finally {
+        setLoadingUnits(false);
+      }
+    };
 
+    fetchUnits();
+  }, [isGroupUser, isCompanyUser, isOutletUser, scopedUnits, selfOrg, effectiveOutletId]);
 
-  const set = (key, val) => {
-    setForm((f) => ({ ...f, [key]: val }));
-    setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
+  // Fetch locations under selected unit
+  useEffect(() => {
+    if (!form.unitId) {
+      setLocations([]);
+      return;
+    }
+
+    const fetchLocations = async () => {
+      setLoadingLocations(true);
+      try {
+        const res = await getAssetUnitLocationsByOrganization(form.unitId);
+        const list = unwrapList(res);
+        setLocations(
+          list
+            .filter((l) => l.active !== false && l.isActive !== false)
+            .map((l) => ({
+              value: String(l.id),
+              label: l.locationName || l.name || `Location #${l.id}`,
+            }))
+        );
+      } catch (err) {
+        console.error('Failed to load locations:', err);
+        setLocations([]);
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+
+    fetchLocations();
+  }, [form.unitId]);
+
+  // ---- HRMS Users & Departments for Custodian ----
+  const [hrmsUsers, setHrmsUsers] = useState([]);
+  const [userPage, setUserPage] = useState(0);
+  const [hasMoreUsers, setHasMoreUsers] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [loadingUsersMore, setLoadingUsersMore] = useState(false);
+  const userPageRef = useRef(0);
+  const hasMoreUsersRef = useRef(true);
+  const loadingUsersMoreRef = useRef(false);
+
+  const [departments, setDepartments] = useState([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+
+  const fetchDepartments = async () => {
+    try {
+      setLoadingDepartments(true);
+      const res = await getAllDepartmentMaster();
+      const raw = res?.data?.data ?? res?.data;
+      const list = Array.isArray(raw?.['Department Details'])
+        ? raw['Department Details']
+        : Array.isArray(raw?.departmentDetails)
+          ? raw.departmentDetails
+          : Array.isArray(raw)
+            ? raw
+            : Array.isArray(raw?.content)
+              ? raw.content
+              : Array.isArray(res?.data)
+                ? res.data
+                : [];
+      setDepartments(list);
+    } catch (err) {
+      console.error('Failed to load departments:', err);
+    } finally {
+      setLoadingDepartments(false);
+    }
   };
+
+  useEffect(() => {
+    if (form.custodianType === 'DEPT') {
+      fetchDepartments();
+    }
+  }, [form.custodianType]);
+
+  const fetchUsersPage = async (pageToFetch = 0, isInitial = false) => {
+    if (loadingUsersMoreRef.current) return;
+    try {
+      if (isInitial) {
+        setLoadingUsers(true);
+      } else {
+        loadingUsersMoreRef.current = true;
+        setLoadingUsersMore(true);
+      }
+
+      const params = {
+        page: pageToFetch,
+        pageSize: 20,
+        size: 20,
+      };
+      if (userCompanyId || selfOrg?.id) {
+        params.companyId = Number(userCompanyId || selfOrg?.id);
+      }
+      if (form.unitId) {
+        params.outletId = Number(form.unitId);
+      }
+
+      const res = await getHrmsUsersPaginated(params);
+      const raw = res?.data?.data ?? res?.data;
+      const content = Array.isArray(raw?.content)
+        ? raw.content
+        : Array.isArray(raw)
+          ? raw
+          : Array.isArray(res?.data?.content)
+            ? res.data.content
+            : [];
+      const isLast = raw?.last ?? (content.length < 20);
+
+      setHrmsUsers((prev) => {
+        if (pageToFetch === 0) {
+          return content;
+        }
+        const existingIds = new Set(prev.map((u) => String(u.id)));
+        const newItems = content.filter((u) => !existingIds.has(String(u.id)));
+        return [...prev, ...newItems];
+      });
+
+      userPageRef.current = pageToFetch;
+      setUserPage(pageToFetch);
+      hasMoreUsersRef.current = !isLast;
+      setHasMoreUsers(!isLast);
+    } catch (err) {
+      console.error('Failed to load HRMS users:', err);
+    } finally {
+      if (isInitial) setLoadingUsers(false);
+      loadingUsersMoreRef.current = false;
+      setLoadingUsersMore(false);
+    }
+  };
+
+  useEffect(() => {
+    if (form.custodianType === 'USER') {
+      userPageRef.current = 0;
+      hasMoreUsersRef.current = true;
+      fetchUsersPage(0, true);
+    }
+  }, [form.custodianType, form.unitId, userCompanyId, selfOrg]);
+
+  const handleLoadMoreUsers = useCallback(() => {
+    if (hasMoreUsersRef.current && !loadingUsersMoreRef.current) {
+      fetchUsersPage(userPageRef.current + 1, false);
+    }
+  }, [form.unitId, userCompanyId, selfOrg]);
+
+  const userOptions = useMemo(() => {
+    return (hrmsUsers || []).map((u) => {
+      const name =
+        u.empname ||
+        u.empName ||
+        u.fullName ||
+        [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+        u.name ||
+        u.userName ||
+        u.email ||
+        `User #${u.id}`;
+      const code = u.empcode || u.empCode || u.employeeCode || u.code || '';
+      const designation = u.designationName || u.designation || u.departmentName || '';
+      const nameWithCode = code ? `${name} - ${code}` : name;
+      return {
+        value: String(u.id),
+        label: designation ? `${nameWithCode} (${designation})` : nameWithCode,
+      };
+    });
+  }, [hrmsUsers]);
+
+  const departmentOptions = useMemo(() => {
+    return (departments || []).map((d) => {
+      const name = d.name || d.departmentName || d.deptName || `Department #${d.id}`;
+      const code = d.departmentCode || d.shortCode || '';
+      return {
+        value: String(d.id),
+        label: code ? `${name} (${code})` : name,
+      };
+    });
+  }, [departments]);
+
+  const qrAssetCode = form.assetId;
+  const qrUrl = qrAssetCode
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrAssetCode)}`
+    : null;
 
   const handleCategoryChange = (e) => {
     const value = e.target.value;
@@ -588,60 +875,12 @@ const AddAsset = () => {
     fetchSubCategories(value || null);
   };
 
-  // Load existing asset when editing
-  useEffect(() => {
-    if (!isEditMode) return;
-    // TODO: wire to a real getAssetById(assetIdParam) call once available, e.g.:
-    // getAssetById(assetIdParam).then((res) => {
-    //   const a = res?.data?.data ?? res?.data;
-    //   setForm((f) => ({ ...f, assetId: a.assetId, itemName: a.itemName, /* ...map remaining fields */ }));
-    //   setAmcActive(!!a.amcActive);
-    // }).catch(console.error);
-  }, [isEditMode, assetIdParam]);
-
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
   const subCategoryOptions = subCategories.map((c) => ({ value: c.id, label: c.name }));
   const assetTypeOptions = assetTypes.map((c) => ({ value: c.id, label: c.name }));
   const assetBrandOptions = assetBrand.map((c) => ({ value: c.id, label: c.name }));
   const conditionOptions = conditions.map((c) => ({ value: c.id, label: c.name }));
   const statusOptions = statuses.map((c) => ({ value: c.id, label: c.name }));
-
-  const initialFormState = {
-    assetId: '',
-    category: '',
-    subCategory: '',
-    assetType: '',
-
-    itemName: '',
-    brand: '',
-    modelNumber: '',
-    serialNumber: '',
-    assetImage: null,
-    existingImage: '',
-
-    purchaseDate: '',
-    vendor: '',
-    invoiceNumber: '',
-    purchaseCost: '',
-    currentValue: '',
-    depreciation: '',
-
-    warrantyStart: '',
-    warrantyEnd: '',
-    amcExpiry: '',
-    amcProvider: '',
-
-    lastMaintenance: '',
-    nextMaintenance: '',
-    frequency: '',
-    maintenanceCost: '',
-
-    condition: '',
-    status: '',
-    totalQty: '1',
-    availableQty: '1',
-    reservedQty: '0',
-  };
 
   const buildAssetPayload = () => ({
     categoryId: form.category,
@@ -652,7 +891,7 @@ const AddAsset = () => {
     modelNumber: form.modelNumber,
     serialNumber: form.serialNumber,
     purchaseDate: toDDMMYYYY(form.purchaseDate),
-    vendorId: 0, // TODO: static placeholder until a vendor master/API exists — confirm the actual static id to use
+    vendorId: 0,
     invoiceNumber: form.invoiceNumber,
     purchaseCost: form.purchaseCost ? Number(form.purchaseCost) : null,
     currentValue: form.currentValue ? Number(form.currentValue) : null,
@@ -670,7 +909,7 @@ const AddAsset = () => {
     statusId: form.status || null,
     totalQuantity: form.totalQty ? Number(form.totalQty) : null,
     availableQuantity: form.availableQty !== "" ? Number(form.availableQty) : null,
-    reservedQuantity: form.reservedQty !== ""  ? Number(form.reservedQty) : null,
+    reservedQuantity: form.reservedQty !== "" ? Number(form.reservedQty) : null,
   });
   const handleQuantityChange = (key, value) => {
     setForm((prev) => {
@@ -776,14 +1015,25 @@ const AddAsset = () => {
     if (!form.status) e.status = 'Status is required';
 
     if (!form.itemName.trim()) e.itemName = 'Item name is required';
-    if (!form.brand) e.brand = 'Brand is required';
-
+    if (!form.depreciation) e.depreciation = 'Depreciation required';
     if (form.totalQty === '' || isNaN(Number(form.totalQty)) || Number(form.totalQty) < 0)
       e.totalQty = 'Total quantity must be positive';
     if (form.availableQty === '' || isNaN(Number(form.availableQty)) || Number(form.availableQty) < 0)
       e.availableQty = 'Available quantity must be positive';
 
     if (amcActive && !form.amcExpiry) e.amcExpiry = 'AMC expiry date is required when AMC is active';
+
+    // Quantity validation: assignQty must not exceed availableQty
+    if (form.unitId || form.custodianValue) {
+      const assign = Number(form.assignQty || form.availableQty || 1);
+      const avail = Number(form.availableQty || 0);
+
+      if (assign <= 0) {
+        e.assignQty = 'Assign quantity must be greater than 0';
+      } else if (assign > avail) {
+        e.assignQty = `Cannot assign more than available quantity (${avail})`;
+      }
+    }
 
     return e;
   };
@@ -825,6 +1075,46 @@ const AddAsset = () => {
         res = await createAsset(fd);
       }
       if (res?.status === 200 || res?.status === 201) {
+        const createdAssetId = res?.data?.data?.id || res?.data?.id || assetIdParam;
+
+        // 3. Handle Assignment if Unit or Custodian is selected
+        if ((form.unitId || form.custodianValue) && createdAssetId) {
+          try {
+            const assignQtyVal = form.assignQty ? Number(form.assignQty) : Number(form.availableQty || 1);
+            const selectedType = assetTypes.find((t) => String(t.id) === String(form.assetType));
+            const assignPayload = {
+              active: true,
+              assetId: Number(createdAssetId),
+              assetItems: [
+                {
+                  assetId: Number(createdAssetId),
+                  qty: assignQtyVal,
+                },
+              ],
+              assetType: selectedType?.name || (form.custodianType === 'DEPT' ? 'company_outlet' : 'individual'),
+              companiesId: Number(form.unitId || userCompanyId || selfOrg?.id || 0),
+              assetUnitLocationId: form.assetUnitLocationId ? Number(form.assetUnitLocationId) : 0,
+              custodianType: form.custodianValue ? form.custodianType : null,
+              custodianValue: form.custodianValue ? Number(form.custodianValue) : 0,
+              remarks: 'Assigned during asset registration',
+              subOutletId: 0,
+            };
+
+            // Updates if assignment already exists, otherwise creates
+            if (isEditMode && existingAssignmentId) {
+              await updateAssignAsset({
+                id: existingAssignmentId,
+                ...assignPayload,
+              });
+            } else {
+              await createAssignAsset(assignPayload);
+            }
+          } catch (assignErr) {
+            console.error('Failed to assign/update asset unit location:', assignErr);
+            notify.error('Asset saved, but failed to assign to unit location');
+          }
+        }
+
         setForm(initialFormState);
         setAmcActive(false);
         setErrors({});
@@ -842,570 +1132,707 @@ const AddAsset = () => {
   }
 
   return (
-    <div className="mx-4 min-h-screen pb-8 p-4 md:p-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold">
-            {isEditMode ? 'Edit Asset' : 'Asset Registration'}
-          </h1>
-          <p className="text-[#43474F] mt-2 text-sm">
-            Register and manage all organizational assets to maintain complete lifecycle visibility and compliance.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={handleSaveAsset}
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition shrink-0"
-        >
-          <Save className="w-4 h-4" />
-          {saving
-            ? 'Saving...'
-            : isEditMode
-              ? 'Update Asset'
-              : 'Save Asset'}
-        </button>
-      </div>
-
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={Package}
-          title="Asset Identification & Classification"
-          subtitle=""
-          open={openSections.identification}
-          onToggle={() => toggleSection('identification')}
-        />
-        {openSections.identification && (
-          <div className="px-6 py-6 space-y-5">
-            {isEditMode && (
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div>
-                  <Label>Asset ID</Label>
-                  <div className="relative">
-                    <input
-                      value={form.assetId}
-                      disabled
-                      className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed pr-9`}
-                    />
-                    <Copy className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
-                  </div>
-                </div>
-
-                <CodeBox
-                  label="QR Code"
-                  icon={QrCode}
-                  qrUrl={qrUrl}
-                  actions={[
-                    {
-                      label: 'Preview',
-                      icon: ScanLine,
-                      onClick: () => setShowQrPreview(true),
-                    },
-                  ]}
-                />
-              </div>
-            )}
-
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="flex flex-col justify-end">
-                <div className="flex gap-2 justify-between mb-3">
-                  <Label required>Category</Label>
-                  <Button className="cursor-pointer" onPress={() => setShowAddCategoryModal(true)}>
-                    <CirclePlus />
-                  </Button>
-                </div>
-                <SearchableSelect
-                  name="category"
-                  value={form.category}
-                  onChange={handleCategoryChange}
-                  placeholder={categoriesLoading ? 'Loading categories...' : 'Select category'}
-                  options={categoryOptions}
-                  disabled={categoriesLoading}
-                  hasError={!!errors.category}
-                />
-                <ErrorText message={errors.category} />
-              </div>
-
-              <div className="flex flex-col justify-end">
-                <div className="flex justify-between gap-2 mb-3">
-                  <Label required>Sub Category</Label>
-                  <Button className="cursor-pointer" onPress={() => setShowAddSubCategoryModal(true)}>
-                    <CirclePlus />
-                  </Button>
-                </div>
-                <SearchableSelect
-                  name="subCategory"
-                  value={form.subCategory}
-                  onChange={(e) => set('subCategory', e.target.value)}
-                  placeholder={subCategoriesLoading ? 'Loading sub categories...' : 'Select sub category'}
-                  options={subCategoryOptions}
-                  disabled={subCategoriesLoading}
-                  hasError={!!errors.subCategory}
-                />
-                <ErrorText message={errors.subCategory} />
-              </div>
-
-              <div className="flex flex-col justify-end">
-                <div className="flex justify-between gap-2 mb-3">
-                  <Label required>Asset Type</Label>
-                  <Button className="cursor-pointer" onPress={() => setShowAssetTypeCategoryModal(true)}>
-                    <CirclePlus />
-                  </Button>
-                </div>
-                <SearchableSelect
-                  name="assetType"
-                  value={form.assetType}
-                  onChange={(e) => set('assetType', e.target.value)}
-                  placeholder={assetTypesLoading ? 'Loading asset types...' : 'Select asset type'}
-                  options={assetTypeOptions}
-                  disabled={assetTypesLoading}
-                  hasError={!!errors.assetType}
-                />
-                <ErrorText message={errors.assetType} />
-              </div>
+    <Container>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? 'Edit Asset' : 'Asset Registration'}
+          description="Register and manage all organizational assets to maintain complete lifecycle visibility and compliance."
+          actions={
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate('/assets/all-assets')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Assets
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAsset}
+                disabled={saving}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition shrink-0"
+              >
+                <Save className="w-4 h-4" />
+                {saving
+                  ? 'Saving...'
+                  : isEditMode
+                    ? 'Update Asset'
+                    : 'Save Asset'}
+              </button>
             </div>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* Product Information — item, purchase, warranty/AMC, maintenance */}
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={Boxes}
-          title="Product Information"
-          subtitle=""
-          open={openSections.product}
-          onToggle={() => toggleSection('product')}
+          }
         />
-        {openSections.product && (
-          <div className="px-6 py-6 space-y-6">
-          <div className="grid sm:grid-cols-2 gap-4">
-  <div>
-    <div className="flex items-center justify-between gap-2 mb-3">
-      <Label required>Item Name</Label>
-    </div>
-    <input
-      name="itemName"
-      value={form.itemName}
-      onChange={(e) => set('itemName', e.target.value)}
-      placeholder="e.g. Commercial Freezer 400L"
-      className={errors.itemName ? errorInputCls : inputCls}
-    />
-    <ErrorText message={errors.itemName} />
-  </div>
-  <div>
-    <div className="flex items-center justify-between gap-2 mb-3">
-      <Label required>Brand</Label>
-      <Button className="cursor-pointer" onPress={() => setShowAddAssetBrandCategoryModal(true)}>
-        <CirclePlus />
-      </Button>
-    </div>
-    <SearchableSelect
-      name="brand"
-      value={form.brand}
-      onChange={(e) => set('brand', e.target.value)}
-      placeholder={assetBrandsLoading ? 'Loading asset brands...' : 'Select asset brand'}
-      options={assetBrandOptions}
-      disabled={assetBrandsLoading}
-      hasError={!!errors.brand}
-    />
-    <ErrorText message={errors.brand} />
-  </div>
-</div>
 
-<div className="grid sm:grid-cols-2 gap-4">
-  <div>
-    <Label>Model Number</Label>
-    <input
-      value={form.modelNumber}
-      onChange={(e) => set('modelNumber', e.target.value)}
-      placeholder="SM-FZ-400-X"
-      className={inputCls}
-    />
-  </div>
-  <div>
-    <Label>Serial Number</Label>
-    <input
-      value={form.serialNumber}
-      onChange={(e) => set('serialNumber', e.target.value)}
-      placeholder="SN-2938475610"
-      className={inputCls}
-    />
-  </div>
-</div>
+        <SectionCard className="mt-4">
+          <SectionHeader
+            icon={Package}
+            title="Asset Identification & Classification"
+            subtitle=""
+            open={openSections.identification}
+            onToggle={() => toggleSection('identification')}
+          />
+          {openSections.identification && (
+            <div className="px-6 py-6 space-y-5">
+              {isEditMode && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Asset ID</Label>
+                    <div className="relative">
+                      <input
+                        value={form.assetId}
+                        disabled
+                        className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed pr-9`}
+                      />
+                      <Copy className="w-3.5 h-3.5 text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+                    </div>
+                  </div>
 
-<div className="grid grid-cols-2 gap-4">
-  <ImageUpload
-    value={form.assetImage || form.existingImage}
-    onChange={(file) => {
-      set('assetImage', file);
-      set('existingImage', '');
-    }}
-  />
-</div>
-
-            <div className="border-t border-gray-100 pt-5 space-y-5">
-              <SubHeading icon={Landmark} title="Purchase Information" />
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div>
-                  <Label>Purchase Date</Label>
-                  <input
-                    type="date"
-                    value={form.purchaseDate}
-                    onChange={(e) => handleAssetValueChange("purchaseDate", e.target.value) }
-                    className={inputCls}
+                  <CodeBox
+                    label="QR Code"
+                    icon={QrCode}
+                    qrUrl={qrUrl}
+                    actions={[
+                      {
+                        label: 'Preview',
+                        icon: ScanLine,
+                        onClick: () => setShowQrPreview(true),
+                      },
+                    ]}
                   />
-                </div>
-                <div>
-                  <Label>Invoice Number</Label>
-                  <input
-                    value={form.invoiceNumber}
-                    onChange={(e) => set('invoiceNumber', e.target.value)}
-                    placeholder="INV-2023-001"
-                    className={inputCls}
-                  />
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div>
-                  <Label>Purchase Cost (₹)</Label>
-                  <input
-                    type='number'
-                    name="purchaseCost"
-                    value={form.purchaseCost}
-                    onChange={(e) => handleAssetValueChange("purchaseCost", e.target.value) }
-                    placeholder="55000"
-                    onWheel={(e) => e.currentTarget.blur()}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <Label>Current Value (₹)</Label>
-                  <input
-                    type='number'
-                    name="currentValue"
-                    value={form.currentValue}
-                    readOnly
-                    placeholder="48500"
-                    className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`}
-                  />
-                </div>
-                <div>
-                  <Label>Depreciation % (p.a.)</Label>
-                  <input
-                    type='number'
-                    name="depreciation"
-                    value={form.depreciation}
-                    onWheel={(e) => e.currentTarget.blur()}
-                    onChange={(e) => handleAssetValueChange("depreciation", e.target.value) }
-                    placeholder="10"
-                    className={inputCls}
-                  />
-                </div>
-              </div>
-
-              {(form.currentValue || form.purchaseCost) && (
-                <div className="flex items-center gap-2 bg-blue-50/60 border border-blue-100 rounded-lg px-4 py-3">
-                  <Landmark className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm text-gray-600">Current Value after Depreciation:</span>
-                  <span className="text-sm font-bold text-[#084E92] ml-auto">
-                    ₹{form.currentValue || '0'}
-                  </span>
                 </div>
               )}
+
+              <div className="grid sm:grid-cols-3 gap-4">
+                <div className="flex flex-col justify-end">
+                  <div className="flex gap-2 justify-between mb-3">
+                    <Label required>Category</Label>
+                    <Button className="cursor-pointer" onPress={() => setShowAddCategoryModal(true)}>
+                      <CirclePlus />
+                    </Button>
+                  </div>
+                  <SearchableSelect
+                    name="category"
+                    value={form.category}
+                    onChange={handleCategoryChange}
+                    placeholder={categoriesLoading ? 'Loading categories...' : 'Select category'}
+                    options={categoryOptions}
+                    disabled={categoriesLoading}
+                    hasError={!!errors.category}
+                  />
+                  <ErrorText message={errors.category} />
+                </div>
+
+                <div className="flex flex-col justify-end">
+                  <div className="flex justify-between gap-2 mb-3">
+                    <Label required>Sub Category</Label>
+                    <Button className="cursor-pointer" onPress={() => setShowAddSubCategoryModal(true)}>
+                      <CirclePlus />
+                    </Button>
+                  </div>
+                  <SearchableSelect
+                    name="subCategory"
+                    value={form.subCategory}
+                    onChange={(e) => set('subCategory', e.target.value)}
+                    placeholder={subCategoriesLoading ? 'Loading sub categories...' : 'Select sub category'}
+                    options={subCategoryOptions}
+                    disabled={subCategoriesLoading}
+                    hasError={!!errors.subCategory}
+                  />
+                  <ErrorText message={errors.subCategory} />
+                </div>
+
+                <div className="flex flex-col justify-end">
+                  <div className="flex justify-between gap-2 mb-3">
+                    <Label required>Asset Type</Label>
+                    <Button className="cursor-pointer" onPress={() => setShowAssetTypeCategoryModal(true)}>
+                      <CirclePlus />
+                    </Button>
+                  </div>
+                  <SearchableSelect
+                    name="assetType"
+                    value={form.assetType}
+                    onChange={(e) => set('assetType', e.target.value)}
+                    placeholder={assetTypesLoading ? 'Loading asset types...' : 'Select asset type'}
+                    options={assetTypeOptions}
+                    disabled={assetTypesLoading}
+                    hasError={!!errors.assetType}
+                  />
+                  <ErrorText message={errors.assetType} />
+                </div>
+              </div>
             </div>
+          )}
+        </SectionCard>
 
-            <div className="border-t border-gray-100 pt-5 space-y-4">
-              <SubHeading icon={ShieldCheck} title="Warranty & AMC" />
+        {/* Product Information — item, purchase, warranty/AMC, maintenance */}
+        <SectionCard className="mt-4">
+          <SectionHeader
+            icon={Boxes}
+            title="Product Information"
+            subtitle=""
+            open={openSections.product}
+            onToggle={() => toggleSection('product')}
+          />
+          {openSections.product && (
+            <div className="px-6 py-6 space-y-6">
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <Label required>Item Name</Label>
+                  </div>
+                  <input
+                    name="itemName"
+                    value={form.itemName}
+                    onChange={(e) => set('itemName', e.target.value)}
+                    placeholder="e.g. Commercial Freezer 400L"
+                    className={errors.itemName ? errorInputCls : inputCls}
+                  />
+                  <ErrorText message={errors.itemName} />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <Label>Brand</Label>
+                    <Button className="cursor-pointer" onPress={() => setShowAddAssetBrandCategoryModal(true)}>
+                      <CirclePlus />
+                    </Button>
+                  </div>
+                  <SearchableSelect
+                    name="brand"
+                    value={form.brand}
+                    onChange={(e) => set('brand', e.target.value)}
+                    placeholder={assetBrandsLoading ? 'Loading asset brands...' : 'Select asset brand'}
+                    options={assetBrandOptions}
+                    disabled={assetBrandsLoading}
+                  />
+                </div>
+              </div>
 
-              <div className="border border-gray-200 rounded-xl px-6 py-5 grid sm:grid-cols-2 gap-x-10 gap-y-5">
-                {/* Manufacturer warranty */}
-                <div className="space-y-3">
-                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                    Manufacturer Warranty
-                  </h4>
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div>
-                      <MiniLabel>Start Date</MiniLabel>
-                      <input
-                        type="date"
-                        value={form.warrantyStart}
-                        onChange={(e) => set('warrantyStart', e.target.value)}
-                        className={inputCls}
-                      />
-                    </div>
-                    <div>
-                      <MiniLabel>End Date</MiniLabel>
-                      <input
-                        type="date"
-                        value={form.warrantyEnd}
-                        onChange={(e) => set('warrantyEnd', e.target.value)}
-                        className={inputCls}
-                      />
-                    </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label>Model Number</Label>
+                  <input
+                    value={form.modelNumber}
+                    onChange={(e) => set('modelNumber', e.target.value)}
+                    placeholder="SM-FZ-400-X"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <Label>Serial Number</Label>
+                  <input
+                    value={form.serialNumber}
+                    onChange={(e) => set('serialNumber', e.target.value)}
+                    placeholder="SN-2938475610"
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <ImageUpload
+                  value={form.assetImage || form.existingImage}
+                  onChange={(file) => {
+                    set('assetImage', file);
+                    set('existingImage', '');
+                  }}
+                />
+              </div>
+
+              <div className="border-t border-gray-100 pt-5 space-y-5">
+                <SubHeading icon={Landmark} title="Purchase Information" />
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Purchase Date</Label>
+                    <input
+                      type="date"
+                      value={form.purchaseDate}
+                      onChange={(e) => handleAssetValueChange("purchaseDate", e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <Label>Invoice Number</Label>
+                    <input
+                      value={form.invoiceNumber}
+                      onChange={(e) => set('invoiceNumber', e.target.value)}
+                      placeholder="INV-2023-001"
+                      className={inputCls}
+                    />
                   </div>
                 </div>
 
-                {/* AMC coverage */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">AMC Coverage</h4>
-                    <Toggle
-                      checked={amcActive}
-                      onChange={(val) => {
-                        setAmcActive(val);
-                        setErrors((prev) => ({ ...prev, amcExpiry: undefined }));
-                      }}
-                      label={amcActive ? 'AMC Active' : 'AMC Inactive'}
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Purchase Cost (₹)</Label>
+                    <input
+                      type='number'
+                      name="purchaseCost"
+                      value={form.purchaseCost}
+                      onChange={(e) => handleAssetValueChange("purchaseCost", e.target.value)}
+                      placeholder="55000"
+                      onWheel={(e) => e.currentTarget.blur()}
+                      className={inputCls}
                     />
                   </div>
+                  <div>
+                    <Label>Current Value (₹)</Label>
+                    <input
+                      type='number'
+                      name="currentValue"
+                      value={form.currentValue}
+                      readOnly
+                      placeholder="48500"
+                      className={`${inputCls} bg-gray-50 text-gray-500 cursor-not-allowed`}
+                    />
+                  </div>
+                  <div>
+                    <Label required>Depreciation % (p.a.)</Label>
+                    <input
+                      type='number'
+                      name="depreciation"
+                      value={form.depreciation ?? ""}
+                      onWheel={(e) => e.currentTarget.blur()}
+                      onChange={(e) => handleAssetValueChange("depreciation", e.target.value)}
+                      placeholder="10"
+                      className={inputCls}
+                    />
+                    <ErrorText message={errors.depreciation} />
+                  </div>
+                </div>
 
-                  {amcActive ? (
+                {(form.currentValue || form.purchaseCost) && (
+                  <div className="flex items-center gap-2 bg-blue-50/60 border border-blue-100 rounded-lg px-4 py-3">
+                    <Landmark className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm text-gray-600">Current Value after Depreciation:</span>
+                    <span className="text-sm font-bold text-[#084E92] ml-auto">
+                      ₹{form.currentValue || '0'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-5 space-y-4">
+                <SubHeading icon={ShieldCheck} title="Warranty & AMC" />
+
+                <div className="border border-gray-200 rounded-xl px-6 py-5 grid sm:grid-cols-2 gap-x-10 gap-y-5">
+                  {/* Manufacturer warranty */}
+                  <div className="space-y-3">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
+                      Manufacturer Warranty
+                    </h4>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
-                        <MiniLabel>AMC Expiry</MiniLabel>
+                        <MiniLabel>Start Date</MiniLabel>
                         <input
-                          name="amcExpiry"
                           type="date"
-                          value={form.amcExpiry}
-                          onChange={(e) => set('amcExpiry', e.target.value)}
-                          className={errors.amcExpiry ? errorInputCls : inputCls}
+                          value={form.warrantyStart}
+                          onChange={(e) => set('warrantyStart', e.target.value)}
+                          className={inputCls}
                         />
-                        <ErrorText message={errors.amcExpiry} />
                       </div>
                       <div>
-                        <MiniLabel>Provider</MiniLabel>
+                        <MiniLabel>End Date</MiniLabel>
                         <input
-                          value={form.amcProvider}
-                          onChange={(e) => set('amcProvider', e.target.value)}
-                          placeholder="KitchenCare Pro"
+                          type="date"
+                          value={form.warrantyEnd}
+                          onChange={(e) => set('warrantyEnd', e.target.value)}
                           className={inputCls}
                         />
                       </div>
                     </div>
+                  </div>
+
+                  {/* AMC coverage */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500">AMC Coverage</h4>
+                      <Toggle
+                        checked={amcActive}
+                        onChange={(val) => {
+                          setAmcActive(val);
+                          setErrors((prev) => ({ ...prev, amcExpiry: undefined }));
+                        }}
+                        label={amcActive ? 'AMC Active' : 'AMC Inactive'}
+                      />
+                    </div>
+
+                    {amcActive ? (
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div>
+                          <MiniLabel>AMC Expiry</MiniLabel>
+                          <input
+                            name="amcExpiry"
+                            type="date"
+                            value={form.amcExpiry}
+                            onChange={(e) => set('amcExpiry', e.target.value)}
+                            className={errors.amcExpiry ? errorInputCls : inputCls}
+                          />
+                          <ErrorText message={errors.amcExpiry} />
+                        </div>
+                        <div>
+                          <MiniLabel>Provider</MiniLabel>
+                          <input
+                            value={form.amcProvider}
+                            onChange={(e) => set('amcProvider', e.target.value)}
+                            placeholder="KitchenCare Pro"
+                            className={inputCls}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 pt-1.5">Turn on AMC Coverage to add expiry and provider.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-100 pt-5 space-y-5">
+                <SubHeading icon={Wrench} title="Maintenance Info" />
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label>Last Maintenance</Label>
+                    <input
+                      type="date"
+                      value={form.lastMaintenance}
+                      onChange={(e) => set('lastMaintenance', e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <Label>Next Maintenance</Label>
+                    <input
+                      type="date"
+                      value={form.nextMaintenance}
+                      onChange={(e) => set('nextMaintenance', e.target.value)}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div>
+                    <Label>Frequency</Label>
+                    <SearchableSelect
+                      name="frequency"
+                      value={form.frequency}
+                      onChange={(e) => set('frequency', e.target.value)}
+                      placeholder="Select frequency"
+                      options={frequencyOptions}
+                    />
+                  </div>
+                  <div>
+                    <Label>Maintenance Cost (₹)</Label>
+                    <input
+                      type='number'
+                      name="maintenanceCost"
+                      value={form.maintenanceCost}
+                      onChange={(e) => set('maintenanceCost', e.target.value)}
+                      placeholder="2500"
+                      onWheel={(e) => e.currentTarget.blur()}
+                      onKeyDown={handleQuantityKeyDown}
+                      className={errors.maintenanceCost ? errorInputCls : inputCls}
+                    />
+                    <ErrorText message={errors.maintenanceCost} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Asset Status */}
+        <SectionCard className="mt-4">
+          <SectionHeader
+            icon={Boxes}
+            title="Asset Status"
+            open={openSections.status}
+            onToggle={() => toggleSection('status')}
+          />
+          {openSections.status && (
+            <div className="px-6 py-6">
+              <div className="grid lg:grid-cols-5 md:grid-cols-3 gap-4">
+                <div>
+                  <Label required>Condition</Label>
+                  <SearchableSelect
+                    value={form.condition}
+                    onChange={(e) => set('condition', e.target.value)}
+                    placeholder={conditionsLoading ? 'Loading conditions...' : 'Select condition'}
+                    options={conditionOptions}
+                    disabled={conditionsLoading}
+                    hasError={!!errors.condition}
+                  />
+                  <ErrorText message={errors.condition} />
+                </div>
+                <div>
+                  <Label required>Status</Label>
+                  <SearchableSelect
+                    value={form.status}
+                    onChange={(e) => set('status', e.target.value)}
+                    placeholder={statusesLoading ? 'Loading statuses...' : 'Select status'}
+                    options={statusOptions}
+                    disabled={statusesLoading}
+                    hasError={!!errors.status}
+                  />
+                  <ErrorText message={errors.status} />
+                </div>
+                <div>
+                  <Label>Total Quantity</Label>
+                  <input
+                    type='number'
+                    name="totalQty"
+                    min="1"
+                    step="1"
+                    value={form.totalQty}
+                    onChange={(e) => handleQuantityChange("totalQty", e.target.value)}
+                    onKeyDown={handleQuantityKeyDown}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    className={errors.totalQty ? errorInputCls : inputCls}
+                  />
+                  <ErrorText message={errors.totalQty} />
+                </div>
+                <div>
+                  <Label>Available Qty</Label>
+                  <input
+                    type='number'
+                    name="availableQty"
+                    min="0"
+                    step="1"
+                    value={form.availableQty}
+                    onChange={(e) => handleQuantityChange("availableQty", e.target.value)}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    onKeyDown={handleQuantityKeyDown}
+                    className={`${errors.availableQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
+                  />
+                  <ErrorText message={errors.availableQty} />
+                </div>
+                <div>
+                  <Label>Reserved Qty</Label>
+                  <input
+                    type='number'
+                    name="reservedQty"
+                    value={form.reservedQty}
+                    readOnly
+                    className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                    onWheel={(e) => e.currentTarget.blur()}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Unit & Location Assignment (Optional) */}
+        <SectionCard className="mt-4">
+          <SectionHeader
+            icon={Landmark}
+            title="Unit & Location Assignment"
+            subtitle="Optionally assign this asset to a unit and location immediately upon creation."
+            open={openSections.assignment}
+            onToggle={() => toggleSection('assignment')}
+          />
+          {openSections.assignment && (
+            <div className="px-6 py-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                {/* Unit / Outlet Dropdown - Shown ONLY for Group and Company Users */}
+                {!isOutletUser && (
+                  <div>
+                    <Label>Unit</Label>
+                    <SearchableSelect
+                      name="unitId"
+                      value={form.unitId}
+                      onChange={(e) => {
+                        set('unitId', e.target.value);
+                        set('assetUnitLocationId', '');
+                        if (form.custodianType === 'USER') {
+                          set('custodianValue', '');
+                        }
+                      }}
+                      placeholder={loadingUnits ? 'Loading units...' : 'Select unit (Optional)'}
+                      options={units}
+                      disabled={loadingUnits}
+                      isClearable={true}
+                    />
+                  </div>
+                )}
+
+                {/* Location Dropdown */}
+                <div>
+                  <Label>Location</Label>
+                  <SearchableSelect
+                    name="assetUnitLocationId"
+                    value={form.assetUnitLocationId}
+                    onChange={(e) => set('assetUnitLocationId', e.target.value)}
+                    placeholder={
+                      !form.unitId
+                        ? 'Select Unit first'
+                        : loadingLocations
+                          ? 'Loading locations...'
+                          : 'Select location (Optional)'
+                    }
+                    options={locations}
+                    disabled={!form.unitId || loadingLocations}
+                    isClearable={true}
+                  />
+                </div>
+
+                {/* Assign Quantity */}
+                <div>
+                  <Label>Assign Quantity</Label>
+                  <input
+                    type="number"
+                    name="assignQty"
+                    min="1"
+                    step="1"
+                    disabled={!form.unitId && !form.custodianValue}
+                    placeholder={form.unitId || form.custodianValue ? `Default (${form.availableQty || 1})` : 'Select unit or custodian first'}
+                    value={form.assignQty}
+                    onChange={(e) => set('assignQty', e.target.value)}
+                    onKeyDown={handleQuantityKeyDown}
+                    onWheel={(e) => e.currentTarget.blur()}
+                    className={`${errors.assignQty ? errorInputCls : inputCls} ${!form.unitId && !form.custodianValue ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : ''
+                      }`}
+                  />
+                  <ErrorText message={errors.assignQty} />
+                </div>
+
+                {/* Custodian Type */}
+                <div>
+                  <Label>Custodian Type</Label>
+                  <SearchableSelect
+                    name="custodianType"
+                    value={form.custodianType}
+                    onChange={(e) => {
+                      set('custodianType', e.target.value);
+                      set('custodianValue', '');
+                    }}
+                    placeholder="Select Custodian Type"
+                    options={CUSTODIAN_TYPE_OPTIONS}
+                    isClearable={false}
+                  />
+                </div>
+
+                {/* Custodian Dropdown */}
+                <div>
+                  <Label>
+                    {form.custodianType === 'DEPT' ? 'Custodian (Department)' : 'Custodian (User)'}
+                  </Label>
+                  {form.custodianType === 'DEPT' ? (
+                    <SearchableSelect
+                      name="custodianValue"
+                      value={form.custodianValue}
+                      onChange={(e) => set('custodianValue', e.target.value)}
+                      placeholder={loadingDepartments ? 'Loading departments...' : 'Select department (Optional)'}
+                      options={departmentOptions}
+                      disabled={loadingDepartments}
+                      isClearable={true}
+                    />
                   ) : (
-                    <p className="text-xs text-gray-400 pt-1.5">Turn on AMC Coverage to add expiry and provider.</p>
+                    <SearchableSelect
+                      name="custodianValue"
+                      value={form.custodianValue}
+                      onChange={(e) => set('custodianValue', e.target.value)}
+                      placeholder={
+                        loadingUsers && userOptions.length === 0
+                          ? 'Loading users...'
+                          : 'Select user (Optional)'
+                      }
+                      options={userOptions}
+                      hasMore={hasMoreUsers}
+                      loadingMore={loadingUsersMore}
+                      onLoadMore={handleLoadMoreUsers}
+                      disabled={loadingUsers && userOptions.length === 0}
+                      isClearable={true}
+                    />
                   )}
                 </div>
               </div>
             </div>
+          )}
+        </SectionCard>
 
-            <div className="border-t border-gray-100 pt-5 space-y-5">
-              <SubHeading icon={Wrench} title="Maintenance Info" />
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <Label>Last Maintenance</Label>
-                  <input
-                    type="date"
-                    value={form.lastMaintenance}
-                    onChange={(e) => set('lastMaintenance', e.target.value)}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <Label>Next Maintenance</Label>
-                  <input
-                    type="date"
-                    value={form.nextMaintenance}
-                    onChange={(e) => set('nextMaintenance', e.target.value)}
-                    className={inputCls}
-                  />
-                </div>
-                <div>
-                  <Label>Frequency</Label>
-                  <SearchableSelect
-                    name="frequency"
-                    value={form.frequency}
-                    onChange={(e) => set('frequency', e.target.value)}
-                    placeholder="Select frequency"
-                    options={frequencyOptions}
-                  />
-                </div>
-                <div>
-                  <Label>Maintenance Cost (₹)</Label>
-                  <input
-                    type='number'
-                    name="maintenanceCost"
-                    value={form.maintenanceCost}
-                    onChange={(e) => set('maintenanceCost', e.target.value)}
-                    placeholder="2500"
-                    onWheel={(e) => e.currentTarget.blur()}
-                    onKeyDown={handleQuantityKeyDown}
-                    className={errors.maintenanceCost ? errorInputCls : inputCls}
-                  />
-                  <ErrorText message={errors.maintenanceCost} />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* Asset Status */}
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={Boxes}
-          title="Asset Status"
-          open={openSections.status}
-          onToggle={() => toggleSection('status')}
-        />
-        {openSections.status && (
-          <div className="px-6 py-6">
-            <div className="grid lg:grid-cols-5 md:grid-cols-3 gap-4">
-              <div>
-                <Label required>Condition</Label>
-                <SearchableSelect
-                  value={form.condition}
-                  onChange={(e) => set('condition', e.target.value)}
-                  placeholder={conditionsLoading ? 'Loading conditions...' : 'Select condition'}
-                  options={conditionOptions}
-                  disabled={conditionsLoading}
-                  hasError={!!errors.condition}
-                />
-                 <ErrorText message={errors.condition} />
-              </div>
-              <div>
-                <Label required>Status</Label>
-                <SearchableSelect
-                  value={form.status}
-                  onChange={(e) => set('status', e.target.value)}
-                  placeholder={statusesLoading ? 'Loading statuses...' : 'Select status'}
-                  options={statusOptions}
-                  disabled={statusesLoading}
-                  hasError={!!errors.status}
-                />
-                 <ErrorText message={errors.status} />
-              </div>
-              <div>
-                <Label>Total Quantity</Label>
-                <input
-                  type='number'
-                  name="totalQty"
-                  min="1"
-                  step="1"
-                  value={form.totalQty}
-                  onChange={(e) => handleQuantityChange("totalQty", e.target.value)}
-                  onKeyDown={handleQuantityKeyDown}
-                  onWheel={(e) => e.currentTarget.blur()}
-                  className={errors.totalQty ? errorInputCls : inputCls}
-                />
-                <ErrorText message={errors.totalQty} />
-              </div>
-              <div>
-                <Label>Available Qty</Label>
-                <input
-                  type='number'
-                  name="availableQty"
-                  min="0"
-                  step="1"
-                  value={form.availableQty}
-                  onChange={(e) => handleQuantityChange("availableQty", e.target.value) }
-                  onWheel={(e) => e.currentTarget.blur()}
-                  onKeyDown={handleQuantityKeyDown}
-                  className={`${errors.availableQty ? errorInputCls : inputCls} bg-gray-50 text-gray-400`}
-                />
-                <ErrorText message={errors.availableQty} />
-              </div>
-              <div>
-                <Label>Reserved Qty</Label>
-                <input
-                  type='number'
-                  name="reservedQty"
-                  value={form.reservedQty}
-                  readOnly
-                  className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
-                  onWheel={(e) => e.currentTarget.blur()}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* Footer actions */}
-      <div className="flex items-center justify-end gap-3 pb-2 mt-6 border-t border-gray-200 pt-6 flex-wrap">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={handleSaveAsset}
-            disabled={saving}
-            className="px-5 py-2.5 rounded-lg text-[#084E92] border border-[#084E92] font-semibold text-sm hover:bg-blue-50/40 transition cursor-pointer bg-white"
-          >
-            {saving
-              ? 'Saving...'
-              : isEditMode
-                ? 'Update Asset'
-                : 'Save Asset'}
-          </button>
-        </div>
-      </div>
-
-      <AddCategoryModal
-        isOpen={showAddCategoryModal}
-        onClose={() => setShowAddCategoryModal(false)}
-        onSaved={fetchCategories}
-        initialData={null}
-      />
-
-      <AddSubCategoryModal
-        isOpen={showAddSubCategoryModal}
-        onClose={() => setShowAddSubCategoryModal(false)}
-        onSaved={() => fetchSubCategories(form.category || null)}
-        initialData={null}
-      />
-
-      <AddAssetTypeModal
-        isOpen={showAddAssetTypeCategoryModal}
-        onClose={() => setShowAssetTypeCategoryModal(false)}
-        onSaved={fetchAssetTypes}
-        initialData={null}
-      />
-
-      <AddAssetBrandModal
-        isOpen={showAddAssetBrandCategoryModal}
-        onClose={() => setShowAddAssetBrandCategoryModal(false)}
-        onSaved={fetchAssetBrand}
-        initialData={null}
-      />
-
-      {showQrPreview && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white rounded-2xl p-6 w-87.5 relative">
+        {/* Footer actions */}
+        <div className="flex items-center justify-end gap-3 pb-2 mt-6 border-t border-gray-200 pt-6 flex-wrap">
+          <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setShowQrPreview(false)}
-              className="absolute top-3 right-3"
+              onClick={handleReset}
+              className="px-5 py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
             >
-              <X className="w-4 h-4" />
+              Reset
             </button>
-
-            <h3 className="text-lg font-semibold text-center mb-4">
-              Scan Asset QR Code
-            </h3>
-
-            <div className="flex flex-col items-center">
-              <img
-                src={qrUrl}
-                alt="QR Code"
-                className="w-64 h-64"
-              />
-
-              <p className="mt-3 text-sm text-gray-500">
-                {form.assetId}
-              </p>
-            </div>
+            <button
+              type="button"
+              onClick={handleSaveAsset}
+              disabled={saving}
+              className="px-5 py-2.5 rounded-lg text-[#084E92] border border-[#084E92] font-semibold text-sm hover:bg-blue-50/40 transition cursor-pointer bg-white"
+            >
+              {saving
+                ? 'Saving...'
+                : isEditMode
+                  ? 'Update Asset'
+                  : 'Save Asset'}
+            </button>
           </div>
         </div>
-      )}
-    </div>
+
+        <AddCategoryModal
+          isOpen={showAddCategoryModal}
+          onClose={() => setShowAddCategoryModal(false)}
+          onSaved={fetchCategories}
+          initialData={null}
+        />
+
+        <AddSubCategoryModal
+          isOpen={showAddSubCategoryModal}
+          onClose={() => setShowAddSubCategoryModal(false)}
+          onSaved={() => fetchSubCategories(form.category || null)}
+          initialData={null}
+        />
+
+        <AddAssetTypeModal
+          isOpen={showAddAssetTypeCategoryModal}
+          onClose={() => setShowAssetTypeCategoryModal(false)}
+          onSaved={fetchAssetTypes}
+          initialData={null}
+        />
+
+        <AddAssetBrandModal
+          isOpen={showAddAssetBrandCategoryModal}
+          onClose={() => setShowAddAssetBrandCategoryModal(false)}
+          onSaved={fetchAssetBrand}
+          initialData={null}
+        />
+
+        {showQrPreview && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+            <div className="bg-white rounded-2xl p-6 w-87.5 relative">
+              <button
+                type="button"
+                onClick={() => setShowQrPreview(false)}
+                className="absolute top-3 right-3"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <h3 className="text-lg font-semibold text-center mb-4">
+                Scan Asset QR Code
+              </h3>
+
+              <div className="flex flex-col items-center">
+                <img
+                  src={qrUrl}
+                  alt="QR Code"
+                  className="w-64 h-64"
+                />
+
+                <p className="mt-3 text-sm text-gray-500">
+                  {form.assetId}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </Container>
   );
 };
 

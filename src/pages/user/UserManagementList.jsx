@@ -1,27 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getUserIdFromToken } from '@/utils/auth';
 import { notify } from '@/utils/toast';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
-  AlertTriangle,
-  Building2,
+  Download,
   Eye,
-  Plus,
-  Search,
   SquarePen,
   Trash2,
-  UsersRound,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import {
   deleteEmployeeById,
   getActiveCompany,
   getAllEmployees,
-  getAllRoleMasterByUserId,
+  getOrganizationByType
 } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -42,6 +41,12 @@ import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { OrgTypes } from '@/constants/orgTypes';
+import SearchableSelect from '../../utils/SearchableSelect';
+import { getAllDepartmentMaster } from '../../services/apiServices';
+import MasterExportModal from '../../utils/MasterExportModal';
 
 // NOTE: these summary cards are still static placeholder numbers. Wire them
 // up to real counts once there's a dashboard/summary endpoint — get-all's
@@ -50,8 +55,8 @@ import { AccessDenied } from '@/components/common/AccessDenied';
 // Truncates long text within a fixed-width box, revealing the full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -60,23 +65,40 @@ const TruncatedCell = ({
 
 const UserManagementList = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Users');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Users');
 
   const [userData, setUserData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [deletingUser, setDeletingUser] = useState(null);
-  const [deleting, setDeleting] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState('all');
   const [activeCompanies, setActiveCompanies] = useState([]);
   const [search, setSearch] = useState('');
   const [departments, setDepartments] = useState([]);
-
-
+  const [sorting, setSorting] = useState([]);
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [companies, setCompanies] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+
+  // Master Export Modal State
+  const [showExportModal, setShowExportModal] = useState(false);
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await getOrganizationByType(OrgTypes.SUB_COMPANY);
+      const list = res?.data?.data || res?.data?.content || res?.data || [];
+      const formatted = list.map((c) => ({
+        id: c.id,
+        name: c.companyNameEnglish || c.name || '',
+      }));
+      setActiveCompanies(formatted); // or setCompanies(formatted) depending on your state naming
+      setCompanies(formatted);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const fetchActiveCompanies = async () => {
     try {
@@ -92,7 +114,7 @@ const UserManagementList = () => {
   const fetchDepartmentOptions = async () => {
     try {
       const userId = getUserIdFromToken();
-      const res = await getAllRoleMasterByUserId(userId);
+      const res = await getAllDepartmentMaster(userId);
       const list = extractList(res).map((d) => ({
         id: d.id,
         name: d.name ?? d.roleName ?? d.departmentName ?? '',
@@ -120,26 +142,10 @@ const UserManagementList = () => {
 
   useEffect(() => {
     fetchUsers();
-    fetchActiveCompanies();
+    fetchCompanies();
     fetchDepartmentOptions();
   }, []);
 
-  const DATA = [
-    {
-      label: 'TOTAL USERS',
-      count: `${userData.length}`,
-      icon: <UsersRound className="w-5 h-5 text-[#084E92]" />,
-      color: 'text-[#084E92]',
-      iconBg: 'bg-[#084E921A]/50',
-    },
-    {
-      label: 'ACTIVE ORGANIZATIONS',
-      count: `${activeCompanies.length}`,
-      icon: <Building2 className="w-5 h-5 text-[#084E92]" />,
-      color: 'text-[#084E92]',
-      iconBg: 'bg-[#084E921A]/50',
-    },
-  ];
   const filteredUser = useMemo(
     () =>
       userData.filter((u) => {
@@ -153,12 +159,17 @@ const UserManagementList = () => {
           u.erpemployeecode?.toLowerCase().includes(searchText) ||
           u.company?.toLowerCase().includes(searchText);
 
+        const matchesCompany =
+          !companyFilter ||
+          companyFilter === 'all' ||
+          u.company === companyFilter;
+
         const matchesCategory =
           departmentFilter === 'all' || u.department === departmentFilter;
 
-        return matchesSearch && matchesCategory;
+        return matchesSearch && matchesCompany && matchesCategory;
       }),
-    [userData, search, departmentFilter],
+    [userData, search,companyFilter, departmentFilter],
   );
 
   useEffect(() => {
@@ -166,7 +177,7 @@ const UserManagementList = () => {
       ...prev,
       pageIndex: 0,
     }));
-  }, [search, departmentFilter]);
+  }, [search,companyFilter, departmentFilter]);
   // Edit reuses the same registration form component, switched into "update"
   // mode by the presence of state.user — the form fetches the full record
   // by id itself, so only the id needs to travel reliably here.
@@ -197,9 +208,9 @@ const UserManagementList = () => {
     setDeleteSaving(true);
 
     try {
-      await deleteEmployeeById(deleteTarget.id);  
+      await deleteEmployeeById(deleteTarget.id);
       closeDeleteConfirm();
-      fetchUsers();          
+      fetchUsers();
     } catch (err) {
       console.error(err);
       notify.error('Failed to delete users');
@@ -208,15 +219,24 @@ const UserManagementList = () => {
     }
   };
 
-
-  const handleExport = (format) => {
-    alert(
-      `Exporting ${filteredUser.length} user(s) as ${format.toUpperCase()}`,
-    );
-  };
-
   const columns = useMemo(
     () => [
+      {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="S.NO"
+            column={column}
+            className="my-2 text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 70,
+        minSize: 60,
+      },
       {
         id: 'name',
         accessorFn: (row) => row.name,
@@ -231,7 +251,7 @@ const UserManagementList = () => {
           <div className="flex gap-3 items-center w-full min-w-0">
             <div className="flex flex-col gap-1 min-w-0">
               <span
-                className="font-semibold text-gray-800 truncate block"
+                className="font-medium text-xs text-gray-800 truncate block"
                 title={row.original.name}
               >
                 {row.original.name}
@@ -246,6 +266,7 @@ const UserManagementList = () => {
           </div>
         ),
         size: 160,
+        enableSorting: true,
       },
       {
         id: 'code',
@@ -258,9 +279,13 @@ const UserManagementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <TruncatedCell value={row.original.code} widthClass="max-w-[130px]" />
+          <TruncatedCell
+            value={row.original.code}
+            className="font-semibold text-xs text-[#084E92]"
+          />
         ),
         size: 150,
+        enableSorting: true,
       },
       {
         id: 'email',
@@ -275,10 +300,10 @@ const UserManagementList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.email}
-            widthClass="max-w-[190px]"
           />
         ),
-        size: 200,
+        size: 220,
+        enableSorting: false,
       },
       {
         id: 'company',
@@ -293,10 +318,10 @@ const UserManagementList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.company}
-            widthClass="max-w-[170px]"
           />
         ),
         size: 180,
+        enableSorting: false,
       },
       {
         id: 'department',
@@ -311,10 +336,10 @@ const UserManagementList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.department}
-            widthClass="max-w-[140px]"
           />
         ),
-        size: 150,
+        size: 160,
+        enableSorting: false,
       },
       {
         id: 'action',
@@ -363,8 +388,10 @@ const UserManagementList = () => {
   const table = useReactTable({
     data: filteredUser,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
@@ -375,83 +402,70 @@ const UserManagementList = () => {
 
   return (
     <Container>
-      <div className="w-full p-4 sm:p-5 lg:p-6 max-w-[1600px] mx-auto">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
-          <div>
-            <h1 className="text-2xl font-bold">User Management List</h1>
-            <p className="pt-2 text-md text-gray-400">
-              Manage enterprise-wide user access, organizational roles, and
-              compliance verification status from a centralized console.
-            </p>
-          </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="User Management List"
+          actions={
+            <div className="flex items-center gap-3">
+            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
 
-          {canAdd && (
-            <Link
-              to="/users/add-user"
-              className="flex items-center justify-center gap-2 bg-[#084E92] px-5 py-3 rounded-lg text-white text-sm font-medium w-full sm:w-max"
-            >
-              <Plus size={15} /> Add New User
-            </Link>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mt-8">
-          {DATA.map((item) => (
-            <div
-              key={item.label}
-              className=" border border-[#C3C6D1] rounded-2xl p-4"
-            >
-              <div className="flex justify-between">
-                <span
-                  className={`bg-[#084E921A]/50 p-2 w-7 h-7 rounded flex items-center justify-center`}
-                >
-                  <p className="text-xl">{item.icon}</p>
-                </span>
-              </div>
-              <div className="mt-2">
-                <h3 className="text-xs text-[#737781]">{item.label}</h3>
-                <p className={`${item.color} font-bold`}>{item.count}</p>
-              </div>
+              {canAdd && (
+                <HeaderActionButton to="/users/add-user">
+                  Add New User
+                </HeaderActionButton>
+              )}
             </div>
-          ))}
-        </div>
+          }
+        />
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 my-6">
+        <PageErrorAlert
+          error={loadError}
+          onRetry={fetchUsers}
+        />
+
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-center">
             {/* Search Section - Left */}
-            <div className="relative flex-1 min-w-[240px] border border-[#C3C6D1] rounded-lg">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
+            <SearchBar
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, code or email..."
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+              {/* Company Filter */}
+    
+              <SearchableSelect
+                name="company"
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: 'All Companies' },
+                  ...companies.map((company) => ({
+                    value: company.name,
+                    label: company.name,
+                  })),
+                ]}
+                placeholder="All Companies"
               />
 
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by name, code or email..."
-                className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
-              />
-            </div>
-
-            {/* Department Filter - Right */}
-            <div className="w-full sm:w-64">
+              {/* Department Filter */}
               <Select
                 value={departmentFilter}
                 onValueChange={setDepartmentFilter}
               >
-                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue />
+                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
+                  <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
-
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
-
                   {departments.map((opt) => (
-                    <SelectItem
-                      key={opt.id}
-                      value={opt.name}
-                    >
+                    <SelectItem key={opt.id} value={opt.name}>
                       {opt.name}
                     </SelectItem>
                   ))}
@@ -460,19 +474,6 @@ const UserManagementList = () => {
             </div>
           </div>
         </div>
-        {loadError && (
-          <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{loadError}</span>
-            <button
-              type="button"
-              onClick={fetchUsers}
-              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-            >
-              Retry
-            </button>
-          </div>
-        )}
 
         <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
           {loading ? (
@@ -513,6 +514,14 @@ const UserManagementList = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.itemLabel}
           saving={deleteSaving}
+        />
+
+        {/* Master Report Export Modal */}
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="users"
+          title="Export Users Report"
         />
       </div>
     </Container>

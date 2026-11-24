@@ -5,6 +5,7 @@ import { notify } from '@/utils/toast';
 import {
     getCoreRowModel,
     getPaginationRowModel,
+    getSortedRowModel,
     useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -25,9 +26,12 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { getOrgIdFromToken } from '../../../utils/auth';
 import CreateCaptainRecipe from './CreateCaptainRecipe';
 import { deleteCaptainRecipeById, getCaptainRecipeById, syncCaptainRecipes, updateCaptainRecipeStatus } from '../../../services/apiServices';
+import { useNavigate } from 'react-router';
 
 const ORG_ID = getOrgIdFromToken();
 
@@ -37,7 +41,7 @@ const CaptainRecipeList = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
+    const [sorting, setSorting] = useState([]);
     const [openRecipe, setOpenRecipe] = useState(false);
     const [editData, setEditData] = useState(null);
     const [syncing, setSyncing] = useState(false);
@@ -49,6 +53,7 @@ const CaptainRecipeList = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const navigate = useNavigate();
 
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, itemLabel: row.name });
@@ -198,39 +203,17 @@ const CaptainRecipeList = () => {
     const columns = useMemo(
         () => [
             {
-                id: 'select',
-                header: ({ table }) => (
-                    <input
-                        type="checkbox"
-                        checked={table.getIsAllPageRowsSelected()}
-                        onChange={table.getToggleAllPageRowsSelectedHandler()}
-                        className="w-4 h-4 cursor-pointer my-4"
-                    />
-                ),
-                cell: ({ row }) => (
-                    <input
-                        type="checkbox"
-                        checked={row.getIsSelected()}
-                        onChange={row.getToggleSelectedHandler()}
-                        className="w-4 h-4 rounded border-gray-300 cursor-pointer"
-                    />
-                ),
-                enableSorting: false,
-                size: 30,
-            },
-
-            {
                 id: 'srNo',
                 header: ({ column }) => (
                     <DataGridColumnHeader
-                        title="SR NO"
+                        title="S.NO"
                         column={column}
                         className="text-[#43474F] font-semibold"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700">
-                        {row.index + 1 + pagination.pageIndex * pagination.pageSize}
+                    <span className="text-xs text-gray-500">
+                        {String(row.index + 1 + pagination.pageIndex * pagination.pageSize).padStart(2, '0')}
                     </span>
                 ),
                 enableSorting: false,
@@ -244,11 +227,11 @@ const CaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="NAME"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <div className="font-semibold text-gray-800 capitalize">{row.original.name}</div>
+                    <div className="font-medium text-xs text-gray-800 capitalize">{row.original.name}</div>
                 ),
                 size: 220,
             },
@@ -260,12 +243,13 @@ const CaptainRecipeList = () => {
                     <DataGridColumnHeader
                         title="UNIT"
                         column={column}
-                        className="text-[#43474F] font-semibold"
+                        className="text-[#43474F] font-semibold text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700 uppercase">{row.original.unitName || '-'}</span>
+                    <span className="text-xs text-gray-800 font-medium uppercase">{row.original.unitName || '-'}</span>
                 ),
+                enableSorting: false,
                 size: 120,
             },
 
@@ -282,6 +266,8 @@ const CaptainRecipeList = () => {
                 cell: ({ row }) => (
                     <span className="text-gray-700">{row.original.rate ?? '-'}</span>
                 ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.rate ?? 0) - Number(rowB.original.rate ?? 0),
                 size: 120,
             },
 
@@ -298,6 +284,8 @@ const CaptainRecipeList = () => {
                 cell: ({ row }) => (
                     <span className="text-gray-700">{row.original.weight ?? '-'}</span>
                 ),
+                sortingFn: (rowA, rowB) =>
+                    Number(rowA.original.weight ?? 0) - Number(rowB.original.weight ?? 0),
                 size: 120,
             },
 
@@ -350,6 +338,7 @@ const CaptainRecipeList = () => {
                         )}
                     </label>
                 ),
+                enableSorting: false,
                 size: 120,
             },
 
@@ -389,35 +378,60 @@ const CaptainRecipeList = () => {
     const table = useReactTable({
         data: filteredRecipes,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
+        onSortingChange: setSorting,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
     });
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
+            <div className="p-4 mx-auto">
                 {/* Breadcrumb */}
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
+                <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+                    <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
+                    <ChevronRight size={12} />
+                    <span>Menu Item</span>
                     <ChevronRight size={12} />
                     <span className="text-[#084E92] font-medium">Captain Recipes</span>
                 </div>
 
-                <div className="flex justify-between flex-col lg:flex-row gap-4">
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
                     <div>
-                        <h1 className="text-2xl font-bold text-[#0F172A] text-start">
+                        <h1 className="font-bold text-[#101828] text-xl sm:text-2xl text-start">
                             Captain Recipes
                         </h1>
                     </div>
+
+                    <div className="flex items-center gap-2.5">
+                        <button
+                            type="button"
+                            onClick={handleSync}
+                            disabled={syncing}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white bg-[#084E92] text-xs font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shadow-2xs whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                            {syncing ? 'Syncing...' : 'Sync Recipes'}
+                        </button>
+
+                        <HeaderActionButton
+                            onClick={() => {
+                                setEditData(null);
+                                setOpenRecipe(true);
+                            }}
+                        >
+                            Create New
+                        </HeaderActionButton>
+                    </div>
                 </div>
 
-                <div className="bg-white py-5">
+                <PageErrorAlert error={error} onRetry={fetchRecipes} className="my-3" />
+
+                <div className="bg-white mt-4">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                        <div className="relative w-full md:w-96">
+                        <div className="relative w-full md:w-[70%]">
                             <Search
                                 size={18}
                                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -430,30 +444,6 @@ const CaptainRecipeList = () => {
                                 className="w-full border rounded-lg pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-[#084E92]"
                             />
                         </div>
-
-                        <div className="flex gap-3 lg:self-end">
-                            <button
-                                type="button"
-                                onClick={handleSync}
-                                disabled={syncing}
-                                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                            >
-                                <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-                                {syncing ? 'Syncing...' : 'Sync Recipes'}
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setEditData(null);
-                                    setOpenRecipe(true);
-                                }}
-                                className="px-4 py-2 bg-[#084E92] border border-[#E2E8F0] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-blue-800 transition"
-                            >
-                                <Plus size={16} />
-                                Create New
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -461,7 +451,6 @@ const CaptainRecipeList = () => {
                     {loading && (
                         <p className="p-4 text-sm text-gray-500">Loading captain recipes...</p>
                     )}
-                    {error && <p className="p-4 text-sm text-red-600">{error}</p>}
                     <DataGrid
                         table={table}
                         recordCount={filteredRecipes.length}

@@ -57,7 +57,7 @@ const VendorPriceComparisonModal = ({
   const handleMapVendor = async (quotation) => {
     const currentOutletId = outletId || item?.outletId;
     if (!currentOutletId) {
-      toast.error('Please select an outlet in the Purchase Order to map vendor.');
+      toast.error('Please select a unit in the Purchase Order to map vendor.');
       return;
     }
     if (!quotation.vendorId) {
@@ -72,7 +72,7 @@ const VendorPriceComparisonModal = ({
         username,
         vendorId: Number(quotation.vendorId),
       });
-      toast.success(`${quotation.vendorName || 'Vendor'} mapped to outlet successfully!`);
+      toast.success(`${quotation.vendorName || 'Vendor'} mapped to unit successfully!`);
       setLocalQuotations((prev) =>
         prev.map((q) =>
           Number(q.vendorId) === Number(quotation.vendorId) ? { ...q, isMapped: true } : q,
@@ -80,8 +80,8 @@ const VendorPriceComparisonModal = ({
       );
       onVendorMapped?.(quotation.vendorId, currentOutletId);
     } catch (err) {
-      console.error('Failed to map vendor to outlet', err);
-      toast.error(getApiErrorMessage(err, 'Failed to map vendor to outlet.'));
+      console.error('Failed to map vendor to unit', err);
+      toast.error(getApiErrorMessage(err, 'Failed to map vendor to unit.'));
     } finally {
       setMappingVendorId(null);
     }
@@ -350,7 +350,7 @@ const VendorPriceComparisonModal = ({
                                 disabled={isVendorDisabled || mappingVendorId === q.vendorId || (!outletId && !item?.outletId)}
                                 onClick={() => handleMapVendor(q)}
                                 className="inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-[#084E92] bg-blue-50/90 hover:bg-blue-100/90 border border-blue-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
-                                title={isVendorDisabled ? 'Different vendor from this PO' : 'Map vendor to this outlet'}
+                                title={isVendorDisabled ? 'Different vendor from this PO' : 'Map vendor to this unit'}
                               >
                                 {mappingVendorId === q.vendorId ? (
                                   <>
@@ -360,7 +360,7 @@ const VendorPriceComparisonModal = ({
                                 ) : (
                                   <>
                                     <Link2 size={13} className="text-[#084E92]" />
-                                    <span>Map to Outlet</span>
+                                    <span>Map to Unit</span>
                                   </>
                                 )}
                               </button>

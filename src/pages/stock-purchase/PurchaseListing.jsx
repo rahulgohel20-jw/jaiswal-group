@@ -24,6 +24,8 @@ import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Container } from "@/components/common/container";
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Link } from "react-router";
 import ScanPurchaseModel from "./models/ScanAndPurchase.models";
 
@@ -50,26 +52,15 @@ const TYPE_OPTIONS = [
   { value: "sales_return", label: "Sales Return" },
 ];
 
-const STATUS_STYLES = {
-  completed: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  pending: "bg-amber-50 text-amber-700 ring-amber-200",
-  cancelled: "bg-red-50 text-red-600 ring-red-200",
+const STATUS_TEXT_COLORS = {
+  completed: "text-emerald-600",
+  pending: "text-amber-600",
+  cancelled: "text-rose-600",
 };
 
 const StatusBadge = ({ status }) => (
-  <span
-    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ring-1 ring-inset capitalize ${STATUS_STYLES[status]}`}
-  >
-    <span
-      className={`w-1.5 h-1.5 rounded-full ${
-        status === "completed"
-          ? "bg-emerald-500"
-          : status === "pending"
-          ? "bg-amber-500"
-          : "bg-red-500"
-      }`}
-    />
-    {status}
+  <span className={`font-semibold text-xs whitespace-nowrap capitalize ${STATUS_TEXT_COLORS[status] || "text-gray-600"}`}>
+    {status || '—'}
   </span>
 );
 
@@ -148,41 +139,50 @@ const PurchaseList = () => {
   const columns = useMemo(
     () => [
       {
+        id: "sno",
+        header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} />,
+        cell: ({ row }) => (
+          <span className="text-xs text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 70,
+      },
+      {
         id: "invoiceNo",
         accessorFn: (row) => row.invoiceNo,
-        header: ({ column }) => <DataGridColumnHeader title="Invoice No." column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="Invoice No." column={column} className="text-xs" />,
         cell: ({ row }) => (
-          <span className="font-semibold text-gray-800">{row.original.invoiceNo}</span>
+          <span className="font-semibold text-xs text-[#084E92]">{row.original.invoiceNo}</span>
         ),
       },
       {
         id: "supplier",
         accessorFn: (row) => row.supplier,
-        header: ({ column }) => <DataGridColumnHeader title="Supplier" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.supplier}</span>,
+        header: ({ column }) => <DataGridColumnHeader title="Supplier" column={column} className="text-xs" />,
+        cell: ({ row }) => <span className="text-xs text-gray-800 font-medium">{row.original.supplier}</span>,
       },
       {
         id: "invoiceDate",
         accessorFn: (row) => row.invoiceDate,
-        header: ({ column }) => <DataGridColumnHeader title="Invoice Date" column={column} />,
-        cell: ({ row }) => <span className="text-gray-600">{row.original.invoiceDate}</span>,
+        header: ({ column }) => <DataGridColumnHeader title="Invoice Date" column={column} className="text-xs" />,
+        cell: ({ row }) => <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{row.original.invoiceDate}</span>,
       },
       {
         id: "amount",
         accessorFn: (row) => row.amount,
-        header: ({ column }) => <DataGridColumnHeader title="Amount" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="Amount" column={column} className="text-xs" />,
         cell: ({ row }) => (
-          <span className="text-gray-700 font-medium">
-            Rs. {Number(row.original.amount).toFixed(2)}
+          <span className="text-xs text-gray-800 font-medium">
+            ₹{Number(row.original.amount).toFixed(2)}
           </span>
         ),
       },
       {
         id: "payment",
         accessorFn: (row) => row.payment,
-        header: ({ column }) => <DataGridColumnHeader title="Payment" column={column} />,
+        header: ({ column }) => <DataGridColumnHeader title="Payment" column={column} className="text-xs" />,
         cell: ({ row }) => (
-          <span className="text-gray-600 capitalize">{row.original.payment}</span>
+          <span className="text-xs text-gray-800 font-medium capitalize">{row.original.payment}</span>
         ),
       },
       {
@@ -243,44 +243,25 @@ const PurchaseList = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Page header */}
-        <div className="flex items-center justify-between mb-6 px-1">
-          <h1 className="text-lg font-bold text-gray-900 leading-none">Purchase List</h1>
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => alert("Export purchases")}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-            >
-              <FileText className="w-4 h-4" />
-              Export
-            </button>
-            <button
-              type="button"
-              onClick={() => setScanModalOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-sky-200 text-sm font-semibold text-sky-900 hover:bg-sky-50 transition cursor-pointer bg-white"
-            >
-              <ScanLine className="w-4 h-4" />
-              Scan &amp; Purchase
-            </button>
-            <Link
-              to="/purchase/add-purchase"
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-sky-900 hover:bg-sky-800 text-white text-sm font-semibold border-0 cursor-pointer transition"
-            >
-              <Plus className="w-4 h-4" />
-              Create New Purchase
-            </Link>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="w-10 h-10 rounded-xl border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white shrink-0"
-              title="Print"
-            >
-              <Printer className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Purchase List"
+          actions={
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setScanModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-sky-200 text-xs font-semibold text-sky-900 hover:bg-sky-50 transition cursor-pointer bg-white"
+              >
+                <ScanLine className="w-3.5 h-3.5" />
+                Scan &amp; Purchase
+              </button>
+              <HeaderActionButton to="/purchase/add-purchase">
+                Create New Purchase
+              </HeaderActionButton>
+            </div>
+          }
+        />
 
         {/* Filters */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5 mb-6">
@@ -414,7 +395,17 @@ const PurchaseList = () => {
             <EmptyState />
           </div>
         ) : (
-          <DataGrid table={table} recordCount={filteredPurchases.length}>
+          <DataGrid
+            table={table}
+            recordCount={filteredPurchases.length}
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
+          >
             <Card>
               <CardTable>
                 <ScrollArea>

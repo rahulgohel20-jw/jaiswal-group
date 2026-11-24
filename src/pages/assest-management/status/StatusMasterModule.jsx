@@ -7,12 +7,12 @@ import {
     Plus,
     ChevronRight,
     List,
-    Search,
     Trash2,
     SquarePen,
     Eye,
     Loader2,
 } from "lucide-react";
+import { SearchBar } from '@/components/common/SearchBar';
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
@@ -33,6 +33,9 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -40,6 +43,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 // TODO: replace with the actual logged-in user id from your auth/session context
 const CURRENT_USER_ID = 1;
 
@@ -47,12 +52,9 @@ const CURRENT_USER_ID = 1;
 
 const VisibilityBadge = ({ status }) => (
     <span
-        className={`px-3 py-1 rounded-full text-[10px] font-semibold ${status === "Active"
-            ? "bg-[#DCFCE7] text-[#15803D]"
-            : "bg-[#D9E3F6] text-[#6B7280]"
-            }`}
+        className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${status === "Active" ? "text-emerald-600" : "text-gray-500"}`}
     >
-        {status}
+        {status || "—"}
     </span>
 );
 
@@ -76,11 +78,10 @@ const normalizeStatusForm = (raw = {}) => ({
 const EMPTY_FORM = { id: null, name: "", description: "", active: true };
 
 const StatusMasterModule = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Status Master');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Status Master');
 
     const [statusData, setStatusData] = useState([]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
 
     const [listLoading, setListLoading] = useState(false);
     const [listError, setListError] = useState(null);
@@ -93,12 +94,14 @@ const StatusMasterModule = () => {
     const [formData, setFormData] = useState(EMPTY_FORM);
 
     const [deletingId, setDeletingId] = useState(null);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const [searchInput, setSearchInput] = useState("");
     const [statusInput, setStatusInput] = useState("All Status");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const navigate = useNavigate();
 
     // -------------------------------------------------------------------
     // Load list
@@ -125,26 +128,26 @@ const StatusMasterModule = () => {
         {
             title: "Total Status",
             value: `${statusData.length}`,
-            badge: "OVERVIEW",
             icon: List,
-            iconBg: "bg-[#EAF3FF]",
-            iconColor: "text-[#084E92]",
+            iconBg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
+            color: "text-[#1B1B1F]",
         },
         {
             title: "Active Status",
             value: `${statusData.filter((c) => c.visibilityStatus == 'Active').length}`,
-            badge: "ACTIVE",
             icon: CircleCheck,
-            iconBg: "bg-[#ECFDF3]",
-            iconColor: "text-[#16A34A]",
+            iconBg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
+            color: "text-[#15803D]",
         },
         {
             title: "Inactive Status",
             value: `${statusData.filter((c) => c.visibilityStatus == 'Inactive').length}`,
-            badge: "INACTIVE",
             icon: CircleX,
-            iconBg: "bg-[#FFF7ED]",
-            iconColor: "text-[#F97316]",
+            iconBg: "bg-[#FEE2E2]",
+            iconColor: "text-[#DC2626]",
+            color: "text-[#DC2626]",
         },
     ];
     // -------------------------------------------------------------------
@@ -253,32 +256,15 @@ const StatusMasterModule = () => {
     // -------------------------------------------------------------------
     const columns = useMemo(() => [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className='my-4'
-                />
-            ),
-            cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                />
-            ),
-            enableSorting: false,
-            size: 50,
-        },
-
-        {
             accessorKey: "srNo",
             header: ({ column }) => (
-                <DataGridColumnHeader title="S.NO" column={column} className="font-semibold" />
+                <DataGridColumnHeader title="S.NO" column={column} className="font-semibold text-[#43474F]" />
             ),
-            size: 50,
+            cell: ({ row }) => (
+                <span className="text-gray-500 py-2 text-xs">{row.original.srNo}</span>
+            ),
+            enableSorting: false,
+            size: 36,
         },
 
         {
@@ -287,14 +273,16 @@ const StatusMasterModule = () => {
                 <DataGridColumnHeader
                     title="STATUS NAME"
                     column={column}
-                    className="font-semibold my-3"
+                    className="font-semibold text-[#43474F]"
                 />
             ),
             cell: ({ row }) => (
-                <span className="font-medium text-[#0F172A]">
+                <span className="font-medium text-xs text-gray-800 truncate block max-w-[200px]">
                     {row.original.statusName}
                 </span>
             ),
+            enableSorting: false,
+            size: 200,
         },
 
         {
@@ -303,7 +291,7 @@ const StatusMasterModule = () => {
                 <DataGridColumnHeader
                     title="VISIBILITY STATUS"
                     column={column}
-                    className="font-semibold"
+                    className="font-semibold text-[#43474F]"
                 />
             ),
             cell: ({ row }) => (
@@ -311,6 +299,8 @@ const StatusMasterModule = () => {
                     status={row.original.visibilityStatus}
                 />
             ),
+            enableSorting: false,
+            size: 90,
         },
 
         {
@@ -324,7 +314,7 @@ const StatusMasterModule = () => {
             ),
 
             cell: ({ row }) => (
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 whitespace-nowrap">
                     <Eye
                         size={18}
                         className="text-gray-500 hover:text-green-600 cursor-pointer"
@@ -357,6 +347,7 @@ const StatusMasterModule = () => {
             ),
 
             enableSorting: false,
+            size: 80,
         },
     ], [canEdit, canDelete, deletingId]);
 
@@ -385,10 +376,8 @@ const StatusMasterModule = () => {
     const table = useReactTable({
         data: filteredStatusData,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
@@ -399,64 +388,50 @@ const StatusMasterModule = () => {
 
     return (
         <Container>
-            <div className='p-4 md:px-6'>
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Asset Management</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Status Master</span>
-                </div>
-                <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold">
-                            Status Master
-                        </h1>
-
-                        <p className="text-[#737781] mt-1 text-sm">
-                            Streamline operational tracking with comprehensive asset status management.
-                        </p>
-                    </div>
-
-                    {canAdd && (
-                        <div className="flex gap-3">
-                            <button onClick={openAddModal} className="flex items-center gap-2 px-5 py-2 bg-[#084E92] text-white rounded-lg cursor-pointer">
-                                <Plus size={16} />
-                                Add Status
-                            </button>
+            <div className='pt-2 pb-6 mx-auto space-y-4'>
+                <PageHeader
+                    title="Status Master"
+                    actions={
+                        <div className="flex items-center gap-3">
+                           {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openAddModal}>
+                                    Add Status
+                                </HeaderActionButton>
+                            )}
                         </div>
-                    )}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 mt-6">
+                    }
+                />
+
+                <PageErrorAlert error={listError} onRetry={loadStatus} className="my-3" />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 mt-6">
                     {STATS.map((item, index) => {
                         const Icon = item.icon;
 
                         return (
                             <div
                                 key={index}
-                                className="border border-[#C3C6D1] rounded-2xl p-4"
+                                className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
                             >
                                 <div
-                                    className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}
+                                    className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}
                                 >
-                                    <Icon
-                                        size={15}
-                                        className={item.iconColor}
-                                    />
+                                    <Icon size={18} />
                                 </div>
 
-                                <div className='mt-2'>
-                                    <p className="text-sm text-[#43474F]">
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-xs font-semibold text-[#00376C]">
                                         {item.title}
-                                    </p>
+                                    </span>
 
-                                    <h3 className="text-xl font-bold">
+                                    <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
                                         {item.value}
-                                    </h3>
-                                    <span
-                                        className={`text-xs ${item.iconColor}`}
-                                    >
-                                        {item.badge}
                                     </span>
                                 </div>
                             </div>
@@ -465,28 +440,21 @@ const StatusMasterModule = () => {
                 </div>
 
 
-                <div className="bg-white rounded-2xl border border-[#D9DEE8] p-5 my-6">
-                    <div className="grid md:grid-cols-3 gap-4">
-                        <div className="relative mt-1 rounded-lg md:col-span-2 col-span-1 border border-[#C3C6D1]">
-                            <Search
-                                size={16}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
-
-                            <input
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                                placeholder="Search by name..."
-                                className="w-full pl-10 py-2 outline-none"
-                            />
-                        </div>
+                <div>
+                    <div className="grid md:grid-cols-3 gap-4 items-center">
+                        <SearchBar
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            placeholder="Search by name..."
+                            wrapperClassName="md:col-span-2 col-span-1"
+                        />
 
                         <div className='my-auto'>
                             <Select
                                 value={statusInput}
                                 onValueChange={(value) => setStatusInput(value)}
                             >
-                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                                <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
 
@@ -508,12 +476,6 @@ const StatusMasterModule = () => {
                     </div>
                 </div>
 
-                {listError && (
-                    <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-600 text-sm border border-red-200">
-                        {listError}
-                    </div>
-                )}
-
                 {/* Table */}
                 <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                     {listLoading ? (
@@ -522,13 +484,21 @@ const StatusMasterModule = () => {
                             Loading Status...
                         </div>
                     ) : (
-                        <DataGrid table={table} recordCount={filteredStatusData.length} className="rounded-2xl">
+                        <DataGrid
+                            table={table}
+                            recordCount={filteredStatusData.length}
+                            className="rounded-2xl"
+                            tableLayout={{
+                                dense: true,
+                                width: 'fixed',
+                                cellBorder: true,
+                                headerBorder: true,
+                                rowBorder: true,
+                            }}
+                        >
                             <Card className="rounded-t-none border-t-0 rounded-2xl">
-                                <CardTable>
-                                    <ScrollArea>
-                                        <DataGridTable />
-                                        <ScrollBar orientation="horizontal" />
-                                    </ScrollArea>
+                                <CardTable className="w-full overflow-x-hidden">
+                                    <DataGridTable />
                                 </CardTable>
                                 <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                                     <DataGridPagination />
@@ -555,6 +525,12 @@ const StatusMasterModule = () => {
                     onConfirm={confirmDelete}
                     itemLabel={deleteTarget?.itemLabel}
                     saving={deleteSaving}
+                />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_status"
+                    title="Export Asset Status Report"
                 />
             </div>
         </Container>

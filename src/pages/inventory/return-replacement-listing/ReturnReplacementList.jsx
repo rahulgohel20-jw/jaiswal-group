@@ -1,60 +1,71 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
-  ChevronRight,
-  Search,
-  Eye,
   Filter,
-  Calendar,
   RotateCcw,
   ArrowUpRight,
-  ArrowDownRight,
-  CircleAlert,
   CircleCheck,
-  CheckCircle2,
   FileText,
   Loader2,
-  PackageCheck,
-  Clock,
-  ArrowRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
-import { getAllGrnDetailsByStatus, getPOByIdAndOpenItem } from '@/services/apiServices';
+import { PageHeader } from '@/components/common/PageHeader';
+import {
+  getAllGrnDetailsByStatus,
+  getPOByIdAndOpenItem,
+} from '@/services/apiServices';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
+import { useOrgHierarchyStore } from '@/store/orgHierarchyStore';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { CodeCell } from '@/components/common/CodeCell';
+import { SearchBar } from '@/components/common/SearchBar';
+import { useServerPagination } from '@/hooks/useServerPagination';
 
 const formatDate = (val) => {
   if (!val) return '—';
-  const slashMatch = String(val).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (slashMatch) {
-    const [, d, m, y] = slashMatch;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const str = String(val).trim();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Match YYYY-MM-DD (e.g. "2026-10-29" or "2026-10-29T...")
+  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
     const monthName = months[parseInt(m, 10) - 1] || m;
     return `${d.padStart(2, '0')} ${monthName} ${y}`;
   }
+
+  // Match DD/MM/YYYY
+  const slashMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    const [, d, m, y] = slashMatch;
+    const monthName = months[parseInt(m, 10) - 1] || m;
+    return `${d.padStart(2, '0')} ${monthName} ${y}`;
+  }
+
+  // Match DD-MM-YYYY
+  const dashMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+  if (dashMatch) {
+    const [, d, m, y] = dashMatch;
+    const monthName = months[parseInt(m, 10) - 1] || m;
+    return `${d.padStart(2, '0')} ${monthName} ${y}`;
+  }
+
   const parsed = new Date(val);
-  if (isNaN(parsed.getTime())) return String(val).split(' ')[0] || val;
+  if (isNaN(parsed.getTime())) return str.split(' ')[0] || val;
   return parsed.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -64,7 +75,7 @@ const formatDate = (val) => {
 
 function UnitDropdown({ units, selectedUnitId, onChange }) {
   const options = [
-    { value: '', label: 'All Outlets' },
+    { value: '', label: 'All Units' },
     ...units.map((u) => ({ value: String(u.id), label: u.name })),
   ];
   return (
@@ -74,104 +85,137 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ? String(selectedUnitId) : ''}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+        placeholder={units.length === 0 ? 'No units available' : 'All Units'}
         disabled={units.length === 0}
       />
     </div>
   );
 }
 
-const StatCard = ({ label, value, trend, trendLabel, trendType = 'up' }) => (
-  <div className="bg-white border border-[#E2E8F0] rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-3 shadow-xs">
-    <div className="min-w-0">
-      <p className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase truncate">{label}</p>
-      <span className="text-base md:text-lg font-bold text-[#0F172A] leading-tight mt-0.5 block">{value}</span>
+const StatCard = ({ icon, iconBg = 'bg-[#D5E3FF]', iconColor = 'text-[#00376C]', label, value }) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div
+      className={`w-9 h-9 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}
+    >
+      {icon}
     </div>
-    {trend && (
-      <span
-        className={`flex items-center gap-0.5 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${
-          trendType === 'up'
-            ? 'bg-amber-50 text-amber-600'
-            : trendType === 'down'
-              ? 'bg-blue-50 text-blue-600'
-              : trendType === 'ok'
-                ? 'bg-emerald-50 text-emerald-600'
-                : 'bg-gray-100 text-gray-600'
-        }`}
-      >
-        {trendType === 'up' && <ArrowUpRight size={11} />}
-        {trendType === 'down' && <RotateCcw size={11} />}
-        {trendType === 'ok' && <CircleCheck size={11} />}
-        {trendLabel}
-      </span>
-    )}
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
+    </div>
   </div>
 );
+
+const UNIT_SYMBOL_MAP = {
+  KILOGRAM: 'KG',
+  KILOGRAMS: 'KG',
+  KG: 'KG',
+  GRAM: 'GM',
+  GRAMS: 'GM',
+  GM: 'GM',
+  G: 'GM',
+  MILLIGRAM: 'MG',
+  MILLIGRAMS: 'MG',
+  MG: 'MG',
+  LITRE: 'LTR',
+  LITRES: 'LTR',
+  LITER: 'LTR',
+  LITERS: 'LTR',
+  LTR: 'LTR',
+  L: 'LTR',
+  MILLILITRE: 'ML',
+  MILLILITRES: 'ML',
+  MILLILITER: 'ML',
+  MILLILITERS: 'ML',
+  ML: 'ML',
+  PIECE: 'PCS',
+  PIECES: 'PCS',
+  PCS: 'PCS',
+  PC: 'PCS',
+  PACKET: 'PKT',
+  PACKETS: 'PKT',
+  PKT: 'PKT',
+  BOX: 'BOX',
+  BOXES: 'BOX',
+  BOTTLE: 'BTL',
+  BOTTLES: 'BTL',
+  CAN: 'CAN',
+  CANS: 'CAN',
+  BAG: 'BAG',
+  BAGS: 'BAG',
+  NUMBER: 'NOS',
+  NUMBERS: 'NOS',
+  NOS: 'NOS',
+};
+
+const formatUnit = (uom) => {
+  if (!uom) return 'Unit';
+  const clean = String(uom).trim().toUpperCase();
+  return UNIT_SYMBOL_MAP[clean] || uom;
+};
 
 const STATUS_MAP = {
   RETURN_REQUESTED: {
     label: 'Return Requested',
-    cls: 'bg-amber-50 text-amber-800 border-amber-200/80',
-    dot: 'bg-amber-500',
+    color: 'text-amber-600',
+  },
+  RETURN: {
+    label: 'Return Requested',
+    color: 'text-amber-600',
   },
   RETURN_REPLACEMENT_REQUESTED: {
-    label: 'Replacement Requested',
-    cls: 'bg-blue-50 text-[#084E92] border-blue-200/80',
-    dot: 'bg-[#084E92]',
+    label: 'Replacement Req.',
+    color: 'text-blue-600',
+  },
+  REPLACEMENT: {
+    label: 'Replacement Req.',
+    color: 'text-blue-600',
   },
   RETURN_REPLACEMENT_COMPLETED: {
     label: 'Completed',
-    cls: 'bg-emerald-50 text-emerald-800 border-emerald-200/80',
-    dot: 'bg-emerald-600',
+    color: 'text-emerald-600',
+  },
+  COMPLETED: {
+    label: 'Completed',
+    color: 'text-emerald-600',
   },
   RETURNED: {
     label: 'Returned',
-    cls: 'bg-amber-50 text-amber-800 border-amber-200/80',
-    dot: 'bg-amber-500',
+    color: 'text-amber-600',
   },
   REPLACED: {
     label: 'Replaced',
-    cls: 'bg-blue-50 text-[#084E92] border-blue-200/80',
-    dot: 'bg-[#084E92]',
+    color: 'text-blue-600',
   },
+};
+
+const COLUMN_SORT_MAP = {
+  id: 'id',
+  grnCode: 'id',
+  itemName: 'id',
+  grnDate: 'id',
+  returnQuantity: 'rejectedQuantity',
+  status: 'returnReplacementStatus',
+  outlet: 'outletId',
 };
 
 const StatusBadge = ({ status }) => {
   const normKey = String(status || '').toUpperCase().trim();
   const config = STATUS_MAP[normKey] || {
     label: status || 'Pending',
-    cls: 'bg-gray-100 text-gray-700 border-gray-200',
-    dot: 'bg-gray-400',
+    color: 'text-gray-600',
   };
 
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.cls}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+    <span className={`text-xs font-semibold whitespace-nowrap ${config.color}`}>
       {config.label}
     </span>
   );
 };
 
-const TruncatedCell = ({
-  value,
-  widthClass = 'max-w-[150px]',
-  className = 'text-gray-600',
-  onClick,
-}) => (
-  <span
-    title={value}
-    onClick={onClick}
-    className={`block truncate ${widthClass} ${className}`}
-  >
-    {value}
-  </span>
-);
-
 const ReturnReplacementList = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Return and Replacement');
+  const { canAdd, canEdit, canView } = usePagePermissions('Return and Replacement');
   const { canAdd: canGenerateGrn } = usePagePermissions('Generate GRN');
 
   const {
@@ -179,40 +223,107 @@ const ReturnReplacementList = () => {
     error: scopeError,
     showUnitDropdown,
     units,
-    selectedUnitId,
-    setSelectedUnitId,
-    effectiveOutletId,
-    filterRowsByScope,
     retry: retryScope,
   } = useOrgScope();
+
+  // Local unit filter defaulting to "All Units" so all records load by default
+  const [selectedUnitId, setSelectedUnitId] = useState('');
+
+  const hierarchyState = useOrgHierarchyStore();
+  const parsedScope = hierarchyState.parsedScope;
+
+  const { outletMapById, outletMapByName, subOutletMapById, subOutletMapByName, subLocationMapById } = useMemo(() => {
+    const oIdMap = new Map();
+    const oNameMap = new Map();
+    const sIdMap = new Map();
+    const sNameMap = new Map();
+    const lIdMap = new Map();
+
+    (parsedScope?.outlets || []).forEach((o) => {
+      if (o.id != null) oIdMap.set(Number(o.id), o);
+      const name = (o.name || o.outletName || '').trim().toLowerCase();
+      if (name) oNameMap.set(name, o);
+    });
+
+    (parsedScope?.subOutlets || []).forEach((s) => {
+      if (s.id != null) sIdMap.set(Number(s.id), s);
+      const name = (s.subOutletName || s.name || '').trim().toLowerCase();
+      if (name) sNameMap.set(name, s);
+    });
+
+    (parsedScope?.subLocations || []).forEach((l) => {
+      if (l.id != null) lIdMap.set(Number(l.id), l);
+    });
+
+    return {
+      outletMapById: oIdMap,
+      outletMapByName: oNameMap,
+      subOutletMapById: sIdMap,
+      subOutletMapByName: sNameMap,
+      subLocationMapById: lIdMap,
+    };
+  }, [parsedScope]);
 
   const [search, setSearch] = useState('');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const [rowSelection, setRowSelection] = useState({});
+  const [sorting, setSorting] = useState([{ id: 'id', desc: true }]);
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
-  const [statusFilter, setStatusFilter] = useState('RETURN_REPLACEMENT_REQUESTED');
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    totalPages,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: 10 });
 
   const fetchReturnReplacements = useCallback(async () => {
     if (scopeLoading) return;
     setLoading(true);
     setError(null);
     try {
-      const outletParam = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
-      const statusParam = statusFilter === 'ALL' ? '' : statusFilter;
+      const targetOutletId = selectedUnitId && selectedUnitId !== 'ALL' ? Number(selectedUnitId) : undefined;
+      const statusParam = statusFilter === 'ALL' ? undefined : statusFilter;
+      const page = pagination.pageIndex;
+      const size = pagination.pageSize;
+      const sortCol = sorting[0];
+      const sortBy = sortCol ? (COLUMN_SORT_MAP[sortCol.id] || sortCol.id || 'id') : 'id';
+      const direction = sortCol ? (sortCol.desc ? 'DESC' : 'ASC') : 'DESC';
 
-      // Fetch from API
-      let res;
-      try {
-        res = await getAllGrnDetailsByStatus(statusParam, outletParam);
-      } catch (err) {
-        res = await getAllGrnDetailsByStatus();
+      const queryParams = {
+        page,
+        size,
+        sortBy,
+        direction,
+        ...(targetOutletId ? { outletId: targetOutletId } : {}),
+        ...(statusParam ? { status: statusParam } : {}),
+      };
+
+      // Fetch return & replacement details with server pagination & sorting
+      const res = await getAllGrnDetailsByStatus(queryParams);
+
+      let rawList = [];
+      if (Array.isArray(res?.data?.data)) {
+        rawList = res.data.data;
+      } else if (Array.isArray(res?.data?.content)) {
+        rawList = res.data.content;
+      } else if (Array.isArray(res?.data?.list)) {
+        rawList = res.data.list;
+      } else if (Array.isArray(res?.data)) {
+        rawList = res.data;
+      } else if (Array.isArray(res?.content)) {
+        rawList = res.content;
+      } else if (Array.isArray(res)) {
+        rawList = res;
       }
 
-      const raw = res?.data?.data ?? res?.data ?? res ?? [];
-      const rawList = Array.isArray(raw) ? raw : [];
+      // Update totalElements and pageCount in useServerPagination
+      updateFromResponse(res, rawList.length);
 
       const list = rawList.map((item, index) => {
         const rawStatus =
@@ -220,41 +331,162 @@ const ReturnReplacementList = () => {
           item.status ||
           (Number(item.rejectedQuantity || item.returnQuantity) > 0 ? 'RETURN_REQUESTED' : 'RETURN_REQUESTED');
 
-        const outletNameStr = item.outletName || item.organizationName || item.purchaseOrder?.outletName || item.purchaseOrder?.organizationName || '';
+        const matchedGrn = item.grn || null;
 
-        // Match unit from units list by name if outletId is not directly in item
-        let matchedUnitId = undefined;
-        if (outletNameStr && Array.isArray(units)) {
-          const matched = units.find(
-            (u) => (u.name || '').trim().toLowerCase() === outletNameStr.trim().toLowerCase()
-          );
-          if (matched) {
-            matchedUnitId = Number(matched.id);
-          }
-        }
+        const rawOutletName =
+          item.outletName ||
+          item.organizationName ||
+          matchedGrn?.organizationName ||
+          matchedGrn?.outletName ||
+          item.purchaseOrder?.outletName ||
+          item.purchaseOrder?.organizationName ||
+          '';
 
         const rawOutletId =
           item.outletId ??
           item.organizationId ??
           item.orgId ??
+          matchedGrn?.orgId ??
+          matchedGrn?.outletId ??
           item.purchaseOrder?.outletId ??
           item.purchaseOrder?.orgId ??
           item.grn?.orgId ??
           item.grn?.outletId ??
           item.purchaseOrder?.organizationId ??
-          matchedUnitId ??
-          (effectiveOutletId ? Number(effectiveOutletId) : undefined);
+          null;
+
+        const rawSubOutletId =
+          item.subOutletId ??
+          item.subUnitId ??
+          item.subOutlet?.id ??
+          matchedGrn?.subOutletId ??
+          matchedGrn?.subUnitId ??
+          matchedGrn?.subOutlet?.id ??
+          item.purchaseOrder?.subOutletId ??
+          item.grn?.subOutletId ??
+          null;
+
+        const rawSubLocationId =
+          item.subLocationId ??
+          item.subLocation?.id ??
+          matchedGrn?.subLocationId ??
+          matchedGrn?.subLocation?.id ??
+          item.purchaseOrder?.subLocationId ??
+          item.grn?.subLocationId ??
+          null;
+
+        // 1. Resolve Sub-Location
+        const matchedSubLocation = rawSubLocationId ? subLocationMapById.get(Number(rawSubLocationId)) : null;
+        const resolvedSubLocationName =
+          item.subLocationName ||
+          item.subLocation?.subLocationName ||
+          item.subLocation?.locationName ||
+          item.subLocation?.name ||
+          matchedGrn?.subLocationName ||
+          matchedGrn?.subLocation?.subLocationName ||
+          matchedGrn?.subLocation?.locationName ||
+          matchedGrn?.subLocation?.name ||
+          matchedSubLocation?.subLocationName ||
+          matchedSubLocation?.locationName ||
+          matchedSubLocation?.name ||
+          '';
+
+        // 2. Resolve Sub-Outlet
+        const subOutletFromId = rawSubOutletId ? subOutletMapById.get(Number(rawSubOutletId)) : null;
+        const subOutletFromOutletId = rawOutletId ? subOutletMapById.get(Number(rawOutletId)) : null;
+        const subOutletFromName = rawOutletName ? subOutletMapByName.get(rawOutletName.trim().toLowerCase()) : null;
+        const subOutletFromLoc = matchedSubLocation?.subOutletId ? subOutletMapById.get(Number(matchedSubLocation.subOutletId)) : null;
+
+        const matchedSubOutlet = subOutletFromId || subOutletFromOutletId || subOutletFromName || subOutletFromLoc;
+
+        let resolvedSubOutletName =
+          item.subOutletName ||
+          item.subUnitName ||
+          matchedGrn?.subOutletName ||
+          matchedGrn?.subUnitName ||
+          matchedSubOutlet?.subOutletName ||
+          matchedSubOutlet?.name ||
+          '';
+
+        // 3. Resolve Main Outlet (Unit)
+        let resolvedOutletName = '';
+        let resolvedOutletId = null;
+
+        // If we matched a sub-outlet, its parent outletId gives the true main Outlet!
+        if (matchedSubOutlet) {
+          const parentOutletId = matchedSubOutlet.outletId || matchedSubOutlet.organizationId || matchedSubOutlet.parentId;
+          if (parentOutletId && outletMapById.has(Number(parentOutletId))) {
+            const parentOutlet = outletMapById.get(Number(parentOutletId));
+            resolvedOutletName = parentOutlet.name || parentOutlet.organizationName || '';
+            resolvedOutletId = Number(parentOutlet.id);
+          }
+        }
+
+        // If outlet not yet resolved from sub-outlet parent, try rawOutletId or rawOutletName as an outlet
+        if (!resolvedOutletName) {
+          if (rawOutletId && outletMapById.has(Number(rawOutletId))) {
+            const outl = outletMapById.get(Number(rawOutletId));
+            resolvedOutletName = outl.name || '';
+            resolvedOutletId = Number(outl.id);
+          } else if (rawOutletName && outletMapByName.has(rawOutletName.trim().toLowerCase())) {
+            const outl = outletMapByName.get(rawOutletName.trim().toLowerCase());
+            resolvedOutletName = outl.name || '';
+            resolvedOutletId = Number(outl.id);
+          } else if (rawOutletName && !subOutletFromName) {
+            resolvedOutletName = rawOutletName;
+          }
+        }
+
+        // If outlet still missing, check currently selected unit or single unit in scope
+        if (!resolvedOutletName) {
+          if (selectedUnitId && selectedUnitId !== 'ALL' && outletMapById.has(Number(selectedUnitId))) {
+            const outl = outletMapById.get(Number(selectedUnitId));
+            resolvedOutletName = outl.name || '';
+            resolvedOutletId = Number(outl.id);
+          } else if (units && units.length === 1) {
+            resolvedOutletName = units[0].name;
+            resolvedOutletId = Number(units[0].id);
+          }
+        }
+
+        // Fallback
+        if (!resolvedOutletName) {
+          resolvedOutletName = rawOutletName || (rawOutletId ? `Outlet #${rawOutletId}` : '—');
+        }
+
+        // If resolvedOutletName and resolvedSubOutletName are identical, check if it's a sub-outlet
+        if (resolvedOutletName && resolvedSubOutletName && resolvedOutletName.trim().toLowerCase() === resolvedSubOutletName.trim().toLowerCase()) {
+          if (subOutletMapByName.has(resolvedOutletName.trim().toLowerCase())) {
+            const subObj = subOutletMapByName.get(resolvedOutletName.trim().toLowerCase());
+            const parentOutletId = subObj.outletId || subObj.organizationId || subObj.parentId;
+            const parentOutlet = parentOutletId ? outletMapById.get(Number(parentOutletId)) : null;
+            if (parentOutlet) {
+              resolvedOutletName = parentOutlet.name;
+              resolvedSubOutletName = subObj.subOutletName || subObj.name;
+            } else {
+              resolvedSubOutletName = '';
+            }
+          } else {
+            resolvedSubOutletName = '';
+          }
+        }
+
+        const resolvedGrnId = item.grnId || item.grnHeaderId || item.grn?.id || matchedGrn?.id || item.oldGrnId;
 
         return {
           id: item.id || index + 1,
           grnDetailId: item.id,
-          grnId: item.grnId || item.grnHeaderId || item.grn?.id || item.oldGrnId,
-          grnCode: item.grnCode || item.grn?.grnCode || (item.grnId ? `GRN-#${item.grnId}` : '—'),
-          purchaseOrderId: item.purchaseOrderId || item.poId || item.purchaseOrder?.id,
+          grnId: resolvedGrnId,
+          grnCode: item.grnCode || item.grn?.grnCode || matchedGrn?.grnCode || (resolvedGrnId ? `GRN-#${resolvedGrnId}` : '—'),
+          purchaseOrderId: item.purchaseOrderId || item.poId || item.purchaseOrder?.id || matchedGrn?.purchaseOrderId,
           poCode: item.purchaseOrderCode || item.poCode || item.purchaseOrder?.purchaseOrderCode || item.purchaseOrder?.poCode || (item.purchaseOrderId ? `PO-${item.purchaseOrderId}` : '—'),
           prCode: item.prcode || item.prCode || item.purchaseRequisitionCode || item.purchaseOrder?.prcode || '—',
-          outletId: rawOutletId !== undefined && rawOutletId !== null ? Number(rawOutletId) : undefined,
-          outlet: outletNameStr || (rawOutletId ? `Outlet #${rawOutletId}` : '—'),
+          outletId: resolvedOutletId !== null ? resolvedOutletId : (rawOutletId !== undefined && rawOutletId !== null ? Number(rawOutletId) : undefined),
+          outlet: resolvedOutletName || '—',
+          subOutletId: matchedSubOutlet?.id ? Number(matchedSubOutlet.id) : (rawSubOutletId != null ? Number(rawSubOutletId) : null),
+          subOutletName: resolvedSubOutletName,
+          subLocationId: rawSubLocationId != null ? Number(rawSubLocationId) : null,
+          subLocationName: resolvedSubLocationName,
           rawMaterialId: item.rawMaterialId,
           purchaseOrderDetailId: item.purchaseOrderDetailId,
           itemName: item.rawMaterialName || item.itemName || `Item #${item.rawMaterialId || index + 1}`,
@@ -276,41 +508,53 @@ const ReturnReplacementList = () => {
       setRecords(list);
     } catch (err) {
       console.error('Failed to fetch return & replacement records:', err);
-      setError(err?.message || 'Failed to load return & replacement records.');
-      toast.error('Failed to load return & replacement records');
+      setError(err?.response?.data?.message || err?.message || 'Failed to load return & replacement records.');
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, effectiveOutletId, statusFilter, units]);
+  }, [
+    scopeLoading,
+    pagination.pageIndex,
+    pagination.pageSize,
+    sorting,
+    selectedUnitId,
+    statusFilter,
+    units,
+    outletMapById,
+    outletMapByName,
+    subOutletMapById,
+    subOutletMapByName,
+    subLocationMapById,
+    updateFromResponse,
+  ]);
 
   useEffect(() => {
-    fetchReturnReplacements();
-  }, [fetchReturnReplacements]);
-
-  useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [search, statusFilter, selectedUnitId, effectiveOutletId]);
-
-  const scopedRecords = useMemo(() => {
-    // If API is already filtered by effectiveOutletId, or if outletId matches
-    if (effectiveOutletId && effectiveOutletId !== 'ALL' && records.length > 0) {
-      const filtered = filterRowsByScope(records);
-      return filtered.length > 0 ? filtered : records;
+    if (!scopeLoading) {
+      fetchReturnReplacements();
     }
-    return filterRowsByScope(records);
-  }, [records, filterRowsByScope, effectiveOutletId]);
+  }, [fetchReturnReplacements, scopeLoading]);
+
+  useEffect(() => {
+    resetPage();
+  }, [search, statusFilter, selectedUnitId, resetPage]);
+
+  const scopedRecords = records;
 
   const summary = useMemo(() => {
-    const total = scopedRecords.length;
-    const returnReq = scopedRecords.filter(
-      (r) => String(r.status || '').toUpperCase() === 'RETURN_REQUESTED'
-    ).length;
-    const replacementReq = scopedRecords.filter(
-      (r) => String(r.status || '').toUpperCase() === 'RETURN_REPLACEMENT_REQUESTED'
-    ).length;
-    const completed = scopedRecords.filter(
-      (r) => String(r.status || '').toUpperCase() === 'RETURN_REPLACEMENT_COMPLETED'
-    ).length;
+    let rows = scopedRecords;
+    const total = totalElements > 0 ? totalElements : rows.length;
+    const returnReq = rows.filter((r) => {
+      const s = String(r.status || '').toUpperCase();
+      return s === 'RETURN_REQUESTED' || s === 'RETURN' || s === 'RETURNED';
+    }).length;
+    const replacementReq = rows.filter((r) => {
+      const s = String(r.status || '').toUpperCase();
+      return s === 'RETURN_REPLACEMENT_REQUESTED' || s === 'REPLACEMENT' || s === 'REPLACED';
+    }).length;
+    const completed = rows.filter((r) => {
+      const s = String(r.status || '').toUpperCase();
+      return s === 'RETURN_REPLACEMENT_COMPLETED' || s === 'COMPLETED';
+    }).length;
 
     return {
       totalReturns: total,
@@ -318,15 +562,10 @@ const ReturnReplacementList = () => {
       replacementReq,
       completed,
     };
-  }, [scopedRecords]);
+  }, [scopedRecords, totalElements]);
 
   const filteredRecords = useMemo(() => {
     let rows = scopedRecords;
-    if (statusFilter !== 'ALL') {
-      rows = rows.filter(
-        (r) => String(r.status || '').toUpperCase() === String(statusFilter).toUpperCase()
-      );
-    }
     const term = search.trim().toLowerCase();
     if (term) {
       rows = rows.filter(
@@ -336,11 +575,13 @@ const ReturnReplacementList = () => {
           (r.prCode || '').toLowerCase().includes(term) ||
           (r.poCode || '').toLowerCase().includes(term) ||
           (r.grnCode || '').toLowerCase().includes(term) ||
-          (r.outlet || '').toLowerCase().includes(term)
+          (r.outlet || '').toLowerCase().includes(term) ||
+          (r.subOutletName || '').toLowerCase().includes(term) ||
+          (r.subLocationName || '').toLowerCase().includes(term)
       );
     }
     return rows;
-  }, [scopedRecords, search, statusFilter]);
+  }, [scopedRecords, search]);
 
   const [checkingPoId, setCheckingPoId] = useState(null);
 
@@ -387,6 +628,10 @@ const ReturnReplacementList = () => {
           returnQty: row.returnQuantity,
           grnCode: row.grnCode,
           oldGrnId: row.grnId,
+          subOutletId: row.subOutletId,
+          subOutletName: row.subOutletName,
+          subLocationId: row.subLocationId,
+          subLocationName: row.subLocationName,
           returnItem: row,
         },
       });
@@ -406,74 +651,21 @@ const ReturnReplacementList = () => {
   const columns = useMemo(
     () => [
       {
-        id: 'itemName',
-        accessorFn: (row) => row.itemName,
+        id: 'sno',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Item Description"
+            title="S.NO"
             column={column}
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
         ),
         cell: ({ row }) => (
-          <div className="py-1 min-w-[160px] max-w-[190px]">
-            <div
-              className="font-bold text-[#084E92] text-sm hover:underline cursor-pointer truncate"
-              title={row.original.itemName}
-            >
-              {row.original.itemName}
-            </div>
-            {row.original.itemCode && (
-              <div className="text-[11px] text-gray-500 font-mono mt-0.5 truncate" title={row.original.itemCode}>
-                {row.original.itemCode}
-              </div>
-            )}
-          </div>
+          <span className="text-gray-500 py-2 text-xs">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
         ),
-        size: 180,
-      },
-      {
-        id: 'prCode',
-        accessorFn: (row) => row.prCode,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="PR Code"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <div className="min-w-[130px]">
-            <TruncatedCell
-              value={row.original.prCode || '—'}
-              widthClass="max-w-[130px]"
-              className="font-mono text-xs font-semibold text-gray-700"
-            />
-          </div>
-        ),
-        size: 150,
-      },
-      {
-        id: 'poCode',
-        accessorFn: (row) => row.poCode,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="PO Code"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <div className="min-w-[140px]">
-            <TruncatedCell
-              value={row.original.poCode || '—'}
-              widthClass="max-w-[140px]"
-              className="font-bold text-[#084E92] text-xs font-mono hover:underline cursor-pointer"
-              onClick={() => row.original.purchaseOrderId && navigate(`/purchase/purchase-order-detail/${row.original.purchaseOrderId}`)}
-            />
-          </div>
-        ),
-        size: 160,
+        enableSorting: false,
+        size: 40,
       },
       {
         id: 'grnCode',
@@ -486,15 +678,42 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-[150px]">
-            <TruncatedCell
-              value={row.original.grnCode || '—'}
-              widthClass="max-w-[150px]"
-              className="font-mono text-xs text-gray-700 font-medium"
-            />
+          <CodeCell
+            code={row.original.grnCode}
+            maxWidth="max-w-full"
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
+          />
+        ),
+        enableSorting: true,
+        size: 130,
+      },
+      {
+        id: 'itemName',
+        accessorFn: (row) => row.itemName,
+        header: ({ column }) => (
+          <DataGridColumnHeader
+            title="ITEMS"
+            column={column}
+            className="text-[#43474F] font-semibold uppercase text-xs"
+          />
+        ),
+        cell: ({ row }) => (
+          <div className="py-1 min-w-[130px] max-w-[160px]">
+            <div
+              className="font-semibold text-[#084E92] text-xs hover:underline cursor-pointer truncate"
+              title={row.original.itemName}
+            >
+              {row.original.itemName}
+            </div>
+            {row.original.itemCode && (
+              <div className="text-[10px] text-gray-500 font-mono mt-0.5 truncate" title={row.original.itemCode}>
+                {row.original.itemCode}
+              </div>
+            )}
           </div>
         ),
-        size: 170,
+        enableSorting: true,
+        size: 155,
       },
       {
         id: 'grnDate',
@@ -507,36 +726,42 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-[110px]">
-            <TruncatedCell
-              value={row.original.grnDate || '—'}
-              widthClass="max-w-[110px]"
-              className="text-gray-600 text-xs font-medium"
-            />
-          </div>
+          <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
+            {row.original.grnDate || '—'}
+          </span>
         ),
-        size: 130,
+        enableSorting: true,
+        size: 85,
       },
       {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Outlet Name"
+            title="Unit"
             column={column}
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-[140px]">
-            <TruncatedCell
-              value={row.original.outlet || '—'}
-              widthClass="max-w-[140px]"
-              className="text-gray-800 text-xs font-medium"
-            />
+          <div className="flex flex-col gap-0.5 min-w-0 py-1">
+            <div className="font-semibold text-xs text-gray-900 truncate max-w-[160px]" title={row.original.outlet}>
+              {row.original.outlet}
+            </div>
+            {row.original.subOutletName && (
+              <div className="text-[11px] text-gray-500 font-medium truncate max-w-[160px]" title={row.original.subOutletName}>
+                {row.original.subOutletName}
+              </div>
+            )}
+            {row.original.subLocationName && (
+              <div className="text-[10px] text-blue-600 font-medium truncate max-w-[160px]" title={row.original.subLocationName}>
+                ↳ {row.original.subLocationName}
+              </div>
+            )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 165,
       },
       {
         id: 'returnQuantity',
@@ -549,14 +774,13 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="flex items-center gap-1.5 whitespace-nowrap min-w-[110px]">
-            <span className="font-bold text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-0.5 rounded-lg text-xs">
-              {row.original.returnQuantity || 0}
-            </span>
-            <span className="text-[11px] text-gray-600 font-semibold">{row.original.uomName}</span>
+          <div className="flex items-center gap-1 whitespace-nowrap text-xs">
+            <span className="font-semibold text-gray-900">{row.original.returnQuantity || 0}</span>
+            <span className="text-[11px] text-gray-500 font-medium">{formatUnit(row.original.uomName)}</span>
           </div>
         ),
-        size: 130,
+        enableSorting: true,
+        size: 80,
       },
       {
         id: 'status',
@@ -569,17 +793,18 @@ const ReturnReplacementList = () => {
           />
         ),
         cell: ({ row }) => (
-          <div className="whitespace-nowrap min-w-[185px] pr-2">
+          <div className="whitespace-nowrap pr-1">
             <StatusBadge status={row.original.status} />
           </div>
         ),
-        size: 200,
+        enableSorting: true,
+        size: 115,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Actions"
+            title="Action"
             column={column}
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
@@ -587,70 +812,53 @@ const ReturnReplacementList = () => {
         cell: ({ row }) => {
           const normStatus = String(row.original.status || '').toUpperCase().trim();
 
-          if (normStatus === 'RETURN_REPLACEMENT_COMPLETED') {
-            return (
-              <div className="min-w-[140px] flex items-center justify-start">
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                  <CheckCircle2 size={13} />
-                  Completed
-                </span>
-              </div>
-            );
-          }
-
           if (normStatus === 'RETURN_REPLACEMENT_REQUESTED') {
             const hasPermissionToAccept = canAdd || canEdit || canGenerateGrn;
             if (!hasPermissionToAccept) {
               return (
-                <div className="min-w-[140px] flex items-center justify-start">
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                    Pending Return
-                  </span>
-                </div>
+                <span className="text-gray-400 text-xs">—</span>
               );
             }
 
             return (
-              <div className="min-w-[140px] flex items-center justify-start">
+              <div className="flex items-center whitespace-nowrap">
                 <button
                   type="button"
                   onClick={() => handleAcceptReturn(row.original)}
                   disabled={checkingPoId === row.original.id}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#084E92] text-white text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs whitespace-nowrap disabled:opacity-50"
+                  className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-1 rounded-lg hover:bg-blue-50 transition disabled:opacity-50"
+                  title="Generate GRN for Replacement Item"
                 >
                   {checkingPoId === row.original.id ? (
-                    <Loader2 size={13} className="animate-spin" />
+                    <Loader2 size={16} className="animate-spin" />
                   ) : (
-                    <FileText size={13} />
+                    <FileText size={16} />
                   )}
-                  Accept Return
                 </button>
               </div>
             );
           }
 
-          // For RETURN_REQUESTED (Return only, no replacement needed)
           return (
-            <div className="min-w-[140px] flex items-center justify-start">
-              <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg whitespace-nowrap">
-                <RotateCcw size={13} />
-                Return Only
-              </span>
-            </div>
+            <span className="text-gray-400 text-xs pl-2 font-medium">—</span>
           );
         },
         enableSorting: false,
-        size: 160,
+        size: 55,
       },
     ],
-    [navigate, canAdd, canEdit, canGenerateGrn, checkingPoId]
+    [navigate, canAdd, canEdit, canGenerateGrn, checkingPoId, pagination.pageIndex, pagination.pageSize]
   );
 
   const table = useReactTable({
     data: filteredRecords,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination, sorting, rowSelection },
+    manualPagination: true,
+    manualSorting: true,
+    pageCount,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
     getRowId: (row) => String(row.id),
@@ -664,84 +872,61 @@ const ReturnReplacementList = () => {
 
   return (
     <Container>
-      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={11} />
-          <span>Inventory</span>
-          <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">Return and Replacement</span>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Return & Replacement Listing"
+        />
 
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-[#0F172A] text-start leading-tight">
-            Return &amp; Replacement Listing
-          </h1>
-          <p className="text-[#53565b] text-xs mt-1">
-            Manage and track returned inventory and generate replacement GRNs
-          </p>
-        </div>
-
-        {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0 cursor-pointer">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || error}
+          onRetry={scopeError ? retryScope : fetchReturnReplacements}
+        />
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard
+            icon={<RotateCcw size={18} />}
+            iconBg="bg-[#D5E3FF]"
+            iconColor="text-[#00376C]"
             label="Total Returns"
             value={summary.totalReturns}
-            trend
-            trendType="up"
-            trendLabel="All"
           />
           <StatCard
+            icon={<ArrowUpRight size={18} />}
+            iconBg="bg-[#FEF3C7]"
+            iconColor="text-[#B45309]"
             label="Return Requested"
             value={summary.returnReq}
-            trend
-            trendType="warn"
-            trendLabel="Action"
           />
           <StatCard
+            icon={<RotateCcw size={18} />}
+            iconBg="bg-[#E0E7FF]"
+            iconColor="text-[#4338CA]"
             label="Replacement Requested"
             value={summary.replacementReq}
-            trend
-            trendType="down"
-            trendLabel="Pending"
           />
           <StatCard
+            icon={<CircleCheck size={18} />}
+            iconBg="bg-[#DCFCE7]"
+            iconColor="text-[#15803D]"
             label="Completed"
             value={summary.completed}
-            trend
-            trendType="ok"
-            trendLabel="Done"
           />
         </div>
 
         {/* Search + Filters */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search
-              size={15}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              placeholder="Search by Item, PR, PO, GRN, or Outlet..."
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
+              placeholder="Search by Item, PR, PO, GRN, or Unit..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-9.5 border border-gray-200 rounded-xl pl-9 pr-3 text-xs text-gray-800 bg-white outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition"
+              onClear={() => setSearch('')}
             />
           </div>
 
           <div className="flex items-center gap-2.5 w-full md:w-auto flex-wrap">
-            {showUnitDropdown && (
+            {(showUnitDropdown || units.length > 0) && (
               <UnitDropdown
                 units={units}
                 selectedUnitId={selectedUnitId}
@@ -754,7 +939,7 @@ const ReturnReplacementList = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92] transition cursor-pointer"
+                className="h-10 w-full pl-8 pr-7 rounded-xl border border-[#C3C6D1] bg-white text-xs font-semibold text-gray-800 outline-none focus:border-[#084E92] focus:ring-2 focus:ring-[#084E92]/15 transition cursor-pointer"
               >
                 <option value="ALL">All Status</option>
                 <option value="RETURN_REPLACEMENT_REQUESTED">Replacement Requested</option>
@@ -773,26 +958,23 @@ const ReturnReplacementList = () => {
               Loading records...
             </div>
           )}
-          {error && !loading && <p className="p-6 text-center text-sm text-red-600">{error}</p>}
 
           {!loading && (
             <DataGrid
               table={table}
-              recordCount={filteredRecords.length}
+              recordCount={totalElements}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
-                cellBorder: false,
+                cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
               <Card className="rounded-2xl border-0 shadow-none bg-transparent">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F8FAFC] border-t border-[#E2E8F0] rounded-b-2xl py-2.5">
                   <DataGridPagination />

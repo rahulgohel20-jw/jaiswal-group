@@ -1,39 +1,21 @@
 import { useAuth } from '@/auth/context/auth-context';
-import { I18N_LANGUAGES } from '@/i18n/config';
 import {
-  BetweenHorizontalStart,
-  Coffee,
-  CreditCard,
-  FileText,
-  Globe,
-  IdCard,
   KeyRound,
-  Moon,
-  Settings,
-  Shield,
-  SquareCode,
   UserCircle,
-  Users,
+  RefreshCw,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Link, useNavigate } from 'react-router';
 import { toAbsoluteUrl } from '@/lib/helpers';
 import { useLanguage } from '@/providers/i18n-provider';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Switch } from '@/components/ui/switch';
 import { logout } from '../../auth/Logout';
 
 export function UserDropdownMenu({ trigger }) {
@@ -51,7 +33,7 @@ export function UserDropdownMenu({ trigger }) {
 
   const displayEmail = user?.email || '';
   // const displayAvatar = user?.pic || toAbsoluteUrl('/media/avatars/300-2.png');
-  const displayAvatar = toAbsoluteUrl('/media/app/jaiswalgroup-logo.png');
+  const displayAvatar = toAbsoluteUrl('/media/app/jaiswal-group-logo.png');
 
   const handleLanguage = (lang) => {
     changeLanguage(lang);
@@ -89,9 +71,9 @@ export function UserDropdownMenu({ trigger }) {
               </a>
             </div>
           </div>
-          <Badge variant="primary" appearance="light" size="sm">
+          {/* <Badge variant="primary" appearance="light" size="sm">
             Pro
-          </Badge>
+          </Badge> */}
         </div>
 
         <DropdownMenuSeparator />
@@ -239,6 +221,15 @@ export function UserDropdownMenu({ trigger }) {
           </DropdownMenuSubContent>
         </DropdownMenuSub> */}
 
+        <DropdownMenuSeparator />
+        {/* Workspace Switcher */}
+        <DropdownMenuItem
+          className="flex items-center gap-2 cursor-pointer font-medium"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-switch-scope-modal'))}
+        >
+          <RefreshCw className="size-4 text-primary" />
+          Switch Workspace
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         {/* Profile */}
         <DropdownMenuItem asChild>

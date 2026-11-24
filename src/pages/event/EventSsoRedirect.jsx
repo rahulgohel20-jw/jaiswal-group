@@ -100,7 +100,7 @@ export const EventSsoRedirect = ({ defaultPath }) => {
           <span>Target: {eventAppBaseUrl}</span>
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/companies')}
             className="text-gray-500 hover:text-gray-700 underline"
           >
             Cancel & Back

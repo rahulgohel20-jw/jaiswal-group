@@ -11,6 +11,8 @@ import {
   Mail,
   Phone,
 } from "lucide-react";
+import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const InfoCard = ({ label, value }) => (
   <div className="bg-gray-50 border border-gray-100 rounded-xl p-4">
@@ -24,20 +26,14 @@ const InfoCard = ({ label, value }) => (
 );
 
 const StatCard = ({ label, value, icon: Icon }) => (
-  <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-    <div className="flex items-center justify-between">
-      <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold">
-        {label}
-      </p>
-
-      <div className="w-9 h-9 rounded-xl bg-[#084E92]/10 flex items-center justify-center">
-        <Icon className="w-4 h-4 text-[#084E92]" />
-      </div>
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div className="w-9 h-9 rounded-xl bg-[#D5E3FF] flex items-center justify-center shrink-0">
+      <Icon className="w-5 h-5 text-[#00376C]" />
     </div>
-
-    <p className="mt-3 text-sm font-semibold text-gray-800 break-words">
-      {value || "—"}
-    </p>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className="text-base sm:text-lg font-bold text-[#1B1B1F] mt-0.5 break-words">{value || "—"}</span>
+    </div>
   </div>
 );
 
@@ -93,53 +89,47 @@ const UnitViewDetails = () => {
   const statusLabel = isActive ? "Active" : "Inactive";
 
   const logoUrl =
-    raw.companyLogo ||
-    (raw.images?.length > 0
+    raw.images?.length > 0
       ? raw.images[raw.images.length - 1]?.path
-      : null);
+      : null;
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+     <Container>
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
 
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
-        <div>
-          <button
-            type="button"
-            onClick={() => navigate("/units")}
-            className="flex items-center gap-2 text-[#084E92] font-semibold text-sm mb-2 cursor-pointer bg-transparent border-0 p-0"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Units
-          </button>
-
-          <h1 className="text-3xl md:text-4xl font-bold text-[#084E92]">
-            {name}
-          </h1>
-
-          <p className="text-[#737781] mt-1 text-sm">
-            Complete unit profile and address information.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            navigate("/units/add-unit", {
-              state: {
-                unit: raw,
-              },
-            })
-          }
-          className="bg-[#084E92] hover:bg-[#073e77] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold border-0 cursor-pointer transition self-start lg:self-auto"
-        >
-          <SquarePen className="w-4 h-4" />
-          Edit Unit
-        </button>
-      </div>
+      <PageHeader
+        title={<span className="capitalize">{name}</span>}
+        description="Complete unit profile and address information."
+        actions={
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/units")}
+              className="flex items-center gap-1.5 text-[#084E92] hover:text-[#063b6f] font-semibold text-sm cursor-pointer bg-transparent border-0 p-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Units
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/units/add-unit", {
+                  state: {
+                    unit: raw,
+                  },
+                })
+              }
+              className="bg-[#084E92] hover:bg-[#073e77] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold border-0 cursor-pointer transition"
+            >
+              <SquarePen className="w-4 h-4" />
+              Edit Unit
+            </button>
+          </div>
+        }
+      />
 
       {/* Profile Banner */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm my-4 p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
         <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center overflow-hidden border border-gray-200 shrink-0">
           {logoUrl ? (
             <img
@@ -153,7 +143,7 @@ const UnitViewDetails = () => {
         </div>
 
         <div className="text-center sm:text-left flex-1">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-2xl font-bold text-gray-900 capitalize">
             {name}
           </h2>
 
@@ -250,6 +240,7 @@ const UnitViewDetails = () => {
       </div>
 
     </div>
+    </Container>
   );
 };
 

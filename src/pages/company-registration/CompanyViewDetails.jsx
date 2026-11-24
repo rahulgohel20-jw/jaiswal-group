@@ -14,6 +14,8 @@ import {
     Phone,
     Mail,
 } from "lucide-react";
+import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 
 const SectionCard = ({ title, icon: Icon, children }) => (
@@ -56,25 +58,14 @@ const InfoCard = ({ label, value }) => (
 
 
 const StatCard = ({ label, value, icon: Icon }) => (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-
-        <div className="flex items-center justify-between">
-
-            <p className="text-xs text-gray-400 uppercase tracking-wide font-semibold">
-                {label}
-            </p>
-
-            <div className="w-9 h-9 rounded-xl bg-[#084E92]/10 flex items-center justify-center">
-                <Icon className="w-4 h-4 text-[#084E92]" />
-            </div>
-
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+        <div className="w-9 h-9 rounded-xl bg-[#D5E3FF] flex items-center justify-center shrink-0">
+            <Icon className="w-5 h-5 text-[#00376C]" />
         </div>
-
-
-        <p className="mt-3 text-sm font-semibold text-gray-800">
-            {value || "—"}
-        </p>
-
+        <div className="flex flex-col items-end text-right">
+            <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+            <span className="text-base sm:text-lg font-bold text-[#1B1B1F] mt-0.5">{value || "—"}</span>
+        </div>
     </div>
 );
 
@@ -95,65 +86,44 @@ const CompanyViewDetails = () => {
 
 
     return (
-
-        <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-
-
-            {/* Header */}
-
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+         <Container>
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
 
 
-                <div>
-
-                    <button
-                        onClick={() => navigate("/companies")}
-                        className="flex items-center gap-2 text-[#084E92] font-semibold text-sm mb-2"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to Companies
-                    </button>
-
-
-                    <h1 className="text-3xl md:text-4xl font-bold text-[#084E92]">
-                        {company.companyNameEnglish}
-                    </h1>
-
-
-                    <p className="text-[#737781] mt-1">
-                        Complete company profile and registration information.
-                    </p>
-
-
-                </div>
-
-
-
-                <button
-                    onClick={() =>
-                        navigate("/companies/update-company", {
-                            state: {
-                                company
+            <PageHeader
+                title={company.companyNameEnglish}
+                description="Complete company profile and registration information."
+                actions={
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate("/companies")}
+                            className="flex items-center gap-1.5 text-[#084E92] hover:text-[#063b6f] font-semibold text-sm cursor-pointer bg-transparent border-0 p-0"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to Companies
+                        </button>
+                        <button
+                            onClick={() =>
+                                navigate("/companies/update-company", {
+                                    state: {
+                                        company
+                                    }
+                                })
                             }
-                        })
-                    }
-                    className="bg-[#084E92] text-white px-5 py-3 rounded-xl flex items-center gap-2"
-                >
-
-                    <SquarePen className="w-4 h-4" />
-
-                    Edit Company
-
-                </button>
-
-
-            </div>
+                            className="bg-[#084E92] text-white px-5 py-3 cursor-pointer rounded-xl flex items-center gap-2"
+                        >
+                            <SquarePen className="w-4 h-4" />
+                            Edit Company
+                        </button>
+                    </div>
+                }
+            />
 
 
 
             {/* Company Profile Card */}
 
-            <div className="mt-6 bg-white border border-gray-100 rounded-3xl shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+            <div className="my-6 bg-white border border-gray-100 rounded-3xl shadow-sm p-6 flex flex-col sm:flex-row items-center sm:items-start gap-5">
 
 
                 <div className="w-24 h-24 rounded-full bg-[#084E92]/10 flex items-center justify-center">
@@ -423,6 +393,7 @@ const CompanyViewDetails = () => {
 
 
         </div>
+        </Container>
 
     );
 

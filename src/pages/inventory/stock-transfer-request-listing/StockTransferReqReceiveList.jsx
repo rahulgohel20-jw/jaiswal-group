@@ -26,45 +26,88 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { useOrgScope } from '@/hooks/useOrgScope';
-import { getTransferList, getAllSubOutlets, getOrganizationByType } from '@/services/apiServices';
-import { OrgTypes } from '@/constants/orgTypes';
+import { getTransferList } from '@/services/apiServices';
 import FifoBatchVisualizerModal from '../stock-transfer/FifoBatchVisualizerModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { CodeCell } from '@/components/common/CodeCell';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { SearchBar } from '@/components/common/SearchBar';
+import { useServerPagination } from '@/hooks/useServerPagination';
 
 /* -------------------------------------------------------------------------
  * Status Styling Tokens (IN_TRANSIT, REJECTED, CLOSED)
  * ---------------------------------------------------------------------- */
-const STATUS_STYLES = {
-  IN_TRANSIT: 'bg-blue-50 text-blue-700 border-blue-200',
-  'In Transit': 'bg-blue-50 text-blue-700 border-blue-200',
-  REJECTED: 'bg-rose-50 text-rose-700 border-rose-200',
-  Rejected: 'bg-rose-50 text-rose-700 border-rose-200',
-  CLOSED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Closed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  RECEIVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  RECIEVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Recieved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  PARTIALLY_ACCEPTED: 'bg-purple-50 text-purple-700 border-purple-200',
-  'Partially Accepted': 'bg-purple-50 text-purple-700 border-purple-200',
+const STATUS_TEXT_COLORS = {
+  IN_TRANSIT: 'text-blue-600',
+  'In Transit': 'text-blue-600',
+  REJECTED: 'text-rose-600',
+  Rejected: 'text-rose-600',
+  CLOSED: 'text-emerald-600',
+  Closed: 'text-emerald-600',
+  RECEIVED: 'text-emerald-600',
+  Received: 'text-emerald-600',
+  RECIEVED: 'text-emerald-600',
+  Recieved: 'text-emerald-600',
+  PARTIALLY_ACCEPTED: 'text-purple-600',
+  'Partially Accepted': 'text-purple-600',
+  PENDING_DISCREPANCY_APPROVAL: 'text-orange-600',
+  'Pending Discrepancy Approval': 'text-orange-600',
+  DISCREPANCY_PENDING: 'text-amber-600',
+  'Discrepancy Pending': 'text-amber-600',
+  DISCREPANCY_RESOLVED: 'text-emerald-600',
+  'Discrepancy Resolved': 'text-emerald-600',
 };
 
-const STATUS_DOT = {
-  IN_TRANSIT: 'bg-blue-500',
-  'In Transit': 'bg-blue-500',
-  REJECTED: 'bg-rose-500',
-  Rejected: 'bg-rose-500',
-  CLOSED: 'bg-emerald-500',
-  Closed: 'bg-emerald-500',
-  RECEIVED: 'bg-emerald-500',
-  Received: 'bg-emerald-500',
-  RECIEVED: 'bg-emerald-500',
-  Recieved: 'bg-emerald-500',
-  PARTIALLY_ACCEPTED: 'bg-purple-500',
-  'Partially Accepted': 'bg-purple-500',
+const UNIT_SYMBOL_MAP = {
+  KILOGRAM: 'KG',
+  KILOGRAMS: 'KG',
+  KG: 'KG',
+  GRAM: 'GM',
+  GRAMS: 'GM',
+  GM: 'GM',
+  G: 'GM',
+  MILLIGRAM: 'MG',
+  MILLIGRAMS: 'MG',
+  MG: 'MG',
+  LITRE: 'LTR',
+  LITRES: 'LTR',
+  LITER: 'LTR',
+  LITERS: 'LTR',
+  LTR: 'LTR',
+  L: 'LTR',
+  MILLILITRE: 'ML',
+  MILLILITRES: 'ML',
+  MILLILITER: 'ML',
+  MILLILITERS: 'ML',
+  ML: 'ML',
+  PIECE: 'PCS',
+  PIECES: 'PCS',
+  PCS: 'PCS',
+  PC: 'PCS',
+  PACKET: 'PKT',
+  PACKETS: 'PKT',
+  PKT: 'PKT',
+  BOX: 'BOX',
+  BOXES: 'BOX',
+  BOTTLE: 'BTL',
+  BOTTLES: 'BTL',
+  CAN: 'CAN',
+  CANS: 'CAN',
+  BAG: 'BAG',
+  BAGS: 'BAG',
+  NUMBER: 'NOS',
+  NUMBERS: 'NOS',
+  NOS: 'NOS',
+};
+
+const formatUnit = (uom) => {
+  if (!uom) return 'Unit';
+  const clean = String(uom).trim().toUpperCase();
+  return UNIT_SYMBOL_MAP[clean] || uom;
 };
 
 const formatStatusLabel = (status) => {
@@ -74,42 +117,44 @@ const formatStatusLabel = (status) => {
   if (s === 'REJECTED') return 'Rejected';
   if (s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED') return 'Closed';
   if (s === 'PARTIALLYACCEPTED') return 'Partially Accepted';
+  if (s === 'PENDINGDISCREPANCYAPPROVAL') return 'Discrepancy Approval';
+  if (s === 'DISCREPANCYPENDING') return 'Discrepancy Pending';
+  if (s === 'DISCREPANCYRESOLVED') return 'Resolved';
   return status;
 };
 
 const StatusBadge = ({ status = 'In Transit' }) => {
   const label = formatStatusLabel(status);
   const key = String(status).toUpperCase();
+  const color = STATUS_TEXT_COLORS[key] || STATUS_TEXT_COLORS[status] || 'text-gray-600';
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-        STATUS_STYLES[key] || STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border-gray-200'
-      }`}
+      title={label}
+      className={`text-xs font-semibold truncate block max-w-[130px] ${color}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[key] || STATUS_DOT[status] || 'bg-gray-400'}`} />
       {label}
     </span>
   );
 };
 
-const TruncatedCell = ({ value, widthClass = 'max-w-[160px]', className = 'text-gray-700' }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+const TruncatedCell = ({ value, widthClass = 'max-w-[160px]', className = 'text-gray-800 font-medium' }) => (
+  <span title={value} className={`block truncate text-xs ${className} ${widthClass}`}>
     {value || '—'}
   </span>
 );
 
 function StatCard({ label, value, icon: Icon, iconBg, iconColor }) {
   return (
-    <div className="bg-white rounded-xl border border-[#E7EAF0] px-3.5 py-2.5 flex items-center gap-3 shadow-xs">
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
       <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: iconBg, color: iconColor }}
       >
-        <Icon size={16} />
+        <Icon size={18} />
       </div>
-      <div className="min-w-0">
-        <div className="text-[10px] font-semibold text-[#98A2B3] uppercase tracking-wider truncate">{label}</div>
-        <div className="text-base md:text-lg font-bold text-[#101828] font-sans leading-tight mt-0.5">{value}</div>
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
       </div>
     </div>
   );
@@ -129,7 +174,7 @@ function StatusDropdown({ value, onChange }) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full pl-8 pr-7 rounded-xl border border-[#E7EAF0] bg-white text-xs font-semibold text-[#101828] appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        className="h-10 w-full pl-8 pr-7 rounded-xl border border-[#C3C6D1] bg-white text-xs font-semibold text-[#101828] appearance-none focus:outline-none focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
       >
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -173,13 +218,20 @@ const StockTransferReqReceiveList = () => {
   const navigate = useNavigate();
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: PAGE_SIZE });
   const [sorting, setSorting] = useState([]);
 
   // Outlets, Sub-units & Filter states
-  const [allOutlets, setAllOutlets] = useState([]);
   const [subUnits, setSubUnits] = useState([]);
   const [selectedFromOutletId, setSelectedFromOutletId] = useState('');
   const [selectedFromSubOutletId, setSelectedFromSubOutletId] = useState('');
@@ -202,56 +254,40 @@ const StockTransferReqReceiveList = () => {
   // Scope hooks
   const {
     loading: scopeLoading,
+    error: scopeError,
+    retry: retryScope,
     isOutletUser,
     isCompanyUser,
     units,
-    selectedUnitId ,
+    subOutlets: scopeSubOutlets,
+    subLocations: scopeSubLocations,
+    selectedUnitId,
     effectiveOutletId,
+    getSubOutlets,
+    getSubLocations,
   } = useOrgScope();
 
-  // Load All Outlets
-  useEffect(() => {
-    const fetchOutlets = async () => {
-      try {
-        const res = await getOrganizationByType(OrgTypes.OUTLET);
-        const list = res?.data?.data || res?.data?.content || res?.data || [];
-        const mapped = (Array.isArray(list) ? list : []).map((o) => ({
-          id: o.id,
-          name: o.companyNameEnglish || o.name || `Outlet #${o.id}`,
-          code: o.companyCode || o.code || '',
-        }));
-        setAllOutlets(mapped);
-      } catch (err) {
-        console.error('Failed to load outlets in Receive list:', err);
-      }
-    };
-    fetchOutlets();
-  }, []);
+  // Fast lookup maps for sub-outlets and sub-locations
+  const subOutletMap = useMemo(() => {
+    const map = {};
+    (scopeSubOutlets || []).forEach((s) => {
+      map[String(s.id)] = s.subOutletName || s.name || s.label;
+    });
+    return map;
+  }, [scopeSubOutlets]);
 
-  // Load Sub-units
-  useEffect(() => {
-    const loadSubUnits = async () => {
-      try {
-        const res = await getAllSubOutlets();
-        const raw = res?.data?.data || res?.data || [];
-        setSubUnits(Array.isArray(raw) ? raw : []);
-      } catch (err) {
-        console.error('Failed to load sub-units in Receive list:', err);
-      }
-    };
-    loadSubUnits();
-  }, []);
+  const subLocationMap = useMemo(() => {
+    const map = {};
+    (scopeSubLocations || []).forEach((l) => {
+      map[String(l.id)] = l.locationName || l.subLocationName || l.name || l.label;
+    });
+    return map;
+  }, [scopeSubLocations]);
 
-  // Available outlets for dropdowns (strictly company outlets for company user, same parent company for outlet user)
+  // Available outlets for dropdowns (strictly scoped outlets for logged in user)
   const displayOutletOptions = useMemo(() => {
-    if (isCompanyUser || isOutletUser) {
-      return units.map((u) => ({ value: String(u.id), label: `${u.name}${u.code ? ` (${u.code})` : ''}` }));
-    }
-    if (units.length > 0) {
-      return units.map((u) => ({ value: String(u.id), label: `${u.name}${u.code ? ` (${u.code})` : ''}` }));
-    }
-    return allOutlets.map((o) => ({ value: String(o.id), label: `${o.name}${o.code ? ` (${o.code})` : ''}` }));
-  }, [isCompanyUser, isOutletUser, units, allOutlets]);
+    return units.map((u) => ({ value: String(u.id), label: `${u.name}${u.code ? ` (${u.code})` : ''}` }));
+  }, [units]);
 
   const fromOutletOptions = useMemo(() => {
     return displayOutletOptions.filter(
@@ -259,34 +295,36 @@ const StockTransferReqReceiveList = () => {
     );
   }, [displayOutletOptions, isOutletUser, effectiveOutletId]);
 
-  // From Sub-outlet options (dependent on selectedFromOutletId)
+  // From Sub-outlet options (dependent on selectedFromOutletId or selectedUnitId)
   const fromSubOutletOptions = useMemo(() => {
-    if (!selectedFromOutletId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(selectedFromOutletId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, selectedFromOutletId]);
-
-  // To Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedToOutletId
-  const toSubOutletOptions = useMemo(() => {
-    const targetId = isOutletUser ? effectiveOutletId : selectedToOutletId;
+    const targetId = selectedFromOutletId || (isOutletUser ? effectiveOutletId : '');
     if (!targetId) return [];
-    return subUnits
-      .filter((s) => String(s.organizationId) === String(targetId))
-      .map((s) => ({
-        value: String(s.id),
-        label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
-      }));
-  }, [subUnits, isOutletUser, effectiveOutletId, selectedToOutletId]);
+    return (getSubOutlets(targetId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, selectedFromOutletId, isOutletUser, effectiveOutletId]);
+
+  // To Sub-outlet options: for outlet user based on effectiveOutletId; for others based on selectedToOutletId or selectedUnitId
+  const toSubOutletOptions = useMemo(() => {
+    const targetId = isOutletUser ? effectiveOutletId : (selectedToOutletId || selectedUnitId || effectiveOutletId);
+    if (!targetId) return [];
+    return (getSubOutlets(targetId) || []).map((s) => ({
+      value: String(s.id),
+      label: s.subOutletName || s.name || `Sub-Outlet #${s.id}`,
+    }));
+  }, [getSubOutlets, isOutletUser, effectiveOutletId, selectedToOutletId, selectedUnitId]);
 
   // Fetch Receive Transfers from API
   const fetchReceiveTransfers = useCallback(async () => {
+    if (scopeLoading || scopeError) return;
     setLoading(true);
+    setError(null);
     try {
       const params = {};
+      if (search?.trim()) {
+        params.search = search.trim();
+      }
       // For outlet users: limited to transfers incoming to their outlet (toOrganizationId)
       if (isOutletUser && effectiveOutletId) {
         params.toOrganizationId = Number(effectiveOutletId);
@@ -296,20 +334,45 @@ const StockTransferReqReceiveList = () => {
         params.toOrganizationId = Number(selectedUnitId);
       }
 
+      if (selectedToSubOutletId) {
+        params.toSubOutletId = Number(selectedToSubOutletId);
+      }
+
       if (selectedFromOutletId) {
         params.fromOrganizationId = Number(selectedFromOutletId);
+      }
+
+      if (selectedFromSubOutletId) {
+        params.fromSubOutletId = Number(selectedFromSubOutletId);
+      }
+
+      if (pagination.pageIndex > 0) {
+        params.page = pagination.pageIndex;
+        params.size = pagination.pageSize;
       }
 
       const res = await getTransferList(params);
       const rawList = res?.data?.data || res?.data?.content || res?.data || [];
       const list = Array.isArray(rawList) ? rawList : [];
 
-      // Filter: only dispatched records (status != DRAFT and isDraft != true)
+      // Filter: only show transfers that have actually been dispatched (IN_TRANSIT) or completed/rejected.
+      // Exclude requests that are DRAFT, PENDING / SENT FOR APPROVAL, or APPROVED (not yet dispatched).
       const dispatchedList = list.filter((item) => {
         if (item.isDraft) return false;
         const s = String(item.status || '').toUpperCase().replace(/[\s_]/g, '');
-        return s !== 'DRAFT';
+        if (
+          s === 'DRAFT' ||
+          s === 'PENDING' ||
+          s === 'SENTFORAPPROVAL' ||
+          s === 'PENDINGAPPROVAL' ||
+          s === 'APPROVED'
+        ) {
+          return false;
+        }
+        return true;
       });
+
+      updateFromResponse(res, dispatchedList.length);
 
       const normalized = dispatchedList.map((item) => {
         const itemsArr = Array.isArray(item.items)
@@ -337,27 +400,56 @@ const StockTransferReqReceiveList = () => {
         );
         const variance = totalAccQty > 0 ? totalAccQty - totalReqQty : null;
 
+        const fromSubOutletId = item.fromSubOutletId || item.fromSubOutlet?.id || item.fromSubOrgId || null;
+        const toSubOutletId = item.toSubOutletId || item.toSubOutlet?.id || item.toSubOrgId || null;
+        const fromSubLocationId = item.fromSubLocationId || item.fromSubLocation?.id || null;
+        const toSubLocationId = item.toSubLocationId || item.toSubLocation?.id || null;
+
+        const fromSubOutletName =
+          item.fromSubOutletName ||
+          item.fromSubOutlet?.name ||
+          item.fromSubOutlet?.subOutletName ||
+          (fromSubOutletId ? subOutletMap[String(fromSubOutletId)] : '') ||
+          '';
+
+        const toSubOutletName =
+          item.toSubOutletName ||
+          item.toSubOutlet?.name ||
+          item.toSubOutlet?.subOutletName ||
+          (toSubOutletId ? subOutletMap[String(toSubOutletId)] : '') ||
+          '';
+
+        const fromSubLocationName =
+          item.fromSubLocationName ||
+          item.fromSubLocation?.name ||
+          item.fromSubLocation?.locationName ||
+          item.fromSubLocation?.subLocationName ||
+          (fromSubLocationId ? subLocationMap[String(fromSubLocationId)] : '') ||
+          '';
+
+        const toSubLocationName =
+          item.toSubLocationName ||
+          item.toSubLocation?.name ||
+          item.toSubLocation?.locationName ||
+          item.toSubLocation?.subLocationName ||
+          (toSubLocationId ? subLocationMap[String(toSubLocationId)] : '') ||
+          '';
+
         return {
           id: item.id,
           transferCode: item.transferCode || item.code || `TRF-${String(item.id).padStart(4, '0')}`,
           fromOrganizationId: item.fromOrganizationId || item.fromOutletId,
-          fromSubOutletId: item.fromSubOutletId || null,
+          fromSubOutletId,
+          fromSubLocationId,
           fromOutlet: item.fromOrganizationName || item.fromOutletName || item.fromOutlet || '—',
-          fromSubOutlet:
-            item.fromSubOutletId && item.fromSubOutletName && item.fromSubOutletName !== 'Main Store'
-              ? item.fromSubOutletName
-              : !item.fromSubOutletId
-              ? ''
-              : item.fromSubOutletName || item.fromSubOutlet || '',
+          fromSubOutlet: fromSubOutletName,
+          fromSubLocation: fromSubLocationName,
           toOrganizationId: item.toOrganizationId || item.toOutletId,
-          toSubOutletId: item.toSubOutletId || null,
+          toSubOutletId,
+          toSubLocationId,
           toOutlet: item.toOrganizationName || item.toOutletName || item.toOutlet || '—',
-          toSubOutlet:
-            item.toSubOutletId && item.toSubOutletName && item.toSubOutletName !== 'Main Store'
-              ? item.toSubOutletName
-              : !item.toSubOutletId
-              ? ''
-              : item.toSubOutletName || item.toSubOutlet || '',
+          toSubOutlet: toSubOutletName,
+          toSubLocation: toSubLocationName,
           status: item.status || 'In Transit',
           transferDate: item.transferDate || item.createdAt || '—',
           vehicleNumber: item.vehicleNumber || '—',
@@ -387,28 +479,58 @@ const StockTransferReqReceiveList = () => {
       setTransfers(normalized);
     } catch (err) {
       console.error('Failed to fetch incoming stock transfers:', err);
+      setError(err?.response?.data?.message || err?.message || 'Failed to load transfer receive list');
       setTransfers([]);
     } finally {
       setLoading(false);
     }
-  }, [isOutletUser, effectiveOutletId, selectedToOutletId, selectedFromOutletId, selectedUnitId]);
+  }, [
+    scopeLoading,
+    scopeError,
+    isOutletUser,
+    effectiveOutletId,
+    selectedToOutletId,
+    selectedToSubOutletId,
+    selectedFromOutletId,
+    selectedFromSubOutletId,
+    selectedUnitId,
+    pagination.pageIndex,
+    pagination.pageSize,
+    search,
+    subOutletMap,
+    subLocationMap,
+    updateFromResponse,
+  ]);
 
   useEffect(() => {
-    if (!scopeLoading) {
+    resetPage();
+  }, [
+    search,
+    statusFilter,
+    selectedFromOutletId,
+    selectedFromSubOutletId,
+    selectedToOutletId,
+    selectedToSubOutletId,
+    selectedUnitId,
+    resetPage,
+  ]);
+
+  useEffect(() => {
+    if (!scopeLoading && !scopeError) {
       fetchReceiveTransfers();
     }
-  }, [fetchReceiveTransfers, scopeLoading]);
+  }, [fetchReceiveTransfers, scopeLoading, scopeError]);
 
   // Stat counts (IN_TRANSIT, CLOSED, REJECTED)
   const stats = useMemo(() => {
     const total = transfers.length;
     const inTransit = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
-      return s === 'INTRANSIT' || s === 'PENDING';
+      return s === 'INTRANSIT';
     }).length;
     const closed = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
-      return s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED';
+      return s === 'CLOSED' || s === 'RECEIVED' || s === 'RECIEVED' || s === 'PARTIALLYACCEPTED';
     }).length;
     const rejected = transfers.filter((t) => {
       const s = String(t.status || '').toUpperCase().replace(/[\s_]/g, '');
@@ -467,10 +589,18 @@ const StockTransferReqReceiveList = () => {
       rows = rows.filter((r) => {
         const itemStatus = String(r.status || '').toUpperCase().replace(/[\s_]/g, '');
         if (target === 'CLOSED') {
-          return itemStatus === 'CLOSED' || itemStatus === 'RECEIVED' || itemStatus === 'RECIEVED';
+          return (
+            itemStatus === 'CLOSED' ||
+            itemStatus === 'RECEIVED' ||
+            itemStatus === 'RECIEVED' ||
+            itemStatus === 'PARTIALLYACCEPTED'
+          );
         }
         if (target === 'INTRANSIT') {
-          return itemStatus === 'INTRANSIT' || itemStatus === 'PENDING';
+          return itemStatus === 'INTRANSIT';
+        }
+        if (target === 'REJECTED') {
+          return itemStatus === 'REJECTED';
         }
         return itemStatus === target;
       });
@@ -533,51 +663,64 @@ const StockTransferReqReceiveList = () => {
   const columns = useMemo(() => {
     const cols = [
       {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="S.NO" column={column} className="text-xs font-bold" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2 text-xs">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
+        ),
+        enableSorting: false,
+        size: 36,
+      },
+      {
         id: 'transferCode',
         accessorFn: (row) => row.transferCode,
         header: ({ column }) => (
           <DataGridColumnHeader title="TRANSFER CODE" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <Link
-            to={`/inventory/stock-transfer-detail/${row.original.id}`}
-            className="font-bold text-[#2952E3] text-xs font-mono hover:underline block truncate"
-          >
-            {row.original.transferCode}
-          </Link>
+          <CodeCell
+            code={row.original.transferCode}
+            maxWidth="max-w-full"
+            onClick={() => navigate(`/inventory/stock-transfer-detail/${row.original.id}`)}
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
+          />
         ),
         enableSorting: false,
-        size: 140,
+        size: 200,
       },
       {
         id: 'dateAndTime',
         accessorFn: (row) => row.transferDate,
-        sortingFn: (rowA, rowB, columnId) => {
-          const valA = parseDateToTimestamp(rowA.getValue(columnId) || rowA.original.createdAt);
-          const valB = parseDateToTimestamp(rowB.getValue(columnId) || rowB.original.createdAt);
-          return valA - valB;
-        },
         header: ({ column }) => (
-          <DataGridColumnHeader title="DATE & TIME" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="DATE" column={column} className="text-xs font-bold" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.transferDate} widthClass="max-w-[120px]" />,
-        size: 120,
+        cell: ({ row }) => <span className="text-gray-700 text-xs font-medium whitespace-nowrap">{row.original.transferDate || '—'}</span>,
+        enableSorting: false,
+        size: 80,
       },
       {
         id: 'fromOutlet',
         accessorFn: (row) => row.fromOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="FROM OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="FROM UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <div>
-            <div className="font-semibold text-xs text-gray-900">{row.original.fromOutlet}</div>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="font-semibold text-xs text-gray-900 truncate" title={row.original.fromOutlet}>{row.original.fromOutlet}</div>
             {row.original.fromSubOutlet && (
-              <div className="text-[11px] text-gray-400 font-medium">{row.original.fromSubOutlet}</div>
+              <div className="text-[11px] text-gray-500 font-medium truncate" title={row.original.fromSubOutlet}>{row.original.fromSubOutlet}</div>
+            )}
+            {row.original.fromSubLocation && (
+              <div className="text-[10px] text-gray-500 font-medium truncate" title={row.original.fromSubLocation}>↳ {row.original.fromSubLocation}</div>
             )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 120,
       },
     ];
 
@@ -587,17 +730,21 @@ const StockTransferReqReceiveList = () => {
         id: 'toOutlet',
         accessorFn: (row) => row.toOutlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="TO OUTLET" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="TO UNIT" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <div>
-            <div className="font-semibold text-xs text-gray-900">{row.original.toOutlet}</div>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="font-semibold text-xs text-gray-900 truncate" title={row.original.toOutlet}>{row.original.toOutlet}</div>
             {row.original.toSubOutlet && (
-              <div className="text-[11px] text-gray-400 font-medium">{row.original.toSubOutlet}</div>
+              <div className="text-[11px] text-gray-500 font-medium truncate" title={row.original.toSubOutlet}>{row.original.toSubOutlet}</div>
+            )}
+            {row.original.toSubLocation && (
+              <div className="text-[10px] text-gray-500 font-medium truncate" title={row.original.toSubLocation}>↳ {row.original.toSubLocation}</div>
             )}
           </div>
         ),
-        size: 160,
+        enableSorting: false,
+        size: 120,
       });
     }
 
@@ -609,8 +756,8 @@ const StockTransferReqReceiveList = () => {
           <DataGridColumnHeader title="ITEM DESCRIPTION" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <div>
-            <span className="text-xs font-bold text-[#0F172A] block truncate max-w-[200px]">
+          <div className="min-w-0">
+            <span className="text-xs font-bold text-[#0F172A] block truncate" title={row.original.primaryItemName}>
               {row.original.primaryItemName}
             </span>
             {row.original.itemsCount > 1 && (
@@ -621,35 +768,37 @@ const StockTransferReqReceiveList = () => {
           </div>
         ),
         enableSorting: false,
-        size: 200,
+        size: 110,
       },
       {
         id: 'quantity',
         accessorFn: (row) => Number(row.totalRequestedQuantity || 0),
         header: ({ column }) => (
-          <DataGridColumnHeader title="TRANSFER QTY" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="TRF QTY" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <span className="font-bold text-xs text-gray-800">
-            {row.original.totalRequestedQuantity} {row.original.unit}
+          <span className="font-bold text-xs text-gray-800 whitespace-nowrap">
+            {row.original.totalRequestedQuantity} {formatUnit(row.original.unit)}
           </span>
         ),
-        size: 130,
+        enableSorting: false,
+        size: 65,
       },
       {
         id: 'acceptedQuantity',
         accessorFn: (row) => Number(row.totalAcceptedQuantity || 0),
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACCEPTED QTY" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="RECV QTY" column={column} className="text-xs font-bold" />
         ),
         cell: ({ row }) => (
-          <span className="font-bold text-xs text-emerald-700">
+          <span className="font-bold text-xs text-gray-800 whitespace-nowrap">
             {row.original.totalAcceptedQuantity > 0
-              ? `${row.original.totalAcceptedQuantity} ${row.original.unit}`
+              ? `${row.original.totalAcceptedQuantity} ${formatUnit(row.original.unit)}`
               : '—'}
           </span>
         ),
-        size: 130,
+        enableSorting: false,
+        size: 65,
       },
       {
         id: 'status',
@@ -657,28 +806,27 @@ const StockTransferReqReceiveList = () => {
         header: ({ column }) => (
           <DataGridColumnHeader title="STATUS" column={column} className="text-xs font-bold" />
         ),
-        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        cell: ({ row }) => (
+          <div className="flex items-center whitespace-nowrap">
+            <StatusBadge status={row.original.status} />
+          </div>
+        ),
         enableSorting: false,
-        size: 130,
+        size: 95,
       },
       {
         id: 'actions',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="text-xs font-bold" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-xs font-bold" />
         ),
+        enableSorting: false,
+        size: 70,
         cell: ({ row }) => {
           const s = String(row.original.status || '').toUpperCase().replace(/[\s_-]/g, '');
-          const isFinished =
-            s === 'CLOSED' ||
-            s === 'RECEIVED' ||
-            s === 'RECIEVED' ||
-            s === 'PARTIALLYACCEPTED' ||
-            s === 'ACCEPTED' ||
-            s === 'REJECTED' ||
-            s === 'DRAFT';
+          const isInTransit = s === 'INTRANSIT';
 
           return (
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <div className="flex items-center gap-1 whitespace-nowrap">
               <button
                 type="button"
                 onClick={() =>
@@ -686,37 +834,45 @@ const StockTransferReqReceiveList = () => {
                     state: row.original.raw || row.original,
                   })
                 }
-                className="p-1.5 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                className="p-1 text-gray-500 hover:text-[#084E92] hover:bg-blue-50 rounded-lg transition cursor-pointer"
                 title="View Transfer Details"
               >
-                <Eye size={16} />
+                <Eye size={15} />
               </button>
 
-              {!isFinished && (canEdit || canAdd) && (
+              {isInTransit && (canEdit || canAdd) && (
                 <button
                   type="button"
                   onClick={() => handleTransferAccept(row.original)}
-                  className="p-1.5 text-[#084E92] hover:text-[#073e77] hover:bg-blue-50 rounded-lg transition cursor-pointer"
-                  title="Transfer Accept"
+                  className="p-1 text-[#084E92] hover:text-[#073e77] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                  title="Receive & Verify Stock"
                 >
-                  <CheckCircle2 size={16} />
+                  <CheckCircle2 size={15} />
                 </button>
               )}
             </div>
           );
         },
-        enableSorting: false,
-        size: 90,
       }
     );
 
     return cols;
-  }, [isOutletUser, canEdit, canAdd]);
+  }, [isOutletUser, canEdit, canAdd, pagination.pageIndex, pagination.pageSize]);
+
+  const displayTransfers = useMemo(() => {
+    if (totalElements > 0 && totalElements === transfers.length && filteredTransfers.length > pagination.pageSize) {
+      const start = pagination.pageIndex * pagination.pageSize;
+      return filteredTransfers.slice(start, start + pagination.pageSize);
+    }
+    return filteredTransfers;
+  }, [filteredTransfers, totalElements, transfers.length, pagination.pageIndex, pagination.pageSize]);
 
   const table = useReactTable({
-    data: filteredTransfers,
+    data: displayTransfers,
     columns,
     state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
@@ -730,27 +886,16 @@ const StockTransferReqReceiveList = () => {
 
   return (
     <Container>
-      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={11} />
-          <span>Inventory</span>
-          <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">Stock Transfer Request Receive</span>
-        </div>
-
+      <div className="pt-2 pb-6 mx-auto space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-[#101828] font-sans leading-tight">
-              Stock Transfer Request Receive Listing
-            </h1>
-            <p className="text-[#667085] text-xs mt-1">
-              Verify incoming shipments, view FIFO batch layer valuation, and accept or reject transfers.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Stock Transfer Request Receive Listing"
+        />
+
+        <PageErrorAlert
+          error={scopeError || error}
+          onRetry={scopeError ? retryScope : fetchReceiveTransfers}
+        />
 
         {/* Stat Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -788,13 +933,12 @@ const StockTransferReqReceiveList = () => {
         <div className="space-y-3">
           {/* Row 1: Search Bar & Status Filter */}
           <div className="flex items-center gap-2.5">
-            <div className="relative flex-1">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
-              <input
+            <div className="flex-1">
+              <SearchBar
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by transfer code, item, outlet, vehicle..."
-                className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs font-medium text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+                onClear={() => setSearch('')}
+                placeholder="Search by transfer code, item, unit, vehicle..."
               />
             </div>
             <div className="w-[160px] shrink-0">
@@ -804,7 +948,7 @@ const StockTransferReqReceiveList = () => {
 
           {/* Row 2: Location Filters */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-2.5`}>
-            {/* 1. From Outlet Dropdown: for all users (shows sibling outlets for outlet user, descendant outlets for company/group) */}
+            {/* 1. From Unit Dropdown: for all users (shows sibling units for unit user, descendant units for company/group) */}
             <SearchableSelect
               name="fromOutlet"
               value={selectedFromOutletId}
@@ -813,20 +957,20 @@ const StockTransferReqReceiveList = () => {
                 setSelectedFromSubOutletId('');
               }}
               options={fromOutletOptions}
-              placeholder="From Outlet..."
+              placeholder="From Unit..."
             />
 
-            {/* 2. From Sub-Outlet: based on selected From Outlet */}
+            {/* 2. From Sub-Unit: based on selected From Unit */}
             <SearchableSelect
               name="fromSubOutlet"
               value={selectedFromSubOutletId}
               onChange={(e) => setSelectedFromSubOutletId(e.target.value)}
               options={fromSubOutletOptions}
               disabled={!selectedFromOutletId}
-              placeholder={!selectedFromOutletId ? 'Select From Outlet' : 'From Sub-Outlet...'}
+              placeholder={!selectedFromOutletId ? 'Select From Unit' : 'From Sub-Unit...'}
             />
 
-            {/* 3. To Outlet Dropdown: only for Company & Group Users (Hidden for Outlet User) */}
+            {/* 3. To Unit Dropdown: only for Company & Group Users (Hidden for Unit User) */}
             {!isOutletUser && (
               <SearchableSelect
                 name="toOutlet"
@@ -836,18 +980,18 @@ const StockTransferReqReceiveList = () => {
                   setSelectedToSubOutletId('');
                 }}
                 options={displayOutletOptions}
-                placeholder="To Outlet..."
+                placeholder="To Unit..."
               />
             )}
 
-            {/* 4. To Sub-Outlet: based on effectiveOutletId for outlet users, or selectedToOutletId for others */}
+            {/* 4. To Sub-Unit: based on effectiveOutletId for unit users, or selectedToOutletId for others */}
             <SearchableSelect
               name="toSubOutlet"
               value={selectedToSubOutletId}
               onChange={(e) => setSelectedToSubOutletId(e.target.value)}
               options={toSubOutletOptions}
               disabled={!isOutletUser && !selectedToOutletId}
-              placeholder={!isOutletUser && !selectedToOutletId ? 'Select To Outlet' : 'To Sub-Outlet...'}
+              placeholder={!isOutletUser && !selectedToOutletId ? 'Select To Unit' : 'To Sub-Unit...'}
             />
           </div>
         </div>
@@ -862,22 +1006,19 @@ const StockTransferReqReceiveList = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredTransfers.length}
+              recordCount={totalElements || filteredTransfers.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
+                width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <div className="min-w-[1250px]">
-                      <DataGridTable />
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+              <Card className="rounded-2xl border-0 shadow-none">
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />

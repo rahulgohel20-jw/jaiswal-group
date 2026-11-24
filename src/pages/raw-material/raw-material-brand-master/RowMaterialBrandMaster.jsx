@@ -5,14 +5,14 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
+import { SearchBar } from '@/components/common/SearchBar';
 import {
-  ChevronRight,
   CircleCheck,
+  Download,
   Eye,
   LayoutGrid,
-  Plus,
-  Search,
   Shapes,
   SquarePen,
   Trash2,
@@ -31,8 +31,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
-import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   deleteRawMaterialBrandById,
   getAllActiveRawMaterialBrand,
@@ -41,11 +43,16 @@ import {
   updateRawMaterialBrand,
 } from '../../../services/apiServices';
 import AddRawMaterialBrand from './AddRawMaterialBrand';
+import { useNavigate } from 'react-router';
+import { usePagePermissions } from '@/utils/permissions';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const RowMaterialBrandMaster = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Raw Material Brand Master');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Raw Material Brand Master');
 
   const [brands, setBrands] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
   const [rowSelection, setRowSelection] = useState({});
@@ -61,6 +68,29 @@ const RowMaterialBrandMaster = () => {
   const [deleteTarget, setDeleteTarget] = useState(null); // { id, name }
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [activeBrandCount, setActiveBrandCount] = useState(0);
+  const navigate = useNavigate();
+
+  const [sorting, setSorting] = useState([]);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const loadAll = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [brandRes, activeRes] = await Promise.all([
+        getAllRawMaterialBrand(),
+        getAllActiveRawMaterialBrand(),
+      ]);
+      const brandData = brandRes?.data?.data || [];
+      const activeBrands = activeRes?.data?.data || [];
+      setBrands(brandData);
+      setActiveBrandCount(activeBrands.length);
+    } catch (err) {
+      console.error('Failed to fetch raw material brands:', err);
+      setError('Failed to load raw material brands');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchBrands = async () => {
     try {
@@ -85,18 +115,13 @@ const RowMaterialBrandMaster = () => {
   };
 
   useEffect(() => {
-    fetchBrands();
-    fetchActiveBrands();
+    loadAll();
   }, []);
 
   const handleAddClick = () => {
     setIsViewOnly(false);
     setEditingBrand(null);
     setShowBrandModal(true);
-  };
-
-  const handleExportClick = () => {
-    // UI only - hook up export flow later
   };
 
   const handleEditClick = async (brand) => {
@@ -222,31 +247,25 @@ const RowMaterialBrandMaster = () => {
     {
       title: 'Total Brands',
       value: String(brands.length),
-      icon: (
-        <LayoutGrid
-          size={22}
-          className="text-[#00376C] p-1 bg-[#D5E3FF] rounded"
-        />
-      ),
+      icon: <LayoutGrid size={18} />,
+      iconBg: 'bg-[#D5E3FF]',
+      iconColor: 'text-[#00376C]',
       color: 'text-[#1B1B1F]',
     },
     {
       title: 'Active Brands',
       value: String(activeBrandCount),
-      icon: (
-        <CircleCheck
-          size={22}
-          className="text-[#15803D] p-1 bg-[#DCFCE7] rounded"
-        />
-      ),
+      icon: <CircleCheck size={18} />,
+      iconBg: 'bg-[#DCFCE7]',
+      iconColor: 'text-[#15803D]',
       color: 'text-[#15803D]',
     },
     {
       title: 'Most Used Type',
       value: 'Metals',
-      icon: (
-        <Shapes size={22} className="text-[#7C3AED] p-1 bg-[#EDE4FF] rounded" />
-      ),
+      icon: <Shapes size={18} />,
+      iconBg: 'bg-[#EDE4FF]',
+      iconColor: 'text-[#7C3AED]',
       color: 'text-[#1B1B1F]',
     },
   ];
@@ -281,10 +300,14 @@ const RowMaterialBrandMaster = () => {
           <DataGridColumnHeader
             title="S.NO"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm py-4"
+            className="text-[#43474F] font-semibold"
           />
         ),
-        cell: ({ row }) => String(row.index + 1).padStart(2, '0'),
+        cell: ({ row }) => (
+          <span className="text-gray-500 py-2 text-xs">
+            {String(row.index + 1).padStart(2, '0')}
+          </span>
+        ),
         enableSorting: false,
         size: 80,
       },
@@ -294,30 +317,20 @@ const RowMaterialBrandMaster = () => {
           <DataGridColumnHeader
             title="NAME"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-[#1B1B1F] capitalize">
+          <span
+            className="font-medium text-xs text-gray-800 capitalize truncate max-w-[220px] block"
+            title={row.original.name}
+          >
             {row.original.name}
           </span>
         ),
+        enableSorting: true,
       },
-      {
-        accessorKey: 'description',
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="DESCRIPTION"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
-          />
-        ),
-        cell: ({ row }) => (
-          <span className="text-[#1B1B1F] capitalize">
-            {row.original.description}
-          </span>
-        ),
-      },
+
       {
         id: 'status',
         accessorFn: (row) => row.active,
@@ -325,7 +338,7 @@ const RowMaterialBrandMaster = () => {
           <DataGridColumnHeader
             title="STATUS"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
+            className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
@@ -347,6 +360,7 @@ const RowMaterialBrandMaster = () => {
           </label>
         ),
         size: 120,
+        enableSorting: false,
       },
       {
         id: 'actions',
@@ -395,9 +409,11 @@ const RowMaterialBrandMaster = () => {
   const table = useReactTable({
     data: filteredBrands,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination, rowSelection, sorting },
     onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -409,80 +425,61 @@ const RowMaterialBrandMaster = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Master Data</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Raw Material Brand Master
-          </span>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Raw Material Brand Master"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton onClick={handleAddClick}>
+                  Create Brand
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-[#0F172A] text-start">
-              Raw Material Brand Master
-            </h1>
-            <p className="text-sm text-gray-400 mt-1 max-w-xl">
-              Manage and track raw material brands used across the organization.
-            </p>
-          </div>
-
-          {canAdd && (
-            <button
-              type="button"
-              onClick={handleAddClick}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-            >
-              <Plus size={16} />
-              Create Brand
-            </button>
-          )}
-        </div>
+        <PageErrorAlert error={error} onRetry={loadAll} className="my-3" />
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 text-[#43474F]">
           {STATS.map((item) => (
             <div
               key={item.title}
-              className="border border-[#C3C6D1] rounded-2xl p-4 bg-white"
+              className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs"
             >
-              <div className="flex justify-between items-center pb-2">
-                <p>{item.icon}</p>
+              <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                {item.icon}
               </div>
-              <h1 className="text-sm tracking-wide text-[#43474F]">
-                {item.title}
-              </h1>
-              <h2 className={`text-xl font-bold mt-1 ${item.color}`}>
-                {item.value}
-              </h2>
+              <div className="flex flex-col items-end text-right">
+                <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
+                  {item.value}
+                </span>
+              </div>
             </div>
           ))}
         </div>
 
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-0">
+        <div className="flex flex-col gap-4 mt-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative border border-[#C3C6D1] rounded-lg">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={18}
-              />
-              <input
-                placeholder="Search brands..."
-                className="w-full pl-10 py-2 outline-none rounded-lg"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-              />
-            </div>
+            <SearchBar
+              placeholder="Search brands..."
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
 
             <Select
               value={statusFilter}
               onValueChange={(value) => setStatusFilter(value)}
             >
-              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+              <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -500,6 +497,13 @@ const RowMaterialBrandMaster = () => {
             table={table}
             recordCount={filteredBrands.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>
@@ -539,6 +543,12 @@ const RowMaterialBrandMaster = () => {
         onConfirm={confirmDelete}
         itemLabel={deleteTarget?.name}
         saving={deleteLoading}
+      />
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="raw_material_brand"
+        title="Export Raw Material Brand Report"
       />
     </Container>
   );

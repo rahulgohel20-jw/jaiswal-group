@@ -3,14 +3,15 @@ import {
     ChevronRight,
     CircleCheck,
     CircleX,
+    Download,
     Eye,
     Plus,
-    Search,
     SquarePen,
     Tag,
     Trash2,
     Upload,
 } from 'lucide-react'
+import { SearchBar } from '@/components/common/SearchBar';
 import { useState, useEffect, useMemo } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -27,6 +28,9 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   Select,
   SelectContent,
@@ -34,16 +38,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 
 const StatusBadge = ({ status }) => {
-    const styles = {
-        Active: "bg-green-100 text-green-700",
-        Inactive: "bg-gray-200 text-gray-600",
-    };
+    const color = status === "Active" ? "text-emerald-600" : "text-gray-500";
     return (
-        <span className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${styles[status]}`}>
-            {status}
+        <span className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${color}`}>
+            {status || '—'}
         </span>
     );
 };
@@ -60,13 +63,12 @@ const mapCategory = (c) => ({
 });
 
 const AssetCategory = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Category Master');
-
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Category Master');
+    const navigate = useNavigate();
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
     const [showAddCategory, setShowAddCategory] = useState(false);
     const [viewingCategory, setViewingCategory] = useState(null);
     const [editingCategory, setEditingCategory] = useState(null);
@@ -77,6 +79,7 @@ const AssetCategory = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     const openDeleteConfirm = (row) => {
         setDeleteTarget({ id: row.id, itemLabel: row.name });
@@ -156,47 +159,39 @@ const AssetCategory = () => {
         {
             title: "Total Categories",
             value: `${categories.length}`,
-            badge: null,
-            icon: <Blocks size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
+            icon: <Blocks size={18} />,
+            iconBg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
             color: "text-[#1B1B1F]",
         },
         {
             title: "Active Categories",
             value: `${categories.filter((c) => c.status == 'Active').length}`,
-            badge: "HIGH",
-            badgeStyle: "bg-green-100 text-green-700",
-            icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
+            icon: <CircleCheck size={18} />,
+            iconBg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
             color: "text-[#15803D]",
         },
         {
             title: "Inactive Categories",
             value: `${categories.filter((c) => c.status == 'Inactive').length}`,
-            badge: null,
-            icon: <CircleX size={22} className="text-white p-1 bg-[#6B7280] rounded" />,
-            color: "text-[#1B1B1F]",
+            icon: <CircleX size={18} />,
+            iconBg: "bg-[#FEE2E2]",
+            iconColor: "text-[#DC2626]",
+            color: "text-[#DC2626]",
         },
     ];
     const columns = useMemo(() => [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className="w-4 h-4 cursor-pointer"
-                />
+            id: "sno",
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-                />
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 45,
+            size: 36,
         },
         {
             id: "name",
@@ -205,21 +200,17 @@ const AssetCategory = () => {
                 <DataGridColumnHeader title="CATEGORY NAME" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-gray-800 py-2">{row.original.name}</div>
+                <div
+                    className="font-medium text-xs text-gray-800 py-2 truncate block max-w-[200px]"
+                    title={row.original.name}
+                >
+                    {row.original.name}
+                </div>
             ),
-            size: 190,
+            enableSorting: false,
+            size: 200,
         },
-        {
-            id: "description",
-            accessorFn: (row) => row.description,
-            header: ({ column }) => (
-                <DataGridColumnHeader title="DESCRIPTION" column={column} className="text-[#43474F] font-semibold my-3" />
-            ),
-            cell: ({ row }) => (
-                <span className="text-gray-500 py-2 line-clamp-1">{row.original.description}</span>
-            ),
-            size: 320,
-        },
+
         {
             id: "status",
             accessorFn: (row) => row.status,
@@ -227,7 +218,8 @@ const AssetCategory = () => {
                 <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
-            size: 120,
+            enableSorting: false,
+            size: 80,
         },
         {
             id: "actions",
@@ -235,7 +227,7 @@ const AssetCategory = () => {
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="flex items-center gap-3 py-1">
+                <div className="flex items-center gap-3 py-1 whitespace-nowrap">
                     <button type="button" onClick={() => setViewingCategory(row.original)} title="View Category">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
@@ -252,17 +244,15 @@ const AssetCategory = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 110,
+            size: 80,
         },
     ], [canEdit, canDelete])
 
     const table = useReactTable({
         data: filteredCategories,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
@@ -273,78 +263,57 @@ const AssetCategory = () => {
 
     return (
        <Container>
-         <div className="p-4 md:p-6">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Category Master</span>
-            </div>
-
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">Asset Categories</h1>
-                    <p className="text-[#737781] mt-1 text-sm">
-                        Create and manage asset categories used across the organization for better classification, reporting,
-                        and inventory management.
-                    </p>
-                </div>
-
-                {canAdd && (
-                    <div className="flex gap-3 self-end">
-                        <button
-                            type="button"
-                            onClick={openCreateModal}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                        >
-                            <Plus size={16} />
-                            Add Category
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3   gap-4 py-8 text-[#43474F]">
-                {STATS.map((item) => (
-                    <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
-                        <div className="flex justify-between items-center pb-2">
-                            <p>{item.icon}</p>
-                            {item.badge && (
-                                <p className={`text-xs rounded font-semibold px-1.5 py-1 ${item.badgeStyle}`}>{item.badge}</p>
+         <div className="pt-2 pb-6 mx-auto space-y-4">
+            <PageHeader
+                title="Asset Categories"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={openCreateModal}>
+                                    Add Category
+                                </HeaderActionButton>
                             )}
                         </div>
-                        <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                        <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
+                    }
+                />
+
+            <PageErrorAlert error={error} onRetry={fetchCategories} className="my-3" />
+
+            {/* Stat cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 text-[#43474F]">
+                {STATS.map((item) => (
+                    <div key={item.title} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                        <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                            {item.icon}
+                        </div>
+                        <div className="flex flex-col items-end text-right">
+                            <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                            <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
+                        </div>
                     </div>
                 ))}
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-center">
-                    <div className="relative col-span-1 min-w-0 border border-[#C3C6D1] rounded-lg">
-                        <Search
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
+                    <SearchBar
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search by name or description..."
+                    />
 
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => { setSearch(e.target.value)}}
-                            placeholder="Search by name or description..."
-                            className="w-full min-w-0 pl-10 py-2 outline-none rounded-lg"
-                        />
-                    </div>
-
-                        <Select
+                    <Select
                             value={statusFilter}
                             onValueChange={(value) => setStatusFilter(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Status" />
                             </SelectTrigger>
 
@@ -359,7 +328,7 @@ const AssetCategory = () => {
                             value={userFilter}
                             onValueChange={(value) => setUserFilter(value)}
                         >
-                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg">
+                            <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl">
                                 <SelectValue placeholder="All Users" />
                             </SelectTrigger>
 
@@ -375,14 +344,21 @@ const AssetCategory = () => {
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                 {loading && <p className="p-4 text-sm text-gray-500">Loading categories...</p>}
-                {error && <p className="p-4 text-sm text-red-600">{error}</p>}
-                <DataGrid table={table} recordCount={filteredCategories.length} className="rounded-2xl">
+                <DataGrid
+                    table={table}
+                    recordCount={filteredCategories.length}
+                    className="rounded-2xl"
+                    tableLayout={{
+                        dense: true,
+                        width: 'fixed',
+                        cellBorder: true,
+                        headerBorder: true,
+                        rowBorder: true,
+                    }}
+                >
                     <Card className="rounded-t-none border-t-0 rounded-2xl">
-                        <CardTable>
-                            <ScrollArea>
-                                <DataGridTable />
-                                <ScrollBar orientation="horizontal" />
-                            </ScrollArea>
+                        <CardTable className="w-full overflow-x-hidden">
+                            <DataGridTable />
                         </CardTable>
                         <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                             <DataGridPagination />
@@ -411,7 +387,13 @@ const AssetCategory = () => {
     itemLabel={deleteTarget?.itemLabel}
     saving={deleteSaving}
 />
-        </div>
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_category"
+                    title="Export Asset Category Report"
+                />
+            </div>
        </Container>
     );
 };

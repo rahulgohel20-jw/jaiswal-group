@@ -7,11 +7,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import {
+  Building2,
   ChevronDown,
   ChevronRight,
+  Handshake,
   Link2,
   Search,
   Trash2,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
@@ -19,7 +22,12 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -28,8 +36,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { SearchBar } from '@/components/common/SearchBar';
 import { OrgTypes } from '../../constants/orgTypes';
 import {
   assignVendorOutletMapping,
@@ -39,6 +49,41 @@ import {
   getAllVendorOutletMappings,
   getOrganizationByType,
 } from '../../services/apiServices';
+import { useNavigate } from 'react-router';
+
+// Truncates long text within a fixed-width box, revealing the full value on hover
+const TruncatedCell = ({
+  value,
+  widthClass = 'max-w-full',
+  className = 'text-xs text-gray-800 font-medium',
+}) => (
+  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+    {value}
+  </span>
+);
+
+const StatCard = ({
+  icon: Icon,
+  iconBg = 'bg-[#D5E3FF]',
+  iconColor = 'text-[#00376C]',
+  label,
+  value,
+  valueColor = 'text-[#1B1B1F]',
+}) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div
+      className={`w-9 h-9 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}
+    >
+      <Icon className="w-5 h-5" />
+    </div>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
+        {value}
+      </span>
+    </div>
+  </div>
+);
 
 const SingleSelectDropdown = ({
   label,
@@ -77,16 +122,16 @@ const SingleSelectDropdown = ({
 
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
+      <label className="text-xs font-semibold text-gray-700 mb-1.5 block">
         {label}
       </label>
 
       <div
         onClick={() => setOpen((prev) => !prev)}
-        className="h-11 w-full border border-[#C3C6D1] rounded-lg px-3 flex items-center justify-between gap-2 cursor-pointer bg-white"
+        className="h-10 w-full border border-gray-200 hover:border-gray-300 rounded-xl px-3.5 flex items-center justify-between gap-2 cursor-pointer bg-white transition shadow-2xs"
       >
         <span
-          className={`text-sm truncate ${selected ? 'text-[#1B1B1F]' : 'text-gray-400'}`}
+          className={`text-xs sm:text-sm truncate ${selected ? 'font-medium text-gray-900' : 'text-gray-400'}`}
         >
           {selected ? selected.name : placeholder}
         </span>
@@ -94,20 +139,20 @@ const SingleSelectDropdown = ({
           {selected && (
             <X
               size={14}
-              className="text-gray-400 hover:text-red-500"
+              className="text-gray-400 hover:text-red-500 transition"
               onClick={(e) => {
                 e.stopPropagation();
                 onChange(null);
               }}
             />
           )}
-          <ChevronDown size={16} className="text-gray-400" />
+          <ChevronDown size={15} className={`text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
-          <div className="relative border-b border-[#C3C6D1]">
+        <div className="absolute z-30 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col animate-in fade-in-50 duration-100">
+          <div className="relative border-b border-gray-100 bg-gray-50/50">
             <Search
               size={14}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -116,19 +161,19 @@ const SingleSelectDropdown = ({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-8 pr-3 py-2 text-sm outline-none"
+              placeholder="Search vendor..."
+              className="w-full pl-8.5 pr-3 py-2 text-xs sm:text-sm outline-none bg-transparent"
             />
           </div>
 
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto divide-y divide-gray-50">
             {loading && (
-              <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>
+              <p className="px-3 py-2.5 text-xs text-gray-400">Loading vendors...</p>
             )}
 
             {!loading && filteredOptions.length === 0 && (
-              <p className="px-3 py-2 text-sm text-gray-400">
-                No results found.
+              <p className="px-3 py-2.5 text-xs text-gray-400">
+                No vendors found.
               </p>
             )}
 
@@ -138,15 +183,104 @@ const SingleSelectDropdown = ({
                   type="button"
                   key={option.id}
                   onClick={() => handlePick(option)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-[#F4F7FF]"
+                  className={`w-full text-left px-3.5 py-2 text-xs sm:text-sm transition flex items-center justify-between ${selected?.id === option.id
+                    ? 'bg-blue-50 text-[#084E92] font-semibold'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
                 >
-                  {option.name}
+                  <span>{option.name}</span>
+                  {selected?.id === option.id && (
+                    <span className="text-[#084E92] text-xs font-bold">✓</span>
+                  )}
                 </button>
               ))}
           </div>
         </div>
       )}
     </div>
+  );
+};
+
+const AssignedUnitsModal = ({
+  isOpen,
+  onClose,
+  vendor,
+  units,
+  onRemoveUnit,
+  canDelete,
+}) => {
+  const [search, setSearch] = useState('');
+
+  if (!isOpen || !vendor) return null;
+
+  const filtered = (units || []).filter((u) =>
+    (u.name || '').toLowerCase().includes(search.trim().toLowerCase())
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
+        <DialogHeader className="space-y-1 pb-3 border-b border-gray-100 pr-8">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#084E92] flex items-center justify-center shrink-0">
+                <Building2 size={16} />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base font-bold text-gray-900 truncate">
+                  Assigned Units
+                </DialogTitle>
+                <p className="text-xs text-gray-500 truncate">{vendor.name}</p>
+              </div>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 bg-blue-50 text-[#084E92] border border-blue-100 rounded-full shrink-0">
+              {units?.length || 0} Units
+            </span>
+          </div>
+        </DialogHeader>
+
+        <div className="my-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search assigned units..."
+              className="w-full pl-8.5 pr-3 py-2 text-xs border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-[#084E92]/20 focus:border-[#084E92]"
+            />
+          </div>
+        </div>
+
+        <div className="max-h-72 overflow-y-auto pr-1">
+          {filtered.length === 0 ? (
+            <p className="text-xs text-gray-400 text-center py-8">
+              {search ? 'No matching units found.' : 'No units assigned.'}
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {filtered.map((unit) => (
+                <div
+                  key={unit.id}
+                  className="flex items-center gap-1.5 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-3 py-1.5 rounded-full group transition hover:bg-[#E0EDFA]"
+                >
+                  <span>{unit.name}</span>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => onRemoveUnit(vendor.id, unit)}
+                      className="p-0.5 text-gray-400 hover:text-red-600 rounded-full cursor-pointer transition"
+                      title={`Remove ${unit.name}`}
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -193,43 +327,74 @@ const MultiSelectDropdown = ({
     onChange(selected.filter((s) => s.id !== id));
   };
 
+  const isAllSelected = options.length > 0 && selected.length === options.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      onChange([]);
+    } else {
+      onChange([...options]);
+    }
+  };
+
   return (
     <div ref={wrapperRef} className="relative w-full">
-      <label className="text-sm font-medium text-[#1B1B1F] mb-1.5 block">
-        {label}
-      </label>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-semibold text-gray-700 block">
+          {label}
+        </label>
+        {selected.length > 0 && (
+          <span className="text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md">
+            {selected.length} selected
+          </span>
+        )}
+      </div>
 
       <div
         onClick={() => setOpen((prev) => !prev)}
-        className="min-h-11 w-full border border-[#C3C6D1] rounded-lg px-2.5 py-1.5 flex flex-wrap items-center gap-1.5 cursor-pointer bg-white"
+        className="min-h-10 w-full border border-gray-200 hover:border-gray-300 rounded-xl px-2.5 py-1.5 flex flex-wrap items-center gap-1.5 cursor-pointer bg-white transition shadow-2xs"
       >
         {selected.length === 0 && (
-          <span className="text-gray-400 text-sm px-1">{placeholder}</span>
+          <span className="text-gray-400 text-xs sm:text-sm px-1">{placeholder}</span>
         )}
 
-        {selected.map((item) => (
-          <span
-            key={item.id}
-            className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-1 rounded-md"
-          >
-            {item.name}
+        {isAllSelected ? (
+          <span className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-semibold px-2.5 py-1 rounded-md">
+            All Units Selected ({options.length})
             <X
               size={12}
-              className="cursor-pointer hover:text-red-500"
+              className="cursor-pointer hover:text-red-500 ml-1"
               onClick={(e) => {
                 e.stopPropagation();
-                removeOption(item.id);
+                onChange([]);
               }}
             />
           </span>
-        ))}
+        ) : (
+          selected.map((item) => (
+            <span
+              key={item.id}
+              className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-medium px-2 py-1 rounded-md"
+            >
+              {item.name}
+              <X
+                size={12}
+                className="cursor-pointer hover:text-red-500"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeOption(item.id);
+                }}
+              />
+            </span>
+          ))
+        )}
 
-        <ChevronDown size={16} className="ml-auto text-gray-400 shrink-0" />
+        <ChevronDown size={15} className={`ml-auto text-gray-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </div>
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full bg-white border border-[#C3C6D1] rounded-lg shadow-lg max-h-64 overflow-hidden flex flex-col">
-          <div className="relative border-b border-[#C3C6D1]">
+        <div className="absolute z-30 mt-1.5 w-full bg-white border border-gray-200 rounded-xl shadow-xl max-h-60 overflow-hidden flex flex-col animate-in fade-in-50 duration-100">
+          <div className="relative border-b border-gray-100 bg-gray-50/50">
             <Search
               size={14}
               className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -238,35 +403,50 @@ const MultiSelectDropdown = ({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-8 pr-3 py-2 text-sm outline-none"
+              placeholder="Search units..."
+              className="w-full pl-8.5 pr-3 py-2 text-xs sm:text-sm outline-none bg-transparent"
             />
           </div>
 
-          <div className="overflow-y-auto">
+          <div className="overflow-y-auto divide-y divide-gray-50">
             {loading && (
-              <p className="px-3 py-2 text-sm text-gray-400">Loading...</p>
+              <p className="px-3 py-2.5 text-xs text-gray-400">Loading units...</p>
             )}
 
             {!loading && filteredOptions.length === 0 && (
-              <p className="px-3 py-2 text-sm text-gray-400">
-                No results found.
+              <p className="px-3 py-2.5 text-xs text-gray-400">
+                No units found.
               </p>
+            )}
+
+            {/* "All Units" checkbox option */}
+            {!loading && options.length > 0 && !query.trim() && (
+              <label className="flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b border-gray-100 hover:bg-[#F4F7FF] cursor-pointer text-[#084E92]">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                  className="accent-[#084E92]"
+                />
+                All Units ({options.length})
+              </label>
             )}
 
             {!loading &&
               filteredOptions.map((option) => (
                 <label
                   key={option.id}
-                  className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[#F4F7FF] cursor-pointer"
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-xs sm:text-sm text-gray-700 hover:bg-blue-50 hover:text-[#084E92] cursor-pointer transition"
                 >
                   <input
                     type="checkbox"
                     checked={isSelected(option.id)}
                     onChange={() => toggleOption(option)}
-                    className="accent-[#084E92]"
+                    className="w-4 h-4 rounded text-[#084E92] accent-[#084E92] cursor-pointer"
                   />
-                  {option.name}
+                  <span className={isSelected(option.id) ? 'font-semibold text-[#084E92]' : ''}>
+                    {option.name}
+                  </span>
                 </label>
               ))}
           </div>
@@ -283,8 +463,7 @@ const normalizeUnit = (o) => ({
 });
 
 // Normalizes a raw vendor record from getAllActiveVendors into { id, name, gstRegisteredName }.
-const normalizeVendor = (
-  v) => ({
+const normalizeVendor = (v) => ({
   id: v.id,
   name:
     v.companyName ||
@@ -295,8 +474,7 @@ const normalizeVendor = (
   gstRegisteredName: v.gstRegisteredName ?? null,
 });
 
-// Groups flat rows from GET /vendor-outlet-mapping/get-all into
-// { id, vendor: {id, name, gstRegisteredName}, units: [{id, name}] } rows the table expects.
+// Groups flat rows from GET /vendor-outlet-mapping/get-all
 const groupMappings = (rawRows, vendorsById, unitsById) => {
   const byVendor = new Map();
 
@@ -319,7 +497,6 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
 
     const entry = byVendor.get(vendorId);
 
-    // API returns one row per outlet, keyed by organizationId/organizationName
     const outletId = row.organizationId;
     const outletName = row.organizationName;
 
@@ -327,7 +504,7 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
       entry.units.push(
         unitsById.get(outletId) ?? {
           id: outletId,
-          name: outletName || `Outlet ${outletId}`,
+          name: outletName || `Unit ${outletId}`,
         },
       );
     }
@@ -337,6 +514,7 @@ const groupMappings = (rawRows, vendorsById, unitsById) => {
 };
 
 const VendorUnitMapping = () => {
+  const navigate = useNavigate();
   const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Vendor Unit Mapping');
 
   const [vendors, setVendors] = useState([]);
@@ -363,8 +541,8 @@ const VendorUnitMapping = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [viewingVendorModal, setViewingVendorModal] = useState(null);
 
-  // Vendors from the real API.
   useEffect(() => {
     const fetchVendors = async () => {
       setVendorsLoading(true);
@@ -382,7 +560,6 @@ const VendorUnitMapping = () => {
     fetchVendors();
   }, []);
 
-  // Units (outlets) from the real API.
   useEffect(() => {
     const fetchUnits = async () => {
       setUnitsLoading(true);
@@ -407,7 +584,6 @@ const VendorUnitMapping = () => {
     fetchUnits();
   }, []);
 
-  // Existing vendor-outlet mappings. Re-fetched after vendors/units load and after every save/delete.
   const fetchMappings = async () => {
     setMappingsLoading(true);
     setMappingsError(null);
@@ -481,7 +657,6 @@ const VendorUnitMapping = () => {
     }
   };
 
-  // Row delete = drop the whole vendor mapping (all outlets for that vendor).
   const openDeleteConfirm = (row) => {
     setDeleteTarget({
       type: 'row',
@@ -491,7 +666,6 @@ const VendorUnitMapping = () => {
     setShowDeleteConfirm(true);
   };
 
-  // Single unit chip delete = drop one vendor+outlet pair.
   const openRemoveUnitConfirm = (vendorId, unit) => {
     setDeleteTarget({
       type: 'unit',
@@ -518,8 +692,17 @@ const VendorUnitMapping = () => {
           deleteTarget.vendorId,
           deleteTarget.unitId,
         );
+        if (viewingVendorModal && viewingVendorModal.vendor?.id === deleteTarget.vendorId) {
+          setViewingVendorModal((prev) => ({
+            ...prev,
+            units: (prev.units || []).filter((u) => u.id !== deleteTarget.unitId),
+          }));
+        }
       } else {
         await deleteVendorOutletMappingByVendor(deleteTarget.vendorId);
+        if (viewingVendorModal && viewingVendorModal.vendor?.id === deleteTarget.vendorId) {
+          setViewingVendorModal(null);
+        }
       }
       await fetchMappings();
     } catch (err) {
@@ -538,99 +721,122 @@ const VendorUnitMapping = () => {
         id: 'sno',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="SR. NO"
+            title="S.NO"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-gray-500 font-semibold whitespace-nowrap"
           />
         ),
-        cell: ({ row }) =>
-          pagination.pageIndex * pagination.pageSize + row.index + 1,
+        cell: ({ row }) => (
+          <span className="text-xs text-gray-500">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
+        ),
         enableSorting: false,
-        size: 80,
+        size: 36,
       },
       {
         id: 'vendor',
+        accessorFn: (row) => row.vendor?.name,
         header: ({ column }) => (
-          <DataGridColumnHeader
-            title="VENDOR NAME"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
+          <DataGridColumnHeader title="Vendor Name" column={column} className="whitespace-nowrap" />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-[#1B1B1F]">
-            {row.original.vendor?.name}
-          </span>
+          <div className="min-w-0">
+            <p className="font-medium text-xs text-gray-800 leading-none truncate">
+              {row.original.vendor?.name}
+            </p>
+          </div>
         ),
+        enableSorting: false,
+        size: 190,
       },
       {
         id: 'gstRegisteredName',
+        accessorFn: (row) => row.vendor?.gstRegisteredName,
         header: ({ column }) => (
-          <DataGridColumnHeader
-            title="REGISTERED COMPANY NAME"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
+          <DataGridColumnHeader title="Registered Company Name" column={column} className="whitespace-nowrap" />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-[#1B1B1F]">
-            {row.original.vendor?.gstRegisteredName ?? '—'}
-          </span>
+          <TruncatedCell
+            value={row.original.vendor?.gstRegisteredName || '—'}
+          />
         ),
+        enableSorting: false,
+        size: 220,
       },
       {
         id: 'units',
         header: ({ column }) => (
-          <DataGridColumnHeader
-            title="UNIT NAME"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
+          <DataGridColumnHeader title="Assigned Units" column={column} className="whitespace-nowrap" />
         ),
-        cell: ({ row }) => (
-          <div className="flex flex-wrap gap-1.5">
-            {(row.original.units || []).map((u) => (
-              <span
-                key={u.id}
-                className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full"
-              >
-                {u.name}
-                {canDelete && (
-                  <X
-                    size={12}
-                    className="cursor-pointer hover:text-red-500"
-                    onClick={() => openRemoveUnitConfirm(row.original.vendor.id, u)}
-                  />
-                )}
-              </span>
-            ))}
-          </div>
-        ),
+        cell: ({ row }) => {
+          const rowUnits = row.original.units || [];
+
+          const visibleUnits = rowUnits.slice(0, 4);
+          const remainingUnits = rowUnits.slice(4);
+          const hasMore = remainingUnits.length > 0;
+
+          return (
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {visibleUnits.map((u) => (
+                <span
+                  key={u.id}
+                  className="flex items-center gap-1 bg-[#F0F6FC] text-[#084E92] border border-[#E0EDFA] text-xs font-medium px-2.5 py-1 rounded-full whitespace-nowrap"
+                >
+                  {u.name}
+
+                  {canDelete && (
+                    <X
+                      size={12}
+                      className="cursor-pointer hover:text-red-500"
+                      onClick={() =>
+                        openRemoveUnitConfirm(row.original.vendor.id, u)
+                      }
+                    />
+                  )}
+                </span>
+              ))}
+
+              {hasMore && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setViewingVendorModal({
+                      vendor: row.original.vendor,
+                      units: rowUnits,
+                    })
+                  }
+                  className="inline-flex items-center bg-[#F0F6FC] hover:bg-[#E0EDFA] text-[#084E92] border border-[#E0EDFA] text-xs font-semibold px-2 py-0.5 rounded-full cursor-pointer transition whitespace-nowrap"
+                >
+                  +{remainingUnits.length} more
+                </button>
+              )}
+            </div>
+          );
+        },
         enableSorting: false,
+        size: 280,
       },
       {
         id: 'actions',
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="ACTION"
-            column={column}
-            className="text-[#43474F] font-semibold"
-          />
+        header: () => (
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+            Actions
+          </span>
         ),
-        cell: ({ row }) => (
+        cell: ({ row }) =>
           canDelete ? (
             <Trash2
               size={18}
               className="text-red-300 cursor-pointer hover:text-red-700"
               onClick={() => openDeleteConfirm(row.original)}
             />
-          ) : null
-        ),
+          ) : null,
         enableSorting: false,
-        size: 100,
+        size: 60,
       },
     ],
-    [canDelete, pagination],
+    [canDelete, pagination, units],
   );
 
   const table = useReactTable({
@@ -648,43 +854,21 @@ const VendorUnitMapping = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Masters</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">
-            Vendor & Unit Mapping
-          </span>
-        </div>
-
-        <div>
-          <h1 className="text-2xl font-bold text-[#0F172A] text-start">
-            Vendor & Unit Mapping
-          </h1>
-          <p className="text-sm text-gray-400 mt-1 max-w-xl">
-            Map vendors to one or multiple units for procurement and purchase
-            management.
-          </p>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        {/* Page header */}
+        <PageHeader
+          title="Vendor & Unit Mapping"
+          description="Map vendors to one or multiple units for procurement and purchase management."
+        />
 
         {/* Vendor Mapping Details */}
         {(canAdd || canEdit) && (
-          <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-            <h2 className="text-base font-semibold text-[#1B1B1F] pb-4 mb-4 border-b-2 border-[#F8FAFC]">
-              Vendor Mapping Details
-            </h2>
-
-            {unitsError && (
-              <p className="text-sm text-red-500 mb-3">{unitsError}</p>
-            )}
-            {mappingsError && (
-              <p className="text-sm text-red-500 mb-3">{mappingsError}</p>
+          <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-2xs mt-4 mb-6">
+            {(unitsError || mappingsError) && (
+              <p className="text-xs text-red-500 mb-3 bg-red-50 p-2.5 rounded-lg border border-red-100">{unitsError || mappingsError}</p>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4 items-end">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr_auto] gap-3.5 items-end">
               <SingleSelectDropdown
                 label="Vendor Name"
                 placeholder="Select a vendor"
@@ -707,97 +891,106 @@ const VendorUnitMapping = () => {
                 type="button"
                 onClick={handleSaveMapping}
                 disabled={saving || !selectedVendor || selectedUnits.length === 0}
-                className="h-11 px-5 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center cursor-pointer hover:bg-[#073e77] transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                className="h-10 px-5 bg-[#084E92] hover:bg-[#073e77] active:scale-[0.99] text-white text-xs sm:text-sm font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer transition shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
               >
-                <Link2 size={16} />
+                <Link2 size={15} />
                 {saving ? 'Saving...' : 'Save Mapping'}
               </button>
             </div>
           </div>
         )}
 
-        {/* Mapping Records */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] mt-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-base font-semibold text-[#1B1B1F]">
-              Mapping Records
-            </h2>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative border border-[#C3C6D1] rounded-lg">
-                <Search
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  size={16}
-                />
-                <input
-                  placeholder="Search records..."
-                  className="w-full sm:w-56 pl-9 pr-3 py-2 text-sm outline-none rounded-lg"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                />
-              </div>
-
-              <Select
-                value={vendorFilter || 'all'}
-                onValueChange={(value) =>
-                  setVendorFilter(value === 'all' ? '' : value)
-                }
-              >
-                <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue placeholder="Filter by Vendor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Vendors</SelectItem>
-                  {vendors.map((v) => (
-                    <SelectItem key={v.id} value={String(v.id)}>
-                      {v.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={unitFilter || 'all'}
-                onValueChange={(value) =>
-                  setUnitFilter(value === 'all' ? '' : value)
-                }
-              >
-                <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-lg">
-                  <SelectValue placeholder="Filter by Unit" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Units</SelectItem>
-                  {units.map((u) => (
-                    <SelectItem key={u.id} value={String(u.id)}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+          <div className="flex-1">
+            <SearchBar
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onClear={() => setSearchText('')}
+              placeholder="Search by vendor, registered company, or unit..."
+            />
           </div>
 
-          <div className="w-full mt-5 border border-[#C3C6D1] rounded-2xl overflow-hidden">
-            <DataGrid
-              table={table}
-              recordCount={filteredMappings.length}
-              className="rounded-2xl"
-            >
-              <Card className="rounded-t-none border-t-0 rounded-2xl">
-                <CardTable>
-                  <ScrollArea>
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                </CardTable>
-                <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
-                  <DataGridPagination />
-                </CardFooter>
-              </Card>
-            </DataGrid>
-          </div>
+          <Select
+            value={vendorFilter || 'all'}
+            onValueChange={(value) =>
+              setVendorFilter(value === 'all' ? '' : value)
+            }
+          >
+            <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-xl bg-white text-sm">
+              <SelectValue placeholder="Filter by Vendor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Vendors</SelectItem>
+              {vendors.map((v) => (
+                <SelectItem key={v.id} value={String(v.id)}>
+                  {v.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={unitFilter || 'all'}
+            onValueChange={(value) =>
+              setUnitFilter(value === 'all' ? '' : value)
+            }
+          >
+            <SelectTrigger className="w-full sm:w-48 h-10 border-[#C3C6D1] rounded-xl bg-white text-sm">
+              <SelectValue placeholder="Filter by Unit" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Units</SelectItem>
+              {units.map((u) => (
+                <SelectItem key={u.id} value={String(u.id)}>
+                  {u.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Listing Table */}
+        <div className="w-full my-6 border border-gray-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
+          {mappingsError && (
+            <p className="text-sm text-red-600 p-4">{mappingsError}</p>
+          )}
+          {mappingsLoading && (
+            <p className="text-sm text-gray-400 p-4">Loading mappings...</p>
+          )}
+
+          <DataGrid
+            table={table}
+            recordCount={filteredMappings.length}
+            className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
+          >
+            <Card className="rounded-t-none border-t-0 rounded-2xl">
+              <CardTable className="w-full overflow-x-hidden">
+                <DataGridTable />
+              </CardTable>
+              <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
+                <DataGridPagination />
+              </CardFooter>
+            </Card>
+          </DataGrid>
         </div>
       </div>
+
+      <AssignedUnitsModal
+        isOpen={!!viewingVendorModal}
+        onClose={() => setViewingVendorModal(null)}
+        vendor={viewingVendorModal?.vendor}
+        units={viewingVendorModal?.units}
+        onRemoveUnit={openRemoveUnitConfirm}
+        canDelete={canDelete}
+      />
 
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}

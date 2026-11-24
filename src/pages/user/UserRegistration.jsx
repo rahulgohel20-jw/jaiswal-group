@@ -1,31 +1,41 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { notify } from '@/utils/toast';
 import {
   AlertTriangle,
+  ArrowLeft,
   Check,
   ChevronDown,
   Eye,
   EyeOff,
-  Map,
+  Loader2,
+  Map as MapIcon,
   MapPin,
+  ShieldCheck,
   User,
   X,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import {
   getActiveCompany,
-  getAllCountries,
+  getAllActiveSubLocations,
+  getAllActiveSubOutlets,
+  getAllCountries,                                         
+  getAllDepartmentMaster,
   getAllRoleMasterByUserId,
   getCitiesByState,
   getEmployeeById,
   getOrganizationByType,
+  getPages,
   getStatesByCountry,
+  getUserRightsByRole,
   saveEmployee,
   updateEmployee,
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '../../utils/auth';
 import SearchableSelect from '../../utils/SearchableSelect';
+import MultiSelectDropdown from '@/components/common/MultiSelectDropdown';
 import {
+  buildAccessAssignments,
   buildEmployeePayload,
   DEFAULT_FORM,
   deriveOrgSelection,
@@ -34,6 +44,8 @@ import {
   getEmployeeOrgId,
   mapEmployeeToForm,
 } from './utils/Employeemappers';
+import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -52,29 +64,6 @@ const Label = ({ children, required }) => (
 
 const ErrorText = ({ message }) =>
   message ? <p className="text-xs text-red-500 mt-1">{message}</p> : null;
-
-// Generic string-option select (used for Department)
-const Select = ({ value, onChange, placeholder, options, hasError }) => (
-  <div className="relative">
-    <select
-      value={value}
-      onChange={onChange}
-      className={`${hasError ? errorInputCls : inputCls} appearance-none pr-9 cursor-pointer ${
-        value === '' ? 'text-gray-400' : 'text-gray-800'
-      }`}
-    >
-      <option value="" disabled>
-        {placeholder}
-      </option>
-      {options.map((opt) => (
-        <option key={opt} value={opt} className="text-gray-800">
-          {opt}
-        </option>
-      ))}
-    </select>
-    <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-  </div>
-);
 
 const SectionCard = ({ children, className = '' }) => (
   <div
@@ -111,8 +100,6 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
   </div>
 );
 
-// Loads Leaflet (OpenStreetMap, no API key needed) once and lets the user click
-// or drag a pin to pick a location — coordinates flow back to the form on confirm.
 const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
@@ -189,7 +176,6 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
       map.remove();
       mapInstance.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
 
   return (
@@ -267,45 +253,70 @@ const MapPickerModal = ({ initialLat, initialLng, onConfirm, onClose }) => {
   );
 };
 
+const ACTIONS = [
+  { key: 'add', label: 'Add' },
+  { key: 'edit', label: 'Edit' },
+  { key: 'view', label: 'View' },
+  { key: 'delete', label: 'Delete' },
+  { key: 'export', label: 'Export' },
+];
+
+const emptyRow = { add: false, edit: false, view: false, delete: false, export: false };
+const fullRow = { add: true, edit: true, view: true, delete: true, export: true };
+
+const normalizePages = (res) => {
+  const modules = res?.data?.data?.ModuleWiseUserRights ?? [];
+  const grouped = {};
+  modules.forEach((m) => {
+    grouped[m.moduleName] = (m.userRightsPages ?? []).map((p) => ({
+      id: p.pageId,
+      name: p.pagename,
+      moduleId: m.moduleId,
+    }));
+  });
+  return grouped;
+};
+
+const normalizeExistingRights = (res) => {
+  const raw = res?.data?.data ?? res?.data ?? res ?? {};
+  const modules =
+    raw?.UserRights ??
+    raw?.userRights?.userRights ??
+    raw?.userRights ??
+    (Array.isArray(raw) ? raw : []);
+
+  const map = {};
+  if (Array.isArray(modules)) {
+    modules.forEach((m) => {
+      const pageList = m.userRights ?? m.pages ?? (Array.isArray(m) ? m : []);
+      pageList.forEach((r) => {
+        const pid = r.pageid ?? r.pageId ?? r.id;
+        if (pid != null) {
+          map[pid] = {
+            add: Boolean(r.add),
+            edit: Boolean(r.edit),
+            view: Boolean(r.view),
+            delete: Boolean(r.delete),
+            export: Boolean(r.export),
+          };
+        }
+      });
+    });
+  }
+  return map;
+};
+
 // Password must be at least 8 chars with 1 uppercase, 1 lowercase, 1 number, 1 special char
 const PASSWORD_REGEX =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
-// Stricter email pattern: no consecutive dots, no leading/trailing dots in the
-// local or domain part, and the TLD must be 2-24 letters only.
 const EMAIL_REGEX =
   /^[a-zA-Z0-9](?:[a-zA-Z0-9._%+-]*[a-zA-Z0-9])?@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,24}$/;
 
 const KNOWN_TLDS = new Set([
-  'com',
-  'net',
-  'org',
-  'edu',
-  'gov',
-  'mil',
-  'info',
-  'biz',
-  'co',
-  'in',
-  'io',
-  'us',
-  'uk',
-  'ca',
-  'au',
-  'de',
-  'fr',
-  'jp',
-  'cn',
-  'ai',
-  'me',
-  'app',
-  'dev',
-  'tech',
-  'store',
-  'online',
-  'xyz',
-  'name',
-  'pro',
+  'com', 'net', 'org', 'edu', 'gov', 'mil', 'info', 'biz', 'co', 'in',
+  'io', 'us', 'uk', 'ca', 'au', 'de', 'fr', 'jp', 'cn', 'ai', 'me',
+  'app', 'dev', 'tech', 'store', 'online', 'xyz', 'name', 'pro',
 ]);
 
 const isValidEmail = (rawEmail) => {
@@ -319,7 +330,6 @@ const isValidEmail = (rawEmail) => {
 
 const MOBILE_REGEX = /^\d{10}$/;
 const PINCODE_REGEX = /^\d{6}$/;
-const USERNAME_REGEX = /^[a-zA-Z0-9._-]{3,20}$/;
 
 const UserRegistration = () => {
   const location = useLocation();
@@ -331,6 +341,7 @@ const UserRegistration = () => {
   const [openSections, setOpenSections] = useState({
     personal: true,
     address: true,
+    permissions: true,
   });
 
   const toggleSection = (section) =>
@@ -342,9 +353,6 @@ const UserRegistration = () => {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [errors, setErrors] = useState({});
   const [loadingUser, setLoadingUser] = useState(false);
-  // The employee's flat organization id, held until the Group + org lists
-  // are loaded so we can work out which level (Group/Sub Company/Unit) it
-  // belongs to — see the derive-org effect below.
   const [employeeOrgId, setEmployeeOrgId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -357,22 +365,39 @@ const UserRegistration = () => {
   const [loadingStates, setLoadingStates] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
 
-  // Roles / departments — fetched once from /api/rolemaster/getall
+  // Departments from /api/department/getall
   const [departments, setDepartments] = useState([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
 
-  // Groups — top-level org entities, fetched via /api/organization/by-type/GROUP.
-  // This is a required selection; Sub Company and Unit underneath it are optional.
+  // Roles from /api/rolemaster/getall
+  const [roles, setRoles] = useState([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+
+  // Permissions / Pages state
+  const [pagesByModule, setPagesByModule] = useState({});
+  const [checks, setChecks] = useState({});
+  const [loadingPages, setLoadingPages] = useState(false);
+  const [loadingRoleRights, setLoadingRoleRights] = useState(false);
+
+  // Groups and organization tree
   const [groups, setGroups] = useState([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
-
-  // Full org tree — every non-group entity (sub-companies, units) in one flat
-  // list, each carrying a parentId. We fetch it once and derive Sub Company /
-  // Unit dropdown options from it on the frontend instead of hitting the API
-  // again per selection.
   const [allOrgs, setAllOrgs] = useState([]);
   const [loadingOrgs, setLoadingOrgs] = useState(false);
+  const [allSubOutlets, setAllSubOutlets] = useState([]);
+  const [loadingSubOutlets, setLoadingSubOutlets] = useState(false);
+  const [allSubLocations, setAllSubLocations] = useState([]);
+  const [loadingSubLocations, setLoadingSubLocations] = useState(false);
 
+const [selectedModule, setSelectedModule] = useState('');
+
+// Automatically select the first module once pages load
+useEffect(() => {
+  const moduleKeys = Object.keys(pagesByModule);
+  if (moduleKeys.length > 0 && (!selectedModule || !pagesByModule[selectedModule])) {
+    setSelectedModule(moduleKeys[0]);
+  }
+}, [pagesByModule, selectedModule]);
   // Fetch GROUP-type orgs once on mount
   useEffect(() => {
     let cancelled = false;
@@ -422,18 +447,61 @@ const UserRegistration = () => {
     };
   }, []);
 
-  // Fetch all roles once on mount — these serve as the Department options
+  // Fetch all active sub-outlets
   useEffect(() => {
     let cancelled = false;
-    const fetchRoles = async () => {
+    const fetchSubOutlets = async () => {
+      setLoadingSubOutlets(true);
+      try {
+        const res = await getAllActiveSubOutlets();
+        const list = extractList(res);
+        if (!cancelled) setAllSubOutlets(list);
+      } catch (err) {
+        console.error('Failed to load sub outlets', err);
+        if (!cancelled) setAllSubOutlets([]);
+      } finally {
+        if (!cancelled) setLoadingSubOutlets(false);
+      }
+    };
+    fetchSubOutlets();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch all active sub-locations
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSubLocations = async () => {
+      setLoadingSubLocations(true);
+      try {
+        const res = await getAllActiveSubLocations();
+        const list = extractList(res);
+        if (!cancelled) setAllSubLocations(list);
+      } catch (err) {
+        console.error('Failed to load sub locations', err);
+        if (!cancelled) setAllSubLocations([]);
+      } finally {
+        if (!cancelled) setLoadingSubLocations(false);
+      }
+    };
+    fetchSubLocations();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch departments from new Department Master API (/api/department/getall)
+  useEffect(() => {
+    let cancelled = false;
+    const fetchDepartments = async () => {
       setLoadingDepartments(true);
       try {
-        const res = await getAllRoleMasterByUserId(getUserIdFromToken());
+        const res = await getAllDepartmentMaster();
         if (!cancelled) {
           const list = extractList(res).map((d) => ({
             id: d.id,
-            // Adjust the field name below if the API returns a different key
-            name: d.name ?? d.roleName ?? d.departmentName ?? '',
+            name: d.name ?? d.departmentName ?? '',
           }));
           setDepartments(list);
         }
@@ -444,24 +512,69 @@ const UserRegistration = () => {
         if (!cancelled) setLoadingDepartments(false);
       }
     };
+    fetchDepartments();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch roles from Role Master API (/api/rolemaster/getall)
+  useEffect(() => {
+    let cancelled = false;
+    const fetchRoles = async () => {
+      setLoadingRoles(true);
+      try {
+        const res = await getAllRoleMasterByUserId(getUserIdFromToken());
+        if (!cancelled) {
+          const list = extractList(res).map((r) => ({
+            id: r.id,
+            name: r.name ?? r.roleName ?? '',
+          }));
+          setRoles(list);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) setRoles([]);
+      } finally {
+        if (!cancelled) setLoadingRoles(false);
+      }
+    };
     fetchRoles();
     return () => {
       cancelled = true;
     };
-  }, []); // no dependency on companyId / outletId — roles are global
+  }, []);
 
-  // Auto-select the Group by default when there's exactly one (the common
-  // case — a single organization like "Jaiswal Group"). If there are several,
-  // the user picks explicitly; nothing is pre-selected in edit mode since the
-  // employee's own record is loaded separately.
+  // Fetch module pages definition for permissions grid
+  useEffect(() => {
+    let cancelled = false;
+    const fetchModulePages = async () => {
+      setLoadingPages(true);
+      try {
+        const pagesRes = await getPages(false, true);
+        if (!cancelled) {
+          setPagesByModule(normalizePages(pagesRes));
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (!cancelled) setLoadingPages(false);
+      }
+    };
+    fetchModulePages();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Auto-select single group if only 1 exists
   useEffect(() => {
     if (!isEditMode && groups.length === 1 && !form.groupId) {
       setForm((f) => ({ ...f, groupId: String(groups[0].id) }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups, isEditMode]);
+  }, [groups, isEditMode, form.groupId]);
 
-  // Sub Companies = orgs whose parent is whichever Group is currently selected.
+  // Sub Companies
   const subCompanies = useMemo(
     () =>
       form.groupId
@@ -472,46 +585,180 @@ const UserRegistration = () => {
     [allOrgs, form.groupId],
   );
 
-  // Units = orgs whose parent is whichever Sub Company is currently selected.
-  const outlets = useMemo(
-    () =>
-      form.companyId
-        ? allOrgs
-            .filter((o) => String(o.parentId) === String(form.companyId))
-            .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name }))
-        : [],
-    [allOrgs, form.companyId],
+  const selectedCompanyIdSet = useMemo(
+    () => new Set((form.selectedCompanies || []).map((c) => String(c.id))),
+    [form.selectedCompanies],
   );
 
+  const companyMap = useMemo(() => {
+    const map = new Map();
+    allOrgs.forEach((o) => map.set(String(o.id), o.companyNameEnglish || o.name));
+    return map;
+  }, [allOrgs]);
+
+  // Units under selected companies
+  const availableUnits = useMemo(() => {
+    if (selectedCompanyIdSet.size === 0) return [];
+    return allOrgs
+      .filter((o) => selectedCompanyIdSet.has(String(o.parentId)))
+      .map((u) => ({
+        id: u.id,
+        name: u.companyNameEnglish || u.name,
+        parentId: u.parentId,
+        subtitle: companyMap.get(String(u.parentId)) ? `Company: ${companyMap.get(String(u.parentId))}` : '',
+      }));
+  }, [allOrgs, selectedCompanyIdSet, companyMap]);
+
+  const selectedUnitIdSet = useMemo(
+    () => new Set((form.selectedUnits || []).map((u) => String(u.id))),
+    [form.selectedUnits],
+  );
+
+  const unitMap = useMemo(() => {
+    const map = new Map();
+    allOrgs.forEach((o) => map.set(String(o.id), o.companyNameEnglish || o.name));
+    return map;
+  }, [allOrgs]);
+
+  // Sub-Units under selected units
+  const availableSubOutlets = useMemo(() => {
+    if (selectedUnitIdSet.size === 0) return [];
+    return allSubOutlets
+      .filter((so) => {
+        const parentId = String(so.organizationId || so.outletId || so.parentId || '');
+        return selectedUnitIdSet.has(parentId);
+      })
+      .map((so) => {
+        const parentId = so.organizationId || so.outletId || so.parentId;
+        const parentName = unitMap.get(String(parentId)) || '';
+        return {
+          id: so.id,
+          name: so.subOutletName || so.name || `Sub-Unit #${so.id}`,
+          organizationId: parentId,
+          parentUnitId: parentId,
+          subtitle: parentName ? `Unit: ${parentName}` : '',
+        };
+      });
+  }, [allSubOutlets, selectedUnitIdSet, unitMap]);
+
+  const selectedSubUnitIdSet = useMemo(
+    () => new Set((form.selectedSubUnits || []).map((su) => String(su.id))),
+    [form.selectedSubUnits],
+  );
+
+  const subOutletMap = useMemo(() => {
+    const map = new Map();
+    allSubOutlets.forEach((so) =>
+      map.set(String(so.id), so.subOutletName || so.name || `Sub-Unit #${so.id}`)
+    );
+    return map;
+  }, [allSubOutlets]);
+
+  // Sub-Locations under selected sub-units
+  const availableSubLocations = useMemo(() => {
+    if (selectedSubUnitIdSet.size === 0) return [];
+    return allSubLocations
+      .filter((sl) => {
+        const subOutletId = String(sl.subOutletId || sl.subUnitId || '');
+        return selectedSubUnitIdSet.has(subOutletId);
+      })
+      .map((sl) => {
+        const subOutletId = sl.subOutletId || sl.subUnitId;
+        const parentSubOutlet = subOutletMap.get(String(subOutletId)) || '';
+        return {
+          id: sl.id,
+          name: sl.locationName || sl.name || `Sub-Location #${sl.id}`,
+          subOutletId: subOutletId,
+          parentSubOutletId: subOutletId,
+          organizationId: sl.organizationId,
+          parentUnitId: sl.organizationId,
+          subtitle: parentSubOutlet ? `Sub-Unit: ${parentSubOutlet}` : '',
+        };
+      });
+  }, [allSubLocations, selectedSubUnitIdSet, subOutletMap]);
+
   const handleGroupChange = (e) => {
-    const value = e.target.value;
-    setForm((f) => ({ ...f, groupId: value, companyId: '', outletId: '' }));
+    const value = typeof e === 'object' && e?.target ? e.target.value : String(e ?? '');
+    setForm((f) => ({
+      ...f,
+      groupId: value,
+      companyId: '',
+      outletId: '',
+      selectedCompanies: [],
+      selectedUnits: [],
+      selectedSubUnits: [],
+      selectedSubLocations: [],
+    }));
     setErrors((prev) => ({
       ...prev,
       groupId: undefined,
-      companyId: undefined,
-      outletId: undefined,
     }));
   };
 
-  const handleCompanyChange = (e) => {
-    const value = e.target.value;
-    setForm((f) => ({ ...f, companyId: value, outletId: '' }));
-    setErrors((prev) => ({
+  const handleCompaniesChange = (selected) => {
+    const newCompanyIds = new Set(selected.map((c) => String(c.id)));
+    const nextUnits = (form.selectedUnits || []).filter((u) => newCompanyIds.has(String(u.parentId)));
+    const nextUnitIds = new Set(nextUnits.map((u) => String(u.id)));
+    const nextSubUnits = (form.selectedSubUnits || []).filter((su) =>
+      nextUnitIds.has(String(su.organizationId || su.parentUnitId))
+    );
+    const nextSubUnitIds = new Set(nextSubUnits.map((su) => String(su.id)));
+    const nextSubLocations = (form.selectedSubLocations || []).filter((sl) =>
+      nextSubUnitIds.has(String(sl.subOutletId || sl.parentSubOutletId))
+    );
+
+    setForm((prev) => ({
       ...prev,
-      companyId: undefined,
-      outletId: undefined,
+      selectedCompanies: selected,
+      selectedUnits: nextUnits,
+      selectedSubUnits: nextSubUnits,
+      selectedSubLocations: nextSubLocations,
+      companyId: selected[0]?.id ? String(selected[0].id) : '',
+      outletId: nextUnits[0]?.id ? String(nextUnits[0].id) : '',
     }));
   };
 
-  const handleUnitChange = (e) => {
-    const value = e.target.value;
-    setForm((f) => ({ ...f, outletId: value }));
-    setErrors((prev) => ({ ...prev, outletId: undefined }));
+  const handleUnitsChange = (selected) => {
+    const nextUnitIds = new Set(selected.map((u) => String(u.id)));
+    const nextSubUnits = (form.selectedSubUnits || []).filter((su) =>
+      nextUnitIds.has(String(su.organizationId || su.parentUnitId))
+    );
+    const nextSubUnitIds = new Set(nextSubUnits.map((su) => String(su.id)));
+    const nextSubLocations = (form.selectedSubLocations || []).filter((sl) =>
+      nextSubUnitIds.has(String(sl.subOutletId || sl.parentSubOutletId))
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      selectedUnits: selected,
+      selectedSubUnits: nextSubUnits,
+      selectedSubLocations: nextSubLocations,
+      outletId: selected[0]?.id ? String(selected[0].id) : '',
+    }));
   };
 
-  // Edit mode: pull the full record from the backend rather than trusting
-  // the (possibly partial) row passed in via navigation state.
+  const handleSubUnitsChange = (selected) => {
+    const nextSubUnitIds = new Set(selected.map((su) => String(su.id)));
+    const nextSubLocations = (form.selectedSubLocations || []).filter((sl) =>
+      nextSubUnitIds.has(String(sl.subOutletId || sl.parentSubOutletId))
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      selectedSubUnits: selected,
+      selectedSubLocations: nextSubLocations,
+    }));
+  };
+
+  const handleSubLocationsChange = (selected) => {
+    setForm((prev) => ({
+      ...prev,
+      selectedSubLocations: selected,
+    }));
+  };
+
+  // Edit mode: fetch employee by ID and load their permissions
+  const editInitializedRef = useRef(false);
   useEffect(() => {
     setErrors({});
     setSubmitError('');
@@ -521,6 +768,8 @@ const UserRegistration = () => {
     if (!editingUser?.id) {
       setForm(DEFAULT_FORM);
       setEmployeeOrgId('');
+      setChecks({});
+      editInitializedRef.current = false;
       return;
     }
 
@@ -533,6 +782,12 @@ const UserRegistration = () => {
         if (!cancelled) {
           setForm(mapEmployeeToForm(emp));
           setEmployeeOrgId(getEmployeeOrgId(emp));
+
+          // Load employee's existing user rights if present in getbyid response
+          const initialChecks = normalizeExistingRights(emp);
+          if (Object.keys(initialChecks).length > 0) {
+            setChecks(initialChecks);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -549,19 +804,239 @@ const UserRegistration = () => {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingUser?.id]);
 
-  // Once the employee's flat organization id AND both org lists (Group,
-  // Sub Company/Unit tree) have finished loading, work out which level
-  // that id sits at and pre-select Group / Sub Company / Unit accordingly.
+  // Pre-select Group / Companies / Units / Sub-Units in edit mode once lists are available
   useEffect(() => {
-    if (!isEditMode || !employeeOrgId) return;
-    if (loadingGroups || loadingOrgs) return; // wait for both lists to settle
+    if (!isEditMode || editInitializedRef.current) return;
+    if (loadingGroups || loadingOrgs || loadingSubOutlets || loadingSubLocations || loadingUser) return;
+    if (!employeeOrgId && !form.rawAccessAssignments && !form.rawAccessibleScope) return;
 
-    const derived = deriveOrgSelection(employeeOrgId, groups, allOrgs);
-    setForm((f) => ({ ...f, ...derived }));
-  }, [isEditMode, employeeOrgId, groups, allOrgs, loadingGroups, loadingOrgs]);
+    const rawAssignments = Array.isArray(form.rawAccessAssignments)
+      ? form.rawAccessAssignments
+      : Array.isArray(form.rawAccessAssignments?.assignments)
+      ? form.rawAccessAssignments.assignments
+      : [];
+    const scope = form.rawAccessibleScope || {};
+
+    if (rawAssignments.length > 0) {
+      const compIds = new Set(
+        rawAssignments
+          .filter((a) => (a.subOutletId === 0 || !a.subOutletId) && (a.subLocationId === 0 || !a.subLocationId))
+          .map((a) => Number(a.organizationId))
+      );
+      const subUnitIds = new Set(
+        rawAssignments
+          .filter((a) => Number(a.subOutletId) > 0 && (!a.subLocationId || Number(a.subLocationId) === 0))
+          .map((a) => Number(a.subOutletId))
+      );
+      const subLocationIds = new Set(
+        rawAssignments
+          .filter((a) => Number(a.subLocationId) > 0)
+          .map((a) => Number(a.subLocationId))
+      );
+      const unitOrgIds = new Set(rawAssignments.map((a) => Number(a.organizationId)).filter(Boolean));
+
+      // Resolve the Main Group
+      const directGroup = groups.find((g) => compIds.has(Number(g.id)));
+      const parentGroup = allOrgs.find(
+        (o) => compIds.has(Number(o.id)) && groups.some((g) => String(g.id) === String(o.parentId))
+      );
+      const resolvedGroupId =
+        directGroup?.id
+          ? String(directGroup.id)
+          : parentGroup?.parentId
+          ? String(parentGroup.parentId)
+          : form.groupId || (groups[0]?.id ? String(groups[0].id) : '');
+
+      const matchedCompanies = allOrgs
+        .filter((o) => compIds.has(Number(o.id)) && String(o.parentId) === String(resolvedGroupId))
+        .map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name }));
+
+      const matchedCompanyIds = new Set(matchedCompanies.map((c) => String(c.id)));
+
+      const matchedUnits = allOrgs
+        .filter(
+          (o) =>
+            (compIds.has(Number(o.id)) || unitOrgIds.has(Number(o.id))) &&
+            matchedCompanyIds.has(String(o.parentId))
+        )
+        .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name, parentId: u.parentId }));
+
+      const matchedSubUnits = allSubOutlets
+        .filter((so) => subUnitIds.has(Number(so.id)))
+        .map((so) => ({
+          id: so.id,
+          name: so.subOutletName || so.name,
+          organizationId: so.organizationId || so.outletId,
+          parentUnitId: so.organizationId || so.outletId,
+        }));
+
+      const matchedSubLocations = allSubLocations
+        .filter((sl) => subLocationIds.has(Number(sl.id)))
+        .map((sl) => ({
+          id: sl.id,
+          name: sl.locationName || sl.name,
+          subOutletId: sl.subOutletId,
+          parentSubOutletId: sl.subOutletId,
+          organizationId: sl.organizationId,
+          parentUnitId: sl.organizationId,
+        }));
+
+      const allCompaniesForGroup = allOrgs.filter((o) => String(o.parentId) === String(resolvedGroupId));
+      const isFullGroupUser =
+        Boolean(directGroup) &&
+        (matchedCompanies.length === 0 || (allCompaniesForGroup.length > 0 && matchedCompanies.length >= allCompaniesForGroup.length)) &&
+        matchedUnits.length === 0 &&
+        matchedSubUnits.length === 0 &&
+        matchedSubLocations.length === 0;
+
+      const selCompaniesToSet = isFullGroupUser ? [] : matchedCompanies;
+
+      setForm((prev) => ({
+        ...prev,
+        groupId: resolvedGroupId,
+        selectedCompanies: selCompaniesToSet,
+        selectedUnits: matchedUnits,
+        selectedSubUnits: matchedSubUnits,
+        selectedSubLocations: matchedSubLocations,
+      }));
+      editInitializedRef.current = true;
+    } else if (scope?.accessibleCompanies?.length > 0 || scope?.accessibleOutlets?.length > 0) {
+      const normalizedCompanies = (scope.accessibleCompanies || []).map((c) => ({
+        id: c.id ?? c.companyId,
+        name: c.name ?? c.companyName ?? c.companyNameEnglish ?? '',
+        parentId: c.parentId,
+      }));
+      const normalizedUnits = (scope.accessibleOutlets || []).map((u) => ({
+        id: u.id ?? u.outletId,
+        name: u.name ?? u.outletName ?? '',
+        parentId: u.parentId ?? u.companyId,
+      }));
+      const normalizedSubUnits = (scope.accessibleSubOutlets || []).map((so) => ({
+        id: so.id ?? so.subOutletId,
+        name: so.name ?? so.subOutletName ?? '',
+        organizationId: so.organizationId ?? so.outletId,
+        parentUnitId: so.organizationId ?? so.outletId,
+      }));
+      const normalizedSubLocations = (scope.accessibleSubLocations || []).map((sl) => ({
+        id: sl.id ?? sl.subLocationId,
+        name: sl.name ?? sl.locationName ?? '',
+        subOutletId: sl.subOutletId,
+        parentSubOutletId: sl.subOutletId,
+        organizationId: sl.organizationId,
+        parentUnitId: sl.organizationId,
+      }));
+
+      const resolvedGroupId = form.groupId || (groups[0]?.id ? String(groups[0].id) : '');
+      setForm((prev) => ({
+        ...prev,
+        groupId: resolvedGroupId,
+        selectedCompanies: normalizedCompanies,
+        selectedUnits: normalizedUnits,
+        selectedSubUnits: normalizedSubUnits,
+        selectedSubLocations: normalizedSubLocations,
+      }));
+      editInitializedRef.current = true;
+    } else if (employeeOrgId) {
+      const derived = deriveOrgSelection(employeeOrgId, groups, allOrgs);
+      const selComps = derived.companyId
+        ? allOrgs
+            .filter((o) => String(o.id) === String(derived.companyId))
+            .map((c) => ({ id: c.id, name: c.companyNameEnglish || c.name }))
+        : [];
+      const selUnits = derived.outletId
+        ? allOrgs
+            .filter((o) => String(o.id) === String(derived.outletId))
+            .map((u) => ({ id: u.id, name: u.companyNameEnglish || u.name, parentId: u.parentId }))
+        : [];
+
+      setForm((prev) => ({
+        ...prev,
+        ...derived,
+        selectedCompanies: selComps,
+        selectedUnits: selUnits,
+      }));
+      editInitializedRef.current = true;
+    }
+  }, [
+    isEditMode,
+    employeeOrgId,
+    form.rawAccessAssignments,
+    form.rawAccessibleScope,
+    form.groupId,
+    groups,
+    allOrgs,
+    allSubOutlets,
+    allSubLocations,
+    loadingGroups,
+    loadingOrgs,
+    loadingSubOutlets,
+    loadingSubLocations,
+    loadingUser,
+  ]);
+
+  // Live Access Assignments and Scope Summary
+  const currentAccessAssignments = useMemo(() => {
+    return buildAccessAssignments(form, {
+      isEditMode,
+      loggedInUserId: getUserIdFromToken(),
+      allCompanies: subCompanies,
+      allOrgs,
+    });
+  }, [form, isEditMode, subCompanies, allOrgs]);
+
+  const accessScopeSummary = useMemo(() => {
+    const compCount = form.selectedCompanies?.length || 0;
+    const unitCount = form.selectedUnits?.length || 0;
+    const subUnitCount = form.selectedSubUnits?.length || 0;
+    const subLocCount = form.selectedSubLocations?.length || 0;
+    const totalAssignments = currentAccessAssignments.length;
+
+    if (subLocCount > 0) {
+      return {
+        badge: 'Sub-Location Level Access',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        title: `${subLocCount} Sub-Locations Selected`,
+        description: `User will be assigned specific access to ${subLocCount} sub-locations across ${subUnitCount} sub-units and ${unitCount} units.`,
+        total: totalAssignments,
+      };
+    }
+    if (subUnitCount > 0) {
+      return {
+        badge: 'Sub-Unit Level Access',
+        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+        title: `${subUnitCount} Sub-Units Selected`,
+        description: `User will be assigned access to ${subUnitCount} sub-units across ${unitCount} units and ${compCount} companies.`,
+        total: totalAssignments,
+      };
+    }
+    if (unitCount > 0) {
+      return {
+        badge: 'Unit Level Access',
+        badgeColor: 'bg-blue-50 text-[#084E92] border-blue-200',
+        title: `${unitCount} Units Selected`,
+        description: `User will have access to ${unitCount} selected units across ${compCount} companies.`,
+        total: totalAssignments,
+      };
+    }
+    if (compCount > 0 && (subCompanies.length === 0 || compCount < subCompanies.length)) {
+      return {
+        badge: 'Company Level Access',
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+        title: `${compCount} Companies Selected`,
+        description: `User will have full access to all units, sub-units, and sub-locations of the ${compCount} selected companies.`,
+        total: totalAssignments,
+      };
+    }
+    return {
+      badge: 'Main Group Level Access',
+      badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+      title: 'Full Enterprise Access',
+      description: `User will be granted access across Main Group and all ${subCompanies.length} companies under the group.`,
+      total: totalAssignments,
+    };
+  }, [form, currentAccessAssignments, subCompanies.length]);
 
   // Load countries once
   useEffect(() => {
@@ -638,7 +1113,25 @@ const UserRegistration = () => {
     setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
   };
 
-  // Email gets its own setter so we can validate live as the user types.
+  // When a role is selected, fetch all assigned rights for that role and populate the permissions grid
+  const handleRoleChange = async (selectedRoleId) => {
+    set('roleId', selectedRoleId);
+    if (!selectedRoleId) return;
+
+    setLoadingRoleRights(true);
+    try {
+      const res = await getUserRightsByRole(selectedRoleId);
+      const rightsMap = normalizeExistingRights(res);
+      setChecks(rightsMap);
+      notify.success('Permissions loaded for selected role');
+    } catch (err) {
+      console.error(err);
+      notify.error('Failed to load permissions for the selected role.');
+    } finally {
+      setLoadingRoleRights(false);
+    }
+  };
+
   const handleEmailChange = (e) => {
     const value = e.target.value;
     setForm((f) => ({ ...f, email: value }));
@@ -651,7 +1144,7 @@ const UserRegistration = () => {
   };
 
   const handleCountryChange = (e) => {
-    const value = e.target.value;
+    const value = typeof e === 'object' && e?.target ? e.target.value : String(e ?? '');
     setForm((f) => ({ ...f, countryId: value, stateId: '', cityId: '' }));
     setStates([]);
     setCities([]);
@@ -664,14 +1157,91 @@ const UserRegistration = () => {
   };
 
   const handleStateChange = (e) => {
-    const value = e.target.value;
+    const value = typeof e === 'object' && e?.target ? e.target.value : String(e ?? '');
     setForm((f) => ({ ...f, stateId: value, cityId: '' }));
     setCities([]);
     setErrors((prev) => ({ ...prev, stateId: undefined, cityId: undefined }));
   };
 
   const handleCityChange = (e) => {
-    set('cityId', e.target.value);
+    const value = typeof e === 'object' && e?.target ? e.target.value : String(e ?? '');
+    set('cityId', value);
+  };
+
+  // --- Permissions Matrix Checkbox Logic ---
+  const allPageIds = useMemo(
+    () =>
+      Object.values(pagesByModule)
+        .flat()
+        .map((p) => p.id),
+    [pagesByModule],
+  );
+
+  const toggle = (pageId, actionKey) => {
+    setChecks((prev) => ({
+      ...prev,
+      [pageId]: {
+        ...(prev[pageId] ?? emptyRow),
+        [actionKey]: !prev[pageId]?.[actionKey],
+      },
+    }));
+  };
+
+  const isColumnFullyChecked = (actionKey) =>
+    allPageIds.length > 0 && allPageIds.every((id) => checks[id]?.[actionKey]);
+
+  const toggleColumn = (actionKey) => {
+    const shouldCheck = !isColumnFullyChecked(actionKey);
+    setChecks((prev) => {
+      const next = { ...prev };
+      allPageIds.forEach((id) => {
+        next[id] = { ...(next[id] ?? emptyRow), [actionKey]: shouldCheck };
+      });
+      return next;
+    });
+  };
+
+  const isRowFullyChecked = (pageId) =>
+    ACTIONS.every((a) => Boolean(checks[pageId]?.[a.key]));
+
+  const toggleRow = (pageId) => {
+    const shouldCheck = !isRowFullyChecked(pageId);
+    setChecks((prev) => ({
+      ...prev,
+      [pageId]: shouldCheck ? { ...fullRow } : { ...emptyRow },
+    }));
+  };
+
+  const isEverythingChecked =
+    allPageIds.length > 0 && allPageIds.every((id) => isRowFullyChecked(id));
+
+  const toggleEverything = () => {
+    const shouldCheck = !isEverythingChecked;
+    setChecks((prev) => {
+      const next = { ...prev };
+      allPageIds.forEach((id) => {
+        next[id] = shouldCheck ? { ...fullRow } : { ...emptyRow };
+      });
+      return next;
+    });
+  };
+
+  const buildRightsList = () => {
+    return Object.values(pagesByModule)
+      .flat()
+      .map((page) => {
+        const row = checks[page.id] ?? emptyRow;
+        return {
+          pageid: page.id,
+          moduleId: page.moduleId || 0,
+          add: Boolean(row.add),
+          edit: Boolean(row.edit),
+          view: Boolean(row.view),
+          delete: Boolean(row.delete),
+          export: Boolean(row.export),
+        };
+      })
+      .filter((r) => r.add || r.edit || r.view || r.delete || r.export);
   };
 
   const validate = () => {
@@ -680,7 +1250,8 @@ const UserRegistration = () => {
     if (!form.firstName.trim()) e.firstName = 'First name is required';
     if (!form.lastName.trim()) e.lastName = 'Last name is required';
 
-    if (!form.erpemployeecode?.trim()) e.erpemployeecode = 'Employee code is required';
+    if (!form.erpemployeecode?.trim())
+      e.erpemployeecode = 'Employee code is required';
 
     if (!form.email.trim()) e.email = 'Email address is required';
     else if (!isValidEmail(form.email))
@@ -700,14 +1271,14 @@ const UserRegistration = () => {
     if (form.altMobile && !MOBILE_REGEX.test(form.altMobile))
       e.altMobile = 'Enter a valid 10-digit mobile number';
 
-    // Group is required; Sub Company and Unit underneath it are optional —
-    // if neither is selected, the user is registered directly under the Group.
     if (!form.groupId) e.groupId = 'Group is required';
 
-    if (!form.departmentId) e.departmentId = 'Department is required';
+    const selectedDept = form.deptId || form.departmentId;
+    if (!selectedDept) e.deptId = 'Department is required';
+
     if (!form.designation.trim()) e.designation = 'Designation is required';
 
-    if (form.pincode.trim() && !PINCODE_REGEX.test(form.pincode))
+    if (form.pincode?.trim() && !PINCODE_REGEX.test(form.pincode))
       e.pincode = 'Enter a valid 6-digit pincode';
 
     return e;
@@ -729,8 +1300,15 @@ const UserRegistration = () => {
       return;
     }
 
-    const payload = buildEmployeePayload(form, { isEditMode });
-    // console.log('payload', payload);
+    const rightsList = buildRightsList();
+    const payload = buildEmployeePayload(form, {
+      isEditMode,
+      rightsList,
+      loggedInUserId: getUserIdFromToken(),
+      allCompanies: subCompanies,
+      allOrgs,
+    });
+
     setSubmitting(true);
     setSubmitError('');
 
@@ -764,12 +1342,20 @@ const UserRegistration = () => {
       focusFirstError(errs);
       return;
     }
-    const payload = buildEmployeePayload(form, { isEditMode: false });
+    const rightsList = buildRightsList();
+    const payload = buildEmployeePayload(form, {
+      isEditMode: false,
+      rightsList,
+      loggedInUserId: getUserIdFromToken(),
+      allCompanies: subCompanies,
+      allOrgs,
+    });
     setSubmitting(true);
     setSubmitError('');
     try {
       await saveEmployee(payload);
       setForm(DEFAULT_FORM);
+      setChecks({});
       notify.success('User Created Successfully');
       setStates([]);
       setCities([]);
@@ -791,444 +1377,761 @@ const UserRegistration = () => {
   };
 
   return (
-    <div className="mx-4 min-h-screen p-4 md:p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          {isEditMode ? 'Update User' : 'User Registration'}
-        </h1>
-        <p className="text-[#43474F]">
-          {isEditMode
-            ? `Update the account details for ${editingUser?.name ?? 'this user'}.`
-            : 'Create a new enterprise user account across organizational levels.'}
-        </p>
-      </div>
+    <Container>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? 'Update User' : 'User Registration'}
+          description={
+            isEditMode
+              ? `Update the account details and permissions for ${editingUser?.name ?? 'this user'}.`
+              : 'Create a new enterprise user account across organizational levels with custom permissions.'
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/users')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Users
+            </button>
+          }
+        />
 
-      {submitError && (
-        <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{submitError}</span>
-        </div>
-      )}
+        {submitError && (
+          <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span>{submitError}</span>
+          </div>
+        )}
 
-      {loadingUser ? (
-        <div className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-sm px-6 py-10 text-center text-sm text-gray-400">
-          Loading user details...
-        </div>
-      ) : (
-        <>
-          {/* ── Personal Information ── */}
-          <SectionCard className="mt-4">
-            <SectionHeader
-              icon={User}
-              title="Personal Information"
-              open={openSections.personal}
-              onToggle={() => toggleSection('personal')}
-            />
+        {loadingUser ? (
+          <div className="mt-6 rounded-2xl border border-gray-100 bg-white shadow-sm px-6 py-10 text-center text-sm text-gray-400">
+            Loading user details...
+          </div>
+        ) : (
+          <>
+            {/* ── Personal Information ── */}
+            <SectionCard className="mt-4">
+              <SectionHeader
+                icon={User}
+                title="Personal Information"
+                open={openSections.personal}
+                onToggle={() => toggleSection('personal')}
+              />
 
-            {openSections.personal && (
-              <div className="px-6 py-6 space-y-5">
-                {/* Row 1 — Name & Employee Code */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div>
-                    <Label required>First Name</Label>
-                    <input
-                      name="firstName"
-                      value={form.firstName}
-                      onChange={(e) => set('firstName', e.target.value)}
-                      placeholder="Enter First Name"
-                      className={errors.firstName ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.firstName} />
-                  </div>
-
-                  <div>
-                    <Label>Middle Name</Label>
-                    <input
-                      name="middlename"
-                      value={form.middlename}
-                      onChange={(e) => set('middlename', e.target.value)}
-                      placeholder="Enter Middlename"
-                      className={errors.middlename ? errorInputCls : inputCls}
-                    />
-                  </div>
-
-                  <div>
-                    <Label required>Last Name</Label>
-                    <input
-                      name="lastName"
-                      value={form.lastName}
-                      onChange={(e) => set('lastName', e.target.value)}
-                      placeholder="Enter Last Name"
-                      className={errors.lastName ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.lastName} />
-                  </div>
-
-                  <div>
-                    <Label required>ERP Employee Code</Label>
-                    <input
-                      name="erpemployeecode"
-                      value={form.erpemployeecode}
-                      onChange={(e) => set('erpemployeecode', e.target.value)}
-                      placeholder="e.g., EMP001"
-                      className={errors.erpemployeecode ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.erpemployeecode} />
-                  </div>
-                </div>
-
-                {/* Row 2 — User Code (edit) / Email / Password */}
-                <div className={`grid gap-4 grid-cols-1 md:grid-cols-2`}>
-                  {isEditMode && (
+              {openSections.personal && (
+                <div className="px-6 py-6 space-y-5">
+                  {/* Row 1 — Name & Employee Code */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
-                      <Label>User Code (Auto Generated)</Label>
+                      <Label required>First Name</Label>
                       <input
-                        value={form.userCode}
-                        disabled
-                        className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
+                        name="firstName"
+                        value={form.firstName}
+                        onChange={(e) => set('firstName', e.target.value)}
+                        placeholder="Enter First Name"
+                        className={errors.firstName ? errorInputCls : inputCls}
+                      />
+                      <ErrorText message={errors.firstName} />
+                    </div>
+
+                    <div>
+                      <Label>Middle Name</Label>
+                      <input
+                        name="middlename"
+                        value={form.middlename}
+                        onChange={(e) => set('middlename', e.target.value)}
+                        placeholder="Enter Middlename"
+                        className={errors.middlename ? errorInputCls : inputCls}
                       />
                     </div>
-                  )}
 
-                  <div>
-                    <Label required>Email Address</Label>
-                    <input
-                      name="email"
-                      type="email"
-                      value={form.email}
-                      onChange={handleEmailChange}
-                      onBlur={handleEmailChange}
-                      placeholder="example@jaiswalgroup.com"
-                      className={errors.email ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.email} />
+                    <div>
+                      <Label required>Last Name</Label>
+                      <input
+                        name="lastName"
+                        value={form.lastName}
+                        onChange={(e) => set('lastName', e.target.value)}
+                        placeholder="Enter Last Name"
+                        className={errors.lastName ? errorInputCls : inputCls}
+                      />
+                      <ErrorText message={errors.lastName} />
+                    </div>
+
+                    <div>
+                      <Label required>ERP Employee Code</Label>
+                      <input
+                        name="erpemployeecode"
+                        value={form.erpemployeecode}
+                        onChange={(e) => set('erpemployeecode', e.target.value)}
+                        placeholder="e.g., EMP001"
+                        className={errors.erpemployeecode ? errorInputCls : inputCls}
+                      />
+                      <ErrorText message={errors.erpemployeecode} />
+                    </div>
                   </div>
 
-                  {!isEditMode && (
-                    <div>
-                      <Label required>Password</Label>
-                      <div className="relative">
+                  {/* Row 2 — User Code (edit) / Email / Password */}
+                  <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                    {isEditMode && (
+                      <div>
+                        <Label>User Code (Auto Generated)</Label>
                         <input
-                          name="password"
-                          type={showPassword ? 'text' : 'password'}
-                          value={form.password}
-                          onChange={(e) => set('password', e.target.value)}
-                          placeholder="••••••••"
-                          className={`${errors.password ? errorInputCls : inputCls} pr-10`}
+                          value={form.userCode}
+                          disabled
+                          className={`${inputCls} bg-gray-50 text-gray-400 cursor-not-allowed`}
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((s) => !s)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0 p-0"
-                          tabIndex={-1}
-                        >
-                          {showPassword ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </button>
                       </div>
-                      {errors.password ? (
-                        <ErrorText message={errors.password} />
-                      ) : (
-                        <p className="text-[11px] text-gray-400 mt-1">
-                          Min 8 characters, with uppercase, lowercase, number
-                          &amp; special character.
+                    )}
+
+                    <div>
+                      <Label required>Email Address</Label>
+                      <input
+                        name="email"
+                        type="email"
+                        value={form.email}
+                        onChange={handleEmailChange}
+                        onBlur={handleEmailChange}
+                        placeholder="example@jaiswalgroup.com"
+                        className={errors.email ? errorInputCls : inputCls}
+                      />
+                      <ErrorText message={errors.email} />
+                    </div>
+
+                    {!isEditMode && (
+                      <div>
+                        <Label required>Password</Label>
+                        <div className="relative">
+                          <input
+                            name="password"
+                            type={showPassword ? 'text' : 'password'}
+                            value={form.password}
+                            onChange={(e) => set('password', e.target.value)}
+                            placeholder="••••••••"
+                            className={`${errors.password ? errorInputCls : inputCls} pr-10`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((s) => !s)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer bg-transparent border-0 p-0"
+                            tabIndex={-1}
+                          >
+                            {showPassword ? (
+                              <EyeOff className="w-4 h-4" />
+                            ) : (
+                              <Eye className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                        {errors.password ? (
+                          <ErrorText message={errors.password} />
+                        ) : (
+                          <p className="text-[11px] text-gray-400 mt-1">
+                            Min 8 characters, with uppercase, lowercase, number
+                            &amp; special character.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Row 3 — Group */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label required>Group</Label>
+                      <SearchableSelect
+                        name="groupId"
+                        value={form.groupId}
+                        onChange={handleGroupChange}
+                        placeholder={loadingGroups ? 'Loading...' : 'Select Group'}
+                        options={groups.map((g) => ({ value: g.id, label: g.name }))}
+                        hasError={!!errors.groupId}
+                        disabled={loadingGroups}
+                      />
+                      <ErrorText message={errors.groupId} />
+                    </div>
+
+                  </div>
+
+                  {/* Hierarchical Access Control: Companies, Units, Sub-Units, Sub-Locations */}
+                  <div className="pt-2 border-t border-gray-100 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-800">
+                        Organization Access Control
+                      </h3>
+                      {/* <p className="text-xs text-gray-400 mt-0.5">
+                        Assign specific companies, units, sub-units, or sub-locations. Sub-levels automatically cascade based on selections.
+                      </p> */}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Companies Multi-Select */}
+                      <MultiSelectDropdown
+                        label="Companies"
+                        placeholder={
+                          loadingOrgs
+                            ? 'Loading companies...'
+                            : form.groupId
+                            ? 'All Companies (or select specific)'
+                            : 'Select group first'
+                        }
+                        searchPlaceholder="Search companies..."
+                        options={subCompanies}
+                        selected={form.selectedCompanies || []}
+                        onChange={handleCompaniesChange}
+                        loading={loadingOrgs}
+                        disabled={!form.groupId || loadingOrgs}
+                        allSelectedLabel={`All Companies (${subCompanies.length})`}
+                        emptyText="No companies available under this group."
+                      />
+
+                      {/* Units Multi-Select */}
+                      <MultiSelectDropdown
+                        label="Units
+                        "
+                        placeholder={
+                          form.selectedCompanies?.length === 0
+                            ? 'Select company first to restrict units'
+                            : availableUnits.length === 0
+                            ? 'No units in selected companies'
+                            : 'All Units (or select specific)'
+                        }
+                        searchPlaceholder="Search units..."
+                        options={availableUnits}
+                        selected={form.selectedUnits || []}
+                        onChange={handleUnitsChange}
+                        loading={loadingOrgs}
+                        disabled={form.selectedCompanies?.length === 0 || loadingOrgs}
+                        allSelectedLabel={`All Units (${availableUnits.length})`}
+                        emptyText="No units found for selected companies."
+                      />
+
+                      {/* Sub-Units Multi-Select */}
+                      <MultiSelectDropdown
+                        label="Sub-Units"
+                        placeholder={
+                          form.selectedUnits?.length === 0
+                            ? 'Select unit first to restrict sub-units'
+                            : availableSubOutlets.length === 0
+                            ? 'No sub-units in selected units'
+                            : 'All Sub-Units (or select specific)'
+                        }
+                        searchPlaceholder="Search sub-units..."
+                        options={availableSubOutlets}
+                        selected={form.selectedSubUnits || []}
+                        onChange={handleSubUnitsChange}
+                        loading={loadingSubOutlets}
+                        disabled={form.selectedUnits?.length === 0 || loadingSubOutlets}
+                        allSelectedLabel={`All Sub-Units (${availableSubOutlets.length})`}
+                        emptyText="No sub-units found for selected units."
+                      />
+
+                      {/* Sub-Locations Multi-Select */}
+                      <MultiSelectDropdown
+                        label="Sub-Locations"
+                        placeholder={
+                          form.selectedSubUnits?.length === 0
+                            ? 'Select sub-unit first to restrict sub-locations'
+                            : availableSubLocations.length === 0
+                            ? 'No sub-locations in selected sub-units'
+                            : 'All Sub-Locations (or select specific)'
+                        }
+                        searchPlaceholder="Search sub-locations..."
+                        options={availableSubLocations}
+                        selected={form.selectedSubLocations || []}
+                        onChange={handleSubLocationsChange}
+                        loading={loadingSubLocations}
+                        disabled={form.selectedSubUnits?.length === 0 || loadingSubLocations}
+                        allSelectedLabel={`All Sub-Locations (${availableSubLocations.length})`}
+                        emptyText="No sub-locations found for selected sub-units."
+                      />
+                    </div>
+
+                    {/* Live Access Scope Summary Card */}
+                    <div className="bg-[#F8F9FC] border border-blue-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                      <div className="space-y-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${accessScopeSummary.badgeColor}`}>
+                            {accessScopeSummary.badge}
+                          </span>
+                          <span className="text-xs font-bold text-gray-800">
+                            {accessScopeSummary.title}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                          {accessScopeSummary.description}
                         </p>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2 self-start sm:self-center bg-white px-3 py-1.5 rounded-xl border border-gray-200">
+                        <span className="text-[11px] font-medium text-gray-500">Assignments:</span>
+                        <span className="text-xs font-bold text-[#084E92]">
+                          {accessScopeSummary.total} Total
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 4 — Mobile & Alternate Mobile */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label required>Mobile Number</Label>
+                      <input
+                        name="mobile"
+                        value={form.mobile}
+                        onChange={(e) =>
+                          set('mobile', e.target.value.replace(/\D/g, ''))
+                        }
+                        placeholder="+91 00000 00000"
+                        maxLength={10}
+                        className={errors.mobile ? errorInputCls : inputCls}
+                      />
+                      <ErrorText message={errors.mobile} />
+                    </div>
+
+                    <div>
+                      <Label>Alternate Mobile Number</Label>
+                      <input
+                        name="altMobile"
+                        value={form.altMobile}
+                        onChange={(e) =>
+                          set('altMobile', e.target.value.replace(/\D/g, ''))
+                        }
+                        placeholder="+91 00000 00000"
+                        maxLength={10}
+                        className={errors.altMobile ? errorInputCls : inputCls}
+                      />
+                      <ErrorText message={errors.altMobile} />
+                    </div>
+                  </div>
+
+                  {/* Row 5 — Department (Mandatory), Role (Optional), Designation (Mandatory) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                      <Label required>Department</Label>
+                      <SearchableSelect
+                        name="deptId"
+                        value={form.deptId || form.departmentId}
+                        onChange={(e) => {
+                          set('deptId', e.target.value);
+                          set('departmentId', e.target.value);
+                        }}
+                        placeholder={loadingDepartments ? 'Loading...' : 'Select Department'}
+                        options={departments.map((d) => ({ value: d.id, label: d.name }))}
+                        hasError={!!errors.deptId}
+                        disabled={loadingDepartments}
+                      />
+                      <ErrorText message={errors.deptId} />
+                    </div>
+
+                    <div>
+                      <Label>Role</Label>
+                      <SearchableSelect
+                        name="roleId"
+                        value={form.roleId}
+                        onChange={(e) => handleRoleChange(e.target.value)}
+                        placeholder={
+                          loadingRoles
+                            ? 'Loading...'
+                            : loadingRoleRights
+                            ? 'Loading permissions...'
+                            : 'Select Role (optional)'
+                        }
+                        options={roles.map((r) => ({ value: r.id, label: r.name }))}
+                        disabled={loadingRoles || loadingRoleRights}
+                      />
+                    </div>
+
+                    <div>
+                      <Label required>Designation</Label>
+                      <input
+                        name="designation"
+                        value={form.designation}
+                        onChange={(e) => set('designation', e.target.value)}
+                        placeholder="e.g., Manager"
+                        className={errors.designation ? errorInputCls : inputCls}
+                      />
+                      <ErrorText message={errors.designation} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </SectionCard>
+
+              {/* ── User Rights / Permissions Matrix ── */}
+              <SectionCard className="mt-4">
+                <SectionHeader
+                  icon={ShieldCheck}
+                  title="User Permissions"
+                  subtitle="Configure or customize module and page-level access permissions for this user."
+                  open={openSections.permissions}
+                  onToggle={() => toggleSection('permissions')}
+                />
+                {openSections.permissions && (
+                  <div className="px-6 py-6 space-y-4">
+                    <div className="flex items-center justify-between flex-wrap gap-2 text-xs text-gray-500">
+                      <p>
+                        {form.roleId
+                          ? 'Permissions populated from selected role. You can edit or grant additional rights below.'
+                          : 'Select a role above to auto-populate rights, or check specific permissions manually.'}
+                      </p>
+                      {loadingRoleRights && (
+                        <div className="flex items-center gap-1.5 text-blue-600 font-medium">
+                          <Loader2 className="animate-spin h-3.5 w-3.5" />
+                          Loading role rights...
+                        </div>
                       )}
                     </div>
-                  )}
+
+                    {loadingPages ? (
+                      <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                        <Loader2 className="animate-spin" size={18} />
+                        Loading pages and modules...
+                      </div>
+                    ) : Object.keys(pagesByModule).length === 0 ? (
+                      <div className="text-center py-10 text-sm text-gray-400">
+                        No page modules available.
+                      </div>
+                    ) : (
+                      <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-xs grid grid-cols-1 md:grid-cols-12 h-[500px]">
+                        {/* ── Left Sidebar: Scrollable Module List ── */}
+                        <div className="md:col-span-4 lg:col-span-3 border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50/70 p-3 flex flex-col h-full overflow-hidden">
+                          <div className="px-2 py-1 mb-2 shrink-0">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                              Modules ({Object.keys(pagesByModule).length})
+                            </span>
+                          </div>
+
+                          {/* Scrollable list of modules */}
+                          <div className="space-y-1 overflow-y-auto flex-1 pr-1">
+                            {Object.entries(pagesByModule).map(([moduleName, pages]) => {
+                              const isSelected = selectedModule === moduleName;
+                              const hasAnyChecked = pages.some((p) => {
+                                const r = checks[p.id];
+                                return r?.add || r?.edit || r?.view || r?.delete || r?.export;
+                              });
+
+                              return (
+                                <button
+                                  key={moduleName}
+                                  type="button"
+                                  onClick={() => setSelectedModule(moduleName)}
+                                  className={`w-full text-left px-3.5 py-2.5 rounded-lg text-xs font-semibold flex items-center justify-between transition cursor-pointer border ${isSelected
+                                      ? 'bg-[#084E92] text-white border-[#084E92] shadow-xs'
+                                      : 'bg-white text-gray-700 hover:bg-gray-100/80 border-gray-200/80'
+                                    }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    {hasAnyChecked && (
+                                      <span
+                                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSelected ? 'bg-amber-300' : 'bg-[#084E92]'
+                                          }`}
+                                      />
+                                    )}
+                                    <span className="truncate">{moduleName}</span>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* ── Right Content: Scrollable Pages Table with Sticky Header ── */}
+                        <div className="md:col-span-8 lg:col-span-9 flex flex-col h-full overflow-hidden">
+                          <div className="overflow-y-auto overflow-x-auto flex-1">
+                            <table className="w-full text-sm border-collapse">
+                              <thead className="bg-gray-50/95 border-b border-gray-200 sticky top-0 backdrop-blur-xs">
+                                <tr>
+                                  <th className="text-left px-5 py-3 font-semibold text-gray-700 text-xs">
+                                    {selectedModule} Pages
+                                  </th>
+                                  <th className="text-center w-16 px-2 py-3 font-semibold text-gray-600">
+                                    <div className="flex flex-col items-center gap-1">
+                                      <span className="text-[11px]">All</span>
+                                      <input
+                                        type="checkbox"
+                                        checked={
+                                          (pagesByModule[selectedModule] || []).length > 0 &&
+                                          (pagesByModule[selectedModule] || []).every((p) =>
+                                            isRowFullyChecked(p.id)
+                                          )
+                                        }
+                                        onChange={() => {
+                                          const currentPages = pagesByModule[selectedModule] || [];
+                                          const allChecked = currentPages.every((p) =>
+                                            isRowFullyChecked(p.id)
+                                          );
+                                          setChecks((prev) => {
+                                            const next = { ...prev };
+                                            currentPages.forEach((p) => {
+                                              next[p.id] = allChecked ? { ...emptyRow } : { ...fullRow };
+                                            });
+                                            return next;
+                                          });
+                                        }}
+                                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer accent-[#084E92]"
+                                        title="Toggle all in this module"
+                                      />
+                                    </div>
+                                  </th>
+                                  {ACTIONS.map((a) => {
+                                    const currentPages = pagesByModule[selectedModule] || [];
+                                    const isColChecked =
+                                      currentPages.length > 0 &&
+                                      currentPages.every((p) => Boolean(checks[p.id]?.[a.key]));
+
+                                    return (
+                                      <th
+                                        key={a.key}
+                                        className="text-center w-16 px-2 py-3 font-semibold text-gray-600"
+                                      >
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className="text-[11px]">{a.label}</span>
+                                          <input
+                                            type="checkbox"
+                                            checked={isColChecked}
+                                            onChange={() => {
+                                              const nextVal = !isColChecked;
+                                              setChecks((prev) => {
+                                                const next = { ...prev };
+                                                currentPages.forEach((p) => {
+                                                  next[p.id] = {
+                                                    ...(next[p.id] ?? emptyRow),
+                                                    [a.key]: nextVal,
+                                                  };
+                                                });
+                                                return next;
+                                              });
+                                            }}
+                                            className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer accent-[#084E92]"
+                                            title={`Toggle ${a.label} for all pages in ${selectedModule}`}
+                                          />
+                                        </div>
+                                      </th>
+                                    );
+                                  })}
+                                </tr>
+                              </thead>
+
+                              <tbody className="divide-y divide-gray-100 bg-white">
+                                {(pagesByModule[selectedModule] || []).map((page) => (
+                                  <tr
+                                    key={page.id}
+                                    className="hover:bg-blue-50/25 transition-colors"
+                                  >
+                                    <td className="px-5 py-2.5 text-xs text-gray-700 font-medium">
+                                      {page.name}
+                                    </td>
+                                    <td className="text-center w-16 px-2 py-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={isRowFullyChecked(page.id)}
+                                        onChange={() => toggleRow(page.id)}
+                                        className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer accent-[#084E92]"
+                                        title="Toggle Add/Edit/View/Delete for this row"
+                                      />
+                                    </td>
+                                    {ACTIONS.map((a) => (
+                                      <td key={a.key} className="text-center w-16 px-2 py-2">
+                                        <input
+                                          type="checkbox"
+                                          checked={Boolean(checks[page.id]?.[a.key])}
+                                          onChange={() => toggle(page.id, a.key)}
+                                          className="w-3.5 h-3.5 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer accent-[#084E92]"
+                                        />
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </SectionCard>
+
+            {/* ── Residential Address ── */}
+            <SectionCard className="mt-4">
+              <SectionHeader
+                icon={MapPin}
+                title="Residential Address"
+                open={openSections.address}
+                onToggle={() => toggleSection('address')}
+              />
+              {openSections.address && (
+                <div className="px-6 py-6 space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Address Line 1</Label>
+                      <input
+                        name="addressLine1"
+                        value={form.addressLine1}
+                        onChange={(e) => set('addressLine1', e.target.value)}
+                        placeholder="Building, Street Name"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <Label>Address Line 2</Label>
+                      <input
+                        value={form.addressLine2}
+                        onChange={(e) => set('addressLine2', e.target.value)}
+                        placeholder="Locality, Landmark"
+                        className={inputCls}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Country</Label>
+                        <SearchableSelect
+                          name="countryId"
+                          value={form.countryId}
+                          onChange={handleCountryChange}
+                          placeholder={loadingCountries ? 'Loading...' : 'Select Country'}
+                          options={countries.map((c) => ({ value: c.id, label: c.name }))}
+                          disabled={loadingCountries}
+                        />
+                      </div>
+                      <div>
+                        <Label>State</Label>
+                        <SearchableSelect
+                          name="stateId"
+                          value={form.stateId}
+                          onChange={handleStateChange}
+                          placeholder={
+                            loadingStates
+                              ? 'Loading...'
+                              : form.countryId
+                              ? 'Select State'
+                              : 'Select country first'
+                          }
+                          options={states.map((s) => ({ value: s.id, label: s.name }))}
+                          disabled={!form.countryId || loadingStates}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div>
+                        <Label>City</Label>
+                        <SearchableSelect
+                          name="cityId"
+                          value={form.cityId}
+                          onChange={handleCityChange}
+                          placeholder={
+                            loadingCities
+                              ? 'Loading...'
+                              : form.stateId
+                              ? 'Select City'
+                              : 'Select state first'
+                          }
+                          options={cities.map((c) => ({ value: c.id, label: c.name }))}
+                          disabled={!form.stateId || loadingCities}
+                        />
+                      </div>
+                      <div>
+                        <Label>Pincode</Label>
+                        <input
+                          name="pincode"
+                          value={form.pincode}
+                          onChange={(e) =>
+                            set('pincode', e.target.value.replace(/\D/g, ''))
+                          }
+                          placeholder="6 Digits"
+                          maxLength={6}
+                          className={errors.pincode ? errorInputCls : inputCls}
+                        />
+                        <ErrorText message={errors.pincode} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div>
+                      <Label>Latitude</Label>
+                      <input
+                        value={form.latitude}
+                        onChange={(e) => set('latitude', e.target.value)}
+                        placeholder="23.0225"
+                        className={inputCls}
+                      />
+                    </div>
+                    <div>
+                      <Label>Longitude</Label>
+                      <input
+                        value={form.longitude}
+                        onChange={(e) => set('longitude', e.target.value)}
+                        placeholder="72.5714"
+                        className={inputCls}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMapPicker(true)}
+                      className="flex gap-1 items-end text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
+                    >
+                      <MapIcon size={15} />
+                      <p className="font-bold text-sm">Pick from Map</p>
+                    </button>
+                  </div>
                 </div>
+              )}
+            </SectionCard>
+          </>
+        )}
 
-                {/* Row 3 — Sub Company / Unit / Password */}
-                <div className={`grid grid-cols-3 gap-4`}>
-                  <div>
-                    <Label required>Group</Label>
-                    <SearchableSelect
-                      name="groupId"
-                      value={form.groupId}
-                      onChange={(e) => handleGroupChange({ target: { value: e.target.value } })}
-                      placeholder={loadingGroups ? 'Loading...' : 'Select Group'}
-                      options={groups.map((g) => ({ value: g.id, label: g.name }))}
-                      hasError={!!errors.groupId}
-                      disabled={loadingGroups}
-                    />
-                    <ErrorText message={errors.groupId} />
-                  </div>
+        {/* ── Footer actions ── */}
+        <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
+          <button
+            type="button"
+            onClick={() => navigate('/users')}
+            disabled={submitting}
+            className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          {!isEditMode && (
+            <button
+              type="button"
+              onClick={handleSaveAndAddAnother}
+              disabled={submitting || loadingUser}
+              className="px-5 py-2.5 rounded-lg border border-[#084E92] text-[#084E92] text-sm font-semibold hover:bg-blue-50 transition cursor-pointer bg-white disabled:opacity-50"
+            >
+              Save &amp; Add Another
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting || loadingUser}
+            className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-50"
+          >
+            {submitting ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
+          </button>
+        </div>
 
-                  <div>
-                    <Label>Sub Company</Label>
-                    <SearchableSelect
-                      name="companyId"
-                      value={form.companyId}
-                      onChange={(e) => handleCompanyChange({ target: { value: e.target.value } })}
-                      placeholder={
-                        loadingOrgs
-                          ? 'Loading...'
-                          : form.groupId
-                          ? 'Select Sub Company (optional)'
-                          : 'Select group first'
-                      }
-                      options={subCompanies.map((c) => ({ value: c.id, label: c.name }))}
-                      hasError={!!errors.companyId}
-                      disabled={!form.groupId || loadingOrgs}
-                    />
-                    <ErrorText message={errors.companyId} />
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      Leave blank to register the user directly under the Group.
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label>Unit</Label>
-                    <SearchableSelect
-                      name="outletId"
-                      value={form.outletId}
-                      onChange={(e) => handleUnitChange({ target: { value: e.target.value } })}
-                      placeholder={
-                        loadingOrgs
-                          ? 'Loading...'
-                          : form.companyId
-                          ? 'Select Unit (optional)'
-                          : 'Select sub company first'
-                      }
-                      options={outlets.map((u) => ({ value: u.id, label: u.name }))}
-                      hasError={!!errors.outletId}
-                      disabled={!form.companyId || loadingOrgs}
-                    />
-                    <ErrorText message={errors.outletId} />
-                    <p className="text-[11px] text-gray-400 mt-1">
-                      Leave blank to register the user directly under the Sub
-                      Company.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Row 4 — Mobile / Alt Mobile / Department */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <Label required>Mobile Number</Label>
-                    <input
-                      name="mobile"
-                      value={form.mobile}
-                      onChange={(e) =>
-                        set('mobile', e.target.value.replace(/\D/g, ''))
-                      }
-                      placeholder="+91 00000 00000"
-                      maxLength={10}
-                      className={errors.mobile ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.mobile} />
-                  </div>
-
-                  <div>
-                    <Label>Alternate Mobile Number</Label>
-                    <input
-                      name="altMobile"
-                      value={form.altMobile}
-                      onChange={(e) =>
-                        set('altMobile', e.target.value.replace(/\D/g, ''))
-                      }
-                      placeholder="+91 00000 00000"
-                      maxLength={10}
-                      className={errors.altMobile ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.altMobile} />
-                  </div>
-
-                  <div>
-                    <Label required>Department</Label>
-                    <SearchableSelect
-                      name="departmentId"
-                      value={form.departmentId}
-                      onChange={(e) => set('departmentId', e.target.value)}
-                      placeholder={loadingDepartments ? 'Loading...' : 'Select Department'}
-                      options={departments.map((d) => ({ value: d.id, label: d.name }))}
-                      hasError={!!errors.departmentId}
-                      disabled={loadingDepartments}
-                    />
-                    <ErrorText message={errors.departmentId} />
-                  </div>
-
-                  <div>
-                    <Label required>Designation</Label>
-                    <input
-                      name="designation"
-                      value={form.designation}
-                      onChange={(e) => set('designation', e.target.value)}
-                      placeholder="e.g., Manager"
-                      className={errors.designation ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.designation} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </SectionCard>
-
-          {/* ── Residential Address ── */}
-          <SectionCard className="mt-4">
-            <SectionHeader
-              icon={MapPin}
-              title="Residential Address"
-              open={openSections.address}
-              onToggle={() => toggleSection('address')}
-            />
-            {openSections.address && (
-              <div className="px-6 py-6 space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Address Line 1</Label>
-                    <input
-                      name="addressLine1"
-                      value={form.addressLine1}
-                      onChange={(e) => set('addressLine1', e.target.value)}
-                      placeholder="Building, Street Name"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <Label>Address Line 2</Label>
-                    <input
-                      value={form.addressLine2}
-                      onChange={(e) => set('addressLine2', e.target.value)}
-                      placeholder="Locality, Landmark"
-                      className={inputCls}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <Label>Country</Label>
-                    <SearchableSelect
-                      name="countryId"
-                      value={form.countryId}
-                      onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
-                      placeholder={loadingCountries ? 'Loading...' : 'Select Country'}
-                      options={countries.map((c) => ({ value: c.id, label: c.name }))}
-                      disabled={loadingCountries}
-                    />
-                  </div>
-                  <div>
-                    <Label>State</Label>
-                    <SearchableSelect
-                      name="stateId"
-                      value={form.stateId}
-                      onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
-                      placeholder={
-                        loadingStates
-                          ? 'Loading...'
-                          : form.countryId
-                          ? 'Select State'
-                          : 'Select country first'
-                      }
-                      options={states.map((s) => ({ value: s.id, label: s.name }))}
-                      disabled={!form.countryId || loadingStates}
-                    />
-                  </div>
-                  <div>
-                    <Label>City</Label>
-                    <SearchableSelect
-                      name="cityId"
-                      value={form.cityId}
-                      onChange={(e) => handleCityChange({ target: { value: e.target.value } })}
-                      placeholder={
-                        loadingCities
-                          ? 'Loading...'
-                          : form.stateId
-                          ? 'Select City'
-                          : 'Select state first'
-                      }
-                      options={cities.map((c) => ({ value: c.id, label: c.name }))}
-                      disabled={!form.stateId || loadingCities}
-                    />
-                  </div>
-                  <div>
-                    <Label>Pincode</Label>
-                    <input
-                      name="pincode"
-                      value={form.pincode}
-                      onChange={(e) =>
-                        set('pincode', e.target.value.replace(/\D/g, ''))
-                      }
-                      placeholder="6 Digits"
-                      maxLength={6}
-                      className={errors.pincode ? errorInputCls : inputCls}
-                    />
-                    <ErrorText message={errors.pincode} />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <Label>Latitude</Label>
-                    <input
-                      value={form.latitude}
-                      onChange={(e) => set('latitude', e.target.value)}
-                      placeholder="23.0225"
-                      className={inputCls}
-                    />
-                  </div>
-                  <div>
-                    <Label>Longitude</Label>
-                    <input
-                      value={form.longitude}
-                      onChange={(e) => set('longitude', e.target.value)}
-                      placeholder="72.5714"
-                      className={inputCls}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowMapPicker(true)}
-                    className="flex gap-1 items-end text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
-                  >
-                    <Map size={15} />
-                    <p className="font-bold text-sm">Pick from Map</p>
-                  </button>
-                </div>
-              </div>
-            )}
-          </SectionCard>
-        </>
-      )}
-
-      {/* ── Footer actions ── */}
-      <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
-        <button
-          type="button"
-          onClick={() => navigate('/users')}
-          disabled={submitting}
-          className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting || loadingUser}
-          className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-50"
-        >
-          {submitting ? 'Saving...' : isEditMode ? 'Update' : 'Save'}
-        </button>
+        {showMapPicker && (
+          <MapPickerModal
+            initialLat={form.latitude}
+            initialLng={form.longitude}
+            onClose={() => setShowMapPicker(false)}
+            onConfirm={({ lat, lng }) => {
+              set('latitude', lat.toFixed(6));
+              set('longitude', lng.toFixed(6));
+              setShowMapPicker(false);
+            }}
+          />
+        )}
       </div>
-
-      {showMapPicker && (
-        <MapPickerModal
-          initialLat={form.latitude}
-          initialLng={form.longitude}
-          onClose={() => setShowMapPicker(false)}
-          onConfirm={({ lat, lng }) => {
-            set('latitude', lat.toFixed(6));
-            set('longitude', lng.toFixed(6));
-            setShowMapPicker(false);
-          }}
-        />
-      )}
-    </div>
+    </Container>
   );
 };
 
+export { UserRegistration };
 export default UserRegistration;

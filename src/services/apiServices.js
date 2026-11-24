@@ -1,9 +1,9 @@
 import axiosInstance, { DELETE, GET, POST, PUT, UPLOAD } from './axiosInstance';
-import axios from './axiosInstance';
+import { formatRemarks } from '../utils/textUtils';
 
 // ---- Auth APIs ----
 
-export const loginUser = (payload) => POST('/auth/login', payload);
+export const loginUser = (payload, config = {}) => POST('/auth/login', payload, config);
 export const changePassword = (payload) =>
   POST('/auth/change-password', payload);
 // ---- Password Reset APIs ----
@@ -214,6 +214,28 @@ export const getCityByState = (stateId) => {
   return GET('/city/getbystateid', { stateId });
 };
 
+// --- Hierarchy Invalidation Event Trigger ---
+const triggerHierarchyInvalidation = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('invalidate-org-hierarchy'));
+  }
+};
+
+// --- Organization Hierarchy API ---
+export const getOrganizationHierarchy = (organizationId, subOutletId, subLocationId) => {
+  if (typeof organizationId === 'object' && organizationId !== null) {
+    return GET('/organization/hierarchy', organizationId);
+  }
+  const params = { organizationId };
+  if (subOutletId != null && Number(subOutletId) > 0) {
+    params.subOutletId = Number(subOutletId);
+  }
+  if (subLocationId != null && Number(subLocationId) > 0) {
+    params.subLocationId = Number(subLocationId);
+  }
+  return GET('/organization/hierarchy', params);
+};
+
 // ---Company API and Unit API
 export const getRegisteredCompany = () => {
   return GET('/organization/get-all');
@@ -224,21 +246,28 @@ export const getActiveCompany = () => {
 export const getCompanyById = (id) => {
   return GET(`/organization/get/${id}`);
 };
-export const createCompany = (formData) => {
-  return POST('/organization/save', formData);
+export const createCompany = async (formData) => {
+  const res = await POST('/organization/save', formData);
+  triggerHierarchyInvalidation();
+  return res;
 };
 export const saveOrganization = createCompany;
 
-export const updateCompany = (data) =>
-  axiosInstance.put('/organization/update', data, {
+export const updateCompany = async (data) => {
+  const res = await axiosInstance.put('/organization/update', data, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   });
+  triggerHierarchyInvalidation();
+  return res;
+};
 export const updateOrganization = updateCompany;
 
-export const deleteCompany = (id) => {
-  return DELETE(`/organization/delete/${id}`);
+export const deleteCompany = async (id) => {
+  const res = await DELETE(`/organization/delete/${id}`);
+  triggerHierarchyInvalidation();
+  return res;
 };
 
 export const getOrganizationByType = (orgType) => {
@@ -317,6 +346,20 @@ export const getAllAssets = () => {
   return GET('/assets/getall');
 };
 
+export const getAllActiveAssetsPaginated = (page = 0, size = 20) => {
+  return GET(`/assets/getallactive/page?page=${page}&size=${size}`);
+};
+export const getAllActiveWithSearchPaginated = (params = {}) => {
+  return GET('/assets/getallactive-with-search/page', {
+    page: params.page ?? 0,
+    size: params.size ?? 10,
+    ...(params.search ? { search: params.search } : {}),
+    ...(params.categoryId ? { categoryId: params.categoryId } : {}),
+    ...(params.statusId ? { statusId: params.statusId } : {}),
+    ...(params.sortBy ? { sortBy: params.sortBy } : {}),
+    ...(params.direction ? { direction: params.direction } : {}),
+  });
+};
 export const createAsset = (formData) => {
   return axiosInstance.post('/assets/create', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -501,16 +544,82 @@ export const getSubOutletById = (id) => {
   return GET(`/sub-outlet/get/${id}`);
 };
 
-export const saveSubOutlet = (payload) => {
-  return POST('/sub-outlet/save', payload);
+export const saveSubOutlet = async (payload) => {
+  const res = await POST('/sub-outlet/save', payload, { skipGlobalToast: true });
+  triggerHierarchyInvalidation();
+  return res;
 };
 
-export const updateSubOutlet = ({ id, ...payload }) => {
-  return PUT('/sub-outlet/update', payload, { id });
+export const updateSubOutlet = async ({ id, ...payload }) => {
+  const res = await PUT('/sub-outlet/update', payload, { id }, { skipGlobalToast: true });
+  triggerHierarchyInvalidation();
+  return res;
 };
 
-export const deleteSubOutletById = (id) => {
-  return DELETE(`/sub-outlet/delete/${id}`);
+export const deleteSubOutletById = async (id) => {
+  const res = await DELETE(`/sub-outlet/delete/${id}`, {}, { skipGlobalToast: true });
+  triggerHierarchyInvalidation();
+  return res;
+};
+
+// ---- Sub-Location APIs ----
+
+export const getAllSubLocations = () => {
+  return GET('/sub-location/get-all');
+};
+
+export const getAllActiveSubLocations = () => {
+  return GET('/sub-location/get-all-active');
+};
+
+export const getAllSubLocationsByOrganizationId = (organizationId) => {
+  return GET(`/sub-location/get-all-by-organization/${organizationId}`);
+};
+
+export const getAllSubLocationsBySubOutletId = (subOutletId) => {
+  return GET(`/sub-location/get-all-by-sub-outlet/${subOutletId}`);
+};
+
+export const getAllSubLocationsGroupedByOrganizationId = (organizationId) => {
+  return GET(`/sub-location/get-all-grouped-by-organization/${organizationId}`);
+};
+
+export const getSubLocationsByType = (params) => {
+  return GET('/sub-location/get-by-type', params);
+};
+
+export const getBySubOutletIdAndType = (paramsOrSubOutletId, locationType) => {
+  if (typeof paramsOrSubOutletId === 'object' && paramsOrSubOutletId !== null) {
+    return GET('/sub-location/get-by-type', paramsOrSubOutletId);
+  }
+  return GET('/sub-location/get-by-type', { subOutletId: paramsOrSubOutletId, locationType });
+};
+
+export const getSubLocationsGroupedBySubOutletId = (subOutletId) => {
+  return GET(`/sub-location/get-grouped-by-sub-outlet/${subOutletId}`);
+};
+
+export const getSubLocationById = (id) => {
+  return GET(`/sub-location/get/${id}`);
+};
+
+export const saveSubLocation = async (payload) => {
+  const res = await POST('/sub-location/save', payload, { skipGlobalToast: true });
+  triggerHierarchyInvalidation();
+  return res;
+};
+
+export const updateSubLocation = async (payload) => {
+  const id = payload?.id;
+  const res = await PUT(`/sub-location/update?id=${id}`, payload, { id }, { skipGlobalToast: true });
+  triggerHierarchyInvalidation();
+  return res;
+};
+
+export const deleteSubLocationById = async (id) => {
+  const res = await DELETE(`/sub-location/delete/${id}`, {}, { skipGlobalToast: true });
+  triggerHierarchyInvalidation();
+  return res;
 };
 
 export const getAllRawMaterialCategoryType = () => {
@@ -580,6 +689,28 @@ export const updateRoleMaster = (payload) => {
 export const deleteRoleMasterById = (id) => {
   return DELETE('/rolemaster/deletebyid', { id });
 };
+
+// ---- Department Master APIs ----
+export const getAllDepartmentMaster = () => {
+  return GET('/department/getall');
+};
+
+export const getDepartmentMasterById = (id) => {
+  return GET('/department/getbyid', { id });
+};
+
+export const addDepartmentMaster = (payload) => {
+  return POST('/department/add', payload);
+};
+
+export const updateDepartmentMaster = (payload) => {
+  return PUT('/department/update', payload, { id: payload.id });
+};
+
+export const deleteDepartmentMasterById = (id) => {
+  return DELETE('/department/deletebyid', { id });
+};
+
 //Raw Material Unit APIs
 export const getAllRawMaterialUnits = () => {
   return GET(`/unit/getall`);
@@ -615,14 +746,36 @@ export const getAllRawMaterialItems = (
   organizationId = "",
   subOutletId = ""
 ) => {
-  let url = `/rawmaterial/getall?rawMateriaCatlId=${rawMateriaCatlId}&unitid=${unitid}&isActive=${isActive}&pageNo=${pageNo}&pageSize=${pageSize}&rawMaterialName=${encodeURIComponent(rawMaterialName)}`;
+  const params = [];
+  if (
+    rawMateriaCatlId !== null &&
+    rawMateriaCatlId !== undefined &&
+    rawMateriaCatlId !== "" &&
+    rawMateriaCatlId !== 0 &&
+    rawMateriaCatlId !== "0"
+  ) {
+    params.push(`rawMateriaCatlId=${encodeURIComponent(rawMateriaCatlId)}`);
+  }
+  if (isActive !== null && isActive !== undefined && isActive !== "") {
+    params.push(`isActive=${encodeURIComponent(isActive)}`);
+  }
+  if (pageNo !== null && pageNo !== undefined && pageNo !== "") {
+    params.push(`pageNo=${encodeURIComponent(pageNo)}`);
+  }
+  if (pageSize !== null && pageSize !== undefined && pageSize !== "") {
+    params.push(`pageSize=${encodeURIComponent(pageSize)}`);
+  }
+  if (rawMaterialName) {
+    params.push(`rawMaterialName=${encodeURIComponent(rawMaterialName)}`);
+  }
   if (organizationId) {
-    url += `&organizationId=${organizationId}`;
+    params.push(`organizationId=${encodeURIComponent(organizationId)}`);
   }
   if (subOutletId) {
-    url += `&subOutletId=${subOutletId}`;
+    params.push(`subOutletId=${encodeURIComponent(subOutletId)}`);
   }
-  return GET(url);
+  const queryString = params.length > 0 ? `?${params.join("&")}` : "";
+  return GET(`/rawmaterial/getall${queryString}`);
 };
 export const addRawMaterialItem = (formData) => {
   return POST("/rawmaterial/add", formData);
@@ -643,6 +796,53 @@ export const getRawMaterialById = (id) => {
 export const deleteRawMaterialItemById = (id) => {
   return DELETE(`/rawmaterial/delete?id=${id}`);
 };
+export const getAllRawMaterial = () => {
+  return GET('/rawmaterial/get?isActive=true');
+}
+//Raw material item Vendor price approval API
+export const getVendorPriceApprovals = (
+  pageNo = 1,
+  pageSize = 10,
+  status = ''
+) => {
+  let url = `/raw-material-vendor-price/vendorpricing/status?pageNo=${pageNo}&pageSize=${pageSize}`;
+
+  if (status) {
+    url += `&status=${status}`;
+  }
+
+  return GET(url);
+};
+export const approveVendorPricing = (priceConfigIds) => {
+  const ids = (Array.isArray(priceConfigIds) ? priceConfigIds : [priceConfigIds]).filter(
+    (id) => id !== null && id !== undefined && id !== ''
+  );
+  const query = ids.map((id) => `priceConfigIds=${encodeURIComponent(id)}`).join('&');
+  return PUT(`/raw-material-vendor-price/vendorpricing/approve?${query}`);
+};
+
+export const rejectVendorPricing = (outletPriceIds, remarks = '') => {
+  const ids = (Array.isArray(outletPriceIds) ? outletPriceIds : [outletPriceIds]).filter(
+    (id) => id !== null && id !== undefined && id !== ''
+  );
+  const params = ids.map((id) => `outletPriceIds=${encodeURIComponent(id)}`);
+  const trimmedRemarks = formatRemarks(String(remarks ?? '').trim());
+  if (trimmedRemarks) {
+    params.push(`remarks=${encodeURIComponent(trimmedRemarks)}`);
+  }
+  return PUT(`/raw-material-vendor-price/vendorpricing/reject?${params.join('&')}`);
+};
+
+export const saveBulkVendorPrice = (payload) => {
+  return POST('/raw-material-vendor-price/vendorpricing/bulk', payload);
+}
+export const getVendorPricesByRawMaterialId = (rawMaterialId) => {
+  return GET(`/raw-material-vendor-price/get-by-raw-material/${rawMaterialId}`);
+};
+export const getAllVendorPriceConfigurations = (params = {}) => {
+  return GET('/raw-material-vendor-price/getall', params);
+};
+
 // ---- User Rights: Pages APIs ----
 // Add these alongside the other exports in apiServices.js
 export const getPages = (isAdminRights = false, isCombine = true) => {
@@ -730,8 +930,19 @@ export const deleteRawMaterialBrandById = (id) => {
 }
 
 //STATE API
+let statesCachePromise = null;
 export const getAllStates = () => {
-  return GET('/state/getall')
+  {
+    if (!statesCachePromise) {
+      statesCachePromise = GET('/state/getall').catch((err) => {
+        statesCachePromise = null;
+        throw err;
+      });
+    }
+    return statesCachePromise;
+  };
+
+
 }
 
 export const addState = (payload) => {
@@ -886,8 +1097,8 @@ export const getAllActiveAssignAssets = () => {
   return GET('/assign-assets/getallactive');
 };
 
-export const getAllActiveAssignAssetsPaginated = (params) => {
-  return GET('/assign-assets/getallactive/page', params);
+export const getAllActiveAssignAssetsPaginated = (payload) => {
+  return POST('/assign-assets/getallactive/page', payload);
 };
 
 export const updateAssignAsset = (payload) => {
@@ -897,13 +1108,24 @@ export const updateAssignAsset = (payload) => {
 export const deleteAssignAsset = (id) => {
   return DELETE('/assign-assets/delete', { id });
 };
-export const getAssignedAssetsByOrgAndSubOutlet = (orgId, subOutletId = 0) => {
-  return GET(`/assets/assigned-by-location?organizationId=${orgId}&subOutletId=${subOutletId}`);
-}
-export const getAssignmentsByAssetId = (id) => {
-  return GET(`/assets/assignments?assetId=${id}`);
+export const getAssignedAssetsByOrgAndSubOutlet = (orgId, assetUnitLocationId = 0) => {
+  return GET(`/assets/assigned-by-location?organizationId=${orgId}&assetUnitLocationId=${assetUnitLocationId}`);
 }
 
+// ---- HRMS User APIs ----
+export const getHrmsUsersPaginated = (params = {}) => {
+  return GET('/hrms-users/getall/page', params);
+};
+export const getAssignmentsByAssetId = (ids) => {
+
+  if (!ids || (Array.isArray(ids) && ids.length === 0)) {
+    return GET('/assets/assignments');
+  }
+  const idArray = Array.isArray(ids) ? ids : [ids];
+  const queryString = idArray.map((id) => `ids=${encodeURIComponent(id)}`).join('&');
+
+  return GET(`/assets/assignments?${queryString}`);
+};
 
 // ---- Purchase Requisition APIs ----
 
@@ -915,8 +1137,20 @@ export const getPurchaseRequisitionById = (id) => {
   return GET('/purchase-requisitions/getbyid', { id });
 };
 
-export const getPurchaseRequisitionsByOutlet = (outletId, status) => {
-  return GET('/purchase-requisitions/getbyoutlet', { outletId, status });
+export const getPurchaseRequisitionsByOutlet = (outletId, status, page, size, search) => {
+  let params = {};
+  if (typeof outletId === 'object' && outletId !== null) {
+    params = { ...outletId };
+  } else {
+    if (outletId !== undefined && outletId !== null && outletId !== 'ALL') {
+      params.outletId = outletId;
+    }
+    if (status) params.status = status;
+    if (page !== undefined && page !== null) params.page = page;
+    if (size !== undefined && size !== null) params.size = size;
+    if (search) params.search = search;
+  }
+  return GET('/purchase-requisitions/getbyoutlet', params);
 };
 
 export const getPurchaseRequisitionsByStatus = (status) => {
@@ -994,8 +1228,23 @@ export const getPOByIdAndOpenItem = (payload) => {
 export const getPOByIdAndOpenItems = getPOByIdAndOpenItem;
 export const getPOByidandopenitems = getPOByIdAndOpenItem;
 
-export const getPurchaseOrdersByOutlet = (outletId, status) => {
-  return GET('/purchase-orders/getbyoutlet', { outletId, status });
+export const getPurchaseOrdersByOutlet = (outletId, status, page, size, search) => {
+  let params = {};
+  if (typeof outletId === 'object' && outletId !== null) {
+    params = { ...outletId };
+  } else {
+    if (outletId !== undefined && outletId !== null && outletId !== 'ALL' && outletId !== 0) {
+      params.outletId = outletId;
+    }
+    if (status) params.status = status;
+    if (page !== undefined && page !== null) params.page = page;
+    if (size !== undefined && size !== null) params.size = size;
+    if (search) params.search = search;
+  }
+  if (params.outletId === 'ALL' || params.outletId === 0 || params.outletId === '0') {
+    delete params.outletId;
+  }
+  return GET('/purchase-orders/getbyoutlet', params);
 };
 
 export const getPurchaseOrdersByStatuses = (payload) => {
@@ -1057,10 +1306,10 @@ export const getAllGrns = () => {
   return GET('/grn/getall');
 };
 
-export const getGrnByOutletOrStatus = (outletId, status) => {
+export const getGrnByOutletOrStatus = (outletId, status, page, size) => {
   let params = {};
   if (typeof outletId === 'object' && outletId !== null) {
-    params = outletId;
+    params = { ...outletId };
   } else {
     if (outletId !== undefined && outletId !== 'ALL' && outletId !== null && outletId !== 0) {
       params.outletId = outletId;
@@ -1068,12 +1317,14 @@ export const getGrnByOutletOrStatus = (outletId, status) => {
     if (status && status !== 'ALL') {
       params.status = status;
     }
+    if (page !== undefined && page !== null) params.page = page;
+    if (size !== undefined && size !== null) params.size = size;
   }
   return GET('/grn/getbyoutletorstatus', params);
 };
 
-export const getPOsByOutlet = (outletId, status) => {
-  return getPurchaseOrdersByOutlet(outletId, status);
+export const getPOsByOutlet = (outletId, status, page, size, search) => {
+  return getPurchaseOrdersByOutlet(outletId, status, page, size, search);
 };
 
 // ---- GRN Detail / Return & Replacement APIs ----
@@ -1084,18 +1335,39 @@ export const getGrnDetailById = (id) => {
 
 export const getGrnDetailsById = getGrnDetailById;
 
-export const getAllGrnDetailsByStatus = (status, outletId) => {
+export const getAllGrnDetailsByStatus = (statusOrParams, outletId, page, size, sortBy, direction) => {
   let params = {};
-  if (typeof status === 'object' && status !== null) {
-    params = status;
+  if (typeof statusOrParams === 'object' && statusOrParams !== null && !Array.isArray(statusOrParams)) {
+    params = { ...statusOrParams };
   } else {
-    if (status && status !== 'ALL' && status !== 'All Status') {
-      params.status = status;
+    if (statusOrParams && statusOrParams !== 'ALL' && statusOrParams !== 'All Status') {
+      params.status = statusOrParams;
     }
-    if (outletId !== undefined && outletId !== 'ALL' && outletId !== null && outletId !== 0) {
+    if (outletId !== undefined && outletId !== 'ALL' && outletId !== null && outletId !== 0 && outletId !== '') {
       params.outletId = outletId;
     }
+    if (page !== undefined && page !== null) {
+      params.page = page;
+    }
+    if (size !== undefined && size !== null) {
+      params.size = size;
+    }
+    if (sortBy) {
+      params.sortBy = sortBy;
+    }
+    if (direction) {
+      params.direction = direction;
+    }
   }
+
+  // Clean empty or invalid params
+  if (params.status === 'ALL' || params.status === 'All Status' || params.status === '' || !params.status) {
+    delete params.status;
+  }
+  if (params.outletId === 'ALL' || params.outletId === 0 || params.outletId === null || params.outletId === undefined || params.outletId === '') {
+    delete params.outletId;
+  }
+
   return GET('/grn-details/getallbystatus', params);
 };
 
@@ -1193,12 +1465,20 @@ export const receiveTransfer = (id, payload) => {
   return POST(`/stock-transfer/receive/${id}`, payload);
 };
 
+export const approveTransfer = (id, userId) => {
+  const currentUserId = userId || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+  const params = typeof currentUserId === 'object' ? currentUserId : currentUserId ? { userId: currentUserId } : {};
+  return POST(`/stock-transfer/approve/${id}`, null, { params });
+};
+
 export const rejectTransfer = (id, payload = {}) => {
   const body =
     typeof payload === 'object' && payload !== null
       ? { id: Number(id), ...payload }
       : { id: Number(id), reason: payload };
-  return POST(`/stock-transfer/reject/${id}`, body);
+  const currentUserId = body.userId || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+  const params = currentUserId ? { userId: currentUserId } : {};
+  return POST(`/stock-transfer/reject/${id}`, body, { params });
 };
 
 export const saveTransfer = (payload) => {
@@ -1207,6 +1487,11 @@ export const saveTransfer = (payload) => {
 
 export const updateDraftTransfer = (id, payload) => {
   return PUT(`/stock-transfer/update/${id}`, payload);
+};
+export const updateTransfer = updateDraftTransfer;
+
+export const resolveTransferDiscrepancy = (id, payload) => {
+  return POST(`/stock-transfer/resolve-discrepancy/${id}`, payload);
 };
 
 // ---- Stock Adjustment APIs ----
@@ -1256,26 +1541,28 @@ export const getCurrentStockListGet = (params = {}) => {
 export const saveOpb = (payload, userId) => {
   return POST(`/stock-opb/save?userId=${userId}`, payload);
 }
-export const getOpbList = ({ itemType = '', organizationId = '', pageNo = 1, pageSize = 10, search = '', status = '', subOutletId = '', } = {}) => {
-  return GET('/stock-opb/list', {
-    itemType,
-    organizationId,
-    pageNo,
-    pageSize,
-    search,
-    status,
-    subOutletId,
-  });
-};
+export const getOpbList = (params) => {
+  return GET('/stock-opb/list', params);
+}
 export const getOpbById = (id) => {
   return GET(`/stock-opb/${id}`);
 };//Purchase Invoice API
-export const getEligibleGrns = ({ outletId, vendorId }) => {
-  return GET(`/purchase-invoice/eligible-grns?outletId=${outletId}&vendorId=${vendorId}`);
+export const getEligibleGrns = ({ outletId, vendorId } = {}) => {
+  const params = {};
+
+  if (outletId !== undefined && outletId !== null && outletId !== '') {
+    params.outletId = outletId;
+  }
+  if (vendorId !== undefined && vendorId !== null && vendorId !== '') {
+    params.vendorId = vendorId;
+  }
+
+  return GET('/purchase-invoice/eligible-grns', params);
 }
-export const getEligibleGrnDetails = (id) => {
-  return GET(`/purchase-invoice/eligible-grns/${id}`);
-}
+export const getEligibleGrnDetails = (grnIds) => {
+  const idsParam = Array.isArray(grnIds) ? grnIds.join(',') : grnIds;
+  return GET(`/purchase-invoice/eligible-grns/${encodeURIComponent(idsParam)}`);
+};
 export const createPurchaseInvoice = (payload) => {
   return POST('/purchase-invoice/create', payload);
 }
@@ -1290,4 +1577,463 @@ export const updatePurchaseInvoice = (id, payload) => {
 }
 export const updatePurchaseInvoiceStatus = (id, status, userId) => {
   return POST(`/purchase-invoice/status/${id}`, null, { params: { status, userId } });
+}
+
+// ---- Stock Ledger APIs ----
+export const getLedgerList = (params = {}) => {
+  const queryParams = { ...params };
+  Object.keys(queryParams).forEach((key) => {
+    if (queryParams[key] === undefined || queryParams[key] === null || queryParams[key] === '') {
+      delete queryParams[key];
+    }
+  });
+  return GET('/stock-ledger/list', queryParams);
+};
+
+export const getLedgerListFiltered = (payload = {}) => {
+  return POST('/stock-ledger/filter-list', payload);
+};
+
+export const getLedgerById = (id) => {
+  return GET(`/stock-ledger/${id}`);
+};
+
+//Barcode list API
+export const listBatchesForBarcode = (payload, pageParams = {}) => {
+  return POST('/stock-batch/list-for-barcode', payload, {
+    params: {
+      page: pageParams.pageNo ?? 0,
+      size: pageParams.pageSize ?? 10,
+    },
+  });
+}
+export const generateBarcodeForBatch = (payload) => {
+  return POST('/reports/generateBarcodeForBatch', payload);
+};
+export const getStockDetailsByBatchNumber = (batchNumber) => {
+  return GET(`/stock-batch/details-by-batch-number?batchNumber=${batchNumber}`);
+};
+
+// Kitchen Menu Item API
+export const addKitchenMenuItem = (data) => {
+  return axiosInstance.post('/kitchenmenuitems/add', data);
+};
+
+export const getAllKitchenMenuItem = (params) => {
+  return axiosInstance.get('/kitchenmenuitems/getall', {
+    params,
+  });
+};
+
+export const getKitchenMenuItemById = (id) => {
+  return GET(`/kitchenmenuitems/getbyid?id=${id}`);
+};
+
+export const updateKitchenMenuItem = (data) => {
+  return axiosInstance.put('/kitchenmenuitems/update', data);
+};
+
+export const deleteKitchenMenuItemById = (id) => {
+  return DELETE(`/kitchenmenuitems/deletebyid?id=${id}`);
+};
+
+export const getAllExistingItems = (isCaptainRecipe = false) => {
+  return GET('/kitchenmenuitems/getallexistingitems', { isCaptainRecipe });
+};
+
+export const updateKitchenMenuItemStatus = (id, isActive) => {
+  return PUT(`/kitchenmenuitems/updatestatus?id=${id}&isActive=${isActive}`);
+};
+
+export const updateKitchenMenuItemCategory = (data) => {
+  return axiosInstance.put('/kitchenmenuitems/updatemenuitemcategory', data);
+};
+
+export const updateKitchenMenuItemSubCategory = (data) => {
+  return axiosInstance.put('/kitchenmenuitems/updatemenusubcategory', data);
+};
+
+export const deleteKitchenMenuItemRawMaterialById = (ids) => {
+  return axiosInstance.delete('/kitchenmenuitems/deleteitemrawmaterialbyid', {
+    data: { id: ids },
+  });
+};
+
+export const getKitchenMenuItemRawMaterialByMenuId = (menuItemId, isSync) => {
+  return GET('/kitchenmenuitems/getmenuitemrawmaterialbymenuid', { menuItemId, isSync });
+};
+export const getMenuItemRawMaterialByMenuIdAndOrgId = (menuItemId, orgId, isSync = true) => {
+  return GET(
+    `/kitchenmenuitems/getmenuitemrawmaterialbymenuidandorgid?isSync=${isSync}&menuItemId=${menuItemId}&org_id=${orgId}`
+  );
+};
+export const getKitchenMenuItemCaptainReceipeByMenuIdAndOrgId = (menuItemId, orgId, isSync = true) => {
+  return GET(
+    `/kitchenmenuitems/getmenuitemcaptainreceipebymenuidandorgid?isSync=${isSync}&menuItemId=${menuItemId}&org_id=${orgId}`
+  );
+};
+export const getItemRawMaterialByRawMaterial = (rawMaterialId) => {
+  return GET('/kitchenmenuitems/getitemrawmaterialbyrawmaterial', { rawMaterialId });
+};
+
+export const syncAllKitchenItemRawMaterialRate = () => {
+  return GET('/kitchenmenuitems/syncallitemrawmaterialrate');
+};
+
+export const getKitchenMenuItemCaptainReceipeByMenuId = (menuItemId, isSync) => {
+  return GET('/kitchenmenuitems/getmenuitemcaptainreceipebymenuid', { menuItemId, isSync });
+};
+
+export const syncAllKitchenCaptainReceipeRate = () => {
+  return GET('/kitchenmenuitems/syncallcaptainreceiperate');
+};
+
+//Recipe API
+export const createKitchenMenuItemRecipe = (payload) => {
+  return POST("/kitchenmenuitemrawmaterial/create", payload);
+};
+
+export const getKitchenMenuItemRecipe = ({ menuItemId, orgId, subOutletId } = {}) => {
+  const params = {};
+  if (menuItemId !== null && menuItemId !== undefined && menuItemId !== '' && Number.isFinite(Number(menuItemId))) {
+    params.menuItemId = Number(menuItemId);
+  }
+
+  if (orgId !== null && orgId !== undefined && orgId !== '' && Number.isFinite(Number(orgId))) {
+    params.orgId = Number(orgId);
+  }
+
+  if (subOutletId !== null && subOutletId !== undefined && subOutletId !== '' && Number.isFinite(Number(subOutletId))) {
+    params.subOutletId = Number(subOutletId);
+  }
+
+  return GET("/kitchenmenuitemrawmaterial/get", params);
+};
+
+export const updateKitchenMenuItemRecipe = (payload) => {
+  return PUT("/kitchenmenuitemrawmaterial/update", payload);
+};
+export const deleteKitchenMenuItemRecipe = ({ menuItemId, orgId, subOutletId } = {}) => {
+  const params = {
+    menuItemId: Number(menuItemId),
+    orgId: Number(orgId),
+  };
+
+  if (subOutletId !== null && subOutletId !== undefined && subOutletId !== '') {
+    params.subOutletId = Number(subOutletId);
+  }
+
+  return DELETE("/kitchenmenuitemrawmaterial/delete", params);
+};
+
+export const getRawMaterialByType = (rawMaterialCatTypeId) => {
+  return GET(`/rawmaterial/getRawMaterialByType?rawMaterialCatTypeId=${rawMaterialCatTypeId}`);
+};
+
+//Kitchen-captain Recipe API
+export const addKitchenCaptainReceipeMaster = (data) => {
+  return axiosInstance.post('/kitchen-captain-receipe-master/add-update', data);
+};
+export const deleteKitchenCaptainReceipeById = (id) => {
+  return axiosInstance.delete(`/kitchen-captain-receipe-master/deletebyid?id=${id}`);
+};
+export const getAllKitchenCaptainReceipeByOrgId = (orgId, status) => {
+  const params = { orgId };
+  if (typeof status === 'boolean') {
+    params.status = status;
+  }
+  return GET('/kitchen-captain-receipe-master/getallbyorgid', params);
+};
+export const getKitchenCaptainReceipeById = (id) => {
+  return GET('/kitchen-captain-receipe-master/getbyid', { id });
+};
+export const getKitchenCaptainReceipeByIdAndOrg = (id, orgId) => {
+  return GET('/kitchen-captain-receipe-master/getbyidandorg', { id, orgId });
+};
+export const syncAllCaptainReceipeRawMaterial = () => {
+  return GET('/kitchen-captain-receipe-master/syncallcaptainreceiperawmaterial');
+};
+export const updateKitchenCaptainReceipeStatusById = (id, status) => {
+  return PUT(`/kitchen-captain-receipe-master/updatestatusbyid?id=${id}&status=${status}`);
+};
+
+//Kitchen Menu Category APIs
+export const getAllKitchenMenuCategory = (params = {}) => {
+  return GET('/kitchenmenucategory/getall', params);
+};
+
+export const getKitchenMenuCategoryById = (id) => {
+  return GET('/kitchenmenucategory/getid', { id });
+};
+
+export const addKitchenMenuCategory = (formData) => {
+  return axiosInstance.post('/kitchenmenucategory/add', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const updateKitchenMenuCategory = (formData) => {
+  return axiosInstance.put('/kitchenmenucategory/update', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+export const deleteKitchenMenuCategoryById = (id) => {
+  return DELETE('/kitchenmenucategory/deletebyid', { id });
+};
+
+export const updateKitchenMenuCategoryStatus = ({ id, isActive }) => {
+  return PUT(`/kitchenmenucategory/updatestatus?id=${id}&isActive=${isActive}`);
+};
+
+//Per Person MenuItem Consumption APIs
+export const getConsumptionConfigList = (params) => {
+  return GET('/kitchen-menu-item-per-person-consumption/get-config', params);
+};
+
+export const getConsumptionConfigById = (id) => {
+  return GET(`/kitchen-menu-item-per-person-consumption/${id}`);
+};
+
+export const saveOrUpdateConsumptionConfig = (payload) => {
+  return POST('/kitchen-menu-item-per-person-consumption/save-or-update', payload);
+};
+
+export const deleteConsumptionConfigById = (id) => {
+  return DELETE(`/kitchen-menu-item-per-person-consumption/delete/${id}`);
+};
+
+// === Brand Unit Mapping API Endpoints ===
+export const createBrandMapping = (data) => {
+  return POST('/brand-mapping/create', data);
+}
+export const getAllBrandMappings = () => {
+  return GET('/brand-mapping/getall');
+}
+export const deleteBrandMappingById = (id) => {
+  return DELETE('/brand-mapping/delete', { id });
+}
+export const getBrandMappingByOutlet = (outletId) => {
+  return GET('/brand-mapping/getbyoutlet', { outletId });
+}
+export const getBrandMappingBySubOutlet = (outletId, subOutletId) => {
+  return GET('/brand-mapping/getbysuboutlet', { outletId, subOutletId });
+}
+export const deleteBrandMappingByOutletAndSubOutlet = (outletId, subOutletId) => {
+  return DELETE(`/brand-mapping/deletebyoutletidandsuboutletid?outletId=${outletId}&subOutletId=${subOutletId}`);
+}
+//Master Report export API
+export const exportMasterTableReport = (payload) => {
+  return POST('/master-reports/export', payload, {
+    skipGlobalToast: true,
+  });
+};
+//Asset Location Master API
+export const getAssetUnitLocationById = (id) => {
+  return GET('/asset-unit-locations/get', { id });
+};
+export const getAllAssetUnitLocations = () => {
+  return GET('/asset-unit-locations/getall');
+};
+
+export const getAllActiveAssetUnitLocations = () => {
+  return GET('/asset-unit-locations/getallactive');
+};
+
+export const getAllActiveAssetUnitLocationsPaginated = (page = 0, size = 10) => {
+  return GET('/asset-unit-locations/getallactive/page', { page, size });
+};
+
+export const getAssetUnitLocationsByOrganization = (organizationId) => {
+  return GET('/asset-unit-locations/getbyorganization', { organizationId });
+};
+
+export const createAssetUnitLocation = (data) => {
+  return POST('/asset-unit-locations/create', data);
+};
+
+export const updateAssetUnitLocation = (id, data) => {
+  return PUT(`/asset-unit-locations/update?id=${id}`, data);
+};
+
+export const deleteAssetUnitLocationById = (id) => {
+  return DELETE(`/asset-unit-locations/delete?id=${id}`);
+};
+export const getUnassignedAssets = () => {
+  return GET("/assets/unassigned");
+};
+//Assets QR 
+export const createAssetQrBulk = (payload) => {
+  return POST('/asset-qr/addall', payload);
+};
+export const getAssetQrByUuid = (uuid) => {
+  return GET(`/asset-qr/uuid/${uuid}`);
+};
+// Asset Audit Endpoints
+export const getAllAssetAuditEventsPaginated = (params) => {
+  const queryParams = new URLSearchParams(params).toString();
+  return GET(`/asset-audit/getall/page?${queryParams}`);
+};
+
+export const getAssetAuditEventById = (id) => {
+  return GET(`/asset-audit/get?id=${id}`);
+};
+
+export const updateAssetAuditStatus = (id, data) => {
+  return PUT(`/asset-audit/update-status?id=${id}`, data);
+};
+
+export const getAssetAuditReport = (params) => {
+  const queryParams = params ? `?${new URLSearchParams(params).toString()}` : '';
+  return GET(`/asset-audit/report${queryParams}`);
+};
+export const createAssetAuditEvent = (payload) => {
+  return POST('/asset-audit/create', payload);
+};
+export const updateAssetAuditEvent = (id, payload) => {
+  return PUT(`/asset-audit/update?id=${id}`, payload);
+};
+export const scanAssetAuditQr = (payload) => {
+  return POST('/asset-audit/scan', payload);
+};
+export const getScanReportById = (id) => {
+  return GET(`/asset-audit/report?id=${id}`);
+}
+export const getAllAssetAuditEvents = (params) => {
+  return GET('/asset-audit/getall', params);
+};
+// Meal Type API
+export const getAllMealTypes = () => {
+  return GET(`/meal-type/get-all`);
+};
+
+export const getMealTypeById = (id) => {
+  return GET(`/meal-type/get/${id}`);
+};
+
+export const saveOrUpdateMealType = (payload) => {
+  return POST('/meal-type/save', payload);
+};
+
+export const deleteMealType = (id) => {
+  return DELETE(`/meal-type/delete/${id}`);
+};
+
+// Meal Slot API
+export const getAllMealSlots = (params = {}) => {
+  if (typeof params === 'number' || typeof params === 'string') {
+    return GET(`/meal-slot/get-all?organizationId=${params}`);
+  }
+
+  if (typeof params === 'object' && Object.keys(params).length > 0) {
+    return GET('/meal-slot/get-all', params);
+  }
+
+  return GET(`/meal-slot/get-all`);
+};
+
+export const getMealSlotById = (id) => {
+  return GET(`/meal-slot/get/${id}`);
+};
+
+export const saveOrUpdateMealSlot = (payload) => {
+  return POST('/meal-slot/save', payload);
+};
+
+export const deleteMealSlot = (id) => {
+  return DELETE(`/meal-slot/delete/${id}`);
+};
+
+// Meal Structure API
+export const getAllMealStructures = (params = {}) => {
+  return GET('/meal-structure/get-all', params);
+};
+
+export const getMealStructureById = (id) => {
+  return GET(`/meal-structure/get/${id}`);
+};
+
+export const saveOrUpdateMealStructure = (payload) => {
+  return POST('/meal-structure/save', payload);
+};
+
+export const deleteMealStructure = (id) => {
+  return DELETE(`/meal-structure/delete/${id}`);
+};
+
+export const getEffectiveMealStructure = (params = {}) => {
+  return GET('/meal-structure/get-effective', params);
+};
+//Purchase Credit Debit Note API
+export const getEligibleInvoices = (params) => {
+  return GET('/debit-credit-notes/eligible-invoices', params);
+};
+export const getEligibleGrnReturns = (params) => {
+  return GET('/debit-credit-notes/eligible-grn-returns', params);
+};
+export const getAllDebitCreditNotesPaginated = (params) => {
+  return GET('/debit-credit-notes/getall/page', params);
+};
+export const getDebitCreditNoteById = (id) => {
+  return GET('/debit-credit-notes/getbyid', { id });
+};
+export const createDebitCreditNote = (payload) => {
+  return POST('/debit-credit-notes/create', payload);
+};
+export const updateDebitCreditNote = (id, payload) => {
+  return PUT(`/debit-credit-notes/update/${id}`, payload);
+};
+export const approveDebitCreditNote = (id, userId) => {
+  return axiosInstance.patch(`/debit-credit-notes/approve/${id}`, null, {
+    params: { userId },
+  });
+};
+export const cancelDebitCreditNote = (id, userId, reason) => {
+  return axiosInstance.patch(`/debit-credit-notes/cancel/${id}`, null, {
+    params: { userId, reason },
+  });
+};
+export const getNotesByPurchaseInvoiceId = (id) => {
+  return GET(`/debit-credit-notes/by-invoice/${id}`);
+}
+
+//Menu Planning
+export const getDashboardSummary = (organizationId, subOutletId = null) => {
+  const params = typeof organizationId === 'object' ? organizationId : { organizationId, ...(subOutletId && { subOutletId }) };
+  return GET('/menu-plan/dashboard-summary', params);
+};
+
+export const getNextProductionBatch = (organizationId) => {
+  return GET('/menu-plan/next-production', { organizationId });
+};
+
+export const getAllMenuPlans = ({ page = 0, size = 10, ...payload } = {}) => {
+  return POST(
+    '/menu-plan/get-all',
+    payload,
+    {
+      params: { page, size },
+    }
+  );
+};
+export const saveOrUpdateMenuPlan = (payload) => {
+  return POST('/menu-plan/save', payload);
+};
+export const getMenuPlanById = (id) => {
+  return GET(`/menu-plan/get/${id}`);
+};
+export const saveSlotRecipes = (payload) => {
+  return POST('/menu-plan/day/slot/save-recipes', payload);
+};
+export const saveShiftRecipes = (payload) => {
+  return POST('/menu-plan/day/shift/save', payload);
+};
+export const getMenuPlanDayById = (dayId) => {
+  return GET(`/menu-plan/day/get/${dayId}`);
+};
+export const getRecipeCosting = (menuItemId, params) => {
+  return GET(`/recipe-costing/${menuItemId}`, params);
+};
+export const deleteMenuPlanById = (id) => {
+  return DELETE(`/menu-plan/delete/${id}`);
 }

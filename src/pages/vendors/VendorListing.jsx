@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel
 } from '@tanstack/react-table';
 import {
+  Download,
   Eye,
-  Handshake,
-  Plus,
-  Search,
+  Loader2,
   SquarePen,
   Trash2,
-  TrendingUp,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { deleteVendorById, getAllVendors } from '@/services/apiServices';
@@ -25,13 +25,18 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { SearchBar } from '@/components/common/SearchBar';
 import { extractList, mapVendorToRow } from './vendorHelper';
+import MasterExportModal from '../../utils/MasterExportModal';
+
 
 // Truncates long text within a fixed-width box, revealing the full value on hover
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-xs text-gray-800 font-medium',
 }) => (
   <span title={value} className={`block truncate ${widthClass} ${className}`}>
     {value}
@@ -40,33 +45,36 @@ const TruncatedCell = ({
 
 const StatCard = ({
   icon: Icon,
-  iconBg,
-  iconColor,
+  iconBg = 'bg-[#D5E3FF]',
+  iconColor = 'text-[#00376C]',
   label,
   value,
-  valueColor = 'text-gray-900',
+  valueColor = 'text-[#1B1B1F]',
 }) => (
-  <div className="bg-white rounded-2xl border border-gray-200 px-5 py-4">
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
     <div
-      className={`w-7 h-7 rounded mb-1 flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}
+      className={`w-9 h-9 rounded-xl ${iconBg} ${iconColor} flex items-center justify-center shrink-0`}
     >
       <Icon className="w-5 h-5" />
     </div>
-    <div>
-      <p className="text-xs text-[#737781]">{label}</p>
-      <p className={`text-lg font-bold leading-none mt-1 ${valueColor}`}>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
         {value}
-      </p>
+      </span>
     </div>
   </div>
 );
 
+// Safe string helper so null/undefined API values never crash search or render
+const str = (val) => String(val ?? '');
+
 const VendorList = () => {
   const navigate = useNavigate();
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Vendors');
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Vendors');
 
   const [vendors, setVendors] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const [search, setSearch] = useState('');
@@ -75,7 +83,9 @@ const VendorList = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null); // { id, itemLabel }
   const [deleteSaving, setDeleteSaving] = useState(false);
+   const [sorting, setSorting] = useState([]);
 
+  const [showExportModal, setShowExportModal] = useState(false);
   const fetchVendors = async () => {
     setLoading(true);
     setError('');
@@ -96,23 +106,37 @@ const VendorList = () => {
     fetchVendors();
   }, []);
 
+  const term = search.trim().toLowerCase();
+
   const filteredVendors = useMemo(
     () =>
-      vendors.filter((v) => {
-        const term = search.toLowerCase();
-        return (
-          v.name.toLowerCase().includes(term) ||
-          v.vendorCode.toLowerCase().includes(term) ||
-          v.emailid.toLowerCase().includes(term) ||
-          v.company.toLowerCase().includes(term)
-        );
-      }),
-    [vendors, search],
+      vendors.filter((v) =>
+        [v.name, v.vendorCode, v.emailid, v.company].some((field) =>
+          str(field).toLowerCase().includes(term),
+        ),
+      ),
+    [vendors, term],
   );
 
-  useEffect(() => {
+  // Vendors created in the current calendar month.
+  // Assumes mapVendorToRow exposes a `createdAt` date field; adjust the name if yours differs.
+  const onboardedThisMonth = useMemo(() => {
+    const now = new Date();
+    return vendors.filter((v) => {
+      if (!v.createdAt) return false;
+      const d = new Date(v.createdAt);
+      return (
+        !Number.isNaN(d.getTime()) &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear()
+      );
+    }).length;
+  }, [vendors]);
+
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
     setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, [search]);
+  };
 
   const handleEdit = (vendor) => {
     navigate('/vendors/add-vendor', {
@@ -165,7 +189,7 @@ const VendorList = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500">
+          <span className="text-xs text-gray-500">
             {String(row.index + 1).padStart(2, '0')}
           </span>
         ),
@@ -180,34 +204,35 @@ const VendorList = () => {
         ),
         cell: ({ row }) => (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-blue-100 text-[#084E92] flex items-center justify-center text-xs font-semibold shrink-0">
-              {row.original.name.charAt(0).toUpperCase()}
-            </div>
+            {/* <div className="w-8 h-8 rounded-full bg-blue-100 text-[#084E92] flex items-center justify-center text-xs font-semibold shrink-0">
+              {str(row.original.name).charAt(0).toUpperCase() || '?'}
+            </div> */}
             <div className="min-w-0">
-              <p className="font-semibold text-gray-900 leading-none truncate">
+              <p className="font-medium text-xs text-gray-800 leading-none truncate">
                 {row.original.name}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5">
+              <p className="text-xs text-[#084E92] font-semibold mt-1">
                 {row.original.vendorCode}
               </p>
             </div>
           </div>
         ),
         size: 200,
+        enableSorting: true,
       },
       {
         id: 'email',
-        accessorFn: (row) => row.email,
+        accessorFn: (row) => row.emailid,
         header: ({ column }) => (
           <DataGridColumnHeader title="Email Address" column={column} />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.emailid}
-            widthClass="max-w-[190px]"
           />
         ),
-        size: 140,
+        size: 220,
+         enableSorting: false,
       },
       {
         id: 'mobile',
@@ -216,11 +241,12 @@ const VendorList = () => {
           <DataGridColumnHeader title="Mobile Number" column={column} />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-600 whitespace-nowrap">
+          <span className="text-xs text-gray-800 font-medium whitespace-nowrap">
             {row.original.mobile}
           </span>
         ),
-        size: 140,
+        size: 130,
+         enableSorting: false,
       },
       {
         id: 'company',
@@ -231,10 +257,10 @@ const VendorList = () => {
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.company}
-            widthClass="max-w-[170px]"
           />
         ),
-        size: 190,
+        size: 200,
+         enableSorting: false,
       },
       {
         id: 'actions',
@@ -283,15 +309,18 @@ const VendorList = () => {
         size: 130,
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [canEdit, canDelete],
   );
 
   const table = useReactTable({
     data: filteredVendors,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
     getCoreRowModel: getCoreRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     columnResizeMode: 'onChange',
   });
@@ -302,86 +331,82 @@ const VendorList = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Page header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 leading-none">
-              Vendor Management List
-            </h1>
-            <p className="text-md text-gray-400 mt-2.5">
-              View and manage all registered enterprise vendors across the
-              Jaiswal Group <br />
-              ecosystem.
-            </p>
-          </div>
-          {canAdd && (
-            <Link
-              to="/vendors/add-vendor"
-              className="flex items-center bg-[#084E92] gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-semibold border-0 cursor-pointer transition"
-            >
-              <Plus className="w-4 h-4" />
-              Add New Vendor
-            </Link>
-          )}
-        </div>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="Vendor Management List"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+              {canAdd && (
+                <HeaderActionButton to="/vendors/add-vendor">
+                  Add New Vendor
+                </HeaderActionButton>
+              )}
+            </div>
 
-        {/* Stat cards */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <StatCard
-            icon={Handshake}
-            iconBg="bg-blue-50"
-            iconColor="text-blue-500"
-            label="Total Vendors"
-            value={vendors.length}
-          />
-          <StatCard
-            icon={TrendingUp}
-            iconBg="bg-blue-50"
-            iconColor="text-blue-500"
-            label="Onboarding This Month"
-            value="+24"
-            valueColor="text-blue-600"
-          />
-        </div>
+          }
+        />
+
+        <PageErrorAlert error={error} onRetry={fetchVendors} />
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mb-6">
-          <div className="relative w-full border border-[#C3C6D1] rounded-lg">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by vendor name, code, email..."
-              className="w-full pl-10 pr-3 py-2.5 outline-none rounded-lg text-sm"
-            />
-          </div>
+        <div className="flex flex-col gap-4">
+          <SearchBar
+            isStandalone={true}
+            value={search}
+            onChange={handleSearchChange}
+            onClear={() => setSearch('')}
+            placeholder="Search by vendor name, code, email..."
+          />
         </div>
 
-        {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-        {loading && (
-          <p className="text-sm text-gray-400 mb-4">Loading vendors...</p>
-        )}
-
-        <DataGrid table={table} recordCount={filteredVendors.length}>
-          <Card className="rounded-t-none border-t-0">
-            <CardTable>
-              <ScrollArea>
-                <DataGridTable />
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </CardTable>
-            <CardFooter>
-              <DataGridPagination />
-            </CardFooter>
-          </Card>
-        </DataGrid>
+        {/* Table */}
+        <div className="w-full border border-[#C3C6D1] rounded-2xl overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-[#98A2B3] text-sm">
+              <Loader2 size={16} className="animate-spin" />
+              Loading vendors…
+            </div>
+          ) : (
+            <DataGrid
+              table={table}
+              recordCount={filteredVendors.length}
+              tableLayout={{
+                dense: true,
+                width: 'fixed',
+                cellBorder: true,
+                headerBorder: true,
+                rowBorder: true,
+                columnsResizable: true,
+              }}
+            >
+              <Card className="rounded-t-none border-t-0">
+                <CardTable>
+                  <ScrollArea>
+                    <DataGridTable />
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
+                </CardTable>
+                <CardFooter>
+                  <DataGridPagination />
+                </CardFooter>
+              </Card>
+            </DataGrid>
+          )}
+        </div>
       </div>
 
+      <MasterExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tableName="vendors"
+        title="Export Vendors Report"
+      />
       <DeleteConfirmModal
         isOpen={showDeleteConfirm}
         onClose={closeDeleteConfirm}

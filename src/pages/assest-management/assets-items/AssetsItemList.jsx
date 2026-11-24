@@ -27,8 +27,11 @@ import {
 } from '@/components/ui/select';
 import AddAssetItemModal, { CATEGORIES } from './AddAssetsItemModal';
 import { notify } from "@/utils/toast";
-import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { Container } from '@/components/common/container';
+import { SearchBar } from '@/components/common/SearchBar';
 
 // Seed data so the listing has something to show on first load
 const SEED_ITEMS = [
@@ -87,24 +90,23 @@ const ROWS_PER_PAGE_OPTIONS = [5, 10, 25];
 
 const StatusBadge = ({ status }) => (
   <span
-    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide ${
-      status === 'Active'
-        ? 'bg-green-50 text-green-700 border border-green-200'
-        : 'bg-gray-100 text-gray-500 border border-gray-200'
+    className={`font-semibold text-xs whitespace-nowrap tracking-wide uppercase ${
+      status === 'Active' ? 'text-emerald-600' : 'text-gray-500'
     }`}
   >
-    {status.toUpperCase()}
+    {status ? status.toUpperCase() : '—'}
   </span>
 );
 
-const StatCard = ({ icon: Icon, iconBg, iconColor, label, value, note, noteColor }) => (
-  <div className="border border-[#C3C6D1] rounded-2xl p-4">
-    <div className={`w-7 h-7 rounded-md flex items-center justify-center mb-3 ${iconBg} ${iconColor}`}>
-      <Icon className="h-4 w-4" />
+const StatCard = ({ icon: Icon, iconBg = 'bg-[#D5E3FF]', iconColor = 'text-[#00376C]', label, value, valueColor = 'text-[#1B1B1F]' }) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${iconBg} ${iconColor}`}>
+      <Icon className="h-5 w-5" />
     </div>
-    <p className="text-sm text-[#43474F]">{label}</p>
-    <p className="text-xl font-semibold text-gray-900 mt-0.5">{value}</p>
-    <p className={`text-xs mt-1 ${noteColor}`}>{note}</p>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
+    </div>
   </div>
 );
 
@@ -112,7 +114,7 @@ const SortableHeader = ({ label, sortKey, sortConfig, onSort }) => {
   const isActive = sortConfig.key === sortKey;
   return (
     <th
-      className="px-4 py-3 font-medium cursor-pointer select-none whitespace-nowrap"
+      className="px-4 py-3 font-semibold text-xs text-[#737781] uppercase cursor-pointer select-none whitespace-nowrap border-r border-gray-200"
       onClick={() => onSort(sortKey)}
     >
       <span className={`inline-flex items-center gap-1 ${isActive ? 'text-primary' : ''}`}>
@@ -143,7 +145,6 @@ const AssetItemsList = () => {
   });
 
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
-  const [selectedIds, setSelectedIds] = useState([]);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -181,7 +182,6 @@ const AssetItemsList = () => {
 
   const handleDelete = (id) => {
     setItems((prev) => prev.filter((it) => it.id !== id));
-    setSelectedIds((prev) => prev.filter((sid) => sid !== id));
     notify.success("Asset Item Deleted Successfully");
   };
 
@@ -225,20 +225,6 @@ const AssetItemsList = () => {
   const pageStart = (currentPage - 1) * rowsPerPage;
   const pageItems = sortedItems.slice(pageStart, pageStart + rowsPerPage);
 
-  const allOnPageSelected = pageItems.length > 0 && pageItems.every((it) => selectedIds.includes(it.id));
-
-  const toggleSelectAllOnPage = () => {
-    if (allOnPageSelected) {
-      setSelectedIds((prev) => prev.filter((id) => !pageItems.some((it) => it.id === id)));
-    } else {
-      setSelectedIds((prev) => [...new Set([...prev, ...pageItems.map((it) => it.id)])]);
-    }
-  };
-
-  const toggleSelectRow = (id) => {
-    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((sid) => sid !== id) : [...prev, id]));
-  };
-
   const activeCount = items.filter((it) => it.status === 'Active').length;
   const inactiveCount = items.length - activeCount;
   const categoriesCovered = new Set(items.map((it) => it.category)).size;
@@ -248,91 +234,61 @@ const AssetItemsList = () => {
   }
 
   return (
-    <div className="p-4">
-      <div className="max-w-6xl mx-auto space-y-4">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Asset Management</span>
-          <ChevronRight size={12} />
-          <span className="text-primary font-semibold">Asset Items</span>
-        </div>
-
-        {/* Page header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold text-primary">Asset Items</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Manage individual asset items under each category and sub category for tracking and inventory.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Upload className="h-4 w-4" />
-              Export
-            </Button>
-            {canAdd && (
-              <Button
-                onClick={openAddModal}
-                className="bg-primary hover:bg-[#073e77] text-white flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
+    <Container>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Asset Items"
+          actions={
+            canAdd && (
+              <HeaderActionButton onClick={openAddModal}>
                 Add Asset Item
-              </Button>
-            )}
-          </div>
-        </div>
+              </HeaderActionButton>
+            )
+          }
+        />
 
         {/* Stat cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 py-8 text-[#43474F]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5 py-4 text-[#43474F]">
           <StatCard
             icon={Layers}
-            iconBg="bg-blue-50"
-            iconColor="text-primary"
+            iconBg="bg-[#D5E3FF]"
+            iconColor="text-[#00376C]"
             label="Total Asset Items"
             value={items.length}
-            note={`${categoriesCovered} categories in use`}
-            noteColor="text-primary"
           />
           <StatCard
             icon={CheckCircle2}
-            iconBg="bg-green-50"
-            iconColor="text-green-600"
+            iconBg="bg-[#DCFCE7]"
+            iconColor="text-[#15803D]"
             label="Active Items"
             value={activeCount}
-            note={`${items.length ? Math.round((activeCount / items.length) * 100) : 0}% of total`}
-            noteColor="text-green-600"
+            valueColor="text-[#15803D]"
           />
           <StatCard
             icon={XCircle}
-            iconBg="bg-gray-100"
-            iconColor="text-gray-500"
+            iconBg="bg-[#FEE2E2]"
+            iconColor="text-[#DC2626]"
             label="Inactive Items"
             value={inactiveCount}
-            note="Requires review"
-            noteColor="text-gray-400"
+            valueColor="text-[#DC2626]"
           />
           <StatCard
             icon={Boxes}
-            iconBg="bg-purple-50"
-            iconColor="text-purple-600"
+            iconBg="bg-[#EDE9FE]"
+            iconColor="text-[#7C3AED]"
             label="Categories Covered"
             value={categoriesCovered}
-            note={`Across ${CATEGORIES.length} available`}
-            noteColor="text-purple-600"
           />
         </div>
 
         {/* Filter bar */}
         <div className="bg-white rounded-xl border border-gray-200 p-3 flex items-center gap-2 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               placeholder="Search by name, code or description..."
-              className="pl-9"
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
+              onClear={() => setSearchDraft('')}
               onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
             />
           </div>
@@ -369,18 +325,11 @@ const AssetItemsList = () => {
 
         {/* Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-left text-xs uppercase text-gray-500 border-b">
-                  <th className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={allOnPageSelected}
-                      onChange={toggleSelectAllOnPage}
-                      className="h-4 w-4 rounded border-gray-300 accent-[#0a4a8f]"
-                    />
-                  </th>
+                <tr className="bg-[#F7F8FA] text-left text-xs uppercase text-[#737781] border-b border-gray-200">
+                  <th className="px-4 py-3 font-semibold border-r border-gray-200 w-16">S.NO</th>
                   <SortableHeader label="Asset Name" sortKey="name" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader label="Category" sortKey="category" sortConfig={sortConfig} onSort={handleSort} />
                   <SortableHeader
@@ -389,42 +338,30 @@ const AssetItemsList = () => {
                     sortConfig={sortConfig}
                     onSort={handleSort}
                   />
-                  <th className="px-4 py-3 font-medium">Description</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium text-right">Actions</th>
+                  <th className="px-4 py-3 font-semibold border-r border-gray-200 w-24">Status</th>
+                  <th className="px-4 py-3 font-semibold text-right w-24">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-gray-200">
                 {pageItems.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-16 text-center text-gray-400">
+                    <td colSpan={6} className="px-4 py-16 text-center text-gray-400">
                       No asset items match your filters.
                     </td>
                   </tr>
                 ) : (
-                  pageItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(item.id)}
-                          onChange={() => toggleSelectRow(item.id)}
-                          className="h-4 w-4 rounded border-gray-300 accent-[#0a4a8f]"
-                        />
+                  pageItems.map((item, idx) => (
+                    <tr key={item.id} className="hover:bg-gray-50 border-b border-gray-200 last:border-b-0">
+                      <td className="px-4 py-3 text-xs text-gray-500 border-r border-gray-200">
+                        {String(pageStart + idx + 1).padStart(2, '0')}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="font-semibold text-primary">{item.name}</div>
-                        <div className="text-xs text-gray-400">{item.id}</div>
+                      <td className="px-4 py-3 border-r border-gray-200">
+                        <div className="font-medium text-xs text-gray-800">{item.name}</div>
+                        <div className="text-xs text-[#084E92] font-semibold font-mono mt-0.5">{item.id}</div>
                       </td>
-                      <td className="px-4 py-3 text-gray-700 font-medium">{item.category}</td>
-                      <td className="px-4 py-3 text-gray-600">{item.subCategory}</td>
-                      <td
-                        className="px-4 py-3 text-gray-500 max-w-xs truncate"
-                        title={item.description}
-                      >
-                        {item.description || '—'}
-                      </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-xs text-gray-800 font-medium border-r border-gray-200">{item.category}</td>
+                      <td className="px-4 py-3 text-xs text-gray-800 font-medium border-r border-gray-200">{item.subCategory}</td>
+                      <td className="px-4 py-3 border-r border-gray-200">
                         <StatusBadge status={item.status} />
                       </td>
                       <td className="px-4 py-3">
@@ -528,7 +465,7 @@ const AssetItemsList = () => {
         editingItem={viewingItem}
         readOnly
       />
-    </div>
+    </Container>
   );
 };
 

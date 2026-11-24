@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Calendar, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Plus, Trash2 } from 'lucide-react';
 import { notify } from '@/utils/toast';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router';
-import { getAllRawMaterialCategory, getAllRawMaterialItems, getAllSubOutlets, saveOpb } from '@/services/apiServices';
+import { getAllRawMaterialCategory, getAllRawMaterialItems, saveOpb } from '@/services/apiServices';
 import AddRawMaterialCategoryModal from '../../raw-material/row-material-categories/AddRowMaterialCategoryModel';
+import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { getUserIdFromToken } from '../../../utils/auth';
 
@@ -17,14 +19,27 @@ const mapCategory = (item) => ({
 const userId = getUserIdFromToken();
 const normalizeSubUnit = (item) => ({
     id: item.id,
-    name: item.subOutletName || '',
-    code: item.companyCode || '',
-    organizationId: item.organizationId,
-    status: item.isActive ? 'active' : 'inactive',
+    name: item.subOutletName || item.name || '',
+    code: item.companyCode || item.code || '',
+    organizationId: item.organizationId || item.outletId,
+    status: item.isActive !== false ? 'active' : 'inactive',
     originalData: item,
 });
 
 let rowIdCounter = 1;
+// Disallow negative numbers and prevent typing '-' or 'e'
+const sanitizeNonNegative = (val) => {
+    if (val === '') return '';
+    const num = Number(val);
+    if (isNaN(num) || num < 0) return '0';
+    return String(val);
+};
+
+const blockNegativeKeys = (e) => {
+    if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+    }
+};
 
 const OpbStockCreateRequest = () => {
     const navigate = useNavigate();
@@ -38,14 +53,19 @@ const OpbStockCreateRequest = () => {
         selectedUnitId,
         setSelectedUnitId,
         effectiveOutletId,
+        getSubOutlets,
+        getSubLocations,
     } = useOrgScope();
 
     const [createdDate, setCreatedDate] = useState(() => new Date().toISOString().slice(0, 10));
     const [outlet, setOutlet] = useState('');
     const [subOutlet, setSubOutlet] = useState('');
+    const [subLocation, setSubLocation] = useState('');
     const [subUnits, setSubUnits] = useState([]);
+    const [subLocations, setSubLocations] = useState([]);
     const [subUnitsLoading, setSubUnitsLoading] = useState(false);
-    const [category, setCategory] = useState('');
+    const [subLocationsLoading, setSubLocationsLoading] = useState(false);
+    const [category, setCategory] = useState('ALL');
     const [categories, setCategories] = useState([]);
     const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
     const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -57,55 +77,41 @@ const OpbStockCreateRequest = () => {
 
     const outletOptions = useMemo(
         () =>
-            units.map((unit) => ({
-                value: String(unit.id),
-                label: `${unit.name}${unit.code ? ` (${unit.code})` : ''}`,
-            })),
+            (units || [])
+                .filter((unit) => unit?.id != null && String(unit.id).toUpperCase() !== 'ALL')
+                .map((unit) => ({
+                    value: String(unit.id),
+                    label: `${unit.name}${unit.code ? ` (${unit.code})` : ''}`,
+                })),
         [units]
     );
 
+    // Check if current outlet value exists in the options list
+    const isOutletValid = useMemo(() => {
+        return outletOptions.some((opt) => opt.value === String(outlet));
+    }, [outletOptions, outlet]);
+
     useEffect(() => {
+        if (orgScopeLoading) return;
+
         if (isOutletUser && effectiveOutletId) {
-            const outletId = String(effectiveOutletId);
-            setOutlet(outletId);
-            setSelectedUnitId(effectiveOutletId);
+            setOutlet(String(effectiveOutletId));
+        } else {
+            // Group & Company users start with an empty string
+            setOutlet('');
         }
-    }, [isOutletUser, effectiveOutletId, setSelectedUnitId]);
+    }, [isOutletUser, effectiveOutletId, orgScopeLoading]);
 
-    useEffect(() => {
-        if (!isOutletUser && selectedUnitId) {
-            setOutlet(String(selectedUnitId));
-        }
-    }, [isOutletUser, selectedUnitId]);
-
-    const fetchSubUnits = useCallback(async () => {
+    const fetchSubUnits = useCallback(() => {
         if (!outlet) {
             setSubUnits([]);
             return;
         }
-
-        setSubUnitsLoading(true);
-
-        try {
-            const res = await getAllSubOutlets();
-
-            const list = res?.data?.data || res?.data?.content || res?.data || [];
-            const subOutletList = Array.isArray(list) ? list : [];
-
-            const filteredSubOutlets = subOutletList
-                .filter((sub) => sub.isActive)
-                .filter((sub) => Number(sub.organizationId) === Number(outlet))
-                .map(normalizeSubUnit);
-
-            setSubUnits(filteredSubOutlets);
-        } catch (err) {
-            console.error('Failed to load sub outlets:', err);
-            notify.error('Failed to load sub outlets');
-            setSubUnits([]);
-        } finally {
-            setSubUnitsLoading(false);
-        }
-    }, [outlet]);
+        const list = getSubOutlets(outlet);
+        const safeList = Array.isArray(list) ? list : [];
+        setSubUnits(safeList.map(normalizeSubUnit));
+        setSubUnitsLoading(false);
+    }, [outlet, getSubOutlets]);
 
     useEffect(() => {
         fetchSubUnits();
@@ -120,23 +126,51 @@ const OpbStockCreateRequest = () => {
         [subUnits]
     );
 
+    /* Fetch Sub-Locations when Sub-Outlet changes */
+    useEffect(() => {
+        if (!subOutlet) {
+            setSubLocations([]);
+            setSubLocation('');
+            return;
+        }
+        const locs = getSubLocations(subOutlet);
+        setSubLocations(Array.isArray(locs) ? locs : []);
+        setSubLocationsLoading(false);
+    }, [subOutlet, getSubLocations]);
+
+    const subLocationOptions = useMemo(
+        () =>
+            subLocations.map((loc) => ({
+                value: String(loc.id),
+                label: `${loc.subLocationName || loc.locationName || loc.name || `Sub Location #${loc.id}`}${loc.locationType || loc.type ? ` (${loc.locationType || loc.type})` : ''
+                    }`,
+            })),
+        [subLocations]
+    );
+
     const fetchCategories = useCallback(async () => {
         setCategoriesLoading(true);
         setCategoriesError(null);
 
         try {
             const res = await getAllRawMaterialCategory(0);
-            const raw = res?.data?.data?.['Raw Material Category Details'] || [];
-            setCategories(Array.isArray(raw) ? raw.map(mapCategory) : []);
+            const raw =
+                res?.data?.data?.['Raw Material Category Details'] || [];
+
+            // Define 'mapped' before spreading it
+            const mapped = Array.isArray(raw) ? raw.map(mapCategory) : [];
+
+            setCategories([{ value: 'ALL', label: 'All Categories' }, ...mapped]);
         } catch (err) {
             console.error('Failed to load categories:', err);
             setCategoriesError('Failed to load categories');
             notify.error('Failed to load categories');
+            setCategories([{ value: 'ALL', label: 'All Categories' }]);
         } finally {
             setCategoriesLoading(false);
         }
     }, []);
-
+        
     useEffect(() => {
         fetchCategories();
     }, [fetchCategories]);
@@ -145,10 +179,8 @@ const OpbStockCreateRequest = () => {
         await fetchCategories();
 
         if (newCategory?.id != null) {
-            setCategory({
-                value: String(newCategory.id),
-                label: newCategory.nameEnglish || newCategory.categoryName || newCategory.name || '',
-            });
+            // Pass string ID rather than an object
+            setCategory(String(newCategory.id));
         }
     };
 
@@ -161,14 +193,18 @@ const OpbStockCreateRequest = () => {
         setItemsLoading(true);
 
         try {
-            const res = await getAllRawMaterialItems(Number(category), 0, '', '');
+            const catId = category === 'ALL' ? 0 : Number(category);
+            const res = await getAllRawMaterialItems(catId, 0, '', '');
             const responseData = res?.data?.data || {};
             const rawItems = responseData['Raw Material Details'] || [];
 
             const mappedItems = rawItems.map((item) => ({
                 id: item.id,
                 itemType: 'Raw Material',
-                itemName: item.nameEnglish || '',
+                itemName: item.nameEnglish || item.name || '',
+                nameEnglish: item.nameEnglish || item.name || '',
+                itemCode: item.itemCode || item.code || item.sku || '',
+                code: item.itemCode || item.code || item.sku || '',
                 category: item.rawMaterialCat?.nameEnglish || item.rawMaterialCategoryName || '',
                 unit: item.unit?.nameEnglish || item.unitName || '',
                 unitId: item.unitId ?? item.unit?.id ?? null,
@@ -177,8 +213,10 @@ const OpbStockCreateRequest = () => {
                     name: u.nameEnglish,
                 })),
                 opbStock: item.opbStock ?? 0,
+                currentStock: item.currentStock || item.opbStock || 0,
                 minStock: item.minStock ?? 0,
-                price: item.supplierRate ?? 0,
+                price: item.supplierRate ?? item.unitRate ?? item.price ?? 0,
+                supplierRate: item.supplierRate ?? item.unitRate ?? item.price ?? 0,
                 expiryDate: item.expiryDate ?? null,
                 originalData: item,
             }));
@@ -250,14 +288,20 @@ const OpbStockCreateRequest = () => {
     };
 
     const updateItemField = (rowId, field, value) => {
-        setSelectedItems((prev) =>
-            prev.map((row) =>
-                row.rowId === rowId
-                    ? { ...row, [field]: value }
-                    : row
-            )
-        );
-    };
+    let sanitizedValue = value;
+
+    if (['opb', 'price', 'minQty'].includes(field)) {
+        sanitizedValue = sanitizeNonNegative(value);
+    }
+
+    setSelectedItems((prev) =>
+        prev.map((row) =>
+            row.rowId === rowId
+                ? { ...row, [field]: sanitizedValue }
+                : row
+        )
+    );
+};
 
     const handleDeleteItem = (rowId) => {
         setSelectedItems((prev) => prev.filter((row) => row.rowId !== rowId));
@@ -271,7 +315,7 @@ const OpbStockCreateRequest = () => {
         const selectedOutletId = Number(outlet || effectiveOutletId);
 
         if (!selectedOutletId) {
-            notify.error('Please select Outlet');
+            notify.error('Please select Unit');
             return;
         }
 
@@ -299,6 +343,7 @@ const OpbStockCreateRequest = () => {
                 organizationId: selectedOutletId,
                 postDirectly: true,
                 subOutletId: Number(subOutlet) || '',
+                subLocationId: subLocation ? Number(subLocation) : null,
             };
 
             await saveOpb(payload, Number(getUserIdFromToken()));
@@ -317,20 +362,21 @@ const OpbStockCreateRequest = () => {
 
     return (
         <Container>
-            <div className="p-4 md:p-6">
-                <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Inventory</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">
-                        OPB Stock Create Request
-                    </span>
-                </div>
-
-                <h1 className="text-2xl font-bold text-[#0F172A]">
-                    OPB Stock Create Request
-                </h1>
+            <div className="mx-auto pt-2 pb-6 space-y-3.5">
+                <PageHeader
+                    title="OPB Stock Create Request"
+                    actions={
+                        <button
+                            type="button"
+                            onClick={() => navigate('/inventory/opb-stock-create-request-list')}
+                            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to List
+                        </button>
+                    }
+                    className="mb-2"
+                />
 
                 <div className="bg-white border border-[#E2E8F0] rounded-2xl mt-4 relative">
                     <div className="px-6 py-4 border-b border-[#E2E8F0]">
@@ -340,7 +386,7 @@ const OpbStockCreateRequest = () => {
                     </div>
 
                     <div className="px-6 py-5 space-y-5">
-                        <div className="grid sm:grid-cols-3 gap-4">
+                        <div className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4`}>
                             <div>
                                 <label className="text-xs font-medium text-gray-600">
                                     Created Date
@@ -363,20 +409,20 @@ const OpbStockCreateRequest = () => {
                             {
                                 !isOutletUser && <div>
                                     <label className="text-xs font-medium text-gray-600">
-                                        Outlet
+                                        Unit
                                     </label>
 
                                     <SearchableSelect
                                         className="mt-1.5"
                                         options={outletOptions}
-                                        value={outlet}
+                                        value={isOutletValid ? outlet : ''}
                                         onChange={(e) => {
-                                            const value = e.target.value;
-                                            setOutlet(value);
-                                            setSelectedUnitId(value);
+                                            const val = e.target.value;
+                                            setOutlet(val);
                                             setSubOutlet('');
+                                            setSubLocation('');
                                         }}
-                                        placeholder={ 'Select Outlet' }
+                                        placeholder={ 'Select Unit' }
                                     />
 
                                     {orgScopeError && (
@@ -390,89 +436,99 @@ const OpbStockCreateRequest = () => {
 
                             <div>
                                 <label className="text-xs font-medium text-gray-600">
-                                    Sub-Outlet
+                                    Sub-Unit <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
                                 </label>
 
                                 <SearchableSelect
                                     className="mt-1.5"
                                     options={subOutletOptions}
                                     value={subOutlet}
-                                    onChange={(e) => setSubOutlet(e.target.value)}
+                                    onChange={(e) => {
+                                        setSubOutlet(e.target.value);
+                                        setSubLocation('');
+                                    }}
                                     disabled={!outlet || subUnitsLoading}
                                     placeholder={
                                         !outlet
-                                            ? 'Select Outlet first'
+                                            ? 'Select Unit first'
                                             : subUnitsLoading
-                                                ? 'Loading sub outlets...'
-                                                : 'Select Sub-Outlet'
+                                                ? 'Loading sub-units...'
+                                                : 'Select Sub-Unit'
                                     }
                                 />
                             </div>
-                        </div>
 
-                        <div>
-                            <label className="text-xs font-medium text-gray-600">
-                                Select Raw Material Category
-                            </label>
+                            <div>
+                                <label className="text-xs font-medium text-gray-600">
+                                    Sub-Location <span className="text-[10px] text-gray-400 font-normal">(Optional)</span>
+                                </label>
 
-                            <div className="flex items-center gap-2 mt-1.5">
                                 <SearchableSelect
-                                    className="flex-1"
-                                    options={categories}
-                                    value={category}
-                                    onChange={(e) => setCategory(e.target.value)}
+                                    className="mt-1.5"
+                                    options={subLocationOptions}
+                                    value={subLocation}
+                                    onChange={(e) => setSubLocation(e.target.value)}
+                                    disabled={!subOutlet || subLocationsLoading}
                                     placeholder={
-                                        categoriesLoading
-                                            ? 'Loading...'
-                                            : 'Select Raw Material Category'
+                                        !subOutlet
+                                            ? 'Select Sub-Outlet first'
+                                            : subLocationsLoading
+                                                ? 'Loading sub locations...'
+                                                : 'Select Sub-Location'
                                     }
                                 />
-
-                                <button
-                                    type="button"
-                                    onClick={() => setIsCategoryModalOpen(true)}
-                                    className="w-10 h-10 shrink-0 flex items-center justify-center rounded-lg bg-[#084E92] text-white hover:bg-[#084E92]/90 cursor-pointer"
-                                >
-                                    <Plus size={18} />
-                                </button>
                             </div>
-
-                            {categoriesError && (
-                                <p className="text-xs text-red-500 mt-1">
-                                    {categoriesError}
-                                </p>
-                            )}
                         </div>
 
-                        <div>
-                            <label className="text-xs font-medium text-gray-600">
-                                Search
-                            </label>
+                        <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
+                            <div>
+                                <label className="text-xs font-medium text-gray-600">
+                                    Select Raw Material Category
+                                </label>
 
-                            <SearchableSelect
-                                className="mt-1.5"
-                                options={itemOptions}
-                                value=""
-                                onChange={(e) => {
-                                    const selectedItem = items.find(
-                                        (item) =>
-                                            String(item.id) ===
-                                            String(e.target.value)
-                                    );
+                                <div className="flex items-center gap-2">
+                                    <SearchableSelect
+                                        className="flex-1"
+                                        options={categories}
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value)}
+                                        placeholder={
+                                            categoriesLoading
+                                                ? 'Loading...'
+                                                : 'Select Raw Material Category'
+                                        }
+                                    />
+                                </div>
 
-                                    if (selectedItem) {
-                                        handleAddItem(selectedItem);
+                                {categoriesError && (
+                                    <p className="text-xs text-red-500 mt-1">
+                                        {categoriesError}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="self-end w-full [&_.max-w-lg]:max-w-full [&_input]:h-10 [&_input]:text-sm">
+                                <label className="text-xs font-medium text-gray-600">
+                                    Select Raw Material
+                                </label>
+                                <RawMaterialSearchPicker
+                                    items={items}
+                                    alreadyAddedIds={selectedItems.map((r) => r.itemId)}
+                                    onSelect={handleAddItem}
+                                    disabled={!category || itemsLoading}
+                                    loading={itemsLoading}
+                                    placeholder={
+                                        !category
+                                            ? 'Select category first'
+                                            : itemsLoading
+                                                ? 'Loading items...'
+                                                : 'Search Raw Material by name or code...'
                                     }
-                                }}
-                                disabled={!category || itemsLoading}
-                                placeholder={
-                                    !category
-                                        ? 'Select category first'
-                                        : itemsLoading
-                                            ? 'Loading items...'
-                                            : 'Search Raw Material'
-                                }
-                            />
+                                    label=""
+                                    className="w-full"
+                                    isSticky={false}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -605,6 +661,8 @@ const OpbStockCreateRequest = () => {
                                                     type="number"
                                                     min="0"
                                                     value={row.opb}
+                                                    onKeyDown={blockNegativeKeys}
+                                                    onWheel={e => e.currentTarget.blur()}
                                                     onChange={(e) =>
                                                         updateItemField(
                                                             row.rowId,
@@ -621,6 +679,8 @@ const OpbStockCreateRequest = () => {
                                                     type="number"
                                                     min="1"
                                                     value={row.minQty}
+                                                    onKeyDown={blockNegativeKeys}
+                                                    onWheel={e => e.currentTarget.blur()}
                                                     onChange={(e) =>
                                                         updateItemField(
                                                             row.rowId,
@@ -637,6 +697,8 @@ const OpbStockCreateRequest = () => {
                                                     type="number"
                                                     min="0"
                                                     value={row.price}
+                                                    onKeyDown={blockNegativeKeys}
+                                                    onWheel={e => e.currentTarget.blur()}
                                                     onChange={(e) =>
                                                         updateItemField(
                                                             row.rowId,

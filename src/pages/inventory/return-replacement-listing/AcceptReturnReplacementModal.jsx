@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, CheckCircle2 } from 'lucide-react';
+import { formatRemarks } from '@/utils/textUtils';
 
 const inputCls =
     'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -46,7 +47,7 @@ const AcceptReturnReplacementModal = ({ isOpen, onClose, onConfirm, item, saving
         onConfirm?.({
             id: item?.id,
             acceptedQuantity,
-            remarks,
+            remarks: formatRemarks(remarks),
         });
     };
 
@@ -128,6 +129,7 @@ const AcceptReturnReplacementModal = ({ isOpen, onClose, onConfirm, item, saving
                             rows={3}
                             value={remarks}
                             onChange={(e) => setRemarks(e.target.value)}
+                            onBlur={() => setRemarks((prev) => formatRemarks(prev))}
                             placeholder="Enter any additional notes or remarks"
                             className={inputCls}
                         />

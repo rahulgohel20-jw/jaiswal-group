@@ -1,27 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
 import {
-  ChevronDown,
-  PackagePlus,
+  ArrowLeft,
   Plus,
-  Search,
-  Trash2,
   UploadCloud,
-  Users,
   X,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import {
   addRawMaterialItem,
-  getAllActiveVendors,
   getAllRawMaterialCategory,
+  getAllRawMaterialCategoryType,
   getAllRawMaterialUnits,
   getAllSubCategoryByCategoryId,
   getRawMaterialCategoryBrandsByCategoryId,
+  getRawMaterialById,
   updateRawMaterialItem,
 } from '../../../services/apiServices';
 import { getUserIdFromToken } from '../../../utils/auth';
@@ -30,18 +25,16 @@ import AddRawMaterialUnit from '../raw-material-unit-master/AddRawMaterialUnit';
 import AddRawMaterialCategoryModal from '../row-material-categories/AddRowMaterialCategoryModel';
 import SearchableSelect from '../../../utils/SearchableSelect';
 import AddRawMaterialSubCategoryModal from '../raw-material-subcategory/AddRawMaterialSubCategoryModal';
+import AddRawMaterialModal from '../raw-material-type/AddRawMaterialModal';
 
 const getLatestImage = (images) => {
-  if (!Array.isArray(images) || images.length === 0) {
-    return "";
-  }
-
-  return [...images]
-    .sort((a, b) => Number(b.id) - Number(a.id))[0]?.path || "";
+  if (!Array.isArray(images) || images.length === 0) return "";
+  return [...images].sort((a, b) => Number(b.id) - Number(a.id))[0]?.path || "";
 };
 
 const emptyForm = {
   nameEnglish: '',
+  rawMaterialCatTypeId: '',
   rawMaterialCatId: '',
   rawMaterialSubCatId: '',
   status: 'Active',
@@ -51,64 +44,39 @@ const emptyForm = {
   dailyConsumption: '',
   opbStock: '',
   minStock: '',
+  maxStock: '',
   minOrder: '',
   sequence: '',
   weightPer100Pax: '',
   hsnCode: '',
   tax: '',
-  cess: '',
+  isCessApplicable: false,
+  isUsedBy: false,
   isGeneralFix: false,
   isApplyCal: false,
   file: null,
   imageUrl: '',
 };
 
-const formatDateForBackend = (dateStr) => {
-  if (!dateStr) return '';
+const pickDefined = (...vals) => vals.find((v) => v !== undefined && v !== null && v !== '');
 
-  // input[type="date"] gives yyyy-MM-dd
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    const [year, month, day] = dateStr.split('-');
-    return `${day}/${month}/${year}`;
-  }
-
-  // Already dd/MM/yyyy
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
-    return dateStr;
-  }
-
-  return '';
+const normalizeType = (data) => {
+  if (!data) return null;
+  const rawCat = data.rawMaterialCat || data.rawMaterialCategory;
+  const rawType = rawCat?.rawMaterialCatType || data.rawMaterialCatType || data.categoryType;
+  const id = pickDefined(
+    typeof rawType === 'object' ? rawType?.id : rawType,
+    data.rawMaterialCatTypeId,
+    data.categoryTypeId
+  );
+  if (id == null || id === '') return null;
+  const name =
+    (typeof rawType === 'object' ? rawType?.nameEnglish : '') ||
+    data.categoryTypeName ||
+    data.typeName ||
+    '';
+  return { id, nameEnglish: name };
 };
-const formatDateToInputValue = (dateStr) => {
-  if (!dateStr) return '';
-
-  // Already yyyy-MM-dd
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    return dateStr;
-  }
-
-  // dd/MM/yyyy or dd-MM-yyyy
-  const parts = dateStr.split(/[-/]/);
-
-  if (parts.length !== 3) return '';
-
-  const [day, month, year] = parts;
-
-  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-};
-
-/* -------------------------------------------------------------------------
- * Normalization helpers
- * The "edit an existing item" path (data from getRawMaterialById) and the
- * "just created via the + modal" path (data from onSaved(createdRecord))
- * don't necessarily share the same shape — one may be a flat id+name pair,
- * the other a nested object. These helpers coerce either into a single
- * {id, nameEnglish} / {id, name} shape so the rest of the component doesn't
- * need to care which source it came from.
- * ---------------------------------------------------------------------- */
-
-const pickDefined = (...vals) =>
-  vals.find((v) => v !== undefined && v !== null && v !== '');
 
 const normalizeCategory = (data) => {
   if (!data) return null;
@@ -155,167 +123,169 @@ const normalizeUnit = (data) => {
   return { id, nameEnglish: name };
 };
 
-// Brand list now comes from getAllActiveRawMaterialBrand, which returns
-// { id, name, description, active, ... } — not nested under a "brand" key.
 const normalizeBrand = (data) => {
   if (!data) return null;
-  const id = pickDefined(data.brandId, data.brand?.id, data.id);
+  const id = pickDefined(data.brandId, data.brand?.id);
   if (id == null || id === '') return null;
   const name = data.brandName || data.brand?.name || data.name || '';
   return { id, name };
 };
 
-const AddRawMaterialItemModal = ({
-  isOpen,
-  onClose,
-  editData = null,
-  isViewOnly = false,
-  fetchRawMaterialList,
-  fetchStats,
-}) => {
-  const [isFixedRawMaterial, setIsFixedRawMaterial] = useState(false);
+const blurOnWheel = (e) => e.currentTarget.blur();
+
+const SmallToggle = ({ checked, onChange, label, disabled = false }) => (
+  <button
+    type="button"
+    role="switch"
+    disabled={disabled}
+    aria-checked={checked}
+    aria-label={label}
+    onClick={onChange}
+    className={`w-9 h-5 rounded-full flex items-center transition-all duration-300 p-0.5 shrink-0 ${
+      disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+      } ${checked ? 'bg-[#00376C]' : 'bg-gray-300'}`}
+  >
+    <span
+      className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-all duration-300 ${
+        checked ? 'translate-x-4' : 'translate-x-0'
+        }`}
+    />
+  </button>
+);
+
+const AddRawMaterialItemModal = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const isViewOnly = location.pathname.includes('/view/');
+
+  const [editData, setEditData] = useState(null);
+  const [loadingItem, setLoadingItem] = useState(Boolean(id));
   const [form, setForm] = useState(emptyForm);
 
-  const [supplierOptions, setSupplierOptions] = useState([]);
-  const [selectedSupplierIds, setSelectedSupplierIds] = useState([]);
-  const [supplierRows, setSupplierRows] = useState([]);
-  const [supplierSearch, setSupplierSearch] = useState('');
-  const [supplierDropdownOpen, setSupplierDropdownOpen] = useState(false);
-
+  const [types, setTypes] = useState([]);
   const [units, setUnits] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const [subCategories, setSubCategories] = useState([]);
   const [loadingSubCategories, setLoadingSubCategories] = useState(false);
   const [brands, setBrands] = useState([]);
   const [errors, setErrors] = useState({});
+
+  const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubCategoryModalOpen, setIsSubCategoryModalOpen] = useState(false);
   const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
 
-  const handleClose = () => {
-    setForm(emptyForm);
-    setErrors({});
-    setSubCategories([]);
-    setIsFixedRawMaterial(false);
-    setSelectedSupplierIds([]);
-    setSupplierRows([]);
-    setSupplierSearch('');
-    onClose();
+  const userId = getUserIdFromToken();
+  const imageRef = useRef(null);
+
+  const set = (key, value) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: '' }));
   };
+
+  const handleClose = () => {
+    navigate('/material/items');
+  };
+
   const validate = () => {
     const newErrors = {};
+    if (!form.nameEnglish.trim()) newErrors.nameEnglish = 'Raw Material Name is required';
+    if (!form.rawMaterialCatTypeId) newErrors.rawMaterialCatTypeId = 'Raw Material Type is required';
+    if (!form.rawMaterialCatId) newErrors.rawMaterialCatId = 'Raw Material Category is required';
+    if (!form.unitId) newErrors.unitId = 'Unit is required';
 
-    if (!form.nameEnglish.trim()) {
-      newErrors.nameEnglish = 'Raw Material Name is required';
-    }
-
-    if (!form.rawMaterialCatId) {
-      newErrors.rawMaterialCatId = 'Raw Material Category is required';
-    }
-
-    if (!form.unitId) {
-      newErrors.unitId = 'Unit is required';
-    }
-
-    if (form.supplierRate !== '' && Number(form.supplierRate) < 0) {
-      newErrors.supplierRate = 'Rate must be positive';
-    }
-    if (form.opbStock && Number(form.opbStock) < 0) {
-      newErrors.opbStock = 'Opening balance must be positive';
-    }
-    if (form.minStock && Number(form.minStock) < 0) {
-      newErrors.minStock = 'Minstock must be positive';
+    if (form.supplierRate !== '' && Number(form.supplierRate) < 0) newErrors.supplierRate = 'Rate must be positive';
+    if (form.opbStock && Number(form.opbStock) < 0) newErrors.opbStock = 'Opening balance must be positive';
+    if (form.minStock && Number(form.minStock) < 0) newErrors.minStock = 'Minstock must be positive';
+    if (form.maxStock && Number(form.maxStock) < 0) {
+      newErrors.maxStock = 'Maximum stock must be positive';
+    } else if (form.maxStock !== '' && form.minStock !== '' && Number(form.maxStock) < Number(form.minStock)) {
+      newErrors.maxStock = 'Maximum stock cannot be less than minimum stock';
     }
 
-    // Daily Consumption validation
     if (form.dailyConsumption !== '' && Number(form.dailyConsumption) < 0) {
       newErrors.dailyConsumption = 'Daily Consumption must be positive';
     }
-    setErrors(newErrors);
 
+    setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const fetchTypes = async (editType = null) => {
+    try {
+      const res = await getAllRawMaterialCategoryType();
+      const typeData = res?.data?.data?.['Raw Material Category Type Details'] || res?.data?.data || [];
+      let activeList = typeData.filter((item) => item.isActive === true);
+      if (editType?.id != null && !activeList.some((t) => String(t.id) === String(editType.id))) {
+        activeList = [...activeList, { ...editType, isActive: true }];
+      }
+      setTypes(activeList);
+      return activeList;
+    } catch (err) {
+      console.error('Failed to load types:', err);
+      return [];
+    }
   };
 
   const fetchUnits = async (editUnit = null) => {
     try {
       const res = await getAllRawMaterialUnits();
-      const unitData =
-        res?.data?.data?.['Unit Details'] || res?.data?.data || [];
-
+      const unitData = res?.data?.data?.['Unit Details'] || res?.data?.data || [];
       let activeList = unitData.filter((item) => item.isActive === true);
-
-      if (
-        editUnit?.id != null &&
-        !activeList.some((u) => String(u.id) === String(editUnit.id))
-      ) {
+      if (editUnit?.id != null && !activeList.some((u) => String(u.id) === String(editUnit.id))) {
         activeList = [...activeList, { ...editUnit, isActive: true }];
       }
-
       setUnits(activeList);
     } catch (err) {
       console.error('Failed to load units:', err);
     }
   };
 
-  const fetchCategories = async (editCategory = null) => {
+  const fetchCategories = async (categoryTypeId, editCategory = null) => {
+    if (!categoryTypeId) {
+      setCategories([]);
+      return [];
+    }
+    setLoadingCategories(true);
     try {
-      const res = await getAllRawMaterialCategory();
-      const categoryData =
-        res?.data?.data?.['Raw Material Category Details'] ||
-        res?.data?.data ||
-        [];
-
-      let activeList = categoryData.filter((item) => item.isActive === true);
-
-      if (
-        editCategory?.id != null &&
-        !activeList.some((c) => String(c.id) === String(editCategory.id))
-      ) {
+      // Pass the primitive ID directly (do not pass an object)
+      const res = await getAllRawMaterialCategory(Number(categoryTypeId));
+      const categoryData = res?.data?.data?.['Raw Material Category Details'] || res?.data?.data || [];
+      let activeList = Array.isArray(categoryData)
+        ? categoryData.filter((item) => item.isActive === true)
+        : [];
+      if (editCategory?.id != null && !activeList.some((c) => String(c.id) === String(editCategory.id))) {
         activeList = [...activeList, { ...editCategory, isActive: true }];
       }
-
       setCategories(activeList);
+      return activeList;
     } catch (err) {
       console.error('Failed to load categories:', err);
+      setCategories([]);
+      return [];
+    } finally {
+      setLoadingCategories(false);
     }
   };
 
-  const fetchSubCategoriesForCategory = async (
-    categoryId,
-    editSubCategory = null,
-  ) => {
+  const fetchSubCategoriesForCategory = async (categoryId, editSubCategory = null) => {
     if (!categoryId) {
       setSubCategories([]);
       return [];
     }
-
     setLoadingSubCategories(true);
-
     try {
       const res = await getAllSubCategoryByCategoryId(categoryId);
-
-      const subCategoryData = Array.isArray(res?.data)
-        ? res.data
-        : res?.data?.data || [];
-
-      let activeList = subCategoryData.filter(
-        (item) => item.isActive === true
-      );
-
-      // If edit mode has an existing subcategory,
-      // make sure it exists in the dropdown.
-      if (
-        editSubCategory?.id != null &&
-        !activeList.some(
-          (s) => String(s.id) === String(editSubCategory.id)
-        )
-      ) {
+      const subCategoryData = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
+      let activeList = subCategoryData.filter((item) => item.isActive === true);
+      if (editSubCategory?.id != null && !activeList.some((s) => String(s.id) === String(editSubCategory.id))) {
         activeList = [...activeList, editSubCategory];
       }
-
       setSubCategories(activeList);
-
       return activeList;
     } catch (err) {
       console.error('Failed to load sub-categories:', err);
@@ -325,31 +295,23 @@ const AddRawMaterialItemModal = ({
       setLoadingSubCategories(false);
     }
   };
-  // Brands are now a flat, independent list (getAllActiveRawMaterialBrand) —
-  // not scoped to the selected category. editBrand: normalized {id, name},
-  // merged in so an existing selection still shows even if it's since gone
-  // inactive.
+
   const fetchBrands = async (categoryId, editBrand = null) => {
     if (!categoryId) {
       setBrands([]);
-      return;
+      return [];
     }
     try {
       const res = await getRawMaterialCategoryBrandsByCategoryId(categoryId);
       const brandData = res?.data?.data?.['Raw Material Brand Details'] || [];
-      let brandList = brandData.map((item) => ({
-        id: item.brandId,
-        name: item.brandName,
-      }));
-
-
+      let brandList = brandData.map((item) => ({ id: item.brandId, name: item.brandName }));
       if (
         editBrand?.id != null &&
+        editBrand?.name &&
         !brandList.some((b) => String(b.id) === String(editBrand.id))
       ) {
-        brandList = [...brandList, { id: editBrand.id, name: editBrand.name, },];
+        brandList = [...brandList, { id: editBrand.id, name: editBrand.name }];
       }
-
       setBrands(brandList);
       return brandList;
     } catch (err) {
@@ -359,372 +321,183 @@ const AddRawMaterialItemModal = ({
     }
   };
 
-  const fetchSuppliers = async () => {
-    try {
-      const res = await getAllActiveVendors();
-      const supplierData = res?.data?.data || [];
-
-      setSupplierOptions(supplierData);
-    } catch (err) {
-      console.error('Failed to load vendors:', err);
-    }
-  };
+  useEffect(() => {
+    fetchTypes();
+    fetchUnits();
+  }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchUnits(normalizeUnit(editData));
-      fetchCategories(normalizeCategory(editData));
-      fetchSuppliers();
+    if (!id) {
+      setEditData(null);
+      setLoadingItem(false);
+      return;
     }
-  }, [isOpen, editData]);
 
-  // Sub-categories are still scoped to the selected category, so keep
-  // refetching them whenever it changes (including when the form is first
-  // populated from editData, since that sets rawMaterialCatId too).
+    const loadItem = async () => {
+      try {
+        setLoadingItem(true);
+        const res = await getRawMaterialById(id);
+        const item = res?.data?.data?.['Raw Material Details']?.[0];
+
+        if (!item) {
+          navigate('/material/items', { replace: true });
+          return;
+        }
+        setEditData(item);
+      } catch (err) {
+        console.error('Failed to load raw material item:', err);
+        navigate('/material/items', { replace: true });
+      } finally {
+        setLoadingItem(false);
+      }
+    };
+
+    loadItem();
+  }, [id, navigate]);
+
+  // Populate the form from the loaded item
   useEffect(() => {
-    if (!isOpen || !form.rawMaterialCatId) {
+    if (!editData) {
+      setForm(emptyForm);
+      return;
+    }
+
+    const type = normalizeType(editData);
+    const category = normalizeCategory(editData);
+    const subCategory = normalizeSubCategory(editData);
+    const unit = normalizeUnit(editData);
+    const brand = normalizeBrand(editData);
+    const latestImage = getLatestImage(editData.images);
+
+    setForm({
+      nameEnglish: editData.nameEnglish || '',
+      rawMaterialCatTypeId: String(type?.id ?? ''),
+      rawMaterialCatId: String(category?.id ?? ''),
+      rawMaterialSubCatId: String(subCategory?.id ?? ''),
+      unitId: String(unit?.id ?? ''),
+      brandId: String(brand?.id ?? ''),
+      supplierRate: editData.supplierRate ?? '',
+      dailyConsumption: editData.dailyConsumption ?? '',
+      opbStock: editData.opbStock ?? '',
+      minStock: editData.minStock ?? '',
+      maxStock: editData.maxStock ?? '',
+      minOrder: editData.minOrder ?? '',
+      sequence: editData.sequence ?? '',
+      weightPer100Pax: editData.weightPer100Pax ?? '',
+      hsnCode: editData.hsnCode ?? '',
+      tax: editData.tax ?? '',
+      isCessApplicable: Boolean(editData.isCessApplicable || Number(editData.cess) > 0),
+      isUsedBy: Boolean(editData.isUsedBy || editData.useByDate),
+      isGeneralFix: editData.isGeneralFix ?? false,
+      isApplyCal: editData.isApplyCal ?? false,
+      file: null,
+      imageUrl: latestImage,
+    });
+  }, [editData]);
+
+  // Seed the saved brand into the options so it displays without a network call
+  useEffect(() => {
+    if (!editData) return;
+    const brand = normalizeBrand(editData);
+    if (brand?.id != null && brand?.name) {
+      setBrands((prev) =>
+        prev.some((b) => String(b.id) === String(brand.id))
+          ? prev
+          : [...prev, { id: brand.id, name: brand.name }]
+      );
+    }
+  }, [editData]);
+
+  // Load category type's categories whenever the type changes
+  useEffect(() => {
+    if (!form.rawMaterialCatTypeId) {
+      setCategories([]);
+      return;
+    }
+    fetchCategories(form.rawMaterialCatTypeId, normalizeCategory(editData));
+  }, [form.rawMaterialCatTypeId]);
+
+  // Load sub-categories whenever the category changes.
+  // Brands are fetched only when the user picks a category (see onChange below).
+  useEffect(() => {
+    if (!form.rawMaterialCatId) {
       setSubCategories([]);
       return;
     }
-    const currentCategoryId = String(form.rawMaterialCatId);
-    // Only use the edit subcategory when the current category
-    // is still the original category.
-    const originalCategory = normalizeCategory(editData);
+    fetchSubCategoriesForCategory(form.rawMaterialCatId, normalizeSubCategory(editData));
+  }, [form.rawMaterialCatId]);
 
-    const editSubCategory =
-      originalCategory?.id != null &&
-        String(originalCategory.id) === currentCategoryId
-        ? normalizeSubCategory(editData)
-        : null;
+  const [isDragging, setIsDragging] = useState(false);
 
-    fetchSubCategoriesForCategory(currentCategoryId, editSubCategory);
-  }, [isOpen, form.rawMaterialCatId, editData?.id,]);
-
-
-  // Same clearing behavior for sub-category.
-  useEffect(() => {
-    if (loadingSubCategories || !form.rawMaterialSubCatId) {
-      return;
-    }
-
-    const stillValid = subCategories.some((s) =>
-      String(s.id) === String(form.rawMaterialSubCatId)
-    );
-
-    if (!stillValid) {
-      set('rawMaterialSubCatId', '');
-    }
-  }, [
-    subCategories,
-    loadingSubCategories,
-    form.rawMaterialSubCatId,
-  ]);
-
-  const userId = getUserIdFromToken();
-
-  const imageRef = useRef(null);
-  const set = (key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-
-    setErrors((prev) => ({
-      ...prev,
-      [key]: '',
-    }));
-  };
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-
-    if (!file) return;
-
+  const processImageFile = (file) => {
+    if (!file || isViewOnly) return;
+    if (!file.type.startsWith('image/')) return;
     set('file', file);
   };
-  const imagePreview = form.file
-    ? URL.createObjectURL(form.file)
-    : form.imageUrl;
 
-  // Toggles a supplier's checked state inside the multi-select dropdown.
-  const toggleSupplierSelection = (supplierId) => {
-    setSelectedSupplierIds((prev) =>
-      prev.includes(supplierId)
-        ? prev.filter((id) => id !== supplierId)
-        : [...prev, supplierId],
-    );
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    processImageFile(file);
+    e.target.value = '';
   };
 
-  const handleAddSupplier = () => {
-    if (selectedSupplierIds.length === 0) return;
-
-    setSupplierRows((prev) => {
-      const existingIds = new Set(prev.map((row) => String(row.supplierId)));
-      const newRows = selectedSupplierIds
-        .filter((id) => !existingIds.has(String(id)))
-        .map((id) => {
-          const supplier = supplierOptions.find(
-            (s) => String(s.id) === String(id),
-          );
-          return {
-            supplierId: id,
-            name: supplier?.fullName || supplier?.name || 'Unknown Supplier',
-            from: '',
-            to: '',
-            price: '',
-          };
-        });
-
-      return [...prev, ...newRows];
-    });
-
-    setSelectedSupplierIds([]);
-    setSupplierSearch('');
-    setSupplierDropdownOpen(false);
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isViewOnly) setIsDragging(true);
   };
 
-  const updateSupplierRow = (supplierId, field, value) => {
-    setSupplierRows((prev) =>
-      prev.map((row) =>
-        row.supplierId === supplierId ? { ...row, [field]: value } : row,
-      ),
-    );
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
   };
 
-  const removeSupplierRow = (supplierId) => {
-    setSupplierRows((prev) =>
-      prev.filter((row) => row.supplierId !== supplierId),
-    );
-  };
-  useEffect(() => {
-    const loadEditData = async () => {
-      if (!editData) {
-        setForm(emptyForm);
-        setIsFixedRawMaterial(false);
-        setSupplierRows([]);
-        setSubCategories([]);
-        return;
-      }
-
-      const category = normalizeCategory(editData);
-      const subCategory = normalizeSubCategory(editData);
-      const unit = normalizeUnit(editData);
-      const brand = normalizeBrand(editData);
-      const latestImage = getLatestImage(editData.images);
-
-      const categoryId = String(category?.id ?? '');
-      const subCategoryId = String(subCategory?.id ?? '');
-
-      // First set form WITHOUT subcategory
-      setForm({
-        nameEnglish: editData.nameEnglish || '',
-        rawMaterialCatId: categoryId,
-        rawMaterialSubCatId: '',
-        unitId: String(unit?.id ?? ''),
-        brandId: '',
-        supplierRate: editData.supplierRate ?? '',
-        status: editData.isActive ? 'Active' : 'Inactive',
-        dailyConsumption: editData.dailyConsumption ?? '',
-        opbStock: editData.opbStock ?? '',
-        minStock: editData.minStock ?? '',
-        minOrder: editData.minOrder ?? '',
-        sequence: editData.sequence ?? '',
-        weightPer100Pax: editData.weightPer100Pax ?? '',
-        hsnCode: editData.hsnCode ?? '',
-        tax: editData.tax ?? '',
-        cess: editData.cess ?? '',
-        isGeneralFix: editData.isGeneralFix ?? false,
-        isApplyCal: editData.isApplyCal ?? false,
-        file: null,
-        imageUrl: latestImage,
-      });
-
-      setIsFixedRawMaterial(editData.isGeneralFix ?? false);
-
-      // Load subcategories first
-      if (category?.id != null) {
-        const loadedSubCategories =
-          await fetchSubCategoriesForCategory(
-            category.id,
-            subCategory
-          );
-
-        // Now select existing subcategory
-        if (
-          subCategory?.id != null &&
-          loadedSubCategories.some(
-            (item) => String(item.id) === String(subCategory.id)
-          )
-        ) {
-          setForm((prev) => ({
-            ...prev,
-            rawMaterialSubCatId: subCategoryId,
-          }));
-        }
-
-        const loadedBrands = await fetchBrands(category.id, brand);
-
-        if (brand?.id != null) {
-          const brandExists = loadedBrands.some(
-            (b) => String(b.id) === String(brand.id)
-          );
-
-          if (brandExists) {
-            setForm((prev) => ({
-              ...prev,
-              brandId: String(brand.id),
-            }));
-          }
-        }
-      }
-
-      const vendorList =
-        editData.vendorPriceConfigs || editData.suppliers;
-
-      if (Array.isArray(vendorList)) {
-        setSupplierRows(
-          vendorList.map((s) => ({
-            id: s.id,
-            supplierId: s.vendorId ?? s.supplierId ?? s.id,
-            name:
-              s.vendorName ||
-              s.fullName ||
-              s.name ||
-              'Unknown Supplier',
-            from: formatDateToInputValue(
-              s.fromDate || s.from || ''
-            ),
-            to: formatDateToInputValue(
-              s.toDate || s.to || ''
-            ),
-            price: s.price ?? '',
-          }))
-        );
-      } else {
-        setSupplierRows([]);
-      }
-    };
-    loadEditData();
-  }, [editData?.id]);
-
-  // ---- Handlers for the "+" quick-add modals ----
-  // Refetch the relevant list AND merge/select the newly created record so
-  // it shows up in its dropdown immediately, without needing to reopen the
-  // modal. Assumes each child modal's onSaved(createdRecord) passes back the
-  // record it just created.
-
-  const handleCategorySaved = async (newCategory) => {
-    const normalized = normalizeCategory(newCategory) || newCategory;
-    await fetchCategories(normalized || null);
-    if (normalized?.id != null) {
-      set('rawMaterialCatId', String(normalized.id));
-      set('rawMaterialSubCatId', ''); // subcategories don't carry over to a new category
-    }
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    processImageFile(file);
   };
 
-  const handleUnitSaved = async (newUnit) => {
-    const normalized = normalizeUnit(newUnit) || newUnit;
-    await fetchUnits(normalized || null);
-    if (normalized?.id != null) {
-      set('unitId', String(normalized.id));
-    }
+  const handleRemoveImage = (e) => {
+    e.stopPropagation();
+    setForm((prev) => ({ ...prev, file: null, imageUrl: '' }));
+    if (imageRef.current) imageRef.current.value = '';
   };
 
-  const handleBrandSaved = async (newBrand) => {
-    const normalized = normalizeBrand(newBrand) || newBrand;
-    if (form.rawMaterialCatId) {
-      await fetchBrands(form.rawMaterialCatId, normalized);
-    }
-
-    if (normalized?.id != null) {
-      set('brandId', String(normalized.id));
-    }
-  };
-
-  const handleSubCategorySaved = async (newSubCategory) => {
-    const normalized = normalizeSubCategory(newSubCategory) || newSubCategory;
-    await fetchSubCategoriesForCategory(form.rawMaterialCatId, normalized || null);
-    if (normalized?.id != null) {
-      set('rawMaterialSubCatId', String(normalized.id));
-    }
-  };
+  const imagePreview = form.file ? URL.createObjectURL(form.file) : form.imageUrl;
 
   const handleSave = async () => {
     if (!validate()) return;
+
     try {
       const formData = new FormData();
-
       formData.append('nameEnglish', form.nameEnglish);
+      formData.append('rawMaterialCatTypeId', Number(form.rawMaterialCatTypeId));
       formData.append('rawMaterialCatId', Number(form.rawMaterialCatId));
-      if (form.rawMaterialSubCatId !== '') {
-        formData.append('subCategoryId', Number(form.rawMaterialSubCatId));
-      }
+      if (form.rawMaterialSubCatId !== '') formData.append('subCategoryId', Number(form.rawMaterialSubCatId));
       formData.append('unitId', Number(form.unitId));
-      if (form.brandId !== '') {
-        formData.append('brandId', Number(form.brandId));
-      }
-
-      formData.append('supplierRate', form.supplierRate);
-      formData.append('dailyConsumption', form.dailyConsumption);
-
-      if (form.minStock !== '') {
-        formData.append('minStock', Number(form.minStock));
-      }
-
-      if (form.sequence !== '') {
-        formData.append('sequence', Number(form.sequence));
-      }
-
-      if (form.weightPer100Pax !== '') {
-        formData.append('weightPer100Pax', Number(form.weightPer100Pax));
-      }
-
-      if (form.opbStock !== '') {
-        formData.append('opbStock', Number(form.opbStock));
-      }
-
-      if (form.hsnCode !== '') {
-        formData.append('hsnCode', form.hsnCode);
-      }
-      if (form.tax !== '' && form.tax !== null && form.tax !== undefined) {
-        formData.append('tax', Number(form.tax));
-      }
-      if (form.cess !== '' && form.cess !== null && form.cess !== undefined) {
-        formData.append('cess', Number(form.cess));
-      }
-
+      if (form.brandId !== '') formData.append('brandId', Number(form.brandId));
+      if (form.supplierRate !== '') formData.append('supplierRate', Number(form.supplierRate));
+      if (form.dailyConsumption !== '') formData.append('dailyConsumption', form.dailyConsumption);
+      if (form.minStock !== '') formData.append('minStock', Number(form.minStock));
+      if (form.maxStock !== '') formData.append('maxStock', Number(form.maxStock));
+      if (form.minOrder !== '') formData.append('minOrder', Number(form.minOrder));
+      if (form.sequence !== '') formData.append('sequence', Number(form.sequence));
+      if (form.weightPer100Pax !== '') formData.append('weightPer100Pax', Number(form.weightPer100Pax));
+      if (form.opbStock !== '') formData.append('opbStock', Number(form.opbStock));
+      if (form.hsnCode !== '') formData.append('hsnCode', form.hsnCode);
+      if (form.tax !== '' && form.tax !== null && form.tax !== undefined) formData.append('tax', Number(form.tax));
+      formData.append('isCessApplicable', form.isCessApplicable);
+      formData.append('isUsedBy', form.isUsedBy);
       formData.append('isGeneralFix', form.isGeneralFix);
       formData.append('isApplyCal', form.isApplyCal);
       formData.append('userId', userId);
 
-      supplierRows.forEach((row, index) => {
-        if (row.from) {
-          formData.append(
-            `vendorPriceConfigs[${index}].fromDate`,
-            formatDateForBackend(row.from),
-          );
-        }
-        if (row.to) {
-          formData.append(
-            `vendorPriceConfigs[${index}].toDate`,
-            formatDateForBackend(row.to),
-          );
-        }
-        if (row.price !== '') {
-          formData.append(`vendorPriceConfigs[${index}].price`, row.price);
-        }
-        if (row.supplierId) {
-          formData.append(
-            `vendorPriceConfigs[${index}].vendorId`,
-            row.supplierId,
-          );
-        }
-        if (row.id) {
-          formData.append(`vendorPriceConfigs[${index}].id`, row.id);
-        }
-      });
-      if (form.file) {
-        formData.append('file', form.file);
-      }
+      if (form.file) formData.append('file', form.file);
+
       if (editData?.id) {
         formData.append('id', editData.id);
         await updateRawMaterialItem(formData);
@@ -732,695 +505,544 @@ const AddRawMaterialItemModal = ({
         await addRawMaterialItem(formData);
       }
 
-      await fetchRawMaterialList?.();
-      await fetchStats?.();
-      handleClose();
+      navigate('/material/items');
     } catch (err) {
       console.error(err);
     }
   };
-  if (!isOpen) return null;
 
-  const filteredSuppliers = supplierOptions
-    .filter(
-      (item) =>
-        !supplierRows.some((row) => String(row.supplierId) === String(item.id)),
-    )
-    .filter((item) =>
-      (item.fullName || item.name || '')
-        .toLowerCase()
-        .includes(supplierSearch.trim().toLowerCase()),
+  if (loadingItem) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-sm text-[#667085]">Loading raw material...</div>
+      </div>
     );
+  }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-8">
-      <div className="bg-white w-full max-w-3xl h-[95vh] sm:h-[90vh] rounded-2xl shadow-xl overflow-hidden flex flex-col">
-        {/* Header */}
-
-        <div className="flex justify-between items-center p-5 border-b border-[#C3C6D1]">
-          <div className="flex gap-2 items-center">
-            <div className="w-10 h-10 bg-[#00376C] text-[#7CA2DD] flex items-center justify-center rounded-xl">
-              <PackagePlus />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-[#00376C]">
-                {isViewOnly
-                  ? 'View Raw Material Item'
-                  : editData
+    <Container>
+      <div>
+        <div className="mx-auto pt-2 pb-6 space-y-3.5">
+          <PageHeader
+            title={
+              isViewOnly
+                ? 'View Raw Material Item'
+                : editData
                   ? 'Edit Raw Material Item'
-                  : 'Add New Raw Material Item'}
-              </h2>
-
-              <p className="text-xs text-gray-500">
-                {isViewOnly
-                  ? 'View material properties and supplier associations'
-                  : editData
+                  : 'Add New Raw Material Item'
+            }
+            description={
+              isViewOnly
+                ? 'View material properties and supplier associations'
+                : editData
                   ? 'Update material properties and supplier associations'
-                  : 'Configure material properties and supplier associations'}
-              </p>
-            </div>
-          </div>
-
-          <button onClick={handleClose} className="cursor-pointer">
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Body */}
-
-        <div className="p-6 flex-1 overflow-y-auto">
-          {/* Row 1 */}
-
-          <div className="grid grid-cols-1">
-            <div>
-              <label className="text-sm font-medium">
-                Raw Material Name
-                <span className="text-red-500">*</span>
-              </label>
-
-              <Input
-                placeholder="e.g. High-Grade Aluminum Ingots"
-                className="mt-1"
-                value={form.nameEnglish}
-                onChange={(e) => set('nameEnglish', e.target.value)}
-              />
-              {errors.nameEnglish && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.nameEnglish}
-                </p>
-              )}
-            </div>
-
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="text-sm font-medium">
-                Raw Material Category
-                <span className="text-red-500">*</span>
-              </label>
-
-              <div className="flex gap-2 items-center mt-1">
-                <div className="flex-1 min-w-0 [&_input]:h-9!">
-                  <SearchableSelect
-                    name="rawMaterialCatId"
-                    value={form.rawMaterialCatId}
-                    onChange={(e) => {
-                      const categoryId = String(e.target.value);
-                      set('rawMaterialCatId', categoryId);
-                      set('rawMaterialSubCatId', '');
-                      set('brandId', '');
-
-                      // Fetch brands for selected category
-                      fetchBrands(categoryId);
-                    }}
-                    options={categories.map((item) => ({
-                      value: String(item.id),
-                      label: item.nameEnglish,
-                    }))}
-                    placeholder="Select Category"
-                    error={!!errors.rawMaterialCatId}
-                  />
-                </div>
-
-                {/* Plus Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsCategoryModalOpen(true)}
-                  className="w-8.5 h-8.5 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
-                  title="Add New Category"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-
-              {errors.rawMaterialCatId && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.rawMaterialCatId}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium">
-                Raw Material Sub Category
-              </label>
-
-              <div className="flex gap-2 items-center mt-1">
-                <div className="flex-1 min-w-0 [&_input]:h-9!">
-                  <SearchableSelect
-                    name="rawMaterialSubCatId"
-                    value={form.rawMaterialSubCatId}
-                    onChange={(e) =>
-                      set('rawMaterialSubCatId', String(e.target.value))
-                    }
-                    options={subCategories.map((item) => ({
-                      value: String(item.id),
-                      label: item.nameEnglish,
-                    }))}
-                    placeholder={
-                      !form.rawMaterialCatId
-                        ? 'Select a category first'
-                        : loadingSubCategories
-                          ? 'Loading...'
-                          : 'Select Sub Category'
-                    }
-                    disabled={!form.rawMaterialCatId || loadingSubCategories}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsSubCategoryModalOpen(true)}
-                  className="w-8.5 h-8.5 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
-                  title="Add New Category"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-
-              </div>
-              {errors.rawMaterialSubCatId && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.rawMaterialSubCatId}
-                </p>
-              )}
-            </div>
-
-          </div>
-
-          {/* Row 2 */}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="text-sm font-medium">
-                Unit
-                <span className="text-red-500">*</span>
-              </label>
-
-              <div className="flex gap-2 items-center mt-1">
-                <div className="flex-1 min-w-0 [&_input]:h-9!">
-                  <SearchableSelect
-                    name="unitId"
-                    value={form.unitId}
-                    onChange={(e) => set('unitId', String(e.target.value))}
-                    options={units.map((item) => ({
-                      value: String(item.id),
-                      label: item.nameEnglish,
-                    }))}
-                    placeholder="Select Unit"
-                    error={!!errors.unitId}
-                  />
-                </div>
-
-                {/* Plus Button */}
-                <button
-                  type="button"
-                  onClick={() => setIsUnitModalOpen(true)}
-                  className="w-8.5 h-8.5 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
-                  title="Add New Unit"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-
-              {errors.unitId && (
-                <p className="text-red-500 text-xs mt-1">{errors.unitId}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium">Brand</label>
-
-              <div className="flex gap-2 items-center mt-1">
-                <div className="flex-1 min-w-0 [&_input]:h-9!">
-                  <SearchableSelect
-                    name="brandId"
-                    value={form.brandId}
-                    onChange={(e) => set('brandId', String(e.target.value))}
-                    options={brands.map((item) => ({
-                      value: String(item.id),
-                      label: item.name,
-                    }))}
-                    placeholder="Select Brand"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsBrandModalOpen(true)}
-                  className="w-8.5 h-8.5 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center cursor-pointer text-primary shrink-0"
-                  title="Add New Brand"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Row 3 */}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="text-sm font-medium">Rate (Per Unit)</label>
-
-              <Input
-                type="number"
-                placeholder="₹ 0.00"
-                className="mt-1"
-                value={form.supplierRate}
-                onWheel={(e) => e.currentTarget.blur()}
-                onChange={(e) => set('supplierRate', e.target.value)}
-              />
-              {errors.supplierRate && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.supplierRate}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium">Daily Consumption</label>
-
-              <Input
-                type="number"
-                placeholder="0"
-                className="mt-1"
-                value={form.dailyConsumption}
-                onWheel={(e) => e.currentTarget.blur()}
-                onChange={(e) => set('dailyConsumption', e.target.value)}
-              />
-              {errors.dailyConsumption && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.dailyConsumption}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Row 4 */}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="text-sm font-medium">Opening Balance</label>
-
-              <Input
-                type="number"
-                placeholder="0"
-                className="mt-1"
-                value={form.opbStock}
-                onChange={(e) => set('opbStock', e.target.value)}
-              />
-              {errors.opbStock && (
-                <p className="text-red-500 text-xs mt-1">{errors.opbStock}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium">Minimum Stock</label>
-
-              <Input
-                type="number"
-                value={form.minStock}
-                className="mt-1"
-                onChange={(e) => set('minStock', e.target.value)}
-              />
-              {errors.minStock && (
-                <p className="text-red-500 text-xs mt-1">{errors.minStock}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Row 5 - Tax & HSN Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div>
-              <label className="text-sm font-medium">HSN / SAC Code</label>
-              <Input
-                type="text"
-                placeholder="e.g. 1901"
-                className="mt-1"
-                value={form.hsnCode}
-                onChange={(e) => set('hsnCode', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Tax (%)</label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                placeholder="0 %"
-                className="mt-1"
-                value={form.tax}
-                onWheel={(e) => e.currentTarget.blur()}
-                onChange={(e) => set('tax', e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Cess (%)</label>
-              <Input
-                type="number"
-                min="0"
-                max="100"
-                placeholder="0 %"
-                className="mt-1"
-                value={form.cess}
-                onWheel={(e) => e.currentTarget.blur()}
-                onChange={(e) => set('cess', e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Upload */}
-
-          <div className="col-span-full">
-            <label className="text-sm font-medium">Raw Material Image</label>
-
-            <div
-              onClick={() => imageRef.current?.click()}
-              className="mt-2 border-2 border-dashed border-[#C3C6D199] bg-gray-50 rounded-xl h-52 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
-            >
-              {form.file ? (
-                <div className="flex flex-col items-center gap-3">
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    className="w-28 h-28 rounded-lg object-cover"
-                  />
-
-                  <span className="text-sm text-gray-600">
-                    {form.file.name}
-                  </span>
-                </div>
-              ) : form.imageUrl ? (
-                <div className="flex flex-col items-center gap-3">
-                  <img
-                    src={imagePreview}
-                    alt="Existing Raw Material"
-                    className="w-28 h-28 rounded-lg object-cover"
-                  />
-                  <span className="text-sm text-gray-600">
-                    Existing Image
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <div className="w-14 h-14 rounded-full bg-[#DEE9FC] flex items-center justify-center">
-                    <UploadCloud className="h-7 w-7 text-primary" />
-                  </div>
-
-                  <p className="mt-3 text-sm font-medium">
-                    Click or drag and drop to upload
-                  </p>
-
-                  <p className="text-xs text-gray-500 mt-1">
-                    PNG, JPG or WEBP (Max. 5MB)
-                  </p>
-                </>
-              )}
-            </div>
-
-            <input
-              ref={imageRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp"
-              className="hidden"
-              onChange={handleImageChange}
-            />
-          </div>
-          {/* Toggle Card */}
-          <div className="mt-6 bg-[#EEF4FF] border border-[#C3C6D1] rounded-xl p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-medium">General Fix Raw Material</h4>
-
-                <p className="text-xs text-gray-500">
-                  Enable for standardized consumption items
-                </p>
-              </div>
-
-              {/* Toggle */}
+                  : 'Configure material properties and supplier associations'
+            }
+            actions={
               <button
                 type="button"
-                onClick={() => {
-                  setIsFixedRawMaterial(!isFixedRawMaterial);
-                  set('isGeneralFix', !isFixedRawMaterial);
-                }}
-                className={`w-12 h-6 rounded-full cursor-pointer flex items-center transition-all duration-300 p-1 ${isFixedRawMaterial ? 'bg-[#00376C]' : 'bg-gray-300'}`}
+                onClick={() => navigate('/material/items')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
               >
-                <span
-                  className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-all duration-300 ${isFixedRawMaterial ? 'translate-x-6' : 'translate-x-0'}`}
-                />
+                <ArrowLeft className="w-4 h-4" />
+                {'Back to Raw Material Items'}
               </button>
-            </div>
+            }
+            className="border-b border-[#C3C6D1] pb-4 mb-2"
+          />
 
-            {isFixedRawMaterial && (
-              <div className="mt-4">
-                <label className="text-sm">Weight Per 100 Person</label>
+          <div className="py-6 flex-1 overflow-y-auto space-y-6">
+            {/* Section 1: Basic Information */}
+            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs space-y-4">
+              <h3 className="text-sm font-semibold text-[#00376C] border-b border-gray-100 pb-2.5">
+                Basic Information
+              </h3>
 
-                <input
-                  value={form.weightPer100Pax}
-                  onChange={(e) => set('weightPer100Pax', e.target.value)}
-                  type="number"
-                  placeholder="Enter weight"
-                  className="w-full mt-2 border rounded-lg px-3 py-2 outline-none bg-[#FFFFFF]"
-                />
-              </div>
-            )}
-          </div>
+              {/* Row 1: Raw Material Name, Type, and Category */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Raw Material Name <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    disabled={isViewOnly}
+                    placeholder="e.g. High-Grade Aluminum Ingots"
+                    className="h-10 text-sm border-[#C3C6D1] rounded-lg focus-visible:ring-1 focus-visible:ring-[#00376C] disabled:bg-gray-100"
+                    value={form.nameEnglish}
+                    onChange={(e) => set('nameEnglish', e.target.value)}
+                  />
+                  {errors.nameEnglish && (
+                    <p className="text-red-500 text-xs mt-1">{errors.nameEnglish}</p>
+                  )}
+                </div>
 
-          {/* Supplier Section */}
-
-          <div className="mt-8">
-            <h3 className="font-semibold text-[#00376C] mb-4">
-              Vendor Association
-            </h3>
-
-            <div className="flex gap-3 w-full justify-between flex-col sm:flex-row">
-              <div className="flex-1 min-w-0">
-                <Popover
-                  open={supplierDropdownOpen}
-                  onOpenChange={setSupplierDropdownOpen}
-                  modal={false}
-                >
-                  <PopoverTrigger asChild>
-                    <div className="flex gap-2 bg-[#EBEDF0] w-full items-center px-3 border rounded-lg cursor-pointer">
-                      <Search className="text-[#94A3B8]" size={20} />
-                      <input
-                        type="text"
-                        value={supplierSearch}
-                        placeholder={
-                          selectedSupplierIds.length > 0
-                            ? `${selectedSupplierIds.length} vendor${selectedSupplierIds.length > 1 ? 's' : ''} selected`
-                            : 'Search and select vendor...'
-                        }
-                        onClick={() => setSupplierDropdownOpen(true)}
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Type <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        disabled={isViewOnly}
+                        name="rawMaterialCatTypeId"
+                        value={form.rawMaterialCatTypeId}
                         onChange={(e) => {
-                          setSupplierSearch(e.target.value);
-                          setSupplierDropdownOpen(true);
+                          const typeId = String(e.target.value);
+                          set('rawMaterialCatTypeId', typeId);
+                          set('rawMaterialCatId', '');
+                          set('rawMaterialSubCatId', '');
+                          set('brandId', '');
+                          fetchCategories(typeId);
                         }}
-                        className="flex-1 bg-transparent px-3 py-2 outline-none"
+                        options={types.map((item) => ({
+                          value: String(item.id),
+                          label: item.nameEnglish,
+                        }))}
+                        placeholder="Select Type"
+                        error={!!errors.rawMaterialCatTypeId}
                       />
                     </div>
-                  </PopoverTrigger>
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setIsTypeModalOpen(true)}
+                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
+                        title="Add Type"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {errors.rawMaterialCatTypeId && (
+                    <p className="text-red-500 text-xs mt-1">{errors.rawMaterialCatTypeId}</p>
+                  )}
+                </div>
 
-                  <PopoverContent
-                    side="bottom"
-                    align="start"
-                    sideOffset={4}
-                    onOpenAutoFocus={(e) => e.preventDefault()}
-                    className="p-0 w-(--radix-popover-trigger-width) overflow-hidden z-100"
-                  >
-                    <div className="max-h-60 overflow-y-auto">
-                      {filteredSuppliers.map((item) => {
-                        const isChecked = selectedSupplierIds.includes(item.id);
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => toggleSupplierSelection(item.id)}
-                            className={`w-full flex items-center gap-2 text-left px-3 py-2.5 text-sm hover:bg-blue-50 ${isChecked
-                              ? 'bg-blue-50 text-primary font-medium'
-                              : 'text-gray-700'
-                              }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isChecked}
-                              readOnly
-                              className="pointer-events-none"
-                            />
-                            {item.fullName || item.name}
-                          </button>
-                        );
-                      })}
-
-                      {filteredSuppliers.length === 0 && (
-                        <div className="px-3 py-3 text-sm text-gray-500">
-                          No vendor found
-                        </div>
-                      )}
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        disabled={isViewOnly || !form.rawMaterialCatTypeId || loadingCategories}
+                        name="rawMaterialCatId"
+                        value={form.rawMaterialCatId}
+                        onChange={(e) => {
+                          const categoryId = String(e.target.value);
+                          set('rawMaterialCatId', categoryId);
+                          set('rawMaterialSubCatId', '');
+                          set('brandId', '');
+                          fetchBrands(categoryId);
+                        }}
+                        options={categories.map((item) => ({
+                          value: String(item.id),
+                          label: item.nameEnglish,
+                        }))}
+                        placeholder={
+                          !form.rawMaterialCatTypeId
+                            ? 'Select type first'
+                            : loadingCategories
+                              ? 'Loading...'
+                              : 'Select Category'
+                        }
+                        error={!!errors.rawMaterialCatId}
+                      />
                     </div>
-                  </PopoverContent>
-                </Popover>
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
+                        title="Add Category"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {errors.rawMaterialCatId && (
+                    <p className="text-red-500 text-xs mt-1">{errors.rawMaterialCatId}</p>
+                  )}
+                </div>
               </div>
 
-              <button
-                onClick={handleAddSupplier}
-                disabled={selectedSupplierIds.length === 0}
-                className="bg-[#00376C] text-white px-5 py-3 text-sm rounded-lg flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-              >
-                <Users size={16} />
-                Add Vendor
-              </button>
+              {/* Row 2: Sub Category, Unit, and Brand */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Sub Category
+                  </label>
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        name="rawMaterialSubCatId"
+                        value={form.rawMaterialSubCatId}
+                        onChange={(e) => set('rawMaterialSubCatId', String(e.target.value))}
+                        options={subCategories.map((item) => ({
+                          value: String(item.id),
+                          label: item.nameEnglish,
+                        }))}
+                        placeholder={
+                          !form.rawMaterialCatId
+                            ? 'Select category first'
+                            : loadingSubCategories
+                              ? 'Loading...'
+                              : 'Select Sub Category'
+                        }
+                        disabled={isViewOnly || !form.rawMaterialCatId || loadingSubCategories}
+                      />
+                    </div>
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setIsSubCategoryModalOpen(true)}
+                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
+                        title="Add Sub Category"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Unit <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        disabled={isViewOnly}
+                        name="unitId"
+                        value={form.unitId}
+                        onChange={(e) => set('unitId', String(e.target.value))}
+                        options={units.map((item) => ({
+                          value: String(item.id),
+                          label: item.nameEnglish,
+                        }))}
+                        placeholder="Select Unit"
+                        error={!!errors.unitId}
+                      />
+                    </div>
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setIsUnitModalOpen(true)}
+                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
+                        title="Add Unit"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {errors.unitId && (
+                    <p className="text-red-500 text-xs mt-1">{errors.unitId}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Brand
+                  </label>
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        disabled={isViewOnly}
+                        name="brandId"
+                        value={form.brandId}
+                        onChange={(e) => set('brandId', String(e.target.value))}
+                        options={brands.map((item) => ({
+                          value: String(item.id),
+                          label: item.name,
+                        }))}
+                        placeholder="Select Brand"
+                      />
+                    </div>
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setIsBrandModalOpen(true)}
+                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
+                        title="Add Brand"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="border rounded-xl min-h-40 mt-4 overflow-hidden">
-              {supplierRows.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-[#EEF4FF] text-[#00376C]">
-                      <tr>
-                        <th className="text-left px-4 py-2.5 font-medium">
-                          Vendor Name
-                        </th>
-                        <th className="text-left px-4 py-2.5 font-medium">
-                          From
-                        </th>
-                        <th className="text-left px-4 py-2.5 font-medium">
-                          To
-                        </th>
-                        <th className="text-left px-4 py-2.5 font-medium">
-                          Price
-                        </th>
-                        <th className="px-4 py-2.5" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {supplierRows.map((row) => (
-                        <tr key={row.supplierId} className="border-t">
-                          <td className="px-4 py-2">{row.name}</td>
-                          <td className="px-4 py-2">
-                            <input
-                              type="date"
-                              value={row.from}
-                              onChange={(e) =>
-                                updateSupplierRow(
-                                  row.supplierId,
-                                  'from',
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full border rounded-md px-2 py-1.5 outline-none"
-                            />
-                          </td>
-                          <td className="px-4 py-2">
-                            <input
-                              type="date"
-                              value={row.to}
-                              onChange={(e) =>
-                                updateSupplierRow(
-                                  row.supplierId,
-                                  'to',
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full border rounded-md px-2 py-1.5 outline-none"
-                            />
-                          </td>
-                          <td className="px-4 py-2">
-                            <input
-                              type="number"
-                              value={row.price}
-                              onWheel={(e) => e.currentTarget.blur()}
-                              onChange={(e) =>
-                                updateSupplierRow(
-                                  row.supplierId,
-                                  'price',
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="₹ 0.00"
-                              className="w-full border rounded-md px-2 py-1.5 outline-none"
-                            />
-                          </td>
-                          <td className="px-4 py-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => removeSupplierRow(row.supplierId)}
-                              className="text-gray-400 hover:text-red-500 cursor-pointer"
-                              title="Remove vendor"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            {/* Section 2: Stock Inventory */}
+            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs space-y-4">
+              <h3 className="text-sm font-semibold text-[#00376C] border-b border-gray-100 pb-2.5">
+                Stock Inventory
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">Minimum Stock</label>
+                  <Input
+                    disabled={isViewOnly}
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    className="h-10 text-sm border-[#C3C6D1] rounded-lg disabled:bg-gray-100"
+                    value={form.minStock}
+                    onWheel={blurOnWheel}
+                    onChange={(e) => set('minStock', e.target.value)}
+                  />
+                  {errors.minStock && (
+                    <p className="text-red-500 text-xs mt-1">{errors.minStock}</p>
+                  )}
                 </div>
-              ) : (
-                <div className="h-32 flex flex-col justify-center items-center p-4">
-                  <h4 className="font-semibold text-[#00376C]">
-                    No vendors linked yet
-                  </h4>
-                  <p className="text-sm text-gray-500 text-center">
-                    Link vendors to this material to automate procurement
-                    workflows.
-                  </p>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">Maximum Stock</label>
+                  <Input
+                    disabled={isViewOnly}
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    className="h-10 text-sm border-[#C3C6D1] rounded-lg disabled:bg-gray-100"
+                    value={form.maxStock}
+                    onWheel={blurOnWheel}
+                    onChange={(e) => set('maxStock', e.target.value)}
+                  />
+                  {errors.maxStock && (
+                    <p className="text-red-500 text-xs mt-1">{errors.maxStock}</p>
+                  )}
                 </div>
+              </div>
+            </div>
+
+            {/* Section 3: Taxation & Compliance */}
+            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs space-y-4">
+              <h3 className="text-sm font-semibold text-[#00376C] border-b border-gray-100 pb-2.5">
+                Taxation & Compliance
+              </h3>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">HSN / SAC Code</label>
+                  <Input
+                    disabled={isViewOnly}
+                    type="text"
+                    placeholder="e.g. 1901"
+                    className="h-10 text-sm border-[#C3C6D1] rounded-lg disabled:bg-gray-100"
+                    value={form.hsnCode}
+                    onChange={(e) => set('hsnCode', e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">Tax (%)</label>
+                  <Input
+                    disabled={isViewOnly}
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="0 %"
+                    className="h-10 text-sm border-[#C3C6D1] rounded-lg disabled:bg-gray-100"
+                    value={form.tax}
+                    onWheel={blurOnWheel}
+                    onChange={(e) => set('tax', e.target.value)}
+                  />
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-3 flex flex-col justify-center min-h-14.5 self-end">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gray-700">Is Cess Applicable?</span>
+                    <SmallToggle
+                      disabled={isViewOnly}
+                      checked={form.isCessApplicable}
+                      onChange={() => set('isCessApplicable', !form.isCessApplicable)}
+                      label="Is cess applicable"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-3 flex flex-col justify-center min-h-14.5 self-end">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gray-700">Is Use By?</span>
+                    <SmallToggle
+                      disabled={isViewOnly}
+                      checked={form.isUsedBy}
+                      onChange={() => set('isUsedBy', !form.isUsedBy)}
+                      label="Is use by"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 4: Image Upload */}
+            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-xs">
+              <label className="text-sm font-semibold text-[#00376C] block mb-2">
+                Raw Material Image
+              </label>
+
+              <div
+                onClick={() => {
+                  if (!isViewOnly) imageRef.current?.click();
+                }}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`relative border-2 border-dashed rounded-xl h-44 flex flex-col items-center justify-center transition ${
+                  isViewOnly
+                    ? 'cursor-default border-[#C3C6D1] bg-gray-50/60'
+                    : isDragging
+                    ? 'border-[#00376C] bg-blue-50/60 ring-2 ring-blue-200 cursor-pointer'
+                    : 'border-[#C3C6D1] bg-gray-50/60 hover:bg-gray-100/70 cursor-pointer'
+                }`}
+              >
+                {form.file || form.imageUrl ? (
+                  <div className="flex flex-col items-center gap-2">
+                    {/* Relative wrapper around the image thumbnail */}
+                    <div className="relative inline-block">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="w-24 h-24 rounded-lg object-cover shadow-xs border border-gray-200"
+                      />
+
+                      {/* Cross icon positioned directly on top-right of the image */}
+                      {!isViewOnly && (
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          title="Remove Image"
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center text-gray-500 hover:text-red-500 hover:border-red-200 transition cursor-pointer z-10"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    <span className="text-xs text-gray-600 font-medium">
+                      {form.file ? form.file.name : 'Existing Image'}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-[#DEE9FC] flex items-center justify-center mb-2">
+                      <UploadCloud className="h-6 w-6 text-[#00376C]" />
+                    </div>
+                    <p className="text-xs font-semibold text-gray-700">
+                      {isDragging ? 'Drop image here' : 'Click or drag and drop to upload'}
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">PNG, JPG or WEBP (Max. 5MB)</p>
+                  </>
+                )}
+              </div>
+
+              <input
+                ref={imageRef}
+                type="file"
+                disabled={isViewOnly}
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                className="hidden"
+                onChange={handleImageChange}
+              />
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="border-t p-5 flex justify-end border-[#C3C6D1] flex-col sm:flex-row gap-4">
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="border border-[#00376C] text-[#00376C] px-5 py-2 rounded-lg cursor-pointer hover:bg-blue-50"
+              >
+                {isViewOnly ? 'Close' : 'Cancel'}
+              </button>
+
+              {!isViewOnly && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="bg-[#00376C] text-white px-5 py-2 rounded-lg transition cursor-pointer hover:bg-[#002750]"
+                >
+                  {editData ? 'Update Material' : 'Save Material'}
+                </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Footer */}
+        {isTypeModalOpen && (
+          <AddRawMaterialModal
+            isOpen={isTypeModalOpen}
+            onClose={() => setIsTypeModalOpen(false)}
+            onSaved={async (newType) => {
+              const norm = normalizeType(newType) || newType;
+              await fetchTypes(norm || null);
+              if (norm?.id != null) {
+                set('rawMaterialCatTypeId', String(norm.id));
+                set('rawMaterialCatId', '');
+                set('rawMaterialSubCatId', '');
+                set('brandId', '');
+                await fetchCategories(norm.id);
+              }
+            }}
+          />
+        )}
 
-        <div className="border-t p-5 flex justify-end bg-[#EFF4FF] border border-[#C3C6D1] flex-col sm:flex-row gap-4">
-          <div className="flex gap-3 justify-end">
-            <button
-              onClick={handleClose}
-              className="border border-[#00376C] text-[#00376C] px-5 py-2 rounded-lg cursor-pointer hover:bg-blue-50"
-            >
-              {isViewOnly ? 'Close' : 'Cancel'}
-            </button>
+        {isCategoryModalOpen && (
+          <AddRawMaterialCategoryModal
+            isOpen={isCategoryModalOpen}
+            onClose={() => setIsCategoryModalOpen(false)}
+            onSaved={async (newCat) => {
+              const norm = normalizeCategory(newCat) || newCat;
+              await fetchCategories(form.rawMaterialCatTypeId, norm || null);
+              if (norm?.id != null) {
+                set('rawMaterialCatId', String(norm.id));
+                set('rawMaterialSubCatId', '');
+              }
+            }}
+          />
+        )}
 
-            {!isViewOnly && (
-              <button
-                onClick={handleSave}
-                className="bg-[#00376C] text-white px-5 py-2 rounded-lg cursor-pointer hover:bg-[#002750]"
-              >
-                {editData ? 'Update Material' : 'Save Material'}
-              </button>
-            )}
-          </div>
-        </div>
+        {isUnitModalOpen && (
+          <AddRawMaterialUnit
+            isOpen={isUnitModalOpen}
+            onClose={() => setIsUnitModalOpen(false)}
+            onSaved={async (newUnit) => {
+              const norm = normalizeUnit(newUnit) || newUnit;
+              await fetchUnits(norm || null);
+              if (norm?.id != null) set('unitId', String(norm.id));
+            }}
+          />
+        )}
+
+        {isBrandModalOpen && (
+          <AddRawMaterialBrand
+            isOpen={isBrandModalOpen}
+            onClose={() => setIsBrandModalOpen(false)}
+            onSaved={async (newBrand) => {
+              const norm = normalizeBrand(newBrand) || newBrand;
+              if (form.rawMaterialCatId) await fetchBrands(form.rawMaterialCatId, norm);
+              if (norm?.id != null) set('brandId', String(norm.id));
+            }}
+          />
+        )}
+
+        {isSubCategoryModalOpen && (
+          <AddRawMaterialSubCategoryModal
+            isOpen={isSubCategoryModalOpen}
+            onClose={() => setIsSubCategoryModalOpen(false)}
+            onSaved={async (newSub) => {
+              const norm = normalizeSubCategory(newSub) || newSub;
+              await fetchSubCategoriesForCategory(form.rawMaterialCatId, norm || null);
+              if (norm?.id != null) set('rawMaterialSubCatId', String(norm.id));
+            }}
+          />
+        )}
       </div>
-
-      {isCategoryModalOpen && (
-        <AddRawMaterialCategoryModal
-          isOpen={isCategoryModalOpen}
-          onClose={() => setIsCategoryModalOpen(false)}
-          onSaved={handleCategorySaved}
-        />
-      )}
-
-      {isUnitModalOpen && (
-        <AddRawMaterialUnit
-          isOpen={isUnitModalOpen}
-          onClose={() => setIsUnitModalOpen(false)}
-          onSaved={handleUnitSaved}
-        />
-      )}
-      {isBrandModalOpen && (
-        <AddRawMaterialBrand
-          isOpen={isBrandModalOpen}
-          onClose={() => setIsBrandModalOpen(false)}
-          onSaved={handleBrandSaved}
-        />
-      )}
-      {isSubCategoryModalOpen && (
-        <AddRawMaterialSubCategoryModal
-          isOpen={isSubCategoryModalOpen}
-          onClose={() => setIsSubCategoryModalOpen(false)}
-          onSaved={handleSubCategorySaved}
-        />
-      )}
-    </div>
+    </Container>
   );
 };
 

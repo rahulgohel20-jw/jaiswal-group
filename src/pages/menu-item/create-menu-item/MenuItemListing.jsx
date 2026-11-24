@@ -5,6 +5,7 @@ import { notify } from '@/utils/toast';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -17,7 +18,7 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -25,6 +26,8 @@ import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
   deleteMenuItemById,
   getAllMenuCategory,
@@ -41,16 +44,16 @@ import {
 } from '@/components/ui/select';
 import SearchableSelect from '../../../utils/SearchableSelect';
 
-const StatCard = ({ label, value, icon, tone }) => (
-  <div className="bg-white border rounded-xl py-3 px-4">
+const StatCard = ({ label, value, icon, tone, textColor = 'text-[#1B1B1F]' }) => (
+  <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
     <div
-      className={`w-7 h-7 rounded-lg flex items-center justify-center mb-2 ${tone}`}
+      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${tone}`}
     >
-      {icon}{' '}
+      {icon}
     </div>
-    <div>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-xl font-semibold text-black">{value}</p>
+    <div className="flex flex-col items-end text-right">
+      <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+      <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{value}</span>
     </div>
   </div>
 );
@@ -60,6 +63,7 @@ const MenuItemsListing = ({ onAddNew }) => {
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
+  const [sorting, setSorting] = useState([]);
   const [rowSelection, setRowSelection] = useState({});
   const [loading, setLoading] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
@@ -73,6 +77,8 @@ const MenuItemsListing = ({ onAddNew }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
+
+  const navigate = useNavigate();
 
   const [totalCount, setTotalCount] = useState(0);
 
@@ -319,11 +325,11 @@ useEffect(() => {
           />
         ),
         cell: ({ row }) => (
-          <div className="font-semibold text-gray-800 capitalize">
+          <div className="font-medium text-xs text-gray-800 capitalize">
             {row.original.name}
           </div>
         ),
-        size: 160,
+        size: 220,
       },
 
       // CATEGORY
@@ -380,24 +386,9 @@ useEffect(() => {
             ₹{Number(row.original.price ?? 0).toFixed(2)}
           </span>
         ),
+        sortingFn: (rowA, rowB) =>
+          Number(rowA.original.price ?? 0) - Number(rowB.original.price ?? 0),
         size: 100,
-      },
-
-      // SEQUENCE
-      {
-        id: 'sequence',
-        accessorFn: (row) => row.sequence,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="Seq."
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-sm"
-          />
-        ),
-        cell: ({ row }) => (
-          <span className="text-gray-700">{row.original.sequence}</span>
-        ),
-        size: 80,
       },
 
       // STATUS
@@ -439,6 +430,7 @@ useEffect(() => {
             />
           </label>
         ),
+        enableSorting: false,
         size: 110,
       },
 
@@ -479,73 +471,71 @@ useEffect(() => {
   const table = useReactTable({
     data: filteredItems,
     columns,
-    state: { pagination, rowSelection },
+    state: { pagination, rowSelection, sorting },
     onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
+    onSortingChange: setSorting,
     enableRowSelection: true,
     manualPagination: true,
     rowCount: totalCount,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   return (
     <Container>
-      <div className="p-4 md:p-6 text-gray-600 min-h-screen">
+      <div className="p-4 mx-auto">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-[10px] sm:text-sm text-gray-400 mb-2">
-          <span>Dashboard</span>
+        <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-gray-400 mb-2">
+          <span className='cursor-pointer hover:text-blue-300' onClick={() => navigate('/')}>Dashboard</span>
           <ChevronRight size={12} />
-          <span>Master Data</span>
+          <span>Menu Item</span>
           <ChevronRight size={12} />
           <span className="text-[#084E92] font-medium">Menu Items</span>
         </div>
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
+        <div className="flex items-center justify-between flex-wrap gap-4 mb-2">
           <div>
-            <h2 className="text-2xl font-semibold text-black">
+            <h2 className="text-xl sm:text-2xl font-bold text-[#101828]">
               Menu Items Master
             </h2>
-            <p className="text-sm text-gray-400 mt-1 max-w-xl">
-              Manage your restaurant's menu catalog, pricing, and category
-              organization in one place.
-            </p>
           </div>
 
-          <Link
-            to="/menu-item/add-menu-items"
-            className="flex items-center w-max gap-2 bg-[#084E92] text-white px-4 py-2.5 rounded-lg font-medium cursor-pointer whitespace-nowrap"
-          >
-            <Plus size={18} />
+          <HeaderActionButton to="/menu-item/add-menu-items">
             Add New Item
-          </Link>
+          </HeaderActionButton>
         </div>
+
+        <PageErrorAlert error={error} onRetry={fetchMenuItems} className="my-3" />
 
         {/* Stat Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <StatCard
             label="Total Items"
             value={totalItems}
-            icon={<Package size={18} className="text-[#084E92]" />}
-            tone="bg-blue-50"
+            icon={<Package size={18} className="text-[#00376C]" />}
+            tone="bg-[#D5E3FF]"
           />
           <StatCard
             label="Active Items"
             value={activeItems}
-            icon={<CheckCircle2 size={18} className="text-green-600" />}
-            tone="bg-green-50"
+            icon={<CheckCircle2 size={18} className="text-[#15803D]" />}
+            tone="bg-[#DCFCE7]"
+            textColor="text-[#15803D]"
           />
           <StatCard
             label="Inactive Items"
             value={inactiveItems}
-            icon={<XCircle size={18} className="text-red-500" />}
-            tone="bg-red-50"
+            icon={<XCircle size={18} className="text-[#DC2626]" />}
+            tone="bg-[#FEE2E2]"
+            textColor="text-[#DC2626]"
           />
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col gap-4 mt-6">
+        <div className="flex flex-col gap-4 mt-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative md:col-span-2">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -553,7 +543,7 @@ useEffect(() => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by item name..."
-                className="w-full pl-10 py-2 border rounded-lg outline-none"
+                className="w-full pl-10 py-2 border rounded-lg outline-none border-[#C3C6D1] "
               />
             </div>
 
@@ -590,7 +580,6 @@ useEffect(() => {
           {loading && (
             <p className="p-4 text-sm text-gray-500">Loading menu items...</p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
 
           <DataGrid
             table={table}

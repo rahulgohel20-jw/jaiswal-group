@@ -28,6 +28,8 @@ import {
   validatePincode,
 } from '@/utils/validations';
 import SearchableSelect from '../../utils/SearchableSelect';
+import { PageHeader } from '@/components/common/PageHeader';
+import { Container } from '@/components/common/container';
 
 // Letters only — no digits, spaces, or special characters.
 const SHORT_CODE_REGEX = /^[A-Za-z]+$/;
@@ -88,13 +90,46 @@ const SectionHeader = ({ icon: Icon, title, subtitle, open, onToggle }) => (
 
 const ImageUploadBox = ({ label, hint, value, onChange }) => {
   const fileRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const handleFile = (e) => {
-    const file = e.target.files?.[0];
+  const MAX_SIZE_MB = 2;
+  const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
-    if (file) {
-      onChange(file);
+  const validateAndProcessFile = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      notify.error('Please upload a valid image file (PNG, JPG, etc.)');
+      return;
     }
+
+    if (file.size > MAX_SIZE_BYTES) {
+      notify.error(`File size exceeds ${MAX_SIZE_MB}MB limit`);
+      return;
+    }
+
+    onChange(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    validateAndProcessFile(file);
   };
 
   return (
@@ -102,7 +137,14 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
       <Label>{label}</Label>
       <div
         onClick={() => fileRef.current?.click()}
-        className="relative w-full border border-dashed border-gray-300 rounded-lg px-3.5 py-2.5 flex items-center gap-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition bg-white"
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={`relative w-full border border-dashed rounded-lg px-3.5 py-2.5 flex items-center gap-3 cursor-pointer transition bg-white ${isDragging
+            ? 'border-blue-500 bg-blue-50/60 ring-2 ring-blue-200'
+            : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50/30'
+          }`}
       >
         {value ? (
           <img
@@ -111,33 +153,49 @@ const ImageUploadBox = ({ label, hint, value, onChange }) => {
             className="w-8 h-8 rounded-md object-cover border border-gray-200 shrink-0"
           />
         ) : (
-          <div className="w-8 h-8 rounded-md bg-gray-50 border border-gray-200 flex items-center justify-center shrink-0">
-            <ImageUp className="w-4 h-4 text-gray-400" />
+          <div
+            className={`w-8 h-8 rounded-md border flex items-center justify-center shrink-0 ${isDragging
+                ? 'bg-blue-100 border-blue-300 text-blue-500'
+                : 'bg-gray-50 border-gray-200 text-gray-400'
+              }`}
+          >
+            <ImageUp className="w-4 h-4" />
           </div>
         )}
+
         <div className="min-w-0">
           <p className="text-sm text-gray-600 truncate">
-            {value ? 'Replace image' : 'Click to upload'}
+            {isDragging
+              ? 'Drop image here'
+              : value
+                ? 'Replace image'
+                : 'Click or drop image'}
           </p>
           <p className="text-xs text-gray-400">{hint}</p>
         </div>
+
         {value && (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               onChange(null);
+              if (fileRef.current) fileRef.current.value = '';
             }}
             className="ml-auto w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-200 transition cursor-pointer bg-white shrink-0"
           >
             <X className="w-3 h-3" />
           </button>
         )}
+
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
-          onChange={handleFile}
+          onChange={(e) => {
+            validateAndProcessFile(e.target.files?.[0]);
+            e.target.value = '';
+          }}
           className="hidden"
         />
       </div>
@@ -334,22 +392,22 @@ const mapUnitToForm = (unit) => {
   return {
     ...DEFAULT_FORM,
 
-  UnitName: unit.companyNameEnglish || '',
-  UnitCode: unit.companyCode || '',
-  shortCode: unit.shortCode || '',
-  email: unit.emailid || '',
-  mobile: unit.mobilenumber || '',
-  altMobile: unit.alternatemobilenumber || '',
-  capacity: unit.capacity || '',
+    UnitName: unit.companyNameEnglish || '',
+    UnitCode: unit.companyCode || '',
+    shortCode: unit.shortCode || '',
+    email: unit.emailid || '',
+    mobile: unit.mobilenumber || '',
+    altMobile: unit.alternatemobilenumber || '',
+    capacity: unit.capacity || '',
 
-  company: unit.parentId || '',
-  addressLine1: unit.addressEnglish || '',
-  addressLine2: unit.addressline2 || '',
-  pincode: unit.pincode || '',
-  latitude: unit.latitude || '',
-  longitude: unit.longitude || '',
-  logo: latestImage?.path || null,
-  favicon: unit.favicon,
+    company: unit.parentId || '',
+    addressLine1: unit.addressEnglish || '',
+    addressLine2: unit.addressline2 || '',
+    pincode: unit.pincode || '',
+    latitude: unit.latitude || '',
+    longitude: unit.longitude || '',
+    logo: latestImage?.path || null,
+    favicon: unit.favicon,
   }
 };
 
@@ -620,25 +678,26 @@ const AddUnit = () => {
   };
 
   return (
-    <div className="mx-4 min-h-screen p-4 md:p-6">
-      <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          onClick={() => navigate('/units')}
-          className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] mb-2 cursor-pointer bg-transparent border-0 p-0 self-start"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Units
-        </button>
-        <h1 className="text-2xl md:text-4xl text-[#084E92] font-semibold">
-          {isEditMode ? 'Update Unit' : 'Register New Unit'}
-        </h1>
-        <p className="text-[#43474F]">
-          {isEditMode
+     <Container>
+    <div className="mx-auto pt-2 pb-6 space-y-3.5">
+      <PageHeader
+        title={isEditMode ? 'Update Unit' : 'Register New Unit'}
+        description={
+          isEditMode
             ? `Update the details for ${editingUnit?.name ?? 'this Unit'} within the Jaiswal Group ecosystem.`
-            : 'Complete the form below to register a new Unit under the Jaiswal Group ecosystem.'}
-        </p>
-      </div>
+            : 'Complete the form below to register a new Unit under the Jaiswal Group ecosystem.'
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() => navigate('/units')}
+            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Units
+          </button>
+        }
+      />
 
       {/* Unit Information */}
       <SectionCard className="mt-4">
@@ -652,7 +711,7 @@ const AddUnit = () => {
         {openSections.Unit && (
           <div className="px-6 py-6 space-y-5">
             <div
-              className={`grid gap-4 ${isEditMode ? 'grid-cols-3' : 'grid-cols-2'}`}
+              className={`grid grid-cols-1 gap-4 ${isEditMode ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}
             >
               <div>
                 <Label required>Unit Name</Label>
@@ -694,7 +753,7 @@ const AddUnit = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <ImageUploadBox
                 label="Unit Logo"
                 hint="PNG, JPG upto 2MB"
@@ -709,7 +768,7 @@ const AddUnit = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               <div>
                 <Label required>Email</Label>
                 <input
@@ -755,21 +814,6 @@ const AddUnit = () => {
                 />
                 <ErrorText error={errors.altMobile} />
               </div>
-              <div>
-                <Label>Capacity ( Meals Per Day )</Label>
-                <input
-                  type="number"
-                  value={form.capacity}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    set('capacity', val);
-                    setErrorFor('capacity', '');
-                  }}
-                  placeholder="e.g. 200"
-                  className={`${inputCls} ${errors.capacity ? 'border-red-400' : ''}`}
-                />
-                <ErrorText error={errors.capacity} />
-              </div>
             </div>
           </div>
         )}
@@ -785,8 +829,8 @@ const AddUnit = () => {
         />
 
         {openSections.business && (
-          <div className="grid grid-cols-2 gap-4 px-6 py-6">
-           <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-6 py-6">
+            <div>
               <Label required>Company</Label>
               <SearchableSelect
                 name="company"
@@ -819,8 +863,8 @@ const AddUnit = () => {
         />
         {openSections.address && (
           <div className="px-6 py-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4">
-             <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
                 <Label required>Address Line 1</Label>
                 <input
                   value={form.addressLine1}
@@ -845,66 +889,70 @@ const AddUnit = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
-             <div>
-                <Label required>Country</Label>
-                <SearchableSelect
-                  name="country"
-                  value={selectedCountry}
-                  onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
-                  options={countries.map((country) => ({ value: country.id, label: country.name }))}
-                  placeholder="Select Country"
-                  hasError={!!errors.country}
-                />
-                <ErrorText error={errors.country} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                <div>
+                  <Label required>Country</Label>
+                  <SearchableSelect
+                    name="country"
+                    value={selectedCountry}
+                    onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                    options={countries.map((country) => ({ value: country.id, label: country.name }))}
+                    placeholder="Select Country"
+                    hasError={!!errors.country}
+                  />
+                  <ErrorText error={errors.country} />
+                </div>
+                <div>
+                  <Label required>State</Label>
+                  <SearchableSelect
+                    name="state"
+                    value={selectedState}
+                    onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
+                    options={states.map((state) => ({ value: state.id, label: state.name }))}
+                    placeholder={selectedCountry ? 'Select State' : 'Select country first'}
+                    disabled={!selectedCountry}
+                    hasError={!!errors.state}
+                  />
+                  <ErrorText error={errors.state} />
+                </div>
               </div>
-              <div>
-                <Label required>State</Label>
-                <SearchableSelect
-                  name="state"
-                  value={selectedState}
-                  onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
-                  options={states.map((state) => ({ value: state.id, label: state.name }))}
-                  placeholder={selectedCountry ? 'Select State' : 'Select country first'}
-                  disabled={!selectedCountry}
-                  hasError={!!errors.state}
-                />
-                <ErrorText error={errors.state} />
-              </div>
-              <div>
-                <Label required>City</Label>
-                <SearchableSelect
-                  name="city"
-                  value={selectedCity}
-                  onChange={(e) => {
-                    setSelectedCity(e.target.value);
-                    setErrorFor('city', validateRequired(e.target.value, 'City'));
-                  }}
-                  options={cities?.map((city) => ({ value: city.id, label: city.name })) || []}
-                  placeholder={selectedState ? 'Select City' : 'Select state first'}
-                  disabled={!selectedState}
-                  hasError={!!errors.city}
-                />
-                <ErrorText error={errors.city} />
-              </div>
-              <div>
-                <Label required>Pincode</Label>
-                <input
-                  value={form.pincode}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    set('pincode', val);
-                    setErrorFor('pincode', validatePincode(val));
-                  }}
-                  placeholder="380009"
-                  maxLength={6}
-                  className={`${inputCls} ${errors.pincode ? 'border-red-400' : ''}`}
-                />
-                <ErrorText error={errors.pincode} />
+              <div className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
+                <div>
+                  <Label required>City</Label>
+                  <SearchableSelect
+                    name="city"
+                    value={selectedCity}
+                    onChange={(e) => {
+                      setSelectedCity(e.target.value);
+                      setErrorFor('city', validateRequired(e.target.value, 'City'));
+                    }}
+                    options={cities?.map((city) => ({ value: city.id, label: city.name })) || []}
+                    placeholder={selectedState ? 'Select City' : 'Select state first'}
+                    disabled={!selectedState}
+                    hasError={!!errors.city}
+                  />
+                  <ErrorText error={errors.city} />
+                </div>
+                <div>
+                  <Label required>Pincode</Label>
+                  <input
+                    value={form.pincode}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '');
+                      set('pincode', val);
+                      setErrorFor('pincode', validatePincode(val));
+                    }}
+                    placeholder="380009"
+                    maxLength={6}
+                    className={`${inputCls} ${errors.pincode ? 'border-red-400' : ''}`}
+                  />
+                  <ErrorText error={errors.pincode} />
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div>
                 <Label>Latitude</Label>
                 <input
@@ -971,6 +1019,7 @@ const AddUnit = () => {
         />
       )}
     </div>
+    </Container>
   );
 };
 

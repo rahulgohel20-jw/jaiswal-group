@@ -1,29 +1,38 @@
 import { useNavigate, useParams, useLocation } from 'react-router';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import {
-  ChevronRight,
+  ArrowLeft,
   Search,
   Trash2,
   Save,
   CheckCircle2,
   Loader2,
   ChevronLeft,
+  ChevronRight,
   ScrollText,
+  Package,
+  X,
+  Eye,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
-import { getAllRawMaterialItems, getCurrentStockListGet } from '@/services/apiServices';
+import { PageHeader } from '@/components/common/PageHeader';
+import {
+  getAllRawMaterialItems,
+} from '@/services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { getUserIdFromToken } from '@/utils/auth';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePurchaseRequisitions } from './utils/usePurchaseRequisitions';
 import { PR_STATUS, getStatusLabel } from './utils/prStatus';
 import PurchaseRequisitionLog from './PurchaseRequisitionLog';
-import { getUsernameFromToken } from '../../utils/auth';
+import { getOrgIdFromToken, getUsernameFromToken } from '../../utils/auth';
 import { getTodayInputDate } from '../../utils/GetCurrentToday';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import SearchableSelect from '@/utils/SearchableSelect';
 import OutletChangeConfirmModal from '@/utils/OutletChangeConfirmModal';
+import { formatRemarks } from '@/utils/textUtils';
+import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
 
 const inputCls =
   'w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm text-gray-800 bg-white ' +
@@ -43,19 +52,29 @@ const SectionCard = ({ children, className = '' }) => (
 
 const getAvailableStock = (item) => {
   if (typeof item?.currentStock === 'object' && item?.currentStock !== null) {
-    return item.currentStock.currentStock ?? 0;
+    return Number(item.currentStock.currentStock ?? 0);
   }
   if (typeof item?.currentStock === 'number') {
-    return item.currentStock;
+    return Number(item.currentStock);
   }
-  return item?.availableStock != null ? item.availableStock : (item?.closingStock ?? item?.opbStock ?? 0);
+  if (item?.availableStock != null) {
+    return Number(item.availableStock);
+  }
+  return 0;
 };
 
 const getStockTone = (stock, minStock) => {
-  if (stock == null) return { dot: 'bg-gray-300', text: 'text-gray-400' };
-  if (minStock && stock <= minStock) return { dot: 'bg-red-500', text: 'text-gray-700' };
-  if (minStock && stock <= minStock * 2) return { dot: 'bg-amber-500', text: 'text-gray-700' };
-  return { dot: 'bg-emerald-500', text: 'text-gray-700' };
+  if (stock === null || stock === undefined || stock === '') {
+    return { dot: 'bg-gray-400', badge: 'bg-gray-50 text-gray-600 border-gray-200', text: 'text-gray-600' };
+  }
+  const num = Number(stock);
+  if (isNaN(num) || num <= 0) {
+    return { dot: 'bg-rose-500', badge: 'bg-rose-50 text-rose-700 border-rose-200', text: 'text-rose-700' };
+  }
+  if (minStock != null && minStock !== '' && num <= Number(minStock)) {
+    return { dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-700 border-amber-200', text: 'text-amber-700' };
+  }
+  return { dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', text: 'text-emerald-700' };
 };
 
 const DETAILS_PAGE_SIZE = 5;
@@ -72,114 +91,6 @@ const apiDateToInputDate = (str) => {
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 };
 
-const inputDateToApiDate = (str) => {
-  if (!str) return '';
-  const [y, m, d] = str.split('-');
-  if (!d || !m || !y) return '';
-  return `${d}/${m}/${y}`;
-};
-
-/* -------------------------------------------------------------------------
- * Item picker (unchanged)
- * ---------------------------------------------------------------------- */
-
-const RawMaterialPicker = ({ rawMaterials, alreadyAddedIds, onAdd, loading }) => {
-  const [term, setTerm] = useState('');
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const matches = useMemo(() => {
-    const q = term.trim().toLowerCase();
-    return rawMaterials
-      .filter((rm) => !alreadyAddedIds.has(String(rm.id)))
-      .filter((rm) => {
-        if (!q) return true;
-        return (
-          String(rm.nameEnglish || '').toLowerCase().includes(q) ||
-          String(rm.itemCode || rm.code || '').toLowerCase().includes(q)
-        );
-      })
-      .slice(0, 8);
-  }, [rawMaterials, term, alreadyAddedIds]);
-
-  const handleSelect = (item) => {
-    onAdd(item);
-    setTerm('');
-    setOpen(false);
-  };
-
-  return (
-    <div ref={wrapperRef} className="relative">
-      <label className={labelCls}>Select Item to Add</label>
-      <div className="relative">
-        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          value={term}
-          onChange={(e) => {
-            setTerm(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          placeholder={loading ? 'Loading items...' : 'Search item by name or code...'}
-          disabled={loading}
-          className={`${inputCls} pl-9`}
-        />
-      </div>
-
-      {open && (
-        <div className="absolute z-20 mt-1.5 w-full max-h-72 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow-lg">
-          {matches.length === 0 ? (
-            <div className="px-4 py-4 text-sm text-gray-400 text-center">
-              No matching items found.
-            </div>
-          ) : (
-            matches.map((item) => {
-              const stock = getAvailableStock(item);
-              const unitStr = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || '';
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleSelect(item)}
-                  className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left hover:bg-blue-50/60 transition border-b border-gray-50 last:border-b-0"
-                >
-                  <div className="min-w-0">
-                    <span className="text-sm font-semibold text-[#084E92] truncate block">
-                      {item.nameEnglish}
-                    </span>
-                    {(item.itemCode || item.code) && (
-                      <span className="text-[11px] text-gray-400 font-mono">
-                        Code: {item.itemCode || item.code}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0 flex flex-col items-end">
-                    <span className="text-xs font-semibold text-gray-700">
-                      Stock: {Number(stock).toFixed(2)} {unitStr}
-                    </span>
-                    {item.supplierRate != null && (
-                      <span className="text-[11px] text-gray-500 font-medium">₹{item.supplierRate}</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
 
 /* -------------------------------------------------------------------------
  * Main page — Add + Edit
@@ -203,6 +114,7 @@ const AddPurchaseRequisition = () => {
     orgType,
     units: outlets, // [{ id, name, code }]
     selectedUnitId: orgScopeOutletId,
+    getSubOutlets,
   } = useOrgScope();
 
   const hasOutletDropdownAccess = orgType === OrgTypes.GROUP || orgType === OrgTypes.SUB_COMPANY;
@@ -213,6 +125,9 @@ const AddPurchaseRequisition = () => {
 
   // ---- Form fields ----
   const [outletId, setOutletId] = useState(state?.outletId != null ? String(state.outletId) : '');
+  const [subOutletId, setSubOutletId] = useState(state?.subOutletId != null ? String(state.subOutletId) : '');
+  const [subOutlets, setSubOutlets] = useState([]);
+  const [subOutletsLoading, setSubOutletsLoading] = useState(false);
   const [prDate, setPrDate] = useState(getTodayInputDate());
   const [prRequiredDate, setPrRequiredDate] = useState('');
   const [remarks, setRemarks] = useState('');
@@ -235,22 +150,66 @@ const AddPurchaseRequisition = () => {
   const [isOutletConfirmOpen, setIsOutletConfirmOpen] = useState(false);
   const [outletChangeLoading, setOutletChangeLoading] = useState(false);
 
+  // ---- Image preview modal state ----
+  const [previewModalImage, setPreviewModalImage] = useState(null);
+
+  // Helper to resolve raw material image from item or loaded raw materials
+  const getItemImage = useCallback((d) => {
+    if (d?.image) return d.image;
+    if (Array.isArray(d?.images) && d.images.length > 0) {
+      const sorted = [...d.images].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+      if (sorted[0]?.path) return sorted[0].path;
+    }
+    const matched = rawMaterials.find((r) => Number(r.id) === Number(d?.rawMaterialId));
+    if (matched) {
+      if (matched.image) return matched.image;
+      if (Array.isArray(matched.images) && matched.images.length > 0) {
+        const sorted = [...matched.images].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+        if (sorted[0]?.path) return sorted[0].path;
+      }
+    }
+    return '';
+  }, [rawMaterials]);
+
+  const isOutletUser = orgType === OrgTypes.OUTLET || orgType === 'OUTLET' || (!hasOutletDropdownAccess && !outletsLoading);
+  const effectiveOutletId =
+    outletId ||
+    (isOutletUser ? String(orgScopeOutletId || getOrgIdFromToken() || '') : '');
+
   // Sync outletId for OUTLET users in create mode
   useEffect(() => {
-    if (!isEditMode && !copyPrId && !outletId && orgScopeOutletId) {
+    if (!isEditMode && !copyPrId && !outletId && isOutletUser && orgScopeOutletId) {
       setOutletId(String(orgScopeOutletId));
     }
-  }, [isEditMode, copyPrId, outletId, orgScopeOutletId]);
+  }, [isEditMode, copyPrId, outletId, isOutletUser, orgScopeOutletId]);
 
-  /* ---- Load raw materials with organization scope ---- */
+  /* ---- Load sub-outlets (locations) with organization scope ---- */
+  const fetchSubOutlets = useCallback((targetOrgId) => {
+    if (!targetOrgId) {
+      setSubOutlets([]);
+      return [];
+    }
+    const list = getSubOutlets(targetOrgId);
+    const safeList = Array.isArray(list) ? list : [];
+    setSubOutlets(safeList);
+    return safeList;
+  }, [getSubOutlets]);
+
+  /* ---- Load raw materials with organization & sub-location scope ---- */
   const fetchRawMaterials = useCallback(
-    async (targetOrgId) => {
+    async (targetOrgId, targetSubOutletId) => {
+      const orgId = targetOrgId !== undefined ? targetOrgId : effectiveOutletId;
+      if (!orgId) {
+        setRawMaterials([]);
+        return [];
+      }
       setRawMaterialsLoading(true);
       try {
-        const orgId = targetOrgId !== undefined ? targetOrgId : (outletId || orgScopeOutletId || '');
-        const res = await getAllRawMaterialItems(0, 0, true, '', '', '', orgId, '');
+        const subId = targetSubOutletId !== undefined ? targetSubOutletId : (subOutletId || '');
+        const res = await getAllRawMaterialItems(null, 0, true, '', '', '', orgId, subId);
         const list = res?.data?.data?.['Raw Material Details'] || res?.data?.['Raw Material Details'] || [];
         const rawItems = Array.isArray(list) ? list : [];
+
         setRawMaterials(rawItems);
         return rawItems;
       } catch (err) {
@@ -261,16 +220,21 @@ const AddPurchaseRequisition = () => {
         setRawMaterialsLoading(false);
       }
     },
-    [outletId, orgScopeOutletId],
+    [effectiveOutletId, subOutletId],
   );
 
-  /* ---- Initial load of raw materials in create mode ---- */
+  /* ---- Initial load of raw materials & sub-outlets in create mode ---- */
   useEffect(() => {
     if (!isEditMode && !copyPrId) {
-      const initialOrg = outletId || orgScopeOutletId || '';
-      fetchRawMaterials(initialOrg);
+      if (effectiveOutletId) {
+        fetchRawMaterials(effectiveOutletId, subOutletId);
+        fetchSubOutlets(effectiveOutletId);
+      } else {
+        setRawMaterials([]);
+        setSubOutlets([]);
+      }
     }
-  }, [isEditMode, copyPrId, orgScopeOutletId, fetchRawMaterials]);
+  }, [isEditMode, copyPrId, effectiveOutletId, fetchRawMaterials, fetchSubOutlets, subOutletId]);
 
   /* ---- Edit mode or Copy mode: load the existing PR and pre-fill ---- */
   useEffect(() => {
@@ -291,51 +255,34 @@ const AddPurchaseRequisition = () => {
         }
 
         const effectiveOrgId = pr.outletId != null ? String(pr.outletId) : '';
+        const effectiveSubId = pr.subOutletId != null ? String(pr.subOutletId) : '';
         if (effectiveOrgId) {
           setOutletId(effectiveOrgId);
+          await fetchSubOutlets(effectiveOrgId);
+        }
+        if (effectiveSubId) {
+          setSubOutletId(effectiveSubId);
         }
         setPrDate(isEditMode ? apiDateToInputDate(pr.date) : getTodayInputDate());
         setPrRequiredDate(apiDateToInputDate(pr.requiredDate));
         setRemarks(pr.remarks || '');
 
-        // Fetch raw materials for this outlet
-        const updatedRMs = await fetchRawMaterials(effectiveOrgId);
-
-        // Fetch current stock for existing items
-        let stockList = [];
-        const itemIds = (pr.details || []).map((d) => d.rawMaterialId).filter(Boolean);
-        if (effectiveOrgId && itemIds.length > 0) {
-          try {
-            const stockRes = await getCurrentStockListGet({
-              itemIds,
-              itemType: 'RAW_MATERIAL',
-              organizationId: Number(effectiveOrgId),
-            });
-            const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
-            stockList = Array.isArray(stockData)
-              ? stockData
-              : Array.isArray(stockData?.content)
-              ? stockData.content
-              : Array.isArray(stockData?.list)
-              ? stockData.list
-              : [];
-          } catch (stockErr) {
-            console.error('Failed to fetch stock list in edit mode', stockErr);
-          }
-        }
+        // Fetch raw materials for this outlet & sub-unit/location
+        const updatedRMs = await fetchRawMaterials(effectiveOrgId, effectiveSubId);
 
         setDetails(
           (pr.details || []).map((d) => {
-            const matchedStock = stockList.find(
-              (s) => Number(s.itemId || s.id) === Number(d.rawMaterialId),
-            );
             const matchedRaw = updatedRMs.find((r) => Number(r.id) === Number(d.rawMaterialId));
-            const availStock =
-              matchedStock != null
-                ? Number(matchedStock.currentStock ?? 0)
-                : matchedRaw
-                ? getAvailableStock(matchedRaw)
-                : (d.availableStock ?? 0);
+            const availStock = matchedRaw ? getAvailableStock(matchedRaw) : (d.availableStock ?? 0);
+            const stockUnit =
+              matchedRaw?.currentStock?.unitName ||
+              matchedRaw?.currentStock?.unitSymbol ||
+              matchedRaw?.unit?.nameEnglish ||
+              matchedRaw?.unit?.symbolEnglish ||
+              matchedRaw?.unitName ||
+              matchedRaw?.unitSymbol ||
+              d.stockUnit ||
+              '';
 
             const allowedUnits =
               Array.isArray(matchedRaw?.allowedUnits) && matchedRaw.allowedUnits.length > 0
@@ -343,6 +290,17 @@ const AddPurchaseRequisition = () => {
                 : matchedRaw?.unit
                 ? [matchedRaw.unit]
                 : [];
+
+            const itemImages = Array.isArray(d.images) && d.images.length > 0
+              ? d.images
+              : Array.isArray(matchedRaw?.images)
+              ? matchedRaw.images
+              : [];
+            const latestImg =
+              d.image ||
+              [...itemImages].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0))[0]?.path ||
+              matchedRaw?.image ||
+              '';
 
             return {
               id: isEditMode ? (d.id ?? 0) : 0,
@@ -356,8 +314,11 @@ const AddPurchaseRequisition = () => {
                 matchedRaw?.rawMaterialCategoryName ||
                 '',
               availableStock: availStock,
+              stockUnit,
               minStock: matchedRaw?.minStock ?? null,
               quantity: d.quantity,
+              images: itemImages,
+              image: latestImg,
             };
           }),
         );
@@ -373,45 +334,63 @@ const AddPurchaseRequisition = () => {
 
   const handleApplyOutletChange = async (newOrgId) => {
     setOutletId(newOrgId ? String(newOrgId) : '');
-    const updatedRMs = await fetchRawMaterials(newOrgId);
+    setSubOutletId('');
+    if (newOrgId) {
+      await fetchSubOutlets(newOrgId);
+    } else {
+      setSubOutlets([]);
+    }
+    const updatedRMs = await fetchRawMaterials(newOrgId, '');
 
     if (details.length > 0 && newOrgId) {
-      const itemIds = details.map((d) => d.rawMaterialId).filter(Boolean);
-      let stockList = [];
-      try {
-        const stockRes = await getCurrentStockListGet({
-          itemIds,
-          itemType: 'RAW_MATERIAL',
-          organizationId: Number(newOrgId),
-        });
-        const stockData = stockRes?.data?.data ?? stockRes?.data ?? [];
-        stockList = Array.isArray(stockData)
-          ? stockData
-          : Array.isArray(stockData?.content)
-          ? stockData.content
-          : Array.isArray(stockData?.list)
-          ? stockData.list
-          : [];
-      } catch (stockErr) {
-        console.error('Failed to fetch stock list on outlet change', stockErr);
-      }
-
       setDetails((prev) =>
         prev.map((d) => {
-          const matchedStock = stockList.find(
-            (s) => Number(s.itemId || s.id) === Number(d.rawMaterialId),
-          );
           const matchedRaw = updatedRMs.find((r) => Number(r.id) === Number(d.rawMaterialId));
-          const availStock =
-            matchedStock != null
-              ? Number(matchedStock.currentStock ?? 0)
-              : matchedRaw
-              ? getAvailableStock(matchedRaw)
-              : 0;
+          const availStock = matchedRaw ? getAvailableStock(matchedRaw) : 0;
+          const stockUnit =
+            matchedRaw?.currentStock?.unitName ||
+            matchedRaw?.currentStock?.unitSymbol ||
+            matchedRaw?.unit?.nameEnglish ||
+            matchedRaw?.unit?.symbolEnglish ||
+            matchedRaw?.unitName ||
+            matchedRaw?.unitSymbol ||
+            d.stockUnit ||
+            '';
 
           return {
             ...d,
             availableStock: availStock,
+            stockUnit,
+          };
+        }),
+      );
+    }
+  };
+
+  const handleSubOutletChange = async (newSubId) => {
+    setSubOutletId(newSubId ? String(newSubId) : '');
+    const activeOrgId = outletId || orgScopeOutletId || '';
+    const updatedRMs = await fetchRawMaterials(activeOrgId, newSubId);
+
+    if (details.length > 0 && activeOrgId) {
+      setDetails((prev) =>
+        prev.map((d) => {
+          const matchedRaw = updatedRMs.find((r) => Number(r.id) === Number(d.rawMaterialId));
+          const availStock = matchedRaw ? getAvailableStock(matchedRaw) : 0;
+          const stockUnit =
+            matchedRaw?.currentStock?.unitName ||
+            matchedRaw?.currentStock?.unitSymbol ||
+            matchedRaw?.unit?.nameEnglish ||
+            matchedRaw?.unit?.symbolEnglish ||
+            matchedRaw?.unitName ||
+            matchedRaw?.unitSymbol ||
+            d.stockUnit ||
+            '';
+
+          return {
+            ...d,
+            availableStock: availStock,
+            stockUnit,
           };
         }),
       );
@@ -450,14 +429,8 @@ const AddPurchaseRequisition = () => {
   const pendingOutletObj = outlets.find((o) => String(o.id) === String(pendingOutletChange));
   const pendingOutletName = pendingOutletObj?.name || 'the selected outlet';
 
-  // Outlet field is editable for GROUP/SUB_COMPANY users, but only while
-  // the PR is still PENDING (draft, not yet sent for approval). Once it's
-  // SENT_FOR_APPROVAL or later, the outlet is locked for everyone — an
-  // approver editing details shouldn't be able to reassign which outlet
-  // the PR belongs to. In create mode there's no status yet, so it's
-  // always editable for dropdown-access users.
-  const outletFieldIsEditable =
-    hasOutletDropdownAccess && (!isEditMode || loadedPr?.rawStatus === PR_STATUS.PENDING);
+  const isPrEditable = !isEditMode || loadedPr?.rawStatus === PR_STATUS.PENDING;
+  const outletFieldIsEditable = hasOutletDropdownAccess && isPrEditable;
 
   const alreadyAddedIds = useMemo(
     () => new Set(details.map((d) => String(d.rawMaterialId))),
@@ -465,17 +438,51 @@ const AddPurchaseRequisition = () => {
   );
 
   const handleAddItem = (item) => {
-    const uomId = item.unitId ?? item.unit?.id ?? 0;
-    const uomName = item.unit?.nameEnglish || item.unit?.symbolEnglish || item.unitName || '';
-    const allowedUnits = Array.isArray(item.allowedUnits) && item.allowedUnits.length > 0
-      ? item.allowedUnits
-      : (item.unit ? [item.unit] : []);
+    const uomId = item.currentStock?.unitId ?? item.unitId ?? item.unit?.id ?? 0;
+    const uomName =
+      item.currentStock?.unitName ||
+      item.currentStock?.unitSymbol ||
+      item.unit?.nameEnglish ||
+      item.unit?.symbolEnglish ||
+      item.unitName ||
+      '';
+    let allowedUnits =
+      Array.isArray(item.allowedUnits) && item.allowedUnits.length > 0
+        ? [...item.allowedUnits]
+        : item.unit
+        ? [item.unit]
+        : [];
+
+    if (
+      item.currentStock?.unitId &&
+      !allowedUnits.some((u) => Number(u.id) === Number(item.currentStock.unitId))
+    ) {
+      allowedUnits = [
+        {
+          id: item.currentStock.unitId,
+          nameEnglish: item.currentStock.unitName || item.currentStock.unitSymbol || 'Unit',
+          symbolEnglish: item.currentStock.unitSymbol || '',
+        },
+        ...allowedUnits,
+      ];
+    }
 
     if (!uomId || !uomName) {
       setItemPickError(`"${item.nameEnglish}" has no unit configured and can't be added. Set a unit on the item first.`);
       return;
     }
     setItemPickError('');
+
+    const stockUnit =
+      (typeof item.currentStock === 'object' && item.currentStock !== null
+        ? item.currentStock.unitName || item.currentStock.unitSymbol
+        : '') || '';
+
+    const itemImages = Array.isArray(item.images) ? item.images : [];
+    const latestImg =
+      [...itemImages].filter((img) => img?.path).sort((a, b) => Number(b.id || 0) - Number(a.id || 0))[0]?.path ||
+      item.image ||
+      '';
 
     setDetails((prev) => [
       ...prev,
@@ -488,8 +495,11 @@ const AddPurchaseRequisition = () => {
         allowedUnits,
         category: item.rawMaterialCat?.nameEnglish || item.rawMaterialCategoryName || '',
         availableStock: getAvailableStock(item),
+        stockUnit,
         minStock: item.minStock,
         quantity: 1,
+        images: itemImages,
+        image: latestImg,
       },
     ]);
     setDetailsPage(Math.floor(details.length / DETAILS_PAGE_SIZE));
@@ -562,6 +572,8 @@ const AddPurchaseRequisition = () => {
     return Object.keys(next).length === 0;
   };
 
+  const selectedSubOutlet = subOutlets.find((s) => String(s.id) === String(subOutletId));
+
   // buildPayload no longer sets status — the hook functions add it based
   // on which button was clicked.
   const buildPayload = () => ({
@@ -578,9 +590,13 @@ const AddPurchaseRequisition = () => {
     outletId: Number(outletId),
     outletName: selectedOutlet?.name || '',
     outletShortCode: selectedOutlet?.code || '',
+    subOutletId: subOutletId ? Number(subOutletId) : null,
+    subOutletName: subOutletId
+      ? (selectedSubOutlet?.name || selectedSubOutlet?.subOutletName || selectedSubOutlet?.locationName || '')
+      : null,
     prDate: prDate,
     prRequiredDate: prRequiredDate,
-    remarks,
+    remarks: formatRemarks(remarks),
   });
 
   // "Save" — sends status: PENDING
@@ -667,69 +683,63 @@ const AddPurchaseRequisition = () => {
 
   return (
     <Container>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-10">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2 mt-3">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Purchase</span>
-          <ChevronRight size={12} />
-          <span>Purchase Requisition List</span>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">{isEditMode ? 'Edit' : 'Create'}</span>
-        </div>
-
-        <div className="flex items-start justify-between gap-4 flex-wrap mt-3">
-          <div>
-            <h1 className="text-2xl md:text-4xl font-semibold">
-              {isEditMode ? `Edit Purchase Requisition` : 'Create Purchase Requisition'}
-            </h1>
-            <p className="text-[#43474F] mt-1 text-sm sm:text-base">
-              {isEditMode
-                ? `Editing ${loadedPr?.prCode || ''} for ${loadedPr?.outlet || 'the selected outlet'}.`
-                : 'Raise a new purchase requisition for an outlet.'}
-            </p>
-          </div>
-
-          {isEditMode && (
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? `Edit Purchase Requisition` : 'Create Purchase Requisition'}
+          description={
+            isEditMode
+              ? `Editing ${loadedPr?.prCode || ''} for ${loadedPr?.outlet || 'the selected outlet'}.`
+              : 'Raise a new purchase requisition for your outlet or location.'
+          }
+          actions={
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setShowLog(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-sm font-semibold text-white hover:bg-[#073e77] transition-colors cursor-pointer border-0 shadow-sm shrink-0"
+                onClick={() => navigate('/purchase-requisition/list')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0"
               >
-                <ScrollText className="w-4 h-4 shrink-0" />
-                <span>See Activity Log</span>
+                <ArrowLeft className="w-4 h-4" />
+                Back to Requisitions
               </button>
-            )}
-        </div>
+              {isEditMode && (
+                <button
+                  type="button"
+                  onClick={() => setShowLog(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#084E92] text-sm font-semibold text-white hover:bg-[#073e77] transition-colors cursor-pointer border-0 shadow-sm shrink-0"
+                >
+                  <ScrollText className="w-4 h-4 shrink-0" />
+                  <span>See Activity Log</span>
+                </button>
+              )}
+            </div>
+          }
+          className="mt-2"
+        />
 
           {/* Origin details */}
 <SectionCard className="mt-5 p-5 sm:p-6">
   <h2 className="text-sm font-semibold text-gray-800 mb-4">Origin Details</h2>
 
-  <div className={`grid grid-cols-1 ${hasOutletDropdownAccess ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-4`}>
+  <div className={`grid grid-cols-1 ${hasOutletDropdownAccess ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4`}>
     {hasOutletDropdownAccess && (
       <div>
         <label className={labelCls}>
-          Outlet <span className="text-red-500">*</span>
+          Unit <span className="text-red-500">*</span>
         </label>
 
         {outletFieldIsEditable ? (
-          <select
-            value={outletId ? String(outletId) : ''}
-            onChange={handleOutletSelectChange}
-            disabled={outletsLoading}
-            className={errors.outletId ? errorInputCls : inputCls}
-          >
-            <option value="">
-              {outletsLoading ? 'Loading outlets...' : 'Select outlet'}
-            </option>
-            {outlets.map((o) => (
-              <option key={o.id} value={String(o.id)}>
-                {o.name} {o.code ? `(${o.code})` : ''}
-              </option>
-            ))}
-          </select>
+                  <SearchableSelect
+                    name="outletId"
+                    value={outletId ? String(outletId) : ''}
+                    onChange={handleOutletSelectChange}
+                    options={outlets.map((o) => ({
+                      value: String(o.id),
+                      label: `${o.name}${o.code ? ` (${o.code})` : ''}`,
+                    }))}
+                    placeholder={outletsLoading ? 'Loading units...' : 'Select unit'}
+                    disabled={outletsLoading || !outletFieldIsEditable}
+                    hasError={!!errors.outletId}
+                  />
         ) : (
           <div className={`${inputCls} bg-gray-50 text-gray-600`}>
             {outletsLoading
@@ -743,6 +753,43 @@ const AddPurchaseRequisition = () => {
         )}
       </div>
     )}
+
+    <div>
+      <label className={labelCls}>
+        Sub-Unit
+      </label>
+      {canPerformEdit && isPrEditable ? (
+        <SearchableSelect
+          name="subOutletId"
+          value={subOutletId ? String(subOutletId) : ''}
+          onChange={(e) => handleSubOutletChange(e.target.value)}
+          options={subOutlets.map((s) => ({
+            value: String(s.id),
+            label: `${s.name || s.subOutletName || s.locationName || ''}${s.shortCode || s.code || s.subOutletCode ? ` (${s.shortCode || s.code || s.subOutletCode})` : ''}`,
+          }))}
+          placeholder={
+            subOutletsLoading
+              ? 'Loading locations...'
+              : !outletId
+              ? 'Select unit first'
+              : subOutlets.length === 0
+              ? 'No locations found'
+              : 'Select location (Optional)'
+          }
+          disabled={subOutletsLoading || !outletId || busy}
+          hasError={!!errors.subOutletId}
+        />
+      ) : (
+        <div className={`${inputCls} bg-gray-50 text-gray-600`}>
+          {subOutletsLoading
+            ? 'Loading...'
+            : selectedSubOutlet?.name || selectedSubOutlet?.subOutletName || loadedPr?.subOutletName || '—'}
+        </div>
+      )}
+      {errors.subOutletId && (
+        <p className="text-xs text-red-500 mt-1">{errors.subOutletId}</p>
+      )}
+    </div>
 
     <div>
       <label className={labelCls}>
@@ -782,6 +829,7 @@ const AddPurchaseRequisition = () => {
       value={remarks}
       disabled={!canPerformEdit}
       onChange={(e) => setRemarks(e.target.value)}
+      onBlur={() => setRemarks((prev) => formatRemarks(prev))}
       rows={3}
       placeholder="Internal notes for this requisition..."
       className={`${inputCls} resize-none disabled:bg-gray-50 disabled:text-gray-500`}
@@ -792,11 +840,14 @@ const AddPurchaseRequisition = () => {
         {/* Raw materials */}
         <SectionCard className="mt-5 p-5 sm:p-6">
           {canPerformEdit && (
-            <RawMaterialPicker
-              rawMaterials={rawMaterials}
+            <RawMaterialSearchPicker
+              items={effectiveOutletId ? rawMaterials : []}
               alreadyAddedIds={alreadyAddedIds}
-              onAdd={handleAddItem}
+              onSelect={handleAddItem}
               loading={rawMaterialsLoading}
+              disabled={!effectiveOutletId}
+              placeholder={!effectiveOutletId ? 'Please select a unit first to search raw materials...' : 'Search raw material by name or code...'}
+              isSticky={true}
             />
           )}
 
@@ -805,150 +856,245 @@ const AddPurchaseRequisition = () => {
           )}
           {errors.details && <p className="text-xs text-red-500 mt-2">{errors.details}</p>}
 
-          <div className="mt-4 overflow-x-auto rounded-xl border border-gray-100">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50/70 text-[10px] uppercase tracking-wide text-gray-400">
-                  <th className="text-left font-semibold px-4 py-3 w-16">Sr. No.</th>
-                  <th className="text-left font-semibold px-4 py-3">Item Name</th>
-                  <th className="text-left font-semibold px-4 py-3">
-                    Unit <span className="text-red-500">*</span>
-                  </th>
-                  <th className="text-left font-semibold px-4 py-3">Available Stock</th>
-                  <th className="text-left font-semibold px-4 py-3 w-32">Quantity</th>
-                  {canPerformEdit && <th className="text-left font-semibold px-4 py-3 w-16">Action</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {details.length === 0 ? (
-                  <tr>
-                    <td colSpan={canPerformEdit ? 6 : 5} className="px-4 py-10 text-center text-gray-400">
-                      No items added yet — search above to add raw materials.
-                    </td>
+          <div className="mt-4 overflow-hidden rounded-xl border border-gray-200/90 bg-white shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/90 border-b border-gray-200 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
+                    <th className="px-4 py-3 text-center w-16">Sr.</th>
+                    <th className="px-4 py-3">Item Details</th>
+                    <th className="px-4 py-3 min-w-[170px]">
+                      Unit <span className="text-rose-500">*</span>
+                    </th>
+                    <th className="px-4 py-3 min-w-[180px]">Available Stock</th>
+                    <th className="px-4 py-3 w-36">
+                      Quantity <span className="text-rose-500">*</span>
+                    </th>
+                    {canPerformEdit && <th className="px-4 py-3 text-center w-16">Action</th>}
                   </tr>
-                ) : (
-                  pagedDetails.map((d, i) => {
-                    const tone = getStockTone(d.availableStock, d.minStock);
-                    const missingUnit = !d.uomId || !d.uomName;
-                    return (
-                      <tr key={d.rawMaterialId} className="border-t border-gray-100">
-                        <td className="px-4 py-4 text-gray-400">
-                          {String(detailsPage * DETAILS_PAGE_SIZE + i + 1).padStart(2, '0')}
-                        </td>
-                        <td className="px-4 py-4">
-                          <p className="font-semibold text-[#084E92]">{d.rawMaterialName}</p>
-                          {d.category && (
-                            <p className="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">
-                              {d.category}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-4 py-4 min-w-[160px]">
-                          {missingUnit ? (
-                            <span className="text-xs font-medium text-red-500">Missing unit</span>
-                          ) : canPerformEdit ? (
-                            (() => {
-                              const rm = rawMaterials.find((r) => r.id === d.rawMaterialId);
-                              const allowedList = d.allowedUnits?.length
-                                ? d.allowedUnits
-                                : (Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
-                                    ? rm.allowedUnits
-                                    : (rm?.unit ? [rm.unit] : []));
-
-                              let options = allowedList.map((u) => ({
-                                value: String(u.id),
-                                label: u.nameEnglish || u.symbolEnglish || `Unit #${u.id}`,
-                              }));
-
-                              if (d.uomId && !options.some((opt) => String(opt.value) === String(d.uomId))) {
-                                options = [
-                                  { value: String(d.uomId), label: d.uomName || `Unit #${d.uomId}` },
-                                  ...options,
-                                ];
-                              }
-
-                              return (
-                                <div className="min-w-[130px] max-w-[190px]">
-                                  <SearchableSelect
-                                    name={`unit-${d.rawMaterialId}`}
-                                    value={d.uomId ? String(d.uomId) : ''}
-                                    onChange={(e) => updateUnit(d.rawMaterialId, e.target.value)}
-                                    options={options}
-                                    placeholder="Select unit"
-                                    disabled={!canPerformEdit}
-                                    hasError={!d.uomId || !d.uomName}
-                                  />
-                                </div>
-                              );
-                            })()
-                          ) : (
-                            <span className="text-gray-600">{d.uomName}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${tone.dot}`} />
-                            <span className={tone.text}>
-                              {d.availableStock != null ? Number(d.availableStock).toFixed(2) : '—'}
-                            </span>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {details.length === 0 ? (
+                    <tr>
+                      <td colSpan={canPerformEdit ? 6 : 5} className="px-4 py-12 text-center text-gray-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                            <Search className="w-5 h-5" />
                           </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <input
-                            type="number"
-                            min="1"
-                            value={d.quantity}
-                            disabled={!canPerformEdit}
-                            onChange={(e) => updateQuantity(d.rawMaterialId, e.target.value)}
-                            className={`${inputCls} py-1.5 disabled:bg-gray-50 disabled:text-gray-500`}
-                          />
-                        </td>
-                        {canPerformEdit && (
-                          <td className="px-4 py-4">
-                            <button
-                              type="button"
-                              onClick={() => removeDetail(d.rawMaterialId)}
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 transition cursor-pointer bg-transparent border-0"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                          <p className="font-medium text-slate-600">No items added yet</p>
+                          <p className="text-[11px] text-slate-400">Search and select raw materials above to add them to this requisition.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    pagedDetails.map((d, i) => {
+                      const tone = getStockTone(d.availableStock, d.minStock);
+                      const missingUnit = !d.uomId || !d.uomName;
+                      const displayUnit = d.stockUnit || d.uomName || '';
+                      const stockVal = Number(d.availableStock ?? 0);
 
-          {details.length > 0 && (
-            <div className="flex items-center justify-between mt-3">
-              <p className="text-xs text-gray-400">
-                Showing {pagedDetails.length} of {details.length} items added to this requisition.
-              </p>
-              {pageCount > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setDetailsPage((p) => Math.max(0, p - 1))}
-                    disabled={detailsPage === 0}
-                    className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDetailsPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={detailsPage === pageCount - 1}
-                    className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+                      return (
+                        <tr
+                          key={d.rawMaterialId}
+                          className="hover:bg-slate-50/70 transition-colors group"
+                        >
+                          {/* Serial Number */}
+                          <td className="px-4 py-3.5 text-center align-middle">
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-slate-100 text-[11px] font-semibold text-slate-600 font-mono">
+                              {String(detailsPage * DETAILS_PAGE_SIZE + i + 1).padStart(2, '0')}
+                            </span>
+                          </td>
+
+                          {/* Item Details */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className="flex items-center gap-3">
+                              {/* Item Image */}
+                              {(() => {
+                                const imgUrl = getItemImage(d);
+                                return imgUrl ? (
+                                  <div
+                                    onClick={() => setPreviewModalImage({ url: imgUrl, name: d.rawMaterialName })}
+                                    className="w-11 h-11 rounded-lg overflow-hidden border border-gray-200 bg-white flex items-center justify-center shrink-0 shadow-2xs hover:border-[#084E92] transition-colors cursor-pointer group/img relative"
+                                    title="Click to view full image"
+                                  >
+                                    <img
+                                      src={imgUrl}
+                                      alt={d.rawMaterialName}
+                                      className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-200"
+                                      onError={(e) => {
+                                        e.currentTarget.style.display = 'none';
+                                        if (e.currentTarget.nextElementSibling) {
+                                          e.currentTarget.nextElementSibling.style.display = 'flex';
+                                        }
+                                      }}
+                                    />
+                                    <div className="hidden w-full h-full items-center justify-center bg-slate-50 text-slate-400">
+                                      <Package className="w-5 h-5 text-slate-400" />
+                                    </div>
+                                    <div className="absolute inset-0 bg-black/25 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                      <Eye className="w-3.5 h-3.5 drop-shadow" />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div
+                                    className="w-11 h-11 rounded-lg bg-slate-100 border border-slate-200/60 flex items-center justify-center shrink-0 text-slate-400"
+                                    title="No image available"
+                                  >
+                                    <Package className="w-5 h-5 text-slate-400" />
+                                  </div>
+                                );
+                              })()}
+
+                              <div className="flex flex-col min-w-0">
+                                <span className="font-semibold text-slate-900 text-xs truncate" title={d.rawMaterialName}>
+                                  {d.rawMaterialName}
+                                </span>
+                                {d.category && (
+                                  <span className="inline-flex items-center w-fit px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-slate-100 text-slate-600 border border-slate-200/60 mt-1">
+                                    {d.category}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Unit Selector */}
+                          <td className="px-4 py-3.5 align-middle">
+                            {missingUnit ? (
+                              <span className="text-xs font-medium text-rose-500">Missing unit</span>
+                            ) : canPerformEdit ? (
+                              (() => {
+                                const rm = rawMaterials.find((r) => r.id === d.rawMaterialId);
+                                const allowedList = d.allowedUnits?.length
+                                  ? d.allowedUnits
+                                  : (Array.isArray(rm?.allowedUnits) && rm.allowedUnits.length > 0
+                                      ? rm.allowedUnits
+                                      : (rm?.unit ? [rm.unit] : []));
+
+                                let options = allowedList.map((u) => ({
+                                  value: String(u.id),
+                                  label: u.nameEnglish || u.symbolEnglish || `Unit #${u.id}`,
+                                }));
+
+                                if (d.uomId && !options.some((opt) => String(opt.value) === String(d.uomId))) {
+                                  options = [
+                                    { value: String(d.uomId), label: d.uomName || `Unit #${d.uomId}` },
+                                    ...options,
+                                  ];
+                                }
+
+                                return (
+                                  <div className="min-w-[130px] max-w-[180px]">
+                                    <SearchableSelect
+                                      name={`unit-${d.rawMaterialId}`}
+                                      value={d.uomId ? String(d.uomId) : ''}
+                                      onChange={(e) => updateUnit(d.rawMaterialId, e.target.value)}
+                                      options={options}
+                                      placeholder="Select unit"
+                                      disabled={!canPerformEdit}
+                                      isClearable={false}
+                                      hasError={!d.uomId || !d.uomName}
+                                    />
+                                  </div>
+                                );
+                              })()
+                            ) : (
+                              <span className="inline-block px-2.5 py-1 rounded-md bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium">
+                                {d.uomName}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Available Stock */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium ${tone.badge}`}>
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${tone.dot}`} />
+                              <span>
+                                {d.availableStock != null
+                                  ? `${Number(d.availableStock).toFixed(2)}${displayUnit ? ` ${displayUnit}` : ''}`
+                                  : '—'}
+                              </span>
+                              {stockVal <= 0 && (
+                                <span className="text-[10px] opacity-80">
+                                  (0.00)
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Quantity */}
+                          <td className="px-4 py-3.5 align-middle">
+                            <div className="relative max-w-[110px]">
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="any"
+                                value={d.quantity}
+                                disabled={!canPerformEdit}
+                                onChange={(e) => updateQuantity(d.rawMaterialId, e.target.value)}
+                                className="w-full h-9 px-3 text-xs font-semibold text-slate-800 bg-white border border-gray-200 rounded-lg outline-none transition focus:border-[#084E92] focus:ring-2 focus:ring-[#084E92]/15 hover:border-gray-300 disabled:bg-gray-50 disabled:text-gray-400"
+                                placeholder="0"
+                              />
+                            </div>
+                          </td>
+
+                          {/* Action */}
+                          {canPerformEdit && (
+                            <td className="px-4 py-3.5 text-center align-middle">
+                              <button
+                                type="button"
+                                onClick={() => removeDetail(d.rawMaterialId)}
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                                title="Remove item"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-          )}
+
+            {details.length > 0 && (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-slate-50/60">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-[#084E92] border border-blue-200/60">
+                    {details.length} {details.length === 1 ? 'Item' : 'Items'}
+                  </span>
+                  <p className="text-xs text-slate-500">
+                    Showing {pagedDetails.length} of {details.length} items
+                  </p>
+                </div>
+                {pageCount > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsPage((p) => Math.max(0, p - 1))}
+                      disabled={detailsPage === 0}
+                      className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="text-xs font-semibold text-slate-600 px-1">
+                      {detailsPage + 1} / {pageCount}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDetailsPage((p) => Math.min(pageCount - 1, p + 1))}
+                      disabled={detailsPage === pageCount - 1}
+                      className="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer bg-white"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </SectionCard>
 
         {/* Footer actions */}
@@ -998,6 +1144,39 @@ const AddPurchaseRequisition = () => {
       itemCount={details.length}
       loading={outletChangeLoading}
     />
+
+    {/* Image Preview Modal */}
+    {previewModalImage && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fadeIn"
+        onClick={() => setPreviewModalImage(null)}
+      >
+        <div
+          className="relative bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-4 flex flex-col items-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between w-full pb-3 border-b border-gray-100">
+            <span className="text-xs font-bold text-gray-800 truncate pr-2">
+              {previewModalImage.name}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPreviewModalImage(null)}
+              className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="mt-3 w-full max-h-[60vh] flex items-center justify-center rounded-xl overflow-hidden bg-slate-50 border border-gray-100">
+            <img
+              src={previewModalImage.url}
+              alt={previewModalImage.name}
+              className="max-w-full max-h-[55vh] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      </div>
+    )}
     </Container>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import {
-  ChevronRight,
   Building2,
   Calendar,
   Download,
@@ -76,7 +75,7 @@ const AUDIT_MODULE_NAME = 'PURCHASE_REQUISITION';
 const PurchaseRequisitionView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canView } = usePagePermissions('Purchase Requisition');
+  const { canView } = usePagePermissions(['Purchase Requisition', 'Approve Purchase Requisition']);
   const { current, loading, error, fetchById } = usePurchaseRequisitions();
   const [logOpen, setLogOpen] = useState(false);
 
@@ -87,10 +86,6 @@ const PurchaseRequisitionView = () => {
   if (!canView) {
     return <AccessDenied pageTitle="Purchase Requisition" />;
   }
-
-  const handleDownloadPdf = () => {
-    // TODO: wire to downloadPurchaseRequisitionPdf(id) once that endpoint exists
-  };
 
   if (loading && !current) {
     return (
@@ -116,20 +111,7 @@ const PurchaseRequisitionView = () => {
 
   return (
     <Container>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-12">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3 mt-4">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <Link
-            to="/purchase-requisition/list"
-            className="cursor-pointer hover:text-[#084E92] transition"
-          >
-            Purchase Requisition List
-          </Link>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">{row.prCode}</span>
-        </div>
+      <div className="mx-auto px-4 pt-4">
 
         {/* Header card */}
         <div className="rounded-2xl bg-gradient-to-r from-[#084E92] to-[#0B65BD] px-6 py-5 flex items-center justify-between gap-4 flex-wrap shadow-sm">
@@ -175,7 +157,8 @@ const PurchaseRequisitionView = () => {
               <InfoTile label="Required Date" value={row.requiredDate || '—'} />
               <InfoTile label="Created By" value={row.createdByName || row.raisedBy || (row.createdBy ? String(row.createdBy) : '—')} />
               <InfoTile label="Last Updated By" value={row.updatedByName || row.actionBy || (row.updatedBy ? String(row.updatedBy) : '—')} />
-              <InfoTile label="Outlet / Branch" value={row.outlet} icon={Building2} className="col-span-2 sm:col-span-4" />
+              <InfoTile label="Unit / Branch" value={row.outlet || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
+              <InfoTile label="Sub-Unit" value={row.subOutletName || '—'} icon={Building2} className="col-span-2 sm:col-span-2" />
             </div>
 
             {row.remarks && (

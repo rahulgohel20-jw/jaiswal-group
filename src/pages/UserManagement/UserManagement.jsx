@@ -148,11 +148,12 @@ export function UserManagement() {
   const columns = [
     {
       id: 'srNo',
-      header: () => <span>Sr. no.</span>,
+      header: () => <span>S.NO</span>,
       cell: ({ row }) => (
-        <span className="text-sm text-gray-600">{row.index + 1}</span>
+        <span className="text-sm text-gray-600">{String(row.index + 1).padStart(2, '0')}</span>
       ),
       enableSorting: false,
+      size: 70,
     },
     {
       id: 'employeeCode',

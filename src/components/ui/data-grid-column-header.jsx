@@ -82,6 +82,13 @@ function DataGridColumnHeader({
     );
   };
 
+  const isTableSortable = Boolean(
+    table.options.getSortedRowModel ||
+    table.options.manualSorting ||
+    table.options.onSortingChange
+  );
+  const canSort = Boolean(column.getCanSort() && isTableSortable);
+
   const headerButton = () => {
     return (
       <Button
@@ -92,6 +99,7 @@ function DataGridColumnHeader({
         )}
         disabled={isLoading || recordCount === 0}
         onClick={() => {
+          if (!canSort) return;
           const isSorted = column.getIsSorted();
           if (isSorted === 'asc') {
             column.toggleSorting(true);
@@ -105,7 +113,7 @@ function DataGridColumnHeader({
         {icon && icon}
         <span>{title}</span>
 
-        {column.getCanSort() &&
+        {canSort &&
           (column.getIsSorted() === 'desc' ? (
             <ArrowDown className="size-3.5! mt-px shrink-0" />
           ) : column.getIsSorted() === 'asc' ? (
@@ -142,11 +150,11 @@ function DataGridColumnHeader({
             {filter && <DropdownMenuLabel>{filter}</DropdownMenuLabel>}
 
             {filter &&
-              (column.getCanSort() || column.getCanPin() || visibility) && (
+              (canSort || column.getCanPin() || visibility) && (
                 <DropdownMenuSeparator />
               )}
 
-            {column.getCanSort() && (
+            {canSort && (
               <>
                 <DropdownMenuItem
                   onClick={() => {
@@ -156,7 +164,7 @@ function DataGridColumnHeader({
                       column.toggleSorting(false);
                     }
                   }}
-                  disabled={!column.getCanSort()}
+                  disabled={!canSort}
                 >
                   <ArrowUp className="size-3.5!" />
                   <span className="grow">Asc</span>
@@ -172,7 +180,7 @@ function DataGridColumnHeader({
                       column.toggleSorting(true);
                     }
                   }}
-                  disabled={!column.getCanSort()}
+                  disabled={!canSort}
                 >
                   <ArrowDown className="size-3.5!" />
                   <span className="grow">Desc</span>
@@ -183,8 +191,8 @@ function DataGridColumnHeader({
               </>
             )}
 
-            {(filter || column.getCanSort()) &&
-              (column.getCanSort() || column.getCanPin() || visibility) && (
+            {(filter || canSort) &&
+              (canSort || column.getCanPin() || visibility) && (
                 <DropdownMenuSeparator />
               )}
 
@@ -239,7 +247,7 @@ function DataGridColumnHeader({
 
             {props.tableLayout?.columnsVisibility &&
               visibility &&
-              (column.getCanSort() || column.getCanPin() || filter) && (
+              (canSort || column.getCanPin() || filter) && (
                 <DropdownMenuSeparator />
               )}
 
@@ -297,7 +305,7 @@ function DataGridColumnHeader({
   }
 
   if (
-    column.getCanSort() ||
+    canSort ||
     (props.tableLayout?.columnsResizable && column.getCanResize())
   ) {
     return <div className="flex items-center h-full">{headerButton()}</div>;

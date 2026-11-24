@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
@@ -24,7 +25,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   Popover,
   PopoverContent,
@@ -33,39 +33,31 @@ import {
 import SearchableSelect from '@/utils/SearchableSelect';
 import { getAllGrns, getGrnById, getGrnByOutletOrStatus } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
+import { PageHeader } from '@/components/common/PageHeader';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { SearchBar } from '@/components/common/SearchBar';
 import { useExportReport } from '@/hooks/useExportReport';
+import { useServerPagination } from '@/hooks/useServerPagination';
 import { toast } from 'sonner';
 import GRNDetailsViewModal from './GRNDetailsViewModal';
 
-const STATUS_STYLES = {
-  OPEN: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-  Open: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-  open: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
-  CLOSED: 'bg-gray-100 text-gray-600 border border-gray-200',
-  Closed: 'bg-gray-100 text-gray-600 border border-gray-200',
-  closed: 'bg-gray-100 text-gray-600 border border-gray-200',
+const STATUS_TEXT_COLORS = {
+  OPEN: 'text-emerald-600',
+  Open: 'text-emerald-600',
+  open: 'text-emerald-600',
+  CLOSED: 'text-gray-500',
+  Closed: 'text-gray-500',
+  closed: 'text-gray-500',
 };
 
-const STATUS_DOT = {
-  OPEN: 'bg-emerald-500',
-  Open: 'bg-emerald-500',
-  open: 'bg-emerald-500',
-  CLOSED: 'bg-gray-400',
-  Closed: 'bg-gray-400',
-  closed: 'bg-gray-400',
-};
-
-const StatusBadge = ({ status, size = 'md' }) => {
+const StatusBadge = ({ status }) => {
   const display = status || 'CLOSED';
+  const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-full capitalize ${
-        size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
-      } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border border-gray-200'}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
+    <span className={`font-semibold text-xs whitespace-nowrap capitalize ${color}`}>
       {display.toLowerCase().replace(/_/g, ' ')}
     </span>
   );
@@ -73,17 +65,18 @@ const StatusBadge = ({ status, size = 'md' }) => {
 
 const TruncatedCell = ({
   value,
-  widthClass = 'max-w-[180px]',
-  className = 'text-gray-600',
+  widthClass = 'max-w-full',
+  className = 'text-xs text-gray-800 font-medium',
+  onClick,
 }) => (
-  <span title={value} className={`block truncate ${widthClass} ${className}`}>
+  <span title={value} onClick={onClick} className={`block truncate ${widthClass} ${className}`}>
     {value}
   </span>
 );
 
 function UnitDropdown({ units, selectedUnitId, onChange }) {
   const options = [
-    { value: '', label: 'All Outlets' },
+    { value: '', label: 'All Units' },
     ...units.map((u) => ({ value: String(u.id), label: u.name })),
   ];
   return (
@@ -93,7 +86,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ? String(selectedUnitId) : ''}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+        placeholder={units.length === 0 ? 'No units available' : 'All Units'}
         disabled={units.length === 0}
       />
     </div>
@@ -113,7 +106,7 @@ function StatusDropdown({ value, onChange }) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] font-semibold appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        className="h-10 w-full pl-8 pr-7 rounded-xl border border-[#C3C6D1] bg-white text-xs text-[#101828] font-semibold appearance-none focus:outline-none focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
       >
         {GRN_STATUS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -152,12 +145,15 @@ const formatDateShort = (val) => {
 const PAGE_SIZE = 10;
 
 const GRNListing = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('GRN');
+  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('GRN List');
   const { canAdd: canGenerateGrn } = usePagePermissions('Generate GRN');
 
   const {
     loading: scopeLoading,
     error: scopeError,
+    isOutletUser,
+    isCompanyUser,
+    companyId,
     showUnitDropdown,
     units,
     selectedUnitId,
@@ -173,7 +169,15 @@ const GRNListing = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: PAGE_SIZE });
+  const [sorting, setSorting] = useState([]);
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [dateRangeOpen, setDateRangeOpen] = useState(false);
 
@@ -184,17 +188,30 @@ const GRNListing = () => {
   const { exporting: exportingGrn, exportReport: exportGrnReport } = useExportReport();
 
   const loadData = useCallback(async () => {
-    if (scopeLoading) return;
+    if (scopeLoading || scopeError) return;
     setLoading(true);
     setGrnError(null);
     try {
-      const outletParam = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+      const outletParam = isOutletUser
+        ? Number(effectiveOutletId)
+        : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
       const statusParam = statusFilter === 'ALL' ? '' : statusFilter;
 
+      const params = {};
+      if (outletParam) params.outletId = outletParam;
+      if (statusParam) params.status = statusParam;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+
+      // Only pass page/size when navigating beyond page 0:
+      if (pagination.pageIndex > 0) {
+        params.page = pagination.pageIndex;
+        params.size = pagination.pageSize;
+      }
+
       let res;
-      if (outletParam || statusParam) {
+      if (outletParam || statusParam || params.page !== undefined) {
         try {
-          res = await getGrnByOutletOrStatus(outletParam, statusParam);
+          res = await getGrnByOutletOrStatus(params);
         } catch (err) {
           res = await getAllGrns();
         }
@@ -202,8 +219,10 @@ const GRNListing = () => {
         res = await getAllGrns();
       }
 
-      const raw = res?.data?.data ?? res?.data ?? res ?? [];
+      const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
       const rawList = Array.isArray(raw) ? raw : [];
+
+      updateFromResponse(res, rawList.length);
 
       const normalized = rawList.map((g) => {
         const poCodesList = Array.isArray(g.purchaseOrderCodes) && g.purchaseOrderCodes.length > 0
@@ -227,6 +246,16 @@ const GRNListing = () => {
           raisedBy: g.createdByName || g.raisedBy || g.userName || g.createdBy || '—',
           outlet: g.organizationName || g.outletName || g.orgName || (g.orgId ? `Outlet #${g.orgId}` : '—'),
           outletId: g.orgId || g.outletId,
+          subOutletName: g.subOutletName || g.subOutlet?.subOutletName || g.subOutlet?.name || null,
+          subLocationName:
+            g.subLocationName ||
+            g.subLocation?.subLocationName ||
+            g.subLocation?.locationName ||
+            g.subLocation?.name ||
+            g.locationName ||
+            g.details?.[0]?.subLocationName ||
+            g.details?.[0]?.subLocation?.name ||
+            null,
           vendorName: g.vendorName || (g.vendorId ? `Vendor #${g.vendorId}` : '—'),
           itemsReceived: Array.isArray(g.details) ? g.details.length : g.itemsReceived ?? 0,
           status: g.status || 'Verified',
@@ -243,7 +272,25 @@ const GRNListing = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, effectiveOutletId, statusFilter, filterRowsByScope]);
+  }, [
+    scopeLoading,
+    scopeError,
+    isOutletUser,
+    effectiveOutletId,
+    selectedUnitId,
+    companyId,
+    isCompanyUser,
+    statusFilter,
+    searchQuery,
+    pagination.pageIndex,
+    pagination.pageSize,
+    filterRowsByScope,
+    updateFromResponse,
+  ]);
+
+  useEffect(() => {
+    resetPage();
+  }, [searchQuery, statusFilter, isOutletUser, selectedUnitId, companyId, effectiveOutletId, dateRange, resetPage]);
 
   useEffect(() => {
     loadData();
@@ -263,6 +310,27 @@ const GRNListing = () => {
         ? detailed.purchaseOrderIds.filter(Boolean)
         : (detailed.purchaseOrderId ? [detailed.purchaseOrderId] : (row.purchaseOrderIds || []));
 
+      const subOutletName =
+        detailed.subOutletName ||
+        detailed.subOutlet?.subOutletName ||
+        detailed.subOutlet?.name ||
+        row.subOutletName ||
+        null;
+
+      const subLocationName =
+        detailed.subLocationName ||
+        detailed.subLocation?.subLocationName ||
+        detailed.subLocation?.locationName ||
+        detailed.subLocation?.name ||
+        detailed.locationName ||
+        detailed.details?.[0]?.subLocationName ||
+        detailed.details?.[0]?.subLocation?.locationName ||
+        detailed.details?.[0]?.subLocation?.name ||
+        detailed.details?.[0]?.locationName ||
+        row.subLocationName ||
+        (typeof row.subLocation === 'string' ? row.subLocation : null) ||
+        null;
+
       const items = (detailed.details || row.details || []).map((d, index) => ({
         id: d.id || index + 1,
         name: d.rawMaterialName || d.itemName || `Item #${d.rawMaterialId || d.purchaseOrderDetailId || index + 1}`,
@@ -277,6 +345,16 @@ const GRNListing = () => {
         poCode: d.poCode || d.purchaseOrderCode || null,
         prCode: d.prCode || d.purchaseRequisitionCode || null,
         isPoDetailClosed: Boolean(d.isPoDetailClosed),
+        batchNo: d.batchNo || d.batchNumber || null,
+        useByDate: d.useByDate || d.bestBeforeDate || d.expiryDate || null,
+        subOutletName: d.subOutletName || d.subOutlet?.subOutletName || d.subOutlet?.name || null,
+        subLocationName:
+          d.subLocationName ||
+          d.subLocation?.subLocationName ||
+          d.subLocation?.locationName ||
+          d.subLocation?.name ||
+          d.locationName ||
+          null,
       }));
 
       setGrnTarget({
@@ -289,7 +367,9 @@ const GRNListing = () => {
         purchaseOrderCodes: poCodesList,
         date: formatDateShort(detailed.grnDate || detailed.date || row.rawDate),
         outletName: detailed.organizationName || detailed.outletName || row.outlet,
-        subOutletName: detailed.subOutletName || detailed.subOutlet?.subOutletName || null,
+        subOutletName: subOutletName,
+        subLocationName: subLocationName,
+        subLocation: subLocationName,
         vendorName: detailed.vendorName || row.vendorName,
         status: detailed.status || row.status || 'Verified',
         raisedBy: detailed.createdByName || detailed.raisedBy || row.raisedBy,
@@ -309,7 +389,9 @@ const GRNListing = () => {
         purchaseOrderCodes: row.purchaseOrderCodes || [],
         date: row.grnDate,
         outletName: row.outlet,
-        subOutletName: null,
+        subOutletName: row.subOutletName || null,
+        subLocationName: row.subLocationName || (typeof row.subLocation === 'string' ? row.subLocation : null) || null,
+        subLocation: row.subLocationName || (typeof row.subLocation === 'string' ? row.subLocation : null) || null,
         vendorName: row.vendorName,
         status: row.status || 'Verified',
         raisedBy: row.raisedBy,
@@ -329,6 +411,10 @@ const GRNListing = () => {
           poCode: d.poCode || d.purchaseOrderCode || null,
           prCode: d.prCode || d.purchaseRequisitionCode || null,
           isPoDetailClosed: Boolean(d.isPoDetailClosed),
+          batchNo: d.batchNo || d.batchNumber || null,
+          useByDate: d.useByDate || d.bestBeforeDate || d.expiryDate || null,
+          subOutletName: d.subOutletName || d.subOutlet?.subOutletName || null,
+          subLocationName: d.subLocationName || d.subLocation?.subLocationName || d.locationName || null,
         })),
       });
     } finally {
@@ -352,7 +438,7 @@ const GRNListing = () => {
 
     exportGrnReport(
       {
-        type: 'GRN Type 1',
+        type: 'GRN_TYPE_1',
         id: Number(grnId),
       },
       {
@@ -408,31 +494,46 @@ const GRNListing = () => {
   }, [list, searchQuery, statusFilter, dateRange]);
 
   useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [searchQuery, statusFilter, selectedUnitId, dateRange]);
+    resetPage();
+  }, [searchQuery, statusFilter, selectedUnitId, effectiveOutletId, dateRange, resetPage]);
 
   const columns = useMemo(
     () => [
       {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 font-mono text-xs">
+            {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}
+          </span>
+        ),
+        enableSorting: false,
+        size: 45,
+      },
+      {
         id: 'grnCode',
         accessorFn: (row) => row.grnCode,
         header: ({ column }) => (
-          <DataGridColumnHeader title="GRN CODE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="GRN CODE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <TruncatedCell
             value={row.original.grnCode}
-            widthClass="max-w-[260px]"
-            className="font-semibold text-[#084E92]"
+            widthClass="max-w-full"
+            onClick={() => handleViewGrn(row.original)}
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
           />
         ),
-        size: 270,
+        enableSorting: false,
+        size: 135,
       },
       {
         id: 'poCode',
         accessorFn: (row) => row.poCode,
         header: ({ column }) => (
-          <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="PO CODE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => {
           const poCodes = row.original.poCodes || (row.original.poCode && row.original.poCode !== '—' ? [row.original.poCode] : []);
@@ -443,17 +544,17 @@ const GRNListing = () => {
             return (
               <TruncatedCell
                 value={poCodes[0]}
-                widthClass="max-w-[170px]"
-                className="font-semibold text-gray-800"
+                widthClass="max-w-full"
+                className="font-semibold text-gray-800 text-xs"
               />
             );
           }
           return (
-            <div className="flex flex-wrap gap-1 max-w-[200px]" title={poCodes.join(', ')}>
+            <div className="flex flex-wrap gap-1 max-w-full" title={poCodes.join(', ')}>
               {poCodes.map((code, idx) => (
                 <span
                   key={idx}
-                  className="inline-block font-mono text-[11px] font-semibold text-[#084E92] bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded"
+                  className="inline-block font-mono text-[10px] font-semibold text-gray-800 bg-gray-100 border border-gray-200 px-1 py-0.5 rounded"
                 >
                   {code}
                 </span>
@@ -461,144 +562,136 @@ const GRNListing = () => {
             </div>
           );
         },
-        size: 190,
+        enableSorting: false,
+        size: 210,
       },
       {
         id: 'grnDate',
         accessorFn: (row) => row.grnDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="GRN DATE" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="GRN DATE" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.grnDate} widthClass="max-w-[120px]" />,
-        size: 130,
+        cell: ({ row }) => <span className="text-xs text-gray-700 font-medium whitespace-nowrap">{row.original.grnDate || '—'}</span>,
+        enableSorting: false,
+        size: 95,
       },
       {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="UNIT" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-[180px]" />,
-        size: 180,
+        cell: ({ row }) => <TruncatedCell value={row.original.outlet} widthClass="max-w-full" />,
+        enableSorting: false,
+        size: 135,
       },
       {
         id: 'raisedBy',
         accessorFn: (row) => row.raisedBy,
         header: ({ column }) => (
-          <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="RAISED BY" column={column} className="text-xs" />
         ),
-        cell: ({ row }) => <TruncatedCell value={row.original.raisedBy || '—'} widthClass="max-w-[140px]" />,
-        size: 150,
+        cell: ({ row }) => <TruncatedCell value={row.original.raisedBy || '—'} widthClass="max-w-full" />,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'itemsReceived',
         accessorFn: (row) => row.itemsReceived,
         header: ({ column }) => (
-          <DataGridColumnHeader title="ITEMS RECEIVED" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="ITEMS" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-gray-700">{row.original.itemsReceived} Items</span>
+          <span className="font-medium text-gray-800 text-xs whitespace-nowrap">{row.original.itemsReceived} Items</span>
         ),
-        size: 140,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'status',
         accessorFn: (row) => row.status,
         header: ({ column }) => (
-          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="STATUS" column={column} className="text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 140,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'action',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <button
             type="button"
             onClick={() => handleViewGrn(row.original)}
-            className="text-gray-500 hover:text-green-600 cursor-pointer p-1"
+            className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5"
             title="View Details"
           >
-            <Eye size={18} />
+            <Eye size={16} />
           </button>
         ),
         enableSorting: false,
-        size: 90,
+        size: 60,
       },
     ],
-    []
+    [pagination.pageIndex, pagination.pageSize, handleViewGrn]
   );
 
+  const displayRows = useMemo(() => {
+    if (totalElements > 0 && totalElements === list.length && filteredRows.length > pagination.pageSize) {
+      const start = pagination.pageIndex * pagination.pageSize;
+      return filteredRows.slice(start, start + pagination.pageSize);
+    }
+    return filteredRows;
+  }, [filteredRows, totalElements, list.length, pagination.pageIndex, pagination.pageSize]);
+
   const table = useReactTable({
-    data: filteredRows,
+    data: displayRows,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) {
-    return <AccessDenied pageTitle="GRN" />;
+    return <AccessDenied pageTitle="GRN List" />;
   }
 
   return (
     <Container>
-      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={11} />
-          <span>Inventory</span>
-          <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">GRN Listing</span>
-        </div>
-
-        {/* Page header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-xl md:text-2xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              GRN Listing
-            </h1>
-            <p className="text-[#667085] text-xs max-w-xl">
-              View and track all Goods Received Notes across outlets.
-            </p>
-          </div>
-
-          {(canGenerateGrn || canAdd) && (
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                to="/inventory/generate-grn"
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white bg-[#084E92] text-xs font-semibold border-0 cursor-pointer hover:bg-[#073e77] transition shadow-2xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
+      <div className="pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title="GRN List"
+          description="View and track all Goods Received Notes across outlets."
+          actions={
+            (canGenerateGrn || canAdd) && (
+              <HeaderActionButton to="/inventory/generate-grn">
                 Generate GRN
-              </Link>
-            </div>
-          )}
-        </div>
+              </HeaderActionButton>
+            )
+          }
+        />
 
-        {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || grnError}
+          onRetry={scopeError ? retryScope : loadData}
+        />
 
         {/* Search + unit dropdown + status dropdown + date range */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
-            <input
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search GRN Code, PO Code, Outlet..."
-              className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              onClear={() => setSearchQuery('')}
+              placeholder="Search GRN Code, PO Code, Unit..."
             />
           </div>
 
@@ -612,7 +705,7 @@ const GRNListing = () => {
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="h-9.5 flex items-center justify-center gap-2 border border-[#E7EAF0] bg-white text-[#101828] px-3.5 text-xs rounded-xl font-medium hover:bg-gray-50 whitespace-nowrap cursor-pointer"
+                className="h-10 flex items-center justify-center gap-2 border border-[#C3C6D1] bg-white text-[#101828] px-3.5 text-xs rounded-xl font-medium hover:bg-gray-50 whitespace-nowrap cursor-pointer"
               >
                 <CalendarRange size={14} className="text-[#98A2B3]" />
                 {dateRange.from || dateRange.to
@@ -659,19 +752,6 @@ const GRNListing = () => {
           </Popover>
         </div>
 
-        {grnError && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 text-xs text-[#C0293D]">
-            <span>{grnError}</span>
-            <button
-              type="button"
-              onClick={loadData}
-              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
         {/* Table card (Maximized height for comfortable viewing) */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
           {loading || scopeLoading ? (
@@ -682,21 +762,19 @@ const GRNListing = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredRows.length}
+              recordCount={totalElements || filteredRows.length}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+              <Card className="rounded-2xl border-0 shadow-none">
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router';
 import {
-  ChevronRight,
   ArrowLeft,
   Calendar,
   Building2,
@@ -24,6 +23,7 @@ import {
   cancelAdjustment,
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '@/utils/auth';
+import { formatRemarks } from '@/utils/textUtils';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
 import {
@@ -188,7 +188,7 @@ const ViewManualAdjustment = () => {
       const currentUserId = getUserIdFromToken();
       await cancelAdjustment(id, {
         userId: currentUserId,
-        reason: cancelReason.trim(),
+        reason: formatRemarks(cancelReason.trim()),
       });
       toast.success('Adjustment voucher cancelled successfully');
       setShowCancelModal(false);
@@ -275,6 +275,13 @@ const ViewManualAdjustment = () => {
     adjustment.subOutletName ||
     adjustment.subOutlet?.subOutletName ||
     'Main Store';
+
+  const subLocationName =
+    adjustment.subLocationName ||
+    adjustment.subLocation?.subLocationName ||
+    adjustment.subLocation?.locationName ||
+    adjustment.subLocation?.name ||
+    '—';
 
   const createdByName =
     adjustment.createdByName ||
@@ -363,22 +370,7 @@ const ViewManualAdjustment = () => {
 
   return (
     <Container>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-12">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-3 mt-1">
-          <span>Dashboard</span>
-          <ChevronRight size={12} />
-          <span>Inventory</span>
-          <ChevronRight size={12} />
-          <Link
-            to="/inventory/manual-adjustment-listing"
-            className="cursor-pointer hover:text-[#084E92] transition"
-          >
-            Manual Adjustment
-          </Link>
-          <ChevronRight size={12} />
-          <span className="text-[#084E92] font-medium">{voucherNumber}</span>
-        </div>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 min-h-screen pb-12 pt-4">
 
         {/* Header card */}
         <div className="rounded-2xl bg-gradient-to-r from-[#084E92] to-[#0B65BD] px-6 py-5 flex items-center justify-between gap-4 flex-wrap shadow-sm">
@@ -456,21 +448,24 @@ const ViewManualAdjustment = () => {
           <SectionHeader icon={Calendar} title="Origin & Location Details" />
           <div className="px-5 pb-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <InfoTile label="Manage Date" value={manageDate} icon={Calendar} />
+              <InfoTile label="Manage Date" value={manageDate} />
               <InfoTile label="Created Date" value={adjustment.createdAt || '—'} />
-              <InfoTile label="Created By" value={createdByName} icon={User} />
+              <InfoTile label="Created By" value={createdByName} />
               <InfoTile label="Last Updated By" value={updatedByName || '—'} />
               <InfoTile
-                label="Outlet / Branch"
+                label="Unit / Branch"
                 value={`${outletName} ${outletCode ? `(${outletCode})` : ''}`}
-                icon={Building2}
                 className="col-span-2 sm:col-span-2"
               />
               <InfoTile
-                label="Sub-Outlet / Location"
+                label="Sub-Unit"
                 value={subOutletName}
-                icon={Boxes}
-                className="col-span-2 sm:col-span-2"
+                className="col-span-2 sm:col-span-1"
+              />
+              <InfoTile
+                label="Sub-Location"
+                value={subLocationName}
+                className="col-span-2 sm:col-span-1"
               />
             </div>
 
@@ -626,7 +621,6 @@ const ViewManualAdjustment = () => {
           {baseUnitName && (
             <div className="border-t border-gray-100 p-4 bg-blue-50/40 flex items-center justify-between flex-wrap gap-3">
               <div className="flex items-center gap-2.5">
-                <Scale size={18} className="text-[#084E92]" />
                 <div>
                   <p className="text-xs font-bold text-gray-800">Base Unit Representation</p>
                   <p className="text-[11px] text-gray-500">
@@ -688,6 +682,7 @@ const ViewManualAdjustment = () => {
                   rows={3}
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
+                  onBlur={() => setCancelReason((prev) => formatRemarks(prev))}
                   placeholder="Enter the detailed reason for cancellation..."
                   className="w-full border border-[#E2E8F0] rounded-xl p-3 text-xs outline-none focus:border-[#084E92] focus:ring-1 focus:ring-[#084E92]/20 resize-none text-gray-800"
                 />

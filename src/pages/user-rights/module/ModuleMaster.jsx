@@ -4,8 +4,10 @@ import {
   getCoreRowModel,
   getPaginationRowModel,
   useReactTable,
+  getSortedRowModel,
 } from '@tanstack/react-table';
-import { ChevronRight, Eye, Plus, Search, SquarePen, Trash2 } from 'lucide-react';
+import { SearchBar } from '@/components/common/SearchBar';
+import { ChevronRight, Download, Eye, Plus, SquarePen, Trash2 } from 'lucide-react';
 import { deleteModuleRight, getModuleRights } from '@/services/apiServices';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
@@ -16,8 +18,13 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { PageHeader } from '@/components/common/PageHeader';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import AddModuleRightModal from './AddModuleRightModal';
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 // Maps a raw API module-right object (+ its row position) to the shape the table expects.
 // Adjust the ?? fallbacks once you confirm the exact field names getModuleRights returns.
@@ -46,8 +53,8 @@ const formatDate = (value) => {
 };
 
 const ModuleMaster = () => {
-  const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Module Rights');
-
+  const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions('Module Rights');
+  const [showExportModal, setShowExportModal] = useState(false);
   const [moduleRights, setModuleRights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,7 +66,8 @@ const ModuleMaster = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
+  const navigate = useNavigate();
+  const [sorting, setSorting] = useState([]);
   const openViewModal = (row) => {
     setIsViewOnly(true);
     setEditingModule(row);
@@ -147,13 +155,13 @@ const ModuleMaster = () => {
         accessorFn: (row) => row.srNo,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Sr. No."
+            title="S.NO"
             column={column}
             className="text-[#43474F] font-semibold"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-500 py-2">{row.original.srNo}</span>
+          <span className="text-gray-500 py-2 text-xs">{row.original.srNo}</span>
         ),
         enableSorting: false,
         size: 90,
@@ -163,59 +171,81 @@ const ModuleMaster = () => {
         accessorFn: (row) => row.name,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Name"
+            title="NAME"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold text-xs"
           />
         ),
         cell: ({ row }) => (
           <button
             type="button"
             onClick={() => (canEdit ? openEditModal(row.original) : openViewModal(row.original))}
-            className="text-[#084E92] font-medium hover:underline text-left cursor-pointer"
+            className="text-gray-800 font-medium text-xs hover:underline text-left cursor-pointer"
           >
             {row.original.name}
           </button>
         ),
         size: 260,
+        enableSorting: true,
       },
       {
         id: 'createdAt',
         accessorFn: (row) => row.createdAt,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="CreatedAt"
+            title="CREATED AT"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold text-xs"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-600">
+          <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
             {formatDate(row.original.createdAt)}
           </span>
         ),
         size: 220,
+        enableSorting: true,
+        sortingFn: (rowA, rowB, columnId) => {
+          const valA = rowA.getValue(columnId);
+          const valB = rowB.getValue(columnId);
+
+          const timeA = valA ? new Date(valA).getTime() : 0;
+          const timeB = valB ? new Date(valB).getTime() : 0;
+
+          // Push null/invalid dates to the end
+          const validA = Number.isFinite(timeA) && timeA > 0;
+          const validB = Number.isFinite(timeB) && timeB > 0;
+
+          if (!validA && !validB) return 0;
+          if (!validA) return 1;
+          if (!validB) return -1;
+
+          return timeA - timeB;
+        },
       },
       {
         id: 'isActive',
         accessorFn: (row) => row.isActive,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Is Active"
+            title="STATUS"
             column={column}
-            className="text-[#43474F] font-semibold"
+            className="text-[#43474F] font-semibold text-xs"
           />
         ),
         cell: ({ row }) => (
-          <span className="text-gray-800">{String(row.original.isActive)}</span>
+          <span className={`font-semibold text-xs whitespace-nowrap ${row.original.isActive ? 'text-emerald-600' : 'text-gray-500'}`}>
+            {row.original.isActive ? 'Active' : 'Inactive'}
+          </span>
         ),
         size: 120,
+        enableSorting: false,
       },
       {
         id: 'actions',
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Action"
+            title="ACTIONS"
             column={column}
             className="text-[#43474F] font-semibold"
           />
@@ -271,8 +301,10 @@ const ModuleMaster = () => {
   const table = useReactTable({
     data: filteredModuleRights,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
     onPaginationChange: setPagination,
+    getSortedRowModel: getSortedRowModel(),
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
   });
@@ -283,40 +315,36 @@ const ModuleMaster = () => {
 
   return (
     <Container>
-      <div className="p-4 md:p-6">
-        {/* Header row: title left, breadcrumb + primary action right */}
-        <div className="flex justify-between items-start flex-col sm:flex-row gap-4 mb-6">
-          <h1 className="text-2xl font-bold text-[#1B1B1F]">
-            Module Right Name Master
-          </h1>
-        </div>
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
+        <PageHeader
+          title="Module Right Name Master"
+          actions={
+            <div className="flex items-center gap-3">
+              {canExport && <HeaderActionButton
+                variant="outline"
+                onClick={() => setShowExportModal(true)}
+                icon={<Download className={`w-3.5 h-3.5`} />}
+                label="Export"
+              />}
+              {canAdd && (
+                <HeaderActionButton onClick={openCreateModal}>
+                  Add Module Name
+                </HeaderActionButton>
+              )}
+            </div>
+          }
+        />
 
-        {/* Search + Add Module Name */}
-        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-4">
-          <div className="relative w-full sm:w-80 border border-[#C3C6D1] rounded-lg">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              size={18}
-            />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search Template..."
-              className="w-full pl-10 py-2 outline-none rounded-lg bg-transparent"
-            />
-          </div>
+        <PageErrorAlert error={error} onRetry={fetchModuleRights} />
 
-          {canAdd && (
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center justify-center text-sm font-medium hover:bg-[#073e77] transition self-end sm:self-auto cursor-pointer"
-            >
-              <Plus size={16} />
-              Add Module Name
-            </button>
-          )}
+        {/* Search */}
+        <div className="w-full">
+          <SearchBar
+            placeholder="Search Template..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            isStandalone={true}
+          />
         </div>
 
         {/* Table */}
@@ -326,11 +354,17 @@ const ModuleMaster = () => {
               Loading module rights...
             </p>
           )}
-          {error && <p className="p-4 text-sm text-red-600">{error}</p>}
           <DataGrid
             table={table}
             recordCount={filteredModuleRights.length}
             className="rounded-2xl"
+            tableLayout={{
+              dense: true,
+              width: 'fixed',
+              cellBorder: true,
+              headerBorder: true,
+              rowBorder: true,
+            }}
           >
             <Card className="rounded-t-none border-t-0 rounded-2xl">
               <CardTable>
@@ -360,6 +394,12 @@ const ModuleMaster = () => {
           onConfirm={confirmDelete}
           itemLabel={deleteTarget?.name}
           saving={deleteLoading}
+        />
+        <MasterExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          tableName="userrights_module"
+          title="Export Module Rights Report"
         />
       </div>
     </Container>

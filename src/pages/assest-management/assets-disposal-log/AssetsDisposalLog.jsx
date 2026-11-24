@@ -1,8 +1,6 @@
 import {
     BadgeDollarSign,
     CalendarDays,
-    ChevronRight,
-    CirclePlus,
     ClipboardList,
     Download,
     Eye,
@@ -10,20 +8,23 @@ import {
     Trash2,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel } from "@tanstack/react-table";
 import { DataGrid } from "@/components/ui/data-grid";
 import { DataGridColumnHeader } from "@/components/ui/data-grid-column-header";
 import { DataGridPagination } from "@/components/ui/data-grid-pagination";
 import { DataGridTable } from "@/components/ui/data-grid-table";
 import { Card, CardFooter, CardTable } from "@/components/ui/card";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Container } from "@/components/common/container";
 import DeleteConfirmModal from "@/utils/DeleteConfirmModal";
 import { usePagePermissions } from "@/utils/permissions";
 import { AccessDenied } from "@/components/common/AccessDenied";
+import { PageHeader } from "@/components/common/PageHeader";
+import { HeaderActionButton } from "@/components/common/HeaderActionButton";
+import { SearchBar } from "@/components/common/SearchBar";
 import { getAllAssetsDisposal, deleteAssetDisposalById, getAssetDisposalById } from "../../../services/apiServices";
 import ViewDisposalModal from "./ViewDisposalModal";
+import MasterExportModal from "../../../utils/MasterExportModal";
 
 const FETCH_ALL_PAGE_SIZE = 1000;
 
@@ -57,30 +58,36 @@ const mapDisposalToRow = (record) => ({
     approvedBy: record.approvedByName ?? record.approvedBy?.name ?? (record.approvedById ? `User #${record.approvedById}` : "-"),
 });
 
-const DisposalBadge = ({ type }) => {
-    const styles = {
-        SALE: "bg-green-100 text-green-700",
-        SCRAP: "bg-red-100 text-red-700",
-        DONATION: "bg-blue-100 text-blue-700",
-        RECYCLED: "bg-amber-100 text-amber-700",
-    };
+const DISPOSAL_TEXT_COLORS = {
+    SALE: "text-emerald-600",
+    SCRAP: "text-rose-600",
+    DONATION: "text-blue-600",
+    RECYCLED: "text-amber-600",
+};
+const parseDateToTimestamp = (dateStr) => {
+    if (!dateStr || dateStr === "-") return 0;
+    const [day, month, year] = dateStr.split("/").map(Number);
+    if (!day || !month || !year) return 0;
+    return new Date(year, month - 1, day).getTime();
+};
 
+const DisposalBadge = ({ type }) => {
+    const color = DISPOSAL_TEXT_COLORS[type] ?? "text-gray-600";
     return (
-        <span className={`px-3 py-1 rounded-full text-[10px] font-semibold uppercase ${styles[type] ?? "bg-gray-100 text-gray-600"}`}>
-            {type}
+        <span className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${color}`}>
+            {type || "—"}
         </span>
     );
 };
 
 const AssetsDisposalLog = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions("Asset Disposal");
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions("Asset Disposal");
     const navigate = useNavigate();
 
     const [disposalData, setDisposalData] = useState([]);
     const [loading, setLoading] = useState(false);
 
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-    const [rowSelection, setRowSelection] = useState({});
     const [searchText, setSearchText] = useState("");
     const [dateFilter, setDateFilter] = useState("");
 
@@ -90,6 +97,8 @@ const AssetsDisposalLog = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+     const [sorting, setSorting] = useState([]);
+     const [showExportModal, setShowExportModal] = useState(false);
 
     const loadDisposals = async () => {
         setLoading(true);
@@ -157,94 +166,95 @@ const AssetsDisposalLog = () => {
     const columns = useMemo(
         () => [
             {
-                id: "select",
-                header: ({ table }) => (
-                    <input
-                        type="checkbox"
-                        checked={table.getIsAllPageRowsSelected()}
-                        onChange={table.getToggleAllPageRowsSelectedHandler()}
-                        className="w-4 h-4 cursor-pointer my-5"
-                    />
-                ),
+                id: "sno",
+                header: ({ column }) => <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <input
-                        type="checkbox"
-                        checked={row.getIsSelected()}
-                        onChange={row.getToggleSelectedHandler()}
-                        className="h-4 w-4 rounded border-gray-300 my-2 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-                    />
+                    <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
                 ),
                 enableSorting: false,
-                size: 40,
+                size: 36,
             },
-
             {
                 accessorKey: "assetId",
-                header: ({ column }) => <DataGridColumnHeader title="ASSET ID" column={column} />,
-                cell: ({ row }) => <span className="font-semibold text-[#0B5CAB]">{row.original.assetId}</span>,
-                size: 130,
+                header: ({ column }) => <DataGridColumnHeader title="ASSET ID" column={column} className="my-2 text-xs" />,
+                cell: ({ row }) => <span className="font-semibold text-[#084E92] text-xs">{row.original.assetId}</span>,
+                enableSorting: true,
+                size: 100,
             },
 
             {
                 accessorKey: "assetName",
-                header: ({ column }) => <DataGridColumnHeader title="ASSET NAME" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="ASSET NAME" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <div>
-                        <p className="font-semibold text-gray-900 leading-tight">{row.original.assetName}</p>
-                    </div>
+                    <span title={row.original.assetName} className="font-medium text-xs text-gray-800 truncate max-w-[130px] block">
+                        {row.original.assetName}
+                    </span>
                 ),
-                size: 160,
+                enableSorting: true,
+                size: 130,
             },
             {
                 accessorKey: "Unit",
-                header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} />,
-                cell: ({ row }) => <span className="font-medium text-sm">{row.original.orgName}</span>,
-                size: 160,
+                header: ({ column }) => <DataGridColumnHeader title="UNIT" column={column} className="my-2 text-xs" />,
+                cell: ({ row }) => <span title={row.original.orgName} className="font-medium text-xs text-gray-800 truncate max-w-[110px] block">{row.original.orgName}</span>,
+                enableSorting: false,
+                size: 110,
             },
 
             {
                 accessorKey: "SubUnit",
-                header: ({ column }) => <DataGridColumnHeader title="SUB UNIT" column={column} />,
-                cell: ({ row }) => <span className="font-medium text-sm">{row.original.subOutletName || '-'}</span>,
-                size: 160,
+                header: ({ column }) => <DataGridColumnHeader title="SUB UNIT" column={column} className="my-2 text-xs" />,
+                cell: ({ row }) => <span title={row.original.subOutletName} className="font-medium text-xs text-gray-800 truncate max-w-[110px] block">{row.original.subOutletName || '-'}</span>,
+                enableSorting: false,
+                size: 110,
             },
 
             {
                 accessorKey: "date",
-                header: ({ column }) => <DataGridColumnHeader title="DISPOSAL DATE" column={column} />,
-                size: 120,
+                header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
+                cell: ({ row }) => <span className="text-gray-600 font-medium text-xs whitespace-nowrap">{row.original.date}</span>,
+                enableSorting: true,
+                sortingFn: (rowA, rowB, columnId) => {
+                    const timeA = parseDateToTimestamp(rowA.getValue(columnId));
+                    const timeB = parseDateToTimestamp(rowB.getValue(columnId));
+                    return timeA - timeB;
+                },
+                size: 85,
             },
 
             {
                 accessorKey: "method",
-                header: ({ column }) => <DataGridColumnHeader title="METHOD" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="METHOD" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => <DisposalBadge type={row.original.method} />,
-                size: 110,
+                enableSorting: false,
+                size: 75,
             },
 
             {
                 accessorKey: "saleValue",
-                header: ({ column }) => <DataGridColumnHeader title="SALE VALUE" column={column} />,
-                cell: ({ row }) => <span className="font-semibold text-[#111827]">{row.original.saleValue}</span>,
-                size: 110,
+                header: ({ column }) => <DataGridColumnHeader title="SALE VALUE" column={column} className="my-2 text-xs" />,
+                cell: ({ row }) => <span className="font-medium text-xs text-gray-800">{row.original.saleValue}</span>,
+                enableSorting: true,
+                size: 85,
             },
 
             {
                 accessorKey: "approvedBy",
-                header: ({ column }) => <DataGridColumnHeader title="APPROVED BY" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="APPROVED BY" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{row.original.approvedBy}</span>
-                    </div>
+                    <span title={row.original.approvedBy} className="font-medium text-xs text-gray-800 truncate max-w-[110px] block">
+                        {row.original.approvedBy}
+                    </span>
                 ),
-                size: 150,
+                enableSorting: false,
+                size: 110,
             },
 
             {
                 id: "actions",
-                header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} />,
+                header: ({ column }) => <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs" />,
                 cell: ({ row }) => (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
                         <button
                             onClick={() => handleViewDisposal(row.original.id)}
                             className="text-gray-500 hover:text-green-600 cursor-pointer"
@@ -275,7 +285,7 @@ const AssetsDisposalLog = () => {
                     </div>
                 ),
                 enableSorting: false,
-                size: 120,
+                size: 85,
             },
         ],
         [canEdit, canDelete, navigate],
@@ -351,35 +361,35 @@ const AssetsDisposalLog = () => {
                 title: "Total Records",
                 value: String(total),
                 icon: ClipboardList,
-                iconBg: "bg-blue-50",
-                iconColor: "text-[#0B5CAB]",
+                iconBg: "bg-[#D5E3FF]",
+                iconColor: "text-[#00376C]",
+                color: "text-[#1B1B1F]",
             },
             {
                 title: "Assets Sold",
                 value: String(
                     soldRecords.length
                 ),
-                subText: `₹${soldRevenue.toLocaleString(
-                    "en-IN"
-                )} Rev`,
                 icon: BadgeDollarSign,
-                iconBg: "bg-blue-50",
-                iconColor: "text-[#0B5CAB]",
-                subTextColor: "text-[#059669]",
+                iconBg: "bg-[#DCFCE7]",
+                iconColor: "text-[#15803D]",
+                color: "text-[#15803D]",
             },
             {
                 title: "Scrapped",
                 value: String(scrapped),
                 icon: Trash2,
-                iconBg: "bg-red-50",
-                iconColor: "text-red-500",
+                iconBg: "bg-[#FEE2E2]",
+                iconColor: "text-[#DC2626]",
+                color: "text-[#DC2626]",
             },
             {
                 title: "This Month",
                 value: String(thisMonth),
                 icon: CalendarDays,
-                iconBg: "bg-amber-50",
-                iconColor: "text-amber-500",
+                iconBg: "bg-[#FEF3C7]",
+                iconColor: "text-[#B45309]",
+                color: "text-[#1B1B1F]",
             },
         ];
     }, [disposalData]);
@@ -387,10 +397,10 @@ const AssetsDisposalLog = () => {
     const table = useReactTable({
         data: filteredDisposalData,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
+        onSortingChange: setSorting,
+        getSortedRowModel: getSortedRowModel(),
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
@@ -401,75 +411,60 @@ const AssetsDisposalLog = () => {
 
     return (
         <Container>
-            <div className='p-4 md:p-6'>
-                <div className="flex items-center gap-1.5 sm:text-xs text-[10px] text-gray-400 mb-2">
-                    <span>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Asset Management</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Asset Disposal Log</span>
-                </div>
-
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold">Asset Disposal Log</h1>
-                        <p className="text-[#6B7280] mt-1 text-sm">
-                            Audit-ready records for organization-wide asset retirements.
-                        </p>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <button className="flex text-sm cursor-pointer items-center gap-2 px-4 py-2 border border-[#D7DCE5] bg-white rounded-xl text-[#0B5CAB] font-medium hover:bg-slate-50">
-                            <Download size={16} />
-                            Export
-                        </button>
-                        {canAdd && (
-                            <Link to="/assets/add-disposal">
-                                <button className="flex text-sm w-max cursor-pointer items-center gap-2 px-5 py-2.5 bg-[#084E92] text-white rounded-xl font-medium shadow-md hover:bg-[#084E92]">
-                                    <CirclePlus size={18} />
+            <div className='pt-2 pb-6 mx-auto space-y-3.5'>
+                <PageHeader
+                    title="Asset Disposal Log"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton to="/assets/add-disposal">
                                     New Disposal Entry
-                                </button>
-                            </Link>
-                        )}
-                    </div>
-                </div>
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
+                />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 my-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3.5">
                     {stats.map((item, index) => {
                         const Icon = item.icon;
 
                         return (
-                            <div key={index} className="border border-[#C3C6D1] rounded-2xl p-4">
-                                <div className={`w-6 h-6 rounded ${item.iconBg} flex items-center justify-center`}>
-                                    <Icon size={15} className={item.iconColor} />
+                            <div key={index} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                                <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                                    <Icon size={18} />
                                 </div>
 
-                                <p className="text-sm text-[#43474F] pt-2">{item.title}</p>
-                                <h2 className="text-xl font-bold">{item.value}</h2>
-                                {item.subText && (
-                                    <span className={`text-xs font-medium ${item.subTextColor} mb-1`}>
-                                        {item.subText}
-                                    </span>
-                                )}
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                                    <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
+                                </div>
                             </div>
                         );
                     })}
                 </div>
 
-                <div className="bg-white border border-[#E6EAF2] rounded-xl p-6">
+                <div>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="md:col-span-3">
-                            <div className="relative rounded-md">
-                                <input
-                                    value={searchText}
-                                    onChange={(e) => {
-                                        setSearchText(e.target.value);
-                                        setPagination({ pageIndex: 0, pageSize: 10 });
-                                    }}
-                                    placeholder="Search Asset ID, Name, or Approved By..."
-                                    className="w-full h-10 border border-[#DCE3EE] rounded-md pl-4 pr-4 outline-none"
-                                />
-                            </div>
+                            <SearchBar
+                                value={searchText}
+                                onChange={(e) => {
+                                    setSearchText(e.target.value);
+                                    setPagination({ pageIndex: 0, pageSize: 10 });
+                                }}
+                                onClear={() => {
+                                    setSearchText('');
+                                    setPagination({ pageIndex: 0, pageSize: 10 });
+                                }}
+                                placeholder="Search Asset ID, Name, or Approved By..."
+                            />
                         </div>
 
                         <div className="col-span-1">
@@ -481,7 +476,7 @@ const AssetsDisposalLog = () => {
                                         setPagination({ pageIndex: 0, pageSize: 10 });
                                     }}
                                     placeholder="Select timeframe"
-                                    className="w-full h-10 border border-[#DCE3EE] rounded-md pl-4 pr-4 outline-none"
+                                    className="w-full h-10 border border-[#C3C6D1] rounded-xl pl-4 pr-4 outline-none text-sm"
                                 />
                             </div>
                         </div>
@@ -494,13 +489,21 @@ const AssetsDisposalLog = () => {
                         <div className="px-6 py-4 text-sm text-gray-500 bg-white">Loading disposal records...</div>
                     )}
 
-                    <DataGrid table={table} recordCount={filteredDisposalData.length} className="rounded-2xl">
+                    <DataGrid
+                        table={table}
+                        recordCount={filteredDisposalData.length}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
+                            <CardTable className="w-full overflow-x-hidden">
+                                <DataGridTable />
                             </CardTable>
                             <CardFooter className="bg-[#EFF4FF4D] border-t border-[#C3C6D1] rounded-b-2xl">
                                 <DataGridPagination />
@@ -535,6 +538,12 @@ const AssetsDisposalLog = () => {
                 onConfirm={confirmDelete}
                 itemLabel={deleteTarget?.itemLabel}
                 saving={deleteSaving}
+            />
+            <MasterExportModal
+                isOpen={showExportModal}
+                onClose={() => setShowExportModal(false)}
+                tableName="asset_disposal"
+                title="Export Asset Disposal Report"
             />
         </Container>
     );

@@ -51,8 +51,8 @@ const AssetTypeDetailsModal = ({ isOpen, onClose, onEdit, assetType, loading }) 
                         <div>
                             <p className="text-base font-bold text-[#1B1B1F]">{name}</p>
                             <span
-                                className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                                    isActive ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+                                className={`inline-block mt-1 text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${
+                                    isActive ? 'text-emerald-600' : 'text-gray-500'
                                 }`}
                             >
                                 {status}

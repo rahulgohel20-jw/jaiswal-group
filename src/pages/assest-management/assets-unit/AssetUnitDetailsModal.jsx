@@ -46,8 +46,8 @@ const AssetUnitDetailsModal = ({ isOpen, onClose, unit, loading }) => {
                             <div className="flex items-center gap-2 mt-0.5">
                                 <span className="text-xs text-[#737781]">{unitCode}</span>
                                 <span
-                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide ${
-                                        isActive ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'
+                                    className={`text-xs font-semibold uppercase tracking-wide whitespace-nowrap ${
+                                        isActive ? 'text-emerald-600' : 'text-gray-500'
                                     }`}
                                 >
                                     {status}

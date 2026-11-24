@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
-import { Calendar, ChevronDown, Eye, Loader2, RotateCcw, Search, ChevronRight, Pen } from 'lucide-react';
+import { getCoreRowModel, getPaginationRowModel, useReactTable, getSortedRowModel} from '@tanstack/react-table';
+import { Calendar, ChevronDown, Eye, Loader2, RotateCcw, Search, ChevronRight, Pen, SquarePen } from 'lucide-react';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
@@ -14,31 +15,36 @@ import SearchableSelect from '@/utils/SearchableSelect';
 import { OrgTypes } from '../../constants/orgTypes';
 import { getOrganizationByType, getAllActiveVendors, getPurchaseInvoices } from '@/services/apiServices';
 import { toast } from 'sonner';
+import { useOrgScope } from '../../hooks/useOrgScope';
+import { usePagePermissions } from '@/utils/permissions';
+import { AccessDenied } from '@/components/common/AccessDenied';
 
 const STATUS_OPTIONS = ['All Status', 'Approved', 'Draft'];
 const STATUS_VALUE_MAP = { Draft: 'DRAFT', Approved: 'APPROVED' };
-const STATUS_STYLES = {
-    DRAFT: 'bg-amber-50 text-amber-600 border border-amber-200',
-    APPROVED: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+const STATUS_TEXT_COLORS = {
+    DRAFT: 'text-amber-600',
+    APPROVED: 'text-emerald-600',
 };
-const STATUS_DOT = { DRAFT: 'bg-amber-500', APPROVED: 'bg-emerald-500' };
 const PAGE_SIZE = 10;
 
-const StatusBadge = ({ status }) => (
-    <span className={`inline-flex items-center w-max gap-1.5 font-semibold rounded-full text-[10px] px-2.5 py-1 ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-600 border border-gray-200'}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
-        {status}
-    </span>
-);
+const StatusBadge = ({ status }) => {
+    const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
 
-const TruncatedCell = ({ value, widthClass = 'max-w-[180px]', className = 'text-gray-600 text-xs' }) => (
-    <span title={value || ''} className={`block truncate ${widthClass} ${className}`}>
+  return (
+        <span className={`font-semibold text-xs whitespace-nowrap ${color}`}>
+            {status || '—'}
+        </span>
+    );
+};
+
+const TruncatedCell = ({ value, widthClass = 'max-w-full', className = 'text-xs text-gray-800 font-medium', onClick }) => (
+    <span title={value || ''} className={`block truncate ${widthClass} ${className}`} onClick={onClick} >
         {value || '—'}
     </span>
 );
 
 const ChipCell = ({ value }) => (
-    <span title={value || ''} className="inline-block max-w-40 truncate rounded-lg border border-[#E7EAF0] bg-[#F9FAFC] px-3 py-1.5 text-[10px] font-semibold text-gray-700">
+    <span title={value || ''} className="inline-block max-w-full truncate rounded-lg border border-[#E7EAF0] bg-[#F9FAFC] px-3 py-1.5 text-[10px] font-semibold text-gray-700">
         {value || '—'}
     </span>
 );
@@ -52,10 +58,7 @@ const formatDisplayDate = (date) => {
 
 const PurchaseInvoiceListing = () => {
     const navigate = useNavigate();
-
-    const [outlets, setOutlets] = useState([]);
-    const [outletsLoading, setOutletsLoading] = useState(false);
-    const [selectedOutletId, setSelectedOutletId] = useState('');
+    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Purchase Invoice Report');
 
     const [vendors, setVendors] = useState([]);
     const [vendorLoading, setVendorLoading] = useState(false);
@@ -72,26 +75,43 @@ const PurchaseInvoiceListing = () => {
     const [invoicesError, setInvoicesError] = useState(null);
     const [pageInfo, setPageInfo] = useState({ totalPages: 0, totalElements: 0 });
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+    const [sorting, setSorting] = useState([]);
 
-    useEffect(() => {
-        const fetchOutlets = async () => {
-            setOutletsLoading(true);
-            try {
-                const res = await getOrganizationByType(OrgTypes.OUTLET);
-                const raw = res?.data?.data || res?.data?.content || res?.data || [];
-                setOutlets(Array.isArray(raw) ? raw.map(o => ({
-                    id: o.id,
-                    name: o.companyNameEnglish || o.name || `Outlet #${o.id}`,
-                })) : []);
-            } catch (error) {
-                console.error(error);
-                toast.error('Failed to load outlets.');
-            } finally {
-                setOutletsLoading(false);
-            }
-        };
-        fetchOutlets();
-    }, []);
+    const scope = useOrgScope();
+    const {
+        loading: scopeLoading,
+        error: scopeError,
+        showUnitDropdown,
+        units,
+        selectedUnitId,
+        setSelectedUnitId,
+        effectiveOutletId,
+        filterRowsByScope,
+        retry: retryScope,
+    } = scope;
+
+    // Helper: extracts a valid positive integer ID or returns null
+    const cleanId = (val) => {
+        if (val === null || val === undefined || val === '' || val === '0' || Number(val) <= 0) {
+            return null;
+        }
+        return Number(val);
+    };
+
+    // 1. If user selected an outlet from dropdown, prioritize it.
+    // 2. Otherwise fall back to effectiveOutletId or main group organization ID.
+    const resolvedOrgId = useMemo(() => {
+        const fromDropdown = cleanId(selectedUnitId);
+        if (fromDropdown !== null) return fromDropdown;
+
+        const fromOutlet = cleanId(effectiveOutletId);
+        if (fromOutlet !== null) return fromOutlet;
+
+        const fromScope = cleanId(scope?.organizationId || scope?.rootOrgId || scope?.mainOrgId || scope?.userOrgId);
+        if (fromScope !== null) return fromScope;
+
+        return null;
+    }, [selectedUnitId, effectiveOutletId, scope]);
 
     useEffect(() => {
         const fetchVendors = async () => {
@@ -110,15 +130,10 @@ const PurchaseInvoiceListing = () => {
         fetchVendors();
     }, []);
 
-    const outletOptions = useMemo(
-        () => outlets.map(o => ({ value: String(o.id), label: o.name })),
-        [outlets]
-    );
-
     const vendorOptions = useMemo(
         () => vendors.map(v => ({
             value: String(v.id),
-            label: v.fullName || v.companyName || v.vendorName || `Vendor #${v.id}`,
+            label: v.companyName || v.fullName || v.vendorName || `Vendor #${v.id}`,
         })),
         [vendors]
     );
@@ -143,23 +158,16 @@ const PurchaseInvoiceListing = () => {
         ? `${formatDisplayDate(dateRange.from)} - ${formatDisplayDate(dateRange.to)}`
         : 'All dates';
 
-    const resetFilters = () => {
-        setSearchQuery('');
-        setStatusFilter('All Status');
-        setSelectedOutletId('');
-        setSelectedVendorId('');
-        clearDateRange();
-    };
-
+    // Reset page to 0 when any filter changes
     useEffect(() => {
-        setPagination(prev => ({ ...prev, pageIndex: 0 }));
-    }, [statusFilter, selectedOutletId, selectedVendorId]);
+        setPagination(prev => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }));
+    }, [statusFilter, resolvedOrgId, selectedVendorId]);
 
     const normalizeInvoice = useCallback(inv => ({
         ...inv,
         date: inv.invoiceDate,
         outletName: inv.organizationName || `Outlet #${inv.organizationId}`,
-        vendorName: inv.vendorName || `Vendor #${inv.vendorId}`,
+        vendorName: inv.vendorCompanyName || inv.companyName || inv.vendorName || `Vendor #${inv.vendorId}`,
         grnIds: inv.grnIds || [],
         purchaseOrderIds: inv.purchaseOrderIds || [],
         details: inv.details || [],
@@ -178,9 +186,18 @@ const PurchaseInvoiceListing = () => {
                 direction: 'DESC',
             };
 
-            if (selectedOutletId) params.organizationId = Number(selectedOutletId);
-            if (selectedVendorId) params.vendorId = Number(selectedVendorId);
-            if (statusFilter !== 'All Status') params.status = STATUS_VALUE_MAP[statusFilter];
+            // Only attach organizationId if it is a valid ID (> 0)
+            if (resolvedOrgId !== null && resolvedOrgId > 0) {
+                params.organizationId = resolvedOrgId;
+            }
+
+            if (selectedVendorId) {
+                params.vendorId = Number(selectedVendorId);
+            }
+
+            if (statusFilter !== 'All Status') {
+                params.status = STATUS_VALUE_MAP[statusFilter];
+            }
 
             const res = await getPurchaseInvoices(params);
             const body = res?.data || {};
@@ -204,7 +221,7 @@ const PurchaseInvoiceListing = () => {
     }, [
         pagination.pageIndex,
         pagination.pageSize,
-        selectedOutletId,
+        resolvedOrgId,
         selectedVendorId,
         statusFilter,
         normalizeInvoice,
@@ -245,39 +262,54 @@ const PurchaseInvoiceListing = () => {
 
     const columns = useMemo(() => [
         {
+            id: 'sno',
+            header: ({ column }) => (
+                <DataGridColumnHeader title="S.NO" column={column} className="my-2 text-xs" />
+            ),
+            cell: ({ row }) => (
+                <span className="text-xs text-gray-500 py-2">{String(row.index + 1).padStart(2, '0')}</span>
+            ),
+            enableSorting: false,
+            size: 70,
+            minSize: 60,
+        },
+        {
             id: 'invoiceCode',
             accessorFn: row => row.invoiceCode,
             header: ({ column }) => <DataGridColumnHeader title="INVOICE CODE" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <TruncatedCell value={row.original.invoiceCode} widthClass="max-w-[200px]" className="font-semibold text-[#084E92] text-xs" />,
-            size: 150,
+            cell: ({ row }) => <TruncatedCell value={row.original.invoiceCode} className="font-semibold text-[#084E92] text-xs hover:underline cursor-pointer" onClick={() => handleView(row.original)}/>,
+            size: 160,
         },
         {
             id: 'vendorInvoiceNumber',
             accessorFn: row => row.vendorInvoiceNumber,
-            header: ({ column }) => <DataGridColumnHeader title="VENDOR INVOICE NUMBER" column={column} className="my-2 text-xs" />,
+            header: ({ column }) => <DataGridColumnHeader title="VENDOR INVOICE NO" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <ChipCell value={row.original.vendorInvoiceNumber} />,
             size: 180,
         },
         {
             id: 'date',
             accessorFn: row => row.date,
+            sortingFn: 'datetime',
             header: ({ column }) => <DataGridColumnHeader title="DATE" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <TruncatedCell value={formatDisplayDate(row.original.date)} widthClass="max-w-[120px]" />,
+            cell: ({ row }) => <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{formatDisplayDate(row.original.date)}</span>,
             size: 110,
         },
         {
             id: 'outletName',
             accessorFn: row => row.outletName,
-            header: ({ column }) => <DataGridColumnHeader title="OUTLET NAME" column={column} className="my-2 text-xs" />,
+            header: ({ column }) => <DataGridColumnHeader title="UNIT NAME" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <ChipCell value={row.original.outletName} />,
-            size: 150,
+            size: 180,
+            enableSorting: false,
         },
         {
             id: 'vendorName',
             accessorFn: row => row.vendorName,
             header: ({ column }) => <DataGridColumnHeader title="VENDOR NAME" column={column} className="my-2 text-xs" />,
-            cell: ({ row }) => <TruncatedCell value={row.original.vendorName} widthClass="max-w-[220px]" className="font-medium text-[#101828] text-xs" />,
-            size: 180,
+            cell: ({ row }) => <TruncatedCell value={row.original.vendorName} className="font-medium text-gray-800 text-xs" />,
+            size: 220,
+            enableSorting: false,
         },
         {
             id: 'status',
@@ -285,6 +317,7 @@ const PurchaseInvoiceListing = () => {
             header: ({ column }) => <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs" />,
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
             size: 150,
+            enableSorting: false,
         },
         {
             id: 'action',
@@ -292,15 +325,16 @@ const PurchaseInvoiceListing = () => {
             cell: ({ row }) => {
                 const invoice = row.original;
 
-                return (
+            
+  return (
                     <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => handleView(invoice)} className="flex items-center gap-1.5 px-3 py-1.5 cursor-pointer rounded-lg border border-[#E7EAF0] bg-white text-xs font-semibold text-[#101828] hover:bg-gray-50 transition">
-                            <Eye size={13} />
+                        <button type="button" onClick={() => handleView(invoice)} className="flex items-center gap-1.5 cursor-pointer  font-semibold text-gray-600 hover:text-green-600 transition">
+                            <Eye size={16} />
                         </button>
 
                         {invoice.status !== 'APPROVED' && invoice.status !== 'Approved' && (
-                            <button type="button" onClick={() => handleEdit(invoice)} className="flex items-center cursor-pointer gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold">
-                                <Pen size={13} />
+                            <button type="button" onClick={() => handleEdit(invoice)} className="flex items-center cursor-pointer gap-1.5 font-semibold text-gray-600 hover:text-blue-600">
+                                <SquarePen size={16} />
                             </button>
                         )}
                     </div>
@@ -314,41 +348,47 @@ const PurchaseInvoiceListing = () => {
     const table = useReactTable({
         data: filteredInvoices,
         columns,
-        state: { pagination },
+        state: { pagination, sorting },
         onPaginationChange: setPagination,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        onSortingChange: setSorting,
         manualPagination: true,
         pageCount: pageInfo.totalPages || 0,
     });
 
-    return (
-        <Container>
-            <div className="mx-auto px-4">
-                <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                    <span className="cursor-pointer hover:text-blue-400" onClick={() => navigate('/')}>Dashboard</span>
-                    <ChevronRight size={12} />
-                    <span>Purchase</span>
-                    <ChevronRight size={12} />
-                    <span className="text-[#084E92] font-medium">Purchase Invoice Listing</span>
-                </div>
+    if (!canView) {
+        return <AccessDenied pageTitle="Purchase Invoice Report" />;
+    }
 
-                <div className="flex items-center justify-between gap-4 flex-wrap my-2">
-                    <h1 className="text-[28px] font-bold text-[#101828]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-                        Purchase Invoice Listing
-                    </h1>
+  return (
+    <Container>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <PageHeader
+          title="Purchase Invoice List"
+          actions={
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-[#084E92] text-sm font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#084E92]" />
+                Showing {pageInfo.totalElements} Record{pageInfo.totalElements !== 1 ? 's' : ''}
+              </span>
+            </div>
+          }
+        />
 
-                    <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 text-[#084E92] text-sm font-semibold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#084E92]" />
-                            Showing {pageInfo.totalElements} Record{pageInfo.totalElements !== 1 ? 's' : ''}
-                        </span>
+                {scopeError && (
+                    <div className="mb-4 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-3 flex items-center justify-between">
+                        <span className="text-sm text-[#C0293D]">{scopeError}</span>
+                        <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
+                            Retry
+                        </button>
                     </div>
-                </div>
+                )}
 
-                <div className="bg-white rounded-2xl border border-[#E7EAF0] p-4 mb-6">
-                    <div className="grid lg:grid-cols-5 gap-3 md:grid-cols-3">
-                        <div className="relative flex-1 col-span-2">
+                <div className="my-6">
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 ${showUnitDropdown ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3`}>
+                        <div className="relative sm:col-span-2 lg:col-span-2">
                             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
                             <input
                                 value={searchQuery}
@@ -358,32 +398,40 @@ const PurchaseInvoiceListing = () => {
                             />
                         </div>
 
+                        {showUnitDropdown && (
+                            <div className="lg:col-span-1">
+                                <SearchableSelect
+                                    name="outlet"
+                                    value={selectedUnitId ? String(selectedUnitId) : ''}
+                                    onChange={val => {
+                                        // Handles event objects, { value, label } items, and direct string/number values
+                                        const raw = val?.target ? val.target.value : (val?.value !== undefined ? val.value : val);
+                                        setSelectedUnitId(raw ? String(raw) : '');
+                                    }}
+                                    options={units.map(u => ({ value: String(u.id), label: u.name }))}
+                                    placeholder={units.length === 0 ? 'No units available' : 'All Units'}
+                                    disabled={units.length === 0}
+                                />
+                            </div>
+                        )}
 
-                        <div className="col-span-1">
-                            <SearchableSelect
-                                name="outlet"
-                                value={selectedOutletId}
-                                onChange={e => setSelectedOutletId(e.target.value)}
-                                options={outletOptions}
-                                placeholder={outletsLoading ? 'Loading...' : 'All Outlets'}
-                                disabled={outletsLoading}
-                            />
-                        </div>
-
-                        <div className="col-span-1">
+                        <div className="lg:col-span-1">
                             <SearchableSelect
                                 name="vendor"
                                 value={selectedVendorId}
-                                onChange={e => setSelectedVendorId(e.target.value)}
+                                onChange={val => {
+                                    const raw = val?.target ? val.target.value : (val?.value !== undefined ? val.value : val);
+                                    setSelectedVendorId(raw ? String(raw) : '');
+                                }}
                                 options={vendorOptions}
                                 placeholder={vendorLoading ? 'Loading...' : 'All Vendors'}
                                 disabled={vendorLoading}
                             />
                         </div>
 
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 lg:col-span-1">
                             <Select value={statusFilter} onValueChange={setStatusFilter}>
-                                <SelectTrigger className="h-10 w-44 border-[#C3C6D1] rounded-lg">
+                                <SelectTrigger className="h-10 w-full border-[#C3C6D1] rounded-lg">
                                     <SelectValue placeholder="All Status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -392,10 +440,6 @@ const PurchaseInvoiceListing = () => {
                                     ))}
                                 </SelectContent>
                             </Select>
-
-                            <button type="button" onClick={resetFilters} title="Reset filters" className="flex items-center justify-center cursor-pointer h-10 w-10 rounded-lg border border-[#C3C6D1] bg-white text-gray-500 hover:bg-gray-50 transition">
-                                <RotateCcw size={16} />
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -418,7 +462,18 @@ const PurchaseInvoiceListing = () => {
                             No invoices match these filters.
                         </div>
                     ) : (
-                        <DataGrid table={table} recordCount={pageInfo.totalElements} className="rounded-2xl">
+                        <DataGrid
+                            table={table}
+                            recordCount={pageInfo.totalElements}
+                            className="rounded-2xl"
+                            tableLayout={{
+                                dense: true,
+                                width: 'fixed',
+                                cellBorder: true,
+                                headerBorder: true,
+                                rowBorder: true,
+                            }}
+                        >
                             <Card className="rounded-t-none border-t-0 rounded-2xl">
                                 <CardTable>
                                     <ScrollArea>

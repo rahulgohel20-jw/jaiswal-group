@@ -1,4 +1,7 @@
 import React, { useState, useMemo } from "react";
+import { Container } from "@/components/common/container";
+import { PageHeader } from "@/components/common/PageHeader";
+import { SearchBar } from "@/components/common/SearchBar";
 import {
   Search,
   Filter,
@@ -9,6 +12,7 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
+  Eye,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -80,14 +84,14 @@ const REQUISITIONS = [
 // ---------------------------------------------------------------------------
 function StatusPill({ status }) {
   const map = {
-    approved: { bg: "#EEF2FE", fg: "#2952E3", label: "Approved" },
-    pending: { bg: "#FDF1E3", fg: "#B5590B", label: "Pending" },
+    approved: { fg: "#14804A", label: "Approved" },
+    pending: { fg: "#B5590B", label: "Pending" },
   };
-  const s = map[status];
+  const s = map[status] || { fg: "#667085", label: status };
   return (
     <span
-      style={{ background: s.bg, color: s.fg }}
-      className="px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide uppercase"
+      style={{ color: s.fg }}
+      className="text-xs font-semibold whitespace-nowrap"
     >
       {s.label}
     </span>
@@ -109,23 +113,18 @@ function Avatar({ initials }) {
 
 function StatCard({ icon, iconBg, iconFg, label, value }) {
   return (
-    <div className="bg-white rounded-2xl border border-[#E7EAF0] px-5 py-4 flex items-center gap-3.5 cursor-pointer">
+    <div className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
       <div
-        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: iconBg, color: iconFg }}
       >
         {icon}
       </div>
-      <div>
-        <div className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wide">
-          {label}
-        </div>
-        <div
-          className="text-2xl font-bold text-[#101828] mt-0.5"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
+      <div className="flex flex-col items-end text-right">
+        <span className="text-xs font-semibold text-[#00376C]">{label}</span>
+        <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">
           {value}
-        </div>
+        </span>
       </div>
     </div>
   );
@@ -149,22 +148,15 @@ export default function ListView({ onOpen }) {
   }, [query]);
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-10">
-      <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
+    <Container>
+      <div className="pt-2 pb-6 mx-auto space-y-4">
+        <style>{`@import url('${FONT_IMPORT_URL}'); * { font-family: 'Inter', sans-serif; }`}</style>
 
-      {/* Header */}
-      <div className="mb-8">
-        <h1
-          className="text-[28px] font-bold text-[#101828]"
-          style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
-        >
-          Purchase Approval
-        </h1>
-        <p className="text-[#667085] text-sm mt-1.5 max-w-xl">
-          Manage and review pending purchase requisitions from various outlets for final
-          authorization.
-        </p>
-      </div>
+        {/* Header */}
+        <PageHeader
+          title="Purchase Approval"
+          description="Manage and review pending purchase requisitions from various units for final authorization."
+        />
 
       {/* Stat cards */}
       <div className="grid grid-cols-3 gap-4 mb-7">
@@ -193,30 +185,26 @@ export default function ListView({ onOpen }) {
 
       {/* Search + filter row */}
       <div className="flex items-center gap-3 mb-5">
-        <div className="relative flex-1">
-          <Search
-            size={16}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#98A2B3]"
-          />
-          <input
+        <div className="flex-1">
+          <SearchBar
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search PR code, outlet or manager..."
-            className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E7EAF0] bg-white text-sm text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+            onClear={() => setQuery("")}
+            placeholder="Search PR code, unit or manager..."
           />
         </div>
-        <button className="cursor-pointer h-11 px-4 rounded-xl border border-[#E7EAF0] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors">
+        <button className="cursor-pointer h-10 px-4 rounded-xl border border-[#C3C6D1] bg-white text-sm font-medium text-[#344054] flex items-center gap-2 hover:bg-[#F9FAFC] transition-colors">
           <Filter size={15} />
           Filter
         </button>
         <button
-          className="cursor-pointer w-11 h-11 rounded-xl border border-[#E7EAF0] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
+          className="cursor-pointer w-10 h-10 rounded-xl border border-[#C3C6D1] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
           aria-label="Refresh"
         >
           <RefreshCw size={15} />
         </button>
         <button
-          className="cursor-pointer w-11 h-11 rounded-xl border border-[#E7EAF0] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
+          className="cursor-pointer w-10 h-10 rounded-xl border border-[#C3C6D1] bg-white flex items-center justify-center text-[#344054] hover:bg-[#F9FAFC] transition-colors"
           aria-label="Export"
         >
           <Share2 size={15} />
@@ -228,11 +216,13 @@ export default function ListView({ onOpen }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#F9FAFC] border-b border-[#E7EAF0]">
-              {["PR Code", "Date", "Raised by", "Outlet name", "Status", "Actions"].map(
-                (h) => (
+              {["S.No", "PR Code", "Date", "Raised by", "Unit name", "Status", "Actions"].map(
+                (h, idx, arr) => (
                   <th
                     key={h}
-                    className="text-left font-semibold text-[#667085] text-[11px] uppercase tracking-wide px-5 py-3.5"
+                    className={`text-left font-semibold text-[#667085] text-[11px] uppercase tracking-wide px-5 py-3.5 ${
+                      idx !== arr.length - 1 ? 'border-r border-[#E7EAF0]' : ''
+                    }`}
                   >
                     {h}
                   </th>
@@ -249,48 +239,65 @@ export default function ListView({ onOpen }) {
                   i !== filtered.length - 1 ? "border-b border-[#EFF1F5]" : ""
                 }`}
               >
-                <td className="px-5 py-4">
+                <td className="px-5 py-4 text-xs text-gray-500 border-r border-[#EFF1F5]">
+                  {String(i + 1).padStart(2, '0')}
+                </td>
+                <td className="px-5 py-4 border-r border-[#EFF1F5]">
                   <span
-                    className="font-semibold text-[#2952E3] text-[13px]"
+                    className="font-semibold text-[#084E92] text-xs"
                     style={{ fontFamily: "'IBM Plex Mono', monospace" }}
                   >
                     {r.code}
                   </span>
                 </td>
-                <td className="px-5 py-4 text-[#475467]">{r.date}</td>
-                <td className="px-5 py-4">
+                <td className="px-5 py-4 text-xs text-gray-600 font-medium whitespace-nowrap border-r border-[#EFF1F5]">{r.date}</td>
+                <td className="px-5 py-4 border-r border-[#EFF1F5]">
                   <div className="flex items-center gap-2.5">
                     <Avatar initials={r.initials} />
-                    <span className="text-[#101828] font-medium">{r.raisedBy}</span>
+                    <span className="text-gray-800 font-medium text-xs">{r.raisedBy}</span>
                   </div>
                 </td>
-                <td className="px-5 py-4 text-[#475467]">{r.outlet}</td>
-                <td className="px-5 py-4">
+                <td className="px-5 py-4 text-xs text-gray-800 font-medium border-r border-[#EFF1F5]">{r.outlet}</td>
+                <td className="px-5 py-4 border-r border-[#EFF1F5]">
                   <StatusPill status={r.status} />
                 </td>
                 <td className="px-5 py-4">
                   {r.status === "pending" ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 whitespace-nowrap">
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpen(r);
                         }}
-                        className="cursor-pointer px-3.5 py-1.5 rounded-lg bg-[#14804A] text-white text-xs font-semibold hover:bg-[#106b3d] transition-colors"
+                        className="text-emerald-600 hover:text-emerald-700 cursor-pointer p-1 rounded hover:bg-emerald-50 transition"
+                        title="Approve"
                       >
-                        Approve
+                        <CheckCircle2 size={18} />
                       </button>
                       <button
+                        type="button"
                         onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer px-3.5 py-1.5 rounded-lg border border-[#F0B4BC] text-[#C0293D] text-xs font-semibold hover:bg-[#FBEAEC] transition-colors"
+                        className="text-rose-500 hover:text-rose-700 cursor-pointer p-1 rounded hover:bg-rose-50 transition"
+                        title="Reject"
                       >
-                        Reject
+                        <XCircle size={18} />
                       </button>
                     </div>
                   ) : (
-                    <span className="px-3.5 py-1.5 rounded-lg bg-[#F2F4F7] text-[#98A2B3] text-xs font-semibold inline-block">
-                      Approved
-                    </span>
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpen(r);
+                        }}
+                        className="text-gray-500 hover:text-green-600 cursor-pointer p-1 rounded hover:bg-green-50 transition"
+                        title="View"
+                      >
+                        <Eye size={18} />
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>
@@ -319,7 +326,6 @@ export default function ListView({ onOpen }) {
                 {p}
               </button>
             ))}
-            <span className="text-[#98A2B3] text-xs px-1">ΓÇª</span>
             <button className="cursor-pointer w-8 h-8 rounded-lg border border-[#E7EAF0] text-xs font-semibold text-[#475467] hover:bg-[#F9FAFC]">
               25
             </button>
@@ -329,6 +335,6 @@ export default function ListView({ onOpen }) {
           </div>
         </div>
       </div>
-    </div>
+    </Container>
   );
 }

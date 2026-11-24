@@ -2,14 +2,15 @@ import {
     ChevronRight,
     CircleCheck,
     CircleX,
+    Download,
     Eye,
     Plus,
     Ruler,
-    Search,
     SquarePen,
     Trash2,
     Upload,
 } from 'lucide-react'
+import { SearchBar } from '@/components/common/SearchBar';
 import React, { useEffect, useMemo, useState } from 'react'
 import { getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { DataGrid } from "@/components/ui/data-grid";
@@ -26,6 +27,9 @@ import { Container } from "@/components/common/container";
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { HeaderActionButton } from '@/components/common/HeaderActionButton';
+import { PageHeader } from '@/components/common/PageHeader';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import {
     Select,
     SelectContent,
@@ -33,36 +37,43 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useNavigate } from 'react-router';
+import MasterExportModal from '../../../utils/MasterExportModal';
 
 const StatusBadge = ({ status }) => {
-    const styles = {
-        Active: "text-green-700",
-        Inactive: "text-gray-600",
-    };
+    const color = status === "Active" ? "text-emerald-600" : "text-gray-500";
     return (
-        <span className={`px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide ${styles[status]}`}>
-            {status}
+        <span className={`text-xs font-semibold whitespace-nowrap uppercase tracking-wide ${color}`}>
+            {status || '—'}
         </span>
     );
 };
 
 // Normalize backend shape into what the UI expects
 const normalizeUnit = (u) => ({
-    id: u.id,
-    name: u.name,
-    symbol: u.symbol,
-    status: typeof u.active === 'boolean' ? (u.active ? 'Active' : 'Inactive') : (u.status || 'Inactive'),
+    id: u?.id,
+    name: u?.name || u?.unitName || u?.assetUnitName || '',
+    symbol: u?.symbol || u?.unitSymbol || '',
+    description: u?.description || '',
+    status: typeof u?.active === 'boolean' ? (u.active ? 'Active' : 'Inactive') : (u?.status || (u?.isActive ? 'Active' : 'Inactive') || 'Inactive'),
+    active: typeof u?.active === 'boolean' ? u.active : (u?.isActive ?? true),
+    originalData: u,
 });
 
 const AssetUnitList = () => {
-    const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Measure of unit Master');
+    const { canAdd, canEdit, canDelete, canView, canExport } = usePagePermissions([
+        'Unit of Measure Master',
+        'Unit of Measure',
+        'Asset Unit',
+        'Asset Unit Master',
+        'Unit of Measurement Master',
+    ]);
 
     const [units, setUnits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
-    const [rowSelection, setRowSelection] = useState({});
 
     const [showAddUnit, setShowAddUnit] = useState(false);
     const [editingUnit, setEditingUnit] = useState(null);
@@ -77,6 +88,8 @@ const AssetUnitList = () => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [deleteSaving, setDeleteSaving] = useState(false);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const navigate = useNavigate();
 
     const fetchUnits = async () => {
         setLoading(true);
@@ -129,23 +142,26 @@ const AssetUnitList = () => {
         {
             title: "Total Units",
             value: String(units.length),
-            badge: "OVERVIEW",
-            icon: <Ruler size={22} className="text-[#00376C] p-1 bg-[#D5E3FF] rounded" />,
+            icon: <Ruler size={18} />,
+            iconBg: "bg-[#D5E3FF]",
+            iconColor: "text-[#00376C]",
             color: "text-[#1B1B1F]",
         },
         {
             title: "Active Units",
             value: String(activeCount),
-            badge: "ACTIVE",
-            icon: <CircleCheck size={22} className="text-[#15803D] p-1 bg-[#DCFCE7] rounded" />,
+            icon: <CircleCheck size={18} />,
+            iconBg: "bg-[#DCFCE7]",
+            iconColor: "text-[#15803D]",
             color: "text-[#15803D]",
         },
         {
             title: "Inactive Units",
             value: String(inactiveCount).padStart(2, '0'),
-            badge: "INACTIVE",
-            icon: <CircleX size={22} className="text-[#B45309] p-1 bg-[#FEF3C7] rounded" />,
-            color: "text-[#B45309]",
+            icon: <CircleX size={18} />,
+            iconBg: "bg-[#FEE2E2]",
+            iconColor: "text-[#DC2626]",
+            color: "text-[#DC2626]",
         },
     ];
 
@@ -192,10 +208,12 @@ const AssetUnitList = () => {
         setDeleteSaving(true);
         try {
             await deleteAssetUnit(deleteTarget.id);
+            notify.success("Unit deleted successfully");
             closeDeleteConfirm();
             fetchUnits();
         } catch (err) {
             console.error(err);
+            notify.error(err, "Failed to delete unit");
         } finally {
             setDeleteSaving(false);
         }
@@ -203,36 +221,15 @@ const AssetUnitList = () => {
 
     const columns = useMemo(() => [
         {
-            id: "select",
-            header: ({ table }) => (
-                <input
-                    type="checkbox"
-                    checked={table.getIsAllPageRowsSelected()}
-                    onChange={table.getToggleAllPageRowsSelectedHandler()}
-                    className="w-4 h-4 cursor-pointer"
-                />
-            ),
-            cell: ({ row }) => (
-                <input
-                    type="checkbox"
-                    checked={row.getIsSelected()}
-                    onChange={row.getToggleSelectedHandler()}
-                    className="h-4 w-4 rounded border-gray-300 text-[#084E92] focus:ring-[#084E92] cursor-pointer"
-                />
-            ),
-            enableSorting: false,
-            size: 45,
-        },
-        {
             id: "sno",
             header: ({ column }) => (
                 <DataGridColumnHeader title="S.NO" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <span className="text-gray-500">{String(row.index + 1).padStart(2, '0')}</span>
+                <span className="text-gray-500 py-2 text-xs">{String(row.index + 1).padStart(2, '0')}</span>
             ),
             enableSorting: false,
-            size: 70,
+            size: 36,
         },
         {
             id: "name",
@@ -241,9 +238,10 @@ const AssetUnitList = () => {
                 <DataGridColumnHeader title="UNIT NAME" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => (
-                <div className="font-semibold text-[#084E92] py-2">{row.original.name}</div>
+                <div className="font-medium text-xs text-gray-800 py-2 truncate block max-w-[180px]" title={row.original.name}>{row.original.name}</div>
             ),
-            size: 200,
+            enableSorting: false,
+            size: 180,
         },
         {
             id: "symbol",
@@ -251,8 +249,9 @@ const AssetUnitList = () => {
             header: ({ column }) => (
                 <DataGridColumnHeader title="SYMBOL" column={column} className="text-[#43474F] font-semibold" />
             ),
-            cell: ({ row }) => <span className="text-gray-600">{row.original.symbol}</span>,
-            size: 160,
+            cell: ({ row }) => <span className="text-xs text-gray-800 font-medium truncate block uppercase max-w-[100px]" title={row.original.symbol}>{row.original.symbol || '—'}</span>,
+            enableSorting: false,
+            size: 120,
         },
         {
             id: "status",
@@ -261,7 +260,8 @@ const AssetUnitList = () => {
                 <DataGridColumnHeader title="STATUS" column={column} className="text-[#43474F] font-semibold" />
             ),
             cell: ({ row }) => <StatusBadge status={row.original.status} />,
-            size: 120,
+            enableSorting: false,
+            size: 80,
         },
         {
             id: "actions",
@@ -269,7 +269,7 @@ const AssetUnitList = () => {
                 <DataGridColumnHeader title="ACTIONS" column={column} className="text-[#43474F] font-semibold py-4" />
             ),
             cell: ({ row }) => (
-                <div className="flex items-center gap-3 py-1">
+                <div className="flex items-center gap-3 py-1 whitespace-nowrap">
                     <button type="button" onClick={() => handleViewClick(row.original)} title="View Unit">
                         <Eye size={18} className="text-gray-500 hover:text-blue-600 cursor-pointer" />
                     </button>
@@ -286,98 +286,74 @@ const AssetUnitList = () => {
                 </div>
             ),
             enableSorting: false,
-            size: 110,
+            size: 80,
         },
     ], [canEdit, canDelete]);
 
     const table = useReactTable({
         data: filteredUnits,
         columns,
-        state: { pagination, rowSelection },
+        state: { pagination },
         onPaginationChange: setPagination,
-        onRowSelectionChange: setRowSelection,
-        enableRowSelection: true,
         getCoreRowModel: getCoreRowModel(),
         getPaginationRowModel: getPaginationRowModel(),
     });
 
     if (!canView) {
-        return <AccessDenied pageTitle="Measure of unit Master" />;
+        return <AccessDenied pageTitle="Unit of Measure Master" />;
     }
 
     return (
        <Container>
-         <div className="p-4 md:p-6">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-                <span>Dashboard</span>
-                <ChevronRight size={12} />
-                <span>Asset Management</span>
-                <ChevronRight size={12} />
-                <span className="text-[#084E92] font-medium">Measure of unit Master</span>
-            </div>
+         <div className="pt-2 pb-6 mx-auto space-y-4">
+            <PageHeader
+                title="Unit of Measure Master"
+                    actions={
+                        <div className="flex items-center gap-3">
+                            {canExport && <HeaderActionButton
+                                variant="outline"
+                                onClick={() => setShowExportModal(true)}
+                                icon={<Download className={`w-3.5 h-3.5`} />}
+                                label="Export"
+                            />}
+                            {canAdd && (
+                                <HeaderActionButton onClick={handleAddClick}>
+                                    Add Unit
+                                </HeaderActionButton>
+                            )}
+                        </div>
+                    }
+            />
 
-            <div className="flex justify-between items-center flex-col sm:flex-row gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">Measure of unit Master</h1>
-                    <p className="text-[#737781] mt-1 text-sm">
-                        Manage all measurement units used throughout the Asset Management module.
-                    </p>
-                </div>
-
-                <div className="flex gap-3 self-end">
-                    <button type="button" className="px-4 py-2 border border-[#C3C6D1] rounded-lg flex gap-2 items-center text-[#43474F] hover:bg-gray-50 transition cursor-pointer bg-white">
-                        <Upload size={16} />
-                        Export
-                    </button>
-                    {canAdd && (
-                        <button
-                            type="button"
-                            onClick={handleAddClick}
-                            className="px-4 py-2 bg-[#084E92] text-white rounded-lg flex gap-2 items-center cursor-pointer hover:bg-[#073e77] transition"
-                        >
-                            <Plus size={16} />
-                            Add Unit
-                        </button>
-                    )}
-                </div>
-            </div>
+            <PageErrorAlert error={error} onRetry={fetchUnits} className="my-3" />
 
             {/* Stat cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 py-8 text-[#43474F]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5 text-[#43474F]">
                 {STATS.map((item) => (
-                    <div key={item.title} className="border border-[#C3C6D1] rounded-2xl p-4">
-                        <div className="flex justify-between items-center pb-2">
-                            <p>{item.icon}</p>
+                    <div key={item.title} className="bg-white border border-[#E5E7EB] rounded-2xl p-3.5 flex items-center justify-between shadow-2xs">
+                        <div className={`w-9 h-9 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0`}>
+                            {item.icon}
                         </div>
-                        <h1 className="text-sm text-[#43474F]">{item.title}</h1>
-                        <h2 className={`text-xl font-bold ${item.color}`}>{item.value}</h2>
-                        {item.badge && <p className="text-xs mt-1">{item.badge}</p>}
+                        <div className="flex flex-col items-end text-right">
+                            <span className="text-xs font-semibold text-[#00376C]">{item.title}</span>
+                            <span className="text-sm sm:text-base font-bold text-gray-900 mt-0.5">{item.value}</span>
+                        </div>
                     </div>
                 ))}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                <SearchBar
+                    placeholder="Search Unit Name or Symbol..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                />
 
-                <div className="relative border border-[#C3C6D1] rounded-lg">
-                    <Search
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                        size={18}
-                    />
-
-                    <input
-                        placeholder="Search Unit Name or Symbol..."
-                        className="w-full pl-10 py-2 outline-none rounded-lg"
-                        value={searchText}
-                        onChange={(e) => { setSearchText(e.target.value); }}
-                    />
-                </div>
-
-                    <Select
+                <Select
                         value={statusFilter}
                         onValueChange={(value) => setStatusFilter(value)}
                     >
-                        <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-lg text-sm text-gray-600">
+                        <SelectTrigger className="w-full h-10 border-[#C3C6D1] rounded-xl text-sm text-gray-600">
                             <SelectValue placeholder="All Status" />
                         </SelectTrigger>
 
@@ -398,24 +374,26 @@ const AssetUnitList = () => {
 
             </div>
 
-            {error && (
-                <div className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
-                    {error}
-                </div>
-            )}
-
             {/* Table */}
             <div className="w-full my-6 border border-[#C3C6D1] rounded-2xl overflow-hidden">
                 {loading ? (
                     <div className="p-10 text-center text-sm text-gray-500">Loading units...</div>
                 ) : (
-                    <DataGrid table={table} recordCount={filteredUnits.length} className="rounded-2xl">
+                    <DataGrid
+                        table={table}
+                        recordCount={filteredUnits.length}
+                        className="rounded-2xl"
+                        tableLayout={{
+                            dense: true,
+                            width: 'fixed',
+                            cellBorder: true,
+                            headerBorder: true,
+                            rowBorder: true,
+                        }}
+                    >
                         <Card className="rounded-t-none border-t-0 rounded-2xl">
-                            <CardTable>
-                                <ScrollArea>
-                                    <DataGridTable />
-                                    <ScrollBar orientation="horizontal" />
-                                </ScrollArea>
+                            <CardTable className="w-full overflow-x-hidden">
+                                <DataGridTable />
                             </CardTable>
                             <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                                 <DataGridPagination />
@@ -445,6 +423,12 @@ const AssetUnitList = () => {
                 itemLabel={deleteTarget?.itemLabel}
                 saving={deleteSaving}
             />
+                <MasterExportModal
+                    isOpen={showExportModal}
+                    onClose={() => setShowExportModal(false)}
+                    tableName="assets_unit"
+                    title="Export Asset Unit Report"
+                />
         </div>
        </Container>
     );

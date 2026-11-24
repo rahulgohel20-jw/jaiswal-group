@@ -2,16 +2,15 @@
 // File: src/pages/inventory/generate-grn/GenerateGRN.jsx
 // ============================================
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
+  getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
 import {
   FileText,
-  Search,
-  ChevronRight,
   Filter,
   Loader2,
   Eye,
@@ -19,51 +18,39 @@ import {
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
+import { PageHeader } from '@/components/common/PageHeader';
 import { Card, CardFooter, CardTable } from '@/components/ui/card';
 import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import SearchableSelect from '@/utils/SearchableSelect';
-import { getPOsByOutlet, getPurchaseOrdersByOutlet } from '@/services/apiServices';
+import { getPurchaseOrdersByOutlet } from '@/services/apiServices';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { CodeCell } from '@/components/common/CodeCell';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { SearchBar } from '@/components/common/SearchBar';
+import { useServerPagination } from '@/hooks/useServerPagination';
 
-const STATUS_STYLES = {
-  Approved: 'bg-emerald-50 text-emerald-600',
-  APPROVED: 'bg-emerald-50 text-emerald-600',
-  'In Progress': 'bg-blue-50 text-blue-600',
-  IN_PROGRESS: 'bg-blue-50 text-blue-600',
-  'Partially Received': 'bg-amber-50 text-amber-600',
-  PARTIALLY_RECEIVED: 'bg-amber-50 text-amber-600',
-  Closed: 'bg-gray-100 text-gray-500',
-  CLOSED: 'bg-gray-100 text-gray-500',
-  Pending: 'bg-red-50 text-red-600',
+const STATUS_TEXT_COLORS = {
+  Approved: 'text-emerald-600',
+  APPROVED: 'text-emerald-600',
+  'In Progress': 'text-blue-600',
+  IN_PROGRESS: 'text-blue-600',
+  'Partially Received': 'text-amber-600',
+  PARTIALLY_RECEIVED: 'text-amber-600',
+  Closed: 'text-gray-500',
+  CLOSED: 'text-gray-500',
+  Pending: 'text-rose-600',
 };
 
-const STATUS_DOT = {
-  Approved: 'bg-emerald-500',
-  APPROVED: 'bg-emerald-500',
-  'In Progress': 'bg-blue-500',
-  IN_PROGRESS: 'bg-blue-500',
-  'Partially Received': 'bg-amber-500',
-  PARTIALLY_RECEIVED: 'bg-amber-500',
-  Closed: 'bg-gray-400',
-  CLOSED: 'bg-gray-400',
-  Pending: 'bg-red-500',
-};
-
-const StatusBadge = ({ status, size = 'md' }) => {
+const StatusBadge = ({ status }) => {
   const displayStatus = status || 'Approved';
+  const color = STATUS_TEXT_COLORS[status] || 'text-gray-600';
   return (
-    <span
-      className={`inline-flex items-center gap-1.5 font-semibold rounded-full capitalize ${
-        size === 'sm' ? 'text-xs px-2.5 py-1' : 'text-sm px-3 py-1.5'
-      } ${STATUS_STYLES[status] || 'bg-gray-100 text-gray-500'}`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status] || 'bg-gray-400'}`} />
+    <span className={`font-semibold text-xs whitespace-nowrap capitalize ${color}`}>
       {displayStatus.toLowerCase().replace(/_/g, ' ')}
     </span>
   );
@@ -81,7 +68,7 @@ const TruncatedCell = ({
 
 function UnitDropdown({ units, selectedUnitId, onChange }) {
   const options = [
-    { value: '', label: 'All Outlets' },
+    { value: '', label: 'All Units' },
     ...units.map((u) => ({ value: String(u.id), label: u.name })),
   ];
   return (
@@ -91,7 +78,7 @@ function UnitDropdown({ units, selectedUnitId, onChange }) {
         value={selectedUnitId ? String(selectedUnitId) : ''}
         onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
         options={options}
-        placeholder={units.length === 0 ? 'No outlets available' : 'All Outlets'}
+        placeholder={units.length === 0 ? 'No units available' : 'All Units'}
         disabled={units.length === 0}
       />
     </div>
@@ -111,7 +98,7 @@ function StatusDropdown({ value, onChange }) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9.5 w-full pl-8 pr-7 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] font-semibold appearance-none focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+        className="h-10 w-full pl-8 pr-7 rounded-xl border border-[#C3C6D1] bg-white text-xs text-[#101828] font-semibold appearance-none focus:outline-none focus:ring-2 focus:ring-[#084E92]/15 focus:border-[#084E92]"
       >
         {PO_STATUS_FILTER_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
@@ -125,15 +112,35 @@ function StatusDropdown({ value, onChange }) {
 
 const formatDate = (val) => {
   if (!val) return '—';
-  const slashMatch = String(val).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (slashMatch) {
-    const [, d, m, y] = slashMatch;
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const str = String(val).trim();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  // Match YYYY-MM-DD (e.g. "2026-10-29" or "2026-10-29T...")
+  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
     const monthName = months[parseInt(m, 10) - 1] || m;
     return `${d.padStart(2, '0')} ${monthName} ${y}`;
   }
+
+  // Match DD/MM/YYYY
+  const slashMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (slashMatch) {
+    const [, d, m, y] = slashMatch;
+    const monthName = months[parseInt(m, 10) - 1] || m;
+    return `${d.padStart(2, '0')} ${monthName} ${y}`;
+  }
+
+  // Match DD-MM-YYYY
+  const dashMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+  if (dashMatch) {
+    const [, d, m, y] = dashMatch;
+    const monthName = months[parseInt(m, 10) - 1] || m;
+    return `${d.padStart(2, '0')} ${monthName} ${y}`;
+  }
+
   const parsed = new Date(val);
-  if (isNaN(parsed.getTime())) return String(val).split(' ')[0] || val;
+  if (isNaN(parsed.getTime())) return str.split(' ')[0] || val;
   return parsed.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
@@ -150,6 +157,9 @@ const GenerateGRN = () => {
   const {
     loading: scopeLoading,
     error: scopeError,
+    isOutletUser,
+    isCompanyUser,
+    companyId,
     showUnitDropdown,
     units,
     selectedUnitId,
@@ -166,97 +176,85 @@ const GenerateGRN = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: PAGE_SIZE });
+  const [sorting, setSorting] = useState([]);
+
+  const {
+    pagination,
+    setPagination,
+    totalElements,
+    pageCount,
+    updateFromResponse,
+    resetPage,
+  } = useServerPagination({ defaultPageSize: PAGE_SIZE });
 
   const loadData = useCallback(async () => {
-    if (scopeLoading) return;
+    if (scopeLoading || scopeError) return;
     setLoading(true);
     setPoError(null);
     try {
-      const outletId = effectiveOutletId === 'ALL' || !effectiveOutletId ? 0 : Number(effectiveOutletId);
+      const outletId = isOutletUser
+        ? Number(effectiveOutletId)
+        : (selectedUnitId ? Number(selectedUnitId) : Number(companyId || effectiveOutletId || getOrgIdFromToken() || 0));
+      const statusParam = statusFilter === 'ALL' ? 'APPROVED,CLOSED' : statusFilter;
+      const res = await getPurchaseOrdersByOutlet({
+        outletId,
+        status: statusParam,
+        page: pagination.pageIndex,
+        size: pagination.pageSize,
+        search: searchQuery.trim() || undefined,
+      });
+      const responseBody = res?.data || {};
+      const rawList = Array.isArray(responseBody.data)
+        ? responseBody.data
+        : Array.isArray(responseBody)
+        ? responseBody
+        : [];
 
-      let rawList = [];
-      if (statusFilter === 'ALL') {
-        try {
-          const res = await getPurchaseOrdersByOutlet(outletId, '');
-          const data = res?.data?.data ?? res?.data ?? [];
-          if (Array.isArray(data) && data.length > 0) {
-            rawList = data;
-          } else {
-            throw new Error('Fallback to parallel');
-          }
-        } catch {
-          const [appRes, closedRes] = await Promise.all([
-            getPurchaseOrdersByOutlet(outletId, 'APPROVED').catch(() => ({ data: [] })),
-            getPurchaseOrdersByOutlet(outletId, 'CLOSED').catch(() => ({ data: [] })),
-          ]);
-          const appData = appRes?.data?.data ?? appRes?.data ?? [];
-          const closedData = closedRes?.data?.data ?? closedRes?.data ?? [];
-          rawList = [
-            ...(Array.isArray(appData) ? appData : []),
-            ...(Array.isArray(closedData) ? closedData : []),
-          ];
-        }
-      } else {
-        let response;
-        try {
-          response = await getPOsByOutlet(outletId, statusFilter);
-        } catch (apiErr) {
-          response = await getPurchaseOrdersByOutlet(outletId, statusFilter);
-        }
-        const raw = response?.data?.data ?? response?.data ?? response ?? [];
-        rawList = Array.isArray(raw) ? raw : [];
-      }
+      updateFromResponse(res, rawList.length);
 
-      const normalized = rawList
-        .filter((item) => {
-          if (statusFilter === 'ALL') return true;
-          const s = String(item.status || 'APPROVED').toUpperCase();
-          return s === statusFilter.toUpperCase();
-        })
-        .map((item) => {
-          const prCode =
-            item.prcode ||
-            item.prCode ||
-            item.purchaseRequisitionCode ||
-            item.details?.[0]?.prcode ||
-            item.details?.[0]?.prCode ||
-            item.prPoMapping?.[0]?.prcode ||
-            '—';
+      const normalized = rawList.map((item) => {
+        const prCode =
+          item.prcode ||
+          item.prCode ||
+          item.purchaseRequisitionCode ||
+          item.details?.[0]?.prcode ||
+          item.details?.[0]?.prCode ||
+          item.prPoMapping?.[0]?.prcode ||
+          '—';
 
-          const deliveryDateRaw =
-            item.expectedDeliveryDate ||
-            item.deliveryDate ||
-            item.targetDeliveryDate ||
-            item.deliveryScheduleDate ||
-            '';
+        const deliveryDateRaw =
+          item.expectedDeliveryDate ||
+          item.deliveryDate ||
+          item.targetDeliveryDate ||
+          item.deliveryScheduleDate ||
+          '';
 
-          const vendorName =
-            item.vendorName ||
-            item.vendor?.name ||
-            item.vendor?.companyName ||
-            item.vendor?.tradeName ||
-            item.details?.[0]?.vendorName ||
-            item.poVendorName ||
-            (item.vendorId ? `Vendor #${item.vendorId}` : '—');
+        const vendorName =
+          item.vendorName ||
+          item.vendor?.name ||
+          item.vendor?.companyName ||
+          item.vendor?.tradeName ||
+          item.details?.[0]?.vendorName ||
+          item.poVendorName ||
+          (item.vendorId ? `Vendor #${item.vendorId}` : '—');
 
-          return {
-            id: item.id,
-            prCode: prCode,
-            poCode: item.purchaseOrderCode || item.poCode || `PO-${item.id}`,
-            date: formatDate(item.poDate || item.date || item.createdAt),
-            rawDate: item.poDate || item.date || item.createdAt,
-            deliveryDate: formatDate(deliveryDateRaw),
-            outlet: item.organizationName || item.outletName || item.outlet || (item.outletId ? `Outlet #${item.outletId}` : '—'),
-            outletId: item.outletId || item.orgId,
-            raisedBy: item.createdByName || item.raisedBy || item.createdBy || '—',
-            status: item.status || 'APPROVED',
-            rawStatus: item.status || 'APPROVED',
-            vendorId: item.vendorId || item.vendor?.id || item.details?.[0]?.vendorId,
-            vendorName: vendorName,
-            details: item.details || [],
-          };
-        });
+        return {
+          id: item.id,
+          prCode: prCode,
+          poCode: item.purchaseOrderCode || item.poCode || `PO-${item.id}`,
+          date: formatDate(item.poDate || item.date || item.createdAt),
+          rawDate: item.poDate || item.date || item.createdAt,
+          deliveryDate: formatDate(deliveryDateRaw),
+          outlet: item.organizationName || item.outletName || item.outlet || (item.outletId ? `Outlet #${item.outletId}` : '—'),
+          outletId: item.outletId || item.orgId,
+          raisedBy: item.createdByName || item.raisedBy || item.createdBy || '—',
+          status: item.status || 'APPROVED',
+          rawStatus: item.status || 'APPROVED',
+          vendorId: item.vendorId || item.vendor?.id || item.details?.[0]?.vendorId,
+          vendorName: vendorName,
+          details: item.details || [],
+        };
+      });
 
       const scopedRows = filterRowsByScope(normalized);
       setList(scopedRows);
@@ -265,7 +263,21 @@ const GenerateGRN = () => {
     } finally {
       setLoading(false);
     }
-  }, [scopeLoading, effectiveOutletId, statusFilter, filterRowsByScope]);
+  }, [
+    scopeLoading,
+    scopeError,
+    isOutletUser,
+    effectiveOutletId,
+    selectedUnitId,
+    companyId,
+    isCompanyUser,
+    statusFilter,
+    pagination.pageIndex,
+    pagination.pageSize,
+    searchQuery,
+    updateFromResponse,
+    filterRowsByScope,
+  ]);
 
   useEffect(() => {
     loadData();
@@ -297,8 +309,8 @@ const GenerateGRN = () => {
   }, [filteredRows]);
 
   useEffect(() => {
-    setPagination((p) => ({ ...p, pageIndex: 0 }));
-  }, [searchQuery, statusFilter, selectedUnitId]);
+    resetPage();
+  }, [searchQuery, statusFilter, isOutletUser, selectedUnitId, companyId, effectiveOutletId, resetPage]);
 
   const toggleSelectPo = useCallback((item) => {
     setSelectedPos((prev) => {
@@ -311,7 +323,7 @@ const GenerateGRN = () => {
         const outletMatch = item.outletId && first.outletId ? item.outletId === first.outletId : item.outlet === first.outlet;
         const vendorMatch = item.vendorId && first.vendorId ? item.vendorId === first.vendorId : item.vendorName === first.vendorName;
         if (!outletMatch || !vendorMatch) {
-          toast.error('Only Purchase Orders from the same Outlet and Vendor can be combined into a single GRN.');
+          toast.error('Only Purchase Orders from the same Unit and Vendor can be combined into a single GRN.');
           return prev;
         }
       }
@@ -380,7 +392,7 @@ const GenerateGRN = () => {
              (item.vendorId && firstSelected.vendorId ? item.vendorId !== firstSelected.vendorId : item.vendorName !== firstSelected.vendorName));
 
           return (
-            <div className="flex items-center justify-center px-1">
+            <div className="flex items-center justify-center px-0.5">
               <input
                 type="checkbox"
                 checked={isSelected}
@@ -391,159 +403,192 @@ const GenerateGRN = () => {
                     ? 'Only Purchase Orders from the same Outlet and Vendor can be merged into a single GRN'
                     : 'Select for combined GRN'
                 }
-                className={`w-4 h-4 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 ${
+                className={`w-3.5 h-3.5 rounded text-[#084E92] focus:ring-[#084E92] border-gray-300 ${
                   isMismatch ? 'opacity-30 cursor-not-allowed' : 'cursor-pointer'
                 }`}
               />
             </div>
           );
         },
-        size: 45,
+        size: 36,
         enableSorting: false,
       });
     }
 
     cols.push(
       {
+        id: 'sno',
+        header: ({ column }) => (
+          <DataGridColumnHeader title="S.NO" column={column} className="text-xs" />
+        ),
+        cell: ({ row }) => (
+          <span className="text-gray-500 font-mono text-xs"> {String(pagination.pageIndex * pagination.pageSize + row.index + 1).padStart(2, '0')}</span>
+        ),
+        enableSorting: false,
+        size: 45,
+      },
+      {
         id: 'poCode',
         accessorFn: (row) => row.poCode,
         header: ({ column }) => (
-          <DataGridColumnHeader title="PO CODE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="PO CODE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span
+          <CodeCell
+            code={row.original.poCode}
+            maxWidth="max-w-full"
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
             onClick={() => navigate(`/purchase/purchase-order-detail/${row.original.id}`)}
-            className="font-bold text-[#084E92] font-mono text-xs whitespace-nowrap hover:underline cursor-pointer"
-          >
-            {row.original.poCode}
-          </span>
+          />
         ),
-        size: 200,
+        enableSorting: true,
+        size: 190,
       },
       {
         id: 'prCode',
         accessorFn: (row) => row.prCode,
         header: ({ column }) => (
-          <DataGridColumnHeader title="PR CODE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="PR CODE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="font-semibold text-gray-700 font-mono text-xs whitespace-nowrap">
-            {row.original.prCode || '—'}
-          </span>
+          <CodeCell
+            code={row.original.prCode}
+            maxWidth="max-w-full"
+            className="font-semibold text-[#084E92] text-xs cursor-pointer hover:underline"
+          />
         ),
-        size: 180,
+        enableSorting: true,
+        size: 200,
       },
       {
         id: 'date',
         accessorFn: (row) => row.date,
         header: ({ column }) => (
-          <DataGridColumnHeader title="PO DATE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="PO DATE" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
             {row.original.date || '—'}
           </span>
         ),
-        size: 130,
+        enableSorting: true,
+        size: 85,
       },
       {
         id: 'deliveryDate',
         accessorFn: (row) => row.deliveryDate,
         header: ({ column }) => (
-          <DataGridColumnHeader title="DELIVERY DATE" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="DELIVERY" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
           <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
             {row.original.deliveryDate || '—'}
           </span>
         ),
-        size: 140,
+        enableSorting: false,
+        size: 85,
       },
       {
         id: 'outlet',
         accessorFn: (row) => row.outlet,
         header: ({ column }) => (
-          <DataGridColumnHeader title="OUTLET" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="UNIT" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-800 font-medium whitespace-nowrap" title={row.original.outlet}>
+          <span className="text-xs text-gray-800 font-medium block truncate max-w-[120px]" title={row.original.outlet}>
             {row.original.outlet || '—'}
           </span>
         ),
-        size: 190,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: 'vendorName',
         accessorFn: (row) => row.vendorName,
         header: ({ column }) => (
-          <DataGridColumnHeader title="VENDOR NAME" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="VENDOR" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-800 font-medium whitespace-nowrap" title={row.original.vendorName}>
+          <span className="text-xs text-gray-800 font-medium block truncate max-w-[120px]" title={row.original.vendorName}>
             {row.original.vendorName || '—'}
           </span>
         ),
-        size: 180,
+        enableSorting: false,
+        size: 130,
       },
       {
         id: 'raisedBy',
         accessorFn: (row) => row.raisedBy,
         header: ({ column }) => (
-          <DataGridColumnHeader title="RAISED BY" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="RAISED BY" column={column} className="text-xs" />
         ),
         cell: ({ row }) => (
-          <span className="text-xs text-gray-700 font-medium whitespace-nowrap" title={row.original.raisedBy}>
+          <span className="text-xs text-gray-700 font-medium block truncate max-w-[100px]" title={row.original.raisedBy}>
             {row.original.raisedBy || '—'}
           </span>
         ),
-        size: 150,
+        enableSorting: false,
+        size: 110,
       },
       {
         id: 'status',
         accessorFn: (row) => row.status,
         header: ({ column }) => (
-          <DataGridColumnHeader title="STATUS" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="STATUS" column={column} className="text-xs" />
         ),
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
-        size: 150,
+        enableSorting: false,
+        size: 75,
       },
       {
         id: 'action',
         header: ({ column }) => (
-          <DataGridColumnHeader title="ACTIONS" column={column} className="my-2 text-xs font-semibold text-[#43474F] uppercase" />
+          <DataGridColumnHeader title="ACTION" column={column} className="text-xs" />
         ),
         cell: ({ row }) => {
           const original = row.original;
           const isApproved = String(original.rawStatus).toUpperCase() === 'APPROVED';
           if (!isApproved || !canAdd) {
             return (
-              <button
-                type="button"
-                onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
-                className="text-gray-500 hover:text-green-600 cursor-pointer p-1.5 rounded-lg hover:bg-gray-100 transition"
-                title="View Order"
-              >
-                <Eye size={18} />
-              </button>
+              <div className="flex items-center gap-1.5 whitespace-nowrap">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
+                  className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
+                  title="View Order"
+                >
+                  <Eye size={16} />
+                </button>
+              </div>
             );
           }
           return (
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/inventory/generate-grn/generate', {
-                  state: { poIds: [original.id], pos: [original] },
-                })
-              }
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-white bg-[#084E92] text-xs font-semibold hover:bg-[#073e77] transition cursor-pointer shadow-2xs whitespace-nowrap"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              Generate GRN
-            </button>
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate('/inventory/generate-grn/generate', {
+                    state: { poIds: [original.id], pos: [original] },
+                  })
+                }
+                className="text-[#084E92] hover:text-[#063d73] cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
+                title="Generate GRN"
+              >
+                <FileText size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(`/purchase/purchase-order-detail/${original.id}`)}
+                className="text-gray-500 hover:text-green-600 cursor-pointer p-0.5 rounded hover:bg-green-50 transition"
+                title="View Order"
+              >
+                <Eye size={16} />
+              </button>
+            </div>
           );
         },
         enableSorting: false,
-        size: 160,
+        size: 75,
       }
     );
 
@@ -553,10 +598,14 @@ const GenerateGRN = () => {
   const table = useReactTable({
     data: filteredRows,
     columns,
-    state: { pagination },
+    state: { pagination, sorting },
+    manualPagination: true,
+    pageCount,
     onPaginationChange: setPagination,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
   });
 
   if (!canView) {
@@ -565,47 +614,33 @@ const GenerateGRN = () => {
 
   return (
     <Container>
-      <div className="py-3 md:py-4 pb-6 space-y-4 md:space-y-5">
-        {/* Breadcrumbs */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-          <span>Dashboard</span>
-          <ChevronRight size={11} />
-          <span>Inventory</span>
-          <ChevronRight size={11} />
-          <span className="text-[#084E92] font-semibold">Generate GRN</span>
-        </div>
-
+      <div className="pt-2 pb-6 mx-auto space-y-3.5">
         {/* Page header */}
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-xl md:text-2xl font-bold text-[#101828] leading-tight" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-              Generate GRN
-            </h1>
-            <p className="text-[#667085] text-xs max-w-xl">
-              List of approved Purchase Orders ready for Goods Received Note generation.
-            </p>
-          </div>
-
-          {canAdd && (
-            <button
-              type="button"
-              onClick={handleBulkGenerateGRN}
-              disabled={selectedPos.length === 0}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition shadow-2xs ${
-                selectedPos.length > 0
-                  ? 'bg-[#084E92] text-white hover:bg-[#073e77] cursor-pointer'
-                  : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>
-                {selectedPos.length > 0
-                  ? `Generate GRN (${selectedPos.length})`
-                  : 'Generate GRN'}
-              </span>
-            </button>
-          )}
-        </div>
+        <PageHeader
+          title="Generate GRN"
+          description="List of approved Purchase Orders ready for Goods Received Note generation."
+          actions={
+            canAdd && (
+              <button
+                type="button"
+                onClick={handleBulkGenerateGRN}
+                disabled={selectedPos.length === 0}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition shadow-2xs ${
+                  selectedPos.length > 0
+                    ? 'bg-[#084E92] text-white hover:bg-[#073e77] cursor-pointer'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>
+                  {selectedPos.length > 0
+                    ? `Generate GRN (${selectedPos.length})`
+                    : 'Generate GRN'}
+                </span>
+              </button>
+            )
+          }
+        />
 
         {/* Selected POs Info Banner */}
         {selectedPos.length > 0 && (
@@ -626,24 +661,19 @@ const GenerateGRN = () => {
           </div>
         )}
 
-        {scopeError && (
-          <div className="rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 flex items-center justify-between">
-            <span className="text-xs text-[#C0293D]">{scopeError}</span>
-            <button onClick={retryScope} className="text-xs font-semibold text-[#C0293D] underline shrink-0">
-              Retry
-            </button>
-          </div>
-        )}
+        <PageErrorAlert
+          error={scopeError || poError}
+          onRetry={scopeError ? retryScope : loadData}
+        />
 
         {/* Search + unit dropdown + status dropdown */}
         <div className="flex items-center gap-2.5 flex-wrap">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
-            <input
+          <div className="flex-1 min-w-[220px]">
+            <SearchBar
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search PO Code, Outlet, Raised By..."
-              className="w-full h-9.5 pl-9 pr-3 rounded-xl border border-[#E7EAF0] bg-white text-xs text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2952E3]/30 focus:border-[#2952E3]"
+              onClear={() => setSearchQuery('')}
+              placeholder="Search PO Code, Unit, Raised By..."
             />
           </div>
 
@@ -653,19 +683,6 @@ const GenerateGRN = () => {
 
           <StatusDropdown value={statusFilter} onChange={setStatusFilter} />
         </div>
-
-        {poError && (
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F0B4BC] bg-[#FBEAEC] px-4 py-2.5 text-xs text-[#C0293D]">
-            <span>{poError}</span>
-            <button
-              type="button"
-              onClick={loadData}
-              className="ml-auto font-semibold underline cursor-pointer bg-transparent border-0"
-            >
-              Retry
-            </button>
-          </div>
-        )}
 
         {/* Table card (Maximized height for comfortable viewing) */}
         <div className="bg-white rounded-2xl border border-[#E7EAF0] overflow-hidden shadow-xs">
@@ -677,21 +694,19 @@ const GenerateGRN = () => {
           ) : (
             <DataGrid
               table={table}
-              recordCount={filteredRows.length}
+              recordCount={totalElements}
               className="rounded-2xl"
               tableLayout={{
+                dense: true,
                 width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
               }}
             >
-              <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none">
-                <CardTable>
-                  <ScrollArea className="max-h-[60vh] w-full">
-                    <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+              <Card className="rounded-2xl border-0 shadow-none">
+                <CardTable className="w-full overflow-x-hidden">
+                  <DataGridTable />
                 </CardTable>
                 <CardFooter className="bg-[#F9FAFC] rounded-b-2xl border-t border-[#E7EAF0] py-2.5">
                   <DataGridPagination />

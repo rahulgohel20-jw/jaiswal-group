@@ -295,16 +295,16 @@ export function AddUser() {
                     />
                   </div>
 
-                  {/* Outlet */}
+                  {/* Unit */}
                   <div className="mb-6">
                     <Label htmlFor="outlet" className="text-sm text-gray-500 font-normal mb-2 block">
-                      Outlet
+                      Unit
                     </Label>
                     <div className="flex items-center gap-3 border rounded-md px-4 py-3 text-gray-400 h-11 cursor-pointer hover:border-gray-400 transition-colors">
                       <svg className="w-5 h-5 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
-                      <span className="text-sm">Select outlet</span>
+                      <span className="text-sm">Select unit</span>
                     </div>
                   </div>
 
@@ -363,7 +363,7 @@ export function AddUser() {
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-base">Active</span>
                         <span className="text-sm text-gray-400">
-                          The user is available in outlet
+                          The user is available in unit
                         </span>
                       </div>
                     </div>
