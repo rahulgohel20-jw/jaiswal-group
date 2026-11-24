@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Building2,
   ChevronDown,
@@ -14,7 +14,6 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -49,7 +48,6 @@ export function SwitchScopeModal({ open, onOpenChange }) {
   // Extract hierarchy and determine user's lowest assigned scope level
   const {
     userLevel,
-    isGroupUser,
     assignedSubLocations,
     assignedSubUnits,
     assignedUnits,

@@ -56,6 +56,30 @@ export const PAGE_ALIASES = {
   'manual adjustment': ['manual stock adjustment', 'manual adjustment', 'manual adjustment screen'],
   'sub locations': ['sub locations', 'sub location', 'sub-locations', 'sub-location', 'sub location master', 'sublocation', 'sublocations'],
   'sub location': ['sub locations', 'sub location', 'sub-locations', 'sub-location', 'sub location master', 'sublocation', 'sublocations'],
+
+  // Proposal Module
+  'man power master': ['man power master', 'man power', 'manpower master', 'manpower'],
+  'manpower master': ['man power master', 'man power', 'manpower master', 'manpower'],
+  'man power': ['man power master', 'man power', 'manpower master', 'manpower'],
+  'manpower': ['man power master', 'man power', 'manpower master', 'manpower'],
+  'meal type master': ['meal type master', 'meal type', 'meal types', 'meal types master'],
+  'meal type': ['meal type master', 'meal type', 'meal types', 'meal types master'],
+  'meal slot master': ['meal slot master', 'meal slot', 'meal slots', 'meal slots master'],
+  'meal slot': ['meal slot master', 'meal slot', 'meal slots', 'meal slots master'],
+  'meal structure master': ['meal structure master', 'meal structure', 'meal structures', 'meal structures master'],
+  'meal structure': ['meal structure master', 'meal structure', 'meal structures', 'meal structures master'],
+  'other cost master': ['other cost master', 'other cost', 'other costs master', 'other costs', 'cost type master', 'cost type', 'cost types'],
+  'other cost': ['other cost master', 'other cost', 'other costs master', 'other costs', 'cost type master', 'cost type', 'cost types'],
+  'cost type master': ['cost type master', 'cost type', 'cost types', 'other cost master', 'other cost'],
+  'cost type': ['cost type master', 'cost type', 'cost types', 'other cost master', 'other cost'],
+  'proposal type master': ['proposal type master', 'proposal type', 'proposal types', 'proposal types master'],
+  'proposal type': ['proposal type master', 'proposal type', 'proposal types', 'proposal types master'],
+  'proposal types': ['proposal type master', 'proposal type', 'proposal types', 'proposal types master'],
+  'proposal': ['proposal', 'proposals', 'proposal master', 'proposal listing', 'create proposal', 'edit proposal', 'proposal management'],
+  'proposals': ['proposal', 'proposals', 'proposal master', 'proposal listing', 'create proposal', 'edit proposal', 'proposal management'],
+  'proposal management': ['proposal', 'proposals', 'proposal master', 'proposal listing', 'create proposal', 'edit proposal', 'proposal management'],
+  'proposal approval': ['proposal approval', 'approve proposal', 'proposal approve', 'approve proposals'],
+  'approve proposal': ['proposal approval', 'approve proposal', 'proposal approve', 'approve proposals'],
 };
 
 /**
@@ -78,7 +102,7 @@ export const getStoredAuthOrUser = () => {
             return parsed;
           }
         }
-      } catch (_) {}
+      } catch (_) { }
     }
   }
 
@@ -163,6 +187,7 @@ export const getUserPermissions = (userOrAuth) => {
           const editVal = page.edit ?? page.isEdit ?? page.canEdit ?? page.editRight ?? page.is_edit;
           const deleteVal = page.delete ?? page.isDelete ?? page.canDelete ?? page.deleteRight ?? page.is_delete;
           const exportVal = page.export ?? page.isExport ?? page.canExport ?? page.exportRight ?? page.is_export;
+          const approveVal = page.approve ?? page.isApprove ?? page.canApprove ?? page.approveRight ?? page.is_approve;
 
           const rightObj = {
             view: toBool(viewVal),
@@ -170,22 +195,32 @@ export const getUserPermissions = (userOrAuth) => {
             edit: toBool(editVal),
             delete: toBool(deleteVal),
             export: toBool(exportVal),
+            approve: toBool(approveVal),
             pageName: pageName,
             pageId: page.pageid ?? page.pageId ?? page.id,
             moduleId: moduleGroup.moduleId,
             moduleName: moduleGroup.moduleName,
           };
 
+          const cleanKey = lowerKey.replace(/[\s-_]/g, '');
+
           rightsMap[rawKey] = rightObj;
           rightsMap[lowerKey] = rightObj;
+          if (!rightsMap[cleanKey]) {
+            rightsMap[cleanKey] = rightObj;
+          }
 
           // Also populate known aliases into rightsMap so lookups by alias succeed immediately
-          const aliases = PAGE_ALIASES[lowerKey];
+          const aliases = PAGE_ALIASES[lowerKey] || PAGE_ALIASES[cleanKey];
           if (Array.isArray(aliases)) {
             aliases.forEach((alias) => {
               const aliasLower = String(alias).trim().toLowerCase();
+              const aliasClean = aliasLower.replace(/[\s-_]/g, '');
               if (!rightsMap[aliasLower]) {
                 rightsMap[aliasLower] = rightObj;
+              }
+              if (!rightsMap[aliasClean]) {
+                rightsMap[aliasClean] = rightObj;
               }
             });
           }
@@ -204,7 +239,9 @@ export const getUserPermissions = (userOrAuth) => {
     rawList.forEach((item) => {
       if (!item) return;
       checkList.push(item);
-      const aliases = PAGE_ALIASES[String(item).trim().toLowerCase()];
+      const lower = String(item).trim().toLowerCase();
+      const clean = lower.replace(/[\s-_]/g, '');
+      const aliases = PAGE_ALIASES[lower] || PAGE_ALIASES[clean];
       if (Array.isArray(aliases)) {
         aliases.forEach((a) => {
           if (!checkList.includes(a)) checkList.push(a);
@@ -215,7 +252,8 @@ export const getUserPermissions = (userOrAuth) => {
     for (const name of checkList) {
       const rawKey = String(name).trim();
       const lowerKey = rawKey.toLowerCase();
-      const rights = rightsMap[rawKey] || rightsMap[lowerKey];
+      const cleanKey = lowerKey.replace(/[\s-_]/g, '');
+      const rights = rightsMap[rawKey] || rightsMap[lowerKey] || rightsMap[cleanKey];
 
       if (rights) {
         return {
@@ -224,6 +262,7 @@ export const getUserPermissions = (userOrAuth) => {
           edit: toBool(rights.edit),
           delete: toBool(rights.delete),
           export: toBool(rights.export),
+          approve: toBool(rights.approve),
           hasAccess: toBool(rights.view),
         };
       }
@@ -246,15 +285,15 @@ export const getUserPermissions = (userOrAuth) => {
     });
 
     if (isEventRelated) {
-      return { view: true, add: true, edit: true, delete: true, export: true, hasAccess: true };
+      return { view: true, add: true, edit: true, delete: true, export: true, approve: true, hasAccess: true };
     }
 
     // If no explicit rights and user is Admin, grant full access
     if (isAdmin) {
-      return { view: true, add: true, edit: true, delete: true, export: true, hasAccess: true };
+      return { view: true, add: true, edit: true, delete: true, export: true, approve: true, hasAccess: true };
     }
 
-    return { view: false, add: false, edit: false, delete: false, export: false, hasAccess: false };
+    return { view: false, add: false, edit: false, delete: false, export: false, approve: false, hasAccess: false };
   };
 
   const hasPermission = (pageName, action = 'view') => {
@@ -317,7 +356,7 @@ export const filterMenuByPermissions = (menuItems, userOrAuth) => {
  * React hook for checking page-level permissions inside components.
  * 
  * @example
- * const { canAdd, canEdit, canDelete, canView } = usePagePermissions('Types');
+ * const { canAdd, canEdit, canDelete, canView, canApprove } = usePagePermissions('Types');
  */
 export const usePagePermissions = (pageName) => {
   const depKey = Array.isArray(pageName) ? pageName.join('|') : String(pageName || '');
@@ -331,8 +370,9 @@ export const usePagePermissions = (pageName) => {
       canAdd: Boolean(rights.add),
       canEdit: Boolean(rights.edit),
       canDelete: Boolean(rights.delete),
-      hasAccess: Boolean(rights.view),
       canExport: Boolean(rights.export),
+      canApprove: Boolean(rights.approve),
+      hasAccess: Boolean(rights.view),
       isAdmin,
       rights,
     };

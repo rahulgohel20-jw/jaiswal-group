@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -6,12 +6,10 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import {
-  Search,
   Eye,
   Pencil,
   CheckCircle2,
   XCircle,
-  ChevronRight,
   Filter,
   Loader2,
   AlertTriangle,
@@ -19,8 +17,8 @@ import {
   Clock,
   CheckCheck,
   Ban,
-  FileCheck2,
   Trash2,
+  Send,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
@@ -29,7 +27,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Container } from '@/components/common/container';
 import SearchableSelect from '@/utils/SearchableSelect';
 import DeleteConfirmModal from '@/utils/DeleteConfirmModal';
@@ -45,9 +42,11 @@ import { useServerPagination } from '@/hooks/useServerPagination';
 import { formatRemarks } from '@/utils/textUtils';
 import {
   getTransferList,
+  getTransferById,
   approveTransfer,
   rejectTransfer,
   deleteDraftTransfer,
+  dispatchTransfer,
 } from '@/services/apiServices';
 import { getUserIdFromToken } from '@/utils/auth';
 import {
@@ -243,9 +242,6 @@ const StockTransferApproval = () => {
   const [sorting, setSorting] = useState([]);
 
   // Modals state
-  const [approveModalOpen, setApproveModalOpen] = useState(false);
-  const [targetApproveTransfer, setTargetApproveTransfer] = useState(null);
-  const [approving, setApproving] = useState(false);
 
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [targetRejectTransfer, setTargetRejectTransfer] = useState(null);
@@ -285,8 +281,7 @@ const StockTransferApproval = () => {
     subLocations: scopeSubLocations,
     selectedUnitId,
     effectiveOutletId,
-    getSubOutlets,
-    getSubLocations,
+    getSubOutlets
   } = useOrgScope();
 
   // Fast lookup maps for sub-outlets and sub-locations
@@ -312,10 +307,8 @@ const StockTransferApproval = () => {
   }, [units]);
 
   const toOutletOptions = useMemo(() => {
-    return displayOutletOptions.filter(
-      (opt) => !isOutletUser || (effectiveOutletId && String(opt.value) !== String(effectiveOutletId))
-    );
-  }, [displayOutletOptions, isOutletUser, effectiveOutletId]);
+    return displayOutletOptions;
+  }, [displayOutletOptions]);
 
   // From Sub-outlet options
   const fromSubOutletOptions = useMemo(() => {
@@ -387,10 +380,10 @@ const StockTransferApproval = () => {
         const itemsArr = Array.isArray(item.items)
           ? item.items
           : Array.isArray(item.transferItems)
-          ? item.transferItems
-          : Array.isArray(item.details)
-          ? item.details
-          : [];
+            ? item.transferItems
+            : Array.isArray(item.details)
+              ? item.details
+              : [];
 
         const totalReqQty = itemsArr.reduce(
           (acc, it) => acc + Number(it.requestedQuantity ?? it.transferQty ?? it.quantity ?? 0),
@@ -626,40 +619,26 @@ const StockTransferApproval = () => {
   ]);
 
   // Actions
+  const handleApproveAndDispatch = (row) => {
+    navigate(`/inventory/str-approval/dispatch?id=${row.id}&mode=dispatch`, {
+      state: { ...(row.raw || row), fromApproval: true },
+    });
+  };
+
   const handleEdit = (row) => {
-    navigate(`/inventory/stock-transfer-request?id=${row.id}&mode=edit`, { state: row.raw || row });
+    navigate(`/inventory/str-approval/dispatch?id=${row.id}&mode=dispatch`, {
+      state: { ...(row.raw || row), fromApproval: true },
+    });
   };
 
   const handleDispatch = (row) => {
-    navigate(`/inventory/stock-transfer-request?id=${row.id}&mode=dispatch`, { state: row.raw || row });
+    navigate(`/inventory/str-approval/dispatch?id=${row.id}&mode=dispatch`, {
+      state: { ...(row.raw || row), fromApproval: true },
+    });
   };
 
   const handleView = (row) => {
     navigate(`/inventory/stock-transfer-detail/${row.id}`, { state: row.raw || row });
-  };
-
-  const handleOpenApproveModal = (row) => {
-    setTargetApproveTransfer(row);
-    setApproveModalOpen(true);
-  };
-
-  const handleConfirmApprove = async () => {
-    if (!targetApproveTransfer?.id) return;
-    setApproving(true);
-    try {
-      const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
-      await approveTransfer(targetApproveTransfer.id, currentUserId);
-      toast.success(`Stock transfer ${targetApproveTransfer.transferCode} approved successfully`);
-      setApproveModalOpen(false);
-      setTargetApproveTransfer(null);
-      fetchTransfers();
-    } catch (err) {
-      console.error('Failed to approve stock transfer:', err);
-      const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to approve stock transfer';
-      toast.error(errMsg);
-    } finally {
-      setApproving(false);
-    }
   };
 
   const handleOpenRejectModal = (row) => {
@@ -877,28 +856,17 @@ const StockTransferApproval = () => {
                 <Eye size={15} />
               </button>
 
-              {/* Actions for Pending / Draft Requests: Edit, Approve, Reject, Delete */}
+              {/* Actions for Pending / Draft Requests: Approve & Dispatch, Reject, Delete */}
               {isPending && (
                 <>
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(item)}
-                      className="p-1 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition cursor-pointer"
-                      title="Edit Transfer Request"
-                    >
-                      <Pencil size={15} />
-                    </button>
-                  )}
-
                   {(canEdit || canAdd) && (
                     <button
                       type="button"
-                      onClick={() => handleOpenApproveModal(item)}
-                      className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition cursor-pointer"
-                      title="Approve Transfer Request"
+                      onClick={() => handleApproveAndDispatch(item)}
+                      className="p-1 text-[#084E92] hover:text-[#063c70] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                      title="Approve & Dispatch"
                     >
-                      <CheckCircle2 size={15} />
+                      <Send size={15} />
                     </button>
                   )}
 
@@ -927,6 +895,18 @@ const StockTransferApproval = () => {
                     </button>
                   )}
                 </>
+              )}
+
+              {/* If already approved, allow dispatching directly */}
+              {isApproved && (canEdit || canAdd) && (
+                <button
+                  type="button"
+                  onClick={() => handleApproveAndDispatch(item)}
+                  className="p-1 text-[#084E92] hover:text-[#063c70] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                  title="Approve & Dispatch"
+                >
+                  <Send size={15} />
+                </button>
               )}
             </div>
           );
@@ -1111,66 +1091,6 @@ const StockTransferApproval = () => {
             </DataGrid>
           )}
         </div>
-
-        {/* Approve Confirmation Dialog */}
-        <Dialog open={approveModalOpen} onOpenChange={setApproveModalOpen}>
-          <DialogContent className="max-w-md bg-white rounded-2xl p-6 shadow-xl border border-gray-100">
-            <DialogHeader className="space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1">
-                <CheckCircle2 size={22} />
-              </div>
-              <DialogTitle className="text-base font-bold text-gray-900">
-                Approve Stock Transfer Request?
-              </DialogTitle>
-              <DialogDescription className="text-xs text-gray-500">
-                Are you sure you want to approve transfer request ?
-                Once approved, the originating unit can dispatch the items to the destination unit.
-              </DialogDescription>
-            </DialogHeader>
-
-            {targetApproveTransfer && (
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 my-2 text-xs space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">From Unit:</span>
-                  <span className="font-semibold text-gray-800">{targetApproveTransfer.fromOutlet}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">To Unit:</span>
-                  <span className="font-semibold text-gray-800">{targetApproveTransfer.toOutlet}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Total Quantity:</span>
-                  <span className="font-bold text-gray-900">
-                    {targetApproveTransfer.totalRequestedQuantity} {targetApproveTransfer.unit}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            <DialogFooter className="gap-2 sm:gap-0 mt-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setApproveModalOpen(false);
-                  setTargetApproveTransfer(null);
-                }}
-                disabled={approving}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmApprove}
-                disabled={approving}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition shadow-xs cursor-pointer disabled:opacity-50"
-              >
-                {approving ? <Loader2 size={14} className="animate-spin" /> : <CheckCheck size={14} />}
-                Approve Transfer
-              </button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         {/* Reject Modal with Mandatory Reason */}
         <Dialog open={rejectModalOpen} onOpenChange={setRejectModalOpen}>

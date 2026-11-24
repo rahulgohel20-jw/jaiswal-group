@@ -1,20 +1,18 @@
-import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldAlert, ArrowLeft, Home } from 'lucide-react';
-import { toAbsoluteUrl } from '@/lib/helpers';
+import { ArrowLeft, Home } from 'lucide-react';
 
 export function AccessDenied({ pageTitle = 'This Page' }) {
   const navigate = useNavigate();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center py-12">
-      <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mb-5 shadow-sm border border-red-100">
+      {/* <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mb-5 shadow-sm border border-red-100">
         <ShieldAlert className="w-8 h-8" />
       </div>
 
       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700 mb-3 uppercase tracking-wider">
         403 Access Denied
-      </span>
+      </span> */}
 
       <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
         Permission Required

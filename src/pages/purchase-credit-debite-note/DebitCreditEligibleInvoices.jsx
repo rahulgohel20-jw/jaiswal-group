@@ -22,7 +22,7 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import SearchableSelect from '@/utils/SearchableSelect';
 import { toast } from 'sonner';
-import { getAllActiveVendors, getEligibleInvoices } from '../../services/apiServices';
+import { getAllActiveVendors } from '../../services/apiServices';
 import { useOrgScope } from '../../hooks/useOrgScope';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';

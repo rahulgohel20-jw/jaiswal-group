@@ -21,18 +21,75 @@ import { useAuth } from '@/auth/context/auth-context';
 import { buildEventSsoUrl } from '@/utils/eventSso';
 
 export function SidebarMenu() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { auth, currentUser } = useAuth();
 
   const menuItems = useMemo(() => {
     return filterMenuByPermissions(MENU_SIDEBAR, auth || currentUser);
   }, [auth, currentUser]);
 
+  const effectiveSelectedValue = useMemo(() => {
+    if (
+      pathname.startsWith('/inventory/str-approval') ||
+      pathname.startsWith('/inventory/stock-transfer-approval') ||
+      (pathname.includes('/stock-transfer-request') && search.includes('mode=dispatch'))
+    ) {
+      return '/inventory/str-approval';
+    }
+    if (
+      pathname === '/proposals-approval' ||
+      pathname.startsWith('/proposal/approval') ||
+      pathname.startsWith('/proposals/approval') ||
+      (pathname.includes('/proposal') && search.includes('mode=approval'))
+    ) {
+      return '/proposals-approval';
+    }
+    return pathname;
+  }, [pathname, search]);
+
   // Memoize matchPath to prevent unnecessary re-renders
   const matchPath = useCallback(
-    (path) =>
-      path === pathname || (path.length > 1 && pathname.startsWith(path)),
-    [pathname],
+    (path) => {
+      const isDispatchOrApproval =
+        pathname.startsWith('/inventory/str-approval') ||
+        pathname.startsWith('/inventory/stock-transfer-approval') ||
+        (pathname.includes('/stock-transfer-request') && search.includes('mode=dispatch'));
+
+      if (isDispatchOrApproval) {
+        if (path === '/inventory/str-approval' || path === '/inventory/stock-transfer-approval') {
+          return true;
+        }
+        if (path === '/inventory/stock-transfer') {
+          return false;
+        }
+      }
+
+      const isProposalApproval =
+        pathname === '/proposals-approval' ||
+        pathname.startsWith('/proposal/approval') ||
+        pathname.startsWith('/proposals/approval') ||
+        (pathname.includes('/proposal') && search.includes('mode=approval'));
+
+      if (isProposalApproval) {
+        if (
+          path === '/proposals-approval' ||
+          path === '/proposal/approval' ||
+          path === '/proposals/approval'
+        ) {
+          return true;
+        }
+        if (path === '/proposal' || path === '/proposals') {
+          return false;
+        }
+      }
+
+      if (path === pathname) return true;
+      if (path.length > 1) {
+        return pathname.startsWith(`${path}/`);
+      }
+      return false;
+    },
+    [pathname, search],
   );
 
   // Global classNames for consistent styling
@@ -250,7 +307,7 @@ export function SidebarMenu() {
   return (
     <div className="kt-scrollable-y-hover flex grow shrink-0 py-5 px-5 lg:max-h-[calc(100vh-5.5rem)]">
       <AccordionMenu
-        selectedValue={pathname}
+        selectedValue={effectiveSelectedValue}
         matchPath={matchPath}
         type="single"
         collapsible

@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Boxes,
-  ChevronRight,
   Trash2,
-  Plus,
   ArrowLeft,
   Loader2,
   CheckCircle2,
@@ -11,6 +9,7 @@ import {
   AlertTriangle,
   FileText,
   Pencil,
+  Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardTable, CardFooter } from '@/components/ui/card';
@@ -31,6 +30,7 @@ import {
   getTransferById,
   receiveTransfer,
   rejectTransfer,
+  approveTransfer,
   dispatchTransfer,
   getCurrentStockListGet,
   getCompanyById,
@@ -392,6 +392,14 @@ const StockTransferRequest = () => {
   const [toSubLocations, setToSubLocations] = useState([]);
   const [toSubLocationsLoading, setToSubLocationsLoading] = useState(false);
   const [toSubLocationName, setToSubLocationName] = useState('');
+
+  const actualFromOutlet = fromOutlet || (isOutletUser ? String(effectiveOutletId) : '');
+  const isSameUnit = Boolean(
+    actualFromOutlet &&
+    toOutlet &&
+    String(actualFromOutlet) === String(toOutlet)
+  );
+  const isDirectDispatch = isSameUnit && Boolean(toSubOutlet);
 
   const [status, setStatus] = useState('Draft');
   const [transferDate, setTransferDate] = useState(getCurrentDate());
@@ -913,8 +921,8 @@ const StockTransferRequest = () => {
           }
           if (data.status) setStatus(formatStatusLabel(data.status));
 
-          // 1. Fetch raw materials catalogue scoped to source outlet
-          const loadedRawItems = await fetchAllItems(fromOrg, fromSub);
+          // Do not fetch entire raw material catalogue when opening an existing transfer
+          const loadedRawItems = [];
 
           const rawItems = Array.isArray(data.items)
             ? data.items
@@ -1188,16 +1196,8 @@ const StockTransferRequest = () => {
   }, [effectiveUnits]);
 
   const toOutletOptions = useMemo(() => {
-    return outletOptions.filter((opt) => {
-      if (isOutletUser && effectiveOutletId && String(opt.value) === String(effectiveOutletId)) {
-        return false;
-      }
-      if (fromOutlet && String(opt.value) === String(fromOutlet)) {
-        return false;
-      }
-      return true;
-    });
-  }, [outletOptions, isOutletUser, effectiveOutletId, fromOutlet]);
+    return outletOptions;
+  }, [outletOptions]);
   const fromSubOutletOptions = useMemo(() => {
     const targetFromId = fromOutlet || (isOutletUser ? effectiveOutletId : null);
     if (!targetFromId) return [];
@@ -1212,12 +1212,16 @@ const StockTransferRequest = () => {
   const toSubOutletOptions = useMemo(() => {
     if (!toOutlet) return [];
     return subUnits
-      .filter((sub) => String(sub.organizationId) === String(toOutlet))
+      .filter((sub) => {
+        if (String(sub.organizationId) !== String(toOutlet)) return false;
+        if (isSameUnit && fromSubOutlet && String(sub.id) === String(fromSubOutlet)) return false;
+        return true;
+      })
       .map((sub) => ({
         value: String(sub.id),
         label: `${sub.name}${sub.code ? ` (${sub.code})` : ''}`,
       }));
-  }, [subUnits, toOutlet]);
+  }, [subUnits, toOutlet, isSameUnit, fromSubOutlet]);
 
   const fromSubLocationOptions = useMemo(() => {
     const opts = fromSubLocations.map((loc) => ({
@@ -1453,12 +1457,12 @@ const StockTransferRequest = () => {
       return false;
     }
     if (String(actualFromOutlet) === String(toOutlet)) {
-      if (!fromSubOutlet && !toSubOutlet) {
-        toast.error('From Outlet and To Outlet cannot be the same');
+      if (!toSubOutlet) {
+        toast.error('Destination Sub-Unit is mandatory when From Unit and To Unit are the same');
         return false;
       }
       if (fromSubOutlet && toSubOutlet && String(fromSubOutlet) === String(toSubOutlet)) {
-        toast.error('From Sub-Outlet and To Sub-Outlet cannot be the same');
+        toast.error('From Sub-Unit and To Sub-Unit cannot be the same');
         return false;
       }
     }
@@ -1504,8 +1508,8 @@ const StockTransferRequest = () => {
         }
       }
 
-      // Batch selection is strictly mandatory for Dispatch / In Transit
-      if (isDispatch) {
+      // Batch selection is strictly mandatory for manual Dispatch mode
+      if (isDispatchMode) {
         const batches = Array.isArray(item.selectedBatches) ? item.selectedBatches : [];
         if (batches.length === 0) {
           toast.error(`Please select batch(es) for ${item.itemName}. Batch selection is mandatory before dispatch.`);
@@ -1517,6 +1521,18 @@ const StockTransferRequest = () => {
             `Total allocated batch quantity (${totalBatchQty} ${item.unit}) does not match requested transfer quantity (${qty} ${item.unit}) for ${item.itemName} before dispatch.`
           );
           return false;
+        }
+      } else {
+        // If batches were partially selected, ensure they match requested qty
+        const batches = Array.isArray(item.selectedBatches) ? item.selectedBatches : [];
+        if (batches.length > 0) {
+          const totalBatchQty = batches.reduce((sum, b) => sum + (Number(b.quantity) || 0), 0);
+          if (Math.abs(totalBatchQty - qty) > 0.0001) {
+            toast.error(
+              `Total allocated batch quantity (${totalBatchQty} ${item.unit}) does not match requested transfer quantity (${qty} ${item.unit}) for ${item.itemName}.`
+            );
+            return false;
+          }
         }
       }
     }
@@ -1591,25 +1607,139 @@ const StockTransferRequest = () => {
     return payload;
   };
 
-  // Save Transfer Request (saved/drafted requests automatically go for approval)
+  // Save Transfer Request (saved/drafted requests automatically go for approval, unless direct intra-unit dispatch)
   const handleSaveTransferRequest = async () => {
     if (!validateForm(false)) return;
     setSubmitting(true);
     try {
       const payload = buildPayload(false);
-      if (transferId && Number(transferId) > 0) {
-        payload.id = Number(transferId);
+      let targetId = transferId && Number(transferId) > 0 ? Number(transferId) : null;
+
+      if (targetId) {
         try {
-          await updateDraftTransfer(transferId, payload);
+          await updateDraftTransfer(targetId, payload);
         } catch (saveErr) {
           console.warn('Failed to update stock transfer', saveErr);
           await saveTransfer(payload);
         }
       } else {
-        await saveTransfer(payload);
+        const saveRes = await saveTransfer(payload);
+        const savedData = saveRes?.data?.data ?? saveRes?.data;
+        const resId =
+          savedData?.id ||
+          savedData?.transferId ||
+          saveRes?.data?.id ||
+          saveRes?.data?.transferId ||
+          (typeof savedData === 'number' ? savedData : null);
+        if (resId) targetId = Number(resId);
       }
-      toast.success(isEditMode ? 'Stock transfer request updated successfully' : 'Stock transfer request saved successfully');
-      navigate('/inventory/stock-transfer');
+
+      // If transferring stock from unit to subunit of the same unit,
+      // approval is not needed so directly dispatch so destination unit sees it in transit/receive
+      if (isDirectDispatch && targetId) {
+        try {
+          // If transfer requires approval prior to dispatch, auto-approve it
+          const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+          try {
+            await approveTransfer(targetId, currentUserId);
+          } catch (approveErr) {
+            console.warn('Auto-approve prior to direct dispatch skipped/failed:', approveErr);
+          }
+
+          // Fetch fresh transfer data to obtain server-assigned transferItemId for each item
+          let serverItems = [];
+          try {
+            const freshRes = await getTransferById(targetId);
+            const freshData = freshRes?.data?.data ?? freshRes?.data ?? freshRes;
+            serverItems = Array.isArray(freshData?.items)
+              ? freshData.items
+              : Array.isArray(freshData?.transferItems)
+              ? freshData.transferItems
+              : [];
+          } catch (fetchErr) {
+            console.warn('Failed to fetch fresh items for dispatch, using fallback', fetchErr);
+          }
+
+          const dispatchItems = manifestItems.map((manifestItem, idx) => {
+            const rawItemId = Number(manifestItem.itemId || manifestItem.rawMaterialId || manifestItem.id || 0);
+            const matchedServerItem = serverItems.find(
+              (si) => Number(si.itemId || si.rawMaterialId || si.id) === rawItemId
+            ) || serverItems[idx];
+
+            const transferItemId = Number(
+              matchedServerItem?.id ||
+              matchedServerItem?.transferItemId ||
+              manifestItem.transferItemId ||
+              (manifestItem.id && Number(manifestItem.id) !== rawItemId ? manifestItem.id : 0) ||
+              manifestItem.id ||
+              0
+            );
+
+            const dispatchedQuantity = Number(
+              manifestItem.transferQty !== undefined && manifestItem.transferQty !== ''
+                ? manifestItem.transferQty
+                : manifestItem.orderQty || 0
+            );
+
+            const formattedBatches = Array.isArray(manifestItem.selectedBatches)
+              ? manifestItem.selectedBatches.map((b) => ({
+                  batchNumber: b.batchNumber || b.batchCode || '',
+                  expiryDate: b.expiryDate || '',
+                  quantity: Number(b.quantity || 0),
+                  sourceStockBatchId: Number(b.sourceStockBatchId || b.batchId || b.id || 0),
+                }))
+              : [];
+
+            const primaryBatch = formattedBatches[0];
+
+            return {
+              transferItemId,
+              dispatchedQuantity,
+              batchNumber: primaryBatch?.batchNumber || manifestItem.batchNumber || '',
+              expiryDate: primaryBatch?.expiryDate || manifestItem.expiryDate || '',
+              remarks: formatRemarks(manifestItem.remarks || ''),
+              selectedBatches: formattedBatches,
+            };
+          });
+
+          const dispatchPayload = {
+            driverContact: driverContact.trim(),
+            driverName: driverName.trim(),
+            vehicleNumber: vehicleNumber.trim(),
+            remarks: formatRemarks(remarks.trim()),
+            items: dispatchItems,
+          };
+
+          await dispatchTransfer(targetId, dispatchPayload);
+
+          toast.success('Stock transfer dispatched directly to sub-unit successfully');
+          navigate('/inventory/stock-transfer');
+          return;
+        } catch (dispatchErr) {
+          console.error('Direct dispatch failed after saving transfer:', dispatchErr);
+          const errMsg =
+            dispatchErr?.response?.data?.message ||
+            dispatchErr?.response?.data?.msg ||
+            dispatchErr?.message ||
+            'Transfer saved, but automatic dispatch failed';
+          toast.error(errMsg);
+          navigate('/inventory/stock-transfer');
+          return;
+        }
+      }
+
+      toast.success(
+        isEditMode
+          ? 'Stock transfer request updated successfully'
+          : isDispatchMode
+          ? 'Stock transfer details saved successfully'
+          : 'Stock transfer request saved successfully'
+      );
+      navigate(
+        location.state?.fromApproval || isDispatchMode || location.pathname.includes('str-approval')
+          ? '/inventory/str-approval'
+          : '/inventory/stock-transfer'
+      );
     } catch (err) {
       const errMsg = err?.response?.data?.message || err?.response?.data?.msg || 'Failed to save transfer request';
       toast.error(errMsg);
@@ -1642,12 +1772,52 @@ const StockTransferRequest = () => {
         throw new Error('Failed to retrieve stock transfer ID for dispatch');
       }
 
+      // First update any changes made to the transfer details or manifest
+      try {
+        const updatePayload = buildPayload(false);
+        await updateDraftTransfer(targetId, updatePayload);
+      } catch (updateErr) {
+        console.warn('Draft update prior to dispatch note:', updateErr);
+      }
+
+      // If the transfer is pending approval, approve it first
+      const rawStatus = (status || '').toString().trim().toUpperCase().replace(/[\s_]/g, '');
+      if (rawStatus !== 'APPROVED') {
+        try {
+          const currentUserId = getUserIdFromToken() || (typeof localStorage !== 'undefined' ? localStorage.getItem('userId') : null);
+          await approveTransfer(targetId, currentUserId);
+        } catch (approveErr) {
+          console.warn('Approve prior to dispatch note/skip:', approveErr);
+        }
+      }
+
+      // Fetch fresh transfer data to obtain server-assigned transferItemId for each item
+      let serverItems = [];
+      try {
+        const freshRes = await getTransferById(targetId);
+        const freshData = freshRes?.data?.data ?? freshRes?.data ?? freshRes;
+        serverItems = Array.isArray(freshData?.items)
+          ? freshData.items
+          : Array.isArray(freshData?.transferItems)
+          ? freshData.transferItems
+          : [];
+      } catch (fetchErr) {
+        console.warn('Failed to fetch fresh items for dispatch, using fallback', fetchErr);
+      }
+
       // Build dispatch payload according to API specs:
       // In transferItemId key, pass the transfer item id (item.id in transfer.items)
-      const dispatchItems = manifestItems.map((manifestItem) => {
+      const dispatchItems = manifestItems.map((manifestItem, idx) => {
+        const rawItemId = Number(manifestItem.itemId || manifestItem.rawMaterialId || manifestItem.id || 0);
+        const matchedServerItem = serverItems.find(
+          (si) => Number(si.itemId || si.rawMaterialId || si.id) === rawItemId
+        ) || serverItems[idx];
+
         const transferItemId = Number(
+          matchedServerItem?.id ||
+          matchedServerItem?.transferItemId ||
           manifestItem.transferItemId ||
-          (manifestItem.id && Number(manifestItem.id) !== Number(manifestItem.itemId) ? manifestItem.id : 0) ||
+          (manifestItem.id && Number(manifestItem.id) !== rawItemId ? manifestItem.id : 0) ||
           manifestItem.id ||
           0
         );
@@ -1689,8 +1859,12 @@ const StockTransferRequest = () => {
 
       await dispatchTransfer(targetId, dispatchPayload);
 
-      toast.success('Stock transfer dispatched successfully');
-      navigate('/inventory/stock-transfer');
+      toast.success('Stock transfer confirmed and dispatched successfully');
+      navigate(
+        location.state?.fromApproval || isDispatchMode || location.pathname.includes('str-approval')
+          ? '/inventory/str-approval'
+          : '/inventory/stock-transfer'
+      );
     } catch (err) {
       console.error('Error dispatching stock transfer:', err);
       const errMsg =
@@ -2414,7 +2588,7 @@ const StockTransferRequest = () => {
   const getPageTitle = () => {
     if (isDiscrepancyApprovalMode) return 'Area Manager Discrepancy Approval';
     if (isReceiveMode) return 'Receive & Verify Stock Transfer';
-    if (isDispatchMode) return 'Dispatch Stock Transfer';
+    if (isDispatchMode) return 'Approve & Dispatch Stock Transfer';
     if (isEditMode) return 'Edit Stock Transfer Request';
     return 'New Stock Transfer Request';
   };
@@ -2463,6 +2637,8 @@ const StockTransferRequest = () => {
                     ? '/inventory/str-discrepancy-approval'
                     : isReceiveMode
                     ? '/inventory/transfer-receive-requests'
+                    : isDispatchMode || location.state?.fromApproval || location.pathname.includes('str-approval')
+                    ? '/inventory/str-approval'
                     : '/inventory/stock-transfer'
                 )
               }
@@ -2604,7 +2780,11 @@ const StockTransferRequest = () => {
                 {/* To Sub-Unit / Location */}
                 <div>
                   <label className="text-xs font-semibold text-gray-700">
-                    To Sub-Unit <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
+                    To Sub-Unit {isSameUnit ? (
+                      <span className="text-red-500">*</span>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 font-normal ml-1">(Optional)</span>
+                    )}
                   </label>
                   <SearchableSelect
                     className="mt-1.5"
@@ -2621,6 +2801,10 @@ const StockTransferRequest = () => {
                         ? 'Select unit first'
                         : subUnitsLoading
                         ? 'Loading sub-units...'
+                        : toSubOutletOptions.length === 0
+                        ? 'No sub-units available'
+                        : isSameUnit
+                        ? 'Select sub-unit (Mandatory)'
                         : 'Select sub-unit'
                     }
                   />
@@ -2649,6 +2833,24 @@ const StockTransferRequest = () => {
                   />
                 </div>
               </div>
+
+              {/* Intra-Unit Transfer Notice */}
+              {isSameUnit && (
+                <div className="mt-2.5 px-4 py-2.5 rounded-xl bg-blue-50/80 border border-blue-200/80 flex items-center gap-2 text-xs text-[#084E92]">
+                  <CheckCircle2 size={15} className="shrink-0 text-[#084E92]" />
+                  <span>
+                    {toSubOutlet ? (
+                      <>
+                        <strong>Intra-Unit Direct Transfer:</strong> Source and destination units are the same. Approval is not required; this transfer will be dispatched directly to the destination sub-unit.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Intra-Unit Transfer:</strong> Source and destination units are the same. Selecting a <strong>Destination Sub-Unit</strong> is mandatory.
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
 
               {/* Row 2: Common Vehicle & Driver Details + Remarks */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 border-t border-gray-100">
@@ -2712,8 +2914,8 @@ const StockTransferRequest = () => {
               </div>
             </div>
 
-            {/* Item Selection Card (Visible in Create and Edit modes) */}
-            {!isReceiveMode && !isDispatchMode && !isDiscrepancyApprovalMode && (
+            {/* Item Selection Card (Visible only when creating a new transfer request) */}
+            {!transferIdParam && !isReceiveMode && !isDispatchMode && !isDiscrepancyApprovalMode && (
               <div className="bg-white border border-[#E2E8F0] rounded-2xl p-5 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <RawMaterialSearchPicker
@@ -2843,18 +3045,29 @@ const StockTransferRequest = () => {
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold shadow-md hover:bg-[#073e77] transition disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                  Update Request
+                  {isDirectDispatch ? 'Direct Dispatch' : 'Update Request'}
                 </button>
               ) : isDispatchMode ? (
-                <button
-                  type="button"
-                  onClick={handleSubmitTransfer}
-                  disabled={submitting}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold shadow-md hover:bg-[#073e77] transition disabled:opacity-50 cursor-pointer"
-                >
-                  {submitting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                  Confirm Transfer & Dispatch
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSaveTransferRequest}
+                    disabled={submitting}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#CBD5E1] bg-white text-gray-700 text-xs font-semibold shadow-sm hover:bg-gray-50 transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {submitting ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSubmitTransfer}
+                    disabled={submitting}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold shadow-md hover:bg-[#073e77] transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {submitting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                    Confirm & Dispatch
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
@@ -2863,7 +3076,7 @@ const StockTransferRequest = () => {
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#084E92] text-white text-xs font-semibold shadow-md hover:bg-[#073e77] transition disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
-                  Save Request
+                  {isDirectDispatch ? 'Direct Dispatch' : 'Save Request'}
                 </button>
               )}
             </div>

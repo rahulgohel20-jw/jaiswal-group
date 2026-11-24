@@ -14,6 +14,7 @@ import {
   getAllRawMaterialCategory,
   getAllRawMaterialCategoryType,
   getAllRawMaterialUnits,
+  getAllRowMaterialSubCategory,
   getAllSubCategoryByCategoryId,
   getRawMaterialCategoryBrandsByCategoryId,
   getRawMaterialById,
@@ -167,8 +168,10 @@ const AddRawMaterialItemModal = () => {
   const [types, setTypes] = useState([]);
   const [units, setUnits] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [subCategories, setSubCategories] = useState([]);
+  const [allSubCategories, setAllSubCategories] = useState([]);
   const [loadingSubCategories, setLoadingSubCategories] = useState(false);
   const [brands, setBrands] = useState([]);
   const [errors, setErrors] = useState({});
@@ -245,10 +248,52 @@ const AddRawMaterialItemModal = () => {
     }
   };
 
+  const fetchAllCategories = async (editCategory = null) => {
+    try {
+      setLoadingCategories(true);
+      const res = await getAllRawMaterialCategory(0);
+      const categoryData = res?.data?.data?.['Raw Material Category Details'] || res?.data?.data || [];
+      let activeList = Array.isArray(categoryData)
+        ? categoryData.filter((item) => item.isActive === true)
+        : [];
+      if (editCategory?.id != null && !activeList.some((c) => String(c.id) === String(editCategory.id))) {
+        activeList = [...activeList, { ...editCategory, isActive: true }];
+      }
+      setAllCategories(activeList);
+      setCategories((prev) => (prev.length > 0 ? prev : activeList));
+      return activeList;
+    } catch (err) {
+      console.error('Failed to load all categories:', err);
+      return [];
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  const fetchAllSubCategories = async (editSubCategory = null) => {
+    try {
+      setLoadingSubCategories(true);
+      const res = await getAllRowMaterialSubCategory();
+      const raw = Array.isArray(res?.data) ? res.data : res?.data?.data || [];
+      let activeList = raw.filter((item) => item.isActive === true || item.active === true);
+      if (editSubCategory?.id != null && !activeList.some((s) => String(s.id) === String(editSubCategory.id))) {
+        activeList = [...activeList, editSubCategory];
+      }
+      setAllSubCategories(activeList);
+      setSubCategories((prev) => (prev.length > 0 ? prev : activeList));
+      return activeList;
+    } catch (err) {
+      console.error('Failed to load all sub-categories:', err);
+      return [];
+    } finally {
+      setLoadingSubCategories(false);
+    }
+  };
+
   const fetchCategories = async (categoryTypeId, editCategory = null) => {
     if (!categoryTypeId) {
-      setCategories([]);
-      return [];
+      setCategories(allCategories.length > 0 ? allCategories : []);
+      return allCategories;
     }
     setLoadingCategories(true);
     try {
@@ -274,8 +319,8 @@ const AddRawMaterialItemModal = () => {
 
   const fetchSubCategoriesForCategory = async (categoryId, editSubCategory = null) => {
     if (!categoryId) {
-      setSubCategories([]);
-      return [];
+      setSubCategories(allSubCategories.length > 0 ? allSubCategories : []);
+      return allSubCategories;
     }
     setLoadingSubCategories(true);
     try {
@@ -324,6 +369,8 @@ const AddRawMaterialItemModal = () => {
   useEffect(() => {
     fetchTypes();
     fetchUnits();
+    fetchAllCategories();
+    fetchAllSubCategories();
   }, []);
 
   useEffect(() => {
@@ -558,7 +605,7 @@ const AddRawMaterialItemModal = () => {
                 Basic Information
               </h3>
 
-              {/* Row 1: Raw Material Name, Type, and Category */}
+              {/* Row 1: Raw Material Name, Sub Category, and Category */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-gray-700 block mb-1.5">
@@ -578,6 +625,109 @@ const AddRawMaterialItemModal = () => {
 
                 <div>
                   <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Sub Category
+                  </label>
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        name="rawMaterialSubCatId"
+                        value={form.rawMaterialSubCatId}
+                        onChange={(e) => {
+                          const subCatId = String(e.target.value);
+                          set('rawMaterialSubCatId', subCatId);
+                          const foundSub = allSubCategories.find((s) => String(s.id) === subCatId);
+                          const targetCatId = foundSub?.categoryId || foundSub?.rawMaterialCatId;
+                          if (targetCatId) {
+                            const catIdStr = String(targetCatId);
+                            set('rawMaterialCatId', catIdStr);
+                            fetchBrands(catIdStr);
+                            const foundCat = allCategories.find((c) => String(c.id) === catIdStr);
+                            const targetTypeId = foundCat?.rawMaterialCatTypeId || foundCat?.categoryTypeId;
+                            if (targetTypeId) {
+                              set('rawMaterialCatTypeId', String(targetTypeId));
+                            }
+                          }
+                        }}
+                        options={subCategories.map((item) => ({
+                          value: String(item.id),
+                          label: item.nameEnglish,
+                        }))}
+                        placeholder={
+                          loadingSubCategories
+                            ? 'Loading...'
+                            : 'Select Sub Category'
+                        }
+                        disabled={isViewOnly || loadingSubCategories}
+                      />
+                    </div>
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setIsSubCategoryModalOpen(true)}
+                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
+                        title="Add Sub Category"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
+                    Category <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex gap-1.5 items-center">
+                    <div className="flex-1 min-w-0">
+                      <SearchableSelect
+                        disabled={isViewOnly || loadingCategories}
+                        name="rawMaterialCatId"
+                        value={form.rawMaterialCatId}
+                        onChange={(e) => {
+                          const categoryId = String(e.target.value);
+                          set('rawMaterialCatId', categoryId);
+                          set('brandId', '');
+                          fetchBrands(categoryId);
+                          fetchSubCategoriesForCategory(categoryId);
+                          const foundCat = allCategories.find((c) => String(c.id) === categoryId);
+                          const targetTypeId = foundCat?.rawMaterialCatTypeId || foundCat?.categoryTypeId;
+                          if (targetTypeId) {
+                            set('rawMaterialCatTypeId', String(targetTypeId));
+                          }
+                        }}
+                        options={categories.map((item) => ({
+                          value: String(item.id),
+                          label: item.nameEnglish,
+                        }))}
+                        placeholder={
+                          loadingCategories
+                            ? 'Loading...'
+                            : 'Select Category'
+                        }
+                        error={!!errors.rawMaterialCatId}
+                      />
+                    </div>
+                    {!isViewOnly && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCategoryModalOpen(true)}
+                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
+                        title="Add Category"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {errors.rawMaterialCatId && (
+                    <p className="text-red-500 text-xs mt-1">{errors.rawMaterialCatId}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 2: Type, Unit, and Brand */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
                     Type <span className="text-red-500">*</span>
                   </label>
                   <div className="flex gap-1.5 items-center">
@@ -589,9 +739,6 @@ const AddRawMaterialItemModal = () => {
                         onChange={(e) => {
                           const typeId = String(e.target.value);
                           set('rawMaterialCatTypeId', typeId);
-                          set('rawMaterialCatId', '');
-                          set('rawMaterialSubCatId', '');
-                          set('brandId', '');
                           fetchCategories(typeId);
                         }}
                         options={types.map((item) => ({
@@ -616,93 +763,6 @@ const AddRawMaterialItemModal = () => {
                   {errors.rawMaterialCatTypeId && (
                     <p className="text-red-500 text-xs mt-1">{errors.rawMaterialCatTypeId}</p>
                   )}
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex gap-1.5 items-center">
-                    <div className="flex-1 min-w-0">
-                      <SearchableSelect
-                        disabled={isViewOnly || !form.rawMaterialCatTypeId || loadingCategories}
-                        name="rawMaterialCatId"
-                        value={form.rawMaterialCatId}
-                        onChange={(e) => {
-                          const categoryId = String(e.target.value);
-                          set('rawMaterialCatId', categoryId);
-                          set('rawMaterialSubCatId', '');
-                          set('brandId', '');
-                          fetchBrands(categoryId);
-                        }}
-                        options={categories.map((item) => ({
-                          value: String(item.id),
-                          label: item.nameEnglish,
-                        }))}
-                        placeholder={
-                          !form.rawMaterialCatTypeId
-                            ? 'Select type first'
-                            : loadingCategories
-                              ? 'Loading...'
-                              : 'Select Category'
-                        }
-                        error={!!errors.rawMaterialCatId}
-                      />
-                    </div>
-                    {!isViewOnly && (
-                      <button
-                        type="button"
-                        onClick={() => setIsCategoryModalOpen(true)}
-                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
-                        title="Add Category"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                  {errors.rawMaterialCatId && (
-                    <p className="text-red-500 text-xs mt-1">{errors.rawMaterialCatId}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Row 2: Sub Category, Unit, and Brand */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                    Sub Category
-                  </label>
-                  <div className="flex gap-1.5 items-center">
-                    <div className="flex-1 min-w-0">
-                      <SearchableSelect
-                        name="rawMaterialSubCatId"
-                        value={form.rawMaterialSubCatId}
-                        onChange={(e) => set('rawMaterialSubCatId', String(e.target.value))}
-                        options={subCategories.map((item) => ({
-                          value: String(item.id),
-                          label: item.nameEnglish,
-                        }))}
-                        placeholder={
-                          !form.rawMaterialCatId
-                            ? 'Select category first'
-                            : loadingSubCategories
-                              ? 'Loading...'
-                              : 'Select Sub Category'
-                        }
-                        disabled={isViewOnly || !form.rawMaterialCatId || loadingSubCategories}
-                      />
-                    </div>
-                    {!isViewOnly && (
-                      <button
-                        type="button"
-                        onClick={() => setIsSubCategoryModalOpen(true)}
-                        className="w-10 h-10 border border-[#C3C6D1] rounded-lg hover:bg-gray-50 flex items-center justify-center text-[#00376C] shrink-0 transition cursor-pointer"
-                        title="Add Sub Category"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
                 </div>
 
                 <div>
@@ -997,10 +1057,12 @@ const AddRawMaterialItemModal = () => {
             onClose={() => setIsCategoryModalOpen(false)}
             onSaved={async (newCat) => {
               const norm = normalizeCategory(newCat) || newCat;
-              await fetchCategories(form.rawMaterialCatTypeId, norm || null);
+              await fetchAllCategories(norm || null);
+              if (form.rawMaterialCatTypeId) {
+                await fetchCategories(form.rawMaterialCatTypeId, norm || null);
+              }
               if (norm?.id != null) {
                 set('rawMaterialCatId', String(norm.id));
-                set('rawMaterialSubCatId', '');
               }
             }}
           />
@@ -1036,7 +1098,10 @@ const AddRawMaterialItemModal = () => {
             onClose={() => setIsSubCategoryModalOpen(false)}
             onSaved={async (newSub) => {
               const norm = normalizeSubCategory(newSub) || newSub;
-              await fetchSubCategoriesForCategory(form.rawMaterialCatId, norm || null);
+              await fetchAllSubCategories(norm || null);
+              if (form.rawMaterialCatId) {
+                await fetchSubCategoriesForCategory(form.rawMaterialCatId, norm || null);
+              }
               if (norm?.id != null) set('rawMaterialSubCatId', String(norm.id));
             }}
           />

@@ -90,27 +90,6 @@ const RawMaterialCategoryDetailsModal = ({
                 )}
               </Field>
 
-              <Field label="Sequence">
-                {category.sequence !== undefined &&
-                category.sequence !== null ? (
-                  category.sequence
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
-              </Field>
-
-              <Field label="Direct Category">
-                {category.isDirect !== undefined ? (
-                  category.isDirect ? (
-                    'Yes'
-                  ) : (
-                    'No'
-                  )
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
-              </Field>
-
               <Field label="Status">
                 <StatusBadge status={statusStr} />
               </Field>

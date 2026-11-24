@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -233,7 +233,7 @@ function unwrapList(res, hints = []) {
 // Outlet objects carry the name under companyNameEnglish, not `name`
 const getOrgLabel = (o) => (o ? o.companyNameEnglish || o.companyCode || String(o.id ?? "") : "");
 
-const nextSubUnitCode = (outletCode) => (outletCode ? `${outletCode}-SU01` : "Select a unit first");
+// const nextSubUnitCode = (outletCode) => (outletCode ? `${outletCode}-SU01` : "Select a unit first");
 
 const emptyForm = {
   outletId: "",
@@ -586,301 +586,301 @@ const AddSubUnit = () => {
   }
 
   return (
-     <Container>
-    <div className="mx-auto pt-2 pb-6 space-y-3.5">
-      <PageHeader
-        title={isEditMode ? "Update Sub Unit" : "Register Sub Unit"}
-        description={
-          isEditMode
-            ? `Edit the details for ${editingSubUnit.subOutletName || ""} and save your changes.`
-            : "Complete the form below to register a new sub unit under an existing outlet."
-        }
-        actions={
-          <button
-            type="button"
-            onClick={() => navigate('/sub-units')}
-            className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Sub Units
-          </button>
-        }
-      />
-
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={Store}
-          title="Parent Unit"
-          subtitle="The sub unit will be registered under this unit"
-          open={openSections.outlet}
-          onToggle={() => toggleSection("outlet")}
+    <Container>
+      <div className="mx-auto pt-2 pb-6 space-y-3.5">
+        <PageHeader
+          title={isEditMode ? "Update Sub Unit" : "Register Sub Unit"}
+          description={
+            isEditMode
+              ? `Edit the details for ${editingSubUnit.subOutletName || ""} and save your changes.`
+              : "Complete the form below to register a new sub unit under an existing outlet."
+          }
+          actions={
+            <button
+              type="button"
+              onClick={() => navigate('/sub-units')}
+              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0 shrink-0 whitespace-nowrap"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Sub Units
+            </button>
+          }
         />
-        {openSections.outlet && (
-          <div className="px-6 py-6">
-            <div>
-              <Label required>Unit</Label>
-              <SearchableSelect
-                name="outletId"
-                value={form.outletId}
-                onChange={(e) => handleOutletChange({ target: { value: e.target.value } })}
-                options={outletOptions}
-                placeholder={
-                  loadingOutlets
-                    ? "Loading units..."
-                    : "Select Unit"
-                }
-                disabled={loadingOutlets}
-                hasError={!!errors.outletId}
-              />
-              <ErrorText error={errors.outletId} />
-              {selectedOutlet && (
-                <p className="text-xs text-gray-400 mt-1.5">
-                  {selectedOutlet.companyCode} · {selectedOutlet.cityName}, {selectedOutlet.stateName}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-      </SectionCard>
 
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={Info}
-          title="Sub Unit Information"
-          open={openSections.info}
-          onToggle={() => toggleSection("info")}
-        />
-        {openSections.info && (
-          <div className="px-6 py-6 space-y-5">
-            <div>
-              <Label required>Sub Unit Name</Label>
-              <input
-                value={form.subOutletName}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  set("subOutletName", val);
-                  setErrorFor("subOutletName", validateRequired(val, "Sub Outlet Name"));
-                }}
-                placeholder="e.g. Maninagar - Billing Counter"
-                className={`${inputCls} ${errors.subOutletName ? "border-red-400" : ""}`}
-              />
-              <ErrorText error={errors.subOutletName} />
+        <SectionCard className="mt-4">
+          <SectionHeader
+            icon={Store}
+            title="Parent Unit"
+            subtitle="The sub unit will be registered under this unit"
+            open={openSections.outlet}
+            onToggle={() => toggleSection("outlet")}
+          />
+          {openSections.outlet && (
+            <div className="px-6 py-6">
+              <div>
+                <Label required>Unit</Label>
+                <SearchableSelect
+                  name="outletId"
+                  value={form.outletId}
+                  onChange={(e) => handleOutletChange({ target: { value: e.target.value } })}
+                  options={outletOptions}
+                  placeholder={
+                    loadingOutlets
+                      ? "Loading units..."
+                      : "Select Unit"
+                  }
+                  disabled={loadingOutlets}
+                  hasError={!!errors.outletId}
+                />
+                <ErrorText error={errors.outletId} />
+                {selectedOutlet && (
+                  <p className="text-xs text-gray-400 mt-1.5">
+                    {selectedOutlet.companyCode} · {selectedOutlet.cityName}, {selectedOutlet.stateName}
+                  </p>
+                )}
+              </div>
             </div>
+          )}
+        </SectionCard>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <SectionCard className="mt-4">
+          <SectionHeader
+            icon={Info}
+            title="Sub Unit Information"
+            open={openSections.info}
+            onToggle={() => toggleSection("info")}
+          />
+          {openSections.info && (
+            <div className="px-6 py-6 space-y-5">
               <div>
-                <Label>Contact Person</Label>
+                <Label required>Sub Unit Name</Label>
                 <input
-                  value={form.contactPerson}
-                  onChange={(e) => set("contactPerson", e.target.value)}
-                  placeholder="e.g. Raj Patel"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <Label>Contact Number</Label>
-                <input
-                  value={form.contactNumber}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, "");
-                    set("contactNumber", val);
-                    setErrorFor("contactNumber", val ? validateMobile(val) : "");
-                  }}
-                  placeholder="9876543210"
-                  maxLength={10}
-                  className={`${inputCls} ${errors.contactNumber ? "border-red-400" : ""}`}
-                />
-              </div>
-              <div>
-                <Label required>Email</Label>
-                <input
-                  type="email"
-                  value={form.email}
+                  value={form.subOutletName}
                   onChange={(e) => {
                     const val = e.target.value;
-                    set("email", val);
-                    setErrorFor("email", validateEmail(val));
+                    set("subOutletName", val);
+                    setErrorFor("subOutletName", validateRequired(val, "Sub Outlet Name"));
                   }}
-                  placeholder="subunit@example.com"
-                  className={`${inputCls} ${errors.email ? "border-red-400" : ""}`}
+                  placeholder="e.g. Maninagar - Billing Counter"
+                  className={`${inputCls} ${errors.subOutletName ? "border-red-400" : ""}`}
                 />
-                <ErrorText error={errors.email} />
+                <ErrorText error={errors.subOutletName} />
               </div>
-            </div>
-          </div>
-        )}
-      </SectionCard>
 
-      <SectionCard className="mt-4">
-        <SectionHeader
-          icon={MapPin}
-          title="Address Information"
-          open={openSections.address}
-          onToggle={() => toggleSection("address")}
-        />
-        {openSections.address && (
-          <div className="px-6 py-6 space-y-5">
-            {selectedOutlet && !locationTouched && (
-              <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                Pre-filled from {getOrgLabel(selectedOutlet)}'s address. Edit any field below if this sub unit
-                is located elsewhere.
-              </p>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <Label required>Address Line 1</Label>
-                <input
-                  value={form.addressLine1}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    set("addressLine1", val);
-                    setErrorFor("addressLine1", validateRequired(val, "Address Line 1"));
-                  }}
-                  placeholder="Plot No, Street, Landmark"
-                  className={`${inputCls} ${errors.addressLine1 ? "border-red-400" : ""}`}
-                />
-                <ErrorText error={errors.addressLine1} />
-              </div>
-              <div>
-                <Label>Address Line 2</Label>
-                <input
-                  value={form.addressLine2}
-                  onChange={(e) => set("addressLine2", e.target.value)}
-                  placeholder="Area, Building Name"
-                  className={inputCls}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <Label required>Country</Label>
-                  <SearchableSelect
-                    name="country"
-                    value={selectedCountry}
-                    onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
-                    options={countryOptions}
-                    placeholder="Select Country"
-                    hasError={!!errors.country}
-                  />
-                  <ErrorText error={errors.country} />
-                </div>
-                <div>
-                  <Label required>State</Label>
-                  <SearchableSelect
-                    name="state"
-                    value={selectedState}
-                    onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
-                    options={stateOptions}
-                    placeholder={selectedCountry ? "Select State" : "Select country first"}
-                    disabled={!selectedCountry}
-                    hasError={!!errors.state}
-                  />
-                  <ErrorText error={errors.state} />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                  <Label required>City</Label>
-                  <SearchableSelect
-                    name="city"
-                    value={selectedCity}
-                    onChange={(e) => {
-                      setLocationTouched(true);
-                      setSelectedCity(e.target.value);
-                      setErrorFor("city", validateRequired(e.target.value, "City"));
-                    }}
-                    options={cityOptions}
-                    placeholder={selectedState ? "Select City" : "Select state first"}
-                    disabled={!selectedState}
-                    hasError={!!errors.city}
-                  />
-                  <ErrorText error={errors.city} />
-                </div>
-                <div>
-                  <Label required>Pincode</Label>
+                  <Label>Contact Person</Label>
                   <input
-                    value={form.pincode}
+                    value={form.contactPerson}
+                    onChange={(e) => set("contactPerson", e.target.value)}
+                    placeholder="e.g. Raj Patel"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <Label>Contact Number</Label>
+                  <input
+                    value={form.contactNumber}
                     onChange={(e) => {
                       const val = e.target.value.replace(/\D/g, "");
-                      set("pincode", val);
-                      setErrorFor("pincode", validatePincode(val));
+                      set("contactNumber", val);
+                      setErrorFor("contactNumber", val ? validateMobile(val) : "");
                     }}
-                    placeholder="380009"
-                    maxLength={6}
-                    className={`${inputCls} ${errors.pincode ? "border-red-400" : ""}`}
+                    placeholder="9876543210"
+                    maxLength={10}
+                    className={`${inputCls} ${errors.contactNumber ? "border-red-400" : ""}`}
                   />
-                  <ErrorText error={errors.pincode} />
+                </div>
+                <div>
+                  <Label required>Email</Label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      set("email", val);
+                      setErrorFor("email", validateEmail(val));
+                    }}
+                    placeholder="subunit@example.com"
+                    className={`${inputCls} ${errors.email ? "border-red-400" : ""}`}
+                  />
+                  <ErrorText error={errors.email} />
                 </div>
               </div>
             </div>
+          )}
+        </SectionCard>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-              <div>
-                <Label>Latitude</Label>
-                <input
-                  value={form.latitude}
-                  onChange={(e) => set("latitude", e.target.value)}
-                  placeholder="23.0225"
-                  className={inputCls}
-                />
+        <SectionCard className="mt-4">
+          <SectionHeader
+            icon={MapPin}
+            title="Address Information"
+            open={openSections.address}
+            onToggle={() => toggleSection("address")}
+          />
+          {openSections.address && (
+            <div className="px-6 py-6 space-y-5">
+              {selectedOutlet && !locationTouched && (
+                <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                  Pre-filled from {getOrgLabel(selectedOutlet)}'s address. Edit any field below if this sub unit
+                  is located elsewhere.
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label required>Address Line 1</Label>
+                  <input
+                    value={form.addressLine1}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      set("addressLine1", val);
+                      setErrorFor("addressLine1", validateRequired(val, "Address Line 1"));
+                    }}
+                    placeholder="Plot No, Street, Landmark"
+                    className={`${inputCls} ${errors.addressLine1 ? "border-red-400" : ""}`}
+                  />
+                  <ErrorText error={errors.addressLine1} />
+                </div>
+                <div>
+                  <Label>Address Line 2</Label>
+                  <input
+                    value={form.addressLine2}
+                    onChange={(e) => set("addressLine2", e.target.value)}
+                    placeholder="Area, Building Name"
+                    className={inputCls}
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Longitude</Label>
-                <input
-                  value={form.longitude}
-                  onChange={(e) => set("longitude", e.target.value)}
-                  placeholder="72.5714"
-                  className={inputCls}
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <Label required>Country</Label>
+                    <SearchableSelect
+                      name="country"
+                      value={selectedCountry}
+                      onChange={(e) => handleCountryChange({ target: { value: e.target.value } })}
+                      options={countryOptions}
+                      placeholder="Select Country"
+                      hasError={!!errors.country}
+                    />
+                    <ErrorText error={errors.country} />
+                  </div>
+                  <div>
+                    <Label required>State</Label>
+                    <SearchableSelect
+                      name="state"
+                      value={selectedState}
+                      onChange={(e) => handleStateChange({ target: { value: e.target.value } })}
+                      options={stateOptions}
+                      placeholder={selectedCountry ? "Select State" : "Select country first"}
+                      disabled={!selectedCountry}
+                      hasError={!!errors.state}
+                    />
+                    <ErrorText error={errors.state} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div>
+                    <Label required>City</Label>
+                    <SearchableSelect
+                      name="city"
+                      value={selectedCity}
+                      onChange={(e) => {
+                        setLocationTouched(true);
+                        setSelectedCity(e.target.value);
+                        setErrorFor("city", validateRequired(e.target.value, "City"));
+                      }}
+                      options={cityOptions}
+                      placeholder={selectedState ? "Select City" : "Select state first"}
+                      disabled={!selectedState}
+                      hasError={!!errors.city}
+                    />
+                    <ErrorText error={errors.city} />
+                  </div>
+                  <div>
+                    <Label required>Pincode</Label>
+                    <input
+                      value={form.pincode}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        set("pincode", val);
+                        setErrorFor("pincode", validatePincode(val));
+                      }}
+                      placeholder="380009"
+                      maxLength={6}
+                      className={`${inputCls} ${errors.pincode ? "border-red-400" : ""}`}
+                    />
+                    <ErrorText error={errors.pincode} />
+                  </div>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowMapPicker(true)}
-                className="flex gap-1 items-end text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
-              >
-                <Map size={15} />
-                <p className="font-bold text-sm">Pick from Map</p>
-              </button>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div>
+                  <Label>Latitude</Label>
+                  <input
+                    value={form.latitude}
+                    onChange={(e) => set("latitude", e.target.value)}
+                    placeholder="23.0225"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <Label>Longitude</Label>
+                  <input
+                    value={form.longitude}
+                    onChange={(e) => set("longitude", e.target.value)}
+                    placeholder="72.5714"
+                    className={inputCls}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowMapPicker(true)}
+                  className="flex gap-1 items-end text-[#084E92] cursor-pointer bg-transparent border-0 p-0"
+                >
+                  <Map size={15} />
+                  <p className="font-bold text-sm">Pick from Map</p>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+        </SectionCard>
+
+        {/* Footer actions */}
+        <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={handleSubmit}
+            className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-60"
+          >
+            {saving ? "Saving..." : isEditMode ? "Update" : "Save"}
+          </button>
+        </div>
+
+        {showMapPicker && (
+          <MapPickerModal
+            initialLat={form.latitude}
+            initialLng={form.longitude}
+            onClose={() => setShowMapPicker(false)}
+            onConfirm={({ lat, lng }) => {
+              set("latitude", lat.toFixed(6));
+              set("longitude", lng.toFixed(6));
+              setShowMapPicker(false);
+            }}
+          />
         )}
-      </SectionCard>
-
-      {/* Footer actions */}
-      <div className="flex items-center justify-end gap-3 pb-4 my-6 border-t border-[#C3C6D1] py-6">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="px-5 py-2.5 rounded-lg border border-[#737781] text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer bg-white"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          disabled={saving}
-          onClick={handleSubmit}
-          className="px-6 py-2.5 rounded-lg text-white bg-[#084E92] text-sm font-semibold border-0 cursor-pointer transition disabled:opacity-60"
-        >
-          {saving ? "Saving..." : isEditMode ? "Update" : "Save"}
-        </button>
       </div>
-
-      {showMapPicker && (
-        <MapPickerModal
-          initialLat={form.latitude}
-          initialLng={form.longitude}
-          onClose={() => setShowMapPicker(false)}
-          onConfirm={({ lat, lng }) => {
-            set("latitude", lat.toFixed(6));
-            set("longitude", lng.toFixed(6));
-            setShowMapPicker(false);
-          }}
-        />
-      )}
-    </div>
     </Container>
   );
 };

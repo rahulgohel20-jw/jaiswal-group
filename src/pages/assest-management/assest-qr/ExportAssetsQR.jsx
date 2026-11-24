@@ -56,13 +56,12 @@ const normalizeLocation = (item) => ({
 
 export const getAssetLocationOrCustodian = (asset) => {
     const loc = asset?.assetUnitLocationName || asset?.locationName;
-    if (loc) {
-        return loc;
+    if (loc && String(loc).trim() !== '' && String(loc).trim() !== '-') {
+        return String(loc).trim();
     }
-    const isUser = !asset?.custodianType || asset?.custodianType === 'USER';
-    const userName = asset?.custodianName || asset?.assignedToName;
-    if (isUser && userName) {
-        return userName;
+    const custodian = asset?.custodianName || asset?.assignedToName;
+    if (custodian && String(custodian).trim() !== '' && String(custodian).trim() !== '-') {
+        return String(custodian).trim();
     }
     return '';
 };
@@ -142,11 +141,10 @@ export const AssetMultiSelect = ({
                 <div
                     role="button"
                     tabIndex={disabled ? -1 : 0}
-                    className={`min-h-11 w-full border rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${
-                        disabled
+                    className={`min-h-11 w-full border rounded-lg px-3 py-1.5 flex flex-wrap items-center gap-1.5 transition-all ${disabled
                             ? "bg-gray-100 text-gray-400 cursor-not-allowed pointer-events-none"
                             : "bg-white cursor-pointer hover:border-gray-400 focus-within:border-[#084E92]"
-                    } border-[#C3C6D1]`}
+                        } border-[#C3C6D1]`}
                 >
                     {selected.length > 2 ? (
                         <span className="flex items-center gap-1 bg-[#EFF4FF] text-[#084E92] text-xs font-semibold px-2 py-0.5 rounded">
@@ -454,11 +452,11 @@ const ExportAssetsQR = () => {
                 if (!assetId) return;
 
                 const rowQty = Number(assignment?.quantity ?? asset.quantity ?? asset.totalQuantity ?? 1);
-                const locId = assignment?.assetUnitLocationId ?? null;
-                const locName = locId ? (assignment?.assetUnitLocationName ?? assignment?.locationName ?? '') : '';
-                const custodianType = assignment?.custodianType ?? asset?.custodianType ?? null;
-                const custodianValue = assignment?.custodianValue ?? asset?.custodianValue ?? null;
-                const custodianName = assignment?.custodianName ?? assignment?.assignedToName ?? asset?.custodianName ?? asset?.assignedToName ?? '';
+                const locId = assignment?.assetUnitLocationId ?? assignment?.locationId ?? asset?.assetUnitLocationId ?? asset?.locationId ?? null;
+                const locName = assignment?.assetUnitLocationName ?? assignment?.locationName ?? asset?.assetUnitLocationName ?? asset?.locationName ?? '';
+                const custodianType = assignment?.custodianType ?? asset?.custodianType ?? item?.custodianType ?? null;
+                const custodianValue = assignment?.custodianValue ?? asset?.custodianValue ?? item?.custodianValue ?? null;
+                const custodianName = assignment?.custodianName ?? assignment?.assignedToName ?? asset?.custodianName ?? asset?.assignedToName ?? item?.custodianName ?? item?.assignedToName ?? '';
 
                 if (!uniqueMap.has(String(assetId))) {
                     uniqueMap.set(String(assetId), {
@@ -596,8 +594,8 @@ const ExportAssetsQR = () => {
                                 assignmentId: assignment.id ?? assignment.assignmentId ?? null,
                                 organizationId: assignment.companiesId ?? assignment.organizationId ?? asset.organizationId ?? null,
                                 organizationname: assignment.companiesName ?? assignment.organizationName ?? asset.organizationname ?? '',
-                                assetUnitLocationId: assignment.assetUnitLocationId ?? assignment.locationId ?? null,
-                                assetUnitLocationName: assignment.assetUnitLocationName ?? assignment.locationName ??  '',
+                                assetUnitLocationId: assignment.assetUnitLocationId ?? assignment.locationId ?? asset.assetUnitLocationId ?? asset.locationId ?? null,
+                                assetUnitLocationName: assignment.assetUnitLocationName ?? assignment.locationName ?? asset.assetUnitLocationName ?? asset.locationName ?? '',
                                 custodianType,
                                 custodianValue,
                                 custodianName,
@@ -796,7 +794,7 @@ const ExportAssetsQR = () => {
 
     return (
         <>
-      <style>{`
+            <style>{`
     @media print {
         @page {
             /* Exact 4in width (2 labels x 2in) by 1in height - 0 gap, 0 margin */
@@ -880,7 +878,7 @@ const ExportAssetsQR = () => {
                                     {isGroupUser && (
                                         <div>
                                             <label className="text-xs font-medium text-[#475569] mb-1.5 block">
-                                                Company 
+                                                Company
                                             </label>
                                             <SearchableSelect
                                                 name="company"
@@ -898,7 +896,7 @@ const ExportAssetsQR = () => {
                                     {!isOutletUser && (
                                         <div>
                                             <label className="text-xs font-medium text-[#475569] mb-1.5 block">
-                                                Unit 
+                                                Unit
                                             </label>
                                             <SearchableSelect
                                                 name="outlet"
@@ -926,7 +924,7 @@ const ExportAssetsQR = () => {
                                     {/* 3. Sub-Outlet Location Filter */}
                                     <div>
                                         <label className="text-xs font-medium text-[#475569] mb-1.5 block">
-                                            Location 
+                                            Location
                                         </label>
                                         <SearchableSelect
                                             name="location"

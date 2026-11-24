@@ -8,12 +8,16 @@ import {
   ExternalLink,
   Zap,
   Info,
+  Edit,
+  Sparkles,
 } from "lucide-react";
 import { useNavigate, useParams, useSearchParams, useLocation } from "react-router";
 import { Container } from "@/components/common/container";
 import { PageHeader } from "@/components/common/PageHeader";
 import {
   getKitchenMenuItemRecipe,
+  getKitchenCaptainReceipeById,
+  getKitchenCaptainReceipeByIdAndOrg,
 } from "../../../services/apiServices";
 import { useOrgScope } from "@/hooks/useOrgScope";
 import { getOrgIdFromToken } from "../../../utils/auth";
@@ -47,7 +51,9 @@ const ViewItemRecipe = () => {
 
   const [loading, setLoading] = useState(true);
   const [recipeData, setRecipeData] = useState(null);
-  
+  const [enrichedCaptainRecipes, setEnrichedCaptainRecipes] = useState([]);
+  const [captainLoading, setCaptainLoading] = useState(false);
+
   useEffect(() => {
     if (!menuItemId || !outletId) {
       setLoading(false);
@@ -88,19 +94,104 @@ const ViewItemRecipe = () => {
     return recipeData;
   }, [recipeData, menuItemId, outletId]);
 
-  const rawMaterials = useMemo(
-    () => (Array.isArray(recipeData?.rawMaterials) ? recipeData.rawMaterials : []),
-    [recipeData]
-  );
-
-  const captainRecipes = useMemo(() => {
-    return (
+  // Enrich Captain Recipes with Rates and Amounts
+  useEffect(() => {
+    const rawCaptainList =
       (Array.isArray(recipeData?.captainReceipes)
         ? recipeData.captainReceipes
         : Array.isArray(recipeData?.captainRecipes)
         ? recipeData.captainRecipes
-        : []) || []
-    );
+        : []) || [];
+
+    if (rawCaptainList.length === 0) {
+      setEnrichedCaptainRecipes([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const enrich = async () => {
+      setCaptainLoading(true);
+      try {
+        const results = await Promise.all(
+          rawCaptainList.map(async (cr) => {
+            const crId = cr.id || cr.captainRecipeId;
+            let crRate = Number(cr.rate ?? cr.perUnitRate ?? 0);
+            const crWeight = Number(cr.weight ?? 0);
+            let crAmount = Number(cr.amount ?? 0);
+
+            if (crRate <= 0 && crId) {
+              try {
+                const res = outletId
+                  ? await getKitchenCaptainReceipeByIdAndOrg(crId, outletId)
+                  : await getKitchenCaptainReceipeById(crId);
+                const data = res?.data?.data || res?.data;
+                if (data) {
+                  const bw = Number(data.weight || 0);
+                  const br = Number(data.recipeRate ?? data.rate ?? 0);
+                  crRate = bw > 0 ? Number((br / bw).toFixed(2)) : (Number(data.costPerKg) || 0);
+                }
+              } catch (e) {
+                console.warn("Could not fetch captain recipe for view:", crId, e);
+              }
+            }
+
+            if (crAmount <= 0) {
+              crAmount = Number((crWeight * crRate).toFixed(2));
+            }
+
+            return {
+              ...cr,
+              id: crId,
+              name: cr.name || `Captain Recipe #${crId}`,
+              weight: crWeight,
+              unitName: cr.unitName || cr.unit?.nameEnglish || cr.unit || "—",
+              rate: crRate,
+              amount: crAmount,
+            };
+          })
+        );
+
+        if (!isCancelled) {
+          setEnrichedCaptainRecipes(results);
+        }
+      } catch (err) {
+        console.error("Failed to enrich captain recipes:", err);
+      } finally {
+        if (!isCancelled) setCaptainLoading(false);
+      }
+    };
+
+    enrich();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [recipeData, outletId]);
+
+  const rawMaterials = useMemo(() => {
+    const list = Array.isArray(recipeData?.rawMaterials) ? recipeData.rawMaterials : [];
+    return list.map((rm) => {
+      const rmWeight = Number(rm.weight ?? 0);
+      const rmPerUnitRate = Number(
+        rm.perUnitRate != null && Number(rm.perUnitRate) > 0
+          ? rm.perUnitRate
+          : rm.rate ?? rm.price ?? rm.unitPrice ?? 0
+      );
+      const rmTotalRate = Number(
+        rm.rate != null && rm.perUnitRate != null
+          ? rm.rate
+          : rm.amount != null
+          ? rm.amount
+          : rmPerUnitRate * rmWeight
+      );
+      return {
+        ...rm,
+        weight: rmWeight,
+        perUnitRate: rmPerUnitRate,
+        amount: rmTotalRate,
+      };
+    });
   }, [recipeData]);
 
   const otherCosts = useMemo(() => {
@@ -118,9 +209,55 @@ const ViewItemRecipe = () => {
     return match?.name || `Outlet #${outletId}`;
   }, [units, outletId]);
 
- const getItemUnitName = (item) => {
-    return ( item?.unit?.nameEnglish || item?.unit?.symbolEnglish || item?.unitName || "—" );
+  const getItemUnitName = (item) => {
+    return item?.unit?.nameEnglish || item?.unit?.symbolEnglish || item?.unitName || "—";
   };
+
+  const totalRawMaterialCost = useMemo(() => {
+    return rawMaterials.reduce((sum, rm) => sum + (Number(rm.amount) || 0), 0);
+  }, [rawMaterials]);
+
+  const totalCaptainCost = useMemo(() => {
+    return enrichedCaptainRecipes.reduce((sum, cr) => sum + (Number(cr.amount) || 0), 0);
+  }, [enrichedCaptainRecipes]);
+
+  const totalCaptainWeight = useMemo(() => {
+    return enrichedCaptainRecipes.reduce((sum, cr) => sum + (Number(cr.weight) || 0), 0);
+  }, [enrichedCaptainRecipes]);
+
+  const resolvedFuelCost = useMemo(() => {
+    if (header?.fuelUtilityCost != null && Number(header.fuelUtilityCost) >= 0) {
+      return Number(header.fuelUtilityCost);
+    }
+    if (header?.lpgCost != null && Number(header.lpgCost) >= 0) {
+      return Number(header.lpgCost);
+    }
+    return 0;
+  }, [header]);
+
+  const itemWeight = Number(header?.weight ?? recipeData?.weight ?? 0);
+
+  const totalRecipeCost = useMemo(() => {
+    const savedRate = Number(header?.recipeRate ?? header?.rate ?? recipeData?.recipeRate ?? recipeData?.rate ?? 0);
+    if (savedRate > 0) return savedRate;
+    return totalRawMaterialCost + totalCaptainCost + resolvedFuelCost;
+  }, [header, recipeData, totalRawMaterialCost, totalCaptainCost, resolvedFuelCost]);
+
+  const perKgRate = useMemo(() => {
+    const savedPerKg = Number(header?.costPerKg ?? recipeData?.costPerKg ?? 0);
+    if (savedPerKg > 0) return savedPerKg;
+    if (itemWeight <= 0) return 0;
+    return totalRecipeCost / itemWeight;
+  }, [header, recipeData, itemWeight, totalRecipeCost]);
+
+  const perPlateCost = useMemo(() => {
+    const savedPerPerson = Number(header?.costPerPerson ?? recipeData?.costPerPerson ?? 0);
+    if (savedPerPerson > 0) return savedPerPerson;
+    const pax = Number(header?.paxQty ?? 100);
+    if (pax > 0) return totalRecipeCost / pax;
+    if (itemWeight > 0) return totalRecipeCost / itemWeight;
+    return totalRecipeCost;
+  }, [header, recipeData, totalRecipeCost, itemWeight]);
 
   if (loading) {
     return (
@@ -155,30 +292,44 @@ const ViewItemRecipe = () => {
         {/* Header */}
         <PageHeader
           title="View Recipe Details"
-          description="Standard recipe formulation and raw material measurements."
+          description="Standard recipe formulation, ingredient breakdowns, and costing."
           actions={
-            <button
-              type="button"
-              onClick={() => navigate(returnUrl)}
-              className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Recipe
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/menu-item/update-recipe/${menuItemId}`, {
+                    state: { orgId: outletId, menuItemId, returnUrl },
+                  })
+                }
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#084E92] hover:bg-[#063b6f] text-white text-xs font-semibold cursor-pointer transition shadow-2xs"
+              >
+                <Edit size={13} />
+                <span>Edit Recipe</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate(returnUrl)}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Recipe</span>
+              </button>
+            </div>
           }
         />
 
         {/* Overview Information Card */}
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             <div>
               <span className="text-xs text-gray-400 font-medium block">Menu Item</span>
               <p className="text-sm font-bold text-gray-900 mt-0.5">
-                 {header?.menuItemName || recipeData?.name || `Item #${menuItemId}`}
+                {header?.menuItemName || recipeData?.name || `Item #${menuItemId}`}
               </p>
             </div>
             <div>
-              <span className="text-xs text-gray-400 font-medium block">Unit </span>
+              <span className="text-xs text-gray-400 font-medium block">Unit / Outlet</span>
               <p className="text-sm font-bold text-gray-900 mt-0.5">{outletName}</p>
             </div>
             <div>
@@ -197,10 +348,22 @@ const ViewItemRecipe = () => {
                 <span className="text-xs font-normal text-gray-500">kcal</span>
               </p>
             </div>
+            <div>
+              <span className="text-xs text-gray-400 font-medium block">Total Recipe Cost</span>
+              <p className="text-sm font-extrabold text-[#084E92] mt-0.5">
+                ₹{totalRecipeCost.toFixed(2)}
+              </p>
+            </div>
+            <div>
+              <span className="text-xs text-gray-400 font-medium block">Per KG Rate</span>
+              <p className="text-sm font-bold text-emerald-700 mt-0.5">
+                ₹{perKgRate.toFixed(2)} / kg
+              </p>
+            </div>
           </div>
         </div>
 
-       {/* Raw Materials Table */}
+        {/* Raw Materials Table */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
           <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
             <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide">
@@ -211,17 +374,19 @@ const ViewItemRecipe = () => {
             <table className="w-full table-fixed text-left text-xs">
               <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200">
                 <tr>
-                  <th className="py-2.5 px-4 w-[10%] text-center">Sr No.</th>
-                  <th className="py-2.5 px-4 w-[28%] truncate">Raw Material Name</th>
-                  <th className="py-2.5 px-4 w-[22%] truncate">Category</th>
-                  <th className="py-2.5 px-4 w-[20%] truncate">Weight / Qty</th>
-                  <th className="py-2.5 px-4 w-[20%] truncate">Unit of Measure</th>
+                  <th className="py-2.5 px-4 w-[8%] text-center">Sr No.</th>
+                  <th className="py-2.5 px-4 w-[24%] truncate">Raw Material Name</th>
+                  <th className="py-2.5 px-4 w-[18%] truncate">Category</th>
+                  <th className="py-2.5 px-4 w-[14%] truncate">Weight / Qty</th>
+                  <th className="py-2.5 px-4 w-[12%] truncate">Unit</th>
+                  <th className="py-2.5 px-4 w-[12%] truncate">Rate (₹)</th>
+                  <th className="py-2.5 px-4 w-[12%] truncate text-right">Amount (₹)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-700">
                 {rawMaterials.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-6 text-gray-400">
+                    <td colSpan={7} className="text-center py-6 text-gray-400">
                       No raw material ingredients found.
                     </td>
                   </tr>
@@ -231,10 +396,19 @@ const ViewItemRecipe = () => {
                       <td className="py-2.5 px-4 text-center text-gray-400">
                         {String(idx + 1).padStart(2, "0")}
                       </td>
-                      <td className="py-2.5 px-4 font-semibold text-gray-900 truncate" title={rm.rawMaterial?.nameEnglish || rm.rawMaterialName || rm.name}>
-                        {rm.rawMaterial?.nameEnglish || rm.rawMaterialName || rm.name || `Material #${rm.id}`}
+                      <td
+                        className="py-2.5 px-4 font-semibold text-gray-900 truncate"
+                        title={rm.rawMaterial?.nameEnglish || rm.rawMaterialName || rm.name}
+                      >
+                        {rm.rawMaterial?.nameEnglish ||
+                          rm.rawMaterialName ||
+                          rm.name ||
+                          `Material #${rm.id}`}
                       </td>
-                      <td className="py-2.5 px-4 text-gray-500 truncate" title={rm.rawMaterial?.rawMaterialCat?.nameEnglish || rm.category}>
+                      <td
+                        className="py-2.5 px-4 text-gray-500 truncate"
+                        title={rm.rawMaterial?.rawMaterialCat?.nameEnglish || rm.category}
+                      >
                         {rm.rawMaterial?.rawMaterialCat?.nameEnglish || rm.category || "—"}
                       </td>
                       <td className="py-2.5 px-4 font-medium text-gray-900 truncate">
@@ -243,20 +417,34 @@ const ViewItemRecipe = () => {
                       <td className="py-2.5 px-4 text-gray-600 truncate">
                         {getItemUnitName(rm)}
                       </td>
+                      <td className="py-2.5 px-4 text-gray-700 font-medium truncate">
+                        ₹{Number(rm.perUnitRate || 0).toFixed(2)}
+                      </td>
+                      <td className="py-2.5 px-4 font-bold text-gray-900 truncate text-right">
+                        ₹{Number(rm.amount || 0).toFixed(2)}
+                      </td>
                     </tr>
                   ))
                 )}
               </tbody>
             </table>
           </div>
+          <div className="px-5 py-3 bg-[#EFF4FF] border-t border-[#C3C6D1] flex flex-wrap items-center justify-between text-xs font-semibold text-gray-700">
+            <span>
+              Total Items: <strong className="text-gray-900">{rawMaterials.length}</strong>
+            </span>
+            <span>
+              Total RM Cost: <strong className="text-[#084E92] font-bold">₹{totalRawMaterialCost.toFixed(2)}</strong>
+            </span>
+          </div>
         </div>
 
         {/* Captain Recipes Table */}
-        {captainRecipes.length > 0 && (
+        {enrichedCaptainRecipes.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
               <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide">
-                Captain Sub-Recipes ({captainRecipes.length})
+                Captain Sub-Recipes ({enrichedCaptainRecipes.length})
               </h3>
             </div>
             <div className="overflow-x-auto">
@@ -264,13 +452,14 @@ const ViewItemRecipe = () => {
                 <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200">
                   <tr>
                     <th className="py-2.5 px-4 w-[8%] text-center">Sr No.</th>
-                    <th className="py-2.5 px-4 w-[30%] truncate">Recipe Name</th>
+                    <th className="py-2.5 px-4 w-[42%] truncate">Recipe Name</th>
                     <th className="py-2.5 px-4 w-[20%] truncate">Weight</th>
-                    <th className="py-2.5 px-4 w-[20%] truncate">Unit of Measure</th>
+                    <th className="py-2.5 px-4 w-[15%] truncate">Unit</th>
+                    <th className="py-2.5 px-4 w-[15%] truncate text-right">Amount (₹)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 text-gray-700">
-                  {captainRecipes.map((cr, idx) => (
+                  {enrichedCaptainRecipes.map((cr, idx) => (
                     <tr key={cr.id || idx} className="hover:bg-gray-50/50">
                       <td className="py-2.5 px-4 text-center text-gray-400">
                         {String(idx + 1).padStart(2, "0")}
@@ -284,13 +473,32 @@ const ViewItemRecipe = () => {
                       <td className="py-2.5 px-4 text-gray-600 truncate">
                         {cr.unitName || "—"}
                       </td>
+                      <td className="py-2.5 px-4 font-bold text-gray-900 truncate text-right">
+                        ₹{Number(cr.amount || 0).toFixed(2)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <div className="px-5 py-3 bg-[#EFF4FF] border-t border-[#C3C6D1] flex flex-wrap items-center gap-4 text-xs font-semibold text-gray-700">
+              <span>
+                Total Items: <strong className="text-gray-900">{enrichedCaptainRecipes.length}</strong>
+              </span>
+              <span>
+                Total Captain Cost:{" "}
+                <strong className="text-[#084E92] font-bold">₹{totalCaptainCost.toFixed(2)}</strong>
+              </span>
+              <span>
+                Per Unit Rate:{" "}
+                <strong className="text-emerald-700 font-bold">
+                  ₹{totalCaptainWeight > 0 ? (totalCaptainCost / totalCaptainWeight).toFixed(2) : "0.00"}
+                </strong>
+              </span>
+            </div>
           </div>
         )}
+
         {/* Other Items / Utilities */}
         {otherCosts.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
@@ -301,7 +509,10 @@ const ViewItemRecipe = () => {
             </div>
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {otherCosts.map((item, idx) => (
-                <div key={idx} className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
+                <div
+                  key={idx}
+                  className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between"
+                >
                   <div>
                     <span className="text-[10px] font-bold text-gray-500 uppercase block">
                       {item.itemType || (item.isLpgItem ? "LPG" : "OTHER")}
@@ -319,6 +530,77 @@ const ViewItemRecipe = () => {
             </div>
           </div>
         )}
+
+        {/* Recipe Cost Summary */}
+        <div className="p-5 rounded-2xl border border-blue-100 bg-[#F8FAFC] shadow-2xs">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-gray-800">Recipe Cost Summary</h4>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Summary of ingredient costs and calculated rates for this recipe
+              </p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 min-w-[120px] shadow-2xs">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                  Raw Material Cost
+                </span>
+                <span className="text-sm font-bold text-gray-900 block mt-0.5">
+                  ₹{totalRawMaterialCost.toFixed(2)}
+                </span>
+              </div>
+
+              {totalCaptainCost > 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 min-w-[120px] shadow-2xs">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                    Captain Recipe Cost
+                  </span>
+                  <span className="text-sm font-bold text-[#084E92] block mt-0.5">
+                    ₹{totalCaptainCost.toFixed(2)}
+                  </span>
+                </div>
+              )}
+
+              {resolvedFuelCost > 0 && (
+                <div className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 min-w-[120px] shadow-2xs">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                    Fuel Overhead
+                  </span>
+                  <span className="text-sm font-bold text-amber-600 block mt-0.5">
+                    ₹{resolvedFuelCost.toFixed(2)}
+                  </span>
+                </div>
+              )}
+
+              <div className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 min-w-[120px] shadow-2xs">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">
+                  Per KG Rate
+                </span>
+                <span className="text-sm font-bold text-emerald-700 block mt-0.5">
+                  ₹{perKgRate.toFixed(2)} / kg
+                </span>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 min-w-[120px] shadow-2xs">
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">
+                  Per Plate Cost
+                </span>
+                <span className="text-sm font-bold text-indigo-700 block mt-0.5">
+                  ₹{perPlateCost.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="bg-white border border-[#084E92]/30 rounded-xl px-4 py-2.5 min-w-[140px] shadow-xs bg-blue-50/40">
+                <span className="text-[10px] font-bold text-[#084E92] uppercase tracking-wider block">
+                  Total Recipe Cost
+                </span>
+                <span className="text-base font-extrabold text-[#084E92] block mt-0.5">
+                  ₹{totalRecipeCost.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Instructions & Notes */}
         <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs space-y-4">

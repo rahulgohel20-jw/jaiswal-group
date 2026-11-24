@@ -20,17 +20,10 @@ import { getUserIdFromToken } from '../../utils/auth';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
-import CreateDebitNoteModal from '../purchase-credit-debite-note/CreateDebitNoteModal';
+import { CreateDebitNoteModal } from '@/pages/purchase-credit-debite-note/CreateDebitNoteModal';
+import { formatToDDMMYYYY } from '@/utils/dateUtils';
 
 const todayISO = () => new Date().toISOString().split('T')[0];
-
-const formatToDDMMYYYY = (dateStr) => {
-  const d = dateStr ? new Date(dateStr) : new Date();
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  return `${day}/${month}/${year}`;
-};
 
 const GenerateGrnInvoice = () => {
   const location = useLocation();
@@ -235,7 +228,7 @@ const GenerateGrnInvoice = () => {
 
         setRows(mappedRows);
 
-    // Auto-calculate and show overall discount percentage on load
+        // Auto-calculate and show overall discount percentage on load
         if (initialSubtotal > 0 && initialTotalDiscount > 0) {
           const calculatedOverallPct = Number(((initialTotalDiscount / initialSubtotal) * 100).toFixed(2));
           setDiscountPercentage(calculatedOverallPct);
@@ -986,7 +979,7 @@ const GenerateGrnInvoice = () => {
   const hasAnyCessApplicable = useMemo(() => {
     return rows.some((row) => Boolean(row.isCessApplicable));
   }, [rows]);
-  
+
   if (!canView) {
     return <AccessDenied pageTitle={isEditMode ? "Purchase Invoice List" : "Generate Purchase Invoice"} />;
   }
@@ -1144,11 +1137,10 @@ const GenerateGrnInvoice = () => {
               type="button"
               onClick={handleOpenDebitNoteModal}
               disabled={selectedRowKeys.length === 0}
-              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                selectedRowKeys.length > 0
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${selectedRowKeys.length > 0
                   ? 'bg-amber-600 text-white hover:bg-amber-700 cursor-pointer shadow-sm'
                   : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'
-              }`}
+                }`}
             >
               <FileMinus size={15} />
               Create Debit Note {selectedRowKeys.length > 0 ? `(${selectedRowKeys.length})` : ''}
@@ -1673,6 +1665,17 @@ const GenerateGrnInvoice = () => {
             {isEditMode ? 'Update' : 'Create Invoice'}
           </button>
         </div>
+
+        <CreateDebitNoteModal
+          isOpen={isDebitModalOpen}
+          onClose={() => setIsDebitModalOpen(false)}
+          items={debitNoteItems}
+          onItemChange={updateDebitModalItem}
+          generalRemarks={debitNoteGeneralRemarks}
+          onGeneralRemarksChange={setDebitNoteGeneralRemarks}
+          onSubmit={handleStageDebitNote}
+          isSubmitting={isCreatingDebitNote}
+        />
       </div>
     </Container>
   );

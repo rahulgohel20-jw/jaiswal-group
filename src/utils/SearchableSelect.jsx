@@ -23,6 +23,7 @@ const SearchableSelect = ({
   disabled = false,
   hasError = false,
   name,
+  className = "",
   isClearable = true,
   hasMore = false,
   loadingMore = false,
@@ -64,14 +65,16 @@ const SearchableSelect = ({
     }
   };
 
-  const selectedOption = options.find(
-    (option) => String(option.value) === String(value)
+  const safeOptions = Array.isArray(options) ? options : [];
+
+  const selectedOption = safeOptions.find(
+    (option) => String(option?.value) === String(value)
   );
 
   const selectedLabel = selectedOption?.label || "";
 
-  const filteredOptions = options.filter((option) =>
-    String(option.label || "")
+  const filteredOptions = safeOptions.filter((option) =>
+    String(option?.label || "")
       .toLowerCase()
       .includes(search.trim().toLowerCase())
   );
@@ -165,8 +168,8 @@ const SearchableSelect = ({
             data-bwignore="true"
             className={
               hasError
-                ? `${errorInputCls} pr-14 h-10.5`
-                : `${inputCls} pr-14 h-10.5`
+                ? `${errorInputCls} pr-14 ${className || 'h-10.5'}`
+                : `${inputCls} pr-14 ${className || 'h-10.5'}`
             }
           />
 

@@ -1,37 +1,28 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Calendar,
   CheckCircle2,
-  Info,
   LayoutList,
-  Search,
-  ShieldCheck,
   SlidersHorizontal,
   Trash2,
   Loader2,
   AlertTriangle,
-  FileText,
-  Layers,
-  Send,
-  Zap,
+  FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import SearchableSelect from '@/utils/SearchableSelect';
 import RawMaterialSearchPicker from '@/components/common/RawMaterialSearchPicker';
-import { useNavigate, Link } from 'react-router';
+import { useNavigate } from 'react-router';
 import { useOrgScope } from '@/hooks/useOrgScope';
 import {
   getAllRawMaterialCategory,
   getAllRawMaterialItems,
   saveAdjustment,
-  postAdjustment,
-  postBulkAdjustment,
   getCurrentStockListGet,
 } from '@/services/apiServices';
-import { OrgTypes } from '@/constants/orgTypes';
 import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
 import { formatRemarks } from '@/utils/textUtils';
 import {
@@ -133,9 +124,8 @@ const UnitBadge = ({ unit }) => {
   const key = String(label).toUpperCase().trim();
   return (
     <span
-      className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-mono font-medium uppercase border whitespace-nowrap ${
-        UNIT_BADGE_STYLES[key] || 'bg-gray-100 text-gray-600 border-gray-200'
-      }`}
+      className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-mono font-medium uppercase border whitespace-nowrap ${UNIT_BADGE_STYLES[key] || 'bg-gray-100 text-gray-600 border-gray-200'
+        }`}
     >
       {label}
     </span>
@@ -157,7 +147,6 @@ const CreateManualAdjustment = () => {
     loading: scopeLoading,
     isOutletUser,
     isCompanyUser,
-    isGroupUser,
     units: scopeUnits,
     effectiveOutletId,
     getSubOutlets,
@@ -276,9 +265,8 @@ const CreateManualAdjustment = () => {
   const subLocationOptions = useMemo(() => {
     return subLocations.map((loc) => ({
       value: String(loc.id),
-      label: `${loc.subLocationName || loc.locationName || loc.name || `Sub Location #${loc.id}`}${
-        loc.locationType || loc.type ? ` (${loc.locationType || loc.type})` : ''
-      }`,
+      label: `${loc.subLocationName || loc.locationName || loc.name || `Sub Location #${loc.id}`}${loc.locationType || loc.type ? ` (${loc.locationType || loc.type})` : ''
+        }`,
     }));
   }, [subLocations]);
 
@@ -357,10 +345,10 @@ const CreateManualAdjustment = () => {
           const stockList = Array.isArray(stockData)
             ? stockData
             : Array.isArray(stockData?.content)
-            ? stockData.content
-            : Array.isArray(stockData?.list)
-            ? stockData.list
-            : [];
+              ? stockData.content
+              : Array.isArray(stockData?.list)
+                ? stockData.list
+                : [];
           if (stockList.length > 0) {
             rawList = rawList.map((item) => {
               const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
@@ -467,10 +455,10 @@ const CreateManualAdjustment = () => {
           const stockList = Array.isArray(stockData)
             ? stockData
             : Array.isArray(stockData?.content)
-            ? stockData.content
-            : Array.isArray(stockData?.list)
-            ? stockData.list
-            : [];
+              ? stockData.content
+              : Array.isArray(stockData?.list)
+                ? stockData.list
+                : [];
           if (stockList.length > 0) {
             rawList = rawList.map((item) => {
               const matched = stockList.find((s) => Number(s.itemId || s.id) === Number(item.id));
@@ -531,10 +519,10 @@ const CreateManualAdjustment = () => {
           const stockList = Array.isArray(stockData)
             ? stockData
             : Array.isArray(stockData?.content)
-            ? stockData.content
-            : Array.isArray(stockData?.list)
-            ? stockData.list
-            : [];
+              ? stockData.content
+              : Array.isArray(stockData?.list)
+                ? stockData.list
+                : [];
 
           setRows((prevRows) =>
             prevRows.map((r) => {
@@ -663,19 +651,6 @@ const CreateManualAdjustment = () => {
   const handleCancelOrgChange = () => {
     setPendingOrgChange(null);
   };
-
-  /* Options for Search / Select Item dropdown */
-  const itemOptions = useMemo(() => {
-    return items
-      .filter((item) => !rows.some((row) => Number(row.id) === Number(item.id)))
-      .map((item) => ({
-        value: String(item.id),
-        label: `${item.itemName} (${item.sku}) — Stock: ${formatQty(item.actualStock)} ${item.unit}${
-          item.unitRate ? ` | ₹${Number(item.unitRate).toFixed(2)}` : ''
-        }`,
-        item,
-      }));
-  }, [items, rows]);
 
   /* Add an item to adjustment manifest */
   const handleAddItem = (item) => {
@@ -873,9 +848,8 @@ const CreateManualAdjustment = () => {
           <div className="p-6 space-y-5">
             {/* Row 1: Date, Outlet, Sub-Outlet, Sub-Location */}
             <div
-              className={`grid grid-cols-1 sm:grid-cols-2 ${
-                isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
-              } gap-4`}
+              className={`grid grid-cols-1 sm:grid-cols-2 ${isOutletUser ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
+                } gap-4`}
             >
               <div>
                 <label className="text-xs font-semibold text-gray-700 block mb-1.5">
@@ -923,8 +897,8 @@ const CreateManualAdjustment = () => {
                     !isOutletUser && !outlet
                       ? 'Select Unit first'
                       : subUnitsLoading
-                      ? 'Loading sub units...'
-                      : 'Select Sub-Unit'
+                        ? 'Loading sub units...'
+                        : 'Select Sub-Unit'
                   }
                 />
               </div>
@@ -942,8 +916,8 @@ const CreateManualAdjustment = () => {
                     !subOutlet
                       ? 'Select Sub-Unit first'
                       : subLocationsLoading
-                      ? 'Loading sub locations...'
-                      : 'Select Sub-Location'
+                        ? 'Loading sub locations...'
+                        : 'Select Sub-Location'
                   }
                 />
               </div>
@@ -966,8 +940,8 @@ const CreateManualAdjustment = () => {
                     !isOutletUser && !outlet
                       ? 'Select Outlet first'
                       : categoriesLoading
-                      ? 'Loading categories...'
-                      : 'All Categories'
+                        ? 'Loading categories...'
+                        : 'All Categories'
                   }
                 />
                 {categoriesError && <p className="text-xs text-red-500 mt-1">{categoriesError}</p>}
@@ -984,8 +958,8 @@ const CreateManualAdjustment = () => {
                     !isOutletUser && !outlet
                       ? 'Select Outlet first'
                       : itemsLoading
-                      ? 'Loading items...'
-                      : 'Search raw material by SKU, name, or code...'
+                        ? 'Loading items...'
+                        : 'Search raw material by SKU, name, or code...'
                   }
                   label="SEARCH & ADD ITEM"
                   isSticky={false}
@@ -1013,7 +987,7 @@ const CreateManualAdjustment = () => {
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <span className="px-3 py-1 rounded-full bg-gray-100 font-medium text-gray-700">
                 Items loaded: <span className="font-bold text-[#084E92]">{rows.length} item{rows.length !== 1 ? 's' : ''}</span>
-              </span> 
+              </span>
             </div>
           </div>
 

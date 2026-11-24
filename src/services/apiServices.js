@@ -1,5 +1,6 @@
 import axiosInstance, { DELETE, GET, POST, PUT, UPLOAD } from './axiosInstance';
 import { formatRemarks } from '../utils/textUtils';
+import { formatToDDMMYYYY } from '../utils/dateUtils';
 
 // ---- Auth APIs ----
 
@@ -342,8 +343,24 @@ export const deleteDepartmentById = (id) => {
 
 // ---- Asset APIs ----
 
-export const getAllAssets = () => {
-  return GET('/assets/getall');
+export const getAllAssets = async () => {
+  try {
+    const res = await GET('/assets/getall', undefined, { skipGlobalToast: true });
+    const list = res?.data?.data ?? res?.data?.content ?? res?.data;
+    if (Array.isArray(list) && list.length > 0) return res;
+  } catch (err) {
+    console.warn('GET /assets/getall failed, falling back to paginated active assets:', err);
+  }
+
+  try {
+    return await GET('/assets/getallactive/page?page=0&size=200', undefined, { skipGlobalToast: true });
+  } catch (err2) {
+    try {
+      return await GET('/assets/getallactive-with-search/page?page=0&size=200', undefined, { skipGlobalToast: true });
+    } catch (err3) {
+      return null;
+    }
+  }
 };
 
 export const getAllActiveAssetsPaginated = (page = 0, size = 20) => {
@@ -773,9 +790,30 @@ export const getRawMaterialById = (id) => {
 export const deleteRawMaterialItemById = (id) => {
   return DELETE(`/rawmaterial/delete?id=${id}`);
 };
-export const getAllRawMaterial = () => {
-  return GET('/rawmaterial/get?isActive=true');
-}
+export const getAllRawMaterial = (pageOrParams = 1, pageSize = 20, isActive = true) => {
+  let params = {};
+  if (typeof pageOrParams === "object" && pageOrParams !== null) {
+    const p = pageOrParams.page ?? pageOrParams.pageNo ?? 1;
+    const ps = pageOrParams.pageSize ?? pageOrParams.size ?? 20;
+    params = {
+      isActive: pageOrParams.isActive ?? true,
+      page: p,
+      pageNo: p,
+      pageSize: ps,
+      size: ps,
+      ...pageOrParams,
+    };
+  } else {
+    params = {
+      isActive,
+      page: pageOrParams,
+      pageNo: pageOrParams,
+      pageSize,
+      size: pageSize,
+    };
+  }
+  return GET('/rawmaterial/get', params);
+};
 //Raw material item Vendor price approval API
 export const getVendorPriceApprovals = (
   pageNo = 1,
@@ -918,8 +956,6 @@ export const getAllStates = () => {
     }
     return statesCachePromise;
   };
-
-
 }
 
 export const addState = (payload) => {
@@ -1666,6 +1702,32 @@ export const syncAllKitchenCaptainReceipeRate = () => {
 };
 
 //Recipe API
+export const getAllRecipesByFilter = ({ page = 1, size = 10, orgId, menuItemId, itemName, categoryId, menuCatId } = {}) => {
+  const params = {
+    page: Number(page) || 1,
+    size: Number(size) || 10,
+  };
+
+  if (orgId !== null && orgId !== undefined && orgId !== '' && Number.isFinite(Number(orgId))) {
+    params.orgId = Number(orgId);
+  }
+
+  if (menuItemId !== null && menuItemId !== undefined && menuItemId !== '' && Number.isFinite(Number(menuItemId))) {
+    params.menuItemId = Number(menuItemId);
+  }
+
+  if (itemName !== null && itemName !== undefined && String(itemName).trim() !== '') {
+    params.itemName = String(itemName).trim();
+  }
+
+  const catVal = menuCatId ?? categoryId;
+  if (catVal !== null && catVal !== undefined && catVal !== '' && Number.isFinite(Number(catVal))) {
+    params.menuCatId = Number(catVal);
+  }
+
+  return GET("/kitchenmenuitemrawmaterial/getallrecepiesbyfilter", params);
+};
+
 export const createKitchenMenuItemRecipe = (payload) => {
   return POST("/kitchenmenuitemrawmaterial/create", payload);
 };
@@ -1725,7 +1787,7 @@ export const getKitchenCaptainReceipeById = (id) => {
   return GET('/kitchen-captain-receipe-master/getbyid', { id });
 };
 export const getKitchenCaptainReceipeByIdAndOrg = (id, orgId) => {
-  return GET('/kitchen-captain-receipe-master/getbyidandorg', { id, orgId });
+  return GET('/kitchen-captain-receipe-master/getbyidandorg', { id, org_id: orgId, orgId });
 };
 export const syncAllCaptainReceipeRawMaterial = () => {
   return GET('/kitchen-captain-receipe-master/syncallcaptainreceiperawmaterial');
@@ -1879,7 +1941,8 @@ export const getScanReportById = (id) => {
 export const getAllAssetAuditEvents = (params) => {
   return GET('/asset-audit/getall', params);
 };
-// Meal Type API
+
+//  Meal Type API
 export const getAllMealTypes = () => {
   return GET(`/meal-type/get-all`);
 };
@@ -1896,16 +1959,15 @@ export const deleteMealType = (id) => {
   return DELETE(`/meal-type/delete/${id}`);
 };
 
+
 // Meal Slot API
 export const getAllMealSlots = (params = {}) => {
   if (typeof params === 'number' || typeof params === 'string') {
     return GET(`/meal-slot/get-all?organizationId=${params}`);
   }
-
   if (typeof params === 'object' && Object.keys(params).length > 0) {
     return GET('/meal-slot/get-all', params);
   }
-
   return GET(`/meal-slot/get-all`);
 };
 
@@ -1920,7 +1982,6 @@ export const saveOrUpdateMealSlot = (payload) => {
 export const deleteMealSlot = (id) => {
   return DELETE(`/meal-slot/delete/${id}`);
 };
-
 // Meal Structure API
 export const getAllMealStructures = (params = {}) => {
   return GET('/meal-structure/get-all', params);
@@ -1941,76 +2002,870 @@ export const deleteMealStructure = (id) => {
 export const getEffectiveMealStructure = (params = {}) => {
   return GET('/meal-structure/get-effective', params);
 };
-//Purchase Credit Debit Note API
-export const getEligibleInvoices = (params) => {
-  return GET('/debit-credit-notes/eligible-invoices', params);
-};
-export const getEligibleGrnReturns = (params) => {
-  return GET('/debit-credit-notes/eligible-grn-returns', params);
-};
-export const getAllDebitCreditNotesPaginated = (params) => {
-  return GET('/debit-credit-notes/getall/page', params);
-};
-export const getDebitCreditNoteById = (id) => {
-  return GET('/debit-credit-notes/getbyid', { id });
-};
-export const createDebitCreditNote = (payload) => {
-  return POST('/debit-credit-notes/create', payload);
-};
-export const updateDebitCreditNote = (id, payload) => {
-  return PUT(`/debit-credit-notes/update/${id}`, payload);
-};
-export const approveDebitCreditNote = (id, userId) => {
-  return axiosInstance.patch(`/debit-credit-notes/approve/${id}`, null, {
-    params: { userId },
-  });
-};
-export const cancelDebitCreditNote = (id, userId, reason) => {
-  return axiosInstance.patch(`/debit-credit-notes/cancel/${id}`, null, {
-    params: { userId, reason },
-  });
-};
-export const getNotesByPurchaseInvoiceId = (id) => {
-  return GET(`/debit-credit-notes/by-invoice/${id}`);
-}
-
-//Menu Planning
-export const getDashboardSummary = (organizationId, subOutletId = null) => {
-  const params = typeof organizationId === 'object' ? organizationId : { organizationId, ...(subOutletId && { subOutletId }) };
-  return GET('/menu-plan/dashboard-summary', params);
+// ManPower API
+export const getAllManpower = (params = {}) => {
+  return GET('/manpower-master/get-all', params);
 };
 
-export const getNextProductionBatch = (organizationId) => {
-  return GET('/menu-plan/next-production', { organizationId });
+export const getManpowerById = (id) => {
+  return GET(`/manpower-master/get/${id}`);
 };
 
-export const getAllMenuPlans = ({ page = 0, size = 10, ...payload } = {}) => {
-  return POST(
-    '/menu-plan/get-all',
-    payload,
-    {
-      params: { page, size },
+export const saveOrUpdateManpower = (payload) => {
+  return POST('/manpower-master/save', payload);
+};
+
+export const deleteManpower = (id) => {
+  return DELETE(`/manpower-master/delete/${id}`);
+};
+
+export const updateManpowerStatus = (id, isActive, userId = 0) => {
+  return PUT(`/manpower-master/status/${id}?isActive=${isActive}&userId=${userId}`);
+};
+
+export const getActiveManpowerByState = (stateId) => {
+  return GET(`/manpower-master/active-by-state?stateId=${stateId}`);
+};
+export const saveManPowerBatch = async (proposalIdOrPayload, maybePayload, maybeParams) => {
+  let proposalId = proposalIdOrPayload;
+  let payload = maybePayload;
+  let queryParams = maybeParams || {};
+
+  if (Array.isArray(proposalIdOrPayload) && maybePayload === undefined) {
+    payload = proposalIdOrPayload;
+    proposalId = payload[0]?.proposalId || 0;
+  } else if (Array.isArray(proposalIdOrPayload) && typeof maybePayload === 'object' && !Array.isArray(maybePayload)) {
+    payload = proposalIdOrPayload;
+    proposalId = payload[0]?.proposalId || 0;
+    queryParams = maybePayload;
+  }
+
+  const pId = Number(proposalId) || 0;
+  const discountPercentage = Number(queryParams?.discountPercentage ?? 0);
+  const total = Number(queryParams?.total ?? 0);
+
+  const query = new URLSearchParams({
+    proposalId: String(pId),
+    discountPercentage: String(discountPercentage),
+    total: String(total),
+  }).toString();
+
+  const path = `/proposal-commercial/proposals/${pId}/manpower/batch-save?${query}`;
+
+  try {
+    return await POST(path, payload, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await POST(`/api${path}`, payload, { skipGlobalToast: true });
+      } catch (err2) {
+        if (err2?.response?.status === 404) {
+          return await POST(`/proposal-manpower/save-batch?${query}`, payload, { skipGlobalToast: true });
+        }
+        throw err2;
+      }
     }
-  );
+    throw err;
+  }
 };
-export const saveOrUpdateMenuPlan = (payload) => {
-  return POST('/menu-plan/save', payload);
+
+export const saveManpowerBatch = saveManPowerBatch;
+
+export const getManpowerByProposalId = async (proposalId) => {
+  const pId = Number(proposalId) || 0;
+  const path = `/proposal-commercial/proposals/${pId}/manpower`;
+  try {
+    return await GET(path, { proposalId: pId });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await GET(`/api${path}`, { proposalId: pId });
+      } catch (err2) {
+        return null;
+      }
+    }
+    return null;
+  }
 };
-export const getMenuPlanById = (id) => {
-  return GET(`/menu-plan/get/${id}`);
+
+export const getProposalManpower = getManpowerByProposalId;
+
+export const deleteCommercialManpower = async (manpowerId) => {
+  const mId = Number(manpowerId) || manpowerId;
+  const path = `/proposal-commercial/manpower/delete/${mId}`;
+  try {
+    return await DELETE(path, {}, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await DELETE(`/api${path}`, {}, { skipGlobalToast: true });
+      } catch (err2) {
+        throw err;
+      }
+    }
+    throw err;
+  }
 };
-export const saveSlotRecipes = (payload) => {
-  return POST('/menu-plan/day/slot/save-recipes', payload);
+
+export const deleteProposalManpower = deleteCommercialManpower;
+
+// Proposal Asset Commercial APIs
+export const saveAssetBatch = async (proposalIdOrPayload, maybePayload, maybeParams) => {
+  let proposalId = proposalIdOrPayload;
+  let payload = maybePayload;
+  let queryParams = maybeParams || {};
+
+  if (Array.isArray(proposalIdOrPayload) && maybePayload === undefined) {
+    payload = proposalIdOrPayload;
+    proposalId = payload[0]?.proposalId || 0;
+  } else if (Array.isArray(proposalIdOrPayload) && typeof maybePayload === 'object' && !Array.isArray(maybePayload)) {
+    payload = proposalIdOrPayload;
+    proposalId = payload[0]?.proposalId || 0;
+    queryParams = maybePayload;
+  }
+
+  const pId = Number(proposalId) || 0;
+  const discountPercentage = Number(queryParams?.discountPercentage ?? 0);
+  const total = Number(queryParams?.total ?? 0);
+
+  const query = new URLSearchParams({
+    proposalId: String(pId),
+    discountPercentage: String(discountPercentage),
+    total: String(total),
+  }).toString();
+
+  const path = `/proposal-commercial/proposals/${pId}/asset/batch-save?${query}`;
+
+  try {
+    return await POST(path, payload, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await POST(`/api${path}`, payload, { skipGlobalToast: true });
+      } catch (err2) {
+        if (err2?.response?.status === 404) {
+          return await POST(`/proposal-commercial/proposals/${pId}/asset/batch-save?${query}`, payload, { skipGlobalToast: true });
+        }
+        throw err2;
+      }
+    }
+    throw err;
+  }
 };
-export const saveShiftRecipes = (payload) => {
-  return POST('/menu-plan/day/shift/save', payload);
+
+export const saveProposalAssetBatch = saveAssetBatch;
+
+export const getAssetsByProposalId = async (proposalId) => {
+  const pId = Number(proposalId) || 0;
+  if (!pId || pId <= 0) return null;
+  const path = `/proposal-commercial/proposals/${pId}/asset`;
+  try {
+    return await GET(path, undefined, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404 || err?.response?.status === 500) {
+      try {
+        return await GET(`/api${path}`, undefined, { skipGlobalToast: true });
+      } catch (err2) {
+        return null;
+      }
+    }
+    return null;
+  }
 };
-export const getMenuPlanDayById = (dayId) => {
-  return GET(`/menu-plan/day/get/${dayId}`);
+
+export const getProposalAssets = getAssetsByProposalId;
+
+export const deleteCommercialAsset = async (assetId) => {
+  const aId = Number(assetId) || assetId;
+  const path = `/proposal-commercial/asset/delete/${aId}`;
+  try {
+    return await DELETE(path, {}, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await DELETE(`/api${path}`, {}, { skipGlobalToast: true });
+      } catch (err2) {
+        throw err;
+      }
+    }
+    throw err;
+  }
 };
+
+export const deleteProposalAsset = deleteCommercialAsset;
+
+//Other cost Proposal API
+export const getAllProposalCostTypes = () => {
+  return GET('/proposal-cost-type/get-all');
+};
+
+export const getProposalCostTypeById = (id) => {
+  return GET(`/proposal-cost-type/get/${id}`);
+};
+
+export const saveOrUpdateProposalCostType = (payload) => {
+  return POST('/proposal-cost-type/save', payload);
+};
+
+export const updateProposalCostTypeStatus = (id, isActive) => {
+  return PUT(`/proposal-cost-type/status/${id}?isActive=${isActive}`);
+};
+
+export const deleteProposalCostType = (id) => {
+  return DELETE(`/proposal-cost-type/delete/${id}`);
+};
+
+// Proposal Other Cost Commercial APIs
+export const saveOtherCostBatch = async (proposalIdOrPayload, maybePayload, maybeParams) => {
+  let proposalId = proposalIdOrPayload;
+  let payload = maybePayload;
+  let queryParams = maybeParams || {};
+
+  if (Array.isArray(proposalIdOrPayload) && maybePayload === undefined) {
+    payload = proposalIdOrPayload;
+    proposalId = payload[0]?.proposalId || 0;
+  } else if (Array.isArray(proposalIdOrPayload) && typeof maybePayload === 'object' && !Array.isArray(maybePayload)) {
+    payload = proposalIdOrPayload;
+    proposalId = payload[0]?.proposalId || 0;
+    queryParams = maybePayload;
+  }
+
+  const pId = Number(proposalId) || 0;
+  const discountPercentage = Number(queryParams?.discountPercentage ?? 0);
+  const total = Number(queryParams?.total ?? 0);
+
+  const query = new URLSearchParams({
+    proposalId: String(pId),
+    discountPercentage: String(discountPercentage),
+    total: String(total),
+  }).toString();
+
+  const path = `/proposal-commercial/proposals/${pId}/other-cost/batch-save?${query}`;
+
+  try {
+    return await POST(path, payload, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await POST(`/api${path}`, payload, { skipGlobalToast: true });
+      } catch (err2) {
+        if (err2?.response?.status === 404) {
+          return await POST(`/proposal-other-cost/save-batch?${query}`, payload, { skipGlobalToast: true });
+        }
+        throw err2;
+      }
+    }
+    throw err;
+  }
+};
+
+export const saveProposalOtherCostBatch = saveOtherCostBatch;
+
+export const getOtherCostsByProposalId = async (proposalId) => {
+  const pId = Number(proposalId) || 0;
+  if (!pId || pId <= 0) return null;
+  const path = `/proposal-commercial/proposals/${pId}/other-cost`;
+  try {
+    return await GET(path, undefined, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404 || err?.response?.status === 500) {
+      try {
+        return await GET(`/api${path}`, undefined, { skipGlobalToast: true });
+      } catch (err2) {
+        return null;
+      }
+    }
+    return null;
+  }
+};
+
+export const getProposalOtherCosts = getOtherCostsByProposalId;
+
+export const deleteOtherCost = async (otherCostId) => {
+  const oId = Number(otherCostId) || otherCostId;
+  const path = `/proposal-commercial/other-cost/delete/${oId}`;
+  try {
+    return await DELETE(path, {}, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await DELETE(`/api${path}`, {}, { skipGlobalToast: true });
+      } catch (err2) {
+        throw err;
+      }
+    }
+    throw err;
+  }
+};
+
+export const deleteCommercialOtherCost = deleteOtherCost;
+export const deleteProposalOtherCost = deleteOtherCost;
+
+// Proposal Type APIs
+export const getAllProposalTypes = () => {
+  return GET('/proposal-type/get-all');
+};
+
+export const getProposalTypeById = (id) => {
+  return GET(`/proposal-type/get/${id}`);
+};
+
+export const saveOrUpdateProposalType = (payload) => {
+  return POST('/proposal-type/save', payload);
+};
+
+export const updateProposalType = (id, payload) => {
+  return PUT(`/proposal-type/${id}`, payload);
+};
+
+export const updateProposalTypeStatus = (id, isActive) => {
+  return PUT(`/proposal-type/status/${id}?isActive=${isActive}`, { isActive });
+};
+
+export const deleteProposalType = (id) => {
+  return DELETE(`/proposal-type/delete/${id}`);
+};
+
+// ============================================
+// Proposal APIs
+// ============================================
+
+export const saveProposal = (payload) => {
+  return POST('/proposal/save', payload, { skipGlobalToast: true });
+};
+
+export const getProposalById = (id) => {
+  return GET(`/proposal/get/${id}`);
+};
+
+export const getCompleteProposalById = async (id) => {
+  const pId = Number(id) || id;
+  const path = `/proposal/get-complete/${pId}`;
+  try {
+    return await GET(path);
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await GET(`/api${path}`);
+      } catch (err2) {
+        throw err;
+      }
+    }
+    throw err;
+  }
+};
+
+export const getProposalComplete = (id) => {
+  return GET(`/proposal/${id}/complete`);
+};
+
+export const getFilteredProposals = (params = {}) => {
+  return GET('/proposal/get-all', params);
+};
+
+export const getProposalDashboardSummary = () => {
+  return GET('/proposal/dashboard-summary');
+};
+
+export const deleteProposal = (id) => {
+  return DELETE(`/proposal/delete/${id}`, {}, { skipGlobalToast: true });
+};
+
+export const updateProposalStatus = (id, status) => {
+  return PUT(`/proposal/${id}/status?status=${status}`, {}, {}, { skipGlobalToast: true });
+};
+
+export const submitProposalForApproval = (id) => {
+  return POST(`/proposal/${id}/submit-for-approval`, {}, { skipGlobalToast: true });
+};
+
+export const approveProposal = async (id) => {
+  try {
+    return await POST(`/proposal/${id}/approve`, {}, { skipGlobalToast: true });
+  } catch (err1) {
+    try {
+      return await PUT(`/proposal/${id}/approve`, {}, {}, { skipGlobalToast: true });
+    } catch (err2) {
+      return await PUT(`/proposal/${id}/status?status=APPROVED`, {}, {}, { skipGlobalToast: true });
+    }
+  }
+};
+
+export const downloadProposalQuotationPdf = (id) => {
+  return GET(`/proposal/${id}/quotation-pdf`, {}, { responseType: 'blob' });
+};
+
+export const downloadExecutiveCostingPdf = (id) => {
+  return GET(`/proposal/${id}/executive-costing-pdf`, {}, { responseType: 'blob' });
+};
+
+// Proposal Shifts
+export const getShiftsByProposalId = (proposalId) => {
+  return GET(`/proposal/${proposalId}/shifts`);
+};
+
+export const saveProposalShift = async (proposalId, payload) => {
+  const pId = Number(proposalId) || payload?.proposalId || 0;
+  const path = `/proposal/${pId}/shifts/save`;
+  try {
+    return await POST(path, payload, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await POST(`${path}?proposalId=${pId}`, payload, { skipGlobalToast: true });
+      } catch (err2) {
+        if (err2?.response?.status === 404) {
+          try {
+            return await POST(`/api${path}?proposalId=${pId}`, payload, { skipGlobalToast: true });
+          } catch (err3) {
+            if (err3?.response?.status === 404) {
+              try {
+                return await POST(`/proposal-menu/shifts/save`, payload, { skipGlobalToast: true });
+              } catch (err4) {
+                if (err4?.response?.status === 404) {
+                  return await POST(`/proposal/${pId}/shifts`, payload, { skipGlobalToast: true });
+                }
+                throw err4;
+              }
+            }
+            throw err3;
+          }
+        }
+        throw err2;
+      }
+    }
+    throw err;
+  }
+};
+
+export const saveProposalShiftsBulk = async (proposalId, payload) => {
+  const pId = Number(proposalId) || 0;
+  const path = `/proposal-menu/proposals/${pId}/shifts/bulk-save?proposalId=${pId}`;
+  try {
+    return await POST(path, payload, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await POST(`/api${path}`, payload, { skipGlobalToast: true });
+      } catch (err2) {
+        if (err2?.response?.status === 404) {
+          try {
+            return await POST(`/proposal/${pId}/shifts/save?proposalId=${pId}`, payload, { skipGlobalToast: true });
+          } catch (err3) {
+            if (err3?.response?.status === 404) {
+              return await POST(`/proposal-commercial/proposals/${pId}/shifts/batch-save?proposalId=${pId}`, payload, { skipGlobalToast: true });
+            }
+            throw err3;
+          }
+        }
+        throw err2;
+      }
+    }
+    throw err;
+  }
+};
+
+export const bulkSaveShifts = saveProposalShiftsBulk;
+
+export const deleteProposalShift = (proposalId, shiftId, userId = 1) => {
+  return DELETE(`/proposal/${proposalId}/shifts/delete/${shiftId}?userId=${userId}`, {}, { skipGlobalToast: true });
+};
+
+// Proposal Attachments
+export const uploadProposalAttachment = async (formData) => {
+  const path = '/proposal-attachments/upload';
+  try {
+    return await UPLOAD(path, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      skipGlobalToast: true,
+    });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await UPLOAD(`/api${path}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        skipGlobalToast: true,
+      });
+    }
+    throw err;
+  }
+};
+
+export const getProposalAttachments = async (proposalId) => {
+  const pId = Number(proposalId) || proposalId;
+  const path = `/proposal-attachments/proposals/${pId}`;
+  try {
+    return await GET(path);
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await GET(`/api${path}`);
+      } catch (err2) {
+        return null;
+      }
+    }
+    return null;
+  }
+};
+
+export const deleteProposalAttachment = async (attachmentId) => {
+  const aId = Number(attachmentId) || attachmentId;
+  const path = `/proposal-attachments/delete/${aId}`;
+  try {
+    return await DELETE(path, {}, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await DELETE(`/api${path}`, {}, { skipGlobalToast: true });
+      } catch (err2) {
+        throw err;
+      }
+    }
+    throw err;
+  }
+};
+
+export const getAttachmentsByProposalId = getProposalAttachments;
+export const uploadAttachment = uploadProposalAttachment;
+export const deleteAttachment = deleteProposalAttachment;
+
+// Proposal Lookups
+export const getProposalTypesLookup = async () => {
+  try {
+    const res = await getAllProposalTypes();
+    const payload = res?.data?.data ?? res?.data;
+    const list = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.items)
+        ? payload.items
+        : Array.isArray(payload?.content)
+          ? payload.content
+          : [];
+    if (Array.isArray(list) && list.length > 0) {
+      return res;
+    }
+  } catch (_) { }
+  return GET('/proposal-lookups/proposal-types');
+};
+
+export const getFoodPreferencesLookup = () => {
+  return GET('/proposal-lookups/food-preferences');
+};
+
+export const getPaymentModesLookup = () => {
+  return GET('/proposal-lookups/payment-modes');
+};
+
+export const getCostTypesLookup = () => {
+  return GET('/proposal-lookups/cost-types');
+};
+
+export const getManpowerLookup = () => {
+  return GET('/proposal-lookups/manpower');
+};
+
+export const getManpowerRolesLookup = () => {
+  return GET('/proposal-lookups/manpower-roles');
+};
+
+export const getMaterialCentersLookup = (subOutletId) => {
+  const params = typeof subOutletId === 'object' ? subOutletId : (subOutletId ? { subOutletId } : {});
+  return GET('/proposal-lookups/material-centers', params);
+};
+
+export const getOutletsLookup = (stateId) => {
+  const params = typeof stateId === 'object' ? stateId : (stateId ? { stateId } : {});
+  return GET('/proposal-lookups/outlets', params);
+};
+
+export const getStatesLookup = () => {
+  return GET('/proposal-lookups/states');
+};
+
+export const getSubOutletsLookup = (outletId) => {
+  const params = typeof outletId === 'object' ? outletId : (outletId ? { outletId } : {});
+  return GET('/proposal-lookups/sub-outlets', params);
+};
+
+export const getTermsLookup = () => {
+  return GET('/proposal-lookups/terms');
+};
+
+// ============================================
+// Proposal Terms & Conditions APIs
+// ============================================
+
+export const getTermsByProposalId = async (proposalId) => {
+  const pId = Number(proposalId) || proposalId;
+  const path = `/proposal-terms/proposals/${pId}`;
+  try {
+    return await GET(path);
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      try {
+        return await GET(`/api${path}`);
+      } catch (err2) {
+        return null;
+      }
+    }
+    throw err;
+  }
+};
+
+export const copyDefaultTerms = async (proposalId) => {
+  const pId = Number(proposalId) || proposalId;
+  const path = `/proposal-terms/proposals/${pId}/copy-defaults`;
+  try {
+    return await POST(path, {}, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await POST(`/api${path}`, {}, { skipGlobalToast: true });
+    }
+    throw err;
+  }
+};
+
+export const saveTermsBatch = async (proposalId, termsList) => {
+  const pId = Number(proposalId) || proposalId;
+  const path = `/proposal-terms/proposals/${pId}/terms/batch-save`;
+  try {
+    return await POST(path, termsList, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await POST(`/api${path}`, termsList, { skipGlobalToast: true });
+    }
+    throw err;
+  }
+};
+
+export const deleteTerm = async (termId) => {
+  const tId = Number(termId) || termId;
+  const path = `/proposal-terms/delete/${tId}`;
+  try {
+    return await DELETE(path, {}, { skipGlobalToast: true });
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await DELETE(`/api${path}`, {}, { skipGlobalToast: true });
+    }
+    throw err;
+  }
+};
+
+// ============================================
+// Proposal Menu & Recipe Costing APIs
+// ============================================
+
+// Proposal Menu Slots
+export const getShiftMenuSlots = (shiftId) => {
+  return GET(`/proposal-menu/shifts/${shiftId}/slots`);
+};
+
+export const populateShiftSlots = (shiftId, userId = 1) => {
+  return POST(`/proposal-menu/shifts/${shiftId}/populate-slots?userId=${userId}`, {}, { skipGlobalToast: true });
+};
+
+export const getSlotMenuItems = (slotId) => {
+  return GET(`/proposal-menu/slots/${slotId}/items`);
+};
+
+export const saveProposalMenuItem = (payload) => {
+  return POST('/proposal-menu/items/save', payload, { skipGlobalToast: true });
+};
+
+export const saveMenuItemsBatch = (slotId, payload) => {
+  const formatBatchItem = (item) => ({
+    ...item,
+    recipeMaterialCost:
+      item.recipeMaterialCost !== undefined && item.recipeMaterialCost !== null
+        ? Number(item.recipeMaterialCost)
+        : item.totalIngredientCost !== undefined && item.totalIngredientCost !== null
+          ? Number(item.totalIngredientCost)
+          : item.monthlyRmcCost !== undefined && item.monthlyRmcCost !== null
+            ? Number(item.monthlyRmcCost)
+            : item.avgRmcPerDay !== undefined && item.avgRmcPerDay !== null
+              ? Number(item.avgRmcPerDay)
+              : 0,
+    totalPortionCost:
+      item.totalPortionCost !== undefined && item.totalPortionCost !== null
+        ? Number(item.totalPortionCost)
+        : item.costPerPerson !== undefined && item.costPerPerson !== null
+          ? Number(item.costPerPerson)
+          : item.costToPlateDaily !== undefined && item.costToPlateDaily !== null
+            ? Number(item.costToPlateDaily)
+            : item.avgRmcPerDay !== undefined && item.avgRmcPerDay !== null
+              ? Number(item.avgRmcPerDay)
+              : 0,
+  });
+
+  const normalizedPayload = Array.isArray(payload)
+    ? payload.map(formatBatchItem)
+    : payload && Array.isArray(payload.items)
+      ? { ...payload, items: payload.items.map(formatBatchItem) }
+      : payload;
+
+  return POST(`/proposal-menu/slots/${slotId}/items/batch-save`, normalizedPayload, { skipGlobalToast: true });
+};
+
+export const saveProposalMenuItemsBatch = (payload) => {
+  const formatBatchItem = (item) => ({
+    ...item,
+    recipeMaterialCost:
+      item.recipeMaterialCost !== undefined && item.recipeMaterialCost !== null
+        ? Number(item.recipeMaterialCost)
+        : item.totalIngredientCost !== undefined && item.totalIngredientCost !== null
+          ? Number(item.totalIngredientCost)
+          : item.monthlyRmcCost !== undefined && item.monthlyRmcCost !== null
+            ? Number(item.monthlyRmcCost)
+            : item.avgRmcPerDay !== undefined && item.avgRmcPerDay !== null
+              ? Number(item.avgRmcPerDay)
+              : 0,
+    totalPortionCost:
+      item.totalPortionCost !== undefined && item.totalPortionCost !== null
+        ? Number(item.totalPortionCost)
+        : item.costPerPerson !== undefined && item.costPerPerson !== null
+          ? Number(item.costPerPerson)
+          : item.costToPlateDaily !== undefined && item.costToPlateDaily !== null
+            ? Number(item.costToPlateDaily)
+            : item.avgRmcPerDay !== undefined && item.avgRmcPerDay !== null
+              ? Number(item.avgRmcPerDay)
+              : 0,
+  });
+
+  const normalizedPayload = Array.isArray(payload)
+    ? payload.map(formatBatchItem)
+    : payload && Array.isArray(payload.items)
+      ? { ...payload, items: payload.items.map(formatBatchItem) }
+      : payload;
+
+  return POST('/proposal-menu/items/batch-save', normalizedPayload, { skipGlobalToast: true });
+};
+
+export const deleteProposalMenuItem = (proposalMenuItemId, userId = 1) => {
+  return DELETE(`/proposal-menu/items/delete/${proposalMenuItemId}?userId=${userId}`, {}, { skipGlobalToast: true });
+};
+
+export const getProposalFoodCostSummary = (proposalId) => {
+  return GET(`/proposal-menu/proposals/${proposalId}/food-cost-summary`);
+};
+
+export const recalculateProposalCost = (proposalId) => {
+  return POST(`/proposal-menu/proposals/${proposalId}/recalculate-cost`, {}, { skipGlobalToast: true });
+};
+
+// Recipe Costing Calculation Preview
+export const calculateRecipeCosting = (payload = {}, params = {}) => {
+  const fromDateFormatted = formatToDDMMYYYY(payload.fromDate);
+  const toDateFormatted = formatToDDMMYYYY(payload.toDate);
+
+  const formattedParams = { ...params };
+  delete formattedParams.todate;
+  if (formattedParams.fromDate) {
+    formattedParams.fromDate = formatToDDMMYYYY(formattedParams.fromDate);
+  }
+  if (formattedParams.toDate) {
+    formattedParams.toDate = formatToDDMMYYYY(formattedParams.toDate);
+  }
+
+  const queryParams = {
+    ...(fromDateFormatted ? { fromDate: fromDateFormatted } : {}),
+    ...(toDateFormatted ? { toDate: toDateFormatted } : {}),
+    ...formattedParams,
+  };
+  delete queryParams.todate;
+
+  const body = {
+    isPerPersonConsumptionBasedCalculate: true,
+    ...payload,
+    ...(fromDateFormatted ? { fromDate: fromDateFormatted } : {}),
+    ...(toDateFormatted ? { toDate: toDateFormatted } : {}),
+  };
+
+  return POST('/recipe-costing/calculate', body, {
+    params: Object.keys(queryParams).length > 0 ? queryParams : undefined,
+    skipGlobalToast: true,
+  });
+};
+
+// Raw Material Effective Prices
+export const getRawMaterialsEffectivePrices = async (payload = {}) => {
+  const body = {
+    materialCenterId: payload.materialCenterId ?? 0,
+    organizationId: payload.organizationId ?? 0,
+    pricingBasis: payload.pricingBasis || "LAST_PURCHASE",
+    rawMaterialIds: payload.rawMaterialIds || [],
+    subOutletId: payload.subOutletId ?? 0,
+    ...payload,
+  };
+
+  // Support fromDate and toDate for price selections (low, high, weighted avg, etc.)
+  if (payload.fromDate) {
+    body.fromDate = payload.fromDate;
+  }
+  if (payload.toDate) {
+    body.toDate = payload.toDate;
+  } else if (payload.asOfDate && !body.toDate) {
+    body.toDate = payload.asOfDate;
+  }
+
+  try {
+    return await POST('/material-costing/raw-materials/effective-prices', body, {
+      skipGlobalToast: true,
+    });
+  } catch (err) {
+    // If standard ISO date (YYYY-MM-DD) failed and DD/MM/YYYY is expected, try formatted fallback
+    const altFromDate = body.fromDate ? formatToDDMMYYYY(body.fromDate) : undefined;
+    const altToDate = body.toDate ? formatToDDMMYYYY(body.toDate) : undefined;
+    if ((altFromDate && altFromDate !== body.fromDate) || (altToDate && altToDate !== body.toDate)) {
+      const altBody = {
+        ...body,
+        ...(altFromDate ? { fromDate: altFromDate } : {}),
+        ...(altToDate ? { toDate: altToDate } : {}),
+      };
+      return await POST('/material-costing/raw-materials/effective-prices', altBody, {
+        skipGlobalToast: true,
+      });
+    }
+    throw err;
+  }
+};
+
+// Meal Structure Recipe Mapping (Eligible recipes per slot)
+export const getEligibleSlotRecipes = (params = {}) => {
+  return GET('/meal-structure-recipe-mapping/get-effective', params);
+};
+
+// ---- Debit / Credit Note APIs ----
+export const getEligibleInvoices = (params = {}) => {
+  return GET('/purchase-invoice/eligible-invoices', params);
+};
+
 export const getRecipeCosting = (menuItemId, params) => {
   return GET(`/recipe-costing/${menuItemId}`, params);
 };
-export const deleteMenuPlanById = (id) => {
-  return DELETE(`/menu-plan/delete/${id}`);
-}
+
+export const getAllDebitCreditNotesPaginated = (params = {}) => {
+  return GET('/debit-credit-note/getall', params);
+};
+
+export const getDebitCreditNoteById = (id) => {
+  return GET(`/debit-credit-note/${id}`);
+};
+
+export const createDebitCreditNote = (payload) => {
+  return POST('/debit-credit-note/create', payload);
+};
+
+export const updateDebitCreditNote = (id, payload) => {
+  return PUT(`/debit-credit-note/update/${id}`, payload);
+};
+
+export const approveDebitCreditNote = (id, userId) => {
+  return POST(`/debit-credit-note/approve/${id}`, null, { params: { userId } });
+};
+
+export const cancelDebitCreditNote = (id, userId, reason) => {
+  return POST(`/debit-credit-note/cancel/${id}`, null, { params: { userId, reason } });
+};
+
+export const getNotesByPurchaseInvoiceId = (invoiceId) => {
+  return GET(`/debit-credit-note/by-invoice/${invoiceId}`);
+};
