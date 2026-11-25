@@ -260,14 +260,14 @@ const KitchenMenuItemListing = () => {
                     item.image ||
                     (Array.isArray(item.files) && item.files.length > 0
                         ? (item.files.find(
-                              (f) =>
-                                  (f?.moduleName === 'KITCHENMENUITEM' ||
-                                      f?.moduleName === 'MENUITEM') &&
-                                  f?.isActive !== false
-                          )?.fileUrl ||
-                          item.files.find((f) => f?.fileUrl || f?.url)?.fileUrl ||
-                          item.files[0]?.fileUrl ||
-                          item.files[0]?.url)
+                            (f) =>
+                                (f?.moduleName === 'KITCHENMENUITEM' ||
+                                    f?.moduleName === 'MENUITEM') &&
+                                f?.isActive !== false
+                        )?.fileUrl ||
+                            item.files.find((f) => f?.fileUrl || f?.url)?.fileUrl ||
+                            item.files[0]?.fileUrl ||
+                            item.files[0]?.url)
                         : null);
 
                 const isActive = item.isActive !== false;
@@ -285,7 +285,7 @@ const KitchenMenuItemListing = () => {
                 };
             });
 
-            const total =
+            let total =
                 payload.total != null
                     ? Number(payload.total)
                     : payload.totalElements != null
@@ -296,12 +296,23 @@ const KitchenMenuItemListing = () => {
                                 ? Number(payload.totalRecords)
                                 : rawList.length;
 
+            if (rawList.length > pageSize) {
+                total = rawList.length;
+                const start = pageIndex * pageSize;
+                const end = start + pageSize;
+                setMenuItems(list.slice(start, end));
+            } else {
+                if (rawList.length < pageSize) {
+                    total = pageIndex * pageSize + rawList.length;
+                }
+                setMenuItems(list);
+            }
+
             const active =
                 payload.activeCount != null
-                    ? Number(payload.activeCount)
+                    ? (categoryFilter || search ? list.filter((i) => i.isActive).length : Number(payload.activeCount))
                     : list.filter((i) => i.isActive).length;
 
-            setMenuItems(list);
             setTotalCount(total);
             setActiveCount(active);
             setInactiveCount(Math.max(0, total - active));

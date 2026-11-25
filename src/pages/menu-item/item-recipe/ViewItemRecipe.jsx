@@ -100,8 +100,8 @@ const ViewItemRecipe = () => {
       (Array.isArray(recipeData?.captainReceipes)
         ? recipeData.captainReceipes
         : Array.isArray(recipeData?.captainRecipes)
-        ? recipeData.captainRecipes
-        : []) || [];
+          ? recipeData.captainRecipes
+          : []) || [];
 
     if (rawCaptainList.length === 0) {
       setEnrichedCaptainRecipes([]);
@@ -115,38 +115,60 @@ const ViewItemRecipe = () => {
       try {
         const results = await Promise.all(
           rawCaptainList.map(async (cr) => {
-            const crId = cr.id || cr.captainRecipeId;
-            let crRate = Number(cr.rate ?? cr.perUnitRate ?? 0);
+            const captainRecipeId = cr.captainRecipeId || cr.kcaptainReceipeMaster?.id || cr.id;
+            const rowDbId = cr.id || 0;
             const crWeight = Number(cr.weight ?? 0);
-            let crAmount = Number(cr.amount ?? 0);
 
-            if (crRate <= 0 && crId) {
+            let crPerUnitRate = Number(cr.perUnitRate ?? 0);
+            let crAmount = Number(cr.rate ?? cr.amount ?? 0);
+
+            if (crPerUnitRate <= 0 && crAmount > 0 && crWeight > 0) {
+              crPerUnitRate = Number((crAmount / crWeight).toFixed(2));
+            } else if (crAmount <= 0 && crPerUnitRate > 0 && crWeight > 0) {
+              crAmount = Number((crWeight * crPerUnitRate).toFixed(2));
+            }
+
+            if (crPerUnitRate <= 0 && captainRecipeId) {
               try {
                 const res = outletId
-                  ? await getKitchenCaptainReceipeByIdAndOrg(crId, outletId)
-                  : await getKitchenCaptainReceipeById(crId);
+                  ? await getKitchenCaptainReceipeByIdAndOrg(captainRecipeId, outletId)
+                  : await getKitchenCaptainReceipeById(captainRecipeId);
                 const data = res?.data?.data || res?.data;
                 if (data) {
                   const bw = Number(data.weight || 0);
                   const br = Number(data.recipeRate ?? data.rate ?? 0);
-                  crRate = bw > 0 ? Number((br / bw).toFixed(2)) : (Number(data.costPerKg) || 0);
+                  crPerUnitRate = bw > 0 ? Number((br / bw).toFixed(2)) : (Number(data.costPerKg) || 0);
+                  if (crAmount <= 0) {
+                    crAmount = Number((crWeight * crPerUnitRate).toFixed(2));
+                  }
                 }
               } catch (e) {
-                console.warn("Could not fetch captain recipe for view:", crId, e);
+                console.warn("Could not fetch captain recipe for view:", captainRecipeId, e);
               }
             }
 
-            if (crAmount <= 0) {
-              crAmount = Number((crWeight * crRate).toFixed(2));
-            }
+            const resolvedName =
+              cr.captainRecipeName ||
+              cr.name ||
+              cr.kcaptainReceipeMaster?.name ||
+              `Captain Recipe #${captainRecipeId}`;
+
+            const resolvedUnitName =
+              cr.unitName ||
+              cr.unitHierarchy?.nameEnglish ||
+              cr.unit?.nameEnglish ||
+              cr.unit ||
+              "—";
 
             return {
               ...cr,
-              id: crId,
-              name: cr.name || `Captain Recipe #${crId}`,
+              id: rowDbId,
+              captainRecipeId: captainRecipeId,
+              name: resolvedName,
               weight: crWeight,
-              unitName: cr.unitName || cr.unit?.nameEnglish || cr.unit || "—",
-              rate: crRate,
+              unitName: resolvedUnitName,
+              perUnitRate: crPerUnitRate,
+              rate: crPerUnitRate,
               amount: crAmount,
             };
           })
@@ -182,8 +204,8 @@ const ViewItemRecipe = () => {
         rm.rate != null && rm.perUnitRate != null
           ? rm.rate
           : rm.amount != null
-          ? rm.amount
-          : rmPerUnitRate * rmWeight
+            ? rm.amount
+            : rmPerUnitRate * rmWeight
       );
       return {
         ...rm,
@@ -199,8 +221,8 @@ const ViewItemRecipe = () => {
       (Array.isArray(header?.otherCosts)
         ? header.otherCosts
         : Array.isArray(recipeData?.otherCosts)
-        ? recipeData.otherCosts
-        : []) || []
+          ? recipeData.otherCosts
+          : []) || []
     );
   }, [header, recipeData]);
 
@@ -452,9 +474,10 @@ const ViewItemRecipe = () => {
                 <thead className="bg-gray-50 text-gray-500 font-semibold border-b border-gray-200">
                   <tr>
                     <th className="py-2.5 px-4 w-[8%] text-center">Sr No.</th>
-                    <th className="py-2.5 px-4 w-[42%] truncate">Recipe Name</th>
-                    <th className="py-2.5 px-4 w-[20%] truncate">Weight</th>
-                    <th className="py-2.5 px-4 w-[15%] truncate">Unit</th>
+                    <th className="py-2.5 px-4 w-[35%] truncate">Recipe Name</th>
+                    <th className="py-2.5 px-4 w-[15%] truncate">Weight</th>
+                    <th className="py-2.5 px-4 w-[12%] truncate">Unit</th>
+                    <th className="py-2.5 px-4 w-[15%] truncate">Rate (₹)</th>
                     <th className="py-2.5 px-4 w-[15%] truncate text-right">Amount (₹)</th>
                   </tr>
                 </thead>
@@ -473,6 +496,9 @@ const ViewItemRecipe = () => {
                       <td className="py-2.5 px-4 text-gray-600 truncate">
                         {cr.unitName || "—"}
                       </td>
+                      <td className="py-2.5 px-4 font-medium text-gray-700 truncate">
+                        ₹{Number(cr.perUnitRate ?? cr.rate ?? 0).toFixed(2)}
+                      </td>
                       <td className="py-2.5 px-4 font-bold text-gray-900 truncate text-right">
                         ₹{Number(cr.amount || 0).toFixed(2)}
                       </td>
@@ -488,12 +514,6 @@ const ViewItemRecipe = () => {
               <span>
                 Total Captain Cost:{" "}
                 <strong className="text-[#084E92] font-bold">₹{totalCaptainCost.toFixed(2)}</strong>
-              </span>
-              <span>
-                Per Unit Rate:{" "}
-                <strong className="text-emerald-700 font-bold">
-                  ₹{totalCaptainWeight > 0 ? (totalCaptainCost / totalCaptainWeight).toFixed(2) : "0.00"}
-                </strong>
               </span>
             </div>
           </div>

@@ -613,43 +613,69 @@ const CreateItemRecipe = () => {
                     if (captainReceipes.length > 0) {
                         const enriched = await Promise.all(
                             captainReceipes.map(async (cr) => {
-                                const crId = cr.id || cr.captainRecipeId;
-                                let crRate = Number(cr.rate ?? cr.perUnitRate ?? 0);
+                                const captainRecipeId =
+                                    cr.captainRecipeId ??
+                                    cr.kcaptainReceipeMaster?.id ??
+                                    cr.id;
+                                const rowDbId = cr.id || 0;
                                 const crWeight = Number(cr.weight ?? 0);
-                                let crAmount = Number(cr.amount ?? 0);
 
-                                if (crRate <= 0 && crId) {
+                                let crPerUnitRate = Number(cr.perUnitRate ?? 0);
+                                let crAmount = Number(cr.rate ?? cr.amount ?? 0);
+
+                                if (crPerUnitRate <= 0 && crAmount > 0 && crWeight > 0) {
+                                    crPerUnitRate = Number((crAmount / crWeight).toFixed(2));
+                                } else if (crAmount <= 0 && crPerUnitRate > 0 && crWeight > 0) {
+                                    crAmount = Number((crWeight * crPerUnitRate).toFixed(2));
+                                }
+
+                                if (crPerUnitRate <= 0 && captainRecipeId) {
                                     try {
                                         const res = outletVal
-                                            ? await getKitchenCaptainReceipeByIdAndOrg(crId, outletVal)
-                                            : await getKitchenCaptainReceipeById(crId);
+                                            ? await getKitchenCaptainReceipeByIdAndOrg(captainRecipeId, outletVal)
+                                            : await getKitchenCaptainReceipeById(captainRecipeId);
                                         const data = res?.data?.data || res?.data;
                                         if (data) {
                                             const bw = Number(data.weight || 0);
                                             const br = Number(data.recipeRate ?? data.rate ?? 0);
-                                            crRate = bw > 0 ? Number((br / bw).toFixed(2)) : (Number(data.costPerKg) || 0);
+                                            crPerUnitRate = bw > 0 ? Number((br / bw).toFixed(2)) : (Number(data.costPerKg) || 0);
+                                            if (crAmount <= 0) {
+                                                crAmount = Number((crWeight * crPerUnitRate).toFixed(2));
+                                            }
                                         }
                                     } catch (e) {
-                                        console.warn("Could not fetch captain recipe for row:", crId, e);
+                                        console.warn("Could not fetch captain recipe for row:", captainRecipeId, e);
                                     }
                                 }
 
-                                if (crAmount <= 0) {
-                                    crAmount = Number((crWeight * crRate).toFixed(2));
-                                }
+                                const resolvedName =
+                                    cr.captainRecipeName ||
+                                    cr.name ||
+                                    cr.kcaptainReceipeMaster?.name ||
+                                    `Captain Recipe #${captainRecipeId}`;
+
+                                const resolvedUnit =
+                                    cr.unitName ||
+                                    cr.unitHierarchy?.nameEnglish ||
+                                    getUnitLabel(cr.unit) ||
+                                    "";
 
                                 return {
                                     rowId: captainRowSeq++,
-                                    id: 0,
-                                    captainRecipeId: crId,
+                                    id: rowDbId,
+                                    captainRecipeId: captainRecipeId,
                                     category: cr.category || "",
-                                    name: cr.name || `Captain Recipe #${crId}`,
+                                    name: resolvedName,
                                     weight: crWeight,
                                     unitId: cr.unitId != null ? String(cr.unitId) : "",
-                                    unit: cr.unitName || getUnitLabel(cr.unit) || "",
-                                    rate: crRate,
+                                    unit: resolvedUnit,
+                                    perUnitRate: crPerUnitRate,
+                                    rate: crPerUnitRate,
                                     amount: crAmount,
                                     venue: cr.venue || "At Venue",
+                                    isActive: cr.isActive !== false,
+                                    subOutletId: cr.subOutletId ?? 0,
+                                    userId: cr.userId ?? null,
                                 };
                             })
                         );
@@ -1803,6 +1829,7 @@ const CreateItemRecipe = () => {
                             weight: weightVal,
                             unitId: selectedCaptainUnit,
                             unit: unit?.name || row.unit,
+                            perUnitRate: rateVal,
                             rate: rateVal,
                             amount: amountVal,
                         }
@@ -1821,6 +1848,7 @@ const CreateItemRecipe = () => {
                     weight: weightVal,
                     unitId: selectedCaptainUnit,
                     unit: unit?.name || "",
+                    perUnitRate: rateVal,
                     rate: rateVal,
                     amount: amountVal,
                     venue: "At Venue",
@@ -1837,7 +1865,7 @@ const CreateItemRecipe = () => {
         setSelectedCaptainRecipe(String(row.captainRecipeId ?? ""));
         setCaptainWeight(row.weight != null ? String(row.weight) : "");
         setSelectedCaptainUnit(String(row.unitId ?? ""));
-        setCaptainRate(row.rate != null ? String(row.rate) : "");
+        setCaptainRate(row.perUnitRate != null ? String(row.perUnitRate) : (row.rate != null ? String(row.rate) : ""));
     };
 
     const handleUpdateCaptainField = (rowId, field, val) => {
@@ -1847,8 +1875,8 @@ const CreateItemRecipe = () => {
                 if (r.rowId !== rowId) return r;
                 const updated = { ...r, [field]: val };
                 const w = field === "weight" ? Number(val || 0) : Number(updated.weight || 0);
-                const rate = field === "rate" ? Number(val || 0) : Number(updated.rate || 0);
-                updated.amount = Number((w * rate).toFixed(2));
+                const unitRate = field === "rate" ? Number(val || 0) : Number(updated.perUnitRate ?? updated.rate ?? 0);
+                updated.amount = Number((w * unitRate).toFixed(2));
                 return updated;
             })
         );
@@ -1882,9 +1910,10 @@ const CreateItemRecipe = () => {
             const existingIds = new Set(captainRows.map((r) => String(r.captainRecipeId)));
             const newCaptainRows = copiedIngredients.reduce((acc, ingredient) => {
                 const captainRecipeId =
-                    ingredient.captainReceipeId ??
                     ingredient.captainRecipeId ??
+                    ingredient.captainReceipeId ??
                     ingredient.captainReceipe?.id ??
+                    ingredient.kcaptainReceipeMaster?.id ??
                     ingredient.id;
 
                 if (existingIds.has(String(captainRecipeId))) return acc;
@@ -1897,20 +1926,31 @@ const CreateItemRecipe = () => {
 
                 const baseW = Number(recipe?.weight || ingredient.weight || 0);
                 const baseR = Number(recipe?.recipeRate ?? recipe?.rate ?? ingredient.rate ?? 0);
-                const perRate = baseW > 0 ? Number((baseR / baseW).toFixed(2)) : (Number(recipe?.costPerKg) || 0);
+                const perRate = ingredient.perUnitRate != null && Number(ingredient.perUnitRate) > 0
+                    ? Number(ingredient.perUnitRate)
+                    : (baseW > 0 ? Number((baseR / baseW).toFixed(2)) : (Number(recipe?.costPerKg) || 0));
                 const ingW = Number(ingredient.weight ?? 1);
+                const totalAmt = Number(ingredient.rate != null && Number(ingredient.rate) > 0 ? ingredient.rate : (ingW * perRate).toFixed(2));
+
+                const resolvedName =
+                    ingredient.captainRecipeName ??
+                    ingredient.name ??
+                    recipe?.name ??
+                    ingredient.kcaptainReceipeMaster?.name ??
+                    `Captain Recipe #${captainRecipeId}`;
 
                 acc.push({
                     rowId: captainRowSeq++,
                     id: 0,
                     captainRecipeId,
                     category: ingredient.category ?? recipe?.category ?? "",
-                    name: ingredient.name ?? recipe?.name ?? "",
+                    name: resolvedName,
                     weight: ingW,
                     unitId: unitId != null ? String(unitId) : "",
                     unit: ingredient.unitName || getUnitLabel(ingredient.unit) || unit?.name || "",
+                    perUnitRate: perRate,
                     rate: perRate,
-                    amount: Number((ingW * perRate).toFixed(2)),
+                    amount: totalAmt,
                     venue: ingredient.venue ?? "At Venue",
                 });
                 return acc;
@@ -2304,13 +2344,43 @@ const CreateItemRecipe = () => {
                     <DataGridColumnHeader
                         title="Unit"
                         column={column}
-                        className="text-[#43474F] font-semibold uppercase text-sm"
+                        className="text-[#43474F] font-semibold uppercase text-xs"
                     />
                 ),
                 cell: ({ row }) => (
-                    <span className="text-gray-700">{row.original.unit || "-"}</span>
+                    <span className="text-gray-700 text-xs">{row.original.unit || "-"}</span>
                 ),
-                size: 110,
+                size: 90,
+            },
+            {
+                id: "perUnitRate",
+                accessorFn: (row) => row.perUnitRate ?? row.rate,
+                header: ({ column }) => (
+                    <DataGridColumnHeader
+                        title="Rate (₹)"
+                        column={column}
+                        className="text-[#43474F] font-semibold uppercase text-xs"
+                    />
+                ),
+                cell: ({ row }) =>
+                    isViewMode ? (
+                        <span className="text-gray-700 font-medium text-xs">
+                            ₹{Number(row.original.perUnitRate ?? row.original.rate ?? 0).toFixed(2)}
+                        </span>
+                    ) : (
+                        <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={row.original.perUnitRate ?? row.original.rate ?? ""}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            onChange={(e) =>
+                                handleUpdateCaptainField(row.original.rowId, "perUnitRate", e.target.value)
+                            }
+                            className="w-20 border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-[#084E92] bg-white text-gray-800"
+                        />
+                    ),
+                size: 100,
             },
             {
                 id: "amount",
@@ -2926,7 +2996,7 @@ const CreateItemRecipe = () => {
                                     <div className="flex flex-wrap items-center gap-3">
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-700 mb-1 flex items-center gap-1">
-                                              
+
                                                 <span>Pricing Method</span>
                                             </label>
                                             <select
@@ -3275,7 +3345,7 @@ const CreateItemRecipe = () => {
                                             </div>
 
                                             <div className="md:col-span-2">
-                                                <Label>Per KG Rate (₹)</Label>
+                                                <Label>Rate (₹)</Label>
                                                 <div className="relative">
                                                     <input
                                                         type="number"
@@ -3362,7 +3432,6 @@ const CreateItemRecipe = () => {
                                                 <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-gray-700">
                                                     <span>Total Items: <strong className="text-gray-900">{filteredCaptainRows.length}</strong></span>
                                                     <span>Total Captain Cost: <strong className="text-[#084E92] font-bold">₹{totalCaptainCost.toFixed(2)}</strong></span>
-                                                    <span>Per Unit Rate: <strong className="text-emerald-700 font-bold">₹{(totalCaptainWeight > 0 ? totalCaptainCost / totalCaptainWeight : 0).toFixed(2)}</strong></span>
                                                 </div>
                                                 <DataGridPagination />
                                             </CardFooter>

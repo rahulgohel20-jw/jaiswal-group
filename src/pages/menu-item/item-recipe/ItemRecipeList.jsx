@@ -263,7 +263,7 @@ const ItemRecipeList = () => {
                                 : [];
 
             // Extract total count for pagination
-            const total =
+            let total =
                 payload.total != null
                     ? Number(payload.total)
                     : payload.totalElements != null
@@ -286,8 +286,8 @@ const ItemRecipeList = () => {
                     header.recipeRate != null && Number(header.recipeRate) > 0
                         ? header.recipeRate
                         : header.rate != null && Number(header.rate) > 0
-                        ? header.rate
-                        : header.totalCost ?? header.amount ?? 0
+                            ? header.rate
+                            : header.totalCost ?? header.amount ?? 0
                 );
 
                 const categoryName =
@@ -316,16 +316,20 @@ const ItemRecipeList = () => {
                 };
             });
 
-            setTotalCount(total);
-
-            // Handle unpaginated backend fallback
+            // Handle unpaginated backend fallback or filtered results smaller than page size
             if (rawList.length > pageSize) {
+                total = rawList.length;
                 const start = pageIndex * pageSize;
                 const end = start + pageSize;
                 setRecipes(mapped.slice(start, end));
             } else {
+                if (rawList.length < pageSize) {
+                    total = pageIndex * pageSize + rawList.length;
+                }
                 setRecipes(mapped);
             }
+
+            setTotalCount(total);
         } catch (err) {
             console.error('Failed to load item recipes:', err);
             setRecipes([]);
