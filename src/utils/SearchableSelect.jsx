@@ -4,7 +4,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Check, ChevronDown, Search, X, Loader2 } from "lucide-react";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 
 const inputCls =
@@ -26,8 +26,10 @@ const SearchableSelect = ({
   className = "",
   isClearable = true,
   hasMore = false,
+  loading = false,
   loadingMore = false,
   onLoadMore,
+  onSearch,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -73,11 +75,22 @@ const SearchableSelect = ({
 
   const selectedLabel = selectedOption?.label || "";
 
-  const filteredOptions = safeOptions.filter((option) =>
-    String(option?.label || "")
-      .toLowerCase()
-      .includes(search.trim().toLowerCase())
-  );
+  const filteredOptions = useMemo(() => {
+    if (!search.trim()) return safeOptions;
+    if (onSearch) {
+      const localMatches = safeOptions.filter((option) =>
+        String(option?.label || "")
+          .toLowerCase()
+          .includes(search.trim().toLowerCase())
+      );
+      return localMatches.length > 0 ? localMatches : safeOptions;
+    }
+    return safeOptions.filter((option) =>
+      String(option?.label || "")
+        .toLowerCase()
+        .includes(search.trim().toLowerCase())
+    );
+  }, [safeOptions, search, onSearch]);
 
   const handleSelect = (option) => {
     const isAlreadySelected = String(value) === String(option.value);
@@ -89,6 +102,7 @@ const SearchableSelect = ({
     });
 
     setSearch("");
+    onSearch?.("");
     setOpen(false);
   };
 
@@ -104,6 +118,7 @@ const SearchableSelect = ({
       },
     });
     setSearch("");
+    onSearch?.("");
     setOpen(false);
   };
 
@@ -111,6 +126,7 @@ const SearchableSelect = ({
     const inputValue = e.target.value;
     setSearch(inputValue);
     setOpen(true);
+    onSearch?.(inputValue);
     if (inputValue !== selectedLabel) {
       onChange({
         target: {
@@ -131,6 +147,9 @@ const SearchableSelect = ({
     if (disabled) return;
     setOpen(nextOpen);
     setSearch("");
+    if (!nextOpen) {
+      onSearch?.("");
+    }
   };
 
   const hasValue = Boolean(
@@ -246,6 +265,11 @@ const SearchableSelect = ({
                 </button>
               );
             })
+          ) : loading ? (
+            <div className="px-3 py-4 text-xs text-gray-500 text-center flex flex-col items-center justify-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-[#084E92]" />
+              <span>Searching...</span>
+            </div>
           ) : (
             <div className="px-3 py-4 text-xs text-gray-400 text-center flex flex-col items-center justify-center gap-1">
               <Search className="w-4 h-4 text-gray-300" />

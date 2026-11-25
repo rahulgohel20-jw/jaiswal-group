@@ -554,8 +554,13 @@ const ExportAssetsQR = () => {
         return outlet || (isOutletUser && (effectiveOutletId || selfOrg?.id || getOrgIdFromToken()) ? String(effectiveOutletId || selfOrg?.id || getOrgIdFromToken()) : '');
     }, [outlet, isOutletUser, effectiveOutletId, selfOrg]);
 
+    const [userSearch, setUserSearch] = useState('');
+    const userSearchRef = useRef('');
+    const userSearchTimerRef = useRef(null);
+    const [selectedUserObj, setSelectedUserObj] = useState(null);
+
     // Fetch HRMS Users when Custodian Type is USER
-    const fetchUsersPage = useCallback(async (pageToFetch = 0, isInitial = false) => {
+    const fetchUsersPage = useCallback(async (pageToFetch = 0, isInitial = false, searchTerm = userSearchRef.current) => {
         if (loadingUsersMoreRef.current) return;
         try {
             if (isInitial) {
@@ -575,6 +580,9 @@ const ExportAssetsQR = () => {
             }
             if (activeOutletId) {
                 params.outletId = Number(activeOutletId);
+            }
+            if (searchTerm && searchTerm.trim()) {
+                params.search = searchTerm.trim();
             }
 
             const res = await getHrmsUsersPaginated(params);
@@ -609,19 +617,46 @@ const ExportAssetsQR = () => {
         }
     }, [activeCompanyId, activeOutletId]);
 
+    // Debounced search handler for HRMS Users
+    const handleUserSearch = useCallback((searchTerm) => {
+        const term = searchTerm ?? '';
+        setUserSearch(term);
+        userSearchRef.current = term;
+
+        if (userSearchTimerRef.current) {
+            clearTimeout(userSearchTimerRef.current);
+        }
+
+        userSearchTimerRef.current = setTimeout(() => {
+            userPageRef.current = 0;
+            hasMoreUsersRef.current = true;
+            fetchUsersPage(0, true, term);
+        }, 350);
+    }, [fetchUsersPage]);
+
     useEffect(() => {
         if (custodianType === 'USER') {
             userPageRef.current = 0;
+            userSearchRef.current = '';
+            setUserSearch('');
             hasMoreUsersRef.current = true;
-            fetchUsersPage(0, true);
+            fetchUsersPage(0, true, '');
         }
     }, [custodianType, activeCompanyId, activeOutletId, fetchUsersPage]);
 
     const handleLoadMoreUsers = useCallback(() => {
         if (hasMoreUsersRef.current && !loadingUsersMoreRef.current) {
-            fetchUsersPage(userPageRef.current + 1, false);
+            fetchUsersPage(userPageRef.current + 1, false, userSearchRef.current);
         }
     }, [fetchUsersPage]);
+
+    useEffect(() => {
+        return () => {
+            if (userSearchTimerRef.current) {
+                clearTimeout(userSearchTimerRef.current);
+            }
+        };
+    }, []);
 
     // ALWAYS Fetch Assigned Assets by Org and Location (Never getAllAssets)
     const fetchAssignedAssets = useCallback(async (orgId, locationId = 0, filters = {}) => {
@@ -1059,28 +1094,32 @@ const ExportAssetsQR = () => {
         [departments]
     );
 
-    const userOptions = useMemo(
-        () =>
-            (hrmsUsers || []).map((u) => {
-                const name =
-                    u.empname ||
-                    u.empName ||
-                    u.fullName ||
-                    [u.firstName, u.lastName].filter(Boolean).join(' ') ||
-                    u.name ||
-                    u.userName ||
-                    u.email ||
-                    `User #${u.id}`;
-                const code = u.empcode || u.empCode || u.employeeCode || u.code || '';
-                const designation = u.designationName || u.designation || u.departmentName || '';
-                const nameWithCode = code ? `${name} - ${code}` : name;
-                return {
-                    value: String(u.id),
-                    label: designation ? `${nameWithCode} (${designation})` : nameWithCode,
-                };
-            }),
-        [hrmsUsers]
-    );
+    const userOptions = useMemo(() => {
+        const mapped = (hrmsUsers || []).map((u) => {
+            const name =
+                u.empname ||
+                u.empName ||
+                u.fullName ||
+                [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+                u.name ||
+                u.userName ||
+                u.email ||
+                `User #${u.id}`;
+            const code = u.empcode || u.empCode || u.employeeCode || u.code || '';
+            const designation = u.designationName || u.designation || u.departmentName || '';
+            const nameWithCode = code ? `${name} - ${code}` : name;
+            return {
+                value: String(u.id),
+                label: designation ? `${nameWithCode} (${designation})` : nameWithCode,
+            };
+        });
+
+        if (custodianValue && selectedUserObj && !mapped.some((o) => String(o.value) === String(custodianValue))) {
+            return [selectedUserObj, ...mapped];
+        }
+
+        return mapped;
+    }, [hrmsUsers, custodianValue, selectedUserObj]);
 
     if (!canView) {
         return <AccessDenied pageTitle="Export Assets QR" />;
@@ -1254,6 +1293,9 @@ const ExportAssetsQR = () => {
                                             onChange={(e) => {
                                                 setCustodianType(e.target.value);
                                                 setCustodianValue('');
+                                                setSelectedUserObj(null);
+                                                setUserSearch('');
+                                                userSearchRef.current = '';
                                                 setPickedAssets([]);
                                                 setSelectedAssets([]);
                                             }}
@@ -1286,21 +1328,26 @@ const ExportAssetsQR = () => {
                                             <SearchableSelect
                                                 name="custodianValue"
                                                 value={custodianValue}
-                                                disabled={(loadingUsers && userOptions.length === 0) || generatingQrs}
+                                                disabled={(loadingUsers && userOptions.length === 0 && !userSearch) || generatingQrs}
                                                 onChange={(e) => {
-                                                    setCustodianValue(e.target.value);
+                                                    const val = e.target.value;
+                                                    setCustodianValue(val);
+                                                    const found = userOptions.find((u) => String(u.value) === String(val));
+                                                    if (found) setSelectedUserObj(found);
                                                     setPickedAssets([]);
                                                     setSelectedAssets([]);
                                                 }}
                                                 options={userOptions}
                                                 placeholder={
-                                                    loadingUsers && userOptions.length === 0
+                                                    loadingUsers && userOptions.length === 0 && !userSearch
                                                         ? "Loading users..."
                                                         : "Select User"
                                                 }
+                                                loading={loadingUsers}
                                                 hasMore={hasMoreUsers}
                                                 loadingMore={loadingUsersMore}
                                                 onLoadMore={handleLoadMoreUsers}
+                                                onSearch={handleUserSearch}
                                                 isClearable={true}
                                             />
                                         ) : (
