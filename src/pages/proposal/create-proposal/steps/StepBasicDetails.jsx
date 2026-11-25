@@ -352,8 +352,19 @@ export const StepBasicDetails = ({
     if (!data.proposalTypeId) err.proposalType = 'Proposal type is required';
     if (!data.clientName?.trim()) err.clientName = 'Client name is required';
     if (!data.clientContactPerson?.trim()) err.clientContactPerson = 'Contact person is required';
-    if (!data.clientPhone?.trim()) err.clientPhone = 'Mobile number is required';
-    if (!data.clientEmail?.trim()) err.clientEmail = 'Email is required';
+    const cleanPhone = (data.clientPhone || '').replace(/\D/g, '');
+    if (!data.clientPhone?.trim()) {
+      err.clientPhone = 'Mobile number is required';
+    } else if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+      err.clientPhone = 'Please enter a valid 10-digit mobile number';
+    }
+
+    const cleanEmail = (data.clientEmail || '').trim();
+    if (!data.clientEmail?.trim()) {
+      err.clientEmail = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      err.clientEmail = 'Please enter a valid email address';
+    }
     if (!data.proposalDate) err.proposalDate = 'Proposal date is required';
     if (!data.validityDate) err.validityDate = 'Valid until date is required';
     if (!data.foodPreference) err.foodPreference = 'Food option is required';
@@ -369,8 +380,27 @@ export const StepBasicDetails = ({
 
   const handleDraftClick = (e) => {
     e?.preventDefault?.();
+    const err = {};
     if (!data.proposalTypeId) {
-      setErrors((prev) => ({ ...prev, proposalType: 'Proposal type is required' }));
+      err.proposalType = 'Proposal type is required';
+    }
+    const cleanEmail = (data.clientEmail || '').trim();
+    if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      err.clientEmail = 'Please enter a valid email address';
+    }
+    const cleanPhone = (data.clientPhone || '').replace(/\D/g, '');
+    if (cleanPhone && (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone))) {
+      err.clientPhone = 'Please enter a valid 10-digit mobile number';
+    }
+    if (Object.keys(err).length > 0) {
+      setErrors((prev) => ({ ...prev, ...err }));
+      if (err.clientEmail) {
+        toast.error(err.clientEmail);
+      } else if (err.clientPhone) {
+        toast.error(err.clientPhone);
+      } else if (err.proposalType) {
+        toast.error(err.proposalType);
+      }
       return;
     }
     onSaveDraft();
@@ -487,9 +517,13 @@ export const StepBasicDetails = ({
             </label>
             <input
               type="tel"
+              maxLength={10}
               value={data.clientPhone || ''}
-              onChange={(e) => handleFieldChange('clientPhone', e.target.value)}
-              placeholder="Enter mobile number"
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                handleFieldChange('clientPhone', digits);
+              }}
+              placeholder="Enter 10-digit mobile number"
               className={`w-full h-10 px-3.5 text-xs rounded-xl border bg-white focus:outline-none focus:ring-2 focus:ring-[#084E92]/15 transition ${errors.clientPhone ? 'border-red-500' : 'border-[#C3C6D1] focus:border-[#084E92]'
                 }`}
             />

@@ -62,10 +62,10 @@ export function Demo1Layout() {
 
       {!isMobile && <Sidebar />}
 
-      <div className="wrapper flex grow flex-col">
+      <div className="wrapper flex grow flex-col min-w-0 max-w-full overflow-x-hidden">
         <Header />
 
-        <main className="grow pt-1" role="content">
+        <main className="grow pt-1 min-w-0 max-w-full overflow-x-hidden" role="content">
           <Outlet />
         </main>
 
