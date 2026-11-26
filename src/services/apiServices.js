@@ -1154,15 +1154,17 @@ export const getHrmsUsersPaginated = (params = {}, search = '') => {
   }
   return GET('/hrms-users/getall/page', finalParams);
 };
-export const getAssignmentsByAssetId = (ids) => {
-
+export const getAssignmentsByAssetId = (ids, config = {}) => {
   if (!ids || (Array.isArray(ids) && ids.length === 0)) {
-    return GET('/assets/assignments');
+    return Promise.resolve({ data: { data: [] } });
   }
-  const idArray = Array.isArray(ids) ? ids : [ids];
-  const queryString = idArray.map((id) => `ids=${encodeURIComponent(id)}`).join('&');
+  const idArray = (Array.isArray(ids) ? ids : [ids]).filter(Boolean);
+  if (idArray.length === 0) {
+    return Promise.resolve({ data: { data: [] } });
+  }
+  const idsParam = idArray.join(',');
 
-  return GET(`/assets/assignments?${queryString}`);
+  return GET('/assets/assignments', { ids: idsParam }, config);
 };
 
 // ---- Purchase Requisition APIs ----
@@ -2992,3 +2994,15 @@ export const GenerateStoreIndent = (payload) => {
 export const GetAllMenuPlanByDay = (payload) => {
   return POST('/menu-plan/day/get-all', payload);
 };
+
+export const prefillProductionPlanFromMenu = (payload) => {
+  return POST('/production-plan/prefill-from-menu', payload);
+};
+
+export const PrefillProductionPlanFromMenu = prefillProductionPlanFromMenu;
+
+export const saveProductionPlan = (payload) => {
+  return POST('/production-plan/save', payload);
+};
+
+export const SaveProductionPlan = saveProductionPlan;

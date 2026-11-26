@@ -27,6 +27,14 @@ import { useOrgScope } from '@/hooks/useOrgScope';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toAbsoluteUrl } from '@/lib/helpers';
 
+const chunkIntoPairs = (arr) => {
+    const pairs = [];
+    for (let i = 0; i < arr.length; i += 2) {
+        pairs.push(arr.slice(i, i + 2));
+    }
+    return pairs;
+};
+
 // Directly encodes the raw UUID for scanner app integration
 const getAssetQRValue = (asset) => asset.uuid || String(asset.id || '');
 
@@ -781,8 +789,11 @@ const ExportAssetsQR = () => {
         const timer = setTimeout(async () => {
             try {
                 setAssetsLoading(true);
-                const isAllSelected = assets.length > 0 && pickedAssets.length === assets.length;
-                const queryParams = isAllSelected ? undefined : pickedAssets.map((a) => a.id);
+                const queryParams = pickedAssets.map((a) => a.id).filter(Boolean);
+                if (queryParams.length === 0) {
+                    setSelectedAssets([]);
+                    return;
+                }
 
                 const assignmentRes = await getAssignmentsByAssetId(queryParams, {
                     signal: controller.signal,
@@ -990,9 +1001,15 @@ const ExportAssetsQR = () => {
             setIsPrinting(true);
 
             setTimeout(() => {
+                const cleanup = () => {
+                    setIsPrinting(false);
+                    window.removeEventListener('afterprint', cleanup);
+                };
+                window.addEventListener('afterprint', cleanup);
                 window.print();
-                setIsPrinting(false);
-            }, 50);
+                // Fallback cleanup if afterprint doesn't trigger
+                setTimeout(cleanup, 1000);
+            }, 150);
         } catch (err) {
             console.error('Error generating asset QRs:', err);
         } finally {
@@ -1136,7 +1153,7 @@ const ExportAssetsQR = () => {
         }
         html, body {
             width: 4in !important;
-            height: 1in !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
@@ -1147,14 +1164,32 @@ const ExportAssetsQR = () => {
             display: none !important;
         }
         .qr-print-area {
-            display: flex !important;
-            flex-wrap: wrap !important;
+            display: block !important;
             width: 4in !important;
-            height: 1in !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
-            gap: 0 !important; /* Zero gap between labels */
             box-sizing: border-box !important;
+        }
+        .qr-print-page {
+            display: flex !important;
+            flex-direction: row !important;
+            width: 4in !important;
+            height: 1in !important;
+            min-height: 1in !important;
+            max-height: 1in !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
+            break-after: page !important;
+            page-break-after: always !important;
+            overflow: hidden !important;
+        }
+        .qr-print-page:last-child {
+            break-after: auto !important;
+            page-break-after: auto !important;
         }
         .asset-label {
             display: flex !important;
@@ -1168,7 +1203,7 @@ const ExportAssetsQR = () => {
             margin: 0 !important;
             padding: 0.08in 0.04in !important;
             box-sizing: border-box !important;
-            border: 1px solid #cbd5e1 !important; /* Sharp pure black border for clear separation */
+            border: 1px solid #cbd5e1 !important;
             border-radius: 6px !important;
             background-color: #ffffff !important;
             color: #000000 !important;
@@ -1181,14 +1216,8 @@ const ExportAssetsQR = () => {
         }
 
         /* Prevent double border in the middle where the two labels meet */
-        .asset-label:nth-child(2n) {
+        .asset-label + .asset-label {
             border-left: none !important;
-            page-break-after: always !important;
-            break-after: page !important;
-        }
-        .asset-label:last-child {
-            page-break-after: auto !important;
-            break-after: auto !important;
         }
         .asset-label svg {
             width: 0.75in !important;
@@ -1508,13 +1537,20 @@ const ExportAssetsQR = () => {
             </div>
 
             {isPrinting && createPortal(
-                <div className="qr-print-area hidden print:flex print:flex-wrap">
-                    {generatedPrintItems.map((a, index) => (
-                        <AssetLabel
-                            key={`print-${a.rowKey}-${a.printIndex}-${index}`}
-                            asset={a}
-                            qrSize={60}
-                        />
+                <div className="qr-print-area hidden print:block">
+                    {chunkIntoPairs(generatedPrintItems).map((pair, pageIndex) => (
+                        <div
+                            key={`print-page-${pageIndex}`}
+                            className="qr-print-page"
+                        >
+                            {pair.map((a, itemIndex) => (
+                                <AssetLabel
+                                    key={`print-${a.rowKey}-${a.printIndex}-${itemIndex}`}
+                                    asset={a}
+                                    qrSize={60}
+                                />
+                            ))}
+                        </div>
                     ))}
                 </div>,
                 document.body
