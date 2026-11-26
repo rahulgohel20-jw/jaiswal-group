@@ -172,6 +172,7 @@ import MenuPlanDetails from '../pages/production/menu-planning/MealPlanDetails';
 import MenuPlanListing from '../pages/production/menu-planning/MenuPlanningListing';
 import MenuRecipeCosting from '../pages/production/menu-planning/MenuRecipeCosting';
 import StoreIndent from '../pages/production/store-indent/StoreIndent';
+import DayWiseProductionPlan from '../pages/production/day-wise-plan/DayWiseProductionPlan';
 import ProductionPlanListing from '../pages/production/plans/ProductionPlanListing';
 import CreateProductionPlan from '../pages/production/plans/CreateProductionPlan';
 import RecipeAllocation from '../pages/production/plans/RecipeAllocation';
@@ -577,6 +578,10 @@ export function AppRoutingSetup() {
           <Route
             path="/production/store-indent"
             element={<StoreIndent />}
+          />
+          <Route
+            path="/production/day-wise-production-plan"
+            element={<DayWiseProductionPlan />}
           />
           <Route
             path="/production/menu-planning/details/:id"

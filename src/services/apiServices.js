@@ -2988,3 +2988,7 @@ export const updateMenuPlanShiftStatus = (payload) => {
 export const GenerateStoreIndent = (payload) => {
   return POST('/menu-plan/store-indent/generate', payload);
 };
+
+export const GetAllMenuPlanByDay = (payload) => {
+  return POST('/menu-plan/day/get-all', payload);
+};
