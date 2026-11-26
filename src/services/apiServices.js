@@ -244,6 +244,9 @@ export const getRegisteredCompany = () => {
 export const getActiveCompany = () => {
   return GET('/organization/get-all-active');
 };
+export const getAllActiveOrganizations = () => {
+  return GET('/organization/get-all-active');
+};
 export const getCompanyById = (id) => {
   return GET(`/organization/get/${id}`);
 };
@@ -525,6 +528,12 @@ export const getAllActiveSubOutlets = () => {
 export const getAllSubOutletsByOrganization = (organizationId) => {
   return GET(`/sub-outlet/get-all-by-organization/${organizationId}`);
 };
+export const getSubOutletsByOrganization = (organizationId) => {
+  return GET(`/sub-outlet/get-all-by-organization/${organizationId}`);
+};
+export const GetAllStoreByOrg = (payload) => {
+  return POST('/sub-outlet/get-by-type', payload);
+};
 
 export const getAllOutletsWithSubOutlets = () => {
   return GET('/sub-outlet/get-all-outlets-with-suboutlets');
@@ -567,6 +576,9 @@ export const getAllActiveSubLocations = () => {
 };
 
 export const getAllSubLocationsByOrganizationId = (organizationId) => {
+  return GET(`/sub-location/get-all-by-organization/${organizationId}`);
+};
+export const getSubLocationsByOrganization = (organizationId) => {
   return GET(`/sub-location/get-all-by-organization/${organizationId}`);
 };
 
@@ -947,16 +959,14 @@ export const deleteRawMaterialBrandById = (id) => {
 //STATE API
 let statesCachePromise = null;
 export const getAllStates = () => {
-  {
-    if (!statesCachePromise) {
-      statesCachePromise = GET('/state/getall').catch((err) => {
-        statesCachePromise = null;
-        throw err;
-      });
-    }
-    return statesCachePromise;
-  };
-}
+  if (!statesCachePromise) {
+    statesCachePromise = GET('/state/getall').catch((err) => {
+      statesCachePromise = null;
+      throw err;
+    });
+  }
+  return statesCachePromise;
+};
 
 export const addState = (payload) => {
   return POST('/state/create', payload)
@@ -1574,7 +1584,9 @@ export const getOpbList = (params) => {
 }
 export const getOpbById = (id) => {
   return GET(`/stock-opb/${id}`);
-};//Purchase Invoice API
+};
+
+//Purchase Invoice API
 export const getEligibleGrns = ({ outletId, vendorId } = {}) => {
   const params = {};
 
@@ -1957,7 +1969,7 @@ export const getAllAssetAuditEvents = (params) => {
   return GET('/asset-audit/getall', params);
 };
 
-//  Meal Type API
+// Meal Type API
 export const getAllMealTypes = () => {
   return GET(`/meal-type/get-all`);
 };
@@ -2853,10 +2865,6 @@ export const getEligibleInvoices = (params = {}) => {
   return GET('/purchase-invoice/eligible-invoices', params);
 };
 
-export const getRecipeCosting = (menuItemId, params) => {
-  return GET(`/recipe-costing/${menuItemId}`, params);
-};
-
 export const getAllDebitCreditNotesPaginated = (params = {}) => {
   return GET('/debit-credit-note/getall', params);
 };
@@ -2883,4 +2891,100 @@ export const cancelDebitCreditNote = (id, userId, reason) => {
 
 export const getNotesByPurchaseInvoiceId = (invoiceId) => {
   return GET(`/debit-credit-note/by-invoice/${invoiceId}`);
+};
+
+export const getRecipeCosting = (menuItemId, params) => {
+  return GET(`/recipe-costing/${menuItemId}`, params);
+};
+
+export const calculatePortion = (payload) => {
+  return POST('/recipe-costing/portion-calculator', payload);
+};
+
+// ---- Menu Planning APIs ----
+export const getDashboardSummary = (organizationId, subOutletId = null) => {
+  const params =
+    typeof organizationId === 'object' && organizationId !== null
+      ? organizationId
+      : organizationId !== undefined && organizationId !== null
+        ? { organizationId, ...(subOutletId && { subOutletId }) }
+        : {};
+  return GET('/menu-plan/dashboard-summary', params);
+};
+
+export const getAllMenuPlans = ({ page, pageNo, size, pageSize, ...payload } = {}) => {
+  return POST('/menu-plan/get-all', payload, {
+    params: {
+      page: page ?? pageNo ?? 0,
+      size: size ?? pageSize ?? 10,
+    },
+  });
+};
+
+export const saveOrUpdateMenuPlan = (payload) => {
+  return POST('/menu-plan/save', payload);
+};
+
+export const getMenuPlanById = (id) => {
+  return GET(`/menu-plan/get/${id}`);
+};
+
+export const getMenuPlanDayById = (dayId) => {
+  return GET(`/menu-plan/day/get/${dayId}`);
+};
+
+export const saveShiftRecipes = (payload) => {
+  return POST('/menu-plan/day/shift/save', payload);
+};
+
+export const deleteMenuPlanById = (id) => {
+  return DELETE(`/menu-plan/delete/${id}`);
+}
+export const updateMenuPlanStatus = (payload) => {
+  return PUT('/menu-plan/update-status', {
+    menuPlanId: Number(payload.menuPlanId),
+    rejectionReason: payload.rejectionReason || '',
+    remarks: payload.remarks || '',
+    status: payload.status,
+    userId: Number(payload.userId),
+  });
+};
+export const updateMenuPlanDayStatus = (payload) => {
+  return PUT('/menu-plan/day/update-status', {
+    menuPlanDayIds: Array.isArray(payload.menuPlanDayIds)
+      ? payload.menuPlanDayIds.map(Number)
+      : [Number(payload.menuPlanDayId)],
+    ...(payload.menuPlanDayId ? { menuPlanDayId: Number(payload.menuPlanDayId) } : {}),
+    rejectionReason: payload.rejectionReason || '',
+    remarks: payload.remarks || '',
+    status: payload.status,
+    userId: Number(payload.userId),
+  });
+};
+export const updateMenuPlanShiftStatus = (payload) => {
+  const mealTypeIds = Array.isArray(payload.mealTypeId)
+    ? payload.mealTypeId.map(Number)
+    : payload.mealTypeId !== undefined && payload.mealTypeId !== null
+      ? [Number(payload.mealTypeId)]
+      : [];
+
+  const shiftIds = Array.isArray(payload.menuPlanShiftId)
+    ? payload.menuPlanShiftId.map(Number)
+    : payload.menuPlanShiftId !== undefined && payload.menuPlanShiftId !== null
+      ? [Number(payload.menuPlanShiftId)]
+      : [];
+
+  return PUT('/menu-plan/shift/update-status', {
+    mealTypeId: mealTypeIds,
+    menuPlanDayId: Number(payload.menuPlanDayId),
+    menuPlanShiftId: shiftIds,
+    rejectionReason: payload.rejectionReason || '',
+    remarks: payload.remarks || '',
+    status: payload.status,
+    userId: Number(payload.userId),
+  });
+};
+
+export const GenerateStoreIndent = (payload) => {
+  return POST('/menu-plan/store-indent/generate', payload);
 };

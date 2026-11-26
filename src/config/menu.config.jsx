@@ -453,7 +453,7 @@ export const MENU_SIDEBAR = [
 
     children: [
       { title: 'Vendors', path: '/vendors' },
-      {title: 'Vendor Unit Mapping', path: '/vendor-unit-mapping'}
+      { title: 'Vendor Unit Mapping', path: '/vendor-unit-mapping' }
     ],
   },
   {
@@ -470,8 +470,8 @@ export const MENU_SIDEBAR = [
         path: '/purchase-order-request/purchase',
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
-      { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
-      { title: 'Purchase Invoice Report', path: '/purchase/invoice-listing'}
+      { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice' },
+      { title: 'Purchase Invoice Report', path: '/purchase/invoice-listing' }
     ],
   },
   {
@@ -495,6 +495,15 @@ export const MENU_SIDEBAR = [
     ],
   },
   {
+    title: 'Production',
+    icon: PackageSearch,
+    children: [
+      { title: 'Menu Planning', path: '/production/menu-planning' },
+      { title: 'Approve Menu Plan', path: '/production/approve-menu-plan' },
+      { title: 'Store Indent', path: '/production/store-indent' },
+    ]
+  },
+  {
     title: 'Inventory',
     icon: Archive,
     children: [
@@ -506,10 +515,10 @@ export const MENU_SIDEBAR = [
       { title: 'STR Discrepancy Approval', path: '/inventory/str-discrepancy-approval' },
       { title: 'STR Received', path: '/inventory/transfer-receive-requests' },
       { title: 'OPB Stock', path: '/inventory/opb-stock-create-request-list' },
-      { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'},
-      { title: 'General Stock Ledger', path: '/inventory/general-stock-ledger'},
-      { title: 'Raw Material Barcode', path: '/inventory/raw-material-barcode'},
-      { title: 'Raw Material Batch Details', path: '/inventory/raw-material-batch-details'},
+      { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing' },
+      { title: 'General Stock Ledger', path: '/inventory/general-stock-ledger' },
+      { title: 'Raw Material Barcode', path: '/inventory/raw-material-barcode' },
+      { title: 'Raw Material Batch Details', path: '/inventory/raw-material-batch-details' },
     ],
   },
   {
@@ -521,7 +530,7 @@ export const MENU_SIDEBAR = [
       { title: 'Sub Categories', path: '/material/sub-categories' },
       { title: 'Raw Material Items', path: '/material/items' },
       { title: 'Vendor Price Association', path: '/material/vendor-price-association' },
-      { title: 'Vendor Price Approval', path:'/material/vendor-price-approval'},
+      { title: 'Vendor Price Approval', path: '/material/vendor-price-approval' },
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
       { title: 'Brand Unit Mapping', path: '/material/brand-unit-mapping' },
@@ -627,9 +636,38 @@ export const MENU_SIDEBAR_ADMIN = [
         path: '/purchase-order-request/purchase',
       },
       { title: 'Approve Purchase Order', path: '/purchase/approved-order' },
-      { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice'},
-      { title: 'Purchase Invoice Report', path: '/purchase/invoice-listing'},
-      { title: 'Debit Note Report', path: '/purchase/debit-credit-notes'},
+      { title: 'Generate Purchase Invoice', path: '/purchase/purchase-invoice' },
+      { title: 'Purchase Invoice Report', path: '/purchase/invoice-listing' },
+      { title: 'Debit Note Report', path: '/purchase/debit-credit-notes' },
+    ],
+  },
+  {
+    title: 'Proposal',
+    icon: LayoutGrid,
+    children: [
+      {
+        title: 'Masters',
+        icon: Settings,
+        children: [
+          { title: 'Meal Type Master', path: '/proposal/meal-type-master' },
+          { title: 'Meal Slot Master', path: '/proposal/meal-slot-master' },
+          { title: 'Meal Structure Master', path: '/proposal/meal-structure-master' },
+          { title: 'Man Power Master', path: '/proposal/man-power-master' },
+          { title: 'Cost Type Master', path: '/proposal/cost-type-master' },
+          { title: 'Proposal Type Master', path: '/proposal/proposal-type-master' },
+        ],
+      },
+      { title: 'Proposal', path: '/proposal' },
+      { title: 'Proposal Approval', path: '/proposals-approval' },
+    ],
+  },
+  {
+    title: 'Production',
+    icon: PackageSearch,
+    children: [
+      { title: 'Menu Planning', path: '/production/menu-planning' },
+      { title: 'Approve Menu Plan', path: '/production/approve-menu-plan' },
+      { title: 'Store Indent', path: '/production/store-indent' },
     ],
   },
   {
@@ -644,9 +682,9 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'STR Discrepancy Approval', path: '/inventory/str-discrepancy-approval' },
       { title: 'STR Received', path: '/inventory/stock-transfer-receive-requests' },
       { title: 'OPB Stock', path: '/inventory/opb-stock-create-request-list' },
-      { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing'},
-      { title: 'Raw Material Barcode', path: '/inventory/raw-material-barcode'},
-      { title: 'Raw Material Batch Details', path: '/inventory/raw-material-batch-details'},
+      { title: 'Manual Adjustment', path: '/inventory/manual-adjustment-listing' },
+      { title: 'Raw Material Barcode', path: '/inventory/raw-material-barcode' },
+      { title: 'Raw Material Batch Details', path: '/inventory/raw-material-batch-details' },
     ],
   },
   {
@@ -657,7 +695,7 @@ export const MENU_SIDEBAR_ADMIN = [
       { title: 'Categories', path: '/material/categories' },
       { title: 'Raw Material Items', path: '/material/items' },
       { title: 'Vendor Price Association', path: '/material/vendor-price-association' },
-      { title: 'Vendor Price Approval', path:'/material/vendor-price-approval'},
+      { title: 'Vendor Price Approval', path: '/material/vendor-price-approval' },
       { title: 'Raw Material Unit Master', path: '/material/unit-master' },
       { title: 'Raw Material Brand Master', path: '/material/brand-master' },
       { title: 'Brand Unit Mapping', path: '/material/brand-unit-mapping' },
@@ -665,7 +703,7 @@ export const MENU_SIDEBAR_ADMIN = [
         title: 'Category Brand Mapping',
         path: '/material/category-brand-mapping',
       },
-      
+
     ],
   },
   {

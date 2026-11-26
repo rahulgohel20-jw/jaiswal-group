@@ -50,6 +50,8 @@ export const PAGE_ALIASES = {
   'grn': ['grn list', 'grn listing', 'grn', 'goods received note', 'goods received notes'],
 
   // Other Inventory & Material aliases
+  'store indent': ['store indent', 'generate store indent', 'production store indent', 'raw material requirement'],
+  'generate store indent': ['store indent', 'generate store indent', 'production store indent', 'raw material requirement'],
   'return and replacement': ['return and replacement', 'return replacement', 'return & replacement'],
   'opening balance stock': ['opening balance stock', 'opb stock', 'opb stock create request'],
   'manual stock adjustment': ['manual stock adjustment', 'manual adjustment', 'manual adjustment screen'],
