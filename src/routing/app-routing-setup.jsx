@@ -172,6 +172,17 @@ import MenuPlanDetails from '../pages/production/menu-planning/MealPlanDetails';
 import MenuPlanListing from '../pages/production/menu-planning/MenuPlanningListing';
 import MenuRecipeCosting from '../pages/production/menu-planning/MenuRecipeCosting';
 import StoreIndent from '../pages/production/store-indent/StoreIndent';
+import ProductionPlanListing from '../pages/production/plans/ProductionPlanListing';
+import CreateProductionPlan from '../pages/production/plans/CreateProductionPlan';
+import RecipeAllocation from '../pages/production/plans/RecipeAllocation';
+import MaterialSourcing from '../pages/production/plans/MaterialSourcing';
+import StoreIssueRegister from '../pages/production/store-issue/StoreIssueRegister';
+import StoreIssueConfirmation from '../pages/production/store-issue/StoreIssueConfirmation';
+import ProductionExecution from '../pages/production/execution/ProductionExecution';
+import PreparationWasteEntry from '../pages/production/prep-waste/PreparationWasteEntry';
+import FoodTransferTracker from '../pages/production/transfers/FoodTransferTracker';
+import PlateWasteRegister from '../pages/production/plate-waste/PlateWasteRegister';
+import PlateWasteRecording from '../pages/production/plate-waste/PlateWasteRecording';
 import TaskViewDashboard from '../pages/Projectscreen/TaskViewDashboard/TaskViewDashboard';
 import PurchaseOrderApproved from '../pages/purchase-approved-order/PurchaseOrderApproved';
 import DebitCreditEligibleInvoices from '../pages/purchase-credit-debite-note/DebitCreditEligibleInvoices';
@@ -571,6 +582,19 @@ export function AppRoutingSetup() {
             path="/production/menu-planning/details/:id"
             element={<MenuPlanDetails />}
           />
+
+          {/* Production Module Screens (UI Only) */}
+          <Route path="/production/plans" element={<ProductionPlanListing />} />
+          <Route path="/production/plans/create" element={<CreateProductionPlan />} />
+          <Route path="/production/plans/:planId/allocation" element={<RecipeAllocation />} />
+          <Route path="/production/plans/:planId/sourcing" element={<MaterialSourcing />} />
+          <Route path="/production/store-issues" element={<StoreIssueRegister />} />
+          <Route path="/production/plans/:planId/store-issue" element={<StoreIssueConfirmation />} />
+          <Route path="/production/plans/:planId/execution" element={<ProductionExecution />} />
+          <Route path="/production/plans/:planId/prep-waste" element={<PreparationWasteEntry />} />
+          <Route path="/production/transfers" element={<FoodTransferTracker />} />
+          <Route path="/production/plate-waste" element={<PlateWasteRegister />} />
+          <Route path="/production/plate-waste/create" element={<PlateWasteRecording />} />
 
           <Route
             path="/menu-item/captain-recipe"
