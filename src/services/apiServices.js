@@ -2992,3 +2992,34 @@ export const GenerateStoreIndent = (payload) => {
 export const GetAllMenuPlanByDay = (payload) => {
   return POST('/menu-plan/day/get-all', payload);
 };
+
+
+export const GetAllPrepWaste = (payload) => {
+  return POST('/production-plan/prep-waste/get-all', payload);
+};
+
+export const SavePreWaste = (payload) => {
+  return POST('/production-plan/prep-waste/save', payload);
+};
+
+// ---- Production Execution APIs ----
+export const getProductionExecution = (payload) => {
+  return POST('/production-plan/execution/get', payload, { skipGlobalToast: true });
+};
+
+export const saveProductionExecutionItem = (payload) => {
+  return POST('/production-plan/execution/item/save', payload, { skipGlobalToast: true });
+};
+
+export const saveProductionExecutionDraft = (payload) => {
+  return POST('/production-plan/execution/save-draft', payload, { skipGlobalToast: true });
+};
+
+export const completeProductionExecution = (payload) => {
+  return POST('/production-plan/execution/complete', payload, { skipGlobalToast: true });
+};
+
+export const getAllProductionExecutions = (payload) => {
+  return POST('/production-plan/execution/get-all', payload, { skipGlobalToast: true });
+};
+

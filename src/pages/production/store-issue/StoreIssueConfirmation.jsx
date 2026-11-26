@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import {
   ArrowLeft,
   Calendar,
@@ -28,7 +28,9 @@ import { notify } from '@/utils/toast';
 
 export const StoreIssueConfirmation = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { planId = '1' } = useParams();
+  const returnTo = location.state?.returnTo || '/production/store-issues';
 
   const [mealType, setMealType] = useState('Lunch');
   const [items, setItems] = useState(MOCK_STORE_ISSUE_CONFIRMATION_ITEMS);
@@ -70,7 +72,7 @@ export const StoreIssueConfirmation = () => {
 
   const handleConfirmIssue = () => {
     notify.success('Store stock issued successfully! Deducted from Maruti Main Store.');
-    navigate(`/production/plans/${planId}/execution`);
+    navigate(returnTo);
   };
 
   const shortfallItems = items.filter((i) => i.isShortfall);
