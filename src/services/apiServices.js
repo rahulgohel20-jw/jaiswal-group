@@ -1131,13 +1131,28 @@ export const updateAssignAsset = (payload) => {
 export const deleteAssignAsset = (id) => {
   return DELETE('/assign-assets/delete', { id });
 };
-export const getAssignedAssetsByOrgAndSubOutlet = (orgId, assetUnitLocationId = 0) => {
-  return GET(`/assets/assigned-by-location?organizationId=${orgId}&assetUnitLocationId=${assetUnitLocationId}`);
+export const getAssignedAssetsByOrgAndSubOutlet = (orgId, assetUnitLocationId = 0, filters = {}) => {
+  const params = {
+    organizationId: orgId,
+    assetUnitLocationId: assetUnitLocationId || 0,
+  };
+  if (filters?.brandId) params.brandId = filters.brandId;
+  if (filters?.categoryId) params.categoryId = filters.categoryId;
+  if (filters?.custodianType && filters?.custodianValue) {
+    params.custodianType = filters.custodianType;
+    params.custodianValue = filters.custodianValue;
+  }
+
+  return GET('/assets/assigned-by-location', params);
 }
 
 // ---- HRMS User APIs ----
-export const getHrmsUsersPaginated = (params = {}) => {
-  return GET('/hrms-users/getall/page', params);
+export const getHrmsUsersPaginated = (params = {}, search = '') => {
+  let finalParams = typeof params === 'object' && params !== null ? { ...params } : {};
+  if (search && !finalParams.search) {
+    finalParams.search = search;
+  }
+  return GET('/hrms-users/getall/page', finalParams);
 };
 export const getAssignmentsByAssetId = (ids) => {
 
