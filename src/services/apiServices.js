@@ -1137,8 +1137,12 @@ export const getAssignedAssetsByOrgAndSubOutlet = (orgId, assetUnitLocationId = 
 }
 
 // ---- HRMS User APIs ----
-export const getHrmsUsersPaginated = (params = {}) => {
-  return GET('/hrms-users/getall/page', params);
+export const getHrmsUsersPaginated = (params = {}, search = '') => {
+  let finalParams = typeof params === 'object' && params !== null ? { ...params } : {};
+  if (search && !finalParams.search) {
+    finalParams.search = search;
+  }
+  return GET('/hrms-users/getall/page', finalParams);
 };
 export const getAssignmentsByAssetId = (ids) => {
 
