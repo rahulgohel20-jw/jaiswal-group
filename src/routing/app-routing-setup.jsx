@@ -224,6 +224,7 @@ import DebitCreditNoteCreate from '../pages/purchase-credit-debite-note/DebitCre
 import DebitCreditNoteDetails from '../pages/purchase-credit-debite-note/DebitCreditNoteDetails';
 import ProposalListing from '../pages/proposal/ProposalListing';
 import ProposalApproval from '../pages/proposal/ProposalApproval';
+import ProposalView from '../pages/proposal/ProposalView';
 import CreateProposal from '../pages/proposal/create-proposal/CreateProposal';
 import MealTypeListing from '../pages/proposal/meal-type-master/MealTypeListing';
 import MealSlotListing from '../pages/proposal/meal-slot-master/MealSlotListing';
@@ -527,6 +528,9 @@ export function AppRoutingSetup() {
           />
           <Route path="/proposal" element={<ProposalListing />} />
           <Route path="/proposals" element={<ProposalListing />} />
+          <Route path="/proposal/view/:id" element={<ProposalView />} />
+          <Route path="/proposals/:id" element={<ProposalView />} />
+          <Route path="/proposals/view/:id" element={<ProposalView />} />
           <Route path="/proposals-approval" element={<ProposalApproval />} />
           <Route path="/proposal/approval" element={<ProposalApproval />} />
           <Route path="/proposals/approval" element={<ProposalApproval />} />

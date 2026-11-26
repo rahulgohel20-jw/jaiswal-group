@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { Container } from "@/components/common/container";
 import { PageHeader } from '@/components/common/PageHeader';
 import { CheckCircle2, QrCode, Trash2, X, ChevronDown } from 'lucide-react';
@@ -9,6 +9,11 @@ import {
     getChildrenByParentId,
     getAssetUnitLocationsByOrganization,
     createAssetQrBulk,
+    getAssetCategories,
+    getActiveAssetBrands,
+    getAssetBrands,
+    getAllDepartmentMaster,
+    getHrmsUsersPaginated,
 } from '../../../services/apiServices';
 import { OrgTypes } from '@/constants/orgTypes';
 import { getOrgIdFromToken, getUserIdFromToken } from '@/utils/auth';
@@ -271,6 +276,11 @@ export const AssetMultiSelect = ({
     );
 };
 
+const CUSTODIAN_TYPE_OPTIONS = [
+    { value: 'USER', label: 'User' },
+    { value: 'DEPT', label: 'Department' },
+];
+
 const ExportAssetsQR = () => {
     const { canView } = usePagePermissions('Export Assets QR');
 
@@ -293,6 +303,25 @@ const ExportAssetsQR = () => {
     const [company, setCompany] = useState('');
     const [outlet, setOutlet] = useState('');
     const [location, setLocation] = useState('');
+    const [custodianType, setCustodianType] = useState('');
+    const [custodianValue, setCustodianValue] = useState('');
+    const [categoryId, setCategoryId] = useState('');
+    const [brandId, setBrandId] = useState('');
+
+    // Additional filter dropdown lists & loading states
+    const [categories, setCategories] = useState([]);
+    const [loadingCategories, setLoadingCategories] = useState(false);
+    const [brands, setBrands] = useState([]);
+    const [loadingBrands, setLoadingBrands] = useState(false);
+    const [departments, setDepartments] = useState([]);
+    const [loadingDepartments, setLoadingDepartments] = useState(false);
+    const [hrmsUsers, setHrmsUsers] = useState([]);
+    const [loadingUsers, setLoadingUsers] = useState(false);
+    const [loadingUsersMore, setLoadingUsersMore] = useState(false);
+    const [hasMoreUsers, setHasMoreUsers] = useState(false);
+    const userPageRef = useRef(0);
+    const hasMoreUsersRef = useRef(false);
+    const loadingUsersMoreRef = useRef(false);
 
     // Filter loading states
     const [loadingCompanies, setLoadingCompanies] = useState(false);
@@ -377,6 +406,7 @@ const ExportAssetsQR = () => {
         setCompany(newCompanyId);
         setOutlet('');
         setLocation('');
+        setCustodianValue('');
         setPickedAssets([]);
         setSelectedAssets([]);
 
@@ -427,8 +457,174 @@ const ExportAssetsQR = () => {
         fetchLocationsData();
     }, [outlet]);
 
+    // Load Categories on mount
+    useEffect(() => {
+        let cancelled = false;
+        const fetchCategories = async () => {
+            setLoadingCategories(true);
+            try {
+                const res = await getAssetCategories();
+                const raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+                const list = Array.isArray(raw) ? raw : [];
+                if (!cancelled) {
+                    setCategories(list.filter((c) => c.active !== false && c.isActive !== false));
+                }
+            } catch (err) {
+                console.error('Failed to load asset categories:', err);
+                if (!cancelled) setCategories([]);
+            } finally {
+                if (!cancelled) setLoadingCategories(false);
+            }
+        };
+
+        fetchCategories();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // Load Brands on mount
+    useEffect(() => {
+        let cancelled = false;
+        const fetchBrands = async () => {
+            setLoadingBrands(true);
+            try {
+                let res = await getActiveAssetBrands();
+                let raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+                if (!Array.isArray(raw) || raw.length === 0) {
+                    res = await getAssetBrands();
+                    raw = res?.data?.data ?? res?.data?.content ?? res?.data ?? [];
+                }
+                const list = Array.isArray(raw) ? raw : [];
+                if (!cancelled) {
+                    setBrands(list.filter((b) => b.active !== false && b.isActive !== false));
+                }
+            } catch (err) {
+                console.error('Failed to load asset brands:', err);
+                if (!cancelled) setBrands([]);
+            } finally {
+                if (!cancelled) setLoadingBrands(false);
+            }
+        };
+
+        fetchBrands();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // Fetch Departments when Custodian Type is DEPT
+    const fetchDepartments = useCallback(async () => {
+        try {
+            setLoadingDepartments(true);
+            const res = await getAllDepartmentMaster();
+            const raw = res?.data?.data ?? res?.data;
+            const list = Array.isArray(raw?.['Department Details'])
+                ? raw['Department Details']
+                : Array.isArray(raw?.departmentDetails)
+                ? raw.departmentDetails
+                : Array.isArray(raw)
+                ? raw
+                : Array.isArray(raw?.content)
+                ? raw.content
+                : Array.isArray(res?.data)
+                ? res.data
+                : [];
+            setDepartments(list.filter((d) => d.active !== false && d.isActive !== false));
+        } catch (err) {
+            console.error('Failed to load departments:', err);
+            setDepartments([]);
+        } finally {
+            setLoadingDepartments(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (custodianType === 'DEPT' && departments.length === 0) {
+            fetchDepartments();
+        }
+    }, [custodianType, departments.length, fetchDepartments]);
+
+    // Active Company & Outlet for HRMS Users
+    const activeCompanyId = useMemo(() => {
+        return company || (isCompanyUser && (selfOrg?.id || getOrgIdFromToken()) ? String(selfOrg?.id || getOrgIdFromToken()) : '');
+    }, [company, isCompanyUser, selfOrg]);
+
+    const activeOutletId = useMemo(() => {
+        return outlet || (isOutletUser && (effectiveOutletId || selfOrg?.id || getOrgIdFromToken()) ? String(effectiveOutletId || selfOrg?.id || getOrgIdFromToken()) : '');
+    }, [outlet, isOutletUser, effectiveOutletId, selfOrg]);
+
+    // Fetch HRMS Users when Custodian Type is USER
+    const fetchUsersPage = useCallback(async (pageToFetch = 0, isInitial = false) => {
+        if (loadingUsersMoreRef.current) return;
+        try {
+            if (isInitial) {
+                setLoadingUsers(true);
+            } else {
+                loadingUsersMoreRef.current = true;
+                setLoadingUsersMore(true);
+            }
+
+            const params = {
+                page: pageToFetch,
+                pageSize: 50,
+                size: 50,
+            };
+            if (activeCompanyId) {
+                params.companyId = Number(activeCompanyId);
+            }
+            if (activeOutletId) {
+                params.outletId = Number(activeOutletId);
+            }
+
+            const res = await getHrmsUsersPaginated(params);
+            const raw = res?.data?.data ?? res?.data;
+            const content = Array.isArray(raw?.content)
+                ? raw.content
+                : Array.isArray(raw)
+                ? raw
+                : Array.isArray(res?.data?.content)
+                ? res.data.content
+                : [];
+            const isLast = raw?.last ?? (content.length < 50);
+
+            setHrmsUsers((prev) => {
+                if (pageToFetch === 0) {
+                    return content;
+                }
+                const existingIds = new Set(prev.map((u) => String(u.id)));
+                const newItems = content.filter((u) => !existingIds.has(String(u.id)));
+                return [...prev, ...newItems];
+            });
+
+            userPageRef.current = pageToFetch;
+            hasMoreUsersRef.current = !isLast;
+            setHasMoreUsers(!isLast);
+        } catch (err) {
+            console.error('Failed to load HRMS users:', err);
+        } finally {
+            if (isInitial) setLoadingUsers(false);
+            loadingUsersMoreRef.current = false;
+            setLoadingUsersMore(false);
+        }
+    }, [activeCompanyId, activeOutletId]);
+
+    useEffect(() => {
+        if (custodianType === 'USER') {
+            userPageRef.current = 0;
+            hasMoreUsersRef.current = true;
+            fetchUsersPage(0, true);
+        }
+    }, [custodianType, activeCompanyId, activeOutletId, fetchUsersPage]);
+
+    const handleLoadMoreUsers = useCallback(() => {
+        if (hasMoreUsersRef.current && !loadingUsersMoreRef.current) {
+            fetchUsersPage(userPageRef.current + 1, false);
+        }
+    }, [fetchUsersPage]);
+
     // ALWAYS Fetch Assigned Assets by Org and Location (Never getAllAssets)
-    const fetchAssignedAssets = useCallback(async (orgId, locationId = 0) => {
+    const fetchAssignedAssets = useCallback(async (orgId, locationId = 0, filters = {}) => {
         if (!orgId) {
             setAssets([]);
             return [];
@@ -438,7 +634,8 @@ const ExportAssetsQR = () => {
             setAssetsLoading(true);
             const assetRes = await getAssignedAssetsByOrgAndSubOutlet(
                 Number(orgId),
-                Number(locationId || 0)
+                Number(locationId || 0),
+                filters
             );
             const rawAssets = assetRes?.data?.data ?? assetRes?.data ?? assetRes ?? [];
             const rawList = Array.isArray(rawAssets) ? rawAssets : Object.values(rawAssets);
@@ -454,8 +651,8 @@ const ExportAssetsQR = () => {
                 const rowQty = Number(assignment?.quantity ?? asset.quantity ?? asset.totalQuantity ?? 1);
                 const locId = assignment?.assetUnitLocationId ?? assignment?.locationId ?? asset?.assetUnitLocationId ?? asset?.locationId ?? null;
                 const locName = assignment?.assetUnitLocationName ?? assignment?.locationName ?? asset?.assetUnitLocationName ?? asset?.locationName ?? '';
-                const custodianType = assignment?.custodianType ?? asset?.custodianType ?? item?.custodianType ?? null;
-                const custodianValue = assignment?.custodianValue ?? asset?.custodianValue ?? item?.custodianValue ?? null;
+                const itemCustodianType = assignment?.custodianType ?? asset?.custodianType ?? item?.custodianType ?? null;
+                const itemCustodianValue = assignment?.custodianValue ?? asset?.custodianValue ?? item?.custodianValue ?? null;
                 const custodianName = assignment?.custodianName ?? assignment?.assignedToName ?? asset?.custodianName ?? asset?.assignedToName ?? item?.custodianName ?? item?.assignedToName ?? '';
 
                 if (!uniqueMap.has(String(assetId))) {
@@ -467,11 +664,13 @@ const ExportAssetsQR = () => {
                         organizationname: assignment?.companiesName ?? asset.organizationname ?? '',
                         assetUnitLocationId: locId,
                         assetUnitLocationName: locName,
-                        custodianType,
-                        custodianValue,
+                        custodianType: itemCustodianType,
+                        custodianValue: itemCustodianValue,
                         custodianName,
-                        categoryId: asset.categoryId ?? asset.category?.id,
-                        categoryName: asset.categoryName ?? asset.category?.categoryName ?? asset.category?.name ?? asset.assetCategoryName ?? '',
+                        categoryId: asset.categoryId ?? asset.category?.id ?? assignment?.categoryId ?? item?.categoryId,
+                        categoryName: asset.categoryName ?? asset.category?.categoryName ?? asset.category?.name ?? asset.assetCategoryName ?? assignment?.categoryName ?? item?.categoryName ?? '',
+                        brandId: asset.brandId ?? asset.brand?.id ?? assignment?.brandId ?? item?.brandId,
+                        brandName: asset.brandName ?? asset.brand?.brandName ?? asset.brand?.name ?? assignment?.brandName ?? item?.brandName ?? '',
                         department: asset.department,
                         quantity: rowQty,
                     });
@@ -490,7 +689,7 @@ const ExportAssetsQR = () => {
         }
     }, []);
 
-    // Trigger getAssignedAssetsByOrgAndSubOutlet whenever Outlet, Company, or Location changes
+    // Trigger getAssignedAssetsByOrgAndSubOutlet whenever Outlet, Company, Location, or optional filters change
     useEffect(() => {
         // Only use token org if the user is an outlet user; otherwise wait for outlet selection
         const activeOrgId = outlet || (isOutletUser ? getOrgIdFromToken() : (isCompanyUser ? company : ''));
@@ -499,18 +698,32 @@ const ExportAssetsQR = () => {
             return;
         }
 
+        // When a custodian type is selected, do not call API until custodianValue is also selected
+        if (custodianType && !custodianValue) {
+            setAssets([]);
+            return;
+        }
+
         let isCurrent = true;
 
-        fetchAssignedAssets(Number(activeOrgId), location ? Number(location) : 0).then((data) => {
+        const filters = {};
+        if (brandId) filters.brandId = brandId;
+        if (categoryId) filters.categoryId = categoryId;
+        if (custodianType && custodianValue) {
+            filters.custodianType = custodianType;
+            filters.custodianValue = custodianValue;
+        }
+
+        fetchAssignedAssets(Number(activeOrgId), location ? Number(location) : 0, filters).then((data) => {
             if (isCurrent) {
                 setAssets(data);
             }
         });
 
         return () => {
-            isCurrent = false; // Discards previous slow responses when PDEU is selected
+            isCurrent = false; // Discards previous slow responses
         };
-    }, [outlet, company, location, isOutletUser, isCompanyUser, fetchAssignedAssets]);
+    }, [outlet, company, location, isOutletUser, isCompanyUser, brandId, categoryId, custodianType, custodianValue, fetchAssignedAssets]);
 
     const normalizeLocationValue = (value) => String(value ?? '').trim().toLowerCase();
 
@@ -565,6 +778,20 @@ const ExportAssetsQR = () => {
                                 return String(assign.assetUnitLocationId ?? assign.locationId ?? '') === String(location);
                             }
                             return true;
+                        });
+                    }
+
+                    if (custodianType) {
+                        assetAssignments = assetAssignments.filter((assign) => {
+                            const cType = assign.custodianType ?? asset.custodianType;
+                            return String(cType || '').toUpperCase() === String(custodianType).toUpperCase();
+                        });
+                    }
+
+                    if (custodianValue) {
+                        assetAssignments = assetAssignments.filter((assign) => {
+                            const cVal = assign.custodianValue ?? asset.custodianValue;
+                            return String(cVal || '') === String(custodianValue);
                         });
                     }
 
@@ -636,7 +863,7 @@ const ExportAssetsQR = () => {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [pickedAssets, targetOrgIds, location, outlet, company, assets.length]);
+    }, [pickedAssets, targetOrgIds, location, outlet, company, assets.length, custodianType, custodianValue]);
 
     // Flat list of units to be printed based on selected quantities
     const printableAssets = useMemo(() => {
@@ -652,6 +879,19 @@ const ExportAssetsQR = () => {
             }
         }
 
+        if (custodianType) {
+            list = list.filter((asset) => String(asset.custodianType ?? '').toUpperCase() === String(custodianType).toUpperCase());
+        }
+        if (custodianValue) {
+            list = list.filter((asset) => String(asset.custodianValue ?? '') === String(custodianValue));
+        }
+        if (categoryId) {
+            list = list.filter((asset) => String(asset.categoryId ?? '') === String(categoryId));
+        }
+        if (brandId) {
+            list = list.filter((asset) => String(asset.brandId ?? '') === String(brandId));
+        }
+
         if (!list.length) return [];
 
         return list.flatMap((asset) => {
@@ -661,7 +901,7 @@ const ExportAssetsQR = () => {
                 printIndex: index,
             }));
         });
-    }, [selectedAssets, targetOrgIds, location]);
+    }, [selectedAssets, targetOrgIds, location, custodianType, custodianValue, categoryId, brandId]);
 
     const handlePrintLabels = async () => {
         if (printableAssets.length === 0) return;
@@ -788,6 +1028,60 @@ const ExportAssetsQR = () => {
         [locations]
     );
 
+    const categoryOptions = useMemo(
+        () =>
+            categories.map((c) => ({
+                value: String(c.id),
+                label: c.name || c.categoryName || `Category #${c.id}`,
+            })),
+        [categories]
+    );
+
+    const brandOptions = useMemo(
+        () =>
+            brands.map((b) => ({
+                value: String(b.id),
+                label: b.name || b.brandName || `Brand #${b.id}`,
+            })),
+        [brands]
+    );
+
+    const departmentOptions = useMemo(
+        () =>
+            departments.map((d) => {
+                const name = d.departmentName || d.name || d.deptName || `Department #${d.id}`;
+                const code = d.departmentCode || d.shortCode || '';
+                return {
+                    value: String(d.id),
+                    label: code ? `${name} (${code})` : name,
+                };
+            }),
+        [departments]
+    );
+
+    const userOptions = useMemo(
+        () =>
+            (hrmsUsers || []).map((u) => {
+                const name =
+                    u.empname ||
+                    u.empName ||
+                    u.fullName ||
+                    [u.firstName, u.lastName].filter(Boolean).join(' ') ||
+                    u.name ||
+                    u.userName ||
+                    u.email ||
+                    `User #${u.id}`;
+                const code = u.empcode || u.empCode || u.employeeCode || u.code || '';
+                const designation = u.designationName || u.designation || u.departmentName || '';
+                const nameWithCode = code ? `${name} - ${code}` : name;
+                return {
+                    value: String(u.id),
+                    label: designation ? `${nameWithCode} (${designation})` : nameWithCode,
+                };
+            }),
+        [hrmsUsers]
+    );
+
     if (!canView) {
         return <AccessDenied pageTitle="Export Assets QR" />;
     }
@@ -873,7 +1167,7 @@ const ExportAssetsQR = () => {
                         <div className="grid grid-cols-1 lg:grid-cols-[450px_1fr] gap-5 mt-6 items-stretch lg:h-[calc(100vh-13rem)]">
                             {/* Controls Card */}
                             <div className="bg-white rounded-2xl p-5 border border-[#C3C6D1] flex flex-col h-full min-h-0">
-                                <div className="space-y-4">
+                                <div className="space-y-4 overflow-y-auto pr-1 flex-1 min-h-0">
                                     {/* 1. Company Filter */}
                                     {isGroupUser && (
                                         <div>
@@ -905,6 +1199,7 @@ const ExportAssetsQR = () => {
                                                 onChange={(e) => {
                                                     setOutlet(e.target.value);
                                                     setLocation('');
+                                                    setCustodianValue('');
                                                     setPickedAssets([]);
                                                     setSelectedAssets([]);
                                                 }}
@@ -947,7 +1242,121 @@ const ExportAssetsQR = () => {
                                         />
                                     </div>
 
-                                    {/* 4. Assets Multi-Select */}
+                                    {/* 4. Custodian Type Filter */}
+                                    <div>
+                                        <label className="text-xs font-medium text-[#475569] mb-1.5 block">
+                                            Custodian Type
+                                        </label>
+                                        <SearchableSelect
+                                            name="custodianType"
+                                            value={custodianType}
+                                            disabled={generatingQrs}
+                                            onChange={(e) => {
+                                                setCustodianType(e.target.value);
+                                                setCustodianValue('');
+                                                setPickedAssets([]);
+                                                setSelectedAssets([]);
+                                            }}
+                                            options={CUSTODIAN_TYPE_OPTIONS}
+                                            placeholder="Select Custodian Type"
+                                            isClearable={true}
+                                        />
+                                    </div>
+
+                                    {/* 5. Custodian Value Filter */}
+                                    <div>
+                                        <label className="text-xs font-medium text-[#475569] mb-1.5 block">
+                                            {custodianType === 'DEPT' ? 'Department' : custodianType === 'USER' ? 'User' : 'Custodian'}
+                                        </label>
+                                        {custodianType === 'DEPT' ? (
+                                            <SearchableSelect
+                                                name="custodianValue"
+                                                value={custodianValue}
+                                                disabled={loadingDepartments || generatingQrs}
+                                                onChange={(e) => {
+                                                    setCustodianValue(e.target.value);
+                                                    setPickedAssets([]);
+                                                    setSelectedAssets([]);
+                                                }}
+                                                options={departmentOptions}
+                                                placeholder={loadingDepartments ? "Loading departments..." : "Select Department"}
+                                                isClearable={true}
+                                            />
+                                        ) : custodianType === 'USER' ? (
+                                            <SearchableSelect
+                                                name="custodianValue"
+                                                value={custodianValue}
+                                                disabled={(loadingUsers && userOptions.length === 0) || generatingQrs}
+                                                onChange={(e) => {
+                                                    setCustodianValue(e.target.value);
+                                                    setPickedAssets([]);
+                                                    setSelectedAssets([]);
+                                                }}
+                                                options={userOptions}
+                                                placeholder={
+                                                    loadingUsers && userOptions.length === 0
+                                                        ? "Loading users..."
+                                                        : "Select User"
+                                                }
+                                                hasMore={hasMoreUsers}
+                                                loadingMore={loadingUsersMore}
+                                                onLoadMore={handleLoadMoreUsers}
+                                                isClearable={true}
+                                            />
+                                        ) : (
+                                            <SearchableSelect
+                                                name="custodianValue"
+                                                value=""
+                                                disabled={true}
+                                                onChange={() => {}}
+                                                options={[]}
+                                                placeholder="Select Custodian Type first"
+                                                isClearable={false}
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* 6. Assets Category Filter */}
+                                    <div>
+                                        <label className="text-xs font-medium text-[#475569] mb-1.5 block">
+                                            Asset Category
+                                        </label>
+                                        <SearchableSelect
+                                            name="category"
+                                            value={categoryId}
+                                            disabled={loadingCategories || generatingQrs}
+                                            onChange={(e) => {
+                                                setCategoryId(e.target.value);
+                                                setPickedAssets([]);
+                                                setSelectedAssets([]);
+                                            }}
+                                            options={categoryOptions}
+                                            placeholder={loadingCategories ? "Loading categories..." : "Select Category"}
+                                            isClearable={true}
+                                        />
+                                    </div>
+
+                                    {/* 7. Assets Brand Filter */}
+                                    <div>
+                                        <label className="text-xs font-medium text-[#475569] mb-1.5 block">
+                                            Asset Brand
+                                        </label>
+                                        <SearchableSelect
+                                            name="brand"
+                                            value={brandId}
+                                            disabled={loadingBrands || generatingQrs}
+                                            onChange={(e) => {
+                                                setBrandId(e.target.value);
+                                                setPickedAssets([]);
+                                                setSelectedAssets([]);
+                                            }}
+                                            options={brandOptions}
+                                            placeholder={loadingBrands ? "Loading brands..." : "Select Brand"}
+                                            isClearable={true}
+                                        />
+                                    </div>
+
+                                    {/* 8. Assets Multi-Select */}
                                     <div>
                                         <label className="text-xs font-medium text-[#475569] mb-1.5 block">
                                             Select Assets

@@ -505,6 +505,38 @@ export const CreateProposal = () => {
       throw new Error('Proposal type ID is required');
     }
 
+    // Validation for phone and email
+    const cleanPhone = (basicDetails.clientPhone || '').replace(/\D/g, '');
+    const cleanEmail = (basicDetails.clientEmail || '').trim();
+
+    if (!isDraft) {
+      if (!cleanPhone) {
+        toast.error('Mobile number is required');
+        throw new Error('Mobile number is required');
+      }
+      if (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+        toast.error('Please enter a valid 10-digit mobile number');
+        throw new Error('Please enter a valid 10-digit mobile number');
+      }
+      if (!cleanEmail) {
+        toast.error('Email is required');
+        throw new Error('Email is required');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        toast.error('Please enter a valid email address');
+        throw new Error('Please enter a valid email address');
+      }
+    } else {
+      if (cleanPhone && (cleanPhone.length !== 10 || !/^[6-9]\d{9}$/.test(cleanPhone))) {
+        toast.error('Please enter a valid 10-digit mobile number');
+        throw new Error('Please enter a valid 10-digit mobile number');
+      }
+      if (cleanEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        toast.error('Please enter a valid email address');
+        throw new Error('Please enter a valid email address');
+      }
+    }
+
     const payload = {
       id: proposalId || 0,
       title: basicDetails.title || `${basicDetails.clientName || 'New'} Proposal`,
@@ -919,6 +951,7 @@ export const CreateProposal = () => {
       if (currentStep === 5) {
         const idToUse = proposalId || (await persistBasicDetails(true));
         await persistShifts(idToUse);
+        await persistBasicDetails(true);
       } else {
         const savedId = await persistBasicDetails(true);
         if (currentStep === 2) {
@@ -934,9 +967,13 @@ export const CreateProposal = () => {
       toast.success(
         isSentForApproval ? 'Proposal saved successfully.' : 'Proposal saved as draft.'
       );
+      navigate(isApprovalMode ? '/proposal/approval' : '/proposal');
     } catch (err) {
       console.error('Save failed:', err);
-      toast.success(isSentForApproval ? 'Proposal saved locally.' : 'Proposal draft saved locally.');
+      // When validation fails, do not show 'saved locally' or navigate away
+      if (!err?.message || err.message.includes('saved')) {
+        toast.error('Failed to save proposal draft.');
+      }
     } finally {
       setSavingStep(false);
     }
@@ -978,11 +1015,11 @@ export const CreateProposal = () => {
       setMaxCompletedStep((prev) => Math.max(prev, nextStep));
     } catch (err) {
       console.error('Step save error:', err);
-      // Advance gracefully so user is never blocked
-      const nextStep = currentStep + 1;
-      setCurrentStep(nextStep);
-      setMaxCompletedStep((prev) => Math.max(prev, nextStep));
-      toast.success('Step progress saved.');
+      // Stop and do not advance if step 1 validation fails or err occurred
+      if (currentStep === 1 || err?.message) {
+        return;
+      }
+      toast.error('Failed to save step progress.');
     } finally {
       setSavingStep(false);
     }
@@ -1053,8 +1090,7 @@ export const CreateProposal = () => {
       navigate('/proposal');
     } catch (err) {
       console.error('Submit for approval failed:', err);
-      toast.success('Proposal submitted for approval.');
-      navigate('/proposal');
+      toast.error(err?.message || 'Failed to submit proposal for approval.');
     } finally {
       setSubmittingApproval(false);
     }

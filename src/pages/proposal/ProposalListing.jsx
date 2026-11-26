@@ -15,6 +15,7 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  Eye,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { Container } from '@/components/common/container';
@@ -64,9 +65,8 @@ const STATUS_TEXT_COLORS = {
 const StatusBadge = ({ status }) => (
   <span
     title={status || '—'}
-    className={`font-semibold text-xs block truncate max-w-full ${
-      STATUS_TEXT_COLORS[status] || 'text-gray-600'
-    }`}
+    className={`font-semibold text-xs block truncate max-w-full ${STATUS_TEXT_COLORS[status] || 'text-gray-600'
+      }`}
   >
     {status || '—'}
   </span>
@@ -216,15 +216,20 @@ const ProposalListing = () => {
       const listData = Array.isArray(raw)
         ? raw
         : Array.isArray(raw?.content)
-        ? raw.content
-        : Array.isArray(res?.data?.content)
-        ? res.data.content
-        : [];
+          ? raw.content
+          : Array.isArray(res?.data?.content)
+            ? res.data.content
+            : [];
 
       const mapped = listData.map((p) => {
         const rawStatus = String(p.status || 'DRAFT').toUpperCase().trim();
         let statusLabel = 'Draft';
-        if (rawStatus === 'PENDING_APPROVAL' || rawStatus === 'PENDING APPROVAL') {
+        if (
+          rawStatus === 'PENDING_APPROVAL' ||
+          rawStatus === 'PENDING APPROVAL' ||
+          rawStatus === 'SENT_FOR_APPROVAL' ||
+          rawStatus === 'SENT FOR APPROVAL'
+        ) {
           statusLabel = 'Pending Approval';
         } else if (rawStatus === 'APPROVED') {
           statusLabel = 'Approved';
@@ -551,14 +556,23 @@ const ProposalListing = () => {
         cell: ({ row }) => {
           const original = row.original;
           const rawStatus = String(original.rawStatus || original.status || '').toUpperCase().trim();
-          const isPendingApproval =
-            rawStatus === 'PENDING_APPROVAL' ||
-            rawStatus === 'PENDING APPROVAL' ||
-            rawStatus === 'SENT_FOR_APPROVAL' ||
-            rawStatus === 'SENT FOR APPROVAL';
+          const isDraft =
+            original.status === 'Draft' &&
+            rawStatus !== 'PENDING_APPROVAL' &&
+            rawStatus !== 'PENDING APPROVAL' &&
+            rawStatus !== 'SENT_FOR_APPROVAL' &&
+            rawStatus !== 'SENT FOR APPROVAL';
 
           return (
             <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <button
+                type="button"
+                onClick={() => navigate(`/proposal/view/${original.id}`)}
+                className="text-gray-500 hover:text-blue-800 cursor-pointer p-0.5 rounded hover:bg-blue-50 transition"
+                title="View"
+              >
+                <Eye size={16} />
+              </button>
               {canEdit && (
                 <button
                   type="button"
@@ -569,7 +583,7 @@ const ProposalListing = () => {
                   <Pencil size={16} />
                 </button>
               )}
-              {canDelete && !isPendingApproval && (
+              {canDelete && isDraft && (
                 <button
                   type="button"
                   onClick={() => openDeleteConfirm(original)}
