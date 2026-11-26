@@ -498,6 +498,10 @@ export const MENU_SIDEBAR = [
     title: 'Production',
     icon: PackageSearch,
     children: [
+      { title: 'Production Plans', path: '/production/plans' },
+      { title: 'Store Issues', path: '/production/store-issues' },
+      { title: 'Food Transfers', path: '/production/transfers' },
+      { title: 'Plate Waste', path: '/production/plate-waste' },
       { title: 'Menu Planning', path: '/production/menu-planning' },
       { title: 'Approve Menu Plan', path: '/production/approve-menu-plan' },
       { title: 'Store Indent', path: '/production/store-indent' },
@@ -665,6 +669,10 @@ export const MENU_SIDEBAR_ADMIN = [
     title: 'Production',
     icon: PackageSearch,
     children: [
+      { title: 'Production Plans', path: '/production/plans' },
+      { title: 'Store Issues', path: '/production/store-issues' },
+      { title: 'Food Transfers', path: '/production/transfers' },
+      { title: 'Plate Waste', path: '/production/plate-waste' },
       { title: 'Menu Planning', path: '/production/menu-planning' },
       { title: 'Approve Menu Plan', path: '/production/approve-menu-plan' },
       { title: 'Store Indent', path: '/production/store-indent' },
