@@ -422,6 +422,9 @@ const CreateMenuPlanning = () => {
               ? data.destinations
               : [];
 
+          const planOrgIdNum = Number(data.organizationId || 0);
+          const planSubIdNum = Number(data.subOutletId || 0);
+
           if (rawDestList.length > 0) {
             mappedDestinations = rawDestList.map((dest) => {
               const outletId = Number(dest.destinationOutletId ?? dest.organizationId ?? 0);
@@ -431,6 +434,11 @@ const CreateMenuPlanning = () => {
               const foundUnit = units.find((u) => String(u.id) === String(outletId));
               const foundSubUnit = subUnits.find((su) => String(su.id) === String(subOutletIdVal));
 
+              const matchesPlanUnit =
+                planOrgIdNum > 0 &&
+                outletId === planOrgIdNum &&
+                subOutletIdVal === planSubIdNum;
+
               return {
                 ...(Number(dest.id) > 0 && { id: Number(dest.id) }),
                 destinationOutletId: outletId,
@@ -439,6 +447,7 @@ const CreateMenuPlanning = () => {
                   dest.unitName ||
                   dest.organizationName ||
                   foundUnit?.name ||
+                  foundUnit?.companyNameEnglish ||
                   foundUnit?.companyName ||
                   `Unit #${outletId}`,
                 destinationSubOutletId: subOutletIdVal,
@@ -461,10 +470,54 @@ const CreateMenuPlanning = () => {
                     : dest.transferRequired
                 ),
                 notes: dest.notes || dest.remarks || '',
+                ...(matchesPlanUnit ? { isDefault: true } : {}),
               };
             });
-            setDestinationRows(mappedDestinations);
           }
+
+          const hasPlanUnitDest =
+            planOrgIdNum > 0 &&
+            mappedDestinations.some(
+              (d) =>
+                Number(d.destinationOutletId) === planOrgIdNum &&
+                Number(d.destinationSubOutletId || 0) === planSubIdNum
+            );
+
+          const snapshotDestinations = [...mappedDestinations];
+
+          if (planOrgIdNum > 0 && !hasPlanUnitDest) {
+            const foundPlanUnit = units.find((u) => String(u.id) === String(planOrgIdNum));
+            const foundPlanSubUnit = subUnits.find((su) => String(su.id) === String(planSubIdNum));
+            mappedDestinations = [
+              {
+                destinationOutletId: planOrgIdNum,
+                unitName:
+                  data.organizationName ||
+                  foundPlanUnit?.name ||
+                  foundPlanUnit?.companyNameEnglish ||
+                  foundPlanUnit?.companyName ||
+                  `Unit #${planOrgIdNum}`,
+                destinationSubOutletId: planSubIdNum,
+                destinationSubLocationId: 0,
+                subUnitName:
+                  data.subOutletName ||
+                  (foundPlanSubUnit
+                    ? foundPlanSubUnit.subOutletName ||
+                      foundPlanSubUnit.name ||
+                      foundPlanSubUnit.locationName ||
+                      ''
+                    : ''),
+                plannedPax: '',
+                deliveryTime: '',
+                isTransferRequired: false,
+                notes: '',
+                isDefault: true,
+              },
+              ...mappedDestinations,
+            ];
+          }
+
+          setDestinationRows(mappedDestinations);
 
           initialDemandSnapshot.current = {
             unitFilter: String(data.organizationId || ''),
@@ -473,7 +526,7 @@ const CreateMenuPlanning = () => {
             toDate: data.toDate || '',
             remarks: data.remarks || '',
             mealDemandRows: JSON.stringify(mappedStructures),
-            destinationRows: JSON.stringify(mappedDestinations),
+            destinationRows: JSON.stringify(snapshotDestinations),
           };
         }
       } catch (err) {
@@ -669,7 +722,105 @@ const CreateMenuPlanning = () => {
     });
   };
 
+  const activePlanUnitId =
+    unitFilter || (!showUnitDropdown && effectiveOutletId ? String(effectiveOutletId) : '');
+  const activePlanSubUnitId = subUnitFilter || '';
+
+  const isDefaultDestination = (dest) => {
+    if (!dest) return false;
+    if (dest.isDefault) return true;
+    if (!activePlanUnitId) return false;
+    return (
+      Number(dest.destinationOutletId) === Number(activePlanUnitId) &&
+      Number(dest.destinationSubOutletId || 0) === Number(activePlanSubUnitId || 0)
+    );
+  };
+
+  // Keep the selected plan unit added by default in Destination (non-deletable)
+  useEffect(() => {
+    if (passedPlanId || fetchingPlan || !activePlanUnitId) return;
+
+    const targetOutletId = Number(activePlanUnitId);
+    const targetSubOutletId = activePlanSubUnitId ? Number(activePlanSubUnitId) : 0;
+    if (!targetOutletId) return;
+
+    const foundUnit = units.find((u) => String(u.id) === String(targetOutletId));
+    const resolvedUnitName =
+      foundUnit?.name ||
+      foundUnit?.companyNameEnglish ||
+      foundUnit?.companyName ||
+      `Unit #${targetOutletId}`;
+
+    const foundSubUnit = subUnits.find((su) => String(su.id) === String(targetSubOutletId));
+    const resolvedSubUnitName = foundSubUnit
+      ? foundSubUnit.subOutletName ||
+        foundSubUnit.name ||
+        foundSubUnit.locationName ||
+        `Sub-Unit #${foundSubUnit.id}`
+      : '';
+
+    setDestinationRows((prev) => {
+      const existingDefault = prev.find((d) => d.isDefault);
+      const nonDefaultRows = prev.filter((d) => !d.isDefault);
+
+      const matchingManualIdx = nonDefaultRows.findIndex(
+        (d) =>
+          Number(d.destinationOutletId) === targetOutletId &&
+          Number(d.destinationSubOutletId || 0) === targetSubOutletId
+      );
+
+      let defaultRow;
+      let remainingRows = nonDefaultRows;
+
+      if (matchingManualIdx >= 0) {
+        const matched = nonDefaultRows[matchingManualIdx];
+        defaultRow = {
+          ...matched,
+          unitName: resolvedUnitName,
+          subUnitName: resolvedSubUnitName,
+          isDefault: true,
+        };
+        remainingRows = nonDefaultRows.filter((_, i) => i !== matchingManualIdx);
+      } else {
+        const sameOutletAsPrev =
+          existingDefault && Number(existingDefault.destinationOutletId) === targetOutletId;
+        defaultRow = {
+          destinationOutletId: targetOutletId,
+          unitName: resolvedUnitName,
+          destinationSubOutletId: targetSubOutletId,
+          destinationSubLocationId: 0,
+          subUnitName: resolvedSubUnitName,
+          plannedPax: sameOutletAsPrev ? existingDefault.plannedPax : '',
+          deliveryTime: sameOutletAsPrev ? existingDefault.deliveryTime : '',
+          isTransferRequired: sameOutletAsPrev ? existingDefault.isTransferRequired : false,
+          notes: sameOutletAsPrev ? existingDefault.notes : '',
+          isDefault: true,
+        };
+      }
+
+      if (
+        prev.length > 0 &&
+        prev[0]?.isDefault &&
+        prev[0].destinationOutletId === defaultRow.destinationOutletId &&
+        Number(prev[0].destinationSubOutletId || 0) ===
+          Number(defaultRow.destinationSubOutletId || 0) &&
+        prev[0].unitName === defaultRow.unitName &&
+        prev[0].subUnitName === defaultRow.subUnitName &&
+        remainingRows.length === nonDefaultRows.length
+      ) {
+        return prev;
+      }
+
+      return [defaultRow, ...remainingRows];
+    });
+  }, [passedPlanId, fetchingPlan, activePlanUnitId, activePlanSubUnitId, units, subUnits]);
+
   const handleRemoveDestination = (index) => {
+    const target = destinationRows[index];
+    if (target && isDefaultDestination(target)) {
+      notify.error('Default destination for the selected unit cannot be deleted.');
+      return;
+    }
     setDestinationRows((prev) => prev.filter((_, idx) => idx !== index));
   };
 
@@ -1340,13 +1491,22 @@ const CreateMenuPlanning = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {destinationRows.map((dest, idx) => (
+                      {destinationRows.map((dest, idx) => {
+                        const isDefault = isDefaultDestination(dest);
+                        return (
                         <tr
                           key={`${dest.destinationOutletId}-${dest.destinationSubOutletId || 'none'}-${idx}`}
                           className="hover:bg-slate-50/50"
                         >
                           <td className="py-3.5 px-4 font-bold text-slate-900">
-                            {dest.unitName}
+                            <div className="flex items-center gap-2">
+                              <span>{dest.unitName}</span>
+                              {isDefault && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#084E92] border border-blue-200">
+                                  Default
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           <td className="py-3.5 px-4 text-slate-600">
@@ -1426,16 +1586,26 @@ const CreateMenuPlanning = () => {
                             <td className="py-3.5 px-4 text-center">
                               <button
                                 type="button"
+                                disabled={isDefault}
                                 onClick={() => handleRemoveDestination(idx)}
-                                className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                                title="Delete destination"
+                                className={`p-1.5 rounded-lg transition ${
+                                  isDefault
+                                    ? 'text-slate-300 cursor-not-allowed'
+                                    : 'text-rose-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer'
+                                }`}
+                                title={
+                                  isDefault
+                                    ? 'Default selected unit cannot be deleted'
+                                    : 'Delete destination'
+                                }
                               >
                                 <Trash2 size={14} />
                               </button>
                             </td>
                           )}
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}

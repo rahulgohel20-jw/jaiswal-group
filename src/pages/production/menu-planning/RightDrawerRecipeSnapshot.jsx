@@ -303,7 +303,10 @@ const RightDrawerRecipeSnapshot = ({
     activeCostData?.scaledWeightUnitSymbol ||
     activeCostData?.displayScaledWeightUnitSymbol ||
     activeCostData?.uomSymbol ||
+    item?.scaledWeightUnitSymbol ||
     item?.uomSymbol ||
+    item?.unitSymbol ||
+    item?.unitName ||
     'kg';
 
   return (

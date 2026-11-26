@@ -43,6 +43,7 @@ import {
     updateMenuPlanStatus,
     updateMenuPlanDayStatus,
     updateMenuPlanShiftStatus,
+    getAllRawMaterialUnits,
 } from '@/services/apiServices';
 import { notify } from '@/utils/toast';
 import AddKitchenItemModal from './AddKitchenItemModal';
@@ -174,17 +175,44 @@ const extractPortionUnitId = (obj) => {
         : null;
 };
 
+const extractWeightUnitSymbol = (obj) => {
+    if (!obj) return 'kg';
+    const raw =
+        obj.recipeCostingData?.scaledWeightUnitSymbol ||
+        obj.recipeCostingData?.displayScaledWeightUnitSymbol ||
+        obj.recipeCostingData?.uomSymbol ||
+        obj.recipeCostingData?.baseRecipeUnitSymbol ||
+        obj.recipeCostingData?.unitSymbol ||
+        obj.recipeCostingData?.unitName ||
+        obj.scaledWeightUnitSymbol ||
+        obj.displayScaledWeightUnitSymbol ||
+        obj.uomSymbol ||
+        obj.unitSymbol ||
+        obj.unitName ||
+        obj.baseRecipeUnitSymbol ||
+        'kg';
+    return getShortUnit(raw) || 'kg';
+};
+
 // unit used for scaledWeight / targetWeight (not the per-person portion unit)
 const extractWeightUnitId = (obj) => {
     if (!obj) return null;
     const candidate =
         obj.displayScaledWeightUnitId ??
         obj.scaledWeightUnitId ??
+        obj.plannedQtyUnitId ??
+        obj.qtyUnitId ??
         obj.uomId ??
         obj.baseRecipeUnitId ??
+        obj.unit?.id ??
         obj.recipeCostingData?.displayScaledWeightUnitId ??
+        obj.recipeCostingData?.scaledWeightUnitId ??
+        obj.recipeCostingData?.plannedQtyUnitId ??
+        obj.recipeCostingData?.qtyUnitId ??
         obj.recipeCostingData?.uomId ??
         obj.recipeCostingData?.baseRecipeUnitId ??
+        obj.recipeCostingData?.unitId ??
+        obj.recipeCostingData?.unit?.id ??
         null;
     return candidate !== null && !isNaN(Number(candidate)) && Number(candidate) > 0
         ? Number(candidate)
@@ -280,9 +308,7 @@ const MenuRecipeCosting = () => {
                     ? String(d.plannedPax)
                     : '',
             plannedQty: '',
-            portionSize: '',
-            portionUnitId: null,
-            portionUnitSymbol: 'g',
+            weightUnitId: null,
             selected: true,
             loadingCost: false,
             remarks: d.notes || d.remarks || '',
@@ -346,6 +372,7 @@ const MenuRecipeCosting = () => {
     const portionTimersRef = useRef({});
     const destPaxTimersRef = useRef({});
     const lastLoadedShiftKeyRef = useRef('');
+    const unitMasterListRef = useRef(null);
 
     useEffect(() => {
         return () => {
@@ -391,12 +418,7 @@ const MenuRecipeCosting = () => {
                             sd.plannedPax !== undefined && sd.plannedPax !== null ? String(sd.plannedPax) : '',
                         plannedQty:
                             sd.plannedQty !== undefined && sd.plannedQty !== null ? String(sd.plannedQty) : '',
-                        portionSize:
-                            sd.portionSize !== undefined && sd.portionSize !== null
-                                ? String(sd.portionSize)
-                                : '',
-                        portionUnitId: sd.portionUnitId ? Number(sd.portionUnitId) : null,
-                        portionUnitSymbol: getShortUnit(sd.portionUnitSymbol || sd.portionUnitName || 'g'),
+                        weightUnitId: null,
                         loadingCost: false,
                         remarks: sd.remarks || '',
                     };
@@ -442,9 +464,7 @@ const MenuRecipeCosting = () => {
                             plannedPax:
                                 d.plannedPax !== undefined && d.plannedPax !== null ? String(d.plannedPax) : '',
                             plannedQty: '',
-                            portionSize: '',
-                            portionUnitId: null,
-                            portionUnitSymbol: 'g',
+                            weightUnitId: null,
                             loadingCost: false,
                             remarks: d.notes || d.remarks || '',
                         };
@@ -712,6 +732,17 @@ const MenuRecipeCosting = () => {
                 const resolvedUnitId = extractPortionUnitId(r);
                 const shortUnit = getShortUnit(unit);
                 const resolvedImg = resolveItemImage(r);
+                const resolvedWeightUnitId =
+                    extractWeightUnitId(r) ||
+                    (r.unitName && r.unitId && Number(r.unitId) > 0 ? Number(r.unitId) : null);
+                const resolvedWeightUnitSym = getShortUnit(
+                    r.scaledWeightUnitSymbol ||
+                    r.displayScaledWeightUnitSymbol ||
+                    r.uomSymbol ||
+                    r.unitSymbol ||
+                    r.unitName ||
+                    ''
+                );
 
                 const normalizedFromDate = normalizeToIsoDate(r.fromDate || r.rateFromDate || '');
                 const normalizedToDate = normalizeToIsoDate(r.toDate || r.rateToDate || '');
@@ -742,6 +773,8 @@ const MenuRecipeCosting = () => {
                     perPersonConsumptionUnitId: resolvedUnitId,
                     perPersonPortionUnitId: resolvedUnitId,
                     portionUnitId: resolvedUnitId,
+                    ...(resolvedWeightUnitId ? { scaledWeightUnitId: resolvedWeightUnitId } : {}),
+                    ...(resolvedWeightUnitSym ? { uomSymbol: resolvedWeightUnitSym } : {}),
                     portion: quantity ? `${quantity} ${shortUnit}`.trim() : shortUnit ? `1 ${shortUnit}` : '',
                     rateFromDate: normalizedFromDate,
                     rateToDate: normalizedToDate,
@@ -916,16 +949,14 @@ const MenuRecipeCosting = () => {
             if (source === 'plannedQty' ? qtyNum <= 0 : paxNum <= 0) return;
 
             const weightUnitId = extractWeightUnitId(item);
-            const weightUnitSymbol = getShortUnit(
-                item.recipeCostingData?.scaledWeightUnitSymbol ||
-                item.recipeCostingData?.uomSymbol ||
-                item.uomSymbol ||
-                'kg'
-            );
-            const portionQty = Number(dest.portionSize) || Number(item.portionQuantity) || 0;
-            const portionUnitId = Number(dest.portionUnitId) || extractPortionUnitId(item);
+            const weightUnitSymbol = extractWeightUnitSymbol(item);
+            const portionQty = Number(item.portionQuantity) || Number(item.portionSize) || 0;
+            const portionUnitId = extractPortionUnitId(item);
             const portionUnitSymbol = getShortUnit(
-                dest.portionUnitSymbol || item.portionUnitSymbol || 'g'
+                item.perPersonConsumptionUnitSymbol ||
+                item.portionUnitSymbol ||
+                item.portionUnitName ||
+                'g'
             );
 
             const payload = {
@@ -978,7 +1009,6 @@ const MenuRecipeCosting = () => {
                 //             totalWeight: {quantity, unitId, unitSymbol} }
                 const respPax = r.pax;
                 const respQty = r.totalWeight?.quantity;
-                const respPortion = r.perPersonPortion;
 
                 const patch = { loadingCost: false };
 
@@ -1011,32 +1041,6 @@ const MenuRecipeCosting = () => {
                             ? maxAllowedQty
                             : Number(respQty);
                     patch.plannedQty = String(finalQty);
-                }
-
-                // Portion: always taken from the response, unless the user is typing it
-                if (source !== 'portionSize' && respPortion?.quantity != null) {
-                    const itemTotalPortion = Number(item.portionQuantity) || Number(item.portionSize) || 0;
-                    const isDestActive = (d) => d.selected !== false;
-                    const otherPortionSum = (item.destinations || [])
-                        .filter((d) => d.destKey !== dest.destKey && isDestActive(d))
-                        .reduce((sum, d) => sum + (Number(d.portionSize) || 0), 0);
-                    const maxAllowedPortion =
-                        itemTotalPortion > 0
-                            ? Math.max(0, Number((itemTotalPortion - otherPortionSum).toFixed(3)))
-                            : null;
-                    const finalPortion =
-                        maxAllowedPortion != null && Number(respPortion.quantity) > maxAllowedPortion
-                            ? maxAllowedPortion
-                            : Number(respPortion.quantity);
-                    patch.portionSize = String(finalPortion);
-                }
-                if (respPortion?.unitId) {
-                    patch.portionUnitId = Number(respPortion.unitId);
-                }
-                if (respPortion?.unitSymbol || respPortion?.unitName) {
-                    patch.portionUnitSymbol = getShortUnit(
-                        respPortion.unitSymbol || respPortion.unitName
-                    );
                 }
 
                 patchDest(patch);
@@ -1114,12 +1118,12 @@ const MenuRecipeCosting = () => {
         notify.success('Destination allocation removed.');
     };
 
-    const DEST_CALC_FIELDS = ['plannedPax', 'plannedQty', 'portionSize'];
+    const DEST_CALC_FIELDS = ['plannedPax', 'plannedQty'];
 
     const handleDestinationInputChange = (slotKey, targetRowKey, item, dest, field, value) => {
         if (value !== '' && !/^\d*\.?\d*$/.test(value)) return;
 
-        // Validation for Destination Allocation: PAX, QTY, and PORTION
+        // Validation for Destination Allocation: PAX and QTY
         if (value !== '' && Number(value) > 0) {
             const valNum = Number(value);
             const isDestActive = (d) => d.selected !== false;
@@ -1159,12 +1163,7 @@ const MenuRecipeCosting = () => {
                 }
             } else if (field === 'plannedQty') {
                 const itemTotalQty = Number(currentSlotItem.totalPlannedQty) || Number(currentSlotItem.plannedQty) || 0;
-                const qtyUnit = getShortUnit(
-                    currentSlotItem.recipeCostingData?.scaledWeightUnitSymbol ||
-                    currentSlotItem.recipeCostingData?.uomSymbol ||
-                    currentSlotItem.uomSymbol ||
-                    'kg'
-                );
+                const qtyUnit = extractWeightUnitSymbol(currentSlotItem);
 
                 if (itemTotalQty <= 0) {
                     notify.error('Please enter Total Planned Quantity for the recipe before allocating destination quantity.');
@@ -1185,39 +1184,6 @@ const MenuRecipeCosting = () => {
                     } else {
                         notify.error(
                             `Entered destination quantity (${value} ${qtyUnit}) exceeds Total Planned Quantity (${itemTotalQty} ${qtyUnit}). Remaining quantity is ${maxAllowedQty} ${qtyUnit}.`
-                        );
-                    }
-                    return;
-                }
-            } else if (field === 'portionSize') {
-                const itemTotalPortion = Number(currentSlotItem.portionQuantity) || Number(currentSlotItem.portionSize) || 0;
-                const portionUnit = getShortUnit(
-                    dest.portionUnitSymbol ||
-                    currentSlotItem.perPersonConsumptionUnitSymbol ||
-                    currentSlotItem.portionUnitSymbol ||
-                    currentSlotItem.portionUnitName ||
-                    'g'
-                );
-
-                if (itemTotalPortion <= 0) {
-                    notify.error('Please enter Portion Size for the recipe before allocating destination portion.');
-                    return;
-                }
-
-                const otherPortionSum = currentDests
-                    .filter((d) => d.destKey !== dest.destKey && isDestActive(d))
-                    .reduce((sum, d) => sum + (Number(d.portionSize) || 0), 0);
-
-                const maxAllowedPortion = Math.max(0, Number((itemTotalPortion - otherPortionSum).toFixed(3)));
-
-                if (valNum > maxAllowedPortion) {
-                    if (otherPortionSum > 0) {
-                        notify.error(
-                            `Remaining portion size is ${maxAllowedPortion} ${portionUnit}. ${value} is not valid (Item Portion Size: ${itemTotalPortion} ${portionUnit}).`
-                        );
-                    } else {
-                        notify.error(
-                            `Entered destination portion (${value} ${portionUnit}) exceeds Item Portion Size (${itemTotalPortion} ${portionUnit}). Remaining portion size is ${maxAllowedPortion} ${portionUnit}.`
                         );
                     }
                     return;
@@ -1368,6 +1334,12 @@ const MenuRecipeCosting = () => {
                         'g'
                     );
                     const updatedUnitId = extractPortionUnitId(cData) || unitIdParam;
+                    const updatedWeightUnitId = extractWeightUnitId(cData) || extractWeightUnitId(item);
+                    const updatedWeightSymbol =
+                        cData.scaledWeightUnitSymbol ||
+                        cData.displayScaledWeightUnitSymbol ||
+                        cData.uomSymbol ||
+                        item.uomSymbol;
 
                     setSlotRecipes((prev) => ({
                         ...prev,
@@ -1388,6 +1360,8 @@ const MenuRecipeCosting = () => {
                                     perPersonConsumptionUnitId: updatedUnitId,
                                     perPersonPortionUnitId: updatedUnitId,
                                     portionUnitId: updatedUnitId,
+                                    ...(updatedWeightUnitId ? { scaledWeightUnitId: updatedWeightUnitId } : {}),
+                                    ...(updatedWeightSymbol ? { uomSymbol: updatedWeightSymbol } : {}),
                                     rateFromDate: effectiveFromDate,
                                     rateToDate: effectiveToDate,
                                     fromDate: effectiveFromDate,
@@ -1398,12 +1372,40 @@ const MenuRecipeCosting = () => {
                                 : it
                         ),
                     }));
+
+                    // Recalculate destination plannedQty using the updated header portion
+                    if (Array.isArray(item.destinations) && item.destinations.length > 0) {
+                        const updatedItemForDest = {
+                            ...item,
+                            costPerPortion: cData.costPerPerson,
+                            totalPlannedQty:
+                                cData.scaledWeight != null ? String(cData.scaledWeight) : item.totalPlannedQty,
+                            plannedQty:
+                                cData.scaledWeight != null ? Number(cData.scaledWeight) || 0 : item.plannedQty,
+                            portionQuantity: String(portionVal),
+                            portionSize: Number(portionVal) || item.portionSize,
+                            perPersonConsumptionUnitSymbol: updatedUnit,
+                            portionUnitSymbol: updatedUnit,
+                            portionUnitName: updatedUnit,
+                            perPersonConsumptionUnitId: updatedUnitId,
+                            perPersonPortionUnitId: updatedUnitId,
+                            portionUnitId: updatedUnitId,
+                            ...(updatedWeightUnitId ? { scaledWeightUnitId: updatedWeightUnitId } : {}),
+                            ...(updatedWeightSymbol ? { uomSymbol: updatedWeightSymbol } : {}),
+                            recipeCostingData: cData,
+                        };
+                        item.destinations.forEach((dest) => {
+                            if (Number(dest.plannedPax) > 0) {
+                                fetchDestinationPortion(slotKey, targetRowKey, updatedItemForDest, dest, 'plannedPax');
+                            }
+                        });
+                    }
                 }
             } catch (err) {
                 console.error('Failed to recalculate costing for recipe:', err);
             }
         },
-        [activeShift, selectedOrgUnitId, subUnitId]
+        [activeShift, selectedOrgUnitId, subUnitId, fetchDestinationPortion]
     );
 
     const fetchItemScaling = useCallback(
@@ -1455,9 +1457,17 @@ const MenuRecipeCosting = () => {
                     ...prev,
                     [slotKey]: (prev[slotKey] || []).map((it) => {
                         if (it.rowKey !== targetRowKey) return it;
+                        const updatedWeightUnitId = extractWeightUnitId(cData) || extractWeightUnitId(it);
+                        const updatedWeightSymbol =
+                            cData.scaledWeightUnitSymbol ||
+                            cData.displayScaledWeightUnitSymbol ||
+                            cData.uomSymbol ||
+                            it.uomSymbol;
                         const patch = {
                             recipeCostingData: cData,
                             captainRecipes: cData.captainRecipes || cData.captainReceipes || it.captainRecipes || [],
+                            ...(updatedWeightUnitId ? { scaledWeightUnitId: updatedWeightUnitId } : {}),
+                            ...(updatedWeightSymbol ? { uomSymbol: updatedWeightSymbol } : {}),
                         };
 
                         if (cData.costPerPerson !== undefined && cData.costPerPerson !== null) {
@@ -1790,7 +1800,7 @@ const MenuRecipeCosting = () => {
         });
     };
 
-    // Reusable validation for destination PAX, Quantity, and Portion across active shift recipes
+    // Reusable validation for destination PAX and Quantity across active shift recipes
     const validateShiftDestinationAllocations = () => {
         for (const slot of activeShiftSlots) {
             const slotKey = slot.mealStructureDetailId || slot.daySlotId;
@@ -1799,7 +1809,6 @@ const MenuRecipeCosting = () => {
             for (const r of slotRecipesList) {
                 const itemTotalPax = Number(r.actualPax) || Number(r.plannedPax) || Number(activeShift?.plannedPax) || 0;
                 const itemTotalQty = Number(r.totalPlannedQty) || Number(r.plannedQty) || 0;
-                const itemTotalPortion = Number(r.portionQuantity) || Number(r.portionSize) || 0;
                 const selectedDests = (r.destinations || []).filter((d) => d.selected !== false);
 
                 const destPaxSum = selectedDests.reduce((sum, d) => sum + (Number(d.plannedPax) || 0), 0);
@@ -1818,17 +1827,33 @@ const MenuRecipeCosting = () => {
                     );
                     return false;
                 }
-
-                const destPortionSum = selectedDests.reduce((sum, d) => sum + (Number(d.portionSize) || 0), 0);
-                if (destPortionSum > itemTotalPortion && itemTotalPortion > 0) {
-                    notify.error(
-                        `For "${r.itemName || 'Recipe'}", total destination portion (${destPortionSum.toFixed(2)}) exceeds Item Portion (${itemTotalPortion.toFixed(2)}).`
-                    );
-                    return false;
-                }
             }
         }
         return true;
+    };
+
+    const resolveUnitIdFromSymbol = async (symbol) => {
+        const target = getShortUnit(symbol).toLowerCase();
+        if (!target) return null;
+
+        if (!Array.isArray(unitMasterListRef.current)) {
+            try {
+                const res = await getAllRawMaterialUnits();
+                const list = res?.data?.data?.['Unit Details'] ?? res?.data?.data ?? [];
+                unitMasterListRef.current = Array.isArray(list) ? list : [];
+            } catch (err) {
+                console.error('Failed to fetch unit master list:', err);
+                unitMasterListRef.current = [];
+            }
+        }
+
+        const matched = (unitMasterListRef.current || []).find((u) => {
+            const sym = getShortUnit(u.symbolEnglish || u.unitSymbol || '').toLowerCase();
+            const name = getShortUnit(u.nameEnglish || u.unitName || '').toLowerCase();
+            return sym === target || name === target;
+        });
+
+        return matched?.id && Number(matched.id) > 0 ? Number(matched.id) : null;
     };
 
     // Internal helper to build shift payload and persist to backend
@@ -1891,6 +1916,37 @@ const MenuRecipeCosting = () => {
                     }
                 }
 
+                const costingWeightUnitId =
+                    extractWeightUnitId(costingData) ||
+                    (costingData?.unitId && !isNaN(Number(costingData.unitId)) && Number(costingData.unitId) > 0
+                        ? Number(costingData.unitId)
+                        : null);
+                let resolvedItemUnitId =
+                    costingWeightUnitId ||
+                    extractWeightUnitId(r);
+
+                if (!resolvedItemUnitId) {
+                    const weightSym =
+                        costingData?.scaledWeightUnitSymbol ||
+                        costingData?.displayScaledWeightUnitSymbol ||
+                        costingData?.uomSymbol ||
+                        costingData?.baseRecipeUnitSymbol ||
+                        r.recipeCostingData?.scaledWeightUnitSymbol ||
+                        r.recipeCostingData?.displayScaledWeightUnitSymbol ||
+                        r.recipeCostingData?.uomSymbol ||
+                        r.scaledWeightUnitSymbol ||
+                        r.uomSymbol ||
+                        '';
+                    if (weightSym) {
+                        resolvedItemUnitId = await resolveUnitIdFromSymbol(weightSym);
+                    }
+                }
+                if (!resolvedItemUnitId) {
+                    resolvedItemUnitId = resolvedPortionUnitId || 0;
+                }
+
+                const headerPortionSize = Number(r.portionQuantity || r.portionSize) || 0;
+
                 const mappedDestinations = (r.destinations || []).map((d) => {
                     const qtyNum = Number(d.plannedQty) || 0;
                     return {
@@ -1899,12 +1955,11 @@ const MenuRecipeCosting = () => {
                         id: Number(d.id) || 0,
                         plannedPax: Number(d.plannedPax) || 0,
                         plannedQty: qtyNum,
-                        portionSize:
-                            Number(d.portionSize) || Number(r.portionQuantity || r.portionSize) || 0,
-                        portionUnitId: Number(d.portionUnitId) || Number(resolvedPortionUnitId) || 0,
+                        portionSize: headerPortionSize,
+                        portionUnitId: Number(resolvedPortionUnitId) || 0,
                         remarks: d.remarks || '',
                         transferQty: qtyNum,
-                        unitId: Number(d.destinationOutletId) || Number(selectedOrgUnitId) || 0,
+                        unitId: resolvedItemUnitId || 0,
                     };
                 });
 
@@ -1922,14 +1977,14 @@ const MenuRecipeCosting = () => {
                     kitchenMenuItemId: Number(r.kitchenMenuItemId),
                     plannedPax: pax,
                     plannedQty: Number(r.totalPlannedQty || r.plannedQty) || 0,
-                    portionSize: Number(r.portionQuantity || r.portionSize) || 150,
+                    portionSize: headerPortionSize || 150,
                     portionUnitId: resolvedPortionUnitId || 0,
                     rateSource,
                     rawMaterials: mapRawMaterials(costingData?.ingredients, rateSource, pax),
                     captainRecipes: mapCaptainRecipes(captainRecipesList, rateSource, pax),
                     remarks: r.remarks || '',
                     sequenceOrder: idx + 1,
-                    unitId: Number(selectedOrgUnitId) || 0,
+                    unitId: resolvedItemUnitId || 0,
                 });
             }
 
@@ -2618,30 +2673,7 @@ const MenuRecipeCosting = () => {
                                                                 Number((itemTotalQty - allocatedQtySum).toFixed(3))
                                                             );
 
-                                                            const itemTotalPortion =
-                                                                Number(item.portionQuantity) || Number(item.portionSize) || 0;
-                                                            const allocatedPortionSum = itemDestinations.reduce(
-                                                                (sum, d) => sum + (Number(d.portionSize) || 0),
-                                                                0
-                                                            );
-                                                            const remainingPortion = Math.max(
-                                                                0,
-                                                                Number((itemTotalPortion - allocatedPortionSum).toFixed(3))
-                                                            );
-
-                                                            const itemPortionUnit = getShortUnit(
-                                                                item.perPersonConsumptionUnitSymbol ||
-                                                                item.portionUnitSymbol ||
-                                                                item.portionUnitName ||
-                                                                'g'
-                                                            );
-
-                                                            const itemQtyUnit = getShortUnit(
-                                                                item.recipeCostingData?.scaledWeightUnitSymbol ||
-                                                                item.recipeCostingData?.uomSymbol ||
-                                                                item.uomSymbol ||
-                                                                'kg'
-                                                            );
+                                                            const itemQtyUnit = extractWeightUnitSymbol(item);
 
                                                             return (
                                                                 <React.Fragment key={item.rowKey}>
@@ -2924,38 +2956,6 @@ const MenuRecipeCosting = () => {
                                                                                                             (Rem: {remainingQty} {itemQtyUnit})
                                                                                                         </span>
                                                                                                     </span>
-                                                                                                    {itemTotalPortion > 0 && (
-                                                                                                        <span
-                                                                                                            className={`px-2 py-0.5 rounded-md bg-white border ${
-                                                                                                                allocatedPortionSum > itemTotalPortion && itemTotalPortion > 0
-                                                                                                                    ? 'border-rose-300 text-rose-600 bg-rose-50'
-                                                                                                                    : 'border-slate-200'
-                                                                                                            }`}
-                                                                                                        >
-                                                                                                            Portion:{' '}
-                                                                                                            <strong
-                                                                                                                className={
-                                                                                                                    allocatedPortionSum > itemTotalPortion && itemTotalPortion > 0
-                                                                                                                        ? 'text-rose-700 font-bold'
-                                                                                                                        : 'text-slate-800'
-                                                                                                                }
-                                                                                                            >
-                                                                                                                {Number.isInteger(allocatedPortionSum)
-                                                                                                                    ? allocatedPortionSum
-                                                                                                                    : allocatedPortionSum.toFixed(2)}
-                                                                                                            </strong>{' '}
-                                                                                                            / {itemTotalPortion} {itemPortionUnit}
-                                                                                                            <span
-                                                                                                                className={`ml-1 font-semibold ${
-                                                                                                                    allocatedPortionSum > itemTotalPortion && itemTotalPortion > 0
-                                                                                                                        ? 'text-rose-600 font-bold'
-                                                                                                                        : 'text-[#084E92]'
-                                                                                                                }`}
-                                                                                                            >
-                                                                                                                (Rem: {remainingPortion} {itemPortionUnit})
-                                                                                                            </span>
-                                                                                                        </span>
-                                                                                                    )}
                                                                                                 </div>
                                                                                             )}
                                                                                         </div>
@@ -2970,20 +2970,17 @@ const MenuRecipeCosting = () => {
                                                                                         <table className="w-full text-xs table-fixed">
                                                                                             <thead>
                                                                                                 <tr className="bg-slate-50/40 border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
-                                                                                                    <th className="py-2 px-3 text-left w-[26%]">
+                                                                                                    <th className="py-2 px-3 text-left w-[30%]">
                                                                                                         DESTINATION OUTLET
                                                                                                     </th>
-                                                                                                    <th className="py-2 px-3 text-left w-[18%]">
+                                                                                                    <th className="py-2 px-3 text-left w-[22%]">
                                                                                                         SUB-LOCATION
                                                                                                     </th>
-                                                                                                    <th className="py-2 px-3 text-left w-[16%]">
+                                                                                                    <th className="py-2 px-3 text-left w-[18%]">
                                                                                                         PLANNED PAX
                                                                                                     </th>
-                                                                                                    <th className="py-2 px-3 text-left w-[18%]">
+                                                                                                    <th className="py-2 px-3 text-left w-[22%]">
                                                                                                         PLANNED QUANTITY
-                                                                                                    </th>
-                                                                                                    <th className="py-2 px-3 text-left w-[14%]">
-                                                                                                        PORTION SIZE
                                                                                                     </th>
                                                                                                     <th className="py-2 px-3 text-center w-[8%]">
                                                                                                         ACTION
@@ -3045,37 +3042,6 @@ const MenuRecipeCosting = () => {
                                                                                                                 />
                                                                                                                 <span className="text-xs font-medium text-slate-600">
                                                                                                                     {itemQtyUnit}
-                                                                                                                </span>
-                                                                                                            </div>
-                                                                                                        </td>
-
-                                                                                                        <td className="py-2 px-3">
-                                                                                                            <div className="flex items-center gap-1.5">
-                                                                                                                <input
-                                                                                                                    type="text"
-                                                                                                                    inputMode="decimal"
-                                                                                                                    value={
-                                                                                                                        dest.portionSize !== ''
-                                                                                                                            ? dest.portionSize
-                                                                                                                            : item.portionQuantity ?? ''
-                                                                                                                    }
-                                                                                                                    onChange={(e) =>
-                                                                                                                        handleDestinationInputChange(
-                                                                                                                            slotKey,
-                                                                                                                            item.rowKey,
-                                                                                                                            item,
-                                                                                                                            dest,
-                                                                                                                            'portionSize',
-                                                                                                                            e.target.value
-                                                                                                                        )
-                                                                                                                    }
-                                                                                                                    placeholder="0"
-                                                                                                                    className="w-14 h-7 px-2 text-xs font-semibold text-slate-800 rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 focus:outline-none focus:border-[#084E92]"
-                                                                                                                />
-                                                                                                                <span className="text-xs font-medium text-slate-600">
-                                                                                                                    {dest.portionUnitSymbol ||
-                                                                                                                        item.portionUnitSymbol ||
-                                                                                                                        'g'}
                                                                                                                 </span>
                                                                                                                 {dest.loadingCost && (
                                                                                                                     <Loader2
