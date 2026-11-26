@@ -142,13 +142,11 @@ const SmallToggle = ({ checked, onChange, label, disabled = false }) => (
     aria-checked={checked}
     aria-label={label}
     onClick={onChange}
-    className={`w-9 h-5 rounded-full flex items-center transition-all duration-300 p-0.5 shrink-0 ${
-      disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+    className={`w-9 h-5 rounded-full flex items-center transition-all duration-300 p-0.5 shrink-0 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
       } ${checked ? 'bg-[#00376C]' : 'bg-gray-300'}`}
   >
     <span
-      className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-all duration-300 ${
-        checked ? 'translate-x-4' : 'translate-x-0'
+      className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-all duration-300 ${checked ? 'translate-x-4' : 'translate-x-0'
         }`}
     />
   </button>
@@ -435,8 +433,8 @@ const AddRawMaterialItemModal = () => {
       tax: editData.tax ?? '',
       isCessApplicable: Boolean(editData.isCessApplicable || Number(editData.cess) > 0),
       isUsedBy: Boolean(editData.isUsedBy || editData.useByDate),
-      isGeneralFix: editData.isGeneralFix ?? false,
-      isApplyCal: editData.isApplyCal ?? false,
+      isGeneralFix: Boolean(editData.isGeneralFix === true || editData.isGeneralFix === 'true' || editData.isGeneralFix === 1),
+      isApplyCal: Boolean(editData.isApplyCal === true || editData.isApplyCal === 'true' || editData.isApplyCal === 1),
       file: null,
       imageUrl: latestImage,
     });
@@ -537,10 +535,10 @@ const AddRawMaterialItemModal = () => {
       if (form.opbStock !== '') formData.append('opbStock', Number(form.opbStock));
       if (form.hsnCode !== '') formData.append('hsnCode', form.hsnCode);
       if (form.tax !== '' && form.tax !== null && form.tax !== undefined) formData.append('tax', Number(form.tax));
-      formData.append('isCessApplicable', form.isCessApplicable);
-      formData.append('isUsedBy', form.isUsedBy);
-      formData.append('isGeneralFix', form.isGeneralFix);
-      formData.append('isApplyCal', form.isApplyCal);
+      formData.append('isCessApplicable', Boolean(form.isCessApplicable));
+      formData.append('isUsedBy', Boolean(form.isUsedBy));
+      formData.append('isGeneralFix', Boolean(form.isGeneralFix));
+      formData.append('isApplyCal', Boolean(form.isApplyCal));
       formData.append('userId', userId);
 
       if (form.file) formData.append('file', form.file);
@@ -933,6 +931,39 @@ const AddRawMaterialItemModal = () => {
                     />
                   </div>
                 </div>
+
+                <div className="rounded-xl border border-gray-200 bg-gray-50/50 p-3 flex flex-col justify-center min-h-14.5 self-end">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-gray-700">Is General Fix?</span>
+                    <SmallToggle
+                      disabled={isViewOnly}
+                      checked={form.isGeneralFix}
+                      onChange={() => {
+                        const nextVal = !form.isGeneralFix;
+                        set('isGeneralFix', nextVal);
+                        if (!nextVal) set('weightPer100Pax', '');
+                      }}
+                      label="Is general fix"
+                    />
+                  </div>
+                </div>
+
+                {form.isGeneralFix && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-700 block mb-1.5">Weight Per 100 Pax</label>
+                    <Input
+                      disabled={isViewOnly}
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="0"
+                      className="h-10 text-sm border-[#C3C6D1] rounded-lg disabled:bg-gray-100"
+                      value={form.weightPer100Pax}
+                      onWheel={blurOnWheel}
+                      onChange={(e) => set('weightPer100Pax', e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -950,13 +981,12 @@ const AddRawMaterialItemModal = () => {
                 onDragEnter={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`relative border-2 border-dashed rounded-xl h-44 flex flex-col items-center justify-center transition ${
-                  isViewOnly
+                className={`relative border-2 border-dashed rounded-xl h-44 flex flex-col items-center justify-center transition ${isViewOnly
                     ? 'cursor-default border-[#C3C6D1] bg-gray-50/60'
                     : isDragging
-                    ? 'border-[#00376C] bg-blue-50/60 ring-2 ring-blue-200 cursor-pointer'
-                    : 'border-[#C3C6D1] bg-gray-50/60 hover:bg-gray-100/70 cursor-pointer'
-                }`}
+                      ? 'border-[#00376C] bg-blue-50/60 ring-2 ring-blue-200 cursor-pointer'
+                      : 'border-[#C3C6D1] bg-gray-50/60 hover:bg-gray-100/70 cursor-pointer'
+                  }`}
               >
                 {form.file || form.imageUrl ? (
                   <div className="flex flex-col items-center gap-2">

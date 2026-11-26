@@ -97,7 +97,10 @@ import AssetsMaintenance from '../pages/assest-management/assest-maintenance/Ass
 import ExportAssetsQR from '../pages/assest-management/assest-qr/ExportAssetsQR';
 import AddAsset from '../pages/assest-management/assest-registry/AddAsset';
 import AssetsManagement from '../pages/assest-management/assest-registry/AssetsManagement';
+import CreateAuditEvent from '../pages/assest-management/asset-audit-event/CreateAuditEvent';
+import ListAssetAuditEvent from '../pages/assest-management/asset-audit-event/ListAssetAuditEvent';
 import AssetBrandListing from '../pages/assest-management/asset-brand/AssetBrandListing';
+import AssetLocation from '../pages/assest-management/asset-location/AssetLocation';
 import AddAssetsDisposal from '../pages/assest-management/assets-disposal-log/AddAssetsDisposal';
 import AssetsDisposalLog from '../pages/assest-management/assets-disposal-log/AssetsDisposalLog';
 import AssetItemsList from '../pages/assest-management/assets-items/AssetsItemList';
@@ -111,6 +114,7 @@ import AssetCategory from '../pages/assest-management/categories/AssetCategory';
 import ConditionMasterModule from '../pages/assest-management/conditions/ConditionMasterModule';
 import StatusMasterModule from '../pages/assest-management/status/StatusMasterModule';
 import AssetSubCategory from '../pages/assest-management/sub-categories/AssetSubCategory';
+import UnAssignedAssets from '../pages/assest-management/unassign-asset/UnAssignedAssets';
 import ChangePasswordPage from '../pages/auth/login/ChangePasswordPage';
 import ForgotPasswordPage from '../pages/auth/login/ForgotPassword';
 import { GuestOnly } from '../pages/auth/login/GuestOnly';
@@ -122,6 +126,26 @@ import CompanyViewDetails from '../pages/company-registration/CompanyViewDetails
 import Dashboard from '../pages/dashboards/Dashboard';
 import Departmentlist from '../pages/department/Departmentlist';
 import UserRights from '../pages/department/UserRights';
+import EventSsoRedirect from '../pages/event/EventSsoRedirect';
+import RawMaterialBatchDetails from '../pages/inventory/batch-details/RawMaterialBatchDetails';
+import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
+import GeneralStockLedgerViewDetails from '../pages/inventory/general-stock-ledger/GeneralStockLedgerViewDetails';
+import GenerateGRN from '../pages/inventory/generate-grn/GenerateGRN';
+import GenerateGRNDetail from '../pages/inventory/generate-grn/GenerateGRNDetail';
+import GRNListing from '../pages/inventory/grn-listing/GRNListing';
+import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateManualAdjustment';
+import ManualAdjustmentScreenListing from '../pages/inventory/manual-adjustment/ManualAdjustmentScreenListing';
+import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
+import OpbStockCreateRequest from '../pages/inventory/opb-stock/OpbStockCreateRequest';
+import OpbStockCreateRequestListing from '../pages/inventory/opb-stock/OpbStockCreateRequestListing';
+import RawMaterialBarcode from '../pages/inventory/raw-material-barcode/RawMaterialBarcode';
+import ReturnReplacementList from '../pages/inventory/return-replacement-listing/ReturnReplacementList';
+import StockTransferApproval from '../pages/inventory/stock-transfer-approval/StockTransferApproval';
+import StockTransferDiscrepancyApproval from '../pages/inventory/stock-transfer-discrepancy-approval/StockTransferDiscrepancyApproval';
+import StockTransferReqReceiveList from '../pages/inventory/stock-transfer-request-listing/StockTransferReqReceiveList';
+import StockTransfer from '../pages/inventory/stock-transfer/StockTransfer';
+import StockTransferDetail from '../pages/inventory/stock-transfer/StockTransferDetail';
+import StockTransferRequest from '../pages/inventory/stock-transfer/StockTransferRequest';
 import { IssuesDashboard } from '../pages/Issues/IssuesDashboard';
 import KycInformation from '../pages/kyc-info/user-kycInformation/KycInformation';
 import VendorKycInfo from '../pages/kyc-info/vendor-kycInformation/VendorKycInfo';
@@ -130,30 +154,65 @@ import StateMaster from '../pages/location/state-master/StateMaster';
 import AddStock from '../pages/manage-stocks/AddStock';
 import AvailableStocks from '../pages/manage-stocks/AvailableStocks';
 import ClosingStock from '../pages/manage-stocks/ClosingStock';
+import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
+import CreateItemRecipe from '../pages/menu-item/item-recipe/CreateItemRecipe';
+import ItemRecipeList from '../pages/menu-item/item-recipe/ItemRecipeList';
+import ViewItemRecipe from '../pages/menu-item/item-recipe/ViewItemRecipe';
+import KitchenCaptainRecipeList from '../pages/menu-item/kitchen-captain-recipe/KitchenCaptainRecipeList';
+import CreateKitchenMenuItem from '../pages/menu-item/kitchen-create-menuitem/CreateKitchenMenuItem';
+import KitchenMenuItemListing from '../pages/menu-item/kitchen-create-menuitem/KitchenMenuItemListing';
+import KitchenMenuCategory from '../pages/menu-item/kitchen-menu-category/KitchenMenuCategory';
 import MenuSubCategory from '../pages/menu-item/menu-subcategory/MenuSubCategory';
+import CreateMenuItemConsumption from '../pages/menu-item/menuitem-consumption/CreateMenuItemConsumption';
+import MenuItemConsumption from '../pages/menu-item/menuitem-consumption/MenuItemConsumption';
+import UserProfile from '../pages/my-profile/UserProfile';
+import MenuPlanApproval from '../pages/production/approve-menuplan/MenuPlanApproval';
+import CreateMenuPlanning from '../pages/production/menu-planning/CreateMenuPlanning';
+import MenuPlanDetails from '../pages/production/menu-planning/MealPlanDetails';
+import MenuPlanListing from '../pages/production/menu-planning/MenuPlanningListing';
+import MenuRecipeCosting from '../pages/production/menu-planning/MenuRecipeCosting';
+import StoreIndent from '../pages/production/store-indent/StoreIndent';
 import TaskViewDashboard from '../pages/Projectscreen/TaskViewDashboard/TaskViewDashboard';
 import PurchaseOrderApproved from '../pages/purchase-approved-order/PurchaseOrderApproved';
+import DebitCreditEligibleInvoices from '../pages/purchase-credit-debite-note/DebitCreditEligibleInvoices';
+import DebitCreditNoteCreate from '../pages/purchase-credit-debite-note/DebitCreditNoteCreate';
+import DebitCreditNoteDetails from '../pages/purchase-credit-debite-note/DebitCreditNoteDetails';
+import DebitCreditNoteListing from '../pages/purchase-credit-debite-note/DebitCreditNoteListing';
+import ApproveInvoice from '../pages/purchase-invoice/ApproveInvoice';
+import GenerateGrnInvoice from '../pages/purchase-invoice/GenerateGrnInvoice';
+import PurchaseInvoice from '../pages/purchase-invoice/PurchaseInvoice';
+import PurchaseInvoiceDetailsModal from '../pages/purchase-invoice/PurchaseInvoiceDetailsModal';
+import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceListing';
 import CreatePurchaseOrder from '../pages/purchase-order-requests/CreatePurchaseOrder';
+import PurchaseOrderDetail from '../pages/purchase-order-requests/PurchaseOrderDetail';
 import PurchaseOrderRequest from '../pages/purchase-order-requests/PurchaseOrderRequest';
 import AddPurchaseOrder from '../pages/purchase-order/AddPurchaseOrder';
 import AddPurchaseRequisition from '../pages/purchase-requisition/AddPurchaseRequisition';
 import PurchaseRequisitionApproval from '../pages/purchase-requisition/PurchaseRequisitionApproval';
+import PurchaseRequisitionApprovalDetail from '../pages/purchase-requisition/PurchaseRequisitionApprovalDetail';
 import PurchaseRequisitionList from '../pages/purchase-requisition/PurchaseRequisitionList';
+import PurchaseRequisitionView from '../pages/purchase-requisition/PurchaseRequisitionView';
 import AddPurchaseReturn from '../pages/purchase-return-list/AddPurchaseReturn';
+import BrandUnitMapping from '../pages/raw-material/brand-unit-mapping/BrandUnitMapping';
 import RowCategoryBrandMapping from '../pages/raw-material/category-brand-mapping/RowCategoryBrandMapping';
 import RowMaterialBrandMaster from '../pages/raw-material/raw-material-brand-master/RowMaterialBrandMaster';
+import AddRawMaterialItemModal from '../pages/raw-material/raw-material-item-master/AddRawMaterialItemModal';
 import RowMaterialItemMaster from '../pages/raw-material/raw-material-item-master/RowMaterialItemMaster';
+import ViewRawMaterialItem from '../pages/raw-material/raw-material-item-master/ViewRawMaterialItem';
+import VendorPriceApproval from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceApproval';
+import VendorPriceAssociation from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceAssociation';
+import RawMaterialSubCategory from '../pages/raw-material/raw-material-subcategory/RawMaterialSubCategory';
 import RawMaterialTypeListing from '../pages/raw-material/raw-material-type/RawMaterialTypeListing';
 import RowMaterialUnit from '../pages/raw-material/raw-material-unit-master/RowMaterialUnit';
 import RowMaterialCategories from '../pages/raw-material/row-material-categories/RowMaterialCategories';
 import Setting from '../pages/settings/Settings';
 import PurchaseListing from '../pages/stock-purchase/PurchaseListing';
-import AddSubUnit from '../pages/sub-unit/AddSubunit';
-import SubUnitDetails from '../pages/sub-unit/Subunitdetails';
-import SubUnitListing from '../pages/sub-unit/SubUnitListing';
 import AddSubLocation from '../pages/sub-location/AddSubLocation';
 import SubLocationDetails from '../pages/sub-location/SubLocationDetails';
 import SubLocationListing from '../pages/sub-location/SubLocationListing';
+import AddSubUnit from '../pages/sub-unit/AddSubunit';
+import SubUnitDetails from '../pages/sub-unit/Subunitdetails';
+import SubUnitListing from '../pages/sub-unit/SubUnitListing';
 import AddUnit from '../pages/units/AddUnit';
 import UnitListing from '../pages/units/UnitListing';
 import UnitViewDetails from '../pages/units/UnitViewDetails';
@@ -170,58 +229,6 @@ import VendorUnitMapping from '../pages/vendor-unit-mapping/VendorUnitMapping';
 import AddVendor from '../pages/vendors/AddVendor';
 import VendorListing from '../pages/vendors/VendorListing';
 import VendorViewDetails from '../pages/vendors/VendorViewDetails';
-import RawMaterialSubCategory from '../pages/raw-material/raw-material-subcategory/RawMaterialSubCategory';
-import PurchaseRequisitionApprovalDetail from '../pages/purchase-requisition/PurchaseRequisitionApprovalDetail';
-import PurchaseRequisitionView from '../pages/purchase-requisition/PurchaseRequisitionView';
-import PurchaseOrderDetail from '../pages/purchase-order-requests/PurchaseOrderDetail';
-import GenerateGRN from '../pages/inventory/generate-grn/GenerateGRN';
-import GenerateGRNDetail from '../pages/inventory/generate-grn/GenerateGRNDetail';
-import GRNListing from '../pages/inventory/grn-listing/GRNListing';
-import ReturnReplacementList from '../pages/inventory/return-replacement-listing/ReturnReplacementList';
-import StockTransfer from '../pages/inventory/stock-transfer/StockTransfer';
-import StockTransferDetail from '../pages/inventory/stock-transfer/StockTransferDetail';
-import CaptainRecipeList from '../pages/menu-item/captain-recipe/CaptainRecipeList';
-import UserProfile from '../pages/my-profile/UserProfile';
-import PurchaseInvoice from '../pages/purchase-invoice/PurchaseInvoice';
-import GenerateGrnInvoice from '../pages/purchase-invoice/GenerateGrnInvoice';
-import PurchaseInvoiceListing from '../pages/purchase-invoice/PurchaseInvoiceListing';
-import PurchaseInvoiceDetailsModal from '../pages/purchase-invoice/PurchaseInvoiceDetailsModal';
-import StockTransferRequest from '../pages/inventory/stock-transfer/StockTransferRequest';
-import StockTransferApproval from '../pages/inventory/stock-transfer-approval/StockTransferApproval';
-import StockTransferDiscrepancyApproval from '../pages/inventory/stock-transfer-discrepancy-approval/StockTransferDiscrepancyApproval';
-import StockTransferReqReceiveList from '../pages/inventory/stock-transfer-request-listing/StockTransferReqReceiveList';
-import OpbStockCreateRequestListing from '../pages/inventory/opb-stock/OpbStockCreateRequestListing';
-import OpbStockCreateRequest from '../pages/inventory/opb-stock/OpbStockCreateRequest';
-import ManualAdjustmentScreenListing from '../pages/inventory/manual-adjustment/ManualAdjustmentScreenListing';
-import CreateManualAdjustment from '../pages/inventory/manual-adjustment/CreateManualAdjustment';
-import ViewManualAdjustment from '../pages/inventory/manual-adjustment/ViewManualAdjustment';
-import AddRawMaterialItemModal from '../pages/raw-material/raw-material-item-master/AddRawMaterialItemModal';
-import VendorPriceApproval from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceApproval';
-import GeneralStockLedger from '../pages/inventory/general-stock-ledger/GeneralStockLedger';
-import GeneralStockLedgerViewDetails from '../pages/inventory/general-stock-ledger/GeneralStockLedgerViewDetails';
-import EventSsoRedirect from '../pages/event/EventSsoRedirect';
-import CreateKitchenMenuItem from '../pages/menu-item/kitchen-create-menuitem/CreateKitchenMenuItem';
-import KitchenCaptainRecipeList from '../pages/menu-item/kitchen-captain-recipe/KitchenCaptainRecipeList';
-import KitchenMenuItemListing from '../pages/menu-item/kitchen-create-menuitem/KitchenMenuItemListing';
-import KitchenMenuCategory from '../pages/menu-item/kitchen-menu-category/KitchenMenuCategory';
-import VendorPriceAssociation from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceAssociation';
-import CreateItemRecipe from '../pages/menu-item/item-recipe/CreateItemRecipe';
-import ItemRecipeList from '../pages/menu-item/item-recipe/ItemRecipeList';
-import RawMaterialBarcode from '../pages/inventory/raw-material-barcode/RawMaterialBarcode';
-import MenuItemConsumption from '../pages/menu-item/menuitem-consumption/MenuItemConsumption';
-import CreateMenuItemConsumption from '../pages/menu-item/menuitem-consumption/CreateMenuItemConsumption';
-import RawMaterialBatchDetails from '../pages/inventory/batch-details/RawMaterialBatchDetails';
-import BrandUnitMapping from '../pages/raw-material/brand-unit-mapping/BrandUnitMapping';
-import ViewItemRecipe from '../pages/menu-item/item-recipe/ViewItemRecipe';
-import ViewRawMaterialItem from '../pages/raw-material/raw-material-item-master/ViewRawMaterialItem';
-import AssetLocation from '../pages/assest-management/asset-location/AssetLocation';
-import UnAssignedAssets from '../pages/assest-management/unassign-asset/UnAssignedAssets';
-import ListAssetAuditEvent from '../pages/assest-management/asset-audit-event/ListAssetAuditEvent';
-import CreateAuditEvent from '../pages/assest-management/asset-audit-event/CreateAuditEvent';
-import DebitCreditEligibleInvoices from '../pages/purchase-credit-debite-note/DebitCreditEligibleInvoices';
-import DebitCreditNoteListing from '../pages/purchase-credit-debite-note/DebitCreditNoteListing';
-import DebitCreditNoteCreate from '../pages/purchase-credit-debite-note/DebitCreditNoteCreate';
-import DebitCreditNoteDetails from '../pages/purchase-credit-debite-note/DebitCreditNoteDetails';
 import ProposalListing from '../pages/proposal/ProposalListing';
 import ProposalApproval from '../pages/proposal/ProposalApproval';
 import CreateProposal from '../pages/proposal/create-proposal/CreateProposal';
@@ -251,14 +258,29 @@ export function AppRoutingSetup() {
           <Route path="/change-password" element={<ChangePasswordPage />} />
           {/* <Route path="/dashboard" element={<Dashboard />} /> */}
           <Route path="/dark-sidebar" element={<Demo1DarkSidebarPage />} />
-          <Route path='/my-profile' element={<UserProfile />} />
+          <Route path="/my-profile" element={<UserProfile />} />
 
           {/* Event Module SSO Routes */}
-          <Route path="/events" element={<EventSsoRedirect defaultPath="/events/calendar" />} />
-          <Route path="/events/add" element={<EventSsoRedirect defaultPath="/events/add" />} />
-          <Route path="/events/calendar" element={<EventSsoRedirect defaultPath="/events/calendar" />} />
-          <Route path="/events/types" element={<EventSsoRedirect defaultPath="/events/types" />} />
-          <Route path="/events/inquiries" element={<EventSsoRedirect defaultPath="/events/inquiries" />} />
+          <Route
+            path="/events"
+            element={<EventSsoRedirect defaultPath="/events/calendar" />}
+          />
+          <Route
+            path="/events/add"
+            element={<EventSsoRedirect defaultPath="/events/add" />}
+          />
+          <Route
+            path="/events/calendar"
+            element={<EventSsoRedirect defaultPath="/events/calendar" />}
+          />
+          <Route
+            path="/events/types"
+            element={<EventSsoRedirect defaultPath="/events/types" />}
+          />
+          <Route
+            path="/events/inquiries"
+            element={<EventSsoRedirect defaultPath="/events/inquiries" />}
+          />
           <Route path="/events/*" element={<EventSsoRedirect />} />
 
           <Route path="/companies" element={<CompaniesListing />} />
@@ -291,7 +313,10 @@ export function AppRoutingSetup() {
 
           <Route path="/sub-locations" element={<SubLocationListing />} />
           <Route path="/sub-locations/add" element={<AddSubLocation />} />
-          <Route path="/sub-locations/update-sub-location" element={<AddSubLocation />} />
+          <Route
+            path="/sub-locations/update-sub-location"
+            element={<AddSubLocation />}
+          />
           <Route path="/sub-locations/edit/:id" element={<AddSubLocation />} />
           <Route
             path="/sub-locations/sub-location-details"
@@ -324,7 +349,10 @@ export function AppRoutingSetup() {
           <Route path="/vendor-unit-mapping" element={<VendorUnitMapping />} />
 
           <Route path="/department" element={<Departmentlist />} />
-          <Route path="/departments" element={<Navigate to="/department" replace />} />
+          <Route
+            path="/departments"
+            element={<Navigate to="/department" replace />}
+          />
           <Route path="/user-rights" element={<UserRights />} />
 
           <Route path="/assets/all-assets" element={<AssetsManagement />} />
@@ -361,22 +389,52 @@ export function AppRoutingSetup() {
             path="/assets/add-maintenance-log"
             element={<AddAssetsMaintenanceLog />}
           />
-          <Route path="/assets/edit-maintenance-log/:id" element={<AddAssetsMaintenanceLog />} />
+          <Route
+            path="/assets/edit-maintenance-log/:id"
+            element={<AddAssetsMaintenanceLog />}
+          />
           <Route path="/material/types" element={<RawMaterialTypeListing />} />
           <Route
             path="/material/categories"
             element={<RowMaterialCategories />}
           />
-          <Route path='/material/sub-categories' element={<RawMaterialSubCategory />} />
+          <Route
+            path="/material/sub-categories"
+            element={<RawMaterialSubCategory />}
+          />
           <Route path="/material/items" element={<RowMaterialItemMaster />} />
-          <Route path="/material/vendor-price-approval" element={<VendorPriceApproval />} />
-          <Route path="/material/vendor-price-association" element={<VendorPriceAssociation />} />
-          <Route path="/material/vendor-price-association/approve/:id" element={<VendorPriceAssociation />} />
-          <Route path="/material/vendor-price-association/view/:id" element={<VendorPriceAssociation />} />
-          <Route path="/material/items/add" element={<AddRawMaterialItemModal />} />
-          <Route path="/material/items/approve/:id" element={<AddRawMaterialItemModal />} />
-          <Route path="/material/items/edit/:id" element={<AddRawMaterialItemModal />} />
-          <Route path="/material/items/view/:id" element={<ViewRawMaterialItem />} />
+          <Route
+            path="/material/vendor-price-approval"
+            element={<VendorPriceApproval />}
+          />
+          <Route
+            path="/material/vendor-price-association"
+            element={<VendorPriceAssociation />}
+          />
+          <Route
+            path="/material/vendor-price-association/approve/:id"
+            element={<VendorPriceAssociation />}
+          />
+          <Route
+            path="/material/vendor-price-association/view/:id"
+            element={<VendorPriceAssociation />}
+          />
+          <Route
+            path="/material/items/add"
+            element={<AddRawMaterialItemModal />}
+          />
+          <Route
+            path="/material/items/approve/:id"
+            element={<AddRawMaterialItemModal />}
+          />
+          <Route
+            path="/material/items/edit/:id"
+            element={<AddRawMaterialItemModal />}
+          />
+          <Route
+            path="/material/items/view/:id"
+            element={<ViewRawMaterialItem />}
+          />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
           <Route
             path="/material/brand-master"
@@ -404,7 +462,10 @@ export function AppRoutingSetup() {
             element={<AssetsDisposalLog />}
           />
           <Route path="/assets/add-disposal" element={<AddAssetsDisposal />} />
-          <Route path="/assets/edit-disposal/:id" element={<AddAssetsDisposal />} />
+          <Route
+            path="/assets/edit-disposal/:id"
+            element={<AddAssetsDisposal />}
+          />
 
           <Route path="/assets/export-assets-qr" element={<ExportAssetsQR />} />
           <Route path="/assets/asset-location" element={<AssetLocation />} />
@@ -428,8 +489,10 @@ export function AppRoutingSetup() {
           <Route path="/material/items" element={<RowMaterialItemMaster />} />
           <Route path="/material/unit-master" element={<RowMaterialUnit />} />
 
-
-          <Route path="/menu-item/categories" element={<KitchenMenuCategory />} />
+          <Route
+            path="/menu-item/categories"
+            element={<KitchenMenuCategory />}
+          />
           {/* <Route path="/menu-item/categories" element={<MenuCategory />} /> */}
           <Route path="/menu-item/sub-category" element={<MenuSubCategory />} />
           {/* <Route path="/menu-item/menu-items" element={<MenuItemsListing />} />
@@ -441,7 +504,10 @@ export function AppRoutingSetup() {
             path="/menu-item/edit-menu-item/:id"
             element={<CreateMenuItem />}
           /> */}
-          <Route path="/menu-item/menu-items" element={<KitchenMenuItemListing />} />
+          <Route
+            path="/menu-item/menu-items"
+            element={<KitchenMenuItemListing />}
+          />
           <Route
             path="/menu-item/add-menu-items"
             element={<CreateKitchenMenuItem />}
@@ -454,14 +520,61 @@ export function AppRoutingSetup() {
           <Route path="/menu-item/consumption/create" element={<CreateMenuItemConsumption />} />
           <Route path="/menu-item/consumption/edit/:id" element={<CreateMenuItemConsumption />} />
           <Route
-            path="/menu-item/recipe"
-            element={<ItemRecipeList />}
+            path="/menu-item/consumption"
+            element={<MenuItemConsumption />}
+          />
+          <Route
+            path="/menu-item/consumption/create"
+            element={<CreateMenuItemConsumption />}
+          />
+          <Route
+            path="/menu-item/consumption/edit/:id"
+            element={<CreateMenuItemConsumption />}
           />
           <Route path="/menu-item/create-recipe" element={<CreateItemRecipe />} />
           <Route path="/menu-item/view-recipe/:id" element={<ViewItemRecipe />} />
           <Route path="/menu-item/update-recipe/:id" element={<CreateItemRecipe />} />
 
-          <Route path="/menu-item/captain-recipe" element={<KitchenCaptainRecipeList />} />
+          <Route path="/proposal/meal-type-master" element={<MealTypeListing />} />
+          <Route path="/proposal/meal-slot-master" element={<MealSlotListing />} />
+          <Route path="/proposal/meal-structure-master" element={<MealStructureListing />} />
+          <Route path="/proposal/meal-structure/add-meal-structure" element={<AddMealStructure />} />
+          <Route path="/proposal/meal-structure/edit-meal-structure/:id" element={<AddMealStructure />} />
+          {/* <Route path="/proposal/man-power-master" element={<ManPowerListing />} /> */}
+          {/* <Route path="/proposal/cost-type-master" element={<CostTypeListing />} /> */}
+          {/* <Route path="/proposal/proposal-type-master" element={<ProposalTypeListing />} />
+          <Route path="/proposal/proposal-type" element={<ProposalTypeListing />} /> */}
+
+          <Route
+            path="/production/menu-planning"
+            element={<MenuPlanListing />}
+          />
+          <Route
+            path="/production/menu-planning/create"
+            element={<CreateMenuPlanning />}
+          />
+          <Route
+            path="/production/menu-planning/costing"
+            element={<MenuRecipeCosting />}
+          />
+
+          <Route
+            path="/production/approve-menu-plan"
+            element={<MenuPlanApproval />}
+          />
+          <Route
+            path="/production/store-indent"
+            element={<StoreIndent />}
+          />
+          <Route
+            path="/production/menu-planning/details/:id"
+            element={<MenuPlanDetails />}
+          />
+
+          <Route
+            path="/menu-item/captain-recipe"
+            element={<KitchenCaptainRecipeList />}
+          />
           {/* <Route path="/menu-item/captain-recipe" element={<CaptainRecipeList />} /> */}
           <Route
             path="/purchase-requisition/list"
@@ -471,7 +584,10 @@ export function AppRoutingSetup() {
             path="/purchase-requisition/add"
             element={<AddPurchaseRequisition />}
           />
-          <Route path="/purchase-requisition/edit/:id" element={<AddPurchaseRequisition />} />
+          <Route
+            path="/purchase-requisition/edit/:id"
+            element={<AddPurchaseRequisition />}
+          />
           <Route
             path="/approve-purchase-requisition/approve/:id"
             element={<PurchaseRequisitionApprovalDetail mode="approve" />}
@@ -481,7 +597,10 @@ export function AppRoutingSetup() {
             element={<PurchaseRequisitionApprovalDetail mode="reject" />}
           />
 
-          <Route path="/purchase-requisition/view/:id" element={<PurchaseRequisitionView />} />
+          <Route
+            path="/purchase-requisition/view/:id"
+            element={<PurchaseRequisitionView />}
+          />
           <Route
             path="/approve-purchase-requisition/list"
             element={<PurchaseRequisitionApproval />}
@@ -550,19 +669,51 @@ export function AppRoutingSetup() {
           <Route path='/purchase/purchase-invoice/generate-grn/:id' element={<GenerateGrnInvoice />} />
           <Route path='/purchase/invoice-listing' element={<PurchaseInvoiceListing />} />
           {/* <Route path='/purchase-invoice/grn-approval/:id' element={<ApproveInvoice/>}/> */}
-          <Route path='/purchase/purchase-invoice-details/:id' element={<PurchaseInvoiceDetailsModal />} />
+          <Route
+            path="/purchase/purchase-invoice-details/:id"
+            element={<PurchaseInvoiceDetailsModal />}
+          />
 
           {/* <Route path="/purchase/debit-credit-notes" element={<DebitCreditNoteListing />} />
           <Route path="/purchase/create-selection" element={<DebitCreditEligibleInvoices />} />
           <Route path="/purchase/debit-credit-notes/create" element={<DebitCreditNoteCreate />} />
           <Route path="/purchase/debit-credit-notes/details/:id" element={<DebitCreditNoteDetails />} />
           <Route path="/purchase/debit-credit-notes/edit/:id" element={<DebitCreditNoteCreate />} /> */}
+          <Route
+            path="/purchase/debit-credit-notes"
+            element={<DebitCreditNoteListing />}
+          />
+          <Route
+            path="/purchase/create-selection"
+            element={<DebitCreditEligibleInvoices />}
+          />
+          <Route
+            path="/purchase/debit-credit-notes/create"
+            element={<DebitCreditNoteCreate />}
+          />
+          <Route
+            path="/purchase/debit-credit-notes/details/:id"
+            element={<DebitCreditNoteDetails />}
+          />
+          <Route
+            path="/purchase/debit-credit-notes/edit/:id"
+            element={<DebitCreditNoteCreate />}
+          />
 
           <Route path="/inventory/generate-grn" element={<GenerateGRN />} />
-          <Route path="/inventory/generate-grn/generate" element={<GenerateGRNDetail />} />
-          <Route path="/inventory/generate-grn/generate/:id" element={<GenerateGRNDetail />} />
-          <Route path='/inventory/grn-listing' element={<GRNListing />} />
-          <Route path='/inventory/return-replacement' element={<ReturnReplacementList />} />
+          <Route
+            path="/inventory/generate-grn/generate"
+            element={<GenerateGRNDetail />}
+          />
+          <Route
+            path="/inventory/generate-grn/generate/:id"
+            element={<GenerateGRNDetail />}
+          />
+          <Route path="/inventory/grn-listing" element={<GRNListing />} />
+          <Route
+            path="/inventory/return-replacement"
+            element={<ReturnReplacementList />}
+          />
 
           <Route path='/inventory/stock-transfer' element={<StockTransfer />} />
           <Route path='/inventory/stock-transfer-detail/:id' element={<StockTransferDetail />} />
@@ -576,8 +727,14 @@ export function AppRoutingSetup() {
           <Route path='/inventory/transfer-receive-requests' element={<StockTransferReqReceiveList />} />
           <Route path='/inventory/stock-transfer-request-receive' element={<StockTransferReqReceiveList />} />
 
-          <Route path='/inventory/opb-stock-create-request-list' element={<OpbStockCreateRequestListing />} />
-          <Route path='/inventory/opb-stock-create-request' element={<OpbStockCreateRequest />} />
+          <Route
+            path="/inventory/opb-stock-create-request-list"
+            element={<OpbStockCreateRequestListing />}
+          />
+          <Route
+            path="/inventory/opb-stock-create-request"
+            element={<OpbStockCreateRequest />}
+          />
 
           <Route path='/inventory/manual-adjustment-listing' element={<ManualAdjustmentScreenListing />} />
           <Route path='/inventory/manual-adjustment/create' element={<CreateManualAdjustment />} />
@@ -587,8 +744,14 @@ export function AppRoutingSetup() {
           <Route path='/inventory/general-stock-ledger/view/:id' element={<GeneralStockLedgerViewDetails />} />
           <Route path='/inventory/general-stock-ledger/view' element={<GeneralStockLedgerViewDetails />} />
 
-          <Route path='/inventory/raw-material-barcode' element={<RawMaterialBarcode />} />
-          <Route path='/inventory/raw-material-batch-details' element={<RawMaterialBatchDetails />} />
+          <Route
+            path="/inventory/raw-material-barcode"
+            element={<RawMaterialBarcode />}
+          />
+          <Route
+            path="/inventory/raw-material-batch-details"
+            element={<RawMaterialBatchDetails />}
+          />
 
           <Route
             path="/stocks/available-stocks"
