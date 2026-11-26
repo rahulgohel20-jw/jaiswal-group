@@ -499,6 +499,7 @@ export const MENU_SIDEBAR = [
     icon: PackageSearch,
     children: [
       { title: 'Production Plans', path: '/production/plans' },
+      { title: 'Day Wise Production Plan', path: '/production/day-wise-production-plan' },
       { title: 'Store Issues', path: '/production/store-issues' },
       { title: 'Food Transfers', path: '/production/transfers' },
       { title: 'Plate Waste', path: '/production/plate-waste' },
@@ -670,6 +671,7 @@ export const MENU_SIDEBAR_ADMIN = [
     icon: PackageSearch,
     children: [
       { title: 'Production Plans', path: '/production/plans' },
+      { title: 'Day Wise Production Plan', path: '/production/day-wise-production-plan' },
       { title: 'Store Issues', path: '/production/store-issues' },
       { title: 'Food Transfers', path: '/production/transfers' },
       { title: 'Plate Waste', path: '/production/plate-waste' },
