@@ -8,7 +8,6 @@ import {
   Boxes,
   RotateCw,
   Download,
-  Eye,
   Check,
   CheckCircle2,
   AlertTriangle,
@@ -607,21 +606,21 @@ const StoreIndent = () => {
 
         const requiredQty = Number(
           item.totalRequiredQty ??
-            item.requiredQty ??
-            item.grossRequiredQty ??
-            item.plannedQty ??
-            0
+          item.requiredQty ??
+          item.grossRequiredQty ??
+          item.plannedQty ??
+          0
         );
         const liveStockQty = Number(item.liveStockQty ?? 0);
         const priorCommittedQty = Number(item.priorCommittedQty ?? 0);
         const totalAvailableQty = Number(item.totalAvailableQty ?? 0);
         const effectiveAvailableQty = Number(
           item.effectiveAvailableQty ??
-            item.totalAvailableQty ??
-            item.availableStock ??
-            item.currentStock ??
-            item.liveStockQty ??
-            0
+          item.totalAvailableQty ??
+          item.availableStock ??
+          item.currentStock ??
+          item.liveStockQty ??
+          0
         );
         const totalSuggestedIssueQty = Number(item.totalSuggestedIssueQty ?? 0);
         const rawShortfallQty = Number(
@@ -634,9 +633,9 @@ const StoreIndent = () => {
         );
         const netShortfallQty = Number(
           item.netShortfallQty ??
-            item.shortfallQty ??
-            item.shortfall ??
-            Math.max(0, Number((requiredQty - effectiveAvailableQty).toFixed(3)))
+          item.shortfallQty ??
+          item.shortfall ??
+          Math.max(0, Number((requiredQty - effectiveAvailableQty).toFixed(3)))
         );
         const shortageQty = Number(
           item.shortfallQty ?? item.netShortfallQty ?? item.shortfall ?? netShortfallQty
@@ -734,8 +733,8 @@ const StoreIndent = () => {
       console.error('Failed to generate store indent:', err);
       notify.error(
         err?.response?.data?.message ||
-          err?.response?.data?.msg ||
-          'Failed to generate store indent.'
+        err?.response?.data?.msg ||
+        'Failed to generate store indent.'
       );
     } finally {
       setGeneratingIndent(false);
@@ -981,15 +980,15 @@ const StoreIndent = () => {
         subOutletId: planSubOutletId ? Number(planSubOutletId) : null,
         subOutletName: planSubOutletId
           ? subOutletObj?.name ||
-            subOutletObj?.subOutletName ||
-            selectedPlan?.subOutletName ||
-            null
+          subOutletObj?.subOutletName ||
+          selectedPlan?.subOutletName ||
+          null
           : null,
         prDate: today,
         prRequiredDate,
         remarks: formatRemarks(
           prRemarks ||
-            `Generated from Store Indent${selectedPlan?.planCode ? ` (${selectedPlan.planCode})` : ''}`
+          `Generated from Store Indent${selectedPlan?.planCode ? ` (${selectedPlan.planCode})` : ''}`
         ),
         status: PR_STATUS.PENDING,
         details: itemsWithUom.map((item) => ({
@@ -1016,8 +1015,8 @@ const StoreIndent = () => {
       console.error('Failed to generate Purchase Requisition:', err);
       notify.error(
         err?.response?.data?.message ||
-          err?.response?.data?.msg ||
-          'Failed to generate Purchase Requisition.'
+        err?.response?.data?.msg ||
+        'Failed to generate Purchase Requisition.'
       );
     } finally {
       setGeneratingPr(false);
@@ -1068,22 +1067,19 @@ const StoreIndent = () => {
                 role="switch"
                 aria-checked={includePipelineStock}
                 onClick={() => setIncludePipelineStock((prev) => !prev)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
-                  includePipelineStock ? 'bg-[#084E92]' : 'bg-slate-300'
-                }`}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${includePipelineStock ? 'bg-[#084E92]' : 'bg-slate-300'
+                  }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ${
-                    includePipelineStock ? 'translate-x-4' : 'translate-x-0'
-                  }`}
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs transition duration-200 ${includePipelineStock ? 'translate-x-4' : 'translate-x-0'
+                    }`}
                 />
               </button>
               <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                  includePipelineStock
-                    ? 'bg-blue-50 text-[#084E92]'
-                    : 'bg-slate-200 text-slate-600'
-                }`}
+                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${includePipelineStock
+                  ? 'bg-blue-50 text-[#084E92]'
+                  : 'bg-slate-200 text-slate-600'
+                  }`}
               >
                 {includePipelineStock ? 'ON' : 'OFF'}
               </span>
@@ -1163,11 +1159,10 @@ const StoreIndent = () => {
                             <div
                               key={plan.id}
                               onClick={() => handleSelectPlan(plan.id)}
-                              className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${
-                                isSelected
-                                  ? 'bg-blue-50 text-[#084E92] font-semibold'
-                                  : 'hover:bg-slate-50 text-slate-700'
-                              }`}
+                              className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${isSelected
+                                ? 'bg-blue-50 text-[#084E92] font-semibold'
+                                : 'hover:bg-slate-50 text-slate-700'
+                                }`}
                             >
                               <div>
                                 <div className="font-bold flex items-center gap-1.5">
@@ -1185,11 +1180,10 @@ const StoreIndent = () => {
                                 </div>
                               </div>
                               <div
-                                className={`w-4 h-4 rounded-full flex items-center justify-center border ${
-                                  isSelected
-                                    ? 'bg-[#084E92] border-[#084E92] text-white'
-                                    : 'border-slate-300'
-                                }`}
+                                className={`w-4 h-4 rounded-full flex items-center justify-center border ${isSelected
+                                  ? 'bg-[#084E92] border-[#084E92] text-white'
+                                  : 'border-slate-300'
+                                  }`}
                               >
                                 {isSelected && <Check size={11} className="stroke-[3]" />}
                               </div>
@@ -1214,11 +1208,10 @@ const StoreIndent = () => {
                   if (!selectedPlanId || loadingDetails) return;
                   setDayDropdownOpen((prev) => !prev);
                 }}
-                className={`min-h-10 border border-slate-200 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-1.5 transition shadow-2xs ${
-                  !selectedPlanId || loadingDetails
-                    ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
-                    : 'bg-white hover:border-slate-300 cursor-pointer'
-                }`}
+                className={`min-h-10 border border-slate-200 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-1.5 transition shadow-2xs ${!selectedPlanId || loadingDetails
+                  ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                  : 'bg-white hover:border-slate-300 cursor-pointer'
+                  }`}
               >
                 <div className="flex flex-wrap items-center gap-1 min-w-0">
                   {!selectedPlanId ? (
@@ -1295,22 +1288,20 @@ const StoreIndent = () => {
                           <div
                             key={day.uniqueKey || dIdx}
                             onClick={() => handleToggleDay(day.id)}
-                            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${
-                              isSelected
-                                ? 'bg-blue-50 text-[#084E92] font-semibold'
-                                : 'hover:bg-slate-50 text-slate-700'
-                            }`}
+                            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${isSelected
+                              ? 'bg-blue-50 text-[#084E92] font-semibold'
+                              : 'hover:bg-slate-50 text-slate-700'
+                              }`}
                           >
                             <span>
                               {formatDateDisplay(day.planDate)}{' '}
                               {day.dayOfWeek ? `(${day.dayOfWeek})` : ''}
                             </span>
                             <div
-                              className={`w-4 h-4 rounded flex items-center justify-center border ${
-                                isSelected
-                                  ? 'bg-[#084E92] border-[#084E92] text-white'
-                                  : 'border-slate-300'
-                              }`}
+                              className={`w-4 h-4 rounded flex items-center justify-center border ${isSelected
+                                ? 'bg-[#084E92] border-[#084E92] text-white'
+                                : 'border-slate-300'
+                                }`}
                             >
                               {isSelected && <Check size={11} className="stroke-[3]" />}
                             </div>
@@ -1335,11 +1326,10 @@ const StoreIndent = () => {
                   if (!selectedPlanId || loadingDetails) return;
                   setShiftDropdownOpen((prev) => !prev);
                 }}
-                className={`min-h-10 border border-slate-200 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-1.5 transition shadow-2xs ${
-                  !selectedPlanId || loadingDetails
-                    ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
-                    : 'bg-white hover:border-slate-300 cursor-pointer'
-                }`}
+                className={`min-h-10 border border-slate-200 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-1.5 transition shadow-2xs ${!selectedPlanId || loadingDetails
+                  ? 'bg-slate-50 text-slate-400 cursor-not-allowed'
+                  : 'bg-white hover:border-slate-300 cursor-pointer'
+                  }`}
               >
                 <div className="flex flex-wrap items-center gap-1 min-w-0">
                   {!selectedPlanId ? (
@@ -1419,19 +1409,17 @@ const StoreIndent = () => {
                           <div
                             key={shift.mealTypeId}
                             onClick={() => handleToggleShift(shift.mealTypeId)}
-                            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${
-                              isSelected
-                                ? 'bg-blue-50 text-[#084E92] font-semibold'
-                                : 'hover:bg-slate-50 text-slate-700'
-                            }`}
+                            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${isSelected
+                              ? 'bg-blue-50 text-[#084E92] font-semibold'
+                              : 'hover:bg-slate-50 text-slate-700'
+                              }`}
                           >
                             <span>{shift.mealTypeName}</span>
                             <div
-                              className={`w-4 h-4 rounded flex items-center justify-center border ${
-                                isSelected
-                                  ? 'bg-[#084E92] border-[#084E92] text-white'
-                                  : 'border-slate-300'
-                              }`}
+                              className={`w-4 h-4 rounded flex items-center justify-center border ${isSelected
+                                ? 'bg-[#084E92] border-[#084E92] text-white'
+                                : 'border-slate-300'
+                                }`}
                             >
                               {isSelected && <Check size={11} className="stroke-[3]" />}
                             </div>
@@ -1559,11 +1547,10 @@ const StoreIndent = () => {
                               <div
                                 key={String(store.id)}
                                 onClick={() => handleToggleStore(store)}
-                                className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${
-                                  isSelected
-                                    ? 'bg-blue-50 text-[#084E92] font-semibold'
-                                    : 'hover:bg-slate-50 text-slate-700'
-                                }`}
+                                className={`flex items-center justify-between p-2 rounded-lg cursor-pointer text-xs transition ${isSelected
+                                  ? 'bg-blue-50 text-[#084E92] font-semibold'
+                                  : 'hover:bg-slate-50 text-slate-700'
+                                  }`}
                               >
                                 <div>
                                   <div className="font-bold">{store.name}</div>
@@ -1572,11 +1559,10 @@ const StoreIndent = () => {
                                   )}
                                 </div>
                                 <div
-                                  className={`w-4 h-4 rounded flex items-center justify-center border ${
-                                    isSelected
-                                      ? 'bg-[#084E92] border-[#084E92] text-white'
-                                      : 'border-slate-300'
-                                  }`}
+                                  className={`w-4 h-4 rounded flex items-center justify-center border ${isSelected
+                                    ? 'bg-[#084E92] border-[#084E92] text-white'
+                                    : 'border-slate-300'
+                                    }`}
                                 >
                                   {isSelected && <Check size={11} className="stroke-[3]" />}
                                 </div>
@@ -1652,9 +1638,9 @@ const StoreIndent = () => {
 
             {/* Table */}
             <div className="border border-slate-200/90 rounded-xl overflow-hidden shadow-2xs">
-              <div className="w-full max-h-[480px] overflow-x-auto overflow-y-auto">
-                <table className="w-full min-w-[920px] text-left text-xs">
-                  <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 text-[11px] text-slate-500 font-bold">
+              <div className="w-full overflow-x-auto show-scrollbar">
+                <table className="w-full min-w-[980px] text-left text-xs">
+                  <thead className="bg-slate-50/70 border-b border-slate-200 text-[11px] text-slate-500 font-bold">
                     <tr>
                       <th className="py-2.5 px-3 w-8 text-center">
                         <input
@@ -1676,13 +1662,12 @@ const StoreIndent = () => {
                       <th className="py-2.5 px-3 text-right">Est. Cost</th>
                       <th className="py-2.5 px-3 text-center">Unit</th>
                       <th className="py-2.5 px-3">Store</th>
-                      <th className="py-2.5 px-3 text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-slate-700">
                     {generatedRows.length === 0 ? (
                       <tr>
-                        <td colSpan={11} className="py-12 text-center text-slate-400 text-xs">
+                        <td colSpan={10} className="py-12 text-center text-slate-400 text-xs">
                           {generatingIndent
                             ? 'Generating store indent raw material requirements...'
                             : hasGenerated
@@ -1700,9 +1685,8 @@ const StoreIndent = () => {
                         return (
                           <tr
                             key={row.rowKey}
-                            className={`hover:bg-slate-50/60 transition-colors ${
-                              isSelected ? 'bg-blue-50/20' : ''
-                            }`}
+                            className={`hover:bg-slate-50/60 transition-colors ${isSelected ? 'bg-blue-50/20' : ''
+                              }`}
                           >
                             <td className="py-2.5 px-3 text-center">
                               <input
@@ -1716,7 +1700,14 @@ const StoreIndent = () => {
                               {idx + 1}
                             </td>
                             <td className="py-2.5 px-3 font-bold text-slate-900">
-                              <div>{row.rawMaterialName}</div>
+                              <button
+                                type="button"
+                                onClick={() => setViewingMaterial(row)}
+                                title="Click to view stock & requirement details"
+                                className="text-left font-bold text-[#084E92] hover:text-[#00376C] hover:underline cursor-pointer transition-colors"
+                              >
+                                {row.rawMaterialName}
+                              </button>
                               <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                 {row.rawMaterialCode && (
                                   <span className="text-[10px] font-medium text-slate-400">
@@ -1816,17 +1807,6 @@ const StoreIndent = () => {
                                   )}
                                 </select>
                               )}
-                            </td>
-                            <td className="py-2.5 px-3 text-center">
-                              <button
-                                type="button"
-                                onClick={() => setViewingMaterial(row)}
-                                className="inline-flex items-center gap-1 text-[#084E92] hover:text-[#00376C] p-1 rounded-md hover:bg-blue-50 transition cursor-pointer"
-                                title="View Requirement Breakdown"
-                              >
-                                <Eye size={14} />
-                                <span className="text-[11px] font-semibold">View</span>
-                              </button>
                             </td>
                           </tr>
                         );
@@ -2181,11 +2161,10 @@ const StoreIndent = () => {
                       Net Shortage
                     </span>
                     <span
-                      className={`text-sm font-black ${
-                        Number(viewingMaterial.shortageQty) > 0
-                          ? 'text-red-500'
-                          : 'text-emerald-600'
-                      }`}
+                      className={`text-sm font-black ${Number(viewingMaterial.shortageQty) > 0
+                        ? 'text-red-500'
+                        : 'text-emerald-600'
+                        }`}
                     >
                       {formatQty(viewingMaterial.shortageQty)} {viewingMaterial.uom}
                     </span>
