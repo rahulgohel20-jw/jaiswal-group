@@ -789,8 +789,11 @@ const ExportAssetsQR = () => {
         const timer = setTimeout(async () => {
             try {
                 setAssetsLoading(true);
-                const isAllSelected = assets.length > 0 && pickedAssets.length === assets.length;
-                const queryParams = isAllSelected ? undefined : pickedAssets.map((a) => a.id);
+                const queryParams = pickedAssets.map((a) => a.id).filter(Boolean);
+                if (queryParams.length === 0) {
+                    setSelectedAssets([]);
+                    return;
+                }
 
                 const assignmentRes = await getAssignmentsByAssetId(queryParams, {
                     signal: controller.signal,
