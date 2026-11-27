@@ -532,18 +532,7 @@ export function AppRoutingSetup() {
           <Route path="/menu-item/consumption" element={<MenuItemConsumption />} />
           <Route path="/menu-item/consumption/create" element={<CreateMenuItemConsumption />} />
           <Route path="/menu-item/consumption/edit/:id" element={<CreateMenuItemConsumption />} />
-          <Route
-            path="/menu-item/consumption"
-            element={<MenuItemConsumption />}
-          />
-          <Route
-            path="/menu-item/consumption/create"
-            element={<CreateMenuItemConsumption />}
-          />
-          <Route
-            path="/menu-item/consumption/edit/:id"
-            element={<CreateMenuItemConsumption />}
-          />
+          <Route path="/menu-item/recipe" element={<ItemRecipeList />} />
           <Route path="/menu-item/create-recipe" element={<CreateItemRecipe />} />
           <Route path="/menu-item/view-recipe/:id" element={<ViewItemRecipe />} />
           <Route path="/menu-item/update-recipe/:id" element={<CreateItemRecipe />} />
