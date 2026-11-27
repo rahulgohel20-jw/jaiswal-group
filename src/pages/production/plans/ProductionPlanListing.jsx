@@ -14,7 +14,8 @@ import {
   Truck,
   ArrowDownLeft,
   Utensils,
-  Eye
+  Eye,
+  ChefHat
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -199,11 +200,24 @@ export const ProductionPlanListing = () => {
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               title="Store Issue"
-                              onClick={() => navigate(`/production/plans/${plan.id}/store-issue`)}
+                              onClick={() =>
+                                navigate(`/production/plans/${plan.id}/store-issue`, {
+                                  state: { returnTo: '/production/plans' },
+                                })
+                              }
                               className="inline-flex flex-col items-center justify-center w-12 h-11 rounded-lg border border-blue-200 bg-blue-50/50 hover:bg-blue-100/70 text-[#084E92] transition cursor-pointer"
                             >
                               <PackageCheck size={14} />
                               <span className="text-[9px] font-semibold mt-0.5 leading-tight">Store Issue</span>
+                            </button>
+
+                            <button
+                              title="Production Execution"
+                              onClick={() => navigate(`/production/plans/${plan.id}/execution`)}
+                              className="inline-flex flex-col items-center justify-center w-12 h-11 rounded-lg border border-cyan-200 bg-cyan-50/50 hover:bg-cyan-100/70 text-cyan-700 transition cursor-pointer"
+                            >
+                              <ChefHat size={14} />
+                              <span className="text-[9px] font-semibold mt-0.5 leading-tight">Execution</span>
                             </button>
 
                             <button

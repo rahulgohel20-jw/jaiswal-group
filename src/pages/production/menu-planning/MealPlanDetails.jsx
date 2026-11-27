@@ -954,8 +954,10 @@ const MenuPlanDetails = () => {
 
                             const qtyUnitSym = getShortUnit(
                               item.scaledWeightUnitSymbol ||
+                                item.displayScaledWeightUnitSymbol ||
                                 item.uomSymbol ||
                                 item.unitSymbol ||
+                                item.unitName ||
                                 'kg'
                             );
                             const totalPlannedQty = Number(item.plannedQty) || 0;
