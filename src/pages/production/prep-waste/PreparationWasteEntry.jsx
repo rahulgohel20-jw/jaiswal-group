@@ -23,8 +23,10 @@ import { notify } from '@/utils/toast';
 import {
   SavePreWaste,
   getAllMealTypes,
+  getAllProductionExecutions,
   getAllRawMaterialItems,
 } from '@/services/apiServices';
+import { extractPlanCatalog } from '../costing/productionCostingData';
 
 const WASTE_TYPES = [
   { value: 'PEELING', label: 'Peeling' },
@@ -79,18 +81,23 @@ export const PreparationWasteEntry = () => {
   const resolvedOrgId =
     Number(selectedUnitId || effectiveOutletId || selfOrg?.id || getOrgIdFromToken() || 0) || '';
 
+  const initialPlanId =
+    Number(navState.productionPlanId ?? existingRecord?.productionPlanId ?? planId ?? 0) || '';
   const [productionPlanId, setProductionPlanId] = useState(() =>
-    Number(navState.productionPlanId ?? existingRecord?.productionPlanId ?? planId ?? 0) || ''
+    initialPlanId ? String(initialPlanId) : ''
   );
-  const [planCode] = useState(
+  const [planCode, setPlanCode] = useState(
     navState.planCode || existingRecord?.planCode || ''
   );
-  const [productionDate] = useState(
+  const [productionDate, setProductionDate] = useState(
     navState.productionDate || existingRecord?.productionDate || new Date().toISOString().split('T')[0]
   );
-  const [kitchenName] = useState(
+  const [kitchenName, setKitchenName] = useState(
     navState.kitchenLocationName || existingRecord?.kitchenLocationName || existingRecord?.kitchenName || ''
   );
+
+  const [productionPlans, setProductionPlans] = useState([]);
+  const [loadingPlans, setLoadingPlans] = useState(false);
 
   const [mealTypes, setMealTypes] = useState([]);
   const [mealTypeId, setMealTypeId] = useState(() =>
@@ -115,30 +122,88 @@ export const PreparationWasteEntry = () => {
   const [submitting, setSubmitting] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
 
-  // Load Meal Types
+  // Load Production Plans and Meal Types
   useEffect(() => {
     let isMounted = true;
-    const loadMealTypes = async () => {
+    const loadDropdowns = async () => {
+      setLoadingPlans(true);
       try {
-        const res = await getAllMealTypes();
-        const data = res?.data?.data ?? res?.data ?? [];
-        const list = Array.isArray(data) ? data : data?.items || [];
-        if (isMounted) {
-          setMealTypes(list);
-          setMealTypeId((prev) => {
-            if (prev) return prev;
-            return list[0]?.id ? String(list[0].id) : '';
+        const [mtRes, execRes] = await Promise.all([
+          getAllMealTypes(),
+          getAllProductionExecutions({
+            page: 0,
+            size: 100,
+            sortBy: 'createdAt',
+            sortDirection: 'DESC',
+          }).catch(() => null),
+        ]);
+
+        if (!isMounted) return;
+
+        const mtData = mtRes?.data?.data ?? mtRes?.data ?? [];
+        const mtList = Array.isArray(mtData) ? mtData : mtData?.items || [];
+        setMealTypes(mtList);
+        setMealTypeId((prev) => {
+          if (prev) return prev;
+          return mtList[0]?.id ? String(mtList[0].id) : '';
+        });
+
+        const execData = execRes?.data?.data ?? execRes?.data ?? {};
+        const execRows = Array.isArray(execData.content)
+          ? execData.content
+          : Array.isArray(execData.items)
+            ? execData.items
+            : Array.isArray(execData)
+              ? execData
+              : [];
+
+        const catalog = extractPlanCatalog(execRows, mtList);
+
+        // Ensure navigated/editing plan remains selectable even if outside first page
+        const initialIdNum = Number(initialPlanId || 0);
+        if (initialIdNum > 0 && !catalog.some((p) => Number(p.id) === initialIdNum)) {
+          catalog.unshift({
+            id: initialIdNum,
+            planCode: navState.planCode || existingRecord?.planCode || `PP-${initialIdNum}`,
+            productionDate: navState.productionDate || existingRecord?.productionDate || '',
+            kitchenName:
+              navState.kitchenLocationName ||
+              existingRecord?.kitchenLocationName ||
+              existingRecord?.kitchenName ||
+              '—',
+            meals: [],
+            hasSpecificMeals: false,
           });
         }
+
+        setProductionPlans(catalog);
+
+        // Sync metadata if opening via /plans/:planId/prep-waste without full navState
+        if (initialIdNum > 0) {
+          const matched = catalog.find((p) => Number(p.id) === initialIdNum);
+          if (matched) {
+            setPlanCode((prev) => prev || matched.planCode);
+            setProductionDate((prev) =>
+              navState.productionDate || existingRecord?.productionDate
+                ? prev
+                : matched.productionDate || prev
+            );
+            setKitchenName((prev) =>
+              prev || (matched.kitchenName !== '—' ? matched.kitchenName : '')
+            );
+          }
+        }
       } catch (err) {
-        console.error('Failed to load meal types:', err);
+        console.error('Failed to load production plans or meal types:', err);
+      } finally {
+        if (isMounted) setLoadingPlans(false);
       }
     };
-    loadMealTypes();
+    loadDropdowns();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialPlanId, navState.planCode, navState.productionDate, navState.kitchenLocationName, existingRecord]);
 
   // Load Raw Materials for dropdown addition
   useEffect(() => {
@@ -194,6 +259,44 @@ export const PreparationWasteEntry = () => {
         };
       });
   }, [rawMaterials, entries]);
+
+  const productionPlanOptions = useMemo(
+    () =>
+      productionPlans.map((plan) => {
+        const parts = [plan.planCode];
+        if (plan.productionDate) parts.push(`(${plan.productionDate})`);
+        if (plan.kitchenName && plan.kitchenName !== '—') parts.push(`- ${plan.kitchenName}`);
+        return {
+          value: String(plan.id),
+          label: parts.join(' '),
+        };
+      }),
+    [productionPlans]
+  );
+
+  const handleProductionPlanChange = (e) => {
+    const nextId = String(e?.target?.value ?? e?.value ?? '');
+    setProductionPlanId(nextId);
+    const selectedPlan = productionPlans.find((p) => String(p.id) === nextId);
+    if (selectedPlan) {
+      setPlanCode(selectedPlan.planCode || '');
+      if (selectedPlan.productionDate) {
+        setProductionDate(selectedPlan.productionDate);
+      }
+      setKitchenName(selectedPlan.kitchenName && selectedPlan.kitchenName !== '—' ? selectedPlan.kitchenName : '');
+      if (selectedPlan.hasSpecificMeals && selectedPlan.meals?.length > 0) {
+        const currentMealValid = selectedPlan.meals.some(
+          (m) => String(m.mealTypeId) === String(mealTypeId)
+        );
+        if (!currentMealValid) {
+          setMealTypeId(String(selectedPlan.meals[0].mealTypeId));
+        }
+      }
+    } else if (!nextId) {
+      setPlanCode('');
+      setKitchenName('');
+    }
+  };
 
   const mealTypeOptions = useMemo(
     () =>
@@ -309,7 +412,7 @@ export const PreparationWasteEntry = () => {
   const validateEntries = () => {
     setValidationAttempted(true);
     if (!productionPlanId || Number(productionPlanId) <= 0) {
-      notify.error('Please enter a valid Production Plan ID.');
+      notify.error('Please select a Production Plan.');
       return false;
     }
     if (!mealTypeId || Number(mealTypeId) <= 0) {
@@ -443,23 +546,17 @@ export const PreparationWasteEntry = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
               <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
-                Production Plan ID <span className="text-rose-500">*</span>
+                Production Plan <span className="text-rose-500">*</span>
               </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="1"
-                  value={productionPlanId}
-                  onChange={(e) => setProductionPlanId(e.target.value)}
-                  placeholder="Enter Plan ID"
-                  className="w-full h-8 px-2.5 rounded-lg border border-[#C3C6D1] bg-white text-xs font-bold text-[#084E92] outline-none focus:border-[#084E92]"
-                />
-                {planCode && (
-                  <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
-                    ({planCode})
-                  </span>
-                )}
-              </div>
+              <SearchableSelect
+                name="productionPlanId"
+                value={productionPlanId}
+                onChange={handleProductionPlanChange}
+                options={productionPlanOptions}
+                placeholder={loadingPlans ? 'Loading plans...' : 'Select Production Plan'}
+                loading={loadingPlans}
+                hasError={validationAttempted && (!productionPlanId || Number(productionPlanId) <= 0)}
+              />
             </div>
 
             <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">

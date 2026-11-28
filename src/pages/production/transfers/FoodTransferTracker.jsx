@@ -1,460 +1,695 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-  Search,
-  Calendar,
-  Download,
-  Plus,
-  Eye,
-  Truck,
+  ArrowLeft,
+  CheckCircle2,
+  Loader2,
+  Lock,
   Printer,
-  RotateCcw,
-  Check,
   Save,
-  Thermometer,
-  ShieldCheck,
-  Phone,
-  User,
-  Layers,
-  Filter
+  Truck,
 } from 'lucide-react';
 import { Container } from '@/components/common/container';
 import { PageHeader } from '@/components/common/PageHeader';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { StatusBadge } from '@/components/production/StatusBadge';
-import {
-  MOCK_FOOD_TRANSFERS_REGISTER,
-  MOCK_DISPATCH_ITEMS
-} from '../mockData/productionMockData';
+import { PageErrorAlert } from '@/components/common/PageErrorAlert';
+import { getUserIdFromToken } from '@/utils/auth';
 import { notify } from '@/utils/toast';
+import {
+  GetByIdDraftProductionPlanDispatch,
+  SaveDraftProductionPlanDispatch,
+  SaveProductionPlanDispatch,
+} from '@/services/apiServices';
+
+const isApiSuccess = (res) => {
+  const body = res?.data;
+  if (!body) return false;
+  if (body.status !== undefined) {
+    return String(body.status).toUpperCase() === 'SUCCESS';
+  }
+  if (body.success !== undefined) {
+    return Boolean(body.success);
+  }
+  return res.status >= 200 && res.status < 300;
+};
+
+const getApiMessage = (res, err, fallback) => {
+  return (
+    res?.data?.message ||
+    res?.data?.msg ||
+    err?.response?.data?.message ||
+    err?.response?.data?.msg ||
+    err?.message ||
+    fallback
+  );
+};
+
+const formatDisplayDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const str = String(dateStr).split('T')[0];
+  const parts = str.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+  }
+  return str;
+};
+
+const READ_ONLY_STATUSES = [
+  'DISPATCHED',
+  'COMPLETED',
+  'IN_TRANSIT',
+  'DELIVERED',
+  'CANCELLED',
+  'CLOSED',
+];
+
+const mapDispatchItem = (it, idx, fallbackStatus = 'DRAFT') => ({
+  ...it,
+  localKey: `${it.transferItemId ?? it.id ?? idx}-${idx}`,
+  transferItemId: Number(it.transferItemId ?? it.id ?? 0),
+  itemName:
+    it.itemName ||
+    it.recipeName ||
+    it.kitchenMenuItemName ||
+    it.name ||
+    `Item #${it.transferItemId ?? it.id ?? idx + 1}`,
+  categoryName: it.categoryName || it.recipeCategoryName || '',
+  batchNumber: it.batchNumber ?? it.batchNo ?? '',
+  plannedQuantity:
+    it.plannedQuantity ?? it.allocatedQuantity ?? it.requiredQuantity ?? null,
+  transferQuantity:
+    it.transferQuantity !== undefined && it.transferQuantity !== null
+      ? it.transferQuantity
+      : it.dispatchQuantity ?? it.plannedQuantity ?? 0,
+  uomSymbol: it.uomSymbol || it.unitSymbol || it.unitName || 'kg',
+  containerCount:
+    it.containerCount !== undefined && it.containerCount !== null
+      ? it.containerCount
+      : 0,
+  temperature:
+    it.temperature !== undefined && it.temperature !== null
+      ? String(it.temperature)
+      : '',
+  remarks: it.remarks ?? '',
+  status: String(it.status || fallbackStatus || 'DRAFT').toUpperCase(),
+});
 
 export const FoodTransferTracker = () => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('workspace'); // 'register' or 'workspace'
+  const location = useLocation();
+  const params = useParams();
 
-  // Register filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedKitchen, setSelectedKitchen] = useState('All');
-  const [selectedStatus, setSelectedStatus] = useState('All');
+  const resolvedStockTransferId = Number(
+    params.stockTransferId || location.state?.stockTransferId || 0
+  );
 
-  // Workspace form state
-  const [dispatchDate, setDispatchDate] = useState('2026-10-22');
-  const [sourceKitchen, setSourceKitchen] = useState('Maruti Main Kitchen');
-  const [destination, setDestination] = useState('All Outlets');
-  const [meal, setMeal] = useState('Lunch');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [dispatching, setDispatching] = useState(false);
+  const [showDispatchConfirm, setShowDispatchConfirm] = useState(false);
 
-  const [selectedPlanInList, setSelectedPlanInList] = useState('PP-2026-001');
-  const [vehicleNo, setVehicleNo] = useState('GJ-01-AB-2845');
-  const [dispatchTemp, setDispatchTemp] = useState('72');
-  const [driverName, setDriverName] = useState('Mukesh Patel');
-  const [driverMobile, setDriverMobile] = useState('+91 98765 43210');
-  const [sealNo, setSealNo] = useState('SEAL-007-101');
-  const [dispatchNotes, setDispatchNotes] = useState('');
-
-  const [dispatchItems, setDispatchItems] = useState(MOCK_DISPATCH_ITEMS);
-
-  const filteredTransfers = MOCK_FOOD_TRANSFERS_REGISTER.filter((t) => {
-    const matchesSearch =
-      t.transferNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.planCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.fromKitchen.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
+  const [headerInfo, setHeaderInfo] = useState(() => {
+    const s = location.state?.dispatchSummary || {};
+    return {
+      stockTransferId: resolvedStockTransferId,
+      transferNumber:
+        s.transferCode ||
+        s.transferNumber ||
+        s.transferNo ||
+        s.dispatchNumber ||
+        (resolvedStockTransferId ? `STR-${resolvedStockTransferId}` : ''),
+      planCode:
+        s.planCode ||
+        s.productionPlanCode ||
+        (s.productionPlanId ? `PP-${s.productionPlanId}` : ''),
+      mealTypeName: s.mealTypeName || '',
+      dispatchDate: s.transferDate || s.dispatchDate || s.productionDate || '',
+      scheduledDispatch: s.scheduledDispatchTime || s.scheduledDispatch || '',
+      sourceName:
+        s.sourceLocationName ||
+        s.sourceKitchenName ||
+        s.sourceKitchenLocationName ||
+        s.fromKitchen ||
+        '',
+      destinationName:
+        s.destinationName ||
+        [
+          s.destinationOrganizationName || s.destinationOutletName || s.toOutlet,
+          s.destinationSubOutletName || s.destinationLocationName,
+        ]
+          .filter(Boolean)
+          .join(' • ') ||
+        '',
+      status: String(s.status || 'DRAFT').toUpperCase(),
+    };
   });
 
-  const handleDispatchNow = () => {
-    notify.success('Food transfer dispatched successfully! Vehicle logged.');
-    setActiveTab('register');
+  const [form, setForm] = useState({
+    vehicleNumber: '',
+    dispatchTemperature: '',
+    driverName: '',
+    driverMobile: '',
+    sealNumber: '',
+    notes: '',
+  });
+
+  const [dispatchItems, setDispatchItems] = useState([]);
+
+  const fetchSeqRef = useRef(0);
+
+  const applyDispatchResponse = useCallback(
+    (raw) => {
+      if (!raw || typeof raw !== 'object') return;
+      const summary = raw.transferSummary || raw.dispatch || raw.stockTransfer || raw;
+      const details = raw.dispatchDetails || raw.dispatch || raw;
+      const statusNorm = String(summary.status || raw.status || 'DRAFT').toUpperCase();
+      const rawItems = Array.isArray(raw.items)
+        ? raw.items
+        : Array.isArray(summary.items)
+          ? summary.items
+          : Array.isArray(summary.transferItems)
+            ? summary.transferItems
+            : [];
+
+      const destLabel =
+        summary.destinationName ||
+        [
+          summary.destinationOrganizationName ||
+            summary.destinationOutletName ||
+            summary.toOutlet,
+          summary.destinationSubOutletName ||
+            summary.destinationLocationName ||
+            summary.subLocationName,
+        ]
+          .filter(Boolean)
+          .join(' • ');
+
+      setHeaderInfo({
+        stockTransferId: Number(
+          summary.stockTransferId ?? summary.id ?? resolvedStockTransferId
+        ),
+        transferNumber:
+          summary.transferCode ||
+          summary.transferNumber ||
+          summary.transferNo ||
+          summary.dispatchNumber ||
+          summary.dispatchCode ||
+          `STR-${summary.stockTransferId ?? summary.id ?? resolvedStockTransferId}`,
+        planCode:
+          summary.planCode ||
+          summary.productionPlanCode ||
+          (summary.productionPlanId ? `PP-${summary.productionPlanId}` : '—'),
+        mealTypeName:
+          summary.mealTypeName || (summary.mealTypeId ? `Meal #${summary.mealTypeId}` : ''),
+        dispatchDate:
+          summary.transferDate || summary.dispatchDate || summary.productionDate || '',
+        scheduledDispatch:
+          summary.scheduledDispatch || summary.scheduledDispatchTime || summary.dispatchTime || '',
+        sourceName:
+          summary.sourceLocationName ||
+          summary.sourceKitchenName ||
+          summary.sourceKitchenLocationName ||
+          summary.fromKitchen ||
+          summary.sourceStoreName ||
+          '—',
+        destinationName: destLabel || '—',
+        status: statusNorm,
+      });
+
+      const defaultTemp =
+        details.dispatchTemperature !== undefined && details.dispatchTemperature !== null
+          ? String(details.dispatchTemperature)
+          : details.temperature !== undefined && details.temperature !== null
+            ? String(details.temperature)
+            : '';
+
+      setForm({
+        vehicleNumber: details.vehicleNumber ?? details.vehicleNo ?? '',
+        dispatchTemperature: defaultTemp,
+        driverName: details.driverName ?? '',
+        driverMobile: details.driverMobile ?? details.driverPhone ?? '',
+        sealNumber: details.sealNumber ?? details.sealNo ?? '',
+        notes: details.notes ?? details.remarks ?? '',
+      });
+
+      setDispatchItems(rawItems.map((it, idx) => mapDispatchItem(it, idx, statusNorm)));
+    },
+    [resolvedStockTransferId]
+  );
+
+  const fetchDispatchDetails = useCallback(async () => {
+    if (!resolvedStockTransferId || resolvedStockTransferId <= 0) return;
+
+    const seq = ++fetchSeqRef.current;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await GetByIdDraftProductionPlanDispatch({
+        stockTransferId: Number(resolvedStockTransferId),
+      });
+      if (seq !== fetchSeqRef.current) return;
+
+      if (!isApiSuccess(res)) {
+        const msg = getApiMessage(res, null, 'Failed to load dispatch details.');
+        setError(msg);
+        return;
+      }
+
+      const data = res?.data?.data ?? res?.data ?? {};
+      applyDispatchResponse(data);
+    } catch (err) {
+      if (seq !== fetchSeqRef.current) return;
+      console.error('Failed to fetch dispatch details:', err);
+      setError(getApiMessage(null, err, 'Failed to load dispatch details.'));
+    } finally {
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [resolvedStockTransferId, applyDispatchResponse]);
+
+  useEffect(() => {
+    fetchDispatchDetails();
+  }, [fetchDispatchDetails]);
+
+  const isReadOnly = READ_ONLY_STATUSES.includes(headerInfo.status);
+
+  const handleFormChange = (field, value) => {
+    if (isReadOnly) return;
+    if (field === 'dispatchTemperature' && value !== '' && !/^-?\d*\.?\d*$/.test(value)) {
+      return;
+    }
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleItemChange = (localKey, field, value) => {
+    if (isReadOnly) return;
+    if (
+      (field === 'transferQuantity' || field === 'temperature') &&
+      value !== '' &&
+      !/^-?\d*\.?\d*$/.test(value)
+    ) {
+      return;
+    }
+    if (field === 'containerCount' && value !== '' && !/^\d*$/.test(value)) {
+      return;
+    }
+
+    setDispatchItems((prev) =>
+      prev.map((it) => (it.localKey === localKey ? { ...it, [field]: value } : it))
+    );
+  };
+
+  const summaryStats = useMemo(() => {
+    const qtyByUnit = {};
+    let totalContainers = 0;
+
+    dispatchItems.forEach((it) => {
+      const qty = Number(it.transferQuantity) || 0;
+      const unit = it.uomSymbol || 'kg';
+      qtyByUnit[unit] = (qtyByUnit[unit] || 0) + qty;
+      totalContainers += Number(it.containerCount) || 0;
+    });
+
+    const qtySummary = Object.entries(qtyByUnit)
+      .map(([unit, total]) => `${Number.isInteger(total) ? total : total.toFixed(2)} ${unit}`)
+      .join(' • ');
+
+    return {
+      qtySummary: qtySummary || '0 kg',
+      totalContainers,
+    };
+  }, [dispatchItems]);
+
+  const buildPayload = () => {
+    const parsedTemp =
+      form.dispatchTemperature === '' || form.dispatchTemperature === '-'
+        ? 0
+        : Number(form.dispatchTemperature) || 0;
+
+    return {
+      dispatchTemperature: parsedTemp,
+      driverMobile: form.driverMobile.trim(),
+      driverName: form.driverName.trim(),
+      items: dispatchItems.map((it) => ({
+        batchNumber: (it.batchNumber || '').trim(),
+        containerCount: it.containerCount === '' ? 0 : Number(it.containerCount) || 0,
+        remarks: (it.remarks || '').trim(),
+        temperature:
+          it.temperature === '' || it.temperature === '-'
+            ? 0
+            : Number(it.temperature) || 0,
+        transferItemId: Number(it.transferItemId) || 0,
+        transferQuantity:
+          it.transferQuantity === '' ? 0 : Number(it.transferQuantity) || 0,
+      })),
+      notes: form.notes.trim(),
+      sealNumber: form.sealNumber.trim(),
+      stockTransferId: Number(headerInfo.stockTransferId || resolvedStockTransferId),
+      userId: Number(getUserIdFromToken()) || 1,
+      vehicleNumber: form.vehicleNumber.trim(),
+    };
+  };
+
+  const validateForAction = (isFinalDispatch) => {
+    if (!resolvedStockTransferId || resolvedStockTransferId <= 0) {
+      notify.error('Invalid Stock Transfer ID.');
+      return false;
+    }
+
+    if (dispatchItems.length === 0) {
+      notify.error('No dispatch items found to save.');
+      return false;
+    }
+
+    for (const it of dispatchItems) {
+      const qty = Number(it.transferQuantity);
+      const containers = Number(it.containerCount);
+      if (Number.isNaN(qty) || qty < 0) {
+        notify.error(`Transfer quantity cannot be negative for "${it.itemName}".`);
+        return false;
+      }
+      if (Number.isNaN(containers) || containers < 0) {
+        notify.error(`Container count cannot be negative for "${it.itemName}".`);
+        return false;
+      }
+    }
+
+    if (isFinalDispatch) {
+      const hasAnyPositiveQty = dispatchItems.some(
+        (it) => Number(it.transferQuantity) > 0
+      );
+      if (!hasAnyPositiveQty) {
+        notify.error('At least one item must have a transfer quantity greater than 0.');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleSaveDraft = async () => {
+    if (isReadOnly || savingDraft || dispatching) return;
+    if (!validateForAction(false)) return;
+
+    setSavingDraft(true);
+    try {
+      const payload = buildPayload();
+      const res = await SaveDraftProductionPlanDispatch(payload);
+
+      if (!isApiSuccess(res)) {
+        notify.error(getApiMessage(res, null, 'Failed to save dispatch draft.'));
+        return;
+      }
+
+      notify.success(getApiMessage(res, null, 'Dispatch draft saved successfully.'));
+      const data = res?.data?.data;
+      if (
+        data &&
+        typeof data === 'object' &&
+        (data.transferSummary || data.dispatchDetails || data.stockTransferId || data.items)
+      ) {
+        applyDispatchResponse(data);
+      } else {
+        await fetchDispatchDetails();
+      }
+    } catch (err) {
+      console.error('Failed to save dispatch draft:', err);
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
+  const handleOpenDispatchConfirm = () => {
+    if (isReadOnly || savingDraft || dispatching) return;
+    if (!validateForAction(true)) return;
+    setShowDispatchConfirm(true);
+  };
+
+  const handleConfirmDispatch = async () => {
+    if (isReadOnly || dispatching) return;
+
+    setDispatching(true);
+    try {
+      const payload = buildPayload();
+      const res = await SaveProductionPlanDispatch(payload);
+
+      if (!isApiSuccess(res)) {
+        notify.error(getApiMessage(res, null, 'Failed to dispatch food transfer.'));
+        return;
+      }
+
+      setShowDispatchConfirm(false);
+      notify.success(getApiMessage(res, null, 'Food transfer dispatched successfully!'));
+      const data = res?.data?.data;
+      if (
+        data &&
+        typeof data === 'object' &&
+        (data.transferSummary || data.dispatchDetails || data.stockTransferId || data.items)
+      ) {
+        applyDispatchResponse(data);
+      } else {
+        await fetchDispatchDetails();
+      }
+    } catch (err) {
+      console.error('Failed to dispatch transfer:', err);
+    } finally {
+      setDispatching(false);
+    }
   };
 
   const handlePrint = () => {
-    notify.info('Preparing print preview for dispatch gate-pass...');
+    window.print();
   };
 
   return (
     <Container>
       <div className="space-y-6 pb-16 pt-2">
-        {/* Standardized PageHeader with HeaderActionButton */}
         <PageHeader
-          title="Food Dispatch & Transfer Tracker"
-          description="Track and manage food dispatches and transfers between kitchens and outlets."
+          title={
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <span>
+                Food Dispatch{headerInfo.transferNumber ? ` (${headerInfo.transferNumber})` : ''}
+              </span>
+              {headerInfo.status && <StatusBadge status={headerInfo.status} />}
+            </div>
+          }
+          description="Verify dispatch manifest, assign vehicle & driver credentials, and dispatch food transfers."
           actions={
-            <div className="flex items-center gap-3">
-              {/* View Switcher Pill */}
-              <div className="p-1 bg-gray-100 rounded-xl flex items-center border border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('workspace')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    activeTab === 'workspace' ? 'bg-white text-[#084E92] shadow-xs' : 'text-gray-500 hover:text-gray-900'
-                  }`}
-                >
-                  Dispatch Workspace
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('register')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                    activeTab === 'register' ? 'bg-white text-[#084E92] shadow-xs' : 'text-gray-500 hover:text-gray-900'
-                  }`}
-                >
-                  Transfers Register
-                </button>
-              </div>
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => navigate('/production/transfers')}
+                className="flex items-center gap-1.5 text-sm font-semibold text-[#084E92] hover:text-[#063b6f] cursor-pointer bg-transparent border-0 p-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to List
+              </button>
 
-              {activeTab === 'workspace' ? (
-                <HeaderActionButton
-                  onClick={handlePrint}
-                  icon={Printer}
-                  label="Print Dispatch Details"
-                  variant="outline"
-                />
-              ) : (
-                <HeaderActionButton
-                  onClick={() => setActiveTab('workspace')}
-                  icon={Plus}
-                  label="New Transfer"
-                />
-              )}
+              <HeaderActionButton
+                onClick={handlePrint}
+                icon={Printer}
+                label="Print Dispatch Details"
+                variant="outline"
+              />
             </div>
           }
         />
 
-        {/* VIEW A: TRANSFERS REGISTER */}
-        {activeTab === 'register' && (
-          <div className="space-y-4">
-            {/* Filter Bar */}
-            <div className="bg-white border border-[#E7EAF0] rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3 flex-1">
-                <div className="relative min-w-[240px] flex-1 max-w-md">
-                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search transfer no., plan, item..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-10 pl-9 pr-3 text-xs rounded-xl border border-[#C3C6D1] bg-white focus:outline-none focus:border-[#084E92]"
-                  />
-                </div>
+        <PageErrorAlert
+          error={error}
+          onRetry={fetchDispatchDetails}
+          className="my-2"
+        />
 
-                <div className="flex items-center h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs text-gray-700 gap-2">
-                  <Calendar size={14} className="text-gray-400" />
-                  <span className="font-medium">21 Oct 2026 – 27 Oct 2026</span>
-                </div>
-
-                <select
-                  value={selectedKitchen}
-                  onChange={(e) => setSelectedKitchen(e.target.value)}
-                  className="h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs text-gray-700 font-medium focus:outline-none"
-                >
-                  <option value="All">All Kitchens</option>
-                  <option value="Central Kitchen">Central Kitchen</option>
-                  <option value="City Center Kitchen">City Center Kitchen</option>
-                  <option value="Production Kitchen">Production Kitchen</option>
-                </select>
-
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs text-gray-700 font-medium focus:outline-none"
-                >
-                  <option value="All">All Status</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Pending">Pending</option>
-                </select>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => notify.info('Exporting transfer logs...')}
-                className="inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl border border-[#C3C6D1] text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition"
-              >
-                <Download size={14} />
-                Export
-              </button>
-            </div>
-
-            {/* Table */}
-            <div className="bg-white border border-[#E7EAF0] rounded-2xl shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-gray-100 text-[10px] font-bold uppercase text-slate-400 tracking-wider">
-                      <th className="py-3 px-4">Transfer No.</th>
-                      <th className="py-3 px-4">Date</th>
-                      <th className="py-3 px-4">Production Plan</th>
-                      <th className="py-3 px-4">From Kitchen</th>
-                      <th className="py-3 px-4">To Kitchen / Outlet</th>
-                      <th className="py-3 px-4 text-center">Item Count</th>
-                      <th className="py-3 px-4">Qty</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {filteredTransfers.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition">
-                        <td className="py-3.5 px-4 font-bold text-[#084E92]">{item.transferNo}</td>
-                        <td className="py-3.5 px-4 text-gray-700 font-medium">{item.date}</td>
-                        <td className="py-3.5 px-4 font-semibold text-gray-900">{item.planCode}</td>
-                        <td className="py-3.5 px-4 text-gray-700">{item.fromKitchen}</td>
-                        <td className="py-3.5 px-4 text-gray-700">{item.toOutlet}</td>
-                        <td className="py-3.5 px-4 text-center font-medium text-gray-600">{item.itemCount} items</td>
-                        <td className="py-3.5 px-4 font-bold text-gray-900">{item.qty}</td>
-                        <td className="py-3.5 px-4">
-                          <StatusBadge status={item.status} />
-                        </td>
-                        <td className="py-3.5 px-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab('workspace')}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition"
-                          >
-                            <Eye size={13} className="text-[#084E92]" />
-                            View
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+        {!resolvedStockTransferId || resolvedStockTransferId <= 0 ? (
+          <div className="bg-white border border-[#E7EAF0] rounded-2xl p-12 text-center space-y-3">
+            <Truck size={36} className="mx-auto text-slate-300" />
+            <h3 className="text-sm font-bold text-slate-800">No Transfer Selected</h3>
+            <p className="text-xs text-slate-500">
+              Select a food transfer from the dispatch list to view or dispatch items.
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/production/transfers')}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#084E92] hover:bg-[#063c70] text-white text-xs font-semibold transition cursor-pointer"
+            >
+              <ArrowLeft size={14} />
+              Go to Dispatch List
+            </button>
           </div>
-        )}
-
-        {/* VIEW B: DISPATCH WORKSPACE */}
-        {activeTab === 'workspace' && (
+        ) : loading ? (
+          <div className="bg-white border border-[#E7EAF0] rounded-2xl py-20 flex items-center justify-center gap-2 text-slate-500 text-sm">
+            <Loader2 size={18} className="animate-spin text-[#084E92]" />
+            Loading dispatch details...
+          </div>
+        ) : (
           <div className="space-y-6">
-            {/* Workspace Filters */}
-            <div className="bg-white border border-[#E7EAF0] rounded-2xl p-5 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <Filter size={14} className="text-[#084E92]" />
-                  Filters
+            {isReadOnly && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-center gap-2.5 text-xs text-emerald-800 font-semibold">
+                <Lock size={15} className="shrink-0 text-emerald-600" />
+                <span>
+                  This transfer has status {headerInfo.status.replace(/_/g, ' ')} and is locked in read-only mode.
                 </span>
-                <span className="text-[11px] text-gray-400">Filter production schedule & transfers</span>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Dispatch Date</label>
-                  <input
-                    type="date"
-                    value={dispatchDate}
-                    onChange={(e) => setDispatchDate(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-medium focus:border-[#084E92] focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Source Kitchen</label>
-                  <select
-                    value={sourceKitchen}
-                    onChange={(e) => setSourceKitchen(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-medium focus:border-[#084E92] focus:outline-none"
-                  >
-                    <option value="Maruti Main Kitchen">Maruti Main Kitchen</option>
-                    <option value="Central Kitchen">Central Kitchen</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Destination</label>
-                  <select
-                    value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-medium focus:border-[#084E92] focus:outline-none"
-                  >
-                    <option value="All Outlets">All Outlets</option>
-                    <option value="Tata Motors Plant Canteen">Tata Motors Plant Canteen</option>
-                    <option value="Reliance Mall Food Court">Reliance Mall Food Court</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Meal</label>
-                  <select
-                    value={meal}
-                    onChange={(e) => setMeal(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-medium focus:border-[#084E92] focus:outline-none"
-                  >
-                    <option value="Lunch">Lunch</option>
-                    <option value="Dinner">Dinner</option>
-                    <option value="Breakfast">Breakfast</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => notify.info('Filters reset')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                >
-                  <RotateCcw size={12} />
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={() => notify.success('Filters applied')}
-                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#084E92] hover:bg-[#063c70]"
-                >
-                  <Filter size={12} />
-                  Apply Filters
-                </button>
-              </div>
-            </div>
-
-            {/* Scheduled Dispatch List Preview */}
-            <div className="bg-white border border-[#E7EAF0] rounded-2xl shadow-xs overflow-hidden">
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Dispatch List</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#084E92]">
-                    5 Plans
-                  </span>
-                </div>
-                <span className="text-[11px] text-gray-400">Scheduled dispatches for selected period</span>
-              </div>
-
-              <div className="divide-y divide-gray-100 text-xs">
-                {[
-                  { code: 'PP-2026-001', dest: 'Tata Motors Plant Canteen', meal: 'Lunch' },
-                  { code: 'PP-2026-002', dest: 'Reliance Mall Food Court', meal: 'Dinner' },
-                  { code: 'PP-2026-003', dest: 'Tech Park Canteen', meal: 'Breakfast' },
-                  { code: 'PP-2026-004', dest: 'Phoenix Mall', meal: 'Lunch' },
-                  { code: 'PP-2026-005', dest: 'IBM Campus Canteen', meal: 'Dinner' }
-                ].map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => setSelectedPlanInList(item.code)}
-                    className={`p-3.5 flex items-center justify-between cursor-pointer transition ${
-                      selectedPlanInList === item.code ? 'bg-blue-50/70 border-l-4 border-[#084E92]' : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="font-bold text-[#084E92]">{item.code}</span>
-                    <span className="text-gray-700 font-medium">{item.dest}</span>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                      {item.meal}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Transfer and Dispatch Details Card */}
+            {/* Transfer Summary & Dispatch Credentials Card */}
             <div className="bg-white border border-[#E7EAF0] rounded-2xl p-6 shadow-xs space-y-6">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900">Transfer and Dispatch Details</h3>
-                  <p className="text-xs text-gray-500">Assign destination, driver credentials and manifest validation.</p>
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Transfer and Dispatch Details
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Assign destination credentials, seal number, and thermal conditions before dispatch.
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => notify.success('Transfer created')}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#084E92] hover:bg-[#063c70]"
-                >
-                  <Plus size={14} />
-                  Create Transfer
-                </button>
+                {headerInfo.mealTypeName && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#084E92] border border-blue-100">
+                    {headerInfo.mealTypeName}
+                  </span>
+                )}
               </div>
 
-              {/* Transfer Summary */}
+              {/* Transfer Summary Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Source</span>
-                  <select className="text-xs font-bold text-gray-900 bg-transparent outline-none mt-0.5">
-                    <option>Maruti Finished Food Store</option>
-                  </select>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    Source
+                  </span>
+                  <span className="text-xs font-bold text-gray-900 mt-0.5 block truncate">
+                    {headerInfo.sourceName || '—'}
+                  </span>
                 </div>
                 <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Destination</span>
-                  <select className="text-xs font-bold text-gray-900 bg-transparent outline-none mt-0.5">
-                    <option>Tata Motors Plant Canteen</option>
-                  </select>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    Destination
+                  </span>
+                  <span className="text-xs font-bold text-gray-900 mt-0.5 block truncate">
+                    {headerInfo.destinationName || '—'}
+                  </span>
                 </div>
                 <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Production Plan</span>
-                  <select className="text-xs font-bold text-[#084E92] bg-transparent outline-none mt-0.5">
-                    <option>PP-2026-007</option>
-                  </select>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    Production Plan
+                  </span>
+                  <span className="text-xs font-bold text-[#084E92] mt-0.5 block truncate">
+                    {headerInfo.planCode || '—'}
+                  </span>
                 </div>
                 <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Scheduled Dispatch</span>
-                  <span className="text-xs font-bold text-gray-800 mt-0.5 block">22 Oct 2026, 12:30 PM</span>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    Scheduled Dispatch
+                  </span>
+                  <span className="text-xs font-bold text-gray-800 mt-0.5 block">
+                    {headerInfo.scheduledDispatch ||
+                      (headerInfo.dispatchDate ? formatDisplayDate(headerInfo.dispatchDate) : '—')}
+                  </span>
                 </div>
                 <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-100">
-                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Status</span>
-                  <select className="text-xs font-bold text-emerald-700 bg-transparent outline-none mt-0.5">
-                    <option>Ready to Dispatch</option>
-                  </select>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    Status
+                  </span>
+                  <div className="mt-1">
+                    <StatusBadge status={headerInfo.status} />
+                  </div>
                 </div>
               </div>
 
               {/* Dispatch Credentials Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Vehicle Number</label>
+                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                    Vehicle Number
+                  </label>
                   <input
                     type="text"
-                    value={vehicleNo}
-                    onChange={(e) => setVehicleNo(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-semibold focus:border-[#084E92] focus:outline-none"
+                    disabled={isReadOnly}
+                    value={form.vehicleNumber}
+                    onChange={(e) => handleFormChange('vehicleNumber', e.target.value)}
+                    placeholder="e.g. GJ-01-AB-2845"
+                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white disabled:bg-slate-50 disabled:text-slate-600 text-xs font-semibold focus:border-[#084E92] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Dispatch Temperature (°C)</label>
+                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                    Dispatch Temperature (°C)
+                  </label>
                   <div className="flex items-center h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white">
                     <input
                       type="text"
-                      value={dispatchTemp}
-                      onChange={(e) => setDispatchTemp(e.target.value)}
-                      className="w-full bg-transparent outline-none text-xs font-bold text-gray-800"
+                      inputMode="decimal"
+                      disabled={isReadOnly}
+                      value={form.dispatchTemperature}
+                      onChange={(e) =>
+                        handleFormChange('dispatchTemperature', e.target.value)
+                      }
+                      placeholder="0"
+                      className="w-full bg-transparent outline-none text-xs font-bold text-gray-800 disabled:text-slate-600"
                     />
                     <span className="text-xs font-bold text-emerald-600">°C</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Driver Name</label>
+                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                    Driver Name
+                  </label>
                   <input
                     type="text"
-                    value={driverName}
-                    onChange={(e) => setDriverName(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-medium focus:border-[#084E92] focus:outline-none"
+                    disabled={isReadOnly}
+                    value={form.driverName}
+                    onChange={(e) => handleFormChange('driverName', e.target.value)}
+                    placeholder="Enter driver name"
+                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white disabled:bg-slate-50 disabled:text-slate-600 text-xs font-medium focus:border-[#084E92] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Driver Mobile</label>
+                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                    Driver Mobile
+                  </label>
                   <input
                     type="text"
-                    value={driverMobile}
-                    onChange={(e) => setDriverMobile(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-medium focus:border-[#084E92] focus:outline-none"
+                    disabled={isReadOnly}
+                    value={form.driverMobile}
+                    onChange={(e) => handleFormChange('driverMobile', e.target.value)}
+                    placeholder="Enter mobile number"
+                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white disabled:bg-slate-50 disabled:text-slate-600 text-xs font-medium focus:border-[#084E92] focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Seal Number</label>
+                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                    Seal Number
+                  </label>
                   <input
                     type="text"
-                    value={sealNo}
-                    onChange={(e) => setSealNo(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-medium focus:border-[#084E92] focus:outline-none"
+                    disabled={isReadOnly}
+                    value={form.sealNumber}
+                    onChange={(e) => handleFormChange('sealNumber', e.target.value)}
+                    placeholder="e.g. SEAL-001"
+                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white disabled:bg-slate-50 disabled:text-slate-600 text-xs font-medium focus:border-[#084E92] focus:outline-none"
                   />
                 </div>
                 <div className="lg:col-span-2">
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">Notes</label>
+                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                    Notes
+                  </label>
                   <input
                     type="text"
+                    disabled={isReadOnly}
                     placeholder="Enter any additional notes about the dispatch..."
-                    value={dispatchNotes}
-                    onChange={(e) => setDispatchNotes(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white text-xs font-medium focus:border-[#084E92] focus:outline-none"
+                    value={form.notes}
+                    onChange={(e) => handleFormChange('notes', e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-[#C3C6D1] bg-white disabled:bg-slate-50 disabled:text-slate-600 text-xs font-medium focus:border-[#084E92] focus:outline-none"
                   />
                 </div>
               </div>
@@ -464,12 +699,16 @@ export const FoodTransferTracker = () => {
             <div className="bg-white border border-[#E7EAF0] rounded-2xl shadow-xs overflow-hidden">
               <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Items to Dispatch</h3>
+                  <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                    Items to Dispatch
+                  </h3>
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    {dispatchItems.length} Items Ready
+                    {dispatchItems.length} {dispatchItems.length === 1 ? 'Item' : 'Items'}
                   </span>
                 </div>
-                <span className="text-[11px] text-gray-400">Itemized recipes & thermal conditions</span>
+                <span className="text-[11px] text-gray-400">
+                  Itemized recipes, container count &amp; thermal conditions
+                </span>
               </div>
 
               <div className="overflow-x-auto">
@@ -480,27 +719,124 @@ export const FoodTransferTracker = () => {
                       <th className="py-3 px-4">Batch Number</th>
                       <th className="py-3 px-4 text-right">Transfer Quantity</th>
                       <th className="py-3 px-4 text-center">Container Count</th>
-                      <th className="py-3 px-4 text-center">Temperature</th>
+                      <th className="py-3 px-4 text-center">Temperature (°C)</th>
+                      <th className="py-3 px-4">Remarks</th>
                       <th className="py-3 px-4">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {dispatchItems.map((item) => (
-                      <tr key={item.id} className="hover:bg-slate-50/50 transition">
-                        <td className="py-3 px-4 font-bold text-gray-900">{item.item}</td>
-                        <td className="py-3 px-4 font-medium text-gray-600">{item.batchNo}</td>
-                        <td className="py-3 px-4 text-right font-bold text-gray-800">{item.transferQty}</td>
-                        <td className="py-3 px-4 text-center font-semibold text-gray-700">{item.containerCount}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            {item.temp}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <StatusBadge status={item.status} />
+                    {dispatchItems.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="py-10 text-center text-xs text-slate-400">
+                          No dispatch items available for this transfer.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      dispatchItems.map((item) => (
+                        <tr key={item.localKey} className="hover:bg-slate-50/50 transition">
+                          <td className="py-3 px-4">
+                            <span className="font-bold text-gray-900 block">
+                              {item.itemName}
+                            </span>
+                            {item.categoryName && (
+                              <span className="text-[11px] text-slate-400 block">
+                                {item.categoryName}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <input
+                              type="text"
+                              disabled={isReadOnly}
+                              value={item.batchNumber}
+                              onChange={(e) =>
+                                handleItemChange(item.localKey, 'batchNumber', e.target.value)
+                              }
+                              placeholder="Batch no."
+                              className="w-32 h-8 px-2.5 rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 text-xs font-medium text-gray-700 focus:border-[#084E92] focus:outline-none"
+                            />
+                          </td>
+
+                          <td className="py-3 px-4 text-right">
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                disabled={isReadOnly}
+                                value={item.transferQuantity}
+                                onChange={(e) =>
+                                  handleItemChange(
+                                    item.localKey,
+                                    'transferQuantity',
+                                    e.target.value
+                                  )
+                                }
+                                placeholder="0"
+                                className="w-20 h-8 px-2 text-right rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 text-xs font-bold text-gray-900 focus:border-[#084E92] focus:outline-none"
+                              />
+                              <span className="text-[11px] font-semibold text-slate-500 min-w-6 text-left">
+                                {item.uomSymbol}
+                              </span>
+                            </div>
+                            {item.plannedQuantity !== null &&
+                              item.plannedQuantity !== undefined && (
+                                <span className="text-[10px] text-slate-400 block mt-0.5">
+                                  Planned: {item.plannedQuantity} {item.uomSymbol}
+                                </span>
+                              )}
+                          </td>
+
+                          <td className="py-3 px-4 text-center">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              disabled={isReadOnly}
+                              value={item.containerCount}
+                              onChange={(e) =>
+                                handleItemChange(item.localKey, 'containerCount', e.target.value)
+                              }
+                              placeholder="0"
+                              className="w-16 h-8 px-2 text-center rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 text-xs font-semibold text-gray-800 focus:border-[#084E92] focus:outline-none"
+                            />
+                          </td>
+
+                          <td className="py-3 px-4 text-center">
+                            <div className="inline-flex items-center justify-center gap-1">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                disabled={isReadOnly}
+                                value={item.temperature}
+                                onChange={(e) =>
+                                  handleItemChange(item.localKey, 'temperature', e.target.value)
+                                }
+                                placeholder="0"
+                                className="w-16 h-8 px-2 text-center rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 text-xs font-semibold text-amber-700 focus:border-[#084E92] focus:outline-none"
+                              />
+                              <span className="text-[11px] font-semibold text-slate-500">°C</span>
+                            </div>
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <input
+                              type="text"
+                              disabled={isReadOnly}
+                              value={item.remarks}
+                              onChange={(e) =>
+                                handleItemChange(item.localKey, 'remarks', e.target.value)
+                              }
+                              placeholder="Remarks..."
+                              className="w-40 h-8 px-2.5 rounded-lg border border-slate-200 bg-white disabled:bg-slate-50 text-xs text-gray-700 focus:border-[#084E92] focus:outline-none"
+                            />
+                          </td>
+
+                          <td className="py-3 px-4">
+                            <StatusBadge status={item.status} />
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -508,28 +844,107 @@ export const FoodTransferTracker = () => {
               {/* Workspace Footer Actions */}
               <div className="p-4 bg-slate-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-6 text-xs font-bold text-gray-700">
-                  <span className="text-[#084E92] text-sm">68.5 kg</span>
-                  <span>Total Container Count: <strong className="text-gray-900">42</strong></span>
+                  <span className="text-[#084E92] text-sm">{summaryStats.qtySummary}</span>
+                  <span>
+                    Total Container Count:{' '}
+                    <strong className="text-gray-900">{summaryStats.totalContainers}</strong>
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => notify.success('Dispatch draft saved')}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-300 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer"
-                  >
-                    <Save size={14} />
-                    Save
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDispatchNow}
-                    className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#084E92] hover:bg-[#063c70] transition shadow-xs cursor-pointer"
-                  >
-                    Dispatch Now
-                    <Truck size={14} />
-                  </button>
+                {!isReadOnly && (
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={savingDraft || dispatching}
+                      onClick={handleSaveDraft}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-300 text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 transition cursor-pointer"
+                    >
+                      {savingDraft ? (
+                        <Loader2 size={14} className="animate-spin text-[#084E92]" />
+                      ) : (
+                        <Save size={14} />
+                      )}
+                      {savingDraft ? 'Saving Draft...' : 'Save Draft'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingDraft || dispatching}
+                      onClick={handleOpenDispatchConfirm}
+                      className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#084E92] hover:bg-[#063c70] disabled:opacity-50 transition shadow-xs cursor-pointer"
+                    >
+                      {dispatching ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Truck size={14} />
+                      )}
+                      {dispatching ? 'Dispatching...' : 'Dispatch Now'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dispatch Confirmation Modal */}
+        {showDispatchConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md border border-[#E5E7EB] overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#084E92] flex items-center justify-center">
+                  <CheckCircle2 size={18} />
                 </div>
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Confirm Dispatch</h3>
+                  <p className="text-xs text-gray-500">
+                    {headerInfo.transferNumber || `Transfer #${resolvedStockTransferId}`}
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-6 text-xs text-gray-600 space-y-2">
+                <p>
+                  You are about to dispatch{' '}
+                  <strong className="text-gray-900">{summaryStats.qtySummary}</strong> across{' '}
+                  <strong className="text-gray-900">{summaryStats.totalContainers}</strong>{' '}
+                  container(s) to{' '}
+                  <strong className="text-gray-900">
+                    {headerInfo.destinationName || 'destination'}
+                  </strong>
+                  .
+                </p>
+                <p className="text-slate-500">
+                  Once dispatched, the transfer record will be locked and cannot be edited.
+                </p>
+              </div>
+
+              <div className="px-6 py-3.5 bg-slate-50 border-t border-gray-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  disabled={dispatching}
+                  onClick={() => setShowDispatchConfirm(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={dispatching}
+                  onClick={handleConfirmDispatch}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#084E92] hover:bg-[#063c70] text-white text-xs font-semibold transition cursor-pointer disabled:opacity-60"
+                >
+                  {dispatching ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      Dispatching...
+                    </>
+                  ) : (
+                    <>
+                      <Truck size={13} />
+                      Confirm Dispatch
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

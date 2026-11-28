@@ -14,6 +14,7 @@ import {
   Info,
   X,
   ChevronDown,
+  ChevronUp,
   Search,
   Loader2,
   ShoppingCart,
@@ -57,6 +58,131 @@ const formatCurrencyINR = (val) => {
     minimumFractionDigits: num % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   })}`;
+};
+
+const normalizeProcurementRef = (ref, fallbackUom = '') => {
+  if (typeof ref === 'string' || typeof ref === 'number') {
+    const label = String(ref).trim();
+    const upper = label.toUpperCase();
+    const docType = upper.startsWith('PO') ? 'PO' : upper.startsWith('PR') ? 'PR' : 'REF';
+    return {
+      docType,
+      refNumber: label || '—',
+      qty: null,
+      uom: fallbackUom,
+      date: '',
+      party: '',
+      status: '',
+    };
+  }
+  const obj = ref && typeof ref === 'object' ? ref : {};
+  const rawType = String(
+    obj.docType ?? obj.documentType ?? obj.referenceType ?? obj.type ?? ''
+  )
+    .trim()
+    .toUpperCase();
+  const refNumber =
+    obj.docNumber ??
+    obj.documentNumber ??
+    obj.documentNo ??
+    obj.referenceNumber ??
+    obj.referenceNo ??
+    obj.refNumber ??
+    obj.refNo ??
+    obj.code ??
+    obj.prCode ??
+    obj.poCode ??
+    obj.prNumber ??
+    obj.poNumber ??
+    (obj.id ? `#${obj.id}` : '—');
+  const inferredType =
+    rawType ||
+    (String(refNumber).toUpperCase().startsWith('PO') || obj.poCode || obj.poNumber
+      ? 'PO'
+      : String(refNumber).toUpperCase().startsWith('PR') || obj.prCode || obj.prNumber
+        ? 'PR'
+        : 'REF');
+  const rawQty =
+    obj.openQty ??
+    obj.pendingQty ??
+    obj.remainingQty ??
+    obj.inboundQty ??
+    obj.quantity ??
+    obj.qty ??
+    obj.orderedQty ??
+    null;
+
+  return {
+    docType: inferredType,
+    refNumber: String(refNumber),
+    qty: rawQty !== null && rawQty !== undefined ? Number(rawQty) : null,
+    uom: obj.uomSymbol || obj.unitSymbol || obj.uomName || obj.uom || fallbackUom,
+    date: obj.expectedDate || obj.requiredDate || obj.deliveryDate || obj.date || obj.createdAt || '',
+    party: obj.vendorName || obj.supplierName || obj.storeName || obj.subOutletName || '',
+    status: obj.status ? String(obj.status).toUpperCase() : '',
+  };
+};
+
+const OpenProcurementReferencesTable = ({ references = [], fallbackUom = '' }) => {
+  if (!Array.isArray(references) || references.length === 0) return null;
+
+  return (
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+      <table className="w-full text-left text-xs">
+        <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase">
+          <tr>
+            <th className="py-2 px-3">Type</th>
+            <th className="py-2 px-3">Reference No.</th>
+            <th className="py-2 px-3">Date</th>
+            <th className="py-2 px-3">Vendor / Store</th>
+            <th className="py-2 px-3">Status</th>
+            <th className="py-2 px-3 text-right">Open Qty</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {references.map((procRef, rIdx) => {
+            const parsed = normalizeProcurementRef(procRef, fallbackUom);
+            const isPo = parsed.docType === 'PO';
+            return (
+              <tr
+                key={`${parsed.refNumber}-${rIdx}`}
+                className="hover:bg-slate-50/50"
+              >
+                <td className="py-2 px-3">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                      isPo
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-blue-50 text-[#084E92] border-blue-200'
+                    }`}
+                  >
+                    {parsed.docType}
+                  </span>
+                </td>
+                <td className="py-2 px-3 font-bold text-slate-900">
+                  {parsed.refNumber}
+                </td>
+                <td className="py-2 px-3 text-slate-600">
+                  {parsed.date ? formatDateDisplay(parsed.date) : '—'}
+                </td>
+                <td className="py-2 px-3 text-slate-700">
+                  {parsed.party || '—'}
+                </td>
+                <td className="py-2 px-3 text-slate-600 font-medium">
+                  {parsed.status || '—'}
+                </td>
+                <td className="py-2 px-3 text-right font-bold text-[#084E92]">
+                  {parsed.qty !== null && !Number.isNaN(parsed.qty)
+                    ? `${formatQty(parsed.qty)} ${parsed.uom}`
+                    : '—'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 };
 
 const extractIndentItemsList = (resData) => {
@@ -122,6 +248,14 @@ const StoreIndent = () => {
 
   // State: View Item Breakdown Modal
   const [viewingMaterial, setViewingMaterial] = useState(null);
+  const [expandedProcRows, setExpandedProcRows] = useState({});
+
+  const handleToggleProcRow = (rowKey) => {
+    setExpandedProcRows((prev) => ({
+      ...prev,
+      [rowKey]: !prev[rowKey],
+    }));
+  };
 
   // State: Purchase Requisition Modal
   const [isPrModalOpen, setIsPrModalOpen] = useState(false);
@@ -910,6 +1044,29 @@ const StoreIndent = () => {
 
     setGeneratingPr(true);
     try {
+      const primarySelectedStore = selectedStores[0] || null;
+      const matchedRespStore = primarySelectedStore
+        ? responseStores.find(
+            (rs) =>
+              String(rs.subOutletId ?? rs.storeId ?? '') === String(primarySelectedStore.id)
+          ) || responseStores[0]
+        : responseStores[0] || null;
+
+      const selectedStoreSubOutletId =
+        matchedRespStore?.subOutletId && Number(matchedRespStore.subOutletId) > 0
+          ? Number(matchedRespStore.subOutletId)
+          : primarySelectedStore?.id &&
+              !Number.isNaN(Number(primarySelectedStore.id)) &&
+              Number(primarySelectedStore.id) > 0
+            ? Number(primarySelectedStore.id)
+            : matchedRespStore?.storeId && Number(matchedRespStore.storeId) > 0
+              ? Number(matchedRespStore.storeId)
+              : null;
+
+      const resolvedSubOutletId = planSubOutletId
+        ? Number(planSubOutletId)
+        : selectedStoreSubOutletId;
+
       // Resolve missing uomId from Raw Material master if Store Indent API didn't include uomId
       let itemsWithUom = validItems;
       const needsUomLookup = validItems.some((item) => !item.uomId || Number(item.uomId) <= 0);
@@ -923,7 +1080,7 @@ const StoreIndent = () => {
             '',
             '',
             planOrgId || '',
-            planSubOutletId || ''
+            resolvedSubOutletId || ''
           );
           const rmList =
             rmRes?.data?.data?.['Raw Material Details'] ||
@@ -967,8 +1124,16 @@ const StoreIndent = () => {
 
       const outletObj = units.find((u) => Number(u.id) === Number(planOrgId));
       const subOutletsList = planOrgId && getSubOutlets ? getSubOutlets(planOrgId) : [];
-      const subOutletObj = planSubOutletId
-        ? (subOutletsList || []).find((s) => Number(s.id) === Number(planSubOutletId))
+      const subOutletObj = resolvedSubOutletId
+        ? (subOutletsList || []).find((s) => Number(s.id) === Number(resolvedSubOutletId))
+        : null;
+      const resolvedSubOutletName = resolvedSubOutletId
+        ? subOutletObj?.name ||
+          subOutletObj?.subOutletName ||
+          (planSubOutletId ? selectedPlan?.subOutletName : null) ||
+          matchedRespStore?.storeName ||
+          primarySelectedStore?.name ||
+          null
         : null;
 
       const prPayload = {
@@ -977,13 +1142,8 @@ const StoreIndent = () => {
         outletId: Number(planOrgId),
         outletName: outletObj?.name || selectedPlan?.organizationName || '',
         outletShortCode: outletObj?.code || '',
-        subOutletId: planSubOutletId ? Number(planSubOutletId) : null,
-        subOutletName: planSubOutletId
-          ? subOutletObj?.name ||
-          subOutletObj?.subOutletName ||
-          selectedPlan?.subOutletName ||
-          null
-          : null,
+        subOutletId: resolvedSubOutletId,
+        subOutletName: resolvedSubOutletName,
         prDate: today,
         prRequiredDate,
         remarks: formatRemarks(
@@ -1681,10 +1841,15 @@ const StoreIndent = () => {
                         const numericShortage = Number(row.shortageQty) || 0;
                         const hasShortage = numericShortage > 0;
                         const rowCost = getRowShortfallCost(row);
+                        const procRefs = Array.isArray(row.openProcurementReferences)
+                          ? row.openProcurementReferences
+                          : [];
+                        const hasProcRefs = procRefs.length > 0;
+                        const isProcExpanded = Boolean(expandedProcRows[row.rowKey]);
 
                         return (
+                          <React.Fragment key={row.rowKey}>
                           <tr
-                            key={row.rowKey}
                             className={`hover:bg-slate-50/60 transition-colors ${isSelected ? 'bg-blue-50/20' : ''
                               }`}
                           >
@@ -1700,14 +1865,37 @@ const StoreIndent = () => {
                               {idx + 1}
                             </td>
                             <td className="py-2.5 px-3 font-bold text-slate-900">
-                              <button
-                                type="button"
-                                onClick={() => setViewingMaterial(row)}
-                                title="Click to view stock & requirement details"
-                                className="text-left font-bold text-[#084E92] hover:text-[#00376C] hover:underline cursor-pointer transition-colors"
-                              >
-                                {row.rawMaterialName}
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingMaterial(row)}
+                                  title="Click to view stock & requirement details"
+                                  className="text-left font-bold text-[#084E92] hover:text-[#00376C] hover:underline cursor-pointer transition-colors"
+                                >
+                                  {row.rawMaterialName}
+                                </button>
+                                {hasProcRefs && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleProcRow(row.rowKey)}
+                                    title={
+                                      isProcExpanded
+                                        ? 'Collapse open procurement references'
+                                        : 'Expand open procurement references'
+                                    }
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-[#084E92] border border-blue-200 hover:bg-blue-100 cursor-pointer transition shrink-0"
+                                  >
+                                    <span>
+                                      {procRefs.length} {procRefs.length === 1 ? 'Ref' : 'Refs'}
+                                    </span>
+                                    {isProcExpanded ? (
+                                      <ChevronUp size={11} />
+                                    ) : (
+                                      <ChevronDown size={11} />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                               <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                 {row.rawMaterialCode && (
                                   <span className="text-[10px] font-medium text-slate-400">
@@ -1809,6 +1997,34 @@ const StoreIndent = () => {
                               )}
                             </td>
                           </tr>
+                          {hasProcRefs && isProcExpanded && (
+                            <tr className="bg-slate-50/60">
+                              <td colSpan={10} className="px-4 py-3">
+                                <div className="bg-white border border-blue-100 rounded-xl overflow-hidden shadow-2xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleProcRow(row.rowKey)}
+                                    className="w-full flex items-center justify-between px-3.5 py-2 bg-slate-50/70 border-b border-slate-100 text-left cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-2 h-2 rounded-full bg-[#084E92]" />
+                                      <span className="text-xs font-bold text-slate-800">
+                                        Open Procurement References ({procRefs.length})
+                                      </span>
+                                    </div>
+                                    <ChevronUp size={14} className="text-slate-500" />
+                                  </button>
+                                  <div className="p-2">
+                                    <OpenProcurementReferencesTable
+                                      references={procRefs}
+                                      fallbackUom={row.uom}
+                                    />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                          </React.Fragment>
                         );
                       })
                     )}
@@ -2231,6 +2447,20 @@ const StoreIndent = () => {
                     </table>
                   </div>
                 </div>
+
+                {/* Open Procurement References Table */}
+                {Array.isArray(viewingMaterial.openProcurementReferences) &&
+                  viewingMaterial.openProcurementReferences.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-800 mb-2">
+                        Open Procurement References ({viewingMaterial.openProcurementReferences.length})
+                      </h4>
+                      <OpenProcurementReferencesTable
+                        references={viewingMaterial.openProcurementReferences}
+                        fallbackUom={viewingMaterial.uom}
+                      />
+                    </div>
+                  )}
 
                 {/* Contributing Recipes Table */}
                 {Array.isArray(viewingMaterial.breakdown) &&
