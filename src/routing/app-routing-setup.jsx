@@ -582,6 +582,7 @@ export function AppRoutingSetup() {
           {/* Production Module Screens (UI Only) */}
           <Route path="/production/plans" element={<ProductionPlanListing />} />
           <Route path="/production/plans/create" element={<CreateProductionPlan />} />
+          <Route path="/production/plans/edit/:planId" element={<CreateProductionPlan />} />
           <Route path="/production/plans/:planId/allocation" element={<RecipeAllocation />} />
           <Route path="/production/plans/:planId/sourcing" element={<MaterialSourcing />} />
           <Route path="/production/store-issues" element={<StoreIssueRegister />} />

@@ -21,7 +21,6 @@ import { DataGrid } from '@/components/ui/data-grid';
 import { DataGridColumnHeader } from '@/components/ui/data-grid-column-header';
 import { DataGridPagination } from '@/components/ui/data-grid-pagination';
 import { DataGridTable } from '@/components/ui/data-grid-table';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -30,7 +29,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import SearchableSelect from '@/utils/SearchableSelect';
-import { StatusBadge } from '@/components/production/StatusBadge';
 import { PageErrorAlert } from '@/components/common/PageErrorAlert';
 import { useModuleState } from '@/hooks/useModuleState';
 import { useOrgScope } from '@/hooks/useOrgScope';
@@ -119,6 +117,20 @@ const ProductionExecutionListing = () => {
     setPlanInput(productionPlanId);
   }, [productionPlanId]);
 
+  // Debounced auto-filter for planInput so Apply button is not needed
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if ((planInput || '').trim() !== (productionPlanId || '').trim()) {
+        setFilters((prev) => ({
+          ...prev,
+          productionPlanId: (planInput || '').trim(),
+          page: 0,
+        }));
+      }
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [planInput, productionPlanId, setFilters]);
+
   // Load Meal Types lookup
   useEffect(() => {
     let isMounted = true;
@@ -176,9 +188,13 @@ const ProductionExecutionListing = () => {
 
       // Drop empty filters instead of sending null or ""
       if (productionPlanId && String(productionPlanId).trim() !== '') {
-        const parsedPlanId = Number(productionPlanId);
-        if (!Number.isNaN(parsedPlanId) && parsedPlanId > 0) {
+        const cleanPlan = String(productionPlanId).trim();
+        const matchDigits = cleanPlan.match(/\d+$/);
+        const parsedPlanId = Number(cleanPlan) || (matchDigits ? Number(matchDigits[0]) : null);
+        if (parsedPlanId && !Number.isNaN(parsedPlanId) && parsedPlanId > 0) {
           payload.productionPlanId = parsedPlanId;
+        } else {
+          payload.planCode = cleanPlan;
         }
       }
       if (mealTypeId && Number(mealTypeId) > 0) {
@@ -186,12 +202,9 @@ const ProductionExecutionListing = () => {
       }
       if (productionDate) {
         payload.productionDate = productionDate;
-      }
-      if (fromDate) {
-        payload.fromDate = fromDate;
-      }
-      if (toDate) {
-        payload.toDate = toDate;
+      } else {
+        if (fromDate) payload.fromDate = fromDate;
+        if (toDate) payload.toDate = toDate;
       }
       if (statusFilter && statusFilter !== 'All Status') {
         payload.status = statusFilter;
@@ -261,14 +274,6 @@ const ProductionExecutionListing = () => {
     }
   }, [fetchExecutions, scopeLoading]);
 
-  const handleApplyFilters = () => {
-    setFilters((prev) => ({
-      ...prev,
-      productionPlanId: planInput.trim(),
-      page: 0,
-    }));
-  };
-
   const handleResetFilters = () => {
     setPlanInput('');
     setSorting([{ id: 'createdAt', desc: true }]);
@@ -309,7 +314,7 @@ const ProductionExecutionListing = () => {
           </span>
         ),
         enableSorting: false,
-        size: 60,
+        size: 50,
       },
       {
         id: 'planCode',
@@ -331,7 +336,7 @@ const ProductionExecutionListing = () => {
               `PP-${row.original.productionPlanId ?? row.original.id}`}
           </button>
         ),
-        size: 145,
+        size: 130,
       },
       {
         id: 'productionDate',
@@ -349,7 +354,7 @@ const ProductionExecutionListing = () => {
             <span>{formatDateDisplay(row.original.productionDate)}</span>
           </div>
         ),
-        size: 135,
+        size: 120,
       },
       {
         id: 'mealTypeName',
@@ -369,7 +374,7 @@ const ProductionExecutionListing = () => {
             </span>
           </div>
         ),
-        size: 125,
+        size: 110,
       },
       {
         id: 'kitchenName',
@@ -382,11 +387,11 @@ const ProductionExecutionListing = () => {
           />
         ),
         cell: ({ row }) => (
-          <span className="block px-2 text-xs text-gray-800 font-medium">
+          <span className="block px-2 text-xs text-gray-800 font-medium truncate">
             {row.original.kitchenName || row.original.kitchenLocationName || '—'}
           </span>
         ),
-        size: 165,
+        size: 130,
       },
       {
         id: 'supervisorName',
@@ -403,7 +408,7 @@ const ProductionExecutionListing = () => {
             {row.original.supervisorName || row.original.supervisor || '—'}
           </span>
         ),
-        size: 140,
+        size: 110,
       },
       {
         id: 'progressPct',
@@ -420,7 +425,7 @@ const ProductionExecutionListing = () => {
           const isDone = pct === 100 || String(row.original.status).toUpperCase() === 'COMPLETED';
           return (
             <div className="px-2 flex items-center gap-2">
-              <div className="w-20 bg-gray-100 rounded-full h-1.5 overflow-hidden shrink-0">
+              <div className="w-16 bg-gray-100 rounded-full h-1.5 overflow-hidden shrink-0">
                 <div
                   className={`h-full rounded-full transition-all ${
                     isDone ? 'bg-emerald-500' : 'bg-[#084E92]'
@@ -432,7 +437,7 @@ const ProductionExecutionListing = () => {
             </div>
           );
         },
-        size: 135,
+        size: 105,
       },
       {
         id: 'status',
@@ -444,12 +449,27 @@ const ProductionExecutionListing = () => {
             className="text-[#43474F] font-semibold uppercase text-xs"
           />
         ),
-        cell: ({ row }) => (
-          <div className="px-2">
-            <StatusBadge status={row.original.status || 'NOT_STARTED'} />
-          </div>
-        ),
-        size: 130,
+        cell: ({ row }) => {
+          const rawStatus = String(row.original.status || 'DRAFT')
+            .toUpperCase()
+            .replace(/[\s-]/g, '_');
+          let color = 'text-slate-600';
+          if (['COMPLETED', 'CONFIRMED', 'APPROVED'].includes(rawStatus)) {
+            color = 'text-emerald-600';
+          } else if (['IN_PROGRESS'].includes(rawStatus)) {
+            color = 'text-[#084E92]';
+          } else if (['DRAFT', 'PENDING', 'NOT_STARTED'].includes(rawStatus)) {
+            color = 'text-amber-600';
+          } else if (['CANCELLED', 'FAILED', 'SHORTFALL'].includes(rawStatus)) {
+            color = 'text-rose-600';
+          }
+          return (
+            <span className={`block px-2 text-xs font-bold uppercase tracking-wider ${color}`}>
+              {rawStatus.replace(/_/g, ' ')}
+            </span>
+          );
+        },
+        size: 95,
       },
       {
         id: 'actions',
@@ -480,7 +500,7 @@ const ProductionExecutionListing = () => {
             </div>
           );
         },
-        size: 115,
+        size: 95,
         enableSorting: false,
       },
     ],
@@ -560,13 +580,9 @@ const ProductionExecutionListing = () => {
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
-                  type="number"
-                  min="1"
+                  type="text"
                   value={planInput}
                   onChange={(e) => setPlanInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleApplyFilters();
-                  }}
                   placeholder="Plan ID..."
                   className="w-full h-10 pl-8 pr-3 bg-white border border-[#C3C6D1] rounded-xl text-xs font-medium text-slate-900 focus:border-[#084E92] focus:outline-none"
                 />
@@ -625,6 +641,8 @@ const ProductionExecutionListing = () => {
                   setFilters((prev) => ({
                     ...prev,
                     productionDate: e.target.value,
+                    fromDate: '',
+                    toDate: '',
                     page: 0,
                   }))
                 }
@@ -650,6 +668,7 @@ const ProductionExecutionListing = () => {
                         prev.toDate && e.target.value && e.target.value > prev.toDate
                           ? ''
                           : prev.toDate,
+                      productionDate: '',
                       page: 0,
                     }))
                   }
@@ -668,6 +687,7 @@ const ProductionExecutionListing = () => {
                     setFilters((prev) => ({
                       ...prev,
                       toDate: e.target.value,
+                      productionDate: '',
                       page: 0,
                     }))
                   }
@@ -676,7 +696,7 @@ const ProductionExecutionListing = () => {
               </div>
             </div>
 
-            {/* Status & Actions */}
+            {/* Status & Reset */}
             <div className="lg:col-span-2">
               <label className="text-xs font-semibold text-slate-700 block mb-1.5">
                 Status
@@ -706,14 +726,6 @@ const ProductionExecutionListing = () => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-
-                <button
-                  type="button"
-                  onClick={handleApplyFilters}
-                  className="h-10 px-3 rounded-xl bg-[#084E92] hover:bg-[#00376C] text-white text-xs font-semibold transition cursor-pointer shrink-0"
-                >
-                  Apply
-                </button>
 
                 <button
                   type="button"
@@ -752,7 +764,6 @@ const ProductionExecutionListing = () => {
               className="rounded-2xl"
               tableLayout={{
                 dense: true,
-                width: 'fixed',
                 cellBorder: true,
                 headerBorder: true,
                 rowBorder: true,
@@ -760,10 +771,9 @@ const ProductionExecutionListing = () => {
             >
               <Card className="rounded-t-none border-t-0 rounded-2xl shadow-none border-0">
                 <CardTable>
-                  <ScrollArea>
+                  <div className="overflow-x-auto">
                     <DataGridTable />
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
+                  </div>
                 </CardTable>
                 <CardFooter className="bg-[#EFF4FF] border-t border-[#C3C6D1] rounded-b-2xl">
                   <DataGridPagination />
