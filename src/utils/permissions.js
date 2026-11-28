@@ -82,6 +82,17 @@ export const PAGE_ALIASES = {
   'proposal management': ['proposal', 'proposals', 'proposal master', 'proposal listing', 'create proposal', 'edit proposal', 'proposal management'],
   'proposal approval': ['proposal approval', 'approve proposal', 'proposal approve', 'approve proposals'],
   'approve proposal': ['proposal approval', 'approve proposal', 'proposal approve', 'approve proposals'],
+
+  // Production Module
+  'production plans': ['production plans', 'production plan', 'production planning', 'plans', 'day wise production plan'],
+  'production plan': ['production plans', 'production plan', 'production planning', 'plans', 'day wise production plan'],
+  'production execution': ['production execution', 'execution', 'production execute'],
+  'store issues': ['store issues', 'store issue', 'store issue confirmation', 'store issue register'],
+  'store issue': ['store issues', 'store issue', 'store issue confirmation', 'store issue register'],
+  'food transfers': ['food transfers', 'food transfer', 'food transfer tracker', 'transfer food'],
+  'food transfer': ['food transfers', 'food transfer', 'food transfer tracker', 'transfer food'],
+  'plate waste': ['plate waste', 'plate waste register', 'plate waste recording', 'plate waste log'],
+  'preparation waste': ['preparation waste', 'prep waste', 'kitchen waste'],
 };
 
 /**

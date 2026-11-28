@@ -538,18 +538,6 @@ export function AppRoutingSetup() {
           <Route path="/menu-item/consumption" element={<MenuItemConsumption />} />
           <Route path="/menu-item/consumption/create" element={<CreateMenuItemConsumption />} />
           <Route path="/menu-item/consumption/edit/:id" element={<CreateMenuItemConsumption />} />
-          <Route
-            path="/menu-item/consumption"
-            element={<MenuItemConsumption />}
-          />
-          <Route
-            path="/menu-item/consumption/create"
-            element={<CreateMenuItemConsumption />}
-          />
-          <Route
-            path="/menu-item/consumption/edit/:id"
-            element={<CreateMenuItemConsumption />}
-          />
           <Route path="/menu-item/recipe" element={<ItemRecipeList />} />
           <Route path="/menu-item/create-recipe" element={<CreateItemRecipe />} />
           <Route path="/menu-item/view-recipe/:id" element={<ViewItemRecipe />} />
@@ -598,6 +586,7 @@ export function AppRoutingSetup() {
           {/* Production Module Screens (UI Only) */}
           <Route path="/production/plans" element={<ProductionPlanListing />} />
           <Route path="/production/plans/create" element={<CreateProductionPlan />} />
+          <Route path="/production/plans/edit/:planId" element={<CreateProductionPlan />} />
           <Route path="/production/plans/:planId/allocation" element={<RecipeAllocation />} />
           <Route path="/production/plans/:planId/sourcing" element={<MaterialSourcing />} />
           <Route path="/production/store-issues" element={<StoreIssueRegister />} />

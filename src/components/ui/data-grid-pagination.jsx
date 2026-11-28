@@ -160,7 +160,7 @@ function DataGridPagination(props) {
             <div className="text-sm text-muted-foreground text-nowrap order-2 sm:order-1">
               {paginationInfo}
             </div>
-            {pageCount > 1 && (
+            {pageCount >= 1 && (
               <div className="flex items-center space-x-1 order-1 sm:order-2">
                 <Button
                   size="sm"
