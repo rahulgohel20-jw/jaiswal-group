@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldAlert, ArrowLeft, Home } from 'lucide-react';
+import { ShieldAlert, ArrowLeft, Home, UtensilsCrossed } from 'lucide-react';
 import { toAbsoluteUrl } from '@/lib/helpers';
+import { isPosUser } from '@/utils/posSso';
 
 export function AccessDenied({ pageTitle = 'This Page' }) {
   const navigate = useNavigate();
+  const isPos = isPosUser();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center py-12">
@@ -35,13 +37,23 @@ export function AccessDenied({ pageTitle = 'This Page' }) {
           Go Back
         </button>
 
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#084E92] text-white text-sm font-medium hover:bg-[#063d73] transition cursor-pointer shadow-sm"
-        >
-          <Home className="w-4 h-4" />
-          Dashboard
-        </Link>
+        {isPos ? (
+          <Link
+            to="/pos"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition cursor-pointer shadow-sm"
+          >
+            <UtensilsCrossed className="w-4 h-4" />
+            Open Cafeteria POS
+          </Link>
+        ) : (
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#084E92] text-white text-sm font-medium hover:bg-[#063d73] transition cursor-pointer shadow-sm"
+          >
+            <Home className="w-4 h-4" />
+            Dashboard
+          </Link>
+        )}
       </div>
     </div>
   );

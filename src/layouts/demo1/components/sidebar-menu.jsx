@@ -20,6 +20,7 @@ import { filterMenuByPermissions } from '@/utils/permissions';
 import { useAuth } from '@/auth/context/auth-context';
 import { buildEventSsoUrl } from '@/utils/eventSso';
 import { buildPosSsoUrl } from '@/utils/posSso';
+import axiosInstance from '@/services/axiosInstance';
 
 export function SidebarMenu() {
   const { pathname } = useLocation();
@@ -101,6 +102,41 @@ export function SidebarMenu() {
     } else {
       const isSsoEvent = item.path === '/events' || (item.isSso && !item.isPosSso && !item.path?.startsWith('/pos'));
       const isSsoPos = item.path === '/pos' || item.isPosSso || item.path?.startsWith('/pos');
+
+      if (isSsoPos) {
+        const handlePosClick = (e) => {
+          e.preventDefault();
+
+          // Build POS SSO URL synchronously with current valid ERP auth session
+          const ssoUrl = buildPosSsoUrl(item.posPath || '/pos');
+
+          // Open tab synchronously on user click to ensure browser popup blocker never triggers
+          window.open(ssoUrl, '_blank', 'noopener,noreferrer');
+        };
+
+        return (
+          <AccordionMenuItem
+            key={index}
+            value={item.path || ''}
+            className="text-md font-medium"
+          >
+            <a
+              href="#"
+              onClick={handlePosClick}
+              className="flex items-center grow gap-2 cursor-pointer"
+            >
+              {item.icon && (
+                <item.icon
+                  data-slot="accordion-menu-icon"
+                  className="!w-5 !h-5 flex-shrink-0"
+                  size={20}
+                />
+              )}
+              <span data-slot="accordion-menu-title">{item.title}</span>
+            </a>
+          </AccordionMenuItem>
+        );
+      }
 
       const handleClick = (e) => {
         if (item.onClick) {

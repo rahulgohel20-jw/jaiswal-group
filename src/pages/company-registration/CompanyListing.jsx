@@ -25,6 +25,7 @@ import { DataGridTable } from '@/components/ui/data-grid-table';
 import { Container } from '@/components/common/container';
 import { usePagePermissions } from '@/utils/permissions';
 import { AccessDenied } from '@/components/common/AccessDenied';
+import { isPosUser, redirectToPosApp } from '@/utils/posSso';
 import { HeaderActionButton } from '@/components/common/HeaderActionButton';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SearchBar } from '@/components/common/SearchBar';
@@ -155,7 +156,15 @@ const CompanyListing = () => {
     }
   };
 
-  useEffect(() => { fetchCompanies(); }, []);
+  useEffect(() => {
+    if (!canView && isPosUser()) {
+      redirectToPosApp('/pos');
+      return;
+    }
+    if (canView) {
+      fetchCompanies();
+    }
+  }, [canView]);
 
   /* ---- view / edit ---- */
   const handleViewClick = async (company) => {
@@ -366,7 +375,12 @@ const CompanyListing = () => {
     getSortedRowModel: getSortedRowModel(),
   });
 
-  if (!canView) return <AccessDenied pageTitle="Companies" />;
+  if (!canView) {
+    if (isPosUser()) {
+      return null;
+    }
+    return <AccessDenied pageTitle="Companies" />;
+  }
 
   return (
     <Container>

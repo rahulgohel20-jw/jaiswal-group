@@ -249,12 +249,16 @@ export const getUserPermissions = (userOrAuth) => {
       return { view: true, add: true, edit: true, delete: true, export: true, hasAccess: true };
     }
 
-    // Default permissions for POS Module (standalone app integration)
+    // Default permissions for Cafeteria POS Module (standalone app integration)
     const isPosRelated = checkList.some((item) => {
       const lk = String(item).trim().toLowerCase();
       return (
         lk.includes('pos') ||
+        lk.includes('cafeteria') ||
         lk === 'pos' ||
+        lk === 'cafeteria pos' ||
+        lk === 'pos terminal' ||
+        lk === 'take order' ||
         lk === 'pos (restaurant)' ||
         lk === 'point of sale' ||
         lk === 'billing terminal' ||
@@ -266,7 +270,7 @@ export const getUserPermissions = (userOrAuth) => {
     });
 
     if (isPosRelated) {
-      return { view: true, add: true, edit: true, delete: true, hasAccess: true };
+      return { view: true, add: true, edit: true, delete: true, export: true, hasAccess: true };
     }
 
     // If no explicit rights and user is Admin, grant full access

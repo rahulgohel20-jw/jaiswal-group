@@ -9,9 +9,10 @@ import {
 } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import { jwtDecode } from 'jwt-decode';
 import { loginUser } from '@/services/apiServices';
-import { redirectToPosApp } from '@/utils/posSso';
+import { isPosUser, redirectToPosApp } from '@/utils/posSso';
+import { orgHierarchyStore } from '@/store/orgHierarchyStore';
+import OrgScopeSelectionStep from './OrgScopeSelectionStep';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -39,12 +40,14 @@ export default function LoginPage() {
     let tokenSubOutletId = null;
     let tokenSubLocationId = null;
     let tokenOutletId = null;
+    let tokenUserType = null;
     try {
       const decoded = jwtDecode(payload.token);
       if (decoded?.organizationId != null) tokenOrgId = Number(decoded.organizationId);
       if (decoded?.outletId != null) tokenOutletId = Number(decoded.outletId);
       if (decoded?.subOutletId != null) tokenSubOutletId = Number(decoded.subOutletId);
       if (decoded?.subLocationId != null) tokenSubLocationId = Number(decoded.subLocationId);
+      if (decoded?.userType != null) tokenUserType = String(decoded.userType).toUpperCase();
     } catch (err) {
       console.error('Failed to decode token claims:', err);
     }
@@ -121,12 +124,12 @@ export default function LoginPage() {
     }
 
     // Seamless POS Navigation: If a POS user logs in from ERP, automatically launch Cafeteria POS terminal
-    if (userType === 'POS') {
+    if (userType === 'POS' || isPosUser(enriched)) {
       redirectToPosApp('/pos');
       return;
     }
 
-    navigate('/dashboard', { replace: true });
+    navigate('/companies', { replace: true });
   };
 
   const handleSubmit = async (e) => {

@@ -71,6 +71,7 @@ import {
   UserCog,
   UserPlus,
   Users,
+  UtensilsCrossed,
   Workflow,
   Briefcase as WorkIcon,
   Zap,
@@ -456,6 +457,12 @@ export const MENU_SIDEBAR = [
     icon: Users,
     path: '/users',
   },
+  {
+    title: 'Cafeteria POS',
+    icon: UtensilsCrossed,
+    path: '/pos',
+    target: '_blank',
+  },
   // {
   //   title: 'Events',
   //   icon: CalendarCheck,
@@ -606,6 +613,12 @@ export const MENU_SIDEBAR_ADMIN = [
     title: 'Dashboard',
     icon: LayoutGrid,
     path: '/',
+  },
+  {
+    title: 'Cafeteria POS',
+    icon: UtensilsCrossed,
+    path: '/pos',
+    target: '_blank',
   },
   // {
   //   title: 'Events',

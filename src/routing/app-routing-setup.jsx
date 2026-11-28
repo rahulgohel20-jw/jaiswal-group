@@ -203,6 +203,28 @@ import GeneralStockLedgerViewDetails from '../pages/inventory/general-stock-ledg
 import EventSsoRedirect from '../pages/event/EventSsoRedirect';
 import PosSsoRedirect from '../pages/pos/PosSsoRedirect';
 
+import CreateKitchenMenuItem from '../pages/menu-item/kitchen-create-menuitem/CreateKitchenMenuItem';
+import KitchenCaptainRecipeList from '../pages/menu-item/kitchen-captain-recipe/KitchenCaptainRecipeList';
+import KitchenMenuItemListing from '../pages/menu-item/kitchen-create-menuitem/KitchenMenuItemListing';
+import KitchenMenuCategory from '../pages/menu-item/kitchen-menu-category/KitchenMenuCategory';
+import VendorPriceAssociation from '../pages/raw-material/raw-material-item-vendor-price/VendorPriceAssociation';
+import CreateItemRecipe from '../pages/menu-item/item-recipe/CreateItemRecipe';
+import ItemRecipeList from '../pages/menu-item/item-recipe/ItemRecipeList';
+import RawMaterialBarcode from '../pages/inventory/raw-material-barcode/RawMaterialBarcode';
+import MenuItemConsumption from '../pages/menu-item/menuitem-consumption/MenuItemConsumption';
+import CreateMenuItemConsumption from '../pages/menu-item/menuitem-consumption/CreateMenuItemConsumption';
+import RawMaterialBatchDetails from '../pages/inventory/batch-details/RawMaterialBatchDetails';
+import BrandUnitMapping from '../pages/raw-material/brand-unit-mapping/BrandUnitMapping';
+import ViewItemRecipe from '../pages/menu-item/item-recipe/ViewItemRecipe';
+import ViewRawMaterialItem from '../pages/raw-material/raw-material-item-master/ViewRawMaterialItem';
+import AssetLocation from '../pages/assest-management/asset-location/AssetLocation';
+import UnAssignedAssets from '../pages/assest-management/unassign-asset/UnAssignedAssets';
+import ListAssetAuditEvent from '../pages/assest-management/asset-audit-event/ListAssetAuditEvent';
+import CreateAuditEvent from '../pages/assest-management/asset-audit-event/CreateAuditEvent';
+import DebitCreditEligibleInvoices from '../pages/purchase-credit-debite-note/DebitCreditEligibleInvoices';
+import DebitCreditNoteListing from '../pages/purchase-credit-debite-note/DebitCreditNoteListing';
+import DebitCreditNoteCreate from '../pages/purchase-credit-debite-note/DebitCreditNoteCreate';
+import DebitCreditNoteDetails from '../pages/purchase-credit-debite-note/DebitCreditNoteDetails';
 
 export function AppRoutingSetup() {
   return (
@@ -210,6 +232,8 @@ export function AppRoutingSetup() {
       <Route element={<GuestOnly />}>
         <Route path="/" element={<LoginPage />} />
         <Route path="/auth/login" element={<LoginPage />} />
+        <Route path="/auth/logout" element={<LoginPage />} />
+        <Route path="/logout" element={<LoginPage />} />
         <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
       </Route>
@@ -233,7 +257,7 @@ export function AppRoutingSetup() {
           <Route path="/events/*" element={<EventSsoRedirect />} />
 
           {/* POS Module SSO Routes */}
-          <Route path="/pos" element={<PosSsoRedirect defaultPath="/" />} />
+          <Route path="/pos" element={<PosSsoRedirect defaultPath="/pos" />} />
           <Route path="/pos/production" element={<PosSsoRedirect defaultPath="/production" />} />
           <Route path="/pos/statistics" element={<PosSsoRedirect defaultPath="/statistics" />} />
           <Route path="/pos/menu" element={<PosSsoRedirect defaultPath="/menu" />} />
