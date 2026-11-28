@@ -826,6 +826,26 @@ export const getAllRawMaterial = (pageOrParams = 1, pageSize = 20, isActive = tr
   }
   return GET('/rawmaterial/get', params);
 };
+
+export const getRawMaterialByCategory = async ({ cat_id_list, page = 0, size = 100, ...rest } = {}) => {
+  const formattedCatList = Array.isArray(cat_id_list) ? cat_id_list.join(',') : cat_id_list;
+  const params = {
+    cat_id_list: formattedCatList,
+    page: page ?? 0,
+    size: size ?? 100,
+    ...rest,
+  };
+  try {
+    return await GET('/rawmaterial/getrawmaterialbycategory', params);
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await GET('/api/rawmaterial/getrawmaterialbycategory', params);
+    }
+    throw err;
+  }
+};
+export const GetRawMaterialByCategory = getRawMaterialByCategory;
+
 //Raw material item Vendor price approval API
 export const getVendorPriceApprovals = (
   pageNo = 1,
@@ -3033,8 +3053,46 @@ export const prefillProductionPlanFromMenu = (payload) => {
 
 export const PrefillProductionPlanFromMenu = prefillProductionPlanFromMenu;
 
-export const saveProductionPlan = (payload) => {
-  return POST('/production-plan/save', payload);
+export const saveProductionPlan = async (payload) => {
+  try {
+    return await POST('/production-plan/save', payload);
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      return await POST('/production-plan/save', payload);
+    }
+    throw err;
+  }
 };
 
 export const SaveProductionPlan = saveProductionPlan;
+
+export const generateProductionPlanStoreIndent = (payload) => {
+  return POST('/production-plan/store-indent/generate', payload);
+};
+
+export const GenerateProductionPlanStoreIndent = generateProductionPlanStoreIndent;
+
+export const saveProductionPlanStoreIndent = (payload) => {
+  return POST('/production-plan/store-indent/save', payload);
+};
+
+export const SaveProductionPlanStoreIndent = saveProductionPlanStoreIndent;
+
+export const getRawMaterialUsage = (payload) => {
+  return POST('/production-plan/raw-material-usage', payload);
+};
+
+export const GetRawMaterialUsage = getRawMaterialUsage;
+
+export const getProductionPlanById = (id) => {
+  return GET(`/production-plan/get/${id}`);
+};
+
+export const GetProductionPlanById = getProductionPlanById;
+
+// ---- Production Plans List APIs ----
+export const getAllProductionPlans = async (payload) => {
+    return await POST('/production-plan/get-all', payload, { skipGlobalToast: true });
+};
+
+export const GetAllProductionPlans = getAllProductionPlans;

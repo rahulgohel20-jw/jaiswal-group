@@ -58,6 +58,10 @@ const STATUS_CONFIG = {
     label: 'Rejected',
     badgeClass: 'bg-rose-50 text-rose-700 border-rose-200',
   },
+  CLOSED: {
+    label: 'Closed',
+    badgeClass: 'bg-slate-100 text-slate-600 border-slate-200',
+  },
 };
 
 const formatDateDot = (d) => {
@@ -213,6 +217,8 @@ const DayWiseProductionPlan = () => {
       }
       if (statusFilter && statusFilter !== 'All Status') {
         payload.status = statusFilter;
+      } else {
+        payload.statuses = ['APPROVED', 'CLOSED'];
       }
 
       const res = await GetAllMenuPlanByDay(payload);
@@ -228,8 +234,16 @@ const DayWiseProductionPlan = () => {
 
       const total = Number(data.totalElements ?? data.total ?? list.length);
 
-      setDayPlans(list);
-      setTotalCount(total);
+      // Only APPROVED and CLOSED menu plans are allowed. Draft and any other statuses are excluded.
+      const filteredList = list.filter((item) => {
+        const s = String(item.planStatus || item.status || item.dayStatus || '').toUpperCase();
+        if (s !== 'APPROVED' && s !== 'CLOSED') return false;
+        if (!statusFilter || statusFilter === 'All Status') return true;
+        return s === statusFilter.toUpperCase();
+      });
+
+      setDayPlans(filteredList);
+      setTotalCount(filteredList.length < list.length ? filteredList.length : total);
     } catch (err) {
       console.error('Failed to load day wise menu plans:', err);
       setDayPlans([]);
@@ -390,67 +404,32 @@ const DayWiseProductionPlan = () => {
         ),
         cell: ({ row }) => (
           <div className="px-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 text-[#084E92] text-xs font-bold border border-blue-100">
+            <span className="text-xs font-semibold text-slate-700">
               {Number(row.original.totalItems ?? 0)} Items
             </span>
           </div>
         ),
-        size: 105,
+        size: 110,
       },
       {
         id: 'status',
-        accessorFn: (row) => row.status,
+        accessorFn: (row) => row.planStatus || row.status || row.dayStatus,
         header: ({ column }) => (
           <DataGridColumnHeader
-            title="Day Status"
+            title="Status"
             column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <div className="px-2">{renderStatusBadge(row.original.status)}</div>
-        ),
-        size: 135,
-        enableSorting: false,
-      },
-      {
-        id: 'planStatus',
-        accessorFn: (row) => row.planStatus,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="Plan Status"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
-          />
-        ),
-        cell: ({ row }) => (
-          <div className="px-2">{renderStatusBadge(row.original.planStatus)}</div>
-        ),
-        size: 135,
-        enableSorting: false,
-      },
-      {
-        id: 'remarks',
-        accessorFn: (row) => row.remarks || row.rejectionReason,
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="Remarks"
-            column={column}
-            className="text-[#43474F] font-semibold uppercase text-xs"
+            className="text-[#43474F] font-semibold uppercase text-xs text-center"
           />
         ),
         cell: ({ row }) => {
-          const text = row.original.remarks || row.original.rejectionReason || '';
+          const raw = row.original.planStatus || row.original.status || row.original.dayStatus || 'APPROVED';
           return (
-            <span
-              title={text || '—'}
-              className="block px-2 text-xs text-slate-600 truncate max-w-[190px]"
-            >
-              {text || '—'}
-            </span>
+            <div className="flex justify-center px-2">
+              {renderStatusBadge(raw)}
+            </div>
           );
         },
-        size: 200,
+        size: 110,
         enableSorting: false,
       },
       {
@@ -459,51 +438,80 @@ const DayWiseProductionPlan = () => {
           <DataGridColumnHeader
             title="Actions"
             column={column}
-            className="py-4 uppercase text-[#43474F] font-semibold"
+            className="py-4 uppercase text-[#43474F] font-semibold text-center"
           />
         ),
-        cell: ({ row }) => (
-          <div className="flex items-center gap-1.5 px-2">
-            <button
-              type="button"
-              onClick={() =>
-                navigate(`/production/menu-planning/details/${row.original.menuPlanId}`, {
-                  state: {
-                    planId: row.original.menuPlanId,
-                    dayId: row.original.id,
-                  },
-                })
-              }
-              className="p-1.5 text-[#084E92] hover:text-[#00376C] hover:bg-blue-50 rounded-lg transition cursor-pointer"
-              title="View Menu Plan Details"
-            >
-              <Eye size={16} />
-            </button>
+        cell: ({ row }) => {
+          const rawStatus = String(
+            row.original.planStatus ||
+            row.original.status ||
+            row.original.dayStatus ||
+            ''
+          ).toUpperCase();
+          const isApproved = rawStatus === 'APPROVED';
+          const isClosed = rawStatus === 'CLOSED';
+          // Closed day wise menu plan will NOT have option for generating production plan
+          const canCreatePlan = isApproved && !isClosed;
 
-            <button
-              type="button"
-              onClick={() =>
-                navigate('/production/plans/create', {
-                  state: {
-                    dayPlan: row.original,
-                    dayId: row.original.id,
-                    menuPlanId: row.original.menuPlanId,
-                    planCode: row.original.planCode,
-                    planDate: row.original.planDate,
-                    organizationId: row.original.organizationId,
-                    organizationName: row.original.organizationName,
-                  },
-                })
-              }
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#084E92] hover:bg-[#00376C] text-white text-[11px] font-semibold transition cursor-pointer whitespace-nowrap"
-              title="Create Production Plan"
-            >
-              <ClipboardPlus size={13} />
-              <span>Create Plan</span>
-            </button>
-          </div>
-        ),
-        size: 165,
+          return (
+            <div className="flex items-center justify-center gap-1.5 px-2">
+              <button
+                type="button"
+                onClick={() =>
+                  navigate(`/production/menu-planning/details/${row.original.menuPlanId}`, {
+                    state: {
+                      planId: row.original.menuPlanId,
+                      dayId: row.original.id,
+                    },
+                  })
+                }
+                className="p-1.5 text-[#084E92] hover:text-[#00376C] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                title="View Menu Plan Details"
+              >
+                <Eye size={16} />
+              </button>
+
+              {canCreatePlan && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate('/production/plans/create', {
+                      state: {
+                        dayPlan: row.original,
+                        dayId: row.original.id,
+                        menuPlanDayId: row.original.id,
+                        menuPlanDayShiftId: row.original.menuPlanDayShiftId || row.original.shiftId || 0,
+                        menuPlanId: row.original.menuPlanId,
+                        mealTypeId: row.original.mealTypeId || 0,
+                        planCode: row.original.planCode,
+                        planDate: row.original.planDate,
+                        organizationId: row.original.organizationId,
+                        organizationName: row.original.organizationName,
+                        subOutletId: row.original.subOutletId || 0,
+                        productionLocationId: row.original.productionLocationId || 0,
+                        storeSubLocationIds: Array.isArray(row.original.storeSubLocationIds)
+                          ? row.original.storeSubLocationIds
+                          : row.original.storeSubLocationId
+                            ? [row.original.storeSubLocationId]
+                            : [0],
+                        storeSubOutletIds: Array.isArray(row.original.storeSubOutletIds)
+                          ? row.original.storeSubOutletIds
+                          : row.original.storeSubOutletId
+                            ? [row.original.storeSubOutletId]
+                            : [0],
+                      },
+                    })
+                  }
+                  className="p-1.5 text-[#084E92] hover:text-[#00376C] hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                  title="Create Production Plan"
+                >
+                  <ClipboardPlus size={16} />
+                </button>
+              )}
+            </div>
+          );
+        },
+        size: 90,
         enableSorting: false,
       },
     ],
@@ -687,12 +695,9 @@ const DayWiseProductionPlan = () => {
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="All Status" className="text-xs">All Status</SelectItem>
-                    <SelectItem value="DRAFT" className="text-xs">Draft</SelectItem>
-                    <SelectItem value="SUBMITTED" className="text-xs">Submitted</SelectItem>
-                    <SelectItem value="PARTIALLY_APPROVED" className="text-xs">Partially Approved</SelectItem>
+                    <SelectItem value="All Status" className="text-xs">All (Approved & Closed)</SelectItem>
                     <SelectItem value="APPROVED" className="text-xs">Approved</SelectItem>
-                    <SelectItem value="REJECTED" className="text-xs">Rejected</SelectItem>
+                    <SelectItem value="CLOSED" className="text-xs">Closed</SelectItem>
                   </SelectContent>
                 </Select>
 

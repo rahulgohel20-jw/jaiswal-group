@@ -32,21 +32,38 @@ export function useServerPagination({ defaultPageSize = 10 } = {}) {
    */
   const updateFromResponse = useCallback(
     (response, fallbackLength = 0) => {
-      const body = response?.data || response || {};
+      const respData = response?.data;
+      const body =
+        respData?.data && typeof respData.data === 'object' && !Array.isArray(respData.data)
+          ? respData.data
+          : respData || response || {};
+
       const total = Number(
         body.totalElements ??
           body.totalRecords ??
+          body.totalCount ??
           body.total ??
+          respData?.totalElements ??
+          respData?.totalRecords ??
+          respData?.totalCount ??
+          respData?.total ??
           (Array.isArray(body.data)
             ? body.data.length
             : Array.isArray(body.content)
             ? body.content.length
+            : Array.isArray(respData?.data)
+            ? respData.data.length
             : fallbackLength) ??
           0
       );
 
       const calculatedPages = Math.max(1, Math.ceil(total / (pagination.pageSize || 10)));
-      const pages = Number(body.totalPages ?? calculatedPages);
+      const pages = Number(
+        body.totalPages ??
+          body.pageCount ??
+          respData?.totalPages ??
+          calculatedPages
+      );
 
       setTotalElements(total);
       setTotalPages(pages);
