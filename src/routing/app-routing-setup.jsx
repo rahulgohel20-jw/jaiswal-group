@@ -183,7 +183,11 @@ import ProductionExecution from '../pages/production/execution/ProductionExecuti
 import ProductionExecutionListing from '../pages/production/execution/ProductionExecutionListing';
 import PreparationWasteEntry from '../pages/production/prep-waste/PreparationWasteEntry';
 import PreparationWasteListing from '../pages/production/prep-waste/PreparationWasteListing';
+import FoodTransferListing from '../pages/production/transfers/FoodTransferListing';
 import FoodTransferTracker from '../pages/production/transfers/FoodTransferTracker';
+import ShiftClosingList from '../pages/production/shift-closing/ShiftClosingList';
+import ShiftClosingForm from '../pages/production/shift-closing/ShiftClosingForm';
+import ProductionCosting from '../pages/production/costing/ProductionCosting';
 import PlateWasteRegister from '../pages/production/plate-waste/PlateWasteRegister';
 import PlateWasteRecording from '../pages/production/plate-waste/PlateWasteRecording';
 import TaskViewDashboard from '../pages/Projectscreen/TaskViewDashboard/TaskViewDashboard';
@@ -593,7 +597,12 @@ export function AppRoutingSetup() {
           <Route path="/production/prep-waste" element={<PreparationWasteListing />} />
           <Route path="/production/prep-waste/create" element={<PreparationWasteEntry />} />
           <Route path="/production/plans/:planId/prep-waste" element={<PreparationWasteEntry />} />
-          <Route path="/production/transfers" element={<FoodTransferTracker />} />
+          <Route path="/production/transfers" element={<FoodTransferListing />} />
+          <Route path="/production/transfers/:stockTransferId" element={<FoodTransferTracker />} />
+          <Route path="/production/shift-closing" element={<ShiftClosingList />} />
+          <Route path="/production/shift-closing/entry" element={<ShiftClosingForm />} />
+          <Route path="/production/costing" element={<ProductionCosting />} />
+          <Route path="/production/plans/:planId/costing" element={<ProductionCosting />} />
           <Route path="/production/plate-waste" element={<PlateWasteRegister />} />
           <Route path="/production/plate-waste/create" element={<PlateWasteRecording />} />
 

@@ -3066,6 +3066,47 @@ export const saveProductionPlan = async (payload) => {
 
 export const SaveProductionPlan = saveProductionPlan;
 
+export const SaveProductionPlanDispatch = (payload) => {
+  return POST('/production-plan/dispatch/dispatch', payload);
+};
+
+export const SaveDraftProductionPlanDispatch = (payload) => {
+  return POST('/production-plan/dispatch/save-draft', payload);
+};
+
+export const GetAllProductionPlanDispatch = (payload) => {
+  return POST('/production-plan/dispatch/list', payload);
+};
+
+export const GetByIdDraftProductionPlanDispatch = (payload) => {
+  return POST('/production-plan/dispatch/get', payload);
+};
+
+// ---- Shift Closing & Leftover Disposition APIs ----
+export const getShiftClosing = (payload) => {
+  return POST('/production-plan/shift-closing/get', payload, { skipGlobalToast: true });
+};
+
+export const saveShiftClosingDraft = (payload) => {
+  return POST('/production-plan/shift-closing/save-draft', payload, { skipGlobalToast: true });
+};
+
+export const submitShiftClosing = (payload) => {
+  return POST('/production-plan/shift-closing/submit', payload, { skipGlobalToast: true });
+};
+
+export const getAllShiftClosings = (payload) => {
+  return POST('/production-plan/shift-closing/list', payload, { skipGlobalToast: true });
+};
+
+export const ProductionCosting = (payload) => {
+  return POST('/production-plan/analytics/costing-summary', payload);
+};
+
+
+
+
+
 export const generateProductionPlanStoreIndent = (payload) => {
   return POST('/production-plan/store-indent/generate', payload);
 };
